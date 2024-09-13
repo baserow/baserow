@@ -2,6 +2,7 @@ import Vue from 'vue'
 
 import Context from '@baserow/modules/core/components/Context'
 import Modal from '@baserow/modules/core/components/Modal'
+import ModalV2 from '@baserow/modules/core/components/ModalV2'
 import Editable from '@baserow/modules/core/components/Editable'
 import Dropdown from '@baserow/modules/core/components/Dropdown'
 import DropdownItem from '@baserow/modules/core/components/DropdownItem'
@@ -63,6 +64,7 @@ import SelectSearch from '@baserow/modules/core/components/SelectSearch'
 function setupVue(Vue) {
   Vue.component('Context', Context)
   Vue.component('Modal', Modal)
+  Vue.component('ModalV2', ModalV2)
   Vue.component('Editable', Editable)
   Vue.component('Dropdown', Dropdown)
   Vue.component('DropdownItem', DropdownItem)

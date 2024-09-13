@@ -1,0 +1,247 @@
+.modalv2 {
+  --modal-max-height: #{$modal-max-height};
+  --modal-topbar-height: #{$modal-topbar-height};
+
+  background-color: $white;
+  position: relative;
+  max-width: 660px;
+  display: flex;
+  flex-direction: column;
+  max-height: $modal-max-height;
+
+  @include elevation($elevation-medium);
+  @include rounded($rounded-md);
+
+  &.modalv2--with-sidebar {
+    max-width: 960px;
+  }
+
+  &.modalv2--fullscreen {
+    max-height: inherit;
+    max-width: inherit;
+    height: 95vh;
+    width: 98vw;
+  }
+
+  &.modalv2--full-height {
+    height: var(--modal-max-height);
+  }
+
+  &.modalv2--large {
+    max-width: 720px;
+  }
+
+  &.modalv2--small {
+    max-width: 520px;
+  }
+
+  &.modalv2--tiny {
+    max-width: 320px;
+  }
+
+  &.modalv2--right {
+    margin-right: 20px;
+
+    @media (max-width: 720px) {
+      max-width: calc(100% - 50px);
+    }
+  }
+}
+
+.modalv2__content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.modalv2__title {
+  margin: 0;
+  border-bottom: 1px solid $palette-neutral-200;
+  word-break: break-word;
+  box-sizing: border-box;
+  padding: 18px 55px 18px 24px;
+  flex-shrink: 0;
+
+  @include flex-align-items;
+
+  &.modal__title--no-padding-left {
+    padding-left: 0;
+  }
+}
+
+.modalv2__header {
+  margin: 0;
+  border-bottom: 1px solid $palette-neutral-200;
+  word-break: break-word;
+  box-sizing: border-box;
+  padding: 18px 55px 18px 24px;
+  flex-shrink: 0;
+
+  @include flex-align-items;
+
+  &.modal__title--no-padding-left {
+    padding-left: 0;
+  }
+}
+
+.modalv2__sidebar {
+  position: relative;
+  background-color: $color-neutral-50;
+  flex: 0 0;
+  overflow-y: auto;
+
+  &.modalv2__sidebar--left {
+    flex-basis: 200px;
+    border-right: 1px solid $color-neutral-200;
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
+  }
+
+  &.modalv2__sidebar--right {
+    flex-basis: 300px;
+    border-left: 1px solid $color-neutral-200;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+  }
+}
+
+.modalv2__close,
+%modalv2-close {
+  @include absolute(19px, 16px, auto, auto);
+
+  font-size: 20px;
+  color: $palette-neutral-700;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: baseline;
+  z-index: 1;
+
+  &:hover {
+    color: $palette-neutral-900;
+  }
+}
+
+.modalv2__collapse {
+  @extend %modal-close;
+
+  margin-right: 4px;
+}
+
+.modalv2__content {
+  padding: 24px;
+  overflow-y: auto;
+  height: 100%;
+  flex: 1;
+  display: flex;
+
+  .modalv2:not(.modalv2--with-header):not(.modalv2--with-right-sidebar) & {
+    padding: 40px 24px 24px;
+  }
+}
+
+.modalv2__footer {
+  border-top: 1px solid $palette-neutral-200;
+  height: 75px;
+  justify-content: flex-end;
+  padding: 0 24px;
+  flex-shrink: 0;
+  margin-top: auto;
+
+  @include flex-align-items(12px);
+}
+
+.modalv2__overlay {
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  z-index: $z-index-modal;
+  background-color: rgba($palette-neutral-900, 0.16);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.modalv2__topbar {
+  height: var(--modal-topbar-height);
+  width: 100%;
+  padding: 12px 24px;
+  border-bottom: 1px solid $palette-neutral-200;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.modalv2__wrapper {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  height: 100%;
+
+  .modalv2--with-topbar & {
+    height: calc(100% - var(--modal-topbar-height));
+  }
+}
+
+.modalv2__topbar-content {
+  min-width: 0;
+  flex-shrink: 1;
+
+  > * {
+    @extend %ellipsis;
+  }
+}
+
+.modalv2__topbar-actions {
+  flex-shrink: 0;
+  margin-left: auto;
+
+  @include flex-align-items(5px);
+}
+
+.modalv2__topbar-icons {
+  @include flex-align-items(2px);
+
+  list-style: none;
+}
+
+.modal__topbar-icon {
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $palette-neutral-700;
+
+  @include rounded($rounded-md);
+
+  &:hover,
+  &--active {
+    background-color: $palette-neutral-100;
+    color: $palette-neutral-900;
+    cursor: pointer;
+  }
+}
+
+.modalv2__topbar-icon-close {
+  color: $palette-neutral-700;
+  cursor: pointer;
+  font-size: 16px;
+
+  &:hover {
+    color: $palette-neutral-900;
+  }
+
+  &::before {
+    content: '';
+    width: 1px;
+    height: 16px;
+    top: 3px;
+    background-color: #ededed;
+    margin-right: 13px;
+    display: inline-block;
+    position: relative;
+  }
+}

@@ -1,0 +1,181 @@
+import { Meta, Story, Props, Canvas } from '@storybook/addon-docs/blocks'
+import { config, withDesign } from 'storybook-addon-designs'
+
+import ModalV2 from '@baserow/modules/core/components/ModalV2'
+
+<Meta
+    title="Baserow/ModalV2"
+    component={ModalV2}
+    parameters={{
+        backgrounds: {
+            default: 'white',
+            values: [
+                { name: 'white', value: '#ffffff' },
+                { name: 'light', value: '#eeeeee' },
+                { name: 'dark', value: '#222222' },
+            ],
+        },
+    }}
+    decorators={[withDesign]}
+    argTypes={{
+        topbar: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        leftSidebar: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        header: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: true,
+        },
+        footer: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: true,
+        },
+        rightSidebar: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        size: {
+            control: {
+                type: 'radio',
+                options: ['tiny', 'small', 'regular', 'large', 'fullscreen'],
+            },
+            defaultValue: 'regular',
+        },
+        canClose: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: true,
+        },
+        closeButton: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: true,
+        },
+        fullHeight: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        'header-content': {
+            defaultValue:
+                '<h2>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem.</h2>',
+        },
+        content: {
+            defaultValue:
+                '<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem.Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem.</p>',
+        },
+        'footer-content': {
+            defaultValue: '<Button>Submit</Button>',
+        },
+        'sidebar-content': {
+            defaultValue:
+                '<div class="modal-sidebar__head"><div class="avatar avatar--rounded avatar--large avatar--blue"><span class="avatar__initials">S</span></div> <div class="modal-sidebar__head-name">Settings</div></div><ul class="modal-sidebar__nav"><li><a class="modal-sidebar__nav-link active"><i class="modal-sidebar__nav-icon iconoir-user"></i>Account</a></li><li><a class="modal-sidebar__nav-link"><i class="modal-sidebar__nav-icon iconoir-lock"></i>Password</a></li><li><a class="modal-sidebar__nav-link"><i class="modal-sidebar__nav-icon iconoir-mail"></i>Email notifications</a></li><li><a class="modal-sidebar__nav-link"><i class="modal-sidebar__nav-icon iconoir-key-alt-plus"></i>Database tokens</a></li><li><a class="modal-sidebar__nav-link"><i class="modal-sidebar__nav-icon iconoir-cancel"></i>Delete account</a></li></ul>',
+        },
+        'topbar-content': {
+            defaultValue: '<h3 class="margin-bottom-0">Any content</h3>',
+        },
+        'topbar-actions': {
+            defaultValue:
+                '<li class="modal__topbar-icon" @click="$refs.modal.collapseRightSidebar()"><i class="iconoir-fast-arrow-right"></i></li><li class="modal__topbar-icon"><i class="iconoir-bell"></i></li><li class="modal__topbar-icon"><i class="iconoir-message"></i></li><li class="modal__topbar-icon"><i class="baserow-icon-more-vertical"></i></li>',
+        },
+    }}
+/>
+
+# Modal
+
+The Modal component is a wrapper that can be used to display a modal dialog to the user.
+
+export const Template = (args, { argTypes }) => ({
+    components: { ModalV2 },
+    props: Object.keys(argTypes),
+    methods: {
+        openModal() {
+            this.$refs.modal.toggle(this.$refs.button)
+        },
+    },
+    template: `<div><ModalV2 ref="modal" v-bind="$props"><template #topbar-content>${args['topbar-content']}</template><template #topbar-actions>${args['topbar-actions']}</template><template #header-content>${args['header-content']}</template><template #content>${args.content}</template><template #footer-content>${args['footer-content']}</template><template #sidebar-content>${args['sidebar-content']}</template></ModalV2><button ref="button" @click="openModal">open modal</button></div>`,
+})
+
+<Canvas>
+    <Story name="Simple" args={{}}>
+        {Template.bind({})}
+    </Story>
+    <Story
+        name="Left sidebar"
+        args={{
+            leftSidebar: true,
+        }}
+    >
+        {Template.bind({})}
+    </Story>
+    <Story
+        name="Right sidebar"
+        args={{
+            rightSidebar: true,
+        }}
+    >
+        {Template.bind({})}
+    </Story>
+    <Story
+        name="Topbar"
+        args={{
+            topbar: true,
+            rightSidebar: true,
+        }}
+    >
+        {Template.bind({})}
+    </Story>
+</Canvas>
+
+## Example
+
+```javascript
+<ModalV2 header footer>
+    <template #topbar-content>
+        <h3>Any content</h3>
+    </template>
+    <template #topbar-actions>
+        <li class="modal__topbar-icon"><i class="iconoir-bell"></i></li>
+        <li class="modal__topbar-icon"><i class="iconoir-message"></i></li>
+        <li class="modal__topbar-icon"><i class="baserow-icon-more-vertical"></i></li>
+    </template>
+    <template #header-content>
+        <h2>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem.</h2>
+    </template>
+    <template #content>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam urna tortor, pharetra sodales risus ac, lobortis imperdiet lorem.</p>
+    </template>
+    <template #footer-content>
+        <Button>Submit</Button>
+    </template>
+</ModalV2>
+```
+
+## Props
+
+<Props of={ModalV2} />

@@ -54,6 +54,10 @@ $api-docs-body-z-index: 2 !default;
 $api-docs-background-z-index: 1 !default;
 $api-docs-breakpoint: 1100px !default;
 
+// Modal
+$modal-max-height: 80vh;
+$modal-topbar-height: 57px;
+
 // file field modal variables
 $file-field-modal-head-height: 62px !default;
 $file-field-modal-body-nav-width: 120px !default;
