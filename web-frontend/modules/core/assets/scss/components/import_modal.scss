@@ -1,19 +1,8 @@
 .import-modal__preview {
-  border: 1px solid $color-neutral-200;
+  border: 1px solid $palette-neutral-400;
   display: inline-block;
   overflow: auto;
   max-width: 100%;
-}
-
-.import-modal__header {
-  @extend %box-title;
-
-  display: flex;
-  align-items: baseline;
-}
-
-.import-modal__title {
-  margin: 0;
 }
 
 .import-modal__field-mapping {
