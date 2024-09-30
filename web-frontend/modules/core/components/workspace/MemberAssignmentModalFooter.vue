@@ -1,23 +1,19 @@
 <template>
-  <div class="row">
-    <div class="col col-6">
-      <Button
-        v-if="toggleEnabled"
-        type="secondary"
-        @click="$emit('toggle-select-all')"
-        >{{ getToggleLabel }}</Button
-      >
-    </div>
-    <div class="col col-6 align-right">
-      <Button
-        type="primary"
-        :disabled="!inviteEnabled"
-        @click="inviteEnabled ? $emit('invite') : null"
-        >{{
-          $t('memberAssignmentModalFooter.invite', { selectedMembersCount })
-        }}
-      </Button>
-    </div>
+  <div>
+    <Button
+      v-if="toggleEnabled"
+      class="margin-right-1"
+      type="secondary"
+      @click="$emit('toggle-select-all')"
+      >{{ getToggleLabel }}</Button
+    >
+
+    <Button
+      type="primary"
+      :disabled="!inviteEnabled"
+      @click="inviteEnabled ? $emit('invite') : null"
+      >{{ $t('memberAssignmentModalFooter.invite', { selectedMembersCount }) }}
+    </Button>
   </div>
 </template>
 

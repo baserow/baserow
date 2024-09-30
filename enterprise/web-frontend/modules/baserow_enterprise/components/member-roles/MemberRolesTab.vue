@@ -1,23 +1,19 @@
 <template>
   <div>
     <div class="member-roles-tab__header">
-      <h2 class="member-roles-tab__header-title">
-        {{
-          $t(`memberRolesTab.${translationPrefix}.title`, { name: scope.name })
-        }}
-      </h2>
       <div>
-        <HelpIcon
-          :tooltip="$t(`memberRolesTab.${translationPrefix}.headerTooltip`)"
-          class="margin-right-1"
-        ></HelpIcon>
         <Button
           type="secondary"
+          class="margin-right-1"
           :disabled="loading"
           :loading="loading"
           @click="loading ? null : $refs.roleAssignmentModal.show()"
           >{{ $t(`memberRolesTab.${translationPrefix}.selectMembers`) }}</Button
         >
+
+        <HelpIcon
+          :tooltip="$t(`memberRolesTab.${translationPrefix}.headerTooltip`)"
+        ></HelpIcon>
       </div>
     </div>
     <div v-if="loading" class="loading"></div>

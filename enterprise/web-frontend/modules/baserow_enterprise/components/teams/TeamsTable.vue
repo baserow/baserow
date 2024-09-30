@@ -194,7 +194,7 @@ export default {
 
       const action = row.id === this.focusedTeam.id ? 'toggle' : 'show'
       this.focusedTeam = row
-      this.$refs.editTeamContext[action](target, 'bottom', 'left', 4)
+      this.$refs.editTeamContext[action](target, 'bottom', 'right', 0)
     },
     onEditRoleContext({ row, target }) {
       const action = row.id === this.editRoleTeam.id ? 'toggle' : 'show'

@@ -1,32 +1,50 @@
 <template>
-  <Modal>
-    <h2 class="margin-bottom-1">
-      {{ $t('updateTeamModal.title', { teamName: team.name }) }}
-    </h2>
-    <p>{{ $t('manageTeamModals.subheading') }}</p>
-    <Error :error="error"></Error>
-    <ManageTeamForm
-      ref="manageForm"
-      :workspace="workspace"
-      :loading="loading"
-      :default-values="team"
-      :subjects-loading="subjectsLoading"
-      :invited-user-subjects="invitedUserSubjects"
-      @submitted="updateTeam"
-      @remove-subject="removeSubject"
-      @invite="$refs.memberAssignmentModal.show()"
-    >
-    </ManageTeamForm>
-    <MemberAssignmentModal
-      ref="memberAssignmentModal"
-      :members="uninvitedUserSubjects"
-      @invite="storeSelectedUsers"
-    />
-  </Modal>
+  <ModalV2>
+    <template #header-content>
+      <h2>
+        {{ $t('updateTeamModal.title', { teamName: team.name }) }}
+      </h2>
+      <p>{{ $t('manageTeamModals.subheading') }}</p>
+    </template>
+
+    <template #content>
+      <Error :error="error"></Error>
+      <ManageTeamForm
+        ref="manageForm"
+        :workspace="workspace"
+        :loading="loading"
+        :default-values="team"
+        :subjects-loading="subjectsLoading"
+        :invited-user-subjects="invitedUserSubjects"
+        @submitted="updateTeam"
+        @remove-subject="removeSubject"
+        @invite="$refs.memberAssignmentModal.show()"
+        @update-values="formValues = $event"
+      >
+      </ManageTeamForm>
+      <MemberAssignmentModal
+        ref="memberAssignmentModal"
+        :members="uninvitedUserSubjects"
+        @invite="storeSelectedUsers"
+      />
+    </template>
+
+    <template #footer-content>
+      <Button
+        tag="a"
+        type="primary"
+        :disabled="loading"
+        :loading="loading"
+        @click="updateTeam"
+      >
+        {{ $t('manageTeamForm.submit') }}</Button
+      >
+    </template>
+  </ModalV2>
 </template>
 
 <script>
-import modal from '@baserow/modules/core/mixins/modal'
+import modalv2 from '@baserow/modules/core/mixins/modalv2'
 import error from '@baserow/modules/core/mixins/error'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
@@ -38,7 +56,7 @@ export {}
 export default {
   name: 'UpdateTeamModal',
   components: { ManageTeamForm, MemberAssignmentModal },
-  mixins: [modal, error],
+  mixins: [modalv2, error],
   props: {
     team: {
       type: Object,
@@ -55,6 +73,11 @@ export default {
       loading: false,
       subjectsLoading: false,
       invitedUserSubjects: [],
+      formValues: {
+        name: '',
+        default_role: '',
+        subjects: [],
+      },
     }
   },
   computed: {
@@ -71,7 +94,7 @@ export default {
     show(...args) {
       this.hideError()
       this.parseSubjectsAndMembers()
-      modal.methods.show.bind(this)(...args)
+      modalv2.methods.show.bind(this)(...args)
     },
     removeSubject(removal) {
       // Remove them as an invited subject.
@@ -106,7 +129,8 @@ export default {
       // Merge the new members into `invitedUserSubjects`.
       this.invitedUserSubjects = this.invitedUserSubjects.concat(selections)
     },
-    async updateTeam(values) {
+    async updateTeam() {
+      const values = this.formValues
       this.loading = true
 
       try {

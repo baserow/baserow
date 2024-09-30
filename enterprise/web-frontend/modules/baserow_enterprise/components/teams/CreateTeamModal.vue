@@ -1,28 +1,45 @@
 <template>
-  <Modal>
-    <h2 class="margin-bottom-1">{{ $t('createTeamModal.title') }}</h2>
-    <p>{{ $t('manageTeamModals.subheading') }}</p>
-    <Error :error="error"></Error>
-    <ManageTeamForm
-      ref="manageForm"
-      :workspace="workspace"
-      :loading="loading"
-      :invited-user-subjects="invitedUserSubjects"
-      @submitted="createTeam"
-      @remove-subject="removeSubject"
-      @invite="$refs.memberAssignmentModal.show()"
-    >
-    </ManageTeamForm>
-    <MemberAssignmentModal
-      ref="memberAssignmentModal"
-      :members="uninvitedUserSubjects"
-      @invite="storeSelectedUsers"
-    />
-  </Modal>
+  <ModalV2>
+    <template #header-content>
+      <h2 class="margin-bottom-1">{{ $t('createTeamModal.title') }}</h2>
+      <p>{{ $t('manageTeamModals.subheading') }}</p>
+    </template>
+
+    <template #content>
+      <Error :error="error"></Error>
+      <ManageTeamForm
+        ref="manageForm"
+        :workspace="workspace"
+        :loading="loading"
+        :invited-user-subjects="invitedUserSubjects"
+        @submitted="createTeam"
+        @remove-subject="removeSubject"
+        @invite="$refs.memberAssignmentModal.show()"
+      >
+      </ManageTeamForm>
+      <MemberAssignmentModal
+        ref="memberAssignmentModal"
+        :members="uninvitedUserSubjects"
+        @invite="storeSelectedUsers"
+      />
+    </template>
+
+    <template #footer-content>
+      <Button
+        tag="a"
+        type="primary"
+        :disabled="loading"
+        :loading="loading"
+        @click="createTeam"
+      >
+        {{ $t('manageTeamForm.submit') }}</Button
+      >
+    </template>
+  </ModalV2>
 </template>
 
 <script>
-import modal from '@baserow/modules/core/mixins/modal'
+import modalv2 from '@baserow/modules/core/mixins/modalv2'
 import error from '@baserow/modules/core/mixins/error'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
@@ -32,7 +49,7 @@ import MemberAssignmentModal from '@baserow/modules/core/components/workspace/Me
 export default {
   name: 'CreateTeamModal',
   components: { ManageTeamForm, MemberAssignmentModal },
-  mixins: [modal, error],
+  mixins: [modalv2, error],
   props: {
     workspace: {
       type: Object,
@@ -60,7 +77,7 @@ export default {
       this.hideError()
       // Reset the array of invited subjects.
       this.invitedUserSubjects = []
-      modal.methods.show.bind(this)(...args)
+      modalv2.methods.show.bind(this)(...args)
     },
     removeSubject(removal) {
       // Remove them as an invited subject.
