@@ -10,6 +10,8 @@ export function populatePage(page) {
       selected: false,
       dataSourceContentLoading: false,
       dataSourceLoading: false,
+      elementsLoaded: false,
+      workflowActionsLoaded: false,
     },
     dataSources: [],
     elements: [],

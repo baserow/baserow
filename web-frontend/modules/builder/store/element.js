@@ -131,11 +131,15 @@ const mutations = {
   SET_REPEAT_ELEMENT_COLLAPSED(state, { element, collapsed }) {
     element._.collapsed = collapsed
   },
+  SET_ELEMENTS_LOADED(state, { page, value }) {
+    page._.elementsLoaded = value
+  },
 }
 
 const actions = {
   clearAll({ commit }, { page }) {
     commit('CLEAR_ITEMS', { page })
+    commit('SET_ELEMENTS_LOADED', { page, value: false })
   },
   forceCreate({ dispatch, commit }, { page, element }) {
     commit('ADD_ITEM', { page, element })
@@ -348,12 +352,17 @@ const actions = {
 
     return elements
   },
-  async fetchPublished({ dispatch, commit }, { page }) {
+  async fetchPublished({ dispatch, commit, getters }, { page, force = false }) {
+    const elementsLoaded = getters.getElementsLoaded(page)
+    if (elementsLoaded && !force) {
+      return getters.getElementsOrdered(page)
+    }
     const { data: elements } = await PublicBuilderService(
       this.$client
     ).fetchElements(page)
 
     commit('SET_ITEMS', { page, elements })
+    commit('SET_ELEMENTS_LOADED', { page, value: true })
 
     // Set the element namespace ath of all published elements we've fetched.
     await Promise.all(
@@ -632,6 +641,9 @@ const getters = {
   },
   getRepeatElementCollapsed: (state) => (element) => {
     return element._.collapsed
+  },
+  getElementsLoaded: (state) => (page) => {
+    return page._.elementsLoaded
   },
 }
 

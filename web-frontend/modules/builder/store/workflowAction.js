@@ -68,6 +68,9 @@ const mutations = {
     workflowAction._.dispatchedById = dispatchedById
     workflowAction._.dispatching = isDispatching
   },
+  SET_WORKFLOW_ACTIONS_LOADED(state, { page, value }) {
+    page._.workflowActionsLoaded = value
+  },
 }
 
 const actions = {
@@ -105,12 +108,17 @@ const actions = {
 
     commit('SET_ITEMS', { page, workflowActions })
   },
-  async fetchPublished({ commit }, { page }) {
+  async fetchPublished({ commit, getters }, { page, force = false }) {
+    const workflowActionsLoaded = getters.getWorkflowActionsLoaded(page)
+    if (workflowActionsLoaded && !force) {
+      return
+    }
     const { data: workflowActions } = await PublishedBuilderService(
       this.$client
     ).fetchWorkflowActions(page.id)
 
     commit('SET_ITEMS', { page, workflowActions })
+    commit('SET_WORKFLOW_ACTIONS_LOADED', { page, value: true })
   },
   async delete({ dispatch }, { page, workflowAction }) {
     dispatch('forceDelete', { page, workflowActionId: workflowAction.id })
@@ -274,6 +282,9 @@ const getters = {
       workflowAction._.dispatching &&
       workflowAction._.dispatchedById === dispatchedById
     )
+  },
+  getWorkflowActionsLoaded: (state) => (page) => {
+    return page._.workflowActionsLoaded
   },
 }
 

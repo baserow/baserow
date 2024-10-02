@@ -364,19 +364,31 @@ export default {
       },
     },
     async isAuthenticated(newIsAuthenticated) {
+      // Clear all other page elements.
+      await Promise.all(
+        this.$store.getters['page/getAll'](this.builder).map(async (page) => {
+          if (page.id !== this.page.id) {
+            await this.$store.dispatch('element/clearAll', { page })
+          }
+        })
+      )
       // When the user login or logout, we need to refetch the elements and actions
       // as they might have changed
       await this.$store.dispatch('element/fetchPublished', {
         page: this.sharedPage,
+        force: true,
       })
       await this.$store.dispatch('element/fetchPublished', {
         page: this.currentPage,
+        force: true,
       })
       await this.$store.dispatch('workflowAction/fetchPublished', {
         page: this.currentPage,
+        force: true,
       })
       await this.$store.dispatch('workflowAction/fetchPublished', {
         page: this.sharedPage,
+        force: true,
       })
 
       if (newIsAuthenticated) {
