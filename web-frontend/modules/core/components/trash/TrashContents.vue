@@ -1,24 +1,5 @@
 <template>
-  <div>
-    <div class="trash__title">
-      <div class="trash__title-left">
-        <h2 class="trash__title-heading">{{ title }}</h2>
-        <div class="trash__title-description">
-          {{ $t('trashContents.message', { duration: trashDuration }) }}
-        </div>
-      </div>
-      <div class="trash__title-right">
-        <Button
-          v-show="totalServerSideTrashContentsCount > 0 && !parentIsTrashed"
-          type="danger"
-          :loading="loadingContents"
-          :disabled="loadingContents"
-          @click="showEmptyModalIfNotLoading"
-        >
-          {{ emptyButtonText }}</Button
-        >
-      </div>
-    </div>
+  <div class="trash__wrapper">
     <div v-if="loadingContents" class="loading-overlay"></div>
     <div
       v-else-if="totalServerSideTrashContentsCount === 0"
@@ -34,6 +15,7 @@
         :max-count="totalServerSideTrashContentsCount"
         :current-count="trashContents.length"
         :loading="loadingNextPage"
+        :render-end="false"
         @load-next-page="$emit('load-next-page', $event)"
       >
         <template #default>
@@ -45,16 +27,8 @@
             @restore="$emit('restore', $event)"
           ></TrashEntry>
         </template>
-        <template #end> <div class="trash__end-line"></div> </template>
       </InfiniteScroll>
     </div>
-    <TrashEmptyModal
-      ref="emptyModal"
-      :name="title"
-      :loading="loadingContents"
-      :selected-is-trashed="selectedItem.trashed"
-      @empty="$emit('empty')"
-    ></TrashEmptyModal>
   </div>
 </template>
 
@@ -70,14 +44,12 @@
  * contents.
  */
 
-import moment from '@baserow/modules/core/moment'
 import TrashEntry from '@baserow/modules/core/components/trash/TrashEntry'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
-import TrashEmptyModal from '@baserow/modules/core/components/trash/TrashEmptyModal'
 
 export default {
   name: 'TrashContents',
-  components: { InfiniteScroll, TrashEntry, TrashEmptyModal },
+  components: { InfiniteScroll, TrashEntry },
   mixins: [],
   props: {
     selectedTrashWorkspace: {
@@ -123,15 +95,6 @@ export default {
         ? 'workspace'
         : 'application'
     },
-    title() {
-      const title = this.selectedItem.name
-      return title === ''
-        ? this.$t('trashContents.unnamed', {
-            type: this.$t('trashType.' + this.selectedItemType),
-            id: this.selectedItem.id,
-          })
-        : title
-    },
     emptyButtonText() {
       if (this.selectedItem.trashed) {
         return this.$t('trashContents.emptyButtonTrashed', {
@@ -143,17 +106,8 @@ export default {
         })
       }
     },
-    trashDuration() {
-      const hours = this.$config.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED
-      return moment().subtract(hours, 'hours').fromNow(true)
-    },
   },
   methods: {
-    showEmptyModalIfNotLoading() {
-      if (!this.loadingContents) {
-        this.$refs.emptyModal.show()
-      }
-    },
     shouldTrashEntryBeDisabled(entry) {
       const entryIsForSelectedItem =
         entry.trash_item_id === this.selectedItem.id &&

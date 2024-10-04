@@ -78,8 +78,14 @@
   box-sizing: border-box;
   padding: 18px 55px 18px 24px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 
-  @include flex-align-items;
+  h2,
+  p {
+    margin: 0;
+  }
 
   &.modal__title--no-padding-left {
     padding-left: 0;
@@ -132,9 +138,14 @@
 .modalv2__content {
   padding: 24px;
   overflow-y: auto;
+  position: relative;
   height: 100%;
   flex: 1;
   display: block;
+
+  .modalv2--no-content-padding & {
+    padding: 0;
+  }
 
   .modalv2:not(.modalv2--with-header):not(.modalv2--with-right-sidebar) & {
     padding: 40px 24px 24px;

@@ -19,6 +19,7 @@
         'modalv2--large': size === 'large',
         'modalv2--small': size === 'small',
         'modalv2--tiny': size === 'tiny',
+        'modalv2--no-content-padding': noContentPadding,
       }"
     >
       <div v-if="topbar" class="modalv2__topbar">
@@ -152,6 +153,14 @@ export default {
      * If the modal is full height.
      */
     fullHeight: {
+      type: Boolean,
+      default: false,
+      required: false,
+    },
+    /**
+     * If true, the content container will not have padding.
+     */
+    noContentPadding: {
       type: Boolean,
       default: false,
       required: false,

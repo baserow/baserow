@@ -1,3 +1,9 @@
+.trash__wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .trash-sidebar__workspaces {
   list-style: none;
   margin: 0;
@@ -113,7 +119,11 @@
 
 .trash__empty {
   text-align: center;
-  margin: 60px 0 30px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .trash__empty-icon {
@@ -128,7 +138,6 @@
 }
 
 .trash__entries {
-  @include absolute(106px, 0, 0, 0);
 }
 
 .trash__end-line {
