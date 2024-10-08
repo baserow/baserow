@@ -229,7 +229,7 @@ export default {
       }
     }
 
-    await DataProviderType.initAll($registry.getAll('builderDataProvider'), {
+    DataProviderType.initAll($registry.getAll('builderDataProvider'), {
       builder,
       page,
       pageParamsValue,

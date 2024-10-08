@@ -1,3 +1,9 @@
+@keyframes shine {
+  to {
+    background-position-x: -200%;
+  }
+}
+
 .element__wrapper {
   background-color: var(--element-background-color, transparent);
   background-image: var(--element-background-image, none);
@@ -5,10 +11,11 @@
   background-repeat: var(--element-background-repeat, no-repeat);
   margin: 0 auto;
   max-width: $builder-page-max-width;
+  position: relative;
 
   // We use padding here as margin to prevent margin collapsing
-  padding: var(--element-margin-top, 0) var(--element-margin-right, 0)
-    var(--element-margin-bottom, 0) var(--element-margin-left, 0);
+  padding: var(--element-margin-top, 0) var(--element-margin-right, 0) var(--element-margin-bottom, 0)
+    var(--element-margin-left, 0);
 
   &--full-bleed {
     max-width: 100%;
@@ -25,6 +32,17 @@
   &--small-width {
     max-width: 680px;
   }
+
+  &--loading::after {
+    content: '';
+    position: absolute;
+    inset: 10px;
+    border-radius: 5px;
+    pointer-events: none;
+    background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+    background-size: 200% 100%;
+    animation: 1.5s shine linear infinite;
+  }
 }
 
 .element__inner-wrapper {
@@ -32,8 +50,8 @@
   border-bottom: var(--element-border-bottom, none);
   border-left: var(--element-border-left, none);
   border-right: var(--element-border-right, none);
-  padding: var(--element-padding-top, 0) var(--element-padding-right, 0)
-    var(--element-padding-bottom, 0) var(--element-padding-left, 0);
+  padding: var(--element-padding-top, 0) var(--element-padding-right, 0) var(--element-padding-bottom, 0)
+    var(--element-padding-left, 0);
   margin: 0 auto;
   max-width: $builder-page-max-width;
 
@@ -43,7 +61,9 @@
 }
 
 .element {
-  // Placeholder for element styles
+  .element__wrapper--loading & {
+    visibility: hidden;
+  }
 }
 
 .element--no-value {

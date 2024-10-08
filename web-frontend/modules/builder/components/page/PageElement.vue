@@ -11,6 +11,8 @@
         element.style_width === WIDTH_TYPES.MEDIUM.value,
       'element__wrapper--small-width':
         element.style_width === WIDTH_TYPES.SMALL.value,
+      'element__wrapper--loading':
+        !elementType.isContainerElement && dataSourceLoading,
     }"
     :style="elementStyles"
   >
@@ -71,6 +73,12 @@ export default {
     WIDTH_TYPES: () => WIDTH_TYPES,
     colorVariables() {
       return themeToColorVariables(this.builder.theme)
+    },
+    dataSourceLoading() {
+      return this.$store.getters['dataSourceContent/getLoading'](this.page)
+    },
+    elementType() {
+      return this.$registry.get('element', this.element.type)
     },
     elementMode() {
       return this.forceMode !== null ? this.forceMode : this.mode
