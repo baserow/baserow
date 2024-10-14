@@ -5,6 +5,7 @@ import TableTemplate from '@baserow/modules/database/components/table/TableTempl
 import { populateTable } from '@baserow/modules/database/store/table'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
 import DatabaseForm from '@baserow/modules/database/components/form/DatabaseForm'
+import DatabaseFormFooter from '@baserow/modules/database/components/form/DatabaseFormFooter'
 import ApplicationContext from '@baserow/modules/database/components/application/ApplicationContext'
 
 export class DatabaseApplicationType extends ApplicationType {
@@ -153,6 +154,10 @@ export class DatabaseApplicationType extends ApplicationType {
 
   getApplicationFormComponent() {
     return DatabaseForm
+  }
+
+  getApplicationFormFooterComponent() {
+    return DatabaseFormFooter
   }
 
   getOrder() {

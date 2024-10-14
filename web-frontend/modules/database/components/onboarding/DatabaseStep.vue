@@ -26,22 +26,22 @@
         <template #error>{{ $t('error.requiredField') }}</template>
       </FormGroup>
     </template>
-    <AirtableImportForm
+    <ImportFromAirtable
       v-if="selectedType === 'airtable'"
       ref="airtable"
       @input=";[(airtableUrl = $event), updateValue()]"
-    ></AirtableImportForm>
+    ></ImportFromAirtable>
   </div>
 </template>
 
 <script>
 import { requiredIf } from 'vuelidate/lib/validators'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
-import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm.vue'
+import ImportFromAirtable from '@baserow/modules/database/components/airtable/ImportFromAirtable'
 
 export default {
   name: 'DatabaseStep',
-  components: { AirtableImportForm, SegmentControl },
+  components: { ImportFromAirtable, SegmentControl },
   data() {
     return {
       types: [

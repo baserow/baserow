@@ -1,19 +1,9 @@
 <template>
   <ApplicationForm
+    ref="applicationForm"
     :default-values="{ name: defaultName }"
     @submitted="$emit('submitted', $event)"
   >
-    <div class="actions actions--right">
-      <Button
-        type="primary"
-        size="large"
-        :loading="loading"
-        :disabled="loading"
-      >
-        {{ $t('action.add') }}
-        {{ dashboardApplicationType.getName() | lowercase }}
-      </Button>
-    </div>
   </ApplicationForm>
 </template>
 
@@ -36,6 +26,11 @@ export default {
   computed: {
     dashboardApplicationType() {
       return this.$registry.get('application', 'dashboard')
+    },
+  },
+  methods: {
+    submit() {
+      this.$refs.applicationForm.submit()
     },
   },
 }

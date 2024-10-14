@@ -1,5 +1,6 @@
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import BuilderForm from '@baserow/modules/builder/components/form/BuilderForm'
+import BuilderFormFooter from '@baserow/modules/builder/components/form/BuilderFormFooter'
 import SidebarComponentBuilder from '@baserow/modules/builder/components/sidebar/SidebarComponentBuilder'
 import { populatePage } from '@baserow/modules/builder/store/page'
 import PageTemplate from '@baserow/modules/builder/components/page/PageTemplate'
@@ -42,6 +43,10 @@ export class BuilderApplicationType extends ApplicationType {
 
   getApplicationFormComponent() {
     return BuilderForm
+  }
+
+  getApplicationFormFooterComponent() {
+    return BuilderFormFooter
   }
 
   getSidebarComponent() {

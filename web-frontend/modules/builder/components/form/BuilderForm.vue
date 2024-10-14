@@ -1,18 +1,9 @@
 <template>
   <ApplicationForm
+    ref="applicationForm"
     :default-values="{ name: defaultName }"
     @submitted="$emit('submitted', $event)"
   >
-    <div class="actions actions--right">
-      <Button
-        type="primary"
-        size="large"
-        :loading="loading"
-        :disabled="loading"
-      >
-        {{ $t('builderForm.submit') }}
-      </Button>
-    </div>
   </ApplicationForm>
 </template>
 
@@ -29,6 +20,11 @@ export default {
     loading: {
       type: Boolean,
       required: true,
+    },
+  },
+  methods: {
+    submit() {
+      this.$refs.applicationForm.submit()
     },
   },
 }
