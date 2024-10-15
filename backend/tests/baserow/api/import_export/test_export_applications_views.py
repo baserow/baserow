@@ -15,6 +15,7 @@ from rest_framework.status import (
 )
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db
 @override_settings(
     FEATURE_FLAGS="",
@@ -39,6 +40,7 @@ def test_exporting_workspace_with_feature_flag_disabled(
     assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db
 def test_exporting_missing_workspace_returns_error(data_fixture, api_client, tmpdir):
     user, token = data_fixture.create_user_and_token()
@@ -48,7 +50,7 @@ def test_exporting_missing_workspace_returns_error(data_fixture, api_client, tmp
     response = api_client.post(
         reverse(
             "api:workspaces:export_workspace_async",
-            kwargs={"workspace_id": 9999},
+            kwargs={"workspace_id": 999999},
         ),
         data={},
         format="json",
@@ -59,6 +61,7 @@ def test_exporting_missing_workspace_returns_error(data_fixture, api_client, tmp
     assert response.json()["error"] == "ERROR_GROUP_DOES_NOT_EXIST"
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db
 def test_exporting_workspace_with_no_permissions_returns_error(
     data_fixture, api_client, tmpdir
@@ -82,6 +85,7 @@ def test_exporting_workspace_with_no_permissions_returns_error(
     assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db
 def test_exporting_workspace_with_application_without_permissions_returns_error(
     data_fixture, api_client, tmpdir
@@ -108,6 +112,7 @@ def test_exporting_workspace_with_application_without_permissions_returns_error(
     assert response.json()["error"] == "PERMISSION_DENIED"
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_exporting_empty_workspace(
     data_fixture,
@@ -177,6 +182,7 @@ def test_exporting_empty_workspace(
             assert len(json_data) == 0
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_exporting_workspace_with_single_empty_database(
     data_fixture,
@@ -255,6 +261,7 @@ def test_exporting_workspace_with_single_empty_database(
             ]
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db
 @override_settings(
     FEATURE_FLAGS="",
@@ -277,10 +284,9 @@ def test_list_exports_with_feature_flag_disabled(data_fixture, api_client, tmpdi
     assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db
-def test_list_exports_with_missing_workspace_returns_error(
-    data_fixture, api_client, tmpdir
-):
+def test_list_exports_with_missing_workspace(data_fixture, api_client, tmpdir):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     data_fixture.create_database_application(workspace=workspace)
@@ -288,7 +294,7 @@ def test_list_exports_with_missing_workspace_returns_error(
     response = api_client.get(
         reverse(
             "api:workspaces:export_workspace_list",
-            kwargs={"workspace_id": 9999},
+            kwargs={"workspace_id": 999999},
         ),
         data={},
         format="json",
@@ -299,6 +305,7 @@ def test_list_exports_with_missing_workspace_returns_error(
     assert response.json()["error"] == "ERROR_GROUP_DOES_NOT_EXIST"
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_list_exports_for_invalid_user(
     data_fixture,
@@ -340,6 +347,7 @@ def test_list_exports_for_invalid_user(
     assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_list_exports_for_valid_user(
     data_fixture,

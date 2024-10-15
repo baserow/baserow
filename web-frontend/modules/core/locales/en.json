@@ -138,6 +138,24 @@
     "importingState": "Importing",
     "noExports": "No exports for this workspace yet."
   },
+  "importWorkspaceModal": {
+    "title": "Import Baserow data",
+    "description": "You can import an existing Baserow data by uploading the .zip file from other Baserow instance.",
+    "import": "Import data",
+    "upload": "Upload",
+    "cancel": "Cancel",
+    "done": "Done",
+    "close": "Close",
+    "retry": "Retry",
+    "chooseFile": "Choose file",
+    "selectApplications": "Select data to import",
+    "deselectAll": "Deselect all",
+    "selectAll": "Select all",
+    "databases": "Databases",
+    "applications": "Applications",
+    "successTitle": "Successfully imported the Baserow data",
+    "successMessage": "Imported {count} applications"
+  },
   "dashboardWorkspace": {
     "createApplication": "Create new"
   },
@@ -282,7 +300,9 @@
     "fromTemplate": "From template",
     "fromTemplateDesc": "Quickly start with one of our recommended templates",
     "table": "Table",
-    "tableDesc": "Create a new place to manage data in your database."
+    "tableDesc": "Create a new place to manage data in your database.",
+    "importWorkspace": "Import data",
+    "importWorkspaceDesc": "Add existing data from file or from other Baserow instance"
   },
   "applicationForm": {
     "nameLabel": "Name",

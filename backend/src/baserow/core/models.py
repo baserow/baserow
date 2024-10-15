@@ -1,4 +1,5 @@
 import secrets
+import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
 
@@ -52,6 +53,8 @@ __all__ = [
     "Notification",
     "BlacklistedToken",
     "ExportApplicationsJob",
+    "ImportApplicationsJob",
+    "ImportResource",
 ]
 
 User = get_user_model()
@@ -663,4 +666,44 @@ class ExportApplicationsJob(
     exported_file_name = models.TextField(
         blank=True,
         help_text="The name of the exported archive file.",
+    )
+
+
+class ImportResource(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    original_name = models.CharField(max_length=255)
+    name = models.CharField(max_length=64)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    completed_at = models.DateTimeField(null=True)
+    workspace_id = models.PositiveIntegerField(
+        help_text="The workspace id that the applications are going to be imported to.",
+        db_index=True,
+    )
+
+    def create_file_name(self):
+        return f"workspace_{self.workspace_id}_{uuid.uuid4().hex}.zip"
+
+    def save(self, *args, **kwargs):
+        if not self.name:
+            self.name = self.create_file_name()
+        return super().save(*args, **kwargs)
+
+
+class ImportApplicationsJob(
+    JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
+):
+    workspace_id = models.PositiveIntegerField(
+        help_text="The workspace id that the applications are going to be imported to."
+    )
+    file_name = models.TextField(
+        help_text="Name of import file in storage.",
+    )
+    only_structure = models.BooleanField(
+        default=False,
+        help_text="Indicates if only the structure of the applications should be "
+        "exported, without user data.",
+    )
+    application_ids = models.TextField(
+        help_text="The comma separated list of application ids that have been created by the import."
     )

@@ -1,9 +1,10 @@
 import pytest
 
-from baserow.core.import_export_handler import ImportExportHandler
+from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.registries import ImportExportConfig
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_create_export_file(data_fixture):
     user = data_fixture.create_user()

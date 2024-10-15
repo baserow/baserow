@@ -4,7 +4,10 @@ from .invitations import urls as invitation_urls
 from .users import urls as user_urls
 from .views import (
     AsyncExportWorkspaceApplicationsView,
+    AsyncImportApplicationsView,
     CreateInitialWorkspaceView,
+    ImportApplicationsDeleteResourceView,
+    ImportApplicationsUploadFileView,
     ListExportWorkspaceApplicationsView,
     WorkspaceGenerativeAISettingsView,
     WorkspaceLeaveView,
@@ -49,5 +52,20 @@ urlpatterns = [
         r"(?P<workspace_id>[0-9]+)/export/$",
         ListExportWorkspaceApplicationsView.as_view(),
         name="export_workspace_list",
+    ),
+    re_path(
+        r"(?P<workspace_id>[0-9]+)/import/upload-file/$",
+        ImportApplicationsUploadFileView.as_view(),
+        name="import_workspace_upload_file",
+    ),
+    re_path(
+        r"(?P<workspace_id>[0-9]+)/import/(?P<resource_id>[0-9a-fA-F-]{36})/delete/$",
+        ImportApplicationsDeleteResourceView.as_view(),
+        name="import_workspace_delete_resource",
+    ),
+    re_path(
+        r"(?P<workspace_id>[0-9]+)/import/async/$",
+        AsyncImportApplicationsView.as_view(),
+        name="import_workspace_async",
     ),
 ]

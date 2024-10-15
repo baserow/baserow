@@ -8,13 +8,14 @@ from freezegun import freeze_time
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.core.import_export_handler import ImportExportHandler
+from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.models import UserFile
 from baserow.test_utils.helpers import setup_interesting_test_database
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_exporting_interesting_database(
     data_fixture, api_client, tmpdir, settings, use_tmp_media_root
@@ -58,6 +59,7 @@ def test_exporting_interesting_database(
             assert json_data[0]["name"] == database.name
 
 
+@pytest.mark.export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_exporting_workspace_writes_file_to_storage(
     data_fixture,

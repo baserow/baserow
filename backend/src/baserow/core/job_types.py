@@ -17,6 +17,11 @@ from baserow.api.errors import (
     ERROR_USER_NOT_IN_GROUP,
 )
 from baserow.api.export.serializers import ExportWorkspaceExportedFileURLSerializerMixin
+from baserow.api.import_workspace.errors import (
+    ERROR_RESOURCE_DOES_NOT_EXIST,
+    ERROR_RESOURCE_IS_CORRUPTED,
+)
+from baserow.api.import_workspace.serializers import ImportWorkspaceSerializerMixin
 from baserow.api.templates.errors import (
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
@@ -27,6 +32,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import (
     DuplicateApplicationActionType,
     ExportApplicationsActionType,
+    ImportApplicationsActionType,
     InstallTemplateActionType,
 )
 from baserow.core.exceptions import (
@@ -39,11 +45,17 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.import_export.exceptions import (
+    ImportWorkspaceFileCorruptedException,
+    ImportWorkspaceResourceDoesNotExist,
+)
 from baserow.core.jobs.registries import JobType
 from baserow.core.models import (
     Application,
     DuplicateApplicationJob,
     ExportApplicationsJob,
+    ImportApplicationsJob,
+    ImportResource,
     InstallTemplateJob,
 )
 from baserow.core.operations import (
@@ -340,3 +352,73 @@ class ExportApplicationsJobType(JobType):
         job.save(update_fields=("exported_file_name",))
 
         return exported_file_name
+
+
+class ImportApplicationsJobType(JobType):
+    type = "import_applications"
+    model_class = ImportApplicationsJob
+    max_count = 1
+
+    api_exceptions_map = {
+        UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+        ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+        ImportWorkspaceResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
+        ImportWorkspaceFileCorruptedException: ERROR_RESOURCE_IS_CORRUPTED,
+    }
+
+    job_exceptions_map = {
+        ImportWorkspaceResourceDoesNotExist: ImportWorkspaceResourceDoesNotExist.message,
+        ImportWorkspaceFileCorruptedException: ImportWorkspaceFileCorruptedException.message,
+    }
+
+    request_serializer_field_names = ["resource_id"]
+    request_serializer_field_overrides = {
+        "resource_id": serializers.UUIDField(
+            help_text="Id of uploaded file to be imported"
+        ),
+    }
+
+    serializer_mixins = [ImportWorkspaceSerializerMixin]
+    serializer_field_names = ["installed_applications"]
+
+    def prepare_values(
+        self, values: Dict[str, Any], user: AbstractUser
+    ) -> Dict[str, Any]:
+        workspace_id = values.get("workspace_id")
+        import_resource = ImportResource.objects.filter(
+            id=values.get("resource_id"), workspace_id=workspace_id
+        ).first()
+
+        return {
+            "workspace_id": workspace_id,
+            "file_name": import_resource.name if import_resource else None,
+        }
+
+    def run(self, job: ImportApplicationsJob, progress: Progress) -> List[Application]:
+        handler = CoreHandler()
+        workspace = handler.get_workspace(workspace_id=job.workspace_id)
+
+        handler.check_permissions(
+            job.user,
+            ReadWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        progress_builder = progress.create_child_builder(
+            represents_progress=progress.total
+        )
+
+        imported_applications = action_type_registry.get_by_type(
+            ImportApplicationsActionType
+        ).do(
+            job.user,
+            workspace=workspace,
+            file_name=job.file_name,
+            progress_builder=progress_builder,
+        )
+        job.application_ids = ",".join([str(app.id) for app in imported_applications])
+        job.save(update_fields=("application_ids",))
+
+        return imported_applications

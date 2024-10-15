@@ -17,7 +17,7 @@ from baserow.core.action.scopes import (
     WorkspaceActionScopeType,
 )
 from baserow.core.handler import CoreHandler, WorkspaceForUpdate
-from baserow.core.import_export_handler import ImportExportHandler
+from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.models import (
     Application,
     Template,
@@ -1213,6 +1213,79 @@ class ExportApplicationsActionType(ActionType):
 
         cls.register_action(user, params, cls.scope(workspace.id), workspace=workspace)
         return file_name
+
+    @classmethod
+    def scope(cls, workspace_id: int) -> ActionScopeStr:
+        return WorkspaceActionScopeType.value(workspace_id)
+
+
+class ImportApplicationsActionType(ActionType):
+    type = "import_applications"
+    description = ActionTypeDescription(
+        _("Import applications"),
+        _('Applications "%(application_names)s" (%(application_ids)s) imported'),
+        WORKSPACE_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "workspace_id",
+        "imported_file_name",
+        "application_ids",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        workspace_id: int
+        workspace_name: str
+        file_name: str
+        application_ids: List[int]
+        application_names: List[str]
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        workspace: Workspace,
+        file_name: str,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> List[Application]:
+        """
+        Imports applications from the provided file into the specified workspace.
+
+        This method handles the import process, including reading the file,
+        validating its contents, and creating the necessary application instances
+        within the workspace. The import process can be tracked using the optional
+        progress builder.
+
+        :param user: The user performing the import.
+        :param workspace: The workspace where the applications will be imported.
+        :param file_name: The name of the file containing the applications to import.
+        :param progress_builder: An optional progress builder to track the import
+            progress.
+        :return: A list of the imported Application instances.
+        """
+
+        cli_import_export_config = ImportExportConfig(
+            include_permission_data=False, reduce_disk_space_usage=False
+        )
+
+        applications = ImportExportHandler().import_workspace_applications(
+            user=user,
+            workspace=workspace,
+            file_name=file_name,
+            import_export_config=cli_import_export_config,
+            progress_builder=progress_builder,
+        )
+
+        params = cls.Params(
+            workspace_id=workspace.id,
+            workspace_name=workspace.name,
+            application_ids=[app.id for app in applications],
+            application_names=[app.name for app in applications],
+            file_name=file_name,
+        )
+
+        cls.register_action(user, params, cls.scope(workspace.id), workspace=workspace)
+        return applications
 
     @classmethod
     def scope(cls, workspace_id: int) -> ActionScopeStr:

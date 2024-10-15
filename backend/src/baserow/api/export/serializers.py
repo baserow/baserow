@@ -3,7 +3,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.core.context import clear_current_workspace_id, set_current_workspace_id
-from baserow.core.import_export_handler import ImportExportHandler
+from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.storage import get_default_storage
 
 

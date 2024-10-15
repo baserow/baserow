@@ -151,6 +151,14 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * If set, `getExtraImportWorkspaceModalComponents` will allow plugins to decide what kind of
+   * copy is shown in the import workspace modal's Alert box.
+   */
+  getExtraImportWorkspaceModalComponents(workspace) {
+    return null
+  }
+
+  /**
    * Some features are optionally enabled, this function will be called when the
    * $hasFeature directive is called on each plugin to check if any of the plugins
    * enable the particular feature.

@@ -72,6 +72,29 @@
           :workspace="workspace"
         ></TemplateModal>
       </li>
+      <li class="context__menu-item">
+        <a
+          class="context__menu-item-link context__menu-item-link--with-desc"
+          :class="{
+            disabled: !canCreateCreateApplication,
+          }"
+          @click="openImportWorkspaceModal()"
+        >
+          <span class="context__menu-item-title">
+            <i class="context__menu-item-icon iconoir-page"></i>
+            {{ $t('createApplicationContext.importWorkspace') }}</span
+          >
+          <div
+            class="context__menu-item-description context__menu-item-description--offset"
+          >
+            {{ $t('createApplicationContext.importWorkspace') }}
+          </div>
+        </a>
+        <ImportWorkspaceModal
+          ref="importWorkspaceModal"
+          :workspace="workspace"
+        ></ImportWorkspaceModal>
+      </li>
     </ul>
   </Context>
 </template>
@@ -79,12 +102,14 @@
 <script>
 import CreateApplicationModal from '@baserow/modules/core/components/application/CreateApplicationModal'
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
+import ImportWorkspaceModal from '@baserow/modules/core/components/import/ImportWorkspaceModal.vue'
 import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'CreateApplicationContext',
   components: {
     CreateApplicationModal,
+    ImportWorkspaceModal,
     TemplateModal,
   },
   mixins: [context],
@@ -121,6 +146,14 @@ export default {
       }
 
       this.$refs.templateModal.show()
+      this.hide()
+    },
+    openImportWorkspaceModal() {
+      if (!this.canCreateCreateApplication) {
+        return
+      }
+
+      this.$refs.importWorkspaceModal.show()
       this.hide()
     },
     toggleCreateApplicationModal(type) {

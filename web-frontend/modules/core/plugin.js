@@ -6,6 +6,7 @@ import {
   CreateSnapshotJobType,
   DuplicateApplicationJobType,
   ExportApplicationsJobType,
+  ImportApplicationsJobType,
   InstallTemplateJobType,
   RestoreSnapshotJobType,
 } from '@baserow/modules/core/jobTypes'
@@ -193,6 +194,7 @@ export default (context, inject) => {
   registry.register('job', new CreateSnapshotJobType(context))
   registry.register('job', new RestoreSnapshotJobType(context))
   registry.register('job', new ExportApplicationsJobType(context))
+  registry.register('job', new ImportApplicationsJobType(context))
 
   registry.register(
     'workspaceSettingsPage',
