@@ -20,6 +20,7 @@ from baserow.core.registry import (
 )
 from baserow.core.services.dispatch_context import DispatchContext
 
+from .exceptions import ServiceTypeDoesNotExist
 from .models import Service
 from .types import ServiceDictSubClass, ServiceSubClass
 
@@ -363,6 +364,7 @@ class ServiceTypeRegistry(
     """
 
     name = "integration_service"
+    does_not_exist_exception_class = ServiceTypeDoesNotExist
 
 
 service_type_registry: ServiceTypeRegistry = ServiceTypeRegistry()

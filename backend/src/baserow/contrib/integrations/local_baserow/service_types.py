@@ -526,7 +526,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
           otherwise None.
         """
 
-        if dispatch_context.public_formula_fields is not None:
+        if isinstance(dispatch_context.public_formula_fields, dict):
             all_field_names = dispatch_context.public_formula_fields.get("all", {}).get(
                 service.id, None
             )

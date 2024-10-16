@@ -57,6 +57,21 @@ from baserow.contrib.builder.workflow_actions.operations import (
     ReadBuilderWorkflowActionOperationType,
     UpdateBuilderWorkflowActionOperationType,
 )
+from baserow.contrib.dashboard.data_sources.operations import (
+    CreateDashboardDataSourceOperationType,
+    DeleteDashboardDataSourceOperationType,
+    DispatchDashboardDataSourceOperationType,
+    ListDashboardDataSourcesOperationType,
+    ReadDashboardDataSourceOperationType,
+    UpdateDashboardDataSourceOperationType,
+)
+from baserow.contrib.dashboard.widgets.operations import (
+    CreateWidgetOperationType,
+    DeleteWidgetOperationType,
+    ListWidgetsOperationType,
+    ReadWidgetOperationType,
+    UpdateWidgetOperationType,
+)
 from baserow.contrib.database.airtable.operations import (
     RunAirtableImportJobOperationType,
 )
@@ -296,6 +311,11 @@ default_roles[VIEWER_ROLE_UID].extend(
         ListBuilderWorkflowActionsPageOperationType,
         ReadBuilderWorkflowActionOperationType,
         ReadViewFilterGroupOperationType,
+        ReadWidgetOperationType,
+        ListWidgetsOperationType,
+        ListDashboardDataSourcesOperationType,
+        ReadDashboardDataSourceOperationType,
+        DispatchDashboardDataSourceOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -433,6 +453,12 @@ default_roles[BUILDER_ROLE_UID].extend(
         UpdateBuilderWorkflowActionOperationType,
         OrderBuilderWorkflowActionOperationType,
         SyncTableOperationType,
+        CreateWidgetOperationType,
+        UpdateWidgetOperationType,
+        DeleteWidgetOperationType,
+        CreateDashboardDataSourceOperationType,
+        DeleteDashboardDataSourceOperationType,
+        UpdateDashboardDataSourceOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(

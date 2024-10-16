@@ -1,0 +1,15 @@
+.dashboard-summary-widget {
+  padding: 0 0 24px 24px;
+}
+
+.dashboard-summary-widget__number {
+  color: $palette-neutral-1200;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 40px;
+  margin-top: 16px;
+}
+
+.dashboard-summary-widget__number--misconfigured {
+  color: #CDCECF;
+}
