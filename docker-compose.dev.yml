@@ -36,7 +36,7 @@ services:
         UID: $UID
         GID: $GID
     ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${BACKEND_EXPOSED_PORT:-8000}:8000"
       - "${HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}"
     volumes:
       - ./backend:/baserow/backend
@@ -62,7 +62,7 @@ services:
         UID: $UID
         GID: $GID
     ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${FRONTEND_EXPOSED_PORT:-3000}:3000"
     volumes:
       - ./web-frontend:/baserow/web-frontend
       # Override the above mounts for node_modules so we use the node_modules built
@@ -93,7 +93,7 @@ services:
         GID: $GID
     command: "storybook-dev"
     ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:6006:6006"
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${STORYBOOK_EXPOSED_PORT:-6006}:6006"
     volumes:
       - ./web-frontend:/baserow/web-frontend
       # Override the above mounts for node_modules so we use the node_modules built
@@ -234,7 +234,7 @@ services:
     logging:
       driver: "none" # disable saving logs
     ports:
-      - "8025:8025" # web ui
+      - "${MAILHOG_EXPOSED_PORT:-8025}:8025" # web ui
     networks:
       local:
 
@@ -262,4 +262,4 @@ services:
     networks:
       local:
     ports:
-      - "4318:4318"
+      - "${OTEL_EXPOSED_PORT:-4318}:4318"

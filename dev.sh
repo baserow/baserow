@@ -373,14 +373,14 @@ export DATABASE_PASSWORD=baserow
 export SECRET_KEY=baserow
 if [[ "$dev" = true ]]; then
   # Caddy will just be the media server so change its port to match the MEDIA_URL
-  export WEB_FRONTEND_PORT=4000
-  export WEB_FRONTEND_SSL_PORT=4443
+  export WEB_FRONTEND_PORT="${WEB_FRONTEND_PORT:-4000}"
+  export WEB_FRONTEND_SSL_PORT="${WEB_FRONTEND_SSL_PORT:-4443}"
 
   export BASEROW_PUBLIC_URL=
   export PUBLIC_BACKEND_URL=${PUBLIC_BACKEND_URL:-http://localhost:8000}
   export PUBLIC_WEB_FRONTEND_URL=${PUBLIC_WEB_FRONTEND_URL:-http://localhost:3000}
 
-  export MEDIA_URL=http://localhost:4000/media/
+  export MEDIA_URL=http://localhost:${WEB_FRONTEND_PORT}/media/
   export BASEROW_DEPLOYMENT_ENV="development-$USER"
 fi
 
