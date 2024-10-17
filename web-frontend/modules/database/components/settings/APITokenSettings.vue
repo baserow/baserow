@@ -1,8 +1,11 @@
 <template>
-  <div>
+  <div class="api-token-settings">
     <template v-if="page === 'list'">
       <Error :error="error"></Error>
-      <div v-if="listLoading" class="loading"></div>
+      <div v-if="listLoading" class="api-token-settings__loading">
+        <div class="loading-spinner"></div>
+      </div>
+
       <template v-else>
         <p v-if="tokens.length === 0">
           {{ $t('apiTokenSettings.noTokensMessage') }}
