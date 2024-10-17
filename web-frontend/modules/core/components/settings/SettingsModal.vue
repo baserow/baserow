@@ -1,6 +1,9 @@
 <template>
-  <Modal :left-sidebar="true" :left-sidebar-scrollable="true">
-    <template #sidebar>
+  <ModalV2 left-sidebar>
+    <template #header-content>
+      <h2>{{ currentSetting.getName() }}</h2>
+    </template>
+    <template #sidebar-content>
       <div class="modal-sidebar__head">
         <Avatar
           rounded
@@ -25,25 +28,52 @@
       </ul>
     </template>
     <template #content>
-      <component :is="settingPageComponent"></component>
+      <component
+        :is="settingPageComponent"
+        ref="settingPageComponent"
+        @loading="loading = $event"
+        @database-token-page-type-changed="setDatabaseTokenPageType"
+      ></component>
     </template>
-  </Modal>
+
+    <template #footer-content>
+      <Button
+        v-if="dbTokenPageType === 'create'"
+        type="secondary"
+        @click="$refs.settingPageComponent.setPageType('list')"
+      >
+        {{ $t('action.cancel') }}
+      </Button>
+      <Button
+        :type="getButtonType(page)"
+        :loading="loading"
+        :disabled="loading"
+        @click="submit"
+      >
+        {{ buttonLabel }}
+      </Button>
+    </template>
+  </ModalV2>
 </template>
 
 <script>
 import { mapGetters } from 'vuex'
 
-import modal from '@baserow/modules/core/mixins/modal'
+import modalv2 from '@baserow/modules/core/mixins/modalv2'
 
 import PasswordSettings from '@baserow/modules/core/components/settings/PasswordSettings'
 
 export default {
   name: 'SettingsModal',
   components: { PasswordSettings },
-  mixins: [modal],
+  mixins: [modalv2],
   data() {
     return {
       page: null,
+      currentSetting: null,
+      loading: false,
+      buttonLabel: '',
+      dbTokenPageType: 'list',
     }
   },
   computed: {
@@ -62,6 +92,18 @@ export default {
       name: 'auth/getName',
     }),
   },
+  watch: {
+    page(newVal) {
+      this.currentSetting = Object.values(
+        this.$registry.getAll('settings')
+      ).find((setting) => setting.type === newVal)
+    },
+    settingPageComponent(newVal) {
+      this.$nextTick(() => {
+        this.buttonLabel = this.$refs.settingPageComponent.getCTALabel()
+      })
+    },
+  },
   async mounted() {
     await this.$store.dispatch('authProvider/fetchLoginOptions')
   },
@@ -79,7 +121,19 @@ export default {
       } else {
         this.page = page
       }
-      return modal.methods.show.call(this, ...args)
+      return modalv2.methods.show.call(this, ...args)
+    },
+    submit() {
+      if (this.page === 'token' && this.dbTokenPageType === 'list')
+        this.$refs.settingPageComponent.setPageType('create')
+      else this.$refs.settingPageComponent.submitForm()
+    },
+    setDatabaseTokenPageType(pageType) {
+      this.dbTokenPageType = pageType
+    },
+    getButtonType(page) {
+      if (page === 'delete-account') return 'danger'
+      return 'primary'
     },
   },
 }

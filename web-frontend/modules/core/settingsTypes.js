@@ -2,7 +2,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 import PasswordSettings from '@baserow/modules/core/components/settings/PasswordSettings'
 import AccountSettings from '@baserow/modules/core/components/settings/AccountSettings'
 import DeleteAccountSettings from '@baserow/modules/core/components/settings/DeleteAccountSettings'
-import EmailNotifications from '@baserow/modules/core/components/settings/EmailNotifications'
+import EmailNotificationsSettings from '@baserow/modules/core/components/settings/EmailNotificationsSettings'
 
 /**
  * All settings types will be added to the settings modal.
@@ -130,7 +130,7 @@ export class EmailNotificationsSettingsType extends SettingsType {
   }
 
   getComponent() {
-    return EmailNotifications
+    return EmailNotificationsSettings
   }
 }
 

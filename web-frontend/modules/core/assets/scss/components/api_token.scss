@@ -1,9 +1,13 @@
 .api-token {
-  border: solid 1px $color-neutral-200;
+  border: solid 1px $palette-neutral-400;
   overflow: hidden;
   margin: 20px 0;
 
   @include rounded($rounded-md);
+
+  &:first-child {
+    margin-top: 0;
+  }
 }
 
 .api-token__key {
@@ -20,7 +24,7 @@
 .api-token__key-value {
   font-family: monospace;
   margin-right: 10px;
-  background-color: $color-neutral-100;
+  background-color: $palette-neutral-25;
   padding: 0 6px;
 
   @include fixed-height(26px, 10px);
@@ -34,7 +38,7 @@
 .api-token__key-visible,
 .api-token__key-copy {
   position: relative;
-  color: $color-neutral-900;
+  color: $palette-neutral-900;
   user-select: none;
 
   @include center-text(26px, 11px);
@@ -42,7 +46,7 @@
 
   &:hover {
     text-decoration: none;
-    background-color: $color-neutral-100;
+    background-color: $palette-neutral-100;
   }
 }
 
@@ -50,7 +54,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: $color-neutral-100;
+  background-color: $palette-neutral-100;
   padding: 16px 0 16px 16px;
 }
 
@@ -62,6 +66,8 @@
 
 .api-token__name {
   display: flex;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
   margin-bottom: 12px;
   font-weight: 600;
@@ -74,15 +80,14 @@
 
 .api-token__more {
   font-size: 14px;
-  padding: 0 6px;
-  margin-left: 6px;
-  color: $color-neutral-900;
+  padding: 2px 3px;
+  color: $palette-neutral-900;
 
   @include rounded($rounded);
 
   &:hover {
     text-decoration: none;
-    background-color: $color-neutral-200;
+    background-color: $palette-neutral-200;
   }
 }
 
@@ -94,7 +99,7 @@
 .api-token__group {
   @extend %ellipsis;
 
-  color: $color-neutral-600;
+  color: $palette-neutral-800;
   font-size: 12px;
 }
 
@@ -120,7 +125,7 @@
 
 .api-token__body {
   display: none;
-  border-top: solid 1px $color-neutral-200;
+  border-top: solid 1px $palette-neutral-200;
 
   &.api-token__body--open {
     display: block;
@@ -133,7 +138,7 @@
   justify-content: space-between;
 
   &:hover {
-    background-color: $color-neutral-50;
+    background-color: $palette-neutral-50;
   }
 }
 

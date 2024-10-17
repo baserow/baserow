@@ -1,7 +1,5 @@
 <template>
   <div>
-    <h2 class="box__title">{{ $t('deleteAccountSettings.title') }}</h2>
-
     <p>
       {{
         $t('deleteAccountSettings.description', {
@@ -51,24 +49,6 @@
     </div>
 
     <Error :error="error"></Error>
-
-    <form
-      v-if="!success"
-      class="delete-account-settings__form"
-      @submit.prevent="deleteAccount"
-    >
-      <div class="actions actions--right">
-        <Button
-          type="danger"
-          size="large"
-          :loading="loading"
-          :disabled="loading"
-          icon="iconoir-bin"
-        >
-          {{ $t('deleteAccountSettings.submitButton') }}
-        </Button>
-      </div>
-    </form>
   </div>
 </template>
 
@@ -87,7 +67,6 @@ export default {
   data() {
     return {
       loading: false,
-      success: false,
       account: {
         password: '',
         passwordConfirm: '',
@@ -167,12 +146,11 @@ export default {
       }
     },
     async deleteAccount() {
-      this.loading = true
+      this.$emit('loading', true)
       this.hideError()
 
       try {
         await AuthService(this.$client).deleteAccount()
-        this.success = true
         this.logoff()
       } catch (error) {
         this.handleError(error, 'deleteAccount', {
@@ -182,8 +160,14 @@ export default {
           ),
         })
       } finally {
-        this.loading = false
+        this.$emit('loading', false)
       }
+    },
+    getCTALabel() {
+      return this.$t('deleteAccountSettings.submitButton')
+    },
+    submitForm() {
+      this.deleteAccount()
     },
   },
 }

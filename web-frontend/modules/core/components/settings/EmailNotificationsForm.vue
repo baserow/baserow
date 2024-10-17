@@ -1,41 +1,26 @@
 <template>
-  <div>
-    <h2 class="box__title">{{ $t('emailNotifications.title') }}</h2>
-    <form @submit.prevent="updateEmailNotificationFrequency">
-      <FormGroup
-        :label="$t('emailNotifications.label')"
-        :help-text="$t('emailNotifications.description')"
-        :error="fieldHasErrors('email_notification_frequency')"
-        required
+  <form ref="form" @submit.prevent="submit">
+    <FormGroup
+      :label="$t('emailNotifications.label')"
+      :help-text="$t('emailNotifications.description')"
+      :error="fieldHasErrors('email_notification_frequency')"
+      small-label
+      required
+    >
+      <RadioGroup
+        v-model="values.email_notification_frequency"
+        :options="emailNotificationOptions"
+        vertical-layout
       >
-        <RadioGroup
-          v-model="values.email_notification_frequency"
-          :options="emailNotificationOptions"
-          vertical-layout
-        >
-        </RadioGroup>
-      </FormGroup>
-
-      <div class="actions actions--right">
-        <Button
-          type="primary"
-          size="large"
-          :loading="loading"
-          :disabled="submitDisabled || loading"
-          icon="iconoir-bin"
-        >
-          {{ $t('emailNotifications.submitButton') }}
-        </Button>
-      </div>
-    </form>
-  </div>
+      </RadioGroup>
+    </FormGroup>
+  </form>
 </template>
 
 <script>
 import { mapGetters } from 'vuex'
 import { required } from 'vuelidate/lib/validators'
 import { EMAIL_NOTIFICATIONS_FREQUENCY_OPTIONS } from '@baserow/modules/core/enums'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 
 import form from '@baserow/modules/core/mixins/form'
 
@@ -44,7 +29,6 @@ export default {
   mixins: [form],
   data() {
     return {
-      loading: false,
       allowedValues: ['email_notification_frequency'],
       values: {
         email_notification_frequency:
@@ -96,19 +80,6 @@ export default {
       if (emailNotificationFreq) {
         this.values.email_notification_frequency = emailNotificationFreq
       }
-    },
-    async updateEmailNotificationFrequency() {
-      this.loading = true
-      try {
-        await this.$store.dispatch('auth/update', {
-          email_notification_frequency:
-            this.values.email_notification_frequency,
-        })
-      } catch (error) {
-        notifyIf(error, 'settings.')
-        this.setInitialValue()
-      }
-      this.loading = false
     },
   },
   validations: {

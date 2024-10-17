@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent="submit">
+  <form @submit.prevent="submit" @keydown.enter="submit">
     <FormGroup
       :label="$t('apiTokenForm.nameLabel')"
       small-label
@@ -12,7 +12,6 @@
         v-model="values.name"
         size="large"
         :error="fieldHasErrors('name')"
-        @blur="$v.values.name.$touch()"
       >
       </FormInput>
 
@@ -29,6 +28,7 @@
       <Dropdown
         v-model="values.workspace"
         class="col-4"
+        fixed-items
         @hide="$v.values.workspace.$touch()"
       >
         <DropdownItem
