@@ -38,7 +38,7 @@
 
     <template #footer-content>
       <Button
-        v-if="dbTokenPageType === 'create'"
+        v-if="page === 'tokens' && dbTokenPageType === 'create'"
         type="secondary"
         @click="$refs.settingPageComponent.setPageType('list')"
       >
@@ -124,7 +124,7 @@ export default {
       return modalv2.methods.show.call(this, ...args)
     },
     submit() {
-      if (this.page === 'token' && this.dbTokenPageType === 'list')
+      if (this.page === 'tokens' && this.dbTokenPageType === 'list')
         this.$refs.settingPageComponent.setPageType('create')
       else this.$refs.settingPageComponent.submitForm()
     },
