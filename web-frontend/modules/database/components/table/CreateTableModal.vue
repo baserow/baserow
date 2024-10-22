@@ -112,7 +112,7 @@
           type="primary"
           size="large"
           :loading="!isTableCreated"
-          @click="openTable()"
+          @click="$refs.createComponent.openTable()"
         >
           {{ $t('createTable.showTable') }}
         </Button>
