@@ -1612,9 +1612,8 @@ class LocalBaserowUpsertRowServiceType(
 
             # Then transform and validate the resolved value for prepare value for db.
             try:
-                row_values[field.db_column] = field_type.prepare_value_for_db(
-                    field.specific, resolved_value
-                )
+                field_type.prepare_value_for_db(field.specific, resolved_value)
+                row_values[field.db_column] = resolved_value
             except ValidationError as exc:
                 raise ServiceImproperlyConfigured(
                     "The result value of the formula is not valid for the "
@@ -1630,7 +1629,6 @@ class LocalBaserowUpsertRowServiceType(
                     table,
                     rows_values=[{**row_values, "id": row_id}],
                     model=model,
-                    values_already_prepared=True,
                 )
             except RowDoesNotExist as exc:
                 raise ServiceImproperlyConfigured(
@@ -1643,7 +1641,6 @@ class LocalBaserowUpsertRowServiceType(
                     table=table,
                     rows_values=[row_values],
                     model=model,
-                    values_already_prepared=True,
                 )
             except CannotCreateRowsInTable as exc:
                 raise ServiceImproperlyConfigured(

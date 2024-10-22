@@ -388,7 +388,29 @@ build-final-backend-image:
     - job: backend-test-group-3
     - job: backend-test-group-4
     - job: backend-test-group-5
+    - job: backend-test-group-6
+    - job: backend-test-group-7
+    - job: backend-test-group-8
+    - job: backend-test-group-9
     - job: backend-lint
+  variables:
+    IMAGE_NAME: $BACKEND_IMAGE_NAME
+    DEV_IMAGE_NAME: $BACKEND_DEV_IMAGE_NAME
+    DOCKERFILE_PATH: $BACKEND_DOCKERFILE_PATH
+
+
+build-final-backend-image-manual:
+  extends: .build-final-baserow-image
+  needs:
+    - job: build-backend-image
+  except:
+    variables:
+      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
+      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
+      - $CI_COMMIT_MESSAGE =~ /\[build-all]/
+  only:
+  when:
+    manual
   variables:
     IMAGE_NAME: $BACKEND_IMAGE_NAME
     DEV_IMAGE_NAME: $BACKEND_DEV_IMAGE_NAME
@@ -403,6 +425,7 @@ build-web-frontend-image:
   variables:
     DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
     DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
+
 
 # If pipeline not triggered by tag:
 # - Runs eslint and stylelint if the web-frontend code has changed, otherwise skips.
@@ -470,6 +493,26 @@ build-final-web-frontend-image:
     IMAGE_NAME: $WEBFRONTEND_IMAGE_NAME
     DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
     DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
+
+
+# Allow to manually build the image from any branch
+build-final-web-frontend-image-manual:
+  extends: .build-final-baserow-image
+  needs:
+    - job: build-web-frontend-image
+  except:
+    variables:
+      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
+      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
+      - $CI_COMMIT_MESSAGE =~ /\[build-all]/
+  only:
+  when:
+    manual
+  variables:
+    IMAGE_NAME: $WEBFRONTEND_IMAGE_NAME
+    DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
+    DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
+
 
 # ==================================== E2E TESTS ======================================
 
@@ -957,7 +1000,7 @@ publish-helm-chart:
     - ls baserow-*.tgz
     - echo "Upload to chart repository"
     - CHART_FILE=$(ls baserow-*.tgz)
-    - | 
+    - |
       HELM_CHART_VERSION=$(helm show chart baserow | grep version | tail -n 1 | awk -F ': ' '{print $2}')
     - |
       curl --request POST \

@@ -1076,7 +1076,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_webhook_events: bool = True,
         generate_error_report: bool = False,
         skip_search_update: bool = False,
-        values_already_prepared: bool = False,
     ) -> List[GeneratedTableModel]:
         """
         Creates new rows for a given table without checking permissions. It also calls
@@ -1097,9 +1096,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param skip_search_update: If you want to instead trigger the search handler
             cells update later on after many create_rows calls then set this to True
             but make sure you trigger it eventually.
-        :param values_already_prepared: Whether or not the values are already sanitized
-            and validated for every field and can be used directly by the handler
-            without any further check.
         :return: The created row instances.
 
         """
@@ -1114,15 +1110,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         report = {}
-        if values_already_prepared:
-            prepared_rows_values = [deepcopy(row_values) for row_values in rows_values]
-        else:
-            prepared_rows_values, errors = self.prepare_rows_in_bulk(
-                model._field_objects,
-                rows_values,
-                generate_error_report=generate_error_report,
-            )
-            report.update({index: err for index, err in errors.items()})
+        prepared_rows_values, errors = self.prepare_rows_in_bulk(
+            model._field_objects,
+            rows_values,
+            generate_error_report=generate_error_report,
+        )
+        report.update({index: err for index, err in errors.items()})
 
         rows_relationships = []
         for index, row in enumerate(
@@ -1231,7 +1224,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_webhook_events: bool = True,
         generate_error_report: bool = False,
         skip_search_update: bool = False,
-        values_already_prepared: bool = False,
     ) -> List[GeneratedTableModel]:
         """
         Creates new rows for a given table if the user
@@ -1277,7 +1269,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events,
             generate_error_report,
             skip_search_update,
-            values_already_prepared,
         )
 
     def update_dependencies_of_rows_created(
@@ -1678,7 +1669,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
         skip_search_update: bool = False,
-        values_already_prepared: bool = False,
     ) -> UpdatedRowsWithOldValuesAndMetadata:
         """
         Updates field values in batch based on provided rows with the new
@@ -1699,9 +1689,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param skip_search_update: If you want to instead trigger the search handler
             cells update later on after many create_rows calls then set this to True
             but make sure you trigger it eventually.
-        :param values_already_prepared: Whether or not the values are already sanitized
-            and validated for every field and can be used directly by the handler
-            without any further check.
         :raises RowIdsNotUnique: When trying to update the same row multiple
             times.
         :raises RowDoesNotExist: When any of the rows don't exist.
@@ -1714,12 +1701,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         user_id = user and user.id
 
-        if values_already_prepared:
-            prepared_rows_values = [deepcopy(row_values) for row_values in rows_values]
-        else:
-            prepared_rows_values, _ = self.prepare_rows_in_bulk(
-                model._field_objects, rows_values
-            )
+        prepared_rows_values, _ = self.prepare_rows_in_bulk(
+            model._field_objects, rows_values
+        )
         row_ids = [r["id"] for r in prepared_rows_values]
 
         non_unique_ids = get_non_unique_values(row_ids)
@@ -1939,7 +1923,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
         skip_search_update: bool = False,
-        values_already_prepared: bool = False,
     ) -> UpdatedRowsWithOldValuesAndMetadata:
         """
         Updates field values in batch based on provided rows with the new
@@ -1960,9 +1943,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param skip_search_update: If you want to instead trigger the search handler
             cells update later on after many create_rows calls then set this to True
             but make sure you trigger it eventually.
-        :param values_already_prepared: Whether or not the values are already sanitized
-            and validated for every field and can be used directly by the handler
-            without any further check.
         :raises RowIdsNotUnique: When trying to update the same row multiple
             times.
         :raises RowDoesNotExist: When any of the rows don't exist.
@@ -1986,7 +1966,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_realtime_update,
             send_webhook_events,
             skip_search_update,
-            values_already_prepared,
         )
 
     def get_rows(

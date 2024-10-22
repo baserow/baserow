@@ -148,7 +148,6 @@ class CreateRowsActionType(UndoableActionType):
         rows_values: List[Dict[str, Any]],
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
-        values_already_prepared: bool = False,
     ) -> List[GeneratedTableModel]:
         """
         Creates rows for a given table with the provided values if the user
@@ -164,9 +163,6 @@ class CreateRowsActionType(UndoableActionType):
             the row with this id.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
-        :param values_already_prepared: Whether or not the values are already sanitized
-            and validated for every field and can be used directly by the handler
-            without any further check.
         :return: The created list of rows instances.
         """
 
@@ -181,7 +177,6 @@ class CreateRowsActionType(UndoableActionType):
             rows_values,
             before_row=before_row,
             model=model,
-            values_already_prepared=values_already_prepared,
         )
 
         workspace = table.database.workspace
@@ -767,7 +762,6 @@ class UpdateRowsActionType(UndoableActionType):
         table: Table,
         rows_values: List[Dict[str, Any]],
         model: Optional[Type[GeneratedTableModel]] = None,
-        values_already_prepared: bool = False,
     ) -> List[GeneratedTableModelForUpdate]:
         """
         Updates field values in batch based on provided rows with the new values.
@@ -782,9 +776,6 @@ class UpdateRowsActionType(UndoableActionType):
             field ids plus the id of the row.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
-        :param values_already_prepared: Whether or not the values are already sanitized
-            and validated for every field and can be used directly by the handler
-            without any further check.
         :return: The updated rows.
         """
 
@@ -795,7 +786,6 @@ class UpdateRowsActionType(UndoableActionType):
             table,
             rows_values,
             model=model,
-            values_already_prepared=values_already_prepared,
         )
         updated_rows = result.updated_rows
 
