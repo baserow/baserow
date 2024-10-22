@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Resolved an issue which prevented data sources from being dispatched.",
+    "issue_number": null,
+    "bullet_points": [],
+    "created_at": "2024-10-22"
+}
