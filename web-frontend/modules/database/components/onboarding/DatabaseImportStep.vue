@@ -23,7 +23,7 @@
       />
     </FormGroup>
 
-    <FormGroup class="margin-bottom-3">
+    <FormGroup>
       <ul class="choice-items">
         <li v-for="importerType in importerTypes" :key="importerType.type">
           <a

@@ -9,7 +9,6 @@
     >
 
     <FormGroup
-      class="margin-bottom-3"
       small-label
       :label="$t('formViewMetaControls.whenSubmittedLabel')"
       required

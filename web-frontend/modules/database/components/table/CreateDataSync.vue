@@ -2,27 +2,16 @@
   <div v-if="!loadedProperties">
     <TableForm
       ref="tableForm"
-      class="margin-top-3 margin-bottom-2"
+      class="margin-bottom-2"
       :default-name="getDefaultName()"
       @submitted="submitted"
     >
       <component :is="dataSyncComponent" />
     </TableForm>
     <Error :error="error"></Error>
-    <div class="align-right">
-      <Button
-        type="primary"
-        size="large"
-        :disabled="loadingProperties"
-        :loading="loadingProperties"
-        @click="$refs.tableForm.submit()"
-      >
-        {{ $t('createDataSync.next') }}
-      </Button>
-    </div>
   </div>
   <div v-else>
-    <FormGroup small-label class="margin-top-3">
+    <FormGroup small-label>
       <template #label> {{ $t('createDataSync.fields') }}</template>
       <SwitchInput
         v-for="property in properties"
@@ -38,24 +27,6 @@
       >
     </FormGroup>
     <Error :error="error"></Error>
-    <div class="modal-progress__actions margin-top-2">
-      <ProgressBar
-        v-if="jobIsRunning || jobHasSucceeded"
-        :value="job.progress_percentage"
-        :status="jobHumanReadableState"
-      />
-      <div class="align-right">
-        <Button
-          type="primary"
-          size="large"
-          :disabled="creatingTable || jobIsRunning || jobHasSucceeded"
-          :loading="creatingTable || jobIsRunning || jobHasSucceeded"
-          @click="create"
-        >
-          {{ $t('createDataSync.create') }}
-        </Button>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -112,6 +83,30 @@ export default {
         this.creatingTable = false
         this.createdTable = null
       }
+    },
+    loadedProperties(newVal) {
+      this.$emit('loaded-properties-changed', newVal)
+    },
+    loadingProperties(newVal) {
+      this.$emit('loading-properties-changed', newVal)
+    },
+    jobIsRunning(newVal) {
+      this.$emit('job-is-running-changed', newVal)
+    },
+    jobHasSucceeded(newVal) {
+      this.$emit('job-has-succeeded-changed', newVal)
+    },
+    creatingTable(newVal) {
+      this.$emit('creating-table-changed', newVal)
+    },
+    job: {
+      handler(newVal) {
+        this.$emit('progress-percentage-changed', newVal.progress_percentage)
+      },
+      deep: true,
+    },
+    jobHumanReadableState(newVal) {
+      this.$emit('job-human-readable-state-changed', newVal)
     },
   },
   beforeDestroy() {
@@ -198,6 +193,8 @@ export default {
         },
       })
       this.$emit('hide')
+      this.$emit('job-has-succeeded-changed', false)
+      this.loadedProperties = false
     },
     onJobFailed() {
       const error = new ResponseErrorMessage(
@@ -212,6 +209,9 @@ export default {
     stopPollAndHandleError(error) {
       this.stopPollIfRunning()
       error.handler ? this.handleError(error) : this.showError(error)
+    },
+    submit() {
+      this.$refs.tableForm.submit()
     },
   },
 }

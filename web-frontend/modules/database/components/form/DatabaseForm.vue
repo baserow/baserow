@@ -1,11 +1,6 @@
 <template>
   <div>
-    <FormGroup
-      :label="$t('databaseForm.importLabel')"
-      small-label
-      required
-      class="margin-bottom-3"
-    >
+    <FormGroup :label="$t('databaseForm.importLabel')" small-label required>
       <ul class="choice-items">
         <li>
           <a

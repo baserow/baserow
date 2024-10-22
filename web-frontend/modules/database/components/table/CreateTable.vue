@@ -2,7 +2,7 @@
   <div>
     <TableForm
       ref="tableForm"
-      class="margin-top-3 margin-bottom-2"
+      class="margin-bottom-2"
       :default-name="getDefaultName()"
       @submitted="submitted"
     >
@@ -24,35 +24,6 @@
       :rows="previewFileData"
       :fields="fileFields"
     />
-
-    <div v-if="!hasErrors" class="modal-progress__actions">
-      <ProgressBar
-        v-if="(importInProgress || jobHasSucceeded) && showProgressBar"
-        :value="progressPercentage"
-        :status="humanReadableState"
-      />
-      <div class="align-right">
-        <Button
-          type="primary"
-          size="large"
-          :loading="importInProgress || jobHasSucceeded"
-          :disabled="importInProgress || jobHasSucceeded"
-          @click="$refs.tableForm.submit()"
-        >
-          {{ $t('createTable.addButton') }}
-        </Button>
-      </div>
-    </div>
-    <div v-else class="align-right">
-      <Button
-        type="primary"
-        size="large"
-        :loading="!isTableCreated"
-        @click="openTable()"
-      >
-        {{ $t('createTable.showTable') }}
-      </Button>
-    </div>
   </div>
 </template>
 
@@ -178,6 +149,35 @@ export default {
       return this.job && Object.keys(this.job.report.failing_rows).length > 0
     },
   },
+  watch: {
+    importInProgress(newVal) {
+      this.$emit('import-in-progress-changed', newVal)
+    },
+    jobHasSucceeded(newVal) {
+      this.$emit('job-has-succeeded-changed', newVal)
+    },
+    jobIsRunning(newVal) {
+      this.$emit('job-is-running-changed', newVal)
+    },
+    showProgressBar(newVal) {
+      this.$emit('show-progress-bar-changed', newVal)
+    },
+    humanReadableState(newVal) {
+      this.$emit('human-readable-state-changed', newVal)
+    },
+    progressPercentage(newVal) {
+      this.$emit('progress-percentage-changed', newVal)
+    },
+    job: {
+      handler(newVal) {
+        this.$emit(
+          'has-errors-changed',
+          newVal && Object.keys(newVal.report.failing_rows).length > 0
+        )
+      },
+      deep: true,
+    },
+  },
   beforeDestroy() {
     this.stopPollIfRunning()
   },
@@ -193,6 +193,7 @@ export default {
     reset(full = true) {
       this.job = null
       this.uploadProgressPercentage = 0
+      this.showProgressBar = false
       if (full) {
         this.header = []
         this.importState = null
@@ -308,6 +309,7 @@ export default {
 
       if (!this.hasErrors) {
         await this.openTable()
+        this.reset()
       }
     },
     onJobFailed() {
@@ -325,6 +327,9 @@ export default {
       error.handler
         ? this.handleError(error, 'application', specificErrorMap)
         : this.showError(error)
+    },
+    submit() {
+      this.$refs.tableForm.submit()
     },
   },
 }

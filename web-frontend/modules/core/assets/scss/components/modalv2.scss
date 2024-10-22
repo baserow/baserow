@@ -54,6 +54,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-width: 0;
 }
 
 .modalv2__title {
@@ -157,6 +158,10 @@
     flex-shrink: 0;
     align-items: center;
     width: 100%;
+  }
+
+  > button {
+    flex-grow: 0;
   }
 }
 
