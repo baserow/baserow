@@ -197,7 +197,12 @@ export class EqualViewFilterType extends ViewFilterType {
       'uuid',
       'autonumber',
       'duration',
-      FormulaFieldType.compatibleWithFormulaTypes('text', 'char', 'number'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'text',
+        'char',
+        'number',
+        'duration'
+      ),
     ]
   }
 
@@ -243,7 +248,12 @@ export class NotEqualViewFilterType extends ViewFilterType {
       'uuid',
       'autonumber',
       'duration',
-      FormulaFieldType.compatibleWithFormulaTypes('text', 'char', 'number'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'text',
+        'char',
+        'number',
+        'duration'
+      ),
     ]
   }
 
@@ -2012,11 +2022,12 @@ export class NumericComparisonViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
+    const fieldType = field?.formula_type || field?.type
     const inputComponent = {
       [RatingFieldType.getType()]: ViewFilterTypeRating,
       [DurationFieldType.getType()]: ViewFilterTypeDuration,
     }
-    return inputComponent[field?.type] || ViewFilterTypeNumber
+    return inputComponent[fieldType] || ViewFilterTypeNumber
   }
 
   getCompatibleFieldTypes() {
@@ -2025,7 +2036,7 @@ export class NumericComparisonViewFilterType extends ViewFilterType {
       'rating',
       'autonumber',
       'duration',
-      FormulaFieldType.compatibleWithFormulaTypes('number'),
+      FormulaFieldType.compatibleWithFormulaTypes('number', 'duration'),
     ]
   }
 
@@ -2702,6 +2713,7 @@ export class EmptyViewFilterType extends ViewFilterType {
         'boolean',
         'date',
         'number',
+        'duration',
         FormulaFieldType.arrayOf('single_file')
       ),
     ]
@@ -2764,6 +2776,7 @@ export class NotEmptyViewFilterType extends ViewFilterType {
         'boolean',
         'date',
         'number',
+        'duration',
         FormulaFieldType.arrayOf('single_file')
       ),
     ]

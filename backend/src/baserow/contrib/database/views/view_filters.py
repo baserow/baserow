@@ -104,6 +104,7 @@ class EqualViewFilterType(ViewFilterType):
             BaserowFormulaTextType.type,
             BaserowFormulaCharType.type,
             BaserowFormulaNumberType.type,
+            BaserowFormulaDurationType.type
         ),
     ]
 
@@ -359,6 +360,7 @@ class NumericComparisonViewFilterType(ViewFilterType):
         DurationFieldType.type,
         FormulaFieldType.compatible_with_formula_types(
             BaserowFormulaNumberType.type,
+            BaserowFormulaDurationType.type
         ),
     ]
 
