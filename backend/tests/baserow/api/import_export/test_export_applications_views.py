@@ -14,8 +14,10 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.core.import_export.handler import EXPORT_FORMAT_VERSION, MANIFEST_NAME
 
-@pytest.mark.export_workspace
+
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 @override_settings(
     FEATURE_FLAGS="",
@@ -40,7 +42,7 @@ def test_exporting_workspace_with_feature_flag_disabled(
     assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_exporting_missing_workspace_returns_error(data_fixture, api_client, tmpdir):
     user, token = data_fixture.create_user_and_token()
@@ -61,7 +63,7 @@ def test_exporting_missing_workspace_returns_error(data_fixture, api_client, tmp
     assert response.json()["error"] == "ERROR_GROUP_DOES_NOT_EXIST"
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_exporting_workspace_with_no_permissions_returns_error(
     data_fixture, api_client, tmpdir
@@ -85,7 +87,7 @@ def test_exporting_workspace_with_no_permissions_returns_error(
     assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_exporting_workspace_with_application_without_permissions_returns_error(
     data_fixture, api_client, tmpdir
@@ -112,7 +114,7 @@ def test_exporting_workspace_with_application_without_permissions_returns_error(
     assert response.json()["error"] == "PERMISSION_DENIED"
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_exporting_empty_workspace(
     data_fixture,
@@ -144,7 +146,7 @@ def test_exporting_empty_workspace(
     job_id = response_json["id"]
     assert response_json == {
         "created_on": run_time,
-        "exported_file_name": "",
+        "exported_file_name": None,
         "human_readable_error": "",
         "id": job_id,
         "progress_percentage": 0,
@@ -163,10 +165,11 @@ def test_exporting_empty_workspace(
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
 
-    file_name = response_json["exported_file_name"]
+    file_name = response_json["exported_file_name"].replace("export_", "")
 
     assert response_json["state"] == "finished"
     assert response_json["progress_percentage"] == 100
+
     assert (
         response_json["url"] == f"http://localhost:8000/media/export_files/{file_name}"
     )
@@ -175,14 +178,18 @@ def test_exporting_empty_workspace(
     assert file_path.isfile()
 
     with zipfile.ZipFile(file_path, "r") as zip_ref:
-        assert "data/workspace_export.json" in zip_ref.namelist()
+        assert MANIFEST_NAME in zip_ref.namelist()
 
-        with zip_ref.open("data/workspace_export.json") as json_file:
+        with zip_ref.open(MANIFEST_NAME) as json_file:
             json_data = json.load(json_file)
-            assert len(json_data) == 0
+            assert json_data == {
+                "version": "1.0.0",
+                "applications": {},
+                "configuration": {"structure_only": False},
+            }
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_exporting_workspace_with_single_empty_database(
     data_fixture,
@@ -193,7 +200,8 @@ def test_exporting_workspace_with_single_empty_database(
     use_tmp_media_root,
 ):
     user = data_fixture.create_user()
-    database = data_fixture.create_database_application(user=user)
+    database_name = "To be exported"
+    database = data_fixture.create_database_application(user=user, name=database_name)
 
     run_time = "2024-10-14T08:00:00Z"
     with django_capture_on_commit_callbacks(execute=True), freeze_time(run_time):
@@ -214,7 +222,7 @@ def test_exporting_workspace_with_single_empty_database(
     job_id = response_json["id"]
     assert response_json == {
         "created_on": run_time,
-        "exported_file_name": "",
+        "exported_file_name": None,
         "human_readable_error": "",
         "id": job_id,
         "progress_percentage": 0,
@@ -233,7 +241,7 @@ def test_exporting_workspace_with_single_empty_database(
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
 
-    file_name = response_json["exported_file_name"]
+    file_name = response_json["exported_file_name"].replace("export_", "")
 
     assert response_json["state"] == "finished"
     assert response_json["progress_percentage"] == 100
@@ -245,23 +253,29 @@ def test_exporting_workspace_with_single_empty_database(
     assert file_path.isfile()
 
     with zipfile.ZipFile(file_path, "r") as zip_ref:
-        assert "data/workspace_export.json" in zip_ref.namelist()
+        assert MANIFEST_NAME in zip_ref.namelist()
 
-        with zip_ref.open("data/workspace_export.json") as json_file:
+        with zip_ref.open(MANIFEST_NAME) as json_file:
             json_data = json.load(json_file)
-            assert len(json_data) == 1
-            assert json_data == [
-                {
-                    "id": database.id,
-                    "name": database.name,
-                    "order": database.order,
-                    "type": "database",
-                    "tables": [],
-                }
-            ]
+            assert json_data["version"] == EXPORT_FORMAT_VERSION
+            assert json_data["configuration"] == {"structure_only": False}
+            assert len(json_data["applications"]["database"]["items"]) == 1
+            assert (
+                json_data["applications"]["database"]["version"]
+                == EXPORT_FORMAT_VERSION
+            )
+            assert json_data["applications"]["database"]["configuration"] == {}
+            exported_database = json_data["applications"]["database"]["items"][0]
+            assert exported_database["id"] == database.id
+            assert exported_database["type"] == "database"
+            assert exported_database["name"] == database_name
+            assert exported_database["files"]["data"]["file"] is not None
+            assert exported_database["files"]["data"]["checksum"] is not None
+            assert exported_database["files"]["media"]["file"] is not None
+            assert exported_database["files"]["media"]["checksum"] is not None
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 @override_settings(
     FEATURE_FLAGS="",
@@ -284,7 +298,7 @@ def test_list_exports_with_feature_flag_disabled(data_fixture, api_client, tmpdi
     assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_list_exports_with_missing_workspace(data_fixture, api_client, tmpdir):
     user, token = data_fixture.create_user_and_token()
@@ -305,7 +319,7 @@ def test_list_exports_with_missing_workspace(data_fixture, api_client, tmpdir):
     assert response.json()["error"] == "ERROR_GROUP_DOES_NOT_EXIST"
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_list_exports_for_invalid_user(
     data_fixture,
@@ -347,7 +361,7 @@ def test_list_exports_for_invalid_user(
     assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_list_exports_for_valid_user(
     data_fixture,
@@ -390,7 +404,7 @@ def test_list_exports_for_valid_user(
     assert len(response_json["results"]) == 1
 
     export = response_json["results"][0]
-    file_name = export["exported_file_name"]
+    file_name = export["exported_file_name"].replace("export_", "")
 
     assert export["state"] == "finished"
     assert export["progress_percentage"] == 100

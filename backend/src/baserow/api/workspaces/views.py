@@ -63,7 +63,6 @@ from baserow.core.job_types import ExportApplicationsJobType, ImportApplications
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.models import ImportExportResource
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.operations import UpdateWorkspaceOperationType
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
@@ -641,9 +640,7 @@ class ImportExportResourceUploadFileView(APIView):
         feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
 
         handler = ImportExportHandler()
-        handler.get_workspace_or_raise(
-            user=request.user, workspace_id=workspace_id
-        )
+        handler.get_workspace_or_raise(user=request.user, workspace_id=workspace_id)
 
         if "file" not in request.FILES:
             raise InvalidFileStreamError("No file was provided.")

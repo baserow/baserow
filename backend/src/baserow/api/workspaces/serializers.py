@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
-from baserow.core.models import ImportExportResource, Workspace
+from baserow.core.models import Workspace
 
 from .users.serializers import WorkspaceUserSerializer, WorkspaceUserWorkspaceSerializer
 

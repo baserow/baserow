@@ -703,6 +703,11 @@ class ImportExportResource(CreatedAndUpdatedOnMixin, models.Model):
     def get_archive_name(self):
         return f"{self.uuid}.zip"
 
+    def save(self, *args, **kwargs):
+        if not self.uuid:
+            self.uuid = uuid.uuid4()
+        super().save(*args, **kwargs)
+
 
 class ExportApplicationsJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job

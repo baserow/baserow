@@ -280,13 +280,14 @@ class ExportApplicationsJobType(JobType):
 
     def fetch_applications(self, user, workspace, application_ids):
         """
-        Fetches the applications that are going to be exported. If the user does not have
-        access to the workspace or the applications, a PermissionDenied exception is
-        raised.
+        Fetches the applications that are going to be exported. If the user does not
+        have access to the workspace or the applications, a PermissionDenied
+        exception is raised.
 
         :param user: The user that is going to export the applications.
         :param workspace: The workspace where the applications are located.
-        :param application_ids: The IDs of the applications that are going to be exported.
+        :param application_ids: The IDs of the applications that are going to be
+            exported.
         :return: The applications that are going to be exported.
         :raises PermissionDenied: If the user does not have access to the workspace or
             the applications.
@@ -325,7 +326,7 @@ class ExportApplicationsJobType(JobType):
     ) -> Dict[str, Any]:
         workspace_id = values.get("workspace_id")
         workspace = CoreHandler().get_workspace(workspace_id=workspace_id)
-        
+
         application_ids = values.get("application_ids") or []
         self.fetch_applications(user, workspace, application_ids)
 

@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "configuration": {
+      "type": "object",
+      "properties": {
+        "structure_only": {
+          "type": "boolean"
+        }
+      },
+      "required": ["structure_only"]
+    },
+    "applications": {
+      "type": "object",
+      "properties": {
+        "database": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "configuration": {
+              "type": "object"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "uuid": {
+                    "type": "string"
+                  },
+                  "files": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "file": {
+                            "type": "string"
+                          },
+                          "checksum": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["file", "checksum"]
+                      },
+                      "media": {
+                        "type": "object",
+                        "properties": {
+                          "file": {
+                            "type": "string"
+                          },
+                          "checksum": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["file", "checksum"]
+                      }
+                    },
+                    "required": ["data", "media"]
+                  }
+                },
+                "required": ["id", "type", "name", "uuid", "files"]
+              }
+            }
+          }
+        },
+        "dashboard": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "configuration": {
+              "type": "object"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "uuid": {
+                    "type": "string"
+                  },
+                  "files": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "file": {
+                            "type": "string"
+                          },
+                          "checksum": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["file", "checksum"]
+                      },
+                      "media": {
+                        "type": "object",
+                        "properties": {
+                          "file": {
+                            "type": "string"
+                          },
+                          "checksum": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["file", "checksum"]
+                      }
+                    },
+                    "required": ["data", "media"]
+                  }
+                },
+                "required": ["id", "type", "name", "uuid", "files"]
+              }
+            }
+          }
+        },
+        "builder": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "configuration": {
+              "type": "object"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "uuid": {
+                    "type": "string"
+                  },
+                  "files": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "file": {
+                            "type": "string"
+                          },
+                          "checksum": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["file", "checksum"]
+                      },
+                      "media": {
+                        "type": "object",
+                        "properties": {
+                          "file": {
+                            "type": "string"
+                          },
+                          "checksum": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["file", "checksum"]
+                      }
+                    },
+                    "required": ["data", "media"]
+                  }
+                },
+                "required": ["id", "type", "name", "uuid", "files"]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["version", "configuration", "applications"]
+}

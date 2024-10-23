@@ -14,7 +14,7 @@ from rest_framework.status import (
 )
 
 
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 @override_settings(
     FEATURE_FLAGS="",
@@ -36,7 +36,7 @@ def test_upload_file_with_feature_flag_disabled(data_fixture, api_client, tmpdir
     assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_upload_file_into_non_existing_workspace(data_fixture, api_client, tmpdir):
     user, token = data_fixture.create_user_and_token()
@@ -54,7 +54,7 @@ def test_upload_file_into_non_existing_workspace(data_fixture, api_client, tmpdi
     assert response.json()["error"] == "ERROR_GROUP_DOES_NOT_EXIST"
 
 
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_upload_file_invalid_user(data_fixture, api_client, tmpdir):
     user = data_fixture.create_user()
@@ -75,7 +75,7 @@ def test_upload_file_invalid_user(data_fixture, api_client, tmpdir):
     assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
 
 
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_upload_file_without_attachment(data_fixture, api_client, tmpdir):
     user, token = data_fixture.create_user_and_token()
@@ -93,7 +93,7 @@ def test_upload_file_without_attachment(data_fixture, api_client, tmpdir):
     assert response.json()["error"] == "ERROR_INVALID_FILE"
 
 
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_upload_file_not_zip(data_fixture, api_client, tmpdir):
     user, token = data_fixture.create_user_and_token()
@@ -120,7 +120,7 @@ def test_upload_file_not_zip(data_fixture, api_client, tmpdir):
     assert response.json()["error"] == "ERROR_INVALID_FILE"
 
 
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_upload_valid_file(data_fixture, api_client, tmpdir, use_tmp_media_root):
     user, token = data_fixture.create_user_and_token()

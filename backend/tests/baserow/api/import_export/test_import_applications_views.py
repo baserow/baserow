@@ -8,14 +8,13 @@ import pytest
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_202_ACCEPTED,
+    HTTP_400_BAD_REQUEST,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.core.import_export.exceptions import ImportExportResourceDoesNotExist
 
-
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 @override_settings(
     FEATURE_FLAGS="",
@@ -39,7 +38,7 @@ def test_import_applications_with_feature_flag_disabled(
     assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_import_applications_into_non_existing_workspace(
     data_fixture, api_client, tmpdir
@@ -61,7 +60,7 @@ def test_import_applications_into_non_existing_workspace(
     assert response.json()["error"] == "ERROR_GROUP_DOES_NOT_EXIST"
 
 
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_import_applications_from_non_existing_resource(
     data_fixture, api_client, tmpdir
@@ -82,7 +81,7 @@ def test_import_applications_from_non_existing_resource(
     assert response.json()["error"] == "ERROR_RESOURCE_DOES_NOT_EXIST"
 
 
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_import_applications_with_non_existing_file(
     data_fixture, api_client, tmpdir, use_tmp_media_root
@@ -90,25 +89,25 @@ def test_import_applications_with_non_existing_file(
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
 
-    resource = data_fixture.create_import_resource(
-        uploaded_by=user,
-        workspace_id=workspace.id,
-        original_name="interesting_database.zip",
+    resource = data_fixture.create_import_export_resource(
+        created_by=user, original_name="interesting_database.zip", is_valid=False
     )
 
-    with pytest.raises(ImportExportResourceDoesNotExist):
-        api_client.post(
-            reverse(
-                "api:workspaces:import_workspace_async",
-                kwargs={"workspace_id": workspace.id},
-            ),
-            data={"resource_id": resource.id},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
+    response = api_client.post(
+        reverse(
+            "api:workspaces:import_workspace_async",
+            kwargs={"workspace_id": workspace.id},
+        ),
+        data={"resource_id": resource.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_RESOURCE_IS_INVALID"
 
 
-@pytest.mark.import_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_import_applications(data_fixture, api_client, tmpdir, use_tmp_media_root):
     user, token = data_fixture.create_user_and_token()
@@ -118,15 +117,15 @@ def test_import_applications(data_fixture, api_client, tmpdir, use_tmp_media_roo
         settings.BASE_DIR, "../../../tests/baserow/api/import_export/sources"
     )
 
-    resource = data_fixture.create_import_resource(
-        uploaded_by=user,
-        workspace_id=workspace.id,
-        original_name="interesting_database.zip",
+    resource = data_fixture.create_import_export_resource(
+        created_by=user, original_name="interesting_database.zip", is_valid=True
     )
 
     with open(f"{sources_path}/interesting_database_export.zip", "rb") as export_file:
         content = export_file.read()
-        data_fixture.create_import_resource_file(resource=resource, content=content)
+        data_fixture.create_import_export_resource_file(
+            resource=resource, content=content
+        )
 
     response = api_client.post(
         reverse(

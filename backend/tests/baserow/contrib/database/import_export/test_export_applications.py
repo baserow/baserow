@@ -8,14 +8,18 @@ from freezegun import freeze_time
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.core.import_export.handler import ImportExportHandler
+from baserow.core.import_export.handler import (
+    EXPORT_FORMAT_VERSION,
+    MANIFEST_NAME,
+    ImportExportHandler,
+)
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.models import UserFile
 from baserow.test_utils.helpers import setup_interesting_test_database
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_exporting_interesting_database(
     data_fixture, api_client, tmpdir, settings, use_tmp_media_root
@@ -39,26 +43,42 @@ def test_exporting_interesting_database(
     for user_file in UserFile.objects.all():
         data_fixture.save_content_in_user_file(user_file=user_file, storage=storage)
 
-    file_name = ImportExportHandler().export_workspace_applications(
+    resource = ImportExportHandler().export_workspace_applications(
         applications=[database],
         import_export_config=cli_import_export_config,
         storage=storage,
         progress_builder=None,
     )
 
-    file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, file_name)
+    file_path = tmpdir.join(
+        settings.EXPORT_FILES_DIRECTORY, resource.get_archive_name()
+    )
     assert file_path.isfile()
 
     with zipfile.ZipFile(file_path, "r") as zip_ref:
-        assert "data/workspace_export.json" in zip_ref.namelist()
+        assert MANIFEST_NAME in zip_ref.namelist()
 
-        with zip_ref.open("data/workspace_export.json") as json_file:
+        with zip_ref.open(MANIFEST_NAME) as json_file:
             json_data = json.load(json_file)
-            assert len(json_data) == 1
-            assert json_data[0]["name"] == database.name
+            assert json_data["version"] == EXPORT_FORMAT_VERSION
+            assert json_data["configuration"] == {"structure_only": False}
+            assert len(json_data["applications"]["database"]["items"]) == 1
+            assert (
+                json_data["applications"]["database"]["version"]
+                == EXPORT_FORMAT_VERSION
+            )
+            assert json_data["applications"]["database"]["configuration"] == {}
+            exported_database = json_data["applications"]["database"]["items"][0]
+            assert exported_database["id"] == database.id
+            assert exported_database["type"] == "database"
+            assert exported_database["name"] == database_name
+            assert exported_database["files"]["data"]["file"] is not None
+            assert exported_database["files"]["data"]["checksum"] is not None
+            assert exported_database["files"]["media"]["file"] is not None
+            assert exported_database["files"]["media"]["checksum"] is not None
 
 
-@pytest.mark.export_workspace
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_exporting_workspace_writes_file_to_storage(
     data_fixture,
@@ -108,7 +128,7 @@ def test_exporting_workspace_writes_file_to_storage(
     job_id = response_json["id"]
     assert response_json == {
         "created_on": run_time,
-        "exported_file_name": "",
+        "exported_file_name": None,
         "human_readable_error": "",
         "id": job_id,
         "progress_percentage": 0,
@@ -127,7 +147,7 @@ def test_exporting_workspace_writes_file_to_storage(
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
 
-    file_name = response_json["exported_file_name"]
+    file_name = response_json["exported_file_name"].replace("export_", "")
 
     assert response_json["state"] == "finished"
     assert response_json["progress_percentage"] == 100
@@ -139,17 +159,23 @@ def test_exporting_workspace_writes_file_to_storage(
     assert file_path.isfile()
 
     with zipfile.ZipFile(file_path, "r") as zip_ref:
-        assert "data/workspace_export.json" in zip_ref.namelist()
+        assert MANIFEST_NAME in zip_ref.namelist()
 
-        with zip_ref.open("data/workspace_export.json") as json_file:
+        with zip_ref.open(MANIFEST_NAME) as json_file:
             json_data = json.load(json_file)
-            assert len(json_data) == 1
-            assert json_data[0]["name"] == table.database.name
-
-            assert len(json_data[0]["tables"]) == 1
-            table = json_data[0]["tables"][0]
-            assert len(table["fields"]) == 1
-            assert table["fields"][0]["name"] == text_field.name
-            assert len(table["rows"]) == 2
-            assert table["rows"][0][f"field_{text_field.id}"] == "row #1"
-            assert table["rows"][1][f"field_{text_field.id}"] == "row #2"
+            assert json_data["version"] == EXPORT_FORMAT_VERSION
+            assert json_data["configuration"] == {"structure_only": False}
+            assert len(json_data["applications"]["database"]["items"]) == 1
+            assert (
+                json_data["applications"]["database"]["version"]
+                == EXPORT_FORMAT_VERSION
+            )
+            assert json_data["applications"]["database"]["configuration"] == {}
+            exported_database = json_data["applications"]["database"]["items"][0]
+            assert exported_database["id"] == table.database.id
+            assert exported_database["type"] == "database"
+            assert exported_database["name"] == table.database.name
+            assert exported_database["files"]["data"]["file"] is not None
+            assert exported_database["files"]["data"]["checksum"] is not None
+            assert exported_database["files"]["media"]["file"] is not None
+            assert exported_database["files"]["media"]["checksum"] is not None

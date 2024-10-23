@@ -1213,7 +1213,7 @@ class ExportApplicationsActionType(ActionType):
             application_ids=[application.id for application in applications],
             application_names=[application.name for application in applications],
             resource_id=str(resource.uuid),
-            resource_file_name=resource.get_archive_name()
+            resource_file_name=resource.get_archive_name(),
         )
 
         cls.register_action(user, params, cls.scope(workspace.id), workspace=workspace)

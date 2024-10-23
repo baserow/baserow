@@ -836,6 +836,8 @@ EXPORT_FILES_DIRECTORY = "export_files"
 EXPORT_CLEANUP_INTERVAL_MINUTES = 5
 EXPORT_FILE_EXPIRE_MINUTES = 60
 
+IMPORT_FILES_DIRECTORY = "import_files"
+
 # The interval in minutes that the mentions cleanup job should run. This job will
 # remove mentions that are no longer used.
 STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES = int(
