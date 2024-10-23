@@ -32,14 +32,6 @@
         </span>
       </template>
     </List>
-    <SelectSubjectsListFooter
-      class="margin-top-1"
-      subject-type="baserow_enterprise.Team"
-      :scope-type="scopeType"
-      :count="teamsSelected.length"
-      :show-role-selector="showRoleSelector"
-      @invite="$emit('invite', teamsSelected, $event)"
-    />
   </div>
 </template>
 
@@ -62,11 +54,15 @@ export default {
       type: String,
       required: true,
     },
+    teamsSelected: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
   },
   data() {
     return {
       teamsFiltered: this.teams,
-      teamsSelected: [],
       activeSearchTerm: null,
     }
   },

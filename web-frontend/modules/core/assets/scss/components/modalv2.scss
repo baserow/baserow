@@ -78,8 +78,14 @@
   box-sizing: border-box;
   padding: 18px 55px 18px 24px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 
-  @include flex-align-items;
+  h2,
+  p {
+    margin: 0;
+  }
 
   &.modal__title--no-padding-left {
     padding-left: 0;

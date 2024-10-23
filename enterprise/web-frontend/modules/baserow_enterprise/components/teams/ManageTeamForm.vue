@@ -111,6 +111,7 @@
           <template #right-side="{ item }">
             <span class="margin-right-1">{{ item.email }}</span>
             <ButtonIcon
+              tag="a"
               size="small"
               icon="iconoir-bin"
               @click="$emit('remove-subject', item)"
@@ -119,23 +120,15 @@
         </List>
       </div>
     </div>
-    <div class="row margin-top-2">
-      <div class="col col-6">
-        <Button
-          type="secondary"
-          :loading="loading"
-          :disabled="loading"
-          tag="a"
-          @click="$emit('invite')"
-          >{{ $t('manageTeamForm.inviteMembers') }}
-        </Button>
-      </div>
-      <div class="col col-6 align-right">
-        <Button type="primary" :disabled="loading" :loading="loading">
-          {{ $t('manageTeamForm.submit') }}</Button
-        >
-      </div>
-    </div>
+
+    <Button
+      type="secondary"
+      :disabled="loading"
+      class="margin-top-2"
+      tag="a"
+      @click="$emit('invite')"
+      >{{ $t('manageTeamForm.inviteMembers') }}
+    </Button>
   </form>
 </template>
 
@@ -202,6 +195,12 @@ export default {
           subject_type: 'auth.User',
         })
       }
+    },
+    values: {
+      handler: function (newValues) {
+        this.$emit('update-values', newValues)
+      },
+      deep: true,
     },
   },
   validations: {

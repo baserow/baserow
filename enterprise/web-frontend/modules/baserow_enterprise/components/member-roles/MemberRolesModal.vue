@@ -1,48 +1,64 @@
 <template>
-  <Modal @show="onShow" @hidden="hideError">
-    <Error v-if="error.visible" :error="error"></Error>
-    <Tabs v-else :selected-index.sync="selectedTabIndex" no-padding>
-      <Tab
-        v-if="canManageDatabase"
-        :title="$t('memberRolesModal.memberRolesDatabaseTabTitle')"
-      >
-        <MemberRolesTab
-          :loading="loading"
-          :workspace="workspace"
-          :scope="database"
-          :role-assignments="databaseRoleAssignments"
-          :teams="teams"
-          scope-type="application"
-          @invite-members="inviteDatabaseMembers"
-          @invite-teams="inviteDatabaseTeams"
-          @role-updated="updateRole(databaseRoleAssignments, ...arguments)"
-        />
-      </Tab>
-      <Tab
-        v-if="table && canManageTable"
-        :title="$t('memberRolesModal.memberRolesTableTabTitle')"
-      >
-        <MemberRolesTab
-          :loading="loading"
-          :workspace="workspace"
-          :scope="table"
-          :role-assignments="tableRoleAssignments"
-          :teams="teams"
-          scope-type="database_table"
-          @invite-members="inviteTableMembers"
-          @invite-teams="inviteTableTeams"
-          @role-updated="updateRole(tableRoleAssignments, ...arguments)"
-        />
-      </Tab>
-    </Tabs>
-  </Modal>
+  <ModalV2 ref="modal" @show="onShow" @hidden="hideError">
+    <template #header-content>
+      <h2>
+        {{
+          $t('memberRolesTab.database.title', {
+            name: database.name,
+          })
+        }}
+      </h2>
+    </template>
+    <template #content>
+      <Error v-if="error.visible" :error="error"></Error>
+      <Tabs v-else :selected-index.sync="selectedTabIndex" no-padding>
+        <Tab
+          v-if="canManageDatabase"
+          :title="$t('memberRolesModal.memberRolesDatabaseTabTitle')"
+        >
+          <MemberRolesTab
+            :loading="loading"
+            :workspace="workspace"
+            :scope="database"
+            :role-assignments="databaseRoleAssignments"
+            :teams="teams"
+            scope-type="application"
+            @invite-members="inviteDatabaseMembers"
+            @invite-teams="inviteDatabaseTeams"
+            @role-updated="updateRole(databaseRoleAssignments, ...arguments)"
+          />
+        </Tab>
+        <Tab
+          v-if="table && canManageTable"
+          :title="$t('memberRolesModal.memberRolesTableTabTitle')"
+        >
+          <MemberRolesTab
+            :loading="loading"
+            :workspace="workspace"
+            :scope="table"
+            :role-assignments="tableRoleAssignments"
+            :teams="teams"
+            scope-type="database_table"
+            @invite-members="inviteTableMembers"
+            @invite-teams="inviteTableTeams"
+            @role-updated="updateRole(tableRoleAssignments, ...arguments)"
+          />
+        </Tab>
+      </Tabs>
+    </template>
+    <template #footer-content>
+      <Button type="secondary" @click="$refs.modal.hide()">{{
+        $t('action.ok')
+      }}</Button>
+    </template>
+  </ModalV2>
 </template>
 
 <script>
 import error from '@baserow/modules/core/mixins/error'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
 import TeamService from '@baserow_enterprise/services/team'
-import Modal from '@baserow/modules/core/mixins/modal'
+import modalv2 from '@baserow/modules/core/mixins/modalv2'
 import MemberRolesTab from '@baserow_enterprise/components/member-roles/MemberRolesTab'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
@@ -50,7 +66,7 @@ import { clone } from '@baserow/modules/core/utils/object'
 export default {
   name: 'MemberRolesModal',
   components: { MemberRolesTab },
-  mixins: [Modal, error],
+  mixins: [modalv2, error],
   props: {
     database: {
       type: Object,
