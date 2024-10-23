@@ -26,11 +26,10 @@
 
     <template #footer-content>
       <Button
-        tag="a"
         type="primary"
         :disabled="loading"
         :loading="loading"
-        @click="createTeam"
+        @click="$refs.manageForm.submit()"
       >
         {{ $t('manageTeamForm.submit') }}</Button
       >
