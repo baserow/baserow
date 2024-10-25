@@ -338,7 +338,8 @@
   },
   "enterpriseDataSyncType": {
     "localBaserowTable": "Sync Baserow table",
-    "jiraIssues": "Sync Jira issues"
+    "jiraIssues": "Sync Jira issues",
+    "githubIssues": "Sync GitHub issues"
   },
   "localBaserowTableDataSync": {
     "name": "Source table ID",
@@ -356,5 +357,13 @@
     "usernameHelper": "The username of the Jira account used to authenticate. This is the email that you use to sign in.",
     "apiToken": "Jira API token",
     "apiTokenHelper": "The API token of the Jira account used for authentication. Can be created at https://id.atlassian.com/manage-profile/security/api-tokens."
+  },
+  "githubIssuesDataSync": {
+    "owner": "Owner",
+    "ownerHelper": "Username or owner of the repository. Typically in the top left corner `owner / repo`",
+    "repo": "Repository",
+    "repoHelper": "The name of the repository. Typically in the top left corner `owner / repo`",
+    "apiToken": "API token",
+    "apiTokenHelper": "Can be generated here https://github.com/settings/tokens by clicking on `Generate new token`, select `All repositories`, then under `Repository permissions` set `Issues` to `read-only`."
   }
 }

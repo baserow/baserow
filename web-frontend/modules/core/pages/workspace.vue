@@ -1,6 +1,6 @@
 <template>
   <div v-if="workspaceExists">
-    <div class="dashboard__header">
+    <div class="dashboard__header" ph-autocapture="dashboard-header">
       <div class="dashboard__header-left">
         <h1
           ref="contextLink"
@@ -57,7 +57,10 @@
         </span>
       </div>
     </div>
-    <div class="dashboard__scroll-container">
+    <div
+      class="dashboard__scroll-container"
+      ph-autocapture="dashboard-container"
+    >
       <div class="dashboard__main">
         <DashboardVerifyEmail
           class="margin-top-0 margin-bottom-0"

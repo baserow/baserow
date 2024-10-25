@@ -1,5 +1,5 @@
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import advocate
 from advocate.exceptions import UnacceptableAddressException
@@ -7,6 +7,7 @@ from icalendar import Calendar
 from requests.exceptions import RequestException
 
 from baserow.contrib.database.fields.models import DateField, TextField
+from baserow.core.utils import ChildProgressBuilder
 
 from .exceptions import SyncError
 from .models import ICalCalendarDataSync
@@ -100,9 +101,18 @@ class ICalCalendarDataSyncType(DataSyncType):
             SummaryICalCalendarDataSyncProperty("summary", "Summary"),
         ]
 
-    def get_all_rows(self, instance) -> List[Dict]:
+    def get_all_rows(
+        self,
+        instance,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> List[Dict]:
+        # The progress bar is difficult to setup because there are only three steps
+        # that must completed. We're therefore using working with a total of three
+        # because it gives some sense of what's going on.
+        progress = ChildProgressBuilder.build(progress_builder, child_total=3)
+
         try:
-            response = advocate.get(instance.ical_url, timeout=10)
+            response = advocate.get(instance.ical_url, timeout=60)
         except (RequestException, UnacceptableAddressException, ConnectionError):
             raise SyncError("The provided URL could not be reached.")
 
@@ -110,13 +120,15 @@ class ICalCalendarDataSyncType(DataSyncType):
             raise SyncError(
                 "The request to the URL didn't respond with an OK response code."
             )
+        progress.increment(by=1)  # makes the total `1`
 
         try:
             calendar = Calendar.from_ical(response.content)
         except ValueError as e:
             raise SyncError(f"Could not read calendar file: {str(e)}")
+        progress.increment(by=1)  # makes the total `2`
 
-        return [
+        events = [
             {
                 "uid": str(component.get("uid")),
                 "dtstart": getattr(component.get("dtstart"), "dt", None),
@@ -126,3 +138,6 @@ class ICalCalendarDataSyncType(DataSyncType):
             for component in calendar.walk()
             if component.name == "VEVENT"
         ]
+        progress.increment(by=1)  # makes the total `3`
+
+        return events

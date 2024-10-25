@@ -185,12 +185,14 @@ class BaserowEnterpriseConfig(AppConfig):
             data_sync_type_registry,
         )
         from baserow_enterprise.data_sync.data_sync_types import (
+            GitHubIssuesDataSyncType,
             JiraIssuesDataSyncType,
             LocalBaserowTableDataSyncType,
         )
 
         data_sync_type_registry.register(LocalBaserowTableDataSyncType())
         data_sync_type_registry.register(JiraIssuesDataSyncType())
+        data_sync_type_registry.register(GitHubIssuesDataSyncType())
 
         # Create default roles
         post_migrate.connect(sync_default_roles_after_migrate, sender=self)

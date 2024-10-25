@@ -42,3 +42,16 @@ class JiraIssuesDataSync(DataSync):
         max_length=255,
         help_text="The API token of the Jira account used for authentication.",
     )
+
+
+class GitHubIssuesDataSync(DataSync):
+    github_issues_owner = models.CharField(
+        max_length=255, help_text="The owner of the repository on GitHub."
+    )
+    github_issues_repo = models.CharField(
+        max_length=255, help_text="The name of the repository on GitHub."
+    )
+    github_issues_api_token = models.CharField(
+        max_length=255,
+        help_text="The API token used to authenticate requests to GitHub.",
+    )

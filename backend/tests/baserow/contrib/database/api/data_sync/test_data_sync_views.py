@@ -392,7 +392,7 @@ def test_async_sync_data_sync_table_failed_sync(api_client, data_fixture):
     job = response.json()
     assert job["state"] == "failed"
     assert job["type"] == "sync_data_sync_table"
-    assert job["progress_percentage"] == 0
+    assert job["progress_percentage"] > 0
     assert job["data_sync"]["id"] == data_sync_id
     assert (
         job["human_readable_error"]

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -18,6 +18,7 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
+from baserow.core.utils import ChildProgressBuilder
 
 User = get_user_model()
 
@@ -109,7 +110,11 @@ class DataSyncType(
         """
 
     @abstractmethod
-    def get_all_rows(self, instance: "DataSync") -> Iterable[Dict]:
+    def get_all_rows(
+        self,
+        instance: "DataSync",
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> Iterable[Dict]:
         """
         Should return a list with dicts containing the raw row values. The values will
         run through the `to_baserow_value` method of the related property to convert

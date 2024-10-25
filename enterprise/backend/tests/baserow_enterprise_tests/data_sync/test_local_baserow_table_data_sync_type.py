@@ -16,7 +16,9 @@ from baserow.contrib.database.fields.models import NumberField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.core.db import specific_iterator
 from baserow.test_utils.helpers import setup_interesting_test_table
-from baserow_enterprise.data_sync.data_sync_types import BaserowFieldDataSyncProperty
+from baserow_enterprise.data_sync.baserow_table_data_sync import (
+    BaserowFieldDataSyncProperty,
+)
 from baserow_enterprise.data_sync.models import LocalBaserowTableDataSync
 
 

@@ -1,6 +1,7 @@
 <template>
   <Context
     ref="context"
+    ph-autocapture="workspace-context"
     overflow-scroll
     max-height-if-outside-viewport
     @shown="fetchRolesAndPermissions"
