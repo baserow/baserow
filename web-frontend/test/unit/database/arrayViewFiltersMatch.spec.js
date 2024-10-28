@@ -442,7 +442,7 @@ describe('Text-based array view filters', () => {
   )
 })
 
-describe('boolean-based array view filters', () => {
+describe('Boolean-based array view filters', () => {
   let testApp = null
   let fieldType = null
 
@@ -662,19 +662,22 @@ describe('boolean-based array view filters', () => {
     },
   ]
 
-  test.each(hasNotValueBoolCases)('hasNotValueBoolCases %j', (testValues) => {
-    const result = new HasNotValueEqualViewFilterType({
-      app: testApp._app,
-    }).matches(
-      testValues.cellValue,
-      testValues.filterValue,
-      fieldDefinition,
-      fieldType
-    )
-    expect(result).toBe(testValues.expected)
-  })
+  test.each(hasNotValueBoolCases)(
+    'hasNotValueEqualBoolCases %j',
+    (testValues) => {
+      const result = new HasNotValueEqualViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected)
+    }
+  )
 
-  const hasAllValueBoolCases = [
+  const hasAllValueBooleanCases = [
     {
       cellValue: [],
       filterValue: true,
@@ -737,15 +740,18 @@ describe('boolean-based array view filters', () => {
     },
   ]
 
-  test.each(hasAllValueBoolCases)('hasAllValueBoolCases %j', (testValues) => {
-    const result = new HasAllValuesEqualViewFilterType({
-      app: testApp._app,
-    }).matches(
-      testValues.cellValue,
-      testValues.filterValue,
-      fieldDefinition,
-      fieldType
-    )
-    expect(result).toBe(testValues.expected)
-  })
+  test.each(hasAllValueBooleanCases)(
+    'hasAllValueBooleanCases %j',
+    (testValues) => {
+      const result = new HasAllValuesEqualViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected)
+    }
+  )
 })
