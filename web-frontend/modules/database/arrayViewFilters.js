@@ -297,7 +297,7 @@ export class HasAllValuesEqualViewFilterType extends ViewFilterType {
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('viewFilter.allOfArrayAre')
+    return i18n.t('viewFilter.hasAllValuesEqual')
   }
 
   getInputComponent(field) {

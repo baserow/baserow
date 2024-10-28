@@ -200,8 +200,8 @@ class HasValueLengthIsLowerThanViewFilterType(ViewFilterType):
             return self.default_filter_on_exception()
 
 
-class _OfArrayIsMixin:
-    json_expression: typing.ClassVar[typing.Type[BaserowFilterExpression]]
+class HasAllValuesEqualViewFilterType(ViewFilterType):
+    type = "has_all_values_equal"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type)
@@ -211,7 +211,7 @@ class _OfArrayIsMixin:
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
         try:
             return get_array_bool_json_expression(
-                self.json_expression, field_name, value, model_field, field
+                JSONArrayAllAreExpr, field_name, value, model_field, field
             )
 
         except Exception as err:
@@ -219,8 +219,3 @@ class _OfArrayIsMixin:
                 f"Error when creating {self.type} filter expression for {field_name} field with {value} value: {err}"
             )
             return self.default_filter_on_exception()
-
-
-class HasAllValuesEqualViewFilterType(_OfArrayIsMixin, ViewFilterType):
-    type = "has_all_values_equal"
-    json_expression = JSONArrayAllAreExpr
