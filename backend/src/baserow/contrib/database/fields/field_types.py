@@ -843,6 +843,16 @@ class BooleanFieldType(FieldType):
     ) -> BooleanField:
         return BooleanField()
 
+    def get_in_array_is_query(self, field_name, value, model_field, field):
+        from baserow.contrib.database.views.array_view_filters import (
+            JSONArrayAnyIsExpr,
+            get_array_bool_json_expression,
+        )
+
+        return get_array_bool_json_expression(
+            JSONArrayAnyIsExpr, field_name, value, model_field, field
+        )
+
 
 class DateFieldType(FieldType):
     type = "date"
@@ -5573,6 +5583,17 @@ class LookupFieldType(FormulaFieldType):
         target_field_name = target_field["name"]
 
         return {(target_field_name, via_field_name)}
+
+    def get_in_array_is_query(self, field_name, value, model_field, field):
+        ftype: FieldType = field.target_field.get_type()
+        try:
+            return ftype.get_in_array_is_query(field_name, value, model_field, field)
+        except AttributeError as err:
+            logger.warning(
+                f"Cannot read get_in_array_is_query from "
+                f"{ftype}: {err}, using mixing"
+            )
+            return super().get_in_array_is_query(field_name, value, model_field, field)
 
 
 class MultipleCollaboratorsFieldType(

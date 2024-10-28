@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Type
 
 from django.db.models.aggregates import Aggregate
 

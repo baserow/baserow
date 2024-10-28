@@ -569,9 +569,9 @@
   },
   "viewFilter": {
     "filter": "Filter | 1 Filter | {count} Filters",
-    "anyOfArrayIs": "Any is",
-    "noneOfArrayIs": "None is",
-    "allOfArrayAre": "All are"
+    "anyOfArrayIs": "any is",
+    "noneOfArrayIs": "none is",
+    "allOfArrayAre": "all are"
   },
   "viewContext": {
     "exportView": "Export view",

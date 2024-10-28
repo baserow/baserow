@@ -10,6 +10,7 @@ from baserow.contrib.database.fields.field_filters import (
     OptionallyAnnotatedQ,
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    BaserowFilterExpression,
     JSONArrayContainsValueExpr,
     JSONArrayContainsValueLengthLowerThanExpr,
     JSONArrayContainsValueSimilarToExpr,
@@ -148,3 +149,35 @@ class HasValueLengthIsLowerThanFilterSupport:
             },
             q={f"{field_name}_has_value_length_is_lower_than_{hashed_value}": True},
         )
+
+
+def get_array_bool_json_expression(
+    json_expression: typing.Type[BaserowFilterExpression],
+    field_name: str,
+    value: str,
+    model_field,
+    field,
+) -> OptionallyAnnotatedQ:
+    """
+    helper to generate annotated query to get filtered json-based array. `json_expression` should be a filter expression class.
+
+    :param json_expression: BaserowFilterExpression to use
+    :param field_name: a name of a field
+    :param value: filter value
+    :param model_field:
+    :param field:
+    :return:
+    """
+
+    value = value.strip()
+    # if not value:
+    #     return Q()
+    converted_value = True if value == "1" else False
+    annotation_query = json_expression(
+        F(field_name), Value(converted_value), output_field=BooleanField()
+    )
+    hashed_value = hash(value)
+    return AnnotatedQ(
+        annotation={f"{field_name}_none_of_array_is_{hashed_value}": annotation_query},
+        q={f"{field_name}_none_of_array_is_{hashed_value}": True},
+    )

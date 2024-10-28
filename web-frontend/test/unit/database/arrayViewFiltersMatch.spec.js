@@ -9,9 +9,7 @@ import {
   HasEmptyValueViewFilterType,
   HasNotEmptyValueViewFilterType,
   HasValueLengthIsLowerThanViewFilterType,
-  AnyOfArrayIsViewFilterType,
-  NoneOfArrayIsViewFilterType,
-  AllOfArrayAreViewFilterType,
+  HasAllValuesEqualViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 import {
@@ -442,8 +440,30 @@ describe('Text-based array view filters', () => {
       )
     }
   )
+})
 
-  const hasEmptyBoolValueCases = [
+describe('bool-based array view filters', () => {
+  let testApp = null
+  let fieldType = null
+
+  const fieldDefinition = {
+    type: 'lookup',
+    formula_type: 'array',
+    array_formula_type: 'boolean  ',
+  }
+
+  beforeAll(() => {
+    testApp = new TestApp()
+    fieldType = new FormulaFieldType({
+      app: testApp._app,
+    })
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const notEmptyBoolValueCases = [
     {
       cellValue: [],
       expected: true,
@@ -462,7 +482,7 @@ describe('Text-based array view filters', () => {
     },
   ]
 
-  test.each(hasEmptyBoolValueCases)(
+  test.each(notEmptyBoolValueCases)(
     'hasNotEmptyBoolValueCases %j',
     (testValues) => {
       const fieldType = new FormulaFieldType({
@@ -470,28 +490,20 @@ describe('Text-based array view filters', () => {
       })
       const result = new NotEmptyViewFilterType({
         app: testApp._app,
-      }).matches(
-        testValues.cellValue,
-        null,
-        { formula_type: 'array', array_formula_type: 'bool' },
-        fieldType
-      )
+      }).matches(testValues.cellValue, null, fieldDefinition, fieldType)
       expect(result).toBe(!testValues.expected)
     }
   )
 
-  test.each(hasEmptyBoolValueCases)(
+  test.each(notEmptyBoolValueCases)(
     'hasEmptyBoolValueCases %j',
     (testValues) => {
-      const fieldType = new FormulaFieldType({
-        app: testApp._app,
-      })
       const result = new EmptyViewFilterType({
         app: testApp._app,
       }).matches(
         testValues.cellValue,
         testValues.filterValue,
-        { formula_type: 'array', array_formula_type: 'bool' },
+        fieldDefinition,
         fieldType
       )
       expect(result).toBe(testValues.expected)
@@ -572,15 +584,12 @@ describe('Text-based array view filters', () => {
   ]
 
   test.each(hasAnyValueBoolCases)('hasAnyValueBoolCases %j', (testValues) => {
-    const fieldType = new FormulaFieldType({
-      app: testApp._app,
-    })
-    const result = new AnyOfArrayIsViewFilterType({
+    const result = new HasValueEqualViewFilterType({
       app: testApp._app,
     }).matches(
       testValues.cellValue,
       testValues.filterValue,
-      { formula_type: 'array', array_formula_type: 'bool' },
+      fieldDefinition,
       fieldType
     )
     expect(result).toBe(testValues.expected)
@@ -660,15 +669,12 @@ describe('Text-based array view filters', () => {
   ]
 
   test.each(hasNotValueBoolCases)('hasNotValueBoolCases %j', (testValues) => {
-    const fieldType = new FormulaFieldType({
-      app: testApp._app,
-    })
-    const result = new NoneOfArrayIsViewFilterType({
+    const result = new HasNotValueEqualViewFilterType({
       app: testApp._app,
     }).matches(
       testValues.cellValue,
       testValues.filterValue,
-      { formula_type: 'array', array_formula_type: 'bool' },
+      fieldDefinition,
       fieldType
     )
     expect(result).toBe(testValues.expected)
@@ -738,15 +744,12 @@ describe('Text-based array view filters', () => {
   ]
 
   test.each(hasAllValueBoolCases)('hasAllValueBoolCases %j', (testValues) => {
-    const fieldType = new FormulaFieldType({
-      app: testApp._app,
-    })
-    const result = new AllOfArrayAreViewFilterType({
+    const result = new HasAllValuesEqualViewFilterType({
       app: testApp._app,
     }).matches(
       testValues.cellValue,
       testValues.filterValue,
-      { formula_type: 'array', array_formula_type: 'bool' },
+      fieldDefinition,
       fieldType
     )
     expect(result).toBe(testValues.expected)

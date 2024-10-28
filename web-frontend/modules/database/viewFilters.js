@@ -1,5 +1,5 @@
 import moment from '@baserow/modules/core/moment'
-import _ from 'lodash'
+import { _ } from 'lodash'
 import { Registerable } from '@baserow/modules/core/registry'
 import ViewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText'
 import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber'

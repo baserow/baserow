@@ -399,8 +399,7 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(UserIsNotViewFilterType())
 
         from .views.array_view_filters import (
-            AllOfArrayAreViewFilterType,
-            AnyOfArrayIsViewFilterType,
+            HasAllValuesEqualViewFilterType,
             HasEmptyValueViewFilterType,
             HasNotEmptyValueViewFilterType,
             HasNotValueContainsViewFilterType,
@@ -410,7 +409,6 @@ class DatabaseConfig(AppConfig):
             HasValueContainsWordViewFilterType,
             HasValueEqualViewFilterType,
             HasValueLengthIsLowerThanViewFilterType,
-            NoneOfArrayIsViewFilterType,
         )
 
         view_filter_type_registry.register(HasValueEqualViewFilterType())
@@ -420,9 +418,7 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(HasValueContainsWordViewFilterType())
         view_filter_type_registry.register(HasNotValueContainsWordViewFilterType())
         view_filter_type_registry.register(HasValueLengthIsLowerThanViewFilterType())
-        view_filter_type_registry.register(NoneOfArrayIsViewFilterType())
-        view_filter_type_registry.register(AnyOfArrayIsViewFilterType())
-        view_filter_type_registry.register(AllOfArrayAreViewFilterType())
+        view_filter_type_registry.register(HasAllValuesEqualViewFilterType())
         view_filter_type_registry.register(HasEmptyValueViewFilterType())
         view_filter_type_registry.register(HasNotEmptyValueViewFilterType())
 

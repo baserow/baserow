@@ -300,6 +300,20 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * This aids to set a proper component for a specific view filter type.
+   *
+   * This method should be called in `ViewFilterType.getInputComponent()`. If a field
+   * has a distinctive way to display filter value, this can be used to return
+   * a proper component.
+   *
+   * This method is optional, and the caller should provide a default in case of
+   * `null` returned.
+   */
+  getFilterInputComponent(field, filterType) {
+    return null
+  }
+
+  /**
    * Because we want to show a new row immediately after creating we need to have an
    * empty value to show right away.
    */

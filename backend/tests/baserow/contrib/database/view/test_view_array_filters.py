@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 
 from django.contrib.auth.models import AbstractUser
 
@@ -1568,60 +1569,144 @@ def test_has_value_length_is_lower_than_uuid_field_types(data_fixture):
     assert len(ids) == 4
 
 
+class BooleanLookupRow(int, Enum):
+    """
+    Helper enum for boolean lookup field filters tests.
+
+    Test data is fixed, so we want to point expected rows indexes. Using this enum
+    allows to do it in more descriptive way. Each member is an index of a row with
+    a specific data for the test.
+    """
+
+    MIXED = 0
+    ALL_FALSE = 1
+    ALL_TRUE = 2
+    NO_VALUES = 3
+
+
 @pytest.mark.parametrize(
     "filter_type_name,test_value,expected_rows",
     [
         (
-            "none_of_array_is",
+            "has_all_values_equal",
             "0",
-            [2],
+            [BooleanLookupRow.ALL_FALSE],
         ),
         (
-            "none_of_array_is",
+            "has_all_values_equal",
             "1",
-            [1],
-        ),
-        (
-            "any_of_array_is",
-            "0",
-            [0, 1],
-        ),
-        (
-            "any_of_array_is",
-            "1",
-            [0, 2],
-        ),
-        (
-            "any_of_array_is",
-            "0",
-            [0, 1],
-        ),
-        (
-            "all_of_array_are",
-            "0",
-            [1],
-        ),
-        (
-            "all_of_array_are",
-            "1",
-            [2],
-        ),
-        (
-            "not_empty",
-            "",
-            [0, 1, 2],
-        ),
-        (
-            "empty",
-            "",
-            [3],
+            [BooleanLookupRow.ALL_TRUE],
         ),
     ],
 )
 @pytest.mark.django_db
-def test_boolean_lookup_is_empty(
+def test_all_of_array_are_filter_boolean_lookup_field_type(
     data_fixture, filter_type_name, test_value, expected_rows
 ):
+    boolean_lookup_filter_proc(
+        data_fixture, filter_type_name, test_value, expected_rows
+    )
+
+
+@pytest.mark.parametrize(
+    "filter_type_name,test_value,expected_rows",
+    [
+        (
+            "has_value_equal",
+            "0",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_value_equal",
+            "1",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_value_equal",
+            "0",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+        ),
+    ],
+)
+@pytest.mark.django_db
+def test_any_of_array_is_filter_boolean_lookup_field_type(
+    data_fixture, filter_type_name, test_value, expected_rows
+):
+    boolean_lookup_filter_proc(
+        data_fixture, filter_type_name, test_value, expected_rows
+    )
+
+
+@pytest.mark.parametrize(
+    "filter_type_name,test_value,expected_rows",
+    [
+        (
+            "has_not_value_equal",
+            "0",
+            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "1",
+            [BooleanLookupRow.ALL_FALSE, BooleanLookupRow.NO_VALUES],
+        ),
+    ],
+)
+@pytest.mark.django_db
+def test_none_of_array_is_filter_boolean_lookup_field_type(
+    data_fixture, filter_type_name, test_value, expected_rows
+):
+    boolean_lookup_filter_proc(
+        data_fixture, filter_type_name, test_value, expected_rows
+    )
+
+
+@pytest.mark.parametrize(
+    "filter_type_name,test_value,expected_rows",
+    [
+        (
+            "not_empty",
+            "",
+            [
+                BooleanLookupRow.MIXED,
+                BooleanLookupRow.ALL_FALSE,
+                BooleanLookupRow.ALL_TRUE,
+            ],
+        ),
+        (
+            "empty",
+            "",
+            [BooleanLookupRow.NO_VALUES],
+        ),
+    ],
+)
+@pytest.mark.django_db
+def test_empty_filters_boolean_lookup_field_type(
+    data_fixture, filter_type_name, test_value, expected_rows
+):
+    boolean_lookup_filter_proc(
+        data_fixture, filter_type_name, test_value, expected_rows
+    )
+
+
+def boolean_lookup_filter_proc(
+    data_fixture: "DataFixture",
+    filter_type_name: str,
+    test_value: str,
+    expected_rows: list[BooleanLookupRow],
+):
+    """
+    Common boolean lookup field test procedure. Each test operates on a fixed set of
+    data, where each table row contains a lookup field with a predefined set of linked
+    rows.
+
+    :param data_fixture:
+    :param filter_type_name:
+    :param test_value:
+    :param expected_rows:
+    :return:
+    """
+
     test_setup = setup(data_fixture, boolean_field_factory)
 
     dict_rows = [{test_setup.target_field.db_column: idx % 2} for idx in range(0, 10)]

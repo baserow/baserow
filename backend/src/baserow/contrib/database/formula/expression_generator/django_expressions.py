@@ -235,7 +235,7 @@ class JSONArrayAnyIsExpr(BaserowFilterExpression):
         %(value)s::boolean = any(
             SELECT (filtered_field ->> 'value')::boolean
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-        ) AND JSONB_ARRAY_LENGTH(%(field_name)s) > 0
+        )
         """  # nosec B608 %(value)s
     )
     # fmt: on

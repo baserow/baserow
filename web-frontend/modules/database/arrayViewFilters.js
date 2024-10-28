@@ -50,7 +50,6 @@ export class HasNotEmptyValueViewFilterType extends ViewFilterType {
     return !fieldType.getHasEmptyValueFilterFunction(field)(cellValue)
   }
 }
-
 export class HasValueEqualViewFilterType extends ViewFilterType {
   static getType() {
     return 'has_value_equal'
@@ -61,20 +60,42 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasValueEqual')
   }
 
+  matches(cellValue, filterValue, field, fieldType) {
+    return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
+  }
+
+  isBooleanLookupField(field) {
+    return (
+      field.array_formula_type === 'boolean' &&
+      field.type === 'lookup' &&
+      field.formula_type === 'array'
+    )
+  }
+
+  prepareValue(value, field) {
+    if (this.isBooleanLookupField(field)) {
+      return value.trim() === '' ? '0' : value
+    } else {
+      return value
+    }
+  }
+
   getInputComponent(field) {
+    if (this.isBooleanLookupField(field)) {
+      return ViewFilterTypeBoolean
+    }
     return ViewFilterTypeText
   }
 
   getCompatibleFieldTypes() {
     return [
-      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('boolean')
+      ),
     ]
-  }
-
-  matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
   }
 }
 
@@ -88,20 +109,42 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasNotValueEqual')
   }
 
+  matches(cellValue, filterValue, field, fieldType) {
+    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
+  }
+
+  isBooleanLookupField(field) {
+    return (
+      field.array_formula_type === 'boolean' &&
+      field.type === 'lookup' &&
+      field.formula_type === 'array'
+    )
+  }
+
+  prepareValue(value, field) {
+    if (this.isBooleanLookupField(field)) {
+      return value.trim() === '' ? '0' : value
+    } else {
+      return value
+    }
+  }
+
   getInputComponent(field) {
+    if (this.isBooleanLookupField(field)) {
+      return ViewFilterTypeBoolean
+    }
     return ViewFilterTypeText
   }
 
   getCompatibleFieldTypes() {
     return [
-      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('boolean')
+      ),
     ]
-  }
-
-  matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
   }
 }
 
@@ -247,65 +290,9 @@ export class HasValueLengthIsLowerThanViewFilterType extends ViewFilterType {
   }
 }
 
-export class NoneOfArrayIsViewFilterType extends ViewFilterType {
+export class HasAllValuesEqualViewFilterType extends ViewFilterType {
   static getType() {
-    return 'none_of_array_is'
-  }
-
-  getName() {
-    const { i18n } = this.app
-    return i18n.t('viewFilter.noneOfArrayIs')
-  }
-
-  getInputComponent(field) {
-    return ViewFilterTypeBoolean
-  }
-
-  getCompatibleFieldTypes() {
-    return [
-      'array(boolean)',
-      FormulaFieldType.compatibleWithFormulaTypes('array(boolean)'),
-    ]
-  }
-
-  prepareValue(value, field) {
-    return value === '' ? '0' : value
-  }
-
-  matches(cellValue, filterValue, field, fieldType) {
-    return !_.includes(_.map(cellValue, 'value'), Boolean(filterValue))
-  }
-}
-
-export class AnyOfArrayIsViewFilterType extends ViewFilterType {
-  static getType() {
-    return 'any_of_array_is'
-  }
-
-  getName() {
-    const { i18n } = this.app
-    return i18n.t('viewFilter.anyOfArrayIs')
-  }
-
-  getInputComponent(field) {
-    return ViewFilterTypeBoolean
-  }
-
-  getCompatibleFieldTypes() {
-    return [
-      'array(boolean)',
-      FormulaFieldType.compatibleWithFormulaTypes('array(boolean)'),
-    ]
-  }
-
-  matches(cellValue, filterValue, field, fieldType) {
-    return _.includes(_.map(cellValue, 'value'), Boolean(filterValue))
-  }
-}
-
-export class AllOfArrayAreViewFilterType extends ViewFilterType {
-  static getType() {
-    return 'all_of_array_are'
+    return 'has_all_values_equal'
   }
 
   getName() {
