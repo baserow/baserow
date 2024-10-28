@@ -162,7 +162,7 @@ import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database
 import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
-import _ from 'lodash'
+import { _ } from 'lodash'
 
 export class FieldType extends Registerable {
   /**

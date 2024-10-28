@@ -100,6 +100,13 @@ from baserow.contrib.database.formula import (
     FormulaHandler,
 )
 from baserow.contrib.database.formula.registries import formula_function_registry
+from baserow.contrib.database.formula.types.formula_types import (
+    BaserowFormulaArrayType,
+    BaserowFormulaDurationType,
+    BaserowFormulaMultipleSelectType,
+    BaserowFormulaSingleFileType,
+    BaserowFormulaURLType,
+)
 from baserow.contrib.database.models import Table
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.types import SerializedRowHistoryFieldMetadata
@@ -122,13 +129,6 @@ from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import list_to_comma_separated_string
 
-from ..formula.types.formula_types import (
-    BaserowFormulaArrayType,
-    BaserowFormulaDurationType,
-    BaserowFormulaMultipleSelectType,
-    BaserowFormulaSingleFileType,
-    BaserowFormulaURLType,
-)
 from .constants import BASEROW_BOOLEAN_FIELD_TRUE_VALUES, UPSERT_OPTION_DICT_KEY
 from .dependencies.exceptions import (
     CircularFieldDependencyError,
@@ -844,8 +844,10 @@ class BooleanFieldType(FieldType):
         return BooleanField()
 
     def get_in_array_is_query(self, field_name, value, model_field, field):
-        from baserow.contrib.database.views.array_view_filters import (
+        from baserow.contrib.database.formula.expression_generator.django_expressions import (
             JSONArrayAnyIsExpr,
+        )
+        from baserow.contrib.database.views.array_view_filters import (
             get_array_bool_json_expression,
         )
 
@@ -5585,7 +5587,7 @@ class LookupFieldType(FormulaFieldType):
         return {(target_field_name, via_field_name)}
 
     def get_in_array_is_query(self, field_name, value, model_field, field):
-        ftype: FieldType = field.target_field.get_type()
+        ftype = field.target_field.get_type()
         try:
             return ftype.get_in_array_is_query(field_name, value, model_field, field)
         except AttributeError as err:
