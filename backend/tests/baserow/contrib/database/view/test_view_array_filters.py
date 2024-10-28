@@ -1,3 +1,4 @@
+import typing
 from dataclasses import dataclass
 from enum import Enum
 
@@ -10,6 +11,9 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import GridView
+
+if typing.TYPE_CHECKING:
+    from baserow.test_utils.fixtures import Fixtures
 
 
 @dataclass
@@ -1690,7 +1694,7 @@ def test_empty_filters_boolean_lookup_field_type(
 
 
 def boolean_lookup_filter_proc(
-    data_fixture: "DataFixture",
+    data_fixture: "Fixtures",
     filter_type_name: str,
     test_value: str,
     expected_rows: list[BooleanLookupRow],

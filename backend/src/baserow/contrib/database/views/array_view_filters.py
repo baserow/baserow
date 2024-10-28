@@ -1,5 +1,3 @@
-import typing
-
 from loguru import logger
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
@@ -19,10 +17,7 @@ from baserow.contrib.database.fields.filter_support import (
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaTextType
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
-    BaserowFilterExpression,
     JSONArrayAllAreExpr,
-    JSONArrayAnyIsExpr,
-    JSONArrayNoneIsExpr,
 )
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaBooleanType,

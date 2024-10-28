@@ -159,7 +159,8 @@ def get_array_bool_json_expression(
     field,
 ) -> OptionallyAnnotatedQ:
     """
-    helper to generate annotated query to get filtered json-based array. `json_expression` should be a filter expression class.
+    helper to generate annotated query to get filtered json-based array.
+    `json_expression` should be a filter expression class.
 
     :param json_expression: BaserowFilterExpression to use
     :param field_name: a name of a field
