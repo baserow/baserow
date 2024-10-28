@@ -78,40 +78,9 @@ from .serializers import (
     get_generative_ai_settings_serializer,
 )
 
-ExportApplicationsJobRequestSerializer = job_type_registry.get(
-    ExportApplicationsJobType.type
-).get_serializer_class(
-    base_class=serializers.Serializer,
-    request_serializer=True,
-    meta_ref_name="ExportApplicationsJobRequestSerializer",
-)
-
-ExportApplicationsJobResponseSerializer = job_type_registry.get(
-    ExportApplicationsJobType.type
-).get_serializer_class(
-    base_class=JobSerializer,
-    meta_ref_name="ExportApplicationsJobRequestSerializer",
-)
-
 
 class ListExportWorkspaceApplicationsSerializer(serializers.Serializer):
-    results = ExportApplicationsJobResponseSerializer(many=True)
-
-
-ImportApplicationsJobRequestSerializer = job_type_registry.get(
-    ImportApplicationsJobType.type
-).get_serializer_class(
-    base_class=serializers.Serializer,
-    request_serializer=True,
-    meta_ref_name="ImportApplicationsJobRequestSerializer",
-)
-
-ImportApplicationsJobResponseSerializer = job_type_registry.get(
-    ImportApplicationsJobType.type
-).get_serializer_class(
-    base_class=JobSerializer,
-    meta_ref_name="ImportApplicationsJobResponseSerializer",
-)
+    results = ExportApplicationsJobType().response_serializer_class(many=True)
 
 
 class WorkspacesView(APIView):
@@ -575,7 +544,7 @@ class AsyncExportWorkspaceApplicationsView(APIView):
         ),
         request=None,
         responses={
-            202: ExportApplicationsJobResponseSerializer,
+            202: ExportApplicationsJobType().response_serializer_class,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
@@ -600,7 +569,9 @@ class AsyncExportWorkspaceApplicationsView(APIView):
             MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
         }
     )
-    @validate_body(ExportApplicationsJobRequestSerializer, return_validated=True)
+    @validate_body(
+        ExportApplicationsJobType().request_serializer_class, return_validated=True
+    )
     def post(self, request, data: Dict, workspace_id: int) -> Response:
         """
         Exports the listed applications of a workspace to a ZIP file containing the
@@ -753,7 +724,7 @@ class AsyncImportApplicationsView(APIView):
         ),
         request=None,
         responses={
-            202: ImportApplicationsJobResponseSerializer,
+            202: ImportApplicationsJobType().response_serializer_class,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
@@ -774,7 +745,9 @@ class AsyncImportApplicationsView(APIView):
             ImportWorkspaceFileCorruptedException: ERROR_RESOURCE_IS_CORRUPTED,
         }
     )
-    @validate_body(ImportApplicationsJobRequestSerializer, return_validated=True)
+    @validate_body(
+        ImportApplicationsJobType().request_serializer_class, return_validated=True
+    )
     def post(self, request, data: Dict, workspace_id: int) -> Response:
         feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
 

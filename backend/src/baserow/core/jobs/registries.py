@@ -3,6 +3,7 @@ from typing import Any, Dict
 from django.contrib.auth.models import AbstractUser
 
 from opentelemetry import trace
+from rest_framework import serializers
 
 from baserow.core.db import transaction_atomic
 from baserow.core.registry import (
@@ -110,6 +111,33 @@ class JobType(
         :param job: the specific instance of the related job instance
         :param error: the exception raised.
         """
+
+    @property
+    def request_serializer_class(self):
+        """
+        The serializer that must be used to validate the request data before
+        creating a new job instance of this type.
+        """
+
+        return self.get_serializer_class(
+            base_class=serializers.Serializer,
+            request_serializer=True,
+            meta_ref_name=f"{self.__class__.__name__}RequestSerializer",
+        )
+
+    @property
+    def response_serializer_class(self):
+        """
+        The serializer that must be used to serialize the response data of the job
+        instance of this type.
+        """
+
+        from baserow.api.jobs.serializers import JobSerializer
+
+        return self.get_serializer_class(
+            base_class=JobSerializer,
+            meta_ref_name=f"{self.__class__.__name__}ResponseSerializer",
+        )
 
 
 class JobTypeRegistry(
