@@ -158,7 +158,11 @@ class DatabaseConfig(AppConfig):
         from .airtable.registry import airtable_column_type_registry
         from .data_sync.registries import data_sync_type_registry
         from .export.registries import table_exporter_registry
-        from .fields.registries import field_converter_registry, field_type_registry
+        from .fields.registries import (
+            field_aggregation_registry,
+            field_converter_registry,
+            field_type_registry,
+        )
         from .formula.registries import formula_function_registry
         from .plugins import DatabasePlugin
         from .views.registries import (
@@ -227,6 +231,46 @@ class DatabaseConfig(AppConfig):
         field_type_registry.register(UUIDFieldType())
         field_type_registry.register(AutonumberFieldType())
         field_type_registry.register(PasswordFieldType())
+
+        from .fields.field_aggregations import (
+            AverageFieldAggregationType,
+            CheckedFieldAggregationType,
+            CheckedPercentageFieldAggregationType,
+            EarliestDateFieldAggregationType,
+            EmptyCountFieldAggregationType,
+            EmptyPercentageFieldAggregationType,
+            LatestDateFieldAggregationType,
+            MaxFieldAggregationType,
+            MedianFieldAggregationType,
+            MinFieldAggregationType,
+            NotCheckedFieldAggregationType,
+            NotCheckedPercentageFieldAggregationType,
+            NotEmptyCountFieldAggregationType,
+            NotEmptyPercentageFieldAggregationType,
+            StdDevFieldAggregationType,
+            SumFieldAggregationType,
+            UniqueCountFieldAggregationType,
+            VarianceFieldAggregationType,
+        )
+
+        field_aggregation_registry.register(EmptyCountFieldAggregationType())
+        field_aggregation_registry.register(NotEmptyCountFieldAggregationType())
+        field_aggregation_registry.register(CheckedFieldAggregationType())
+        field_aggregation_registry.register(NotCheckedFieldAggregationType())
+        field_aggregation_registry.register(EmptyPercentageFieldAggregationType())
+        field_aggregation_registry.register(NotEmptyPercentageFieldAggregationType())
+        field_aggregation_registry.register(CheckedPercentageFieldAggregationType())
+        field_aggregation_registry.register(NotCheckedPercentageFieldAggregationType())
+        field_aggregation_registry.register(UniqueCountFieldAggregationType())
+        field_aggregation_registry.register(MinFieldAggregationType())
+        field_aggregation_registry.register(MaxFieldAggregationType())
+        field_aggregation_registry.register(EarliestDateFieldAggregationType())
+        field_aggregation_registry.register(LatestDateFieldAggregationType())
+        field_aggregation_registry.register(SumFieldAggregationType())
+        field_aggregation_registry.register(AverageFieldAggregationType())
+        field_aggregation_registry.register(StdDevFieldAggregationType())
+        field_aggregation_registry.register(VarianceFieldAggregationType())
+        field_aggregation_registry.register(MedianFieldAggregationType())
 
         from .fields.field_converters import (
             AutonumberFieldConverter,

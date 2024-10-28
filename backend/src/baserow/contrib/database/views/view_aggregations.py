@@ -210,6 +210,7 @@ class MinViewAggregationType(ViewAggregationType):
         DateFieldType.type,
         LastModifiedFieldType.type,
         CreatedOnFieldType.type,
+        AutonumberFieldType.type,
         DurationFieldType.type,
         FormulaFieldType.compatible_with_formula_types(
             BaserowFormulaNumberType.type,
