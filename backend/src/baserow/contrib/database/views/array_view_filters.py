@@ -201,6 +201,10 @@ class HasValueLengthIsLowerThanViewFilterType(ViewFilterType):
 
 
 class HasAllValuesEqualViewFilterType(ViewFilterType):
+    """
+    The filter checks if all values in an array are equal to a specific value.
+    """
+
     type = "has_all_values_equal"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
