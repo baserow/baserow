@@ -442,14 +442,14 @@ describe('Text-based array view filters', () => {
   )
 })
 
-describe('bool-based array view filters', () => {
+describe('boolean-based array view filters', () => {
   let testApp = null
   let fieldType = null
 
   const fieldDefinition = {
     type: 'lookup',
     formula_type: 'array',
-    array_formula_type: 'boolean  ',
+    array_formula_type: 'boolean',
   }
 
   beforeAll(() => {
@@ -463,7 +463,7 @@ describe('bool-based array view filters', () => {
     testApp.afterEach()
   })
 
-  const notEmptyBoolValueCases = [
+  const isEmptyBoolValueCases = [
     {
       cellValue: [],
       expected: true,
@@ -482,21 +482,15 @@ describe('bool-based array view filters', () => {
     },
   ]
 
-  test.each(notEmptyBoolValueCases)(
-    'hasNotEmptyBoolValueCases %j',
-    (testValues) => {
-      const fieldType = new FormulaFieldType({
-        app: testApp._app,
-      })
-      const result = new NotEmptyViewFilterType({
-        app: testApp._app,
-      }).matches(testValues.cellValue, null, fieldDefinition, fieldType)
-      expect(result).toBe(!testValues.expected)
-    }
-  )
+  test.each(isEmptyBoolValueCases)('isEmptyBoolValueCases %j', (testValues) => {
+    const result = new NotEmptyViewFilterType({
+      app: testApp._app,
+    }).matches(testValues.cellValue, null, fieldDefinition, fieldType)
+    expect(result).toBe(!testValues.expected)
+  })
 
-  test.each(notEmptyBoolValueCases)(
-    'hasEmptyBoolValueCases %j',
+  test.each(isEmptyBoolValueCases)(
+    'isNotEmptyBoolValueCases %j',
     (testValues) => {
       const result = new EmptyViewFilterType({
         app: testApp._app,
