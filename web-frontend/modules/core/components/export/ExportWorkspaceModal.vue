@@ -63,7 +63,7 @@
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
-import WorkspaceService from '@baserow/modules/core/services/workspace'
+import ExportWorkspaceService from '@baserow/modules/core/services/importExportService'
 import job from '@baserow/modules/core/mixins/job'
 import ExportWorkspaceForm from '@baserow/modules/core/components/export/ExportWorkspaceForm'
 import { ExportApplicationsJobType } from '@baserow/modules/core/jobTypes'
@@ -111,7 +111,7 @@ export default {
       this.createLoading = true
       this.hideError()
       try {
-        const { data: job } = await WorkspaceService(
+        const { data: job } = await ExportWorkspaceService(
           this.$client
         ).exportApplications(this.workspace.id, values)
         this.job = job
@@ -146,7 +146,7 @@ export default {
       this.exportJobLoading = true
 
       try {
-        const { data: exportJobs } = await WorkspaceService(
+        const { data: exportJobs } = await ExportWorkspaceService(
           this.$client
         ).listExports(this.workspace.id)
         this.exportJobs = exportJobs?.results || []

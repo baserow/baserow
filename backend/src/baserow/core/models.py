@@ -54,7 +54,7 @@ __all__ = [
     "BlacklistedToken",
     "ExportApplicationsJob",
     "ImportApplicationsJob",
-    "ImportResource",
+    "ImportExportResource",
 ]
 
 User = get_user_model()
@@ -649,61 +649,111 @@ class InstallTemplateJob(
     installed_applications = models.JSONField(default=list)
 
 
+class DefaultImportExportResourceManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(marked_for_deletion=False)
+
+
+class ImportExportResource(CreatedAndUpdatedOnMixin, models.Model):
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        db_index=True,
+        help_text=(
+            "The UUID of the resource, used in the archive name and as the directory "
+            "name for temporary storage before archiving or extraction. "
+            "The folder must be checked and deleted before deleting the instance."
+        ),
+    )
+    original_name = models.CharField(
+        max_length=255,
+        help_text=(
+            "The original name of the file. "
+            "This is only used in the frontend for uploaded files.",
+        ),
+    )
+    size = models.PositiveIntegerField(
+        default=0, help_text="The size of the resource in bytes."
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        help_text="The owner of the resource.",
+    )
+    is_valid = models.BooleanField(
+        default=False,
+        help_text=(
+            "Indicates whether the resource is valid and can be used for import "
+            "or export. If it's not valid, the temporary files should be deleted before "
+            "deleting the instance.",
+        ),
+    )
+    marked_for_deletion = models.BooleanField(
+        default=False,
+        help_text=(
+            "Indicates whether the resource is marked for deletion. "
+            "The temporary files should be deleted before deleting the instance."
+        ),
+    )
+
+    objects_and_trash = models.Manager()
+    objects = DefaultImportExportResourceManager()
+
+    def get_archive_name(self):
+        return f"{self.uuid}.zip"
+
+
 class ExportApplicationsJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
 ):
-    workspace_id = models.PositiveIntegerField(
-        help_text="The workspace id that the applications are going to be exported from."
+    workspace = models.ForeignKey(
+        Workspace,
+        null=True,
+        on_delete=models.SET_NULL,
+        help_text="The workspace that the applications are going to be exported from.",
     )
-    application_ids = models.TextField(
-        help_text="The comma separated list of application ids that are going to be exported."
+    application_ids = models.JSONField(
+        default=list,
+        help_text="The list of application ids that are going to be exported.",
     )
     only_structure = models.BooleanField(
         default=False,
         help_text="Indicates if only the structure of the applications should be "
         "exported, without user data.",
     )
-    exported_file_name = models.TextField(
-        blank=True,
-        help_text="The name of the exported archive file.",
+    resource = models.ForeignKey(
+        ImportExportResource,
+        on_delete=models.SET_NULL,
+        null=True,
+        help_text="The resource that contains the exported applications.",
     )
-
-
-class ImportResource(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    original_name = models.CharField(max_length=255)
-    name = models.CharField(max_length=64)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    completed_at = models.DateTimeField(null=True)
-    workspace_id = models.PositiveIntegerField(
-        help_text="The workspace id that the applications are going to be imported to.",
-        db_index=True,
-    )
-
-    def create_file_name(self):
-        return f"workspace_{self.workspace_id}_{uuid.uuid4().hex}.zip"
-
-    def save(self, *args, **kwargs):
-        if not self.name:
-            self.name = self.create_file_name()
-        return super().save(*args, **kwargs)
 
 
 class ImportApplicationsJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
 ):
-    workspace_id = models.PositiveIntegerField(
-        help_text="The workspace id that the applications are going to be imported to."
+    workspace = models.ForeignKey(
+        Workspace,
+        null=True,
+        on_delete=models.SET_NULL,
+        help_text="The workspace id that the applications are going to be imported to.",
     )
-    file_name = models.TextField(
-        help_text="Name of import file in storage.",
+    application_ids = models.JSONField(
+        default=list,
+        help_text=(
+            "The list of application IDs that are going to be imported. "
+            "These IDs must be available in the resource."
+        ),
     )
     only_structure = models.BooleanField(
         default=False,
         help_text="Indicates if only the structure of the applications should be "
         "exported, without user data.",
     )
-    application_ids = models.TextField(
-        help_text="The comma separated list of application ids that have been created by the import."
+    resource = models.ForeignKey(
+        ImportExportResource,
+        on_delete=models.SET_NULL,
+        null=True,
+        help_text="The resource that contains the applications to import.",
     )

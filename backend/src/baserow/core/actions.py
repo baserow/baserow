@@ -20,6 +20,7 @@ from baserow.core.handler import CoreHandler, WorkspaceForUpdate
 from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.models import (
     Application,
+    ImportExportResource,
     Template,
     Workspace,
     WorkspaceInvitation,
@@ -1164,6 +1165,7 @@ class ExportApplicationsActionType(ActionType):
     analytics_params = [
         "workspace_id",
         "application_ids",
+        "resource_id",
     ]
 
     @dataclasses.dataclass
@@ -1172,6 +1174,8 @@ class ExportApplicationsActionType(ActionType):
         workspace_name: str
         application_ids: List[int]
         application_names: List[str]
+        resource_id: str
+        resource_file_name: str
 
     @classmethod
     def do(
@@ -1180,7 +1184,7 @@ class ExportApplicationsActionType(ActionType):
         workspace: Workspace,
         applications: List[Application],
         progress_builder: Optional[ChildProgressBuilder] = None,
-    ) -> str:
+    ) -> ImportExportResource:
         """
         Export provided Applications set from the given workspace.
         This action is readonly and is not undoable.
@@ -1190,17 +1194,16 @@ class ExportApplicationsActionType(ActionType):
         :param applications: List of application instances to be exported
         :param progress_builder: A progress builder instance that can be used to
             track the progress of the export.
-        :return: file name of exported applications.
+        :return: The created ImportExportResource instance.
         """
 
         cli_import_export_config = ImportExportConfig(
             include_permission_data=False, reduce_disk_space_usage=False
         )
 
-        file_name = ImportExportHandler().export_workspace_applications(
-            workspace,
-            import_export_config=cli_import_export_config,
+        resource = ImportExportHandler().export_workspace_applications(
             applications=applications,
+            import_export_config=cli_import_export_config,
             progress_builder=progress_builder,
         )
 
@@ -1209,10 +1212,12 @@ class ExportApplicationsActionType(ActionType):
             workspace_name=workspace.name,
             application_ids=[application.id for application in applications],
             application_names=[application.name for application in applications],
+            resource_id=str(resource.uuid),
+            resource_file_name=resource.get_archive_name()
         )
 
         cls.register_action(user, params, cls.scope(workspace.id), workspace=workspace)
-        return file_name
+        return resource
 
     @classmethod
     def scope(cls, workspace_id: int) -> ActionScopeStr:
@@ -1228,7 +1233,7 @@ class ImportApplicationsActionType(ActionType):
     )
     analytics_params = [
         "workspace_id",
-        "imported_file_name",
+        "resource_id",
         "application_ids",
     ]
 
@@ -1236,7 +1241,8 @@ class ImportApplicationsActionType(ActionType):
     class Params:
         workspace_id: int
         workspace_name: str
-        file_name: str
+        resource_id: int
+        resource_file_name: str
         application_ids: List[int]
         application_names: List[str]
 
@@ -1245,7 +1251,7 @@ class ImportApplicationsActionType(ActionType):
         cls,
         user: AbstractUser,
         workspace: Workspace,
-        file_name: str,
+        resource: ImportExportResource,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Application]:
         """
@@ -1258,7 +1264,7 @@ class ImportApplicationsActionType(ActionType):
 
         :param user: The user performing the import.
         :param workspace: The workspace where the applications will be imported.
-        :param file_name: The name of the file containing the applications to import.
+        :param resource: The resource containing the applications to import.
         :param progress_builder: An optional progress builder to track the import
             progress.
         :return: A list of the imported Application instances.
@@ -1271,7 +1277,7 @@ class ImportApplicationsActionType(ActionType):
         applications = ImportExportHandler().import_workspace_applications(
             user=user,
             workspace=workspace,
-            file_name=file_name,
+            resource=resource,
             import_export_config=cli_import_export_config,
             progress_builder=progress_builder,
         )
@@ -1281,7 +1287,8 @@ class ImportApplicationsActionType(ActionType):
             workspace_name=workspace.name,
             application_ids=[app.id for app in applications],
             application_names=[app.name for app in applications],
-            file_name=file_name,
+            resource_id=resource.id,
+            resource_file_name=resource.get_archive_name(),
         )
 
         cls.register_action(user, params, cls.scope(workspace.id), workspace=workspace)

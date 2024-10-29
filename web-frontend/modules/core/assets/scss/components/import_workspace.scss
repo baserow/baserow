@@ -4,7 +4,6 @@
   align-items: flex-start;
   gap: 16px;
   padding: 10px;
-  cursor: pointer;
 
   @include rounded($rounded-md);
 }
@@ -59,5 +58,13 @@
   height: 1px;
   background: $palette-neutral-200;
   width: 100%;
-  margin: 6px 0 6px auto;
+  margin: 20px 0 6px auto;
+}
+
+.import-workspace__actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  align-items: center;
+  gap: 16px;
 }

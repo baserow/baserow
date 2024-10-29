@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
-from baserow.core.models import ImportResource, Workspace
+from baserow.core.models import ImportExportResource, Workspace
 
 from .users.serializers import WorkspaceUserSerializer, WorkspaceUserWorkspaceSerializer
 
@@ -10,7 +10,6 @@ __all__ = [
     "WorkspaceSerializer",
     "OrderWorkspacesSerializer",
     "WorkspaceUserSerializer",
-    "ImportResourceSerializer",
 ]
 
 
@@ -57,9 +56,3 @@ class OrderWorkspacesSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         help_text="Workspace ids in the desired order.",
     )
-
-
-class ImportResourceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ImportResource
-        fields = ("id",)

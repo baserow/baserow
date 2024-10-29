@@ -16,12 +16,15 @@ from baserow.api.errors import (
     ERROR_PERMISSION_DENIED,
     ERROR_USER_NOT_IN_GROUP,
 )
-from baserow.api.export.serializers import ExportWorkspaceExportedFileURLSerializerMixin
-from baserow.api.import_workspace.errors import (
+from baserow.api.import_export.errors import (
     ERROR_RESOURCE_DOES_NOT_EXIST,
-    ERROR_RESOURCE_IS_CORRUPTED,
+    ERROR_RESOURCE_IS_INVALID,
 )
-from baserow.api.import_workspace.serializers import ImportWorkspaceSerializerMixin
+from baserow.api.import_export.serializers import (
+    ExportWorkspaceExportedFileURLSerializerMixin,
+    ImportResourceSerializer,
+    InstalledApplicationsSerializer,
+)
 from baserow.api.templates.errors import (
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
@@ -46,16 +49,17 @@ from baserow.core.exceptions import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
-    ImportWorkspaceFileCorruptedException,
-    ImportWorkspaceResourceDoesNotExist,
+    ImportExportResourceDoesNotExist,
+    ImportExportResourceInvalidFile,
 )
+from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.jobs.registries import JobType
 from baserow.core.models import (
     Application,
     DuplicateApplicationJob,
     ExportApplicationsJob,
     ImportApplicationsJob,
-    ImportResource,
+    ImportExportResource,
     InstallTemplateJob,
 )
 from baserow.core.operations import (
@@ -232,7 +236,6 @@ class ExportApplicationsJobType(JobType):
     job_exceptions_map = {PermissionDenied: ERROR_PERMISSION_DENIED}
 
     request_serializer_field_names = [
-        "workspace_id",
         "application_ids",
         "only_structure",
     ]
@@ -275,11 +278,21 @@ class ExportApplicationsJobType(JobType):
 
         return empty_context()
 
-    def get_workspace_and_applications(self, user, workspace_id, application_ids):
-        handler = CoreHandler()
-        workspace = handler.get_workspace(workspace_id=workspace_id)
+    def fetch_applications(self, user, workspace, application_ids):
+        """
+        Fetches the applications that are going to be exported. If the user does not have
+        access to the workspace or the applications, a PermissionDenied exception is
+        raised.
 
-        handler.check_permissions(
+        :param user: The user that is going to export the applications.
+        :param workspace: The workspace where the applications are located.
+        :param application_ids: The IDs of the applications that are going to be exported.
+        :return: The applications that are going to be exported.
+        :raises PermissionDenied: If the user does not have access to the workspace or
+            the applications.
+        """
+
+        CoreHandler().check_permissions(
             user,
             ReadWorkspaceOperationType.type,
             workspace=workspace,
@@ -305,53 +318,39 @@ class ExportApplicationsJobType(JobType):
                 "not have access to them."
             )
 
-        return workspace, applications
+        return applications
 
     def prepare_values(
         self, values: Dict[str, Any], user: AbstractUser
     ) -> Dict[str, Any]:
         workspace_id = values.get("workspace_id")
-        application_ids = values.get("application_ids")
-
-        self.get_workspace_and_applications(
-            user=user, workspace_id=workspace_id, application_ids=application_ids
-        )
+        workspace = CoreHandler().get_workspace(workspace_id=workspace_id)
+        
+        application_ids = values.get("application_ids") or []
+        self.fetch_applications(user, workspace, application_ids)
 
         return {
-            "workspace_id": workspace_id,
-            "application_ids": ",".join(map(str, application_ids))
-            if application_ids
-            else "",
+            "workspace": workspace,
+            "application_ids": application_ids,
         }
 
-    def run(self, job: ExportApplicationsJob, progress: Progress) -> str:
-        application_ids = job.application_ids
-        if application_ids:
-            application_ids = application_ids.split(",")
-
-        workspace, applications = self.get_workspace_and_applications(
-            user=job.user,
-            workspace_id=job.workspace_id,
-            application_ids=application_ids,
+    def run(self, job: ExportApplicationsJob, progress: Progress):
+        applications = self.fetch_applications(
+            job.user, job.workspace, job.application_ids
         )
 
         progress_builder = progress.create_child_builder(
             represents_progress=progress.total
         )
 
-        exported_file_name = action_type_registry.get_by_type(
-            ExportApplicationsActionType
-        ).do(
+        resource = action_type_registry.get_by_type(ExportApplicationsActionType).do(
             job.user,
-            workspace=workspace,
+            workspace=job.workspace,
             applications=applications,
             progress_builder=progress_builder,
         )
 
-        job.exported_file_name = exported_file_name
-        job.save(update_fields=("exported_file_name",))
-
-        return exported_file_name
+        job.resource = resource
 
 
 class ImportApplicationsJobType(JobType):
@@ -363,47 +362,57 @@ class ImportApplicationsJobType(JobType):
         UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
         ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
-        ImportWorkspaceResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
-        ImportWorkspaceFileCorruptedException: ERROR_RESOURCE_IS_CORRUPTED,
+        ImportExportResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
+        ImportExportResourceInvalidFile: ERROR_RESOURCE_IS_INVALID,
     }
 
     job_exceptions_map = {
-        ImportWorkspaceResourceDoesNotExist: ImportWorkspaceResourceDoesNotExist.message,
-        ImportWorkspaceFileCorruptedException: ImportWorkspaceFileCorruptedException.message,
+        ImportExportResourceDoesNotExist: ImportExportResourceDoesNotExist.message,
+        ImportExportResourceInvalidFile: ImportExportResourceInvalidFile.message,
     }
 
     request_serializer_field_names = ["resource_id"]
     request_serializer_field_overrides = {
-        "resource_id": serializers.UUIDField(
-            help_text="Id of uploaded file to be imported"
+        "resource_id": serializers.IntegerField(
+            min_value=1,
+            help_text="The ID of the import resource that contains the applications.",
         ),
     }
 
-    serializer_mixins = [ImportWorkspaceSerializerMixin]
-    serializer_field_names = ["installed_applications"]
+    serializer_field_names = ["installed_applications", "workspace_id", "resource"]
+    serializer_field_overrides = {
+        "workspace_id": serializers.IntegerField(),
+        "installed_applications": InstalledApplicationsSerializer(
+            source="application_ids"
+        ),
+        "resource": ImportResourceSerializer(),
+    }
 
     def prepare_values(
         self, values: Dict[str, Any], user: AbstractUser
     ) -> Dict[str, Any]:
         workspace_id = values.get("workspace_id")
-        import_resource = ImportResource.objects.filter(
-            id=values.get("resource_id"), workspace_id=workspace_id
+        workspace = ImportExportHandler().get_workspace_or_raise(user, workspace_id)
+
+        resource = ImportExportResource.objects.filter(
+            id=values.get("resource_id"), created_by=user
         ).first()
 
+        if not resource:
+            raise ImportExportResourceDoesNotExist("Import file does not exist.")
+        elif not resource.is_valid:
+            raise ImportExportResourceInvalidFile(
+                "Import file is invalid or corrupted."
+            )
+
         return {
-            "workspace_id": workspace_id,
-            "file_name": import_resource.name if import_resource else None,
+            "workspace": workspace,
+            "resource": resource,
         }
 
-    def run(self, job: ImportApplicationsJob, progress: Progress) -> List[Application]:
-        handler = CoreHandler()
-        workspace = handler.get_workspace(workspace_id=job.workspace_id)
-
-        handler.check_permissions(
-            job.user,
-            ReadWorkspaceOperationType.type,
-            workspace=workspace,
-            context=workspace,
+    def run(self, job: ImportApplicationsJob, progress: Progress):
+        workspace = ImportExportHandler().get_workspace_or_raise(
+            job.user, job.workspace_id
         )
 
         progress_builder = progress.create_child_builder(
@@ -415,10 +424,8 @@ class ImportApplicationsJobType(JobType):
         ).do(
             job.user,
             workspace=workspace,
-            file_name=job.file_name,
+            resource=job.resource,
             progress_builder=progress_builder,
         )
-        job.application_ids = ",".join([str(app.id) for app in imported_applications])
-        job.save(update_fields=("application_ids",))
 
-        return imported_applications
+        job.application_ids = [app.id for app in imported_applications]

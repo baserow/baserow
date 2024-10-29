@@ -12,7 +12,7 @@
       :key="index"
     ></component>
     <Error :error="error"></Error>
-    <div class="import-workspace-modal">
+    <div>
       <div v-if="currentStage === STAGES.UPLOAD">
         <UploadFileDropzone
           v-if="!importFile"
@@ -27,8 +27,11 @@
           @import-workspace-reset="reset"
         />
 
-        <div class="align-right">
-          <div v-if="uploading" class="upload-files__progress">
+        <div class="import-workspace__actions">
+          <div
+            :style="{ visibility: uploading ? 'visible' : 'hidden' }"
+            class="upload-files__progress"
+          >
             <ProgressBar :value="percentage" :show-value="true" />
           </div>
           <Button
@@ -45,19 +48,30 @@
           </Button>
         </div>
       </div>
-      <div v-else-if="currentStage === STAGES.IMPORT">
+      <div v-else-if="currentStage === STAGES.IMPORT && importFile">
         <SelectedFileDetails
           :import-file="importFile"
           :resource-id="resourceId"
           :workspace-id="workspace.id"
+          :disabled="importing"
           @import-workspace-reset="reset"
         >
         </SelectedFileDetails>
-        <ImportWorkspaceForm ref="form" @submitted="importWorkspace">
-          <template v-if="jobIsRunning || jobIsFinished" #select-applications>
-            <div class="margin-right-2">
+        <ImportWorkspaceForm
+          ref="form"
+          class="import-workspace__actions"
+          @submitted="importWorkspace"
+        >
+          <template #select-applications>
+            <div
+              :style="{
+                paddingRight: '16px',
+                visibility:
+                  jobIsRunning || jobIsFinished ? 'visible' : 'hidden',
+              }"
+            >
               <ProgressBar
-                :value="job.progress_percentage"
+                :value="job?.progress_percentage || 0"
                 :status="jobHumanReadableState"
               />
             </div>
@@ -82,13 +96,14 @@
 import UploadFileDropzone from '@baserow/modules/core/components/files/UploadFileDropzone.vue'
 import SelectedFileDetails from '@baserow/modules/core/components/import/SelectedFileDetails.vue'
 import { getFilesFromEvent } from '@baserow/modules/core/utils/file'
-import ImportWorkspaceService from '@baserow/modules/core/services/importWorkspaceService'
+import ImportWorkspaceService from '@baserow/modules/core/services/importExportService'
 import { mimetype2icon } from '@baserow/modules/core/utils/fileTypeToIcon'
 import job from '@baserow/modules/core/mixins/job'
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import ImportWorkspaceForm from '@baserow/modules/core/components/import/ImportWorkspaceForm.vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { ImportApplicationsJobType } from '@baserow/modules/core/jobTypes'
 
 const STAGES = {
   UPLOAD: 'upload',
@@ -135,15 +150,16 @@ export default {
         : this.$t('importWorkspaceModal.import')
     },
   },
+  watch: {
+    'workspace.id'() {
+      this.hideError()
+      this.reset()
+    },
+  },
   methods: {
     show(...args) {
       this.hideError()
-      if (
-        this.currentStage !== STAGES.UPLOAD ||
-        this.currentStage !== STAGES.IMPORT
-      ) {
-        this.reset()
-      }
+      this.checkPendingImport()
       modal.methods.show.bind(this)(...args)
     },
     addFile(event) {
@@ -177,12 +193,26 @@ export default {
         const message = error.handler.getMessage('userFile')
         error.handler.handled()
         this.error = message.message
-        this.currentStage = STAGES.FAILED
       } finally {
         this.uploading = false
       }
     },
-
+    checkPendingImport() {
+      const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
+        (job) => {
+          return (
+            job.type === ImportApplicationsJobType.getType() &&
+            job.workspace_id === this.workspace.id
+          )
+        }
+      )
+      if (runningJob) {
+        this.importFile = runningJob.resource
+        this.currentStage = STAGES.IMPORT
+        this.job = runningJob
+        this.importing = true
+      }
+    },
     async onJobFinished() {
       this.importing = false
       this.currentStage = STAGES.DONE
@@ -207,7 +237,6 @@ export default {
 
     // eslint-disable-next-line require-await
     async onJobFailed() {
-      this.currentStage = STAGES.FAILED
       this.importing = false
       this.showError(
         this.$t('clientHandler.notCompletedTitle'),
@@ -236,7 +265,7 @@ export default {
         this.job = job
         await this.createAndMonitorJob(job)
       } catch (error) {
-        this.createLoading = false
+        this.importing = false
         this.handleError(error)
       }
     },

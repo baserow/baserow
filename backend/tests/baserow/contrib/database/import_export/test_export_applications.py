@@ -40,9 +40,8 @@ def test_exporting_interesting_database(
         data_fixture.save_content_in_user_file(user_file=user_file, storage=storage)
 
     file_name = ImportExportHandler().export_workspace_applications(
-        workspace,
-        import_export_config=cli_import_export_config,
         applications=[database],
+        import_export_config=cli_import_export_config,
         storage=storage,
         progress_builder=None,
     )

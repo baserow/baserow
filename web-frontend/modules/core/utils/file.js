@@ -18,3 +18,20 @@ export function getFilesFromEvent(event) {
 
   return []
 }
+
+/**
+ * Originally from
+ * https://stackoverflow.com/questions/15900485/correct-way-to-convert-size-in-bytes-to-kb-mb-gb-in-javascript
+ *
+ * Converts an integer representing the amount of bytes to a human readable format.
+ * Where for example 1024 will end up in 1KB.
+ */
+export function formatFileSize($i18n, bytes) {
+  if (bytes === 0) return '0 ' + $i18n.t(`rowEditFieldFile.sizes.0`)
+  const k = 1024
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  const float = parseFloat((bytes / k ** i).toFixed(2)).toLocaleString(
+    $i18n.locale
+  )
+  return float + ' ' + $i18n.t(`rowEditFieldFile.sizes.${i}`)
+}

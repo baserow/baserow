@@ -27,7 +27,7 @@ def test_delete_resource_with_feature_flag_disabled(data_fixture, api_client, tm
 
     response = api_client.delete(
         reverse(
-            "api:workspaces:import_workspace_delete_resource",
+            "api:workspaces:import_workspace_resource",
             kwargs={"workspace_id": workspace.id, "resource_id": str(uuid4())},
         ),
         data={},
@@ -45,7 +45,7 @@ def test_delete_resource_from_non_existing_resource(data_fixture, api_client, tm
 
     response = api_client.delete(
         reverse(
-            "api:workspaces:import_workspace_delete_resource",
+            "api:workspaces:import_workspace_resource",
             kwargs={"workspace_id": 999999, "resource_id": str(uuid4())},
         ),
         data={},
@@ -64,7 +64,7 @@ def test_delete_non_existing_resource(data_fixture, api_client, tmpdir):
 
     response = api_client.delete(
         reverse(
-            "api:workspaces:import_workspace_delete_resource",
+            "api:workspaces:import_workspace_resource",
             kwargs={"workspace_id": workspace.id, "resource_id": str(uuid4())},
         ),
         data={},
@@ -85,7 +85,7 @@ def test_delete_resource_invalid_user(data_fixture, api_client, tmpdir):
     token2 = data_fixture.generate_token(user2)
     response = api_client.delete(
         reverse(
-            "api:workspaces:import_workspace_delete_resource",
+            "api:workspaces:import_workspace_resource",
             kwargs={"workspace_id": workspace.id, "resource_id": str(uuid4())},
         ),
         data={},
@@ -133,7 +133,7 @@ def test_delete_valid_resource(data_fixture, api_client, tmpdir, use_tmp_media_r
 
     response = api_client.delete(
         reverse(
-            "api:workspaces:import_workspace_delete_resource",
+            "api:workspaces:import_workspace_resource",
             kwargs={"workspace_id": workspace.id, "resource_id": resource_id},
         ),
         data={},

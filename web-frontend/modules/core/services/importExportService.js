@@ -1,5 +1,11 @@
 export default (client) => {
   return {
+    exportApplications(workspaceId, values) {
+      return client.post(`/workspaces/${workspaceId}/export/async/`, values)
+    },
+    listExports(workspaceId) {
+      return client.get(`/workspaces/${workspaceId}/export/`)
+    },
     uploadFile(
       workspaceId,
       file,
@@ -23,10 +29,8 @@ export default (client) => {
         config
       )
     },
-
     triggerImport(workspaceId, resourceId) {
       return client.post(`/workspaces/${workspaceId}/import/async/`, {
-        workspace_id: workspaceId,
         resource_id: resourceId,
       })
     },
@@ -36,7 +40,6 @@ export default (client) => {
         `/workspaces/${workspaceId}/import/${resourceId}/delete/`,
         {
           data: {
-            workspace_id: workspaceId,
             resource_id: resourceId,
           },
         }

@@ -12,7 +12,7 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.core.import_export.exceptions import ImportWorkspaceResourceDoesNotExist
+from baserow.core.import_export.exceptions import ImportExportResourceDoesNotExist
 
 
 @pytest.mark.import_workspace
@@ -96,7 +96,7 @@ def test_import_applications_with_non_existing_file(
         original_name="interesting_database.zip",
     )
 
-    with pytest.raises(ImportWorkspaceResourceDoesNotExist):
+    with pytest.raises(ImportExportResourceDoesNotExist):
         api_client.post(
             reverse(
                 "api:workspaces:import_workspace_async",

@@ -195,6 +195,7 @@
   "workspaceContext": {
     "renameWorkspace": "Rename workspace",
     "exportWorkspace": "Export data",
+    "importWorkspace": "Import data",
     "settings": "Settings",
     "members": "Members",
     "auditLog": "Audit log",

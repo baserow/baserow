@@ -6,8 +6,8 @@ from .views import (
     AsyncExportWorkspaceApplicationsView,
     AsyncImportApplicationsView,
     CreateInitialWorkspaceView,
-    ImportApplicationsDeleteResourceView,
-    ImportApplicationsUploadFileView,
+    ImportExportResourceUploadFileView,
+    ImportExportResourceView,
     ListExportWorkspaceApplicationsView,
     WorkspaceGenerativeAISettingsView,
     WorkspaceLeaveView,
@@ -55,13 +55,13 @@ urlpatterns = [
     ),
     re_path(
         r"(?P<workspace_id>[0-9]+)/import/upload-file/$",
-        ImportApplicationsUploadFileView.as_view(),
+        ImportExportResourceUploadFileView.as_view(),
         name="import_workspace_upload_file",
     ),
     re_path(
-        r"(?P<workspace_id>[0-9]+)/import/(?P<resource_id>[0-9a-fA-F-]{36})/delete/$",
-        ImportApplicationsDeleteResourceView.as_view(),
-        name="import_workspace_delete_resource",
+        r"(?P<workspace_id>[0-9]+)/import/(?P<resource_id>[0-9]+)/$",
+        ImportExportResourceView.as_view(),
+        name="import_workspace_resource",
     ),
     re_path(
         r"(?P<workspace_id>[0-9]+)/import/async/$",

@@ -18,10 +18,12 @@ from baserow.api.errors import (
     ERROR_USER_INVALID_GROUP_PERMISSIONS,
     ERROR_USER_NOT_IN_GROUP,
 )
-from baserow.api.import_workspace.errors import (
+from baserow.api.import_export.errors import (
     ERROR_RESOURCE_DOES_NOT_EXIST,
-    ERROR_RESOURCE_IS_CORRUPTED,
+    ERROR_RESOURCE_IS_BEING_IMPORTED,
+    ERROR_RESOURCE_IS_INVALID,
 )
+from baserow.api.import_export.serializers import ImportResourceSerializer
 from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.schemas import (
@@ -52,15 +54,16 @@ from baserow.core.exceptions import (
 from baserow.core.feature_flags import FF_EXPORT_WORKSPACE, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
-    ImportWorkspaceFileCorruptedException,
-    ImportWorkspaceResourceDoesNotExist,
+    ImportExportResourceDoesNotExist,
+    ImportExportResourceInBeingImported,
+    ImportExportResourceInvalidFile,
 )
 from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.job_types import ExportApplicationsJobType, ImportApplicationsJobType
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.models import ImportResource
+from baserow.core.models import ImportExportResource
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.operations import UpdateWorkspaceOperationType
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
@@ -71,7 +74,6 @@ from baserow.core.user_files.exceptions import (
 
 from .errors import ERROR_GROUP_USER_IS_LAST_ADMIN
 from .serializers import (
-    ImportResourceSerializer,
     OrderWorkspacesSerializer,
     PermissionObjectSerializer,
     WorkspaceSerializer,
@@ -513,7 +515,7 @@ class ListExportWorkspaceApplicationsView(APIView):
 
         feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
 
-        exports = ImportExportHandler().list(workspace_id, request.user)
+        exports = ImportExportHandler().list_exports(request.user, workspace_id)
         return Response(
             ListExportWorkspaceApplicationsSerializer({"results": exports}).data
         )
@@ -585,14 +587,14 @@ class AsyncExportWorkspaceApplicationsView(APIView):
             request.user,
             ExportApplicationsJobType.type,
             workspace_id=workspace_id,
-            application_ids=data.get("application_ids") or [],
+            application_ids=data.get("application_ids"),
         )
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
-class ImportApplicationsUploadFileView(APIView):
+class ImportExportResourceUploadFileView(APIView):
     permission_classes = (IsAuthenticated,)
     parser_classes = (MultiPartParser,)
 
@@ -607,7 +609,7 @@ class ImportApplicationsUploadFileView(APIView):
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
         tags=["Workspaces"],
-        operation_id="import_workspace_applications_upload_file",
+        operation_id="import_resource_upload_file",
         description=(
             "Uploads an exported workspace or a set of applications if the authorized user "
             "is in the workspace. The uploaded file must be a valid ZIP file containing the "
@@ -619,7 +621,6 @@ class ImportApplicationsUploadFileView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
-                    "ERROR_MAX_JOB_COUNT_EXCEEDED",
                     "ERROR_INVALID_FILE",
                     "ERROR_FILE_SIZE_TOO_LARGE",
                 ]
@@ -639,9 +640,8 @@ class ImportApplicationsUploadFileView(APIView):
     def post(self, request, workspace_id: int) -> Response:
         feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
 
-        import_export_handler = ImportExportHandler()
-
-        workspace = import_export_handler.get_workspace_or_raise_exception(
+        handler = ImportExportHandler()
+        handler.get_workspace_or_raise(
             user=request.user, workspace_id=workspace_id
         )
 
@@ -650,33 +650,28 @@ class ImportApplicationsUploadFileView(APIView):
 
         file_data = request.FILES.get("file")
 
-        import_file = import_export_handler.upload_import_file(
-            request.user, file_data.name, file_data, workspace
+        resource = handler.create_resource_from_file(
+            request.user, file_data.name, file_data
         )
-        serializer = ImportResourceSerializer(import_file)
+        serializer = ImportResourceSerializer(resource)
         return Response(serializer.data)
 
 
-class ImportApplicationsDeleteResourceView(APIView):
+class ImportExportResourceView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         tags=["Workspaces"],
-        operation_id="import_workspace_applications_delete_resource",
+        operation_id="import_export_resource",
         description=(
-            "Deletes an uploaded import resource for a workspace. This endpoint "
-            "removes the specified resource file from the storage and deletes "
-            "the associated database record. The user must have read permissions "
-            "for the workspace to perform this action."
+            "Delete a resource. This endpoint mark as ready for deletion "
+            "the specified resource. This operation is not undoable. "
+            "The user must be the owner of the resource to perform this action."
         ),
         request=None,
         responses={
             204: None,
-            400: get_error_schema(
-                [
-                    "ERROR_USER_NOT_IN_GROUP",
-                ]
-            ),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
             404: get_error_schema(
                 ["RESOURCE_DOES_NOT_EXIST", "ERROR_GROUP_DOES_NOT_EXIST"]
             ),
@@ -687,18 +682,17 @@ class ImportApplicationsDeleteResourceView(APIView):
         {
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
-            ImportWorkspaceResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
+            ImportExportResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
+            ImportExportResourceInBeingImported: ERROR_RESOURCE_IS_BEING_IMPORTED,
         }
     )
     def delete(self, request, workspace_id, resource_id: str) -> Response:
         feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
 
-        import_export_handler = ImportExportHandler()
-        workspace = import_export_handler.get_workspace_or_raise_exception(
-            user=request.user, workspace_id=workspace_id
-        )
+        handler = ImportExportHandler()
+        handler.get_workspace_or_raise(user=request.user, workspace_id=workspace_id)
 
-        import_export_handler.delete_resource(workspace.id, resource_id)
+        handler.mark_resource_for_deletion(request.user, resource_id)
         return Response(status=204)
 
 
@@ -718,8 +712,8 @@ class AsyncImportApplicationsView(APIView):
         tags=["Workspaces"],
         operation_id="import_workspace_applications_async",
         description=(
-            "Import workspace or set of applications if the authorized user is "
-            "in the application's workspace. "
+            "Import a set of applications included in a given resource if the "
+            "authorized user is in the specified workspace. "
             "This endpoint requires a valid resource_id of the uploaded file."
         ),
         request=None,
@@ -729,7 +723,8 @@ class AsyncImportApplicationsView(APIView):
                 [
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_MAX_JOB_COUNT_EXCEEDED",
-                    "ERROR_RESOURCE_DOES_NOT_EXIST" "ERROR_RESOURCE_IS_CORRUPTED",
+                    "ERROR_RESOURCE_DOES_NOT_EXIST",
+                    "ERROR_RESOURCE_IS_INVALID",
                 ]
             ),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
@@ -741,8 +736,8 @@ class AsyncImportApplicationsView(APIView):
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
-            ImportWorkspaceResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
-            ImportWorkspaceFileCorruptedException: ERROR_RESOURCE_IS_CORRUPTED,
+            ImportExportResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
+            ImportExportResourceInvalidFile: ERROR_RESOURCE_IS_INVALID,
         }
     )
     @validate_body(
@@ -751,24 +746,11 @@ class AsyncImportApplicationsView(APIView):
     def post(self, request, data: Dict, workspace_id: int) -> Response:
         feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
 
-        workspace = ImportExportHandler().get_workspace_or_raise_exception(
-            user=request.user, workspace_id=workspace_id
-        )
-
-        resource_id = data["resource_id"]
-
-        import_resource = ImportResource.objects.filter(
-            workspace_id=workspace.id, id=resource_id
-        ).first()
-
-        if not import_resource:
-            raise ImportWorkspaceResourceDoesNotExist("Import resource does not exist.")
-
         job = JobHandler().create_and_start_job(
             request.user,
             ImportApplicationsJobType.type,
             workspace_id=workspace_id,
-            resource_id=resource_id,
+            resource_id=data["resource_id"],
         )
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)

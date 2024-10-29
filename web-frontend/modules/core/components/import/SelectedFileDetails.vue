@@ -20,7 +20,11 @@
       </div>
 
       <span>
-        <ButtonIcon icon="iconoir-bin" @click="handleRemove()"></ButtonIcon>
+        <ButtonIcon
+          icon="iconoir-bin"
+          :disabled="disabled"
+          @click="handleRemove()"
+        ></ButtonIcon>
       </span>
     </div>
     <div class="import-workspace-separator"></div>
@@ -28,8 +32,9 @@
 </template>
 
 <script>
-import ImportWorkspaceService from '@baserow/modules/core/services/importWorkspaceService'
+import ImportWorkspaceService from '@baserow/modules/core/services/importExportService'
 import error from '@baserow/modules/core/mixins/error'
+import { formatFileSize } from '@baserow/modules/core/utils/file'
 
 export default {
   name: 'SelectedFileDetails',
@@ -39,7 +44,7 @@ export default {
     importFile: {
       required: true,
       validator(value) {
-        return value instanceof File
+        return value instanceof File || value instanceof Object
       },
     },
     workspaceId: {
@@ -47,9 +52,14 @@ export default {
       required: true,
     },
     resourceId: {
-      type: String,
+      type: Number,
       required: false,
       default: null,
+    },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   data() {
@@ -60,13 +70,7 @@ export default {
 
   methods: {
     formatSize(bytes) {
-      if (bytes === 0) return '0 ' + this.$i18n.t(`rowEditFieldFile.sizes.0`)
-      const k = 1024
-      const i = Math.floor(Math.log(bytes) / Math.log(k))
-      const float = parseFloat((bytes / k ** i).toFixed(2)).toLocaleString(
-        this.$i18n.locale
-      )
-      return float + ' ' + this.$i18n.t(`rowEditFieldFile.sizes.${i}`)
+      return formatFileSize(this.$i18n, bytes)
     },
     async handleRemove() {
       if (this.resourceId) {
