@@ -141,7 +141,6 @@ import FormViewFieldMultipleLinkRow from '@baserow/modules/database/components/v
 import FormViewFieldMultipleSelectCheckboxes from '@baserow/modules/database/components/view/form/FormViewFieldMultipleSelectCheckboxes'
 import FormViewFieldSingleSelectRadios from '@baserow/modules/database/components/view/form/FormViewFieldSingleSelectRadios'
 
-import { trueValues } from '@baserow/modules/core/utils/constants'
 import {
   getDateMomentFormat,
   getFieldTimezone,
@@ -151,6 +150,7 @@ import {
   filenameContainsFilter,
   genericContainsFilter,
   genericContainsWordFilter,
+  genericHasValueEqualFilter,
 } from '@baserow/modules/database/utils/fieldFilters'
 import GridViewFieldFormula from '@baserow/modules/database/components/view/grid/fields/GridViewFieldFormula'
 import FieldFormulaSubForm from '@baserow/modules/database/components/field/FieldFormulaSubForm'
@@ -163,6 +163,7 @@ import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
 import { _ } from 'lodash'
+import { ensureBoolean } from '@baserow/modules/core/utils/validator'
 
 export class FieldType extends Registerable {
   /**
@@ -297,20 +298,6 @@ export class FieldType extends Registerable {
    */
   getCardValueHeight(field) {
     return this.getCardComponent(field).height || 0
-  }
-
-  /**
-   * This aids to set a proper component for a specific view filter type.
-   *
-   * This method should be called in `ViewFilterType.getInputComponent()`. If a field
-   * has a distinctive way to display filter value, this can be used to return
-   * a proper component.
-   *
-   * This method is optional, and the caller should provide a default in case of
-   * `null` returned.
-   */
-  getFilterInputComponent(field, filterType) {
-    return null
   }
 
   /**
@@ -1661,7 +1648,11 @@ export class BooleanFieldType extends FieldType {
       clipboardData = ''
     }
     const value = clipboardData.toLowerCase().trim()
-    return trueValues.includes(value)
+    return this._prepareValue(value)
+  }
+
+  _prepareValue(value) {
+    return ensureBoolean(value)
   }
 
   getDocsDataType(field) {
@@ -1698,6 +1689,39 @@ export class BooleanFieldType extends FieldType {
 
   getCanGroupByInView(field) {
     return true
+  }
+
+  /**
+   * This is a wrapper on genericHasValueEqualFilter function that normalizes
+   * filterValue. cellValue for boolean lookup fields looks like this:
+   *
+   * [{value: true}, {value: false}]
+   *
+   * filterValue can be raw, so may be a string, like `"1"`. A regular comparison
+   * will fail where it should not. This method will normalize filterValue to
+   * a proper Boolean value to have a correct comparison.
+   *
+   *
+   *
+   * @param field
+   * @param negate = false
+   * @returns {function(*, *): boolean}
+   */
+  getHasValueEqualFilterFunction(field, negate = false) {
+    const that = this
+    const call = (cellValue, filterValue) => {
+      const value = that._prepareValue(filterValue)
+      const out = genericHasValueEqualFilter(cellValue, value)
+      if (negate) {
+        return filterValue === '' || !out
+      }
+      return filterValue === '' || out
+    }
+    return call
+  }
+
+  getHasNotValueEqualFilterFunction(field) {
+    return this.getHasValueEqualFilterFunction(field, true)
   }
 }
 

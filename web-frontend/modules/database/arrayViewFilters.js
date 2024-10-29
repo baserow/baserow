@@ -61,6 +61,15 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
+    // filterValue may be raw and in cellValue items, .value should be `true`,
+    // so we should call boolean-specific matches() function.
+    if (this.isBooleanLookupField(field)) {
+      fieldType = this.app.$registry.get('field', 'boolean')
+      return fieldType.getHasValueEqualFilterFunction(field)(
+        cellValue,
+        filterValue
+      )
+    }
     return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
   }
 
@@ -110,6 +119,15 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
+    // filterValue may be raw and in cellValue items, .value should be `true`,
+    // so we should call boolean-specific matches() function.
+    if (this.isBooleanLookupField(field)) {
+      fieldType = this.app.$registry.get('field', 'boolean')
+      return fieldType.getHasNotValueEqualFilterFunction(field)(
+        cellValue,
+        filterValue
+      )
+    }
     return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
   }
 
