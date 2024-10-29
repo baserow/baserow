@@ -507,72 +507,72 @@ describe('Boolean-based array view filters', () => {
   const hasAnyValueBoolCases = [
     {
       cellValue: [],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
     {
       cellValue: [{ value: true }, { value: true }, { value: false }],
-      filterValue: true,
+      filterValue: '1',
       expected: true,
     },
     {
       cellValue: [{ value: true }, { value: true }, { value: false }],
-      filterValue: false,
+      filterValue: '0',
       expected: true,
     },
     {
       cellValue: [{ value: 'XYZ' }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: 'XYZ' }],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
     {
       cellValue: [{ value: false }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: false }],
-      filterValue: false,
+      filterValue: '0',
       expected: true,
     },
     {
       cellValue: [{ value: false }, { value: false }],
-      filterValue: false,
+      filterValue: '0',
       expected: true,
     },
     {
       cellValue: [{ value: false }, { value: false }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: '' }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: '' }],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
     {
       cellValue: [{ value: 'XYZ' }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: 'XYZ' }],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
   ]
@@ -592,72 +592,72 @@ describe('Boolean-based array view filters', () => {
   const hasNotValueBoolCases = [
     {
       cellValue: [],
-      filterValue: true,
+      filterValue: '1',
       expected: true,
     },
     {
       cellValue: [],
-      filterValue: false,
+      filterValue: '0',
       expected: true,
     },
     {
       cellValue: [{ value: true }, { value: true }, { value: false }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: true }, { value: true }, { value: false }],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
     {
       cellValue: [{ value: true }, { value: true }, { value: true }],
-      filterValue: false,
+      filterValue: '0',
       expected: true,
     },
     {
       cellValue: [{ value: true }, { value: true }, { value: true }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: 'XYZ' }],
-      filterValue: true,
+      filterValue: '1',
       expected: true,
     },
     {
       cellValue: [{ value: 'XYZ' }],
-      filterValue: false,
+      filterValue: '0',
       expected: true,
     },
     {
       cellValue: [{ value: false }],
-      filterValue: true,
+      filterValue: '1',
       expected: true,
     },
     {
       cellValue: [{ value: false }],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
     {
       cellValue: [{ value: false }, { value: false }],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
     {
       cellValue: [{ value: false }, { value: false }],
-      filterValue: true,
+      filterValue: '1',
       expected: true,
     },
     {
       cellValue: [{ value: '' }],
-      filterValue: true,
+      filterValue: '1',
       expected: true,
     },
     {
       cellValue: [{ value: '' }],
-      filterValue: false,
+      filterValue: '0',
       expected: true,
     },
   ]
@@ -680,62 +680,62 @@ describe('Boolean-based array view filters', () => {
   const hasAllValueBooleanCases = [
     {
       cellValue: [],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
     {
       cellValue: [{ value: true }, { value: true }, { value: false }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: true }, { value: true }, { value: false }],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
     {
       cellValue: [{ value: true }, { value: true }, { value: true }],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
     {
       cellValue: [{ value: true }, { value: true }, { value: true }],
-      filterValue: true,
+      filterValue: '1',
       expected: true,
     },
     {
       cellValue: [{ value: 'XYZ' }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: 'XYZ' }],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
     {
       cellValue: [{ value: false }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: false }],
-      filterValue: false,
+      filterValue: '0',
       expected: true,
     },
     {
       cellValue: [{ value: '' }],
-      filterValue: true,
+      filterValue: '1',
       expected: false,
     },
     {
       cellValue: [{ value: '' }],
-      filterValue: false,
+      filterValue: '0',
       expected: false,
     },
   ]

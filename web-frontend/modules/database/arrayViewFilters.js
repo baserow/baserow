@@ -4,6 +4,7 @@ import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/Vie
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 import { ViewFilterType } from '@baserow/modules/database/viewFilters'
 import { _ } from 'lodash'
+import { ensureBoolean } from '@baserow/modules/core/utils/validator'
 
 export class HasEmptyValueViewFilterType extends ViewFilterType {
   static getType() {
@@ -330,7 +331,7 @@ export class HasAllValuesEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    const expected = Boolean(filterValue)
+    const expected = ensureBoolean(filterValue)
     if (cellValue.length === 0) {
       return false
     }
