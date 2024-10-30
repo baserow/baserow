@@ -495,13 +495,13 @@ class RecordSelectorElementType(
         ]
 
     def extract_formula_properties(
-        self, instance: Element, element_map: Dict[BaserowFormula, Element], **kwargs
+        self, instance: Element, **kwargs
     ) -> Dict[int, List[BaserowFormula]]:
         """
         For the record selector we always need the `id` and the row name property.
         """
 
-        properties = super().extract_formula_properties(instance, element_map, **kwargs)
+        properties = super().extract_formula_properties(instance, **kwargs)
 
         if instance.data_source_id and instance.data_source.service_id:
             service = instance.data_source.service.specific
@@ -527,10 +527,7 @@ class RecordSelectorElementType(
                 # This formula has access to the `CurrentDataProvider` so we need
                 # to populate the formula context with the `data_source_id`
                 # of the element so that we can resolve them.
-                formula_context = ElementHandler().get_import_context_addition(
-                    instance.id,
-                    element_map,
-                )
+                formula_context = kwargs | self.import_context_addition(instance)
                 tree = get_parse_tree_for_formula(instance.option_name_suffix)
                 properties = merge_dicts_no_duplicates(
                     properties,

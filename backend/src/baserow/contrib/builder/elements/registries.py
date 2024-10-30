@@ -306,30 +306,6 @@ class ElementType(
 
         return value
 
-    def extract_formula_properties(
-        self,
-        instance: Element,
-        element_map: Dict[str, Element],
-        **kwargs,
-    ) -> Dict[int, List[str]]:
-        """
-        Extract all formula field names of the element instance.
-
-        Returns a dict where keys are the Service ID and values are a list of
-        field names, e.g.: {164: ['field_5440', 'field_5441', 'field_5439']}
-        """
-
-        from baserow.contrib.builder.elements.handler import ElementHandler
-
-        # We get the context from the parent elements
-        formula_context = ElementHandler().get_import_context_addition(
-            instance.parent_element_id, element_map
-        )
-
-        return super().extract_formula_properties(
-            instance, **(kwargs | formula_context)
-        )
-
     @abstractmethod
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         """

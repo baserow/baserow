@@ -3832,7 +3832,7 @@ class SingleSelectFieldType(SelectOptionBaseFieldType):
         """
 
         name = f"{field_name}__value"
-        order = F(name)
+        order = collate_expression(F(name))
 
         if order_direction == "ASC":
             order = order.asc(nulls_first=True)
@@ -4268,7 +4268,7 @@ class MultipleSelectFieldType(
             output_field=models.TextField(),
         )
         annotation = {sort_column_name: query}
-        order = F(sort_column_name)
+        order = collate_expression(F(sort_column_name))
 
         if order_direction == "DESC":
             order = order.desc(nulls_first=True)
@@ -5933,7 +5933,7 @@ class MultipleCollaboratorsFieldType(
         )
         annotation = {sort_column_name: query}
 
-        order = F(sort_column_name)
+        order = collate_expression(F(sort_column_name))
 
         if order_direction == "DESC":
             order = order.desc(nulls_first=True)

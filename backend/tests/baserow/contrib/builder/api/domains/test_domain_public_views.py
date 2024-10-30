@@ -357,11 +357,48 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
         url,
         format="json",
     )
-
     response_json = response.json()
+
+    expected_item = {
+        "id": element1.id,
+        "page_id": page.id,
+        "type": "heading",
+        "order": "1.00000000000000000000",
+        "parent_element_id": None,
+        "place_in_container": None,
+        "visibility": "all",
+        "styles": {},
+        "style_border_top_color": "border",
+        "style_border_top_size": 0,
+        "style_padding_top": 10,
+        "style_margin_top": 0,
+        "style_border_bottom_color": "border",
+        "style_border_bottom_size": 0,
+        "style_padding_bottom": 10,
+        "style_margin_bottom": 0,
+        "style_border_left_color": "border",
+        "style_border_left_size": 0,
+        "style_padding_left": 20,
+        "style_margin_left": 0,
+        "style_border_right_color": "border",
+        "style_border_right_size": 0,
+        "style_padding_right": 20,
+        "style_margin_right": 0,
+        "style_background": "none",
+        "style_background_color": "#ffffffff",
+        "style_background_file": None,
+        "style_background_mode": "fill",
+        "style_width": "normal",
+        "role_type": "allow_all",
+        "roles": [],
+        "value": "",
+        "level": 1,
+    }
 
     assert response.status_code == HTTP_200_OK
     assert len(response_json) == 3
+    # Test the structure of the first item to ensure the expected keys exist
+    assert response_json[0] == expected_item
 
 
 @pytest.mark.django_db

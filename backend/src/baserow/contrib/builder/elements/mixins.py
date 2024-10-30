@@ -41,6 +41,7 @@ from baserow.contrib.builder.elements.types import (
 )
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.types import ElementDict
+from baserow.core.formula.types import BaserowFormula
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.utils import merge_dicts_no_duplicates
 
@@ -384,6 +385,33 @@ class CollectionElementTypeMixin:
 
         return instance
 
+    def extract_formula_properties(
+        self, instance: Element, **kwargs
+    ) -> Dict[int, List[BaserowFormula]]:
+        """
+        Some collection elements (e.g. Repeat Element) may have a nested
+        collection element which uses a schema_property. This property points
+        to a field name that is connected to the parent collection element's
+        data source.
+
+        This method is overridden to ensure that any schema_property is also
+        included in the list of field names used by the element.
+        """
+
+        properties = super().extract_formula_properties(instance, **kwargs)
+
+        if schema_property := instance.schema_property:
+            # if we have a data_source_id in the context from a parent or from the
+            # current instance
+            data_source_id = instance.data_source_id or kwargs.get(
+                "data_source_id", None
+            )
+            if data_source_id:
+                data_source = DataSourceHandler().get_data_source(data_source_id)
+                properties[data_source.service_id] = [schema_property]
+
+        return properties
+
 
 class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
     """
@@ -598,7 +626,6 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
     def extract_formula_properties(
         self,
         instance: CollectionElementSubClass,
-        element_map: Dict[str, Element],
         **kwargs,
     ) -> Dict[int, List[str]]:
         """
@@ -608,15 +635,12 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
         field names, e.g.: {164: ['field_5440', 'field_5441', 'field_5439']}
         """
 
-        from baserow.contrib.builder.elements.handler import ElementHandler
-
         # First get from the current element
-        result = super().extract_formula_properties(instance, element_map, **kwargs)
+        result = super().extract_formula_properties(instance, **kwargs)
 
         # then extract the properties used in the collection field formulas
-        formula_context = ElementHandler().get_import_context_addition(
-            instance.id, element_map
-        )
+        formula_context = kwargs | self.import_context_addition(instance)
+
         for collection_field in instance.fields.all():
             result = merge_dicts_no_duplicates(
                 result,

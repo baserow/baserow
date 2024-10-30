@@ -14,6 +14,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.builder.data_sources.models import DataSource
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.services.models import Service
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyInt, AnyStr
@@ -1149,10 +1150,20 @@ def test_dispatch_data_source_with_element_from_shared_page(api_client, data_fix
 @pytest.mark.django_db
 def test_dispatch_data_source_with_non_collection_element(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    page = data_fixture.create_builder_page(user=user)
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(builder=builder)
     element = data_fixture.create_builder_heading_element(page=page)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_text_field(table=table, primary=True)
+    row = RowHandler().create_row(user, table, values={field.db_column: "a"})
+
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
-        page=page
+        page=page, table=table, integration=integration
     )
     url = reverse(
         "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source.id}
@@ -1163,13 +1174,10 @@ def test_dispatch_data_source_with_non_collection_element(api_client, data_fixtu
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        "data_source": {
-            "element": [
-                "A data source can only dispatched with an element if it is a collection element."
-            ]
-        }
+        "results": [{"id": row.id, "order": AnyStr(), field.db_column: "a"}],
+        "has_next_page": False,
     }
 
 

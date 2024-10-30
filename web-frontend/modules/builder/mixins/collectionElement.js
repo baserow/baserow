@@ -58,6 +58,9 @@ export default {
         this.applicationContext
       )
     },
+    elementHasSourceOfData() {
+      return this.elementType.hasSourceOfData(this.element)
+    },
     elementIsInError() {
       return this.elementType.isInError({
         page: this.page,

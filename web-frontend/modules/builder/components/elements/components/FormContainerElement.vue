@@ -35,7 +35,7 @@
         :loading="workflowActionsInProgress"
         @click="validateAndSubmitEvent"
       >
-        {{ submitButtonLabelResolved || $t('buttonElement.noValue') }}
+        {{ submitButtonLabelResolved || $t('buttonElement.missingValue') }}
       </ABButton>
     </div>
   </div>
@@ -76,7 +76,10 @@ export default {
   },
   computed: {
     submitButtonLabelResolved() {
-      return ensureString(this.resolveFormula(this.element.submit_button_label))
+      return (
+        ensureString(this.resolveFormula(this.element.submit_button_label)) ||
+        this.$t('formContainerElement.defaultSubmitButtonLabel')
+      )
     },
     getFormElementDescendants() {
       const descendants = this.$store.getters['element/getDescendants'](

@@ -5,7 +5,12 @@
     }"
   >
     <ABHeading :level="element.level" :style="getStyleOverride('typography')">
-      {{ resolvedValue || $t('headingElement.noValue') }}
+      {{
+        element.value
+          ? resolvedValue ||
+            (mode === 'editing' ? $t('headingElement.emptyValue') : '&nbsp;')
+          : $t('headingElement.missingValue')
+      }}
     </ABHeading>
   </div>
 </template>

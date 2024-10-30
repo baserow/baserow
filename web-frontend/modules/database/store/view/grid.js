@@ -49,10 +49,6 @@ export function populateRow(row, metadata = {}) {
     // between cells.
     selected: false,
     selectedFieldId: -1,
-    // Contains the specific field ids that are in a loading state. This is for
-    // example used for fields that use a background worker to compute the value
-    // like the AI field.
-    pendingFieldOps: [],
   }
   return row
 }
@@ -70,6 +66,10 @@ const updatePositionFn = {
   below: (rowIndex, fieldIndex) => {
     return [rowIndex + 1, fieldIndex]
   },
+}
+
+function getPendingOperationKey(fieldId, rowId) {
+  return `${fieldId}-${rowId}`
 }
 
 export const state = () => ({
@@ -137,6 +137,10 @@ export const state = () => ({
   fieldAggregationData: {},
   activeGroupBys: [],
   groupByMetadata: {},
+  // Contains a fieldId and rowId string pair that looks like `{fieldId}-{rowId}`. If
+  // in the array, then that cell is a loading state. This is for example used for
+  // fields that use a background worker to compute the value like the AI field.
+  pendingFieldOps: {},
 })
 
 export const mutations = {
@@ -153,6 +157,7 @@ export const mutations = {
     state.addRowHover = false
     state.activeSearchTerm = ''
     state.hideRowsNotMatchingSearch = true
+    state.pendingFieldOps = {}
   },
   SET_ACTIVE_GROUP_BYS(state, groupBys) {
     state.activeGroupBys = groupBys
@@ -425,17 +430,6 @@ export const mutations = {
       if (metadata) {
         existingRowState._.metadata = metadata
       }
-
-      // Remove every pending AI field if a value is provided for it.
-      if (existingRowState._?.pendingFieldOps?.length > 0) {
-        const newFieldKeys = new Set(
-          Object.keys(values).filter((key) => values[key])
-        )
-        existingRowState._.pendingFieldOps =
-          existingRowState._.pendingFieldOps.filter(
-            (key) => !newFieldKeys.has(key)
-          )
-      }
     }
   },
   UPDATE_ROW_VALUES(state, { row, values }) {
@@ -621,17 +615,22 @@ export const mutations = {
     })
   },
   SET_PENDING_FIELD_OPERATIONS(state, { fieldId, rowIds, value }) {
-    const key = `field_${fieldId}`
-    state.rows.forEach((row) => {
-      if (rowIds.includes(row.id)) {
-        if (value) {
-          row._.pendingFieldOps.push(key)
-        } else {
-          row._.pendingFieldOps = row._.pendingFieldOps.filter(
-            (fieldName) => fieldName !== key
-          )
-        }
-      }
+    const addKey = (fieldId, rowId) => {
+      const key = getPendingOperationKey(fieldId, rowId)
+      Vue.set(state.pendingFieldOps, key, [fieldId, rowId])
+    }
+    const deleteKey = (fieldId, rowId) => {
+      const key = getPendingOperationKey(fieldId, rowId)
+      Vue.delete(state.pendingFieldOps, key)
+    }
+    const operation = value ? addKey : deleteKey
+
+    rowIds.forEach((rowId) => operation(fieldId, rowId))
+  },
+  CLEAR_PENDING_FIELD_OPERATIONS(state, { fieldIds, rowId }) {
+    fieldIds.forEach((fieldId) => {
+      const key = getPendingOperationKey(fieldId, rowId)
+      Vue.delete(state.pendingFieldOps, key)
     })
   },
   UPDATE_ROW_HEIGHT(state, value) {
@@ -2419,7 +2418,10 @@ export const actions = {
 
     // Calculate if there are rows outside of the buffer that need to be fetched and
     // prepended or appended to the `rowsInOrder`
-    const startIndex = rowHeadIndex + rowsInOrder.length
+    let startIndex = rowHeadIndex
+    if (rowHeadIndex + rowsInOrder.length >= getters.getBufferStartIndex) {
+      startIndex += rowsInOrder.length
+    }
     const limit = rowTailIndex - rowHeadIndex - rowsInOrder.length + 1
     if (limit > 0) {
       const rowsNotInBuffer = await dispatch('fetchRowsByIndex', {
@@ -2639,6 +2641,22 @@ export const actions = {
         // If the new row is before the buffer.
         commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex + 1)
       }
+
+      // Remove every pending AI field if a value is provided for it. This will make
+      // sure the loading state will stop if the value is updated. This is done even
+      // if the row is not found in the buffer because it could have been removed from
+      // the buffer when scrolling outside the buffer range.
+      const updatedFieldIds = Object.entries(values)
+        .filter(
+          ([key, value]) =>
+            key.startsWith('field_') && !_.isEqual(value, oldRow[key])
+        )
+        .map(([key, value]) => parseInt(key.split('_')[1]))
+
+      commit('CLEAR_PENDING_FIELD_OPERATIONS', {
+        fieldIds: updatedFieldIds,
+        rowId: row.id,
+      })
 
       // If the row as in the old buffer, but ended up at the first/before or
       // last/after position. This means that we can't know for sure the row should
@@ -3261,6 +3279,10 @@ export const getters = {
   },
   getAdhocSorting(state) {
     return state.adhocSorting
+  },
+  hasPendingFieldOps: (state) => (fieldId, rowId) => {
+    const key = getPendingOperationKey(fieldId, rowId)
+    return state.pendingFieldOps[key] !== undefined
   },
 }
 

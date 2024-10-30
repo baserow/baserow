@@ -261,6 +261,22 @@ def test_validate_filter_search_sort_fields_without_element():
 
 
 @pytest.mark.django_db
+def test_validate_filter_search_sort_fields_without_collection_element(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_heading_element(page=page)
+    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+    with pytest.raises(DataSourceRefinementForbidden) as exc:
+        dispatch_context.validate_filter_search_sort_fields(
+            ["name"], ServiceAdhocRefinements.FILTER
+        )
+    assert (
+        exc.value.args[0] == "A collection element is required to validate filter, "
+        "search and sort fields."
+    )
+
+
+@pytest.mark.django_db
 def test_builder_dispatch_context_public_formula_fields_is_cached(
     data_fixture, django_assert_num_queries
 ):

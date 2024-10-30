@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Ensure that the field name associated with a Repeat Element's schema_property is extracted.",
+    "issue_number": 3136,
+    "bullet_points": [],
+    "created_at": "2024-10-28"
+}

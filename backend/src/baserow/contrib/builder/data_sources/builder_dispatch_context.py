@@ -20,7 +20,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.utils import ServiceAdhocRefinements
 
 if TYPE_CHECKING:
-    from baserow.contrib.builder.elements.models import CollectionElement
+    from baserow.contrib.builder.elements.models import Element
     from baserow.core.workflow_actions.models import WorkflowAction
 
 CACHE_KEY_PREFIX = "used_properties_for_page"
@@ -44,7 +44,7 @@ class BuilderDispatchContext(DispatchContext):
         request: HttpRequest,
         page: Page,
         workflow_action: Optional["WorkflowAction"] = None,
-        element: Optional["CollectionElement"] = None,
+        element: Optional["Element"] = None,
         offset: Optional[int] = None,
         count: Optional[int] = None,
         only_expose_public_formula_fields: Optional[bool] = True,
@@ -159,9 +159,18 @@ class BuilderDispatchContext(DispatchContext):
         :raises DataSourceRefinementForbidden: If `self.element` is `None`.
         """
 
+        # We need an element to be able to validate filter, search and sort fields.
         if not self.element:
             raise DataSourceRefinementForbidden(
                 "An element is required to validate filter, search and sort fields."
+            )
+
+        # And more specifically, it needs to be a collection element.
+        element_type = self.element.get_type()
+        if not getattr(element_type, "is_collection_element", False):
+            raise DataSourceRefinementForbidden(
+                "A collection element is required to validate filter, "
+                "search and sort fields."
             )
 
         if "element_property_options" not in self.cache:

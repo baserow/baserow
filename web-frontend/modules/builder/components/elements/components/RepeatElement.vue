@@ -55,7 +55,7 @@
       <template v-if="children.length === 0 && isEditMode">
         <!-- Give the designer the chance to add child elements -->
         <AddElementZone
-          :disabled="elementIsInError"
+          :disabled="elementIsInError && !elementHasSourceOfData"
           :tooltip="addElementErrorTooltipMessage"
           @add-element="showAddElementModal"
         ></AddElementZone>
@@ -71,7 +71,7 @@
       <!-- If we also have no children, allow the designer to add elements -->
       <template v-if="children.length === 0 && isEditMode">
         <AddElementZone
-          :disabled="elementIsInError"
+          :disabled="elementIsInError && !elementHasSourceOfData"
           :tooltip="addElementErrorTooltipMessage"
           @add-element="showAddElementModal"
         ></AddElementZone>

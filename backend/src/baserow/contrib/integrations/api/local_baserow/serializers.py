@@ -32,7 +32,7 @@ class LocalBaserowDatabaseSerializer(ApplicationSerializer):
     )
 
     class Meta(ApplicationSerializer.Meta):
-        ref_name = "DatabaseApplication"
+        ref_name = "LocalBaserowDatabaseApplication"
         fields = ApplicationSerializer.Meta.fields + ("tables", "views")
 
 

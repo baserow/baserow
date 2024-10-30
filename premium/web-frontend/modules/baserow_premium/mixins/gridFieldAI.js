@@ -28,9 +28,9 @@ export default {
   },
   methods: {
     isGenerating(parent, props) {
-      return !!parent.row._.pendingFieldOps?.find(
-        (fieldName) => fieldName === `field_${props.field.id}`
-      )
+      return parent.$store.getters[
+        props.storePrefix + 'view/grid/hasPendingFieldOps'
+      ](props.field.id, parent.row.id)
     },
     isModelAvailable(parent, props) {
       const workspace = parent.$store.getters['workspace/get'](

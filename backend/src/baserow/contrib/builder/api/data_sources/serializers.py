@@ -1,5 +1,3 @@
-from typing import Optional
-
 from django.utils.functional import lazy
 
 from drf_spectacular.types import OpenApiTypes
@@ -171,27 +169,10 @@ class DispatchDataSourceDataSourceContextSerializer(serializers.Serializer):
         default=None,
         allow_null=True,
         queryset=Element.objects.select_related("page__builder").all(),
-        help_text="Optionally provide the data source dispatch endpoint with a "
-        "collection element ID if you wish to apply element-level filters, "
-        "sorts and/or search.",
+        help_text="Optionally provide an `element` to the data source. Currently only "
+        "used in element-level filtering, sorting and searching if the "
+        "element is a collection element.",
     )
-
-    def validate_element(self, value: Optional[Element]) -> Optional[Element]:
-        """
-        Ensure that the provided element is a collection element.
-        :raises ValidationError: If the provided element is not a collection element.
-        :return value: The validated element.
-        """
-
-        if value:
-            element_type = value.get_type()
-            if not getattr(element_type, "is_collection_element", False):
-                raise serializers.ValidationError(
-                    "A data source can only dispatched with an element if it is "
-                    "a collection element.",
-                    code="ELEMENT_NOT_COLLECTION",
-                )
-        return value
 
 
 class DispatchDataSourceRequestSerializer(serializers.Serializer):

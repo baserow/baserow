@@ -109,6 +109,7 @@ class PublicElementSerializer(serializers.ModelSerializer):
         model = Element
         fields = (
             "id",
+            "page_id",
             "type",
             "order",
             "parent_element_id",
@@ -141,6 +142,7 @@ class PublicElementSerializer(serializers.ModelSerializer):
         )
         extra_kwargs = {
             "id": {"read_only": True},
+            "page_id": {"read_only": True},
             "type": {"read_only": True},
         }
 

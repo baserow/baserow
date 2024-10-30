@@ -1,3 +1,4 @@
+import os
 from datetime import date
 from io import BytesIO
 
@@ -2940,3 +2941,59 @@ def test_get_group_by_metadata_in_rows_multiple_and_single_select_fields(data_fi
             ]
         ),
     }
+
+
+@pytest.mark.django_db
+def test_multiple_select_field_type_get_order_collate(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    multiple_select_field = data_fixture.create_multiple_select_field(
+        table=table, name="option_field", order=1, primary=True
+    )
+
+    model = table.get_model()
+
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    with open(
+        dir_path + "/../../../../../../tests/all_chars.txt", mode="r", encoding="utf-8"
+    ) as f:
+        all_chars = f.read()
+    with open(
+        dir_path + "/../../../../../../tests/sorted_chars.txt",
+        mode="r",
+        encoding="utf-8",
+    ) as f:
+        sorted_chars = f.read()
+
+    options, rows = [], []
+    for char in all_chars:
+        options.append(
+            SelectOption(field=multiple_select_field, value=char, color="blue", order=0)
+        )
+        rows.append(model())
+
+    options = SelectOption.objects.bulk_create(options)
+    rows = model.objects.bulk_create(rows)
+
+    relations = []
+    field_name = f"field_{multiple_select_field.id}"
+
+    for row, option in zip(rows, options):
+        relation, _ = RowHandler()._prepare_m2m_field_related_objects(
+            row, field_name, [option.id]
+        )
+        relations.extend(relation)
+
+    getattr(model, field_name).through.objects.bulk_create(relations)
+
+    queryset = (
+        model.objects.all()
+        .order_by_fields_string(field_name)
+        .prefetch_related(field_name)
+    )
+    result = ""
+    for char in queryset:
+        result += getattr(char, field_name).all()[0].value
+
+    assert result == sorted_chars

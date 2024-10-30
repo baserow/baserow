@@ -1,3 +1,4 @@
+import os
 from io import BytesIO
 
 from django.core.exceptions import ValidationError
@@ -1277,3 +1278,53 @@ def test_single_select_serialize_metadata_for_row_history(
             "select_options": {},
             "type": "single_select",
         }
+
+
+@pytest.mark.django_db
+def test_single_select_field_type_get_order_collate(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    single_select_field = data_fixture.create_single_select_field(
+        table=table, name="option_field", order=1, primary=True
+    )
+
+    model = table.get_model()
+
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    with open(
+        dir_path + "/../../../../../../tests/all_chars.txt", mode="r", encoding="utf-8"
+    ) as f:
+        all_chars = f.read()
+    with open(
+        dir_path + "/../../../../../../tests/sorted_chars.txt",
+        mode="r",
+        encoding="utf-8",
+    ) as f:
+        sorted_chars = f.read()
+
+    options = []
+    for char in all_chars:
+        options.append(
+            SelectOption(field=single_select_field, value=char, color="blue", order=0)
+        )
+
+    options = SelectOption.objects.bulk_create(options)
+
+    rows = []
+    for index, char in enumerate(all_chars):
+        option = options[index]
+        rows.append(model(**{f"field_{single_select_field.id}_id": option.id}))
+
+    model.objects.bulk_create(rows)
+
+    queryset = (
+        model.objects.all()
+        .order_by_fields_string(f"field_{single_select_field.id}")
+        .select_related(f"field_{single_select_field.id}")
+    )
+    result = ""
+    for char in queryset:
+        result += getattr(char, f"field_{single_select_field.id}").value
+
+    assert result == sorted_chars
