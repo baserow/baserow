@@ -12,7 +12,11 @@
 
     <template #content>
       <div>
-        <Alert v-if="actualIntegrationType.warning" type="warning">
+        <Alert
+          v-if="actualIntegrationType.warning"
+          type="warning"
+          class="margin-top-0"
+        >
           <template #title>{{
             $t('integrationCreateEditModal.warningTitle')
           }}</template>
