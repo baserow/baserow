@@ -3,7 +3,7 @@
     <div v-if="state === 'pending'" class="integration-settings__loader" />
     <template v-if="state === 'loaded'">
       <template v-if="integrations.length > 0">
-        <p class="margin-top-3">
+        <p>
           {{ $t('integrationSettings.integrationMessage') }}
         </p>
         <div
