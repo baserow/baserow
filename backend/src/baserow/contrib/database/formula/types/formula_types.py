@@ -17,6 +17,7 @@ from baserow.contrib.database.fields.expressions import (
     extract_jsonb_list_values_to_array,
     json_extract_path,
 )
+from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
 from baserow.contrib.database.fields.filter_support import (
     FilterNotSupportedException,
@@ -423,7 +424,9 @@ class BaserowFormulaNumberType(
 
 
 class BaserowFormulaBooleanType(
-    BaserowFormulaTypeHasEmptyBaserowExpression, BaserowFormulaValidType
+    HasValueFilterSupport,
+    BaserowFormulaTypeHasEmptyBaserowExpression,
+    BaserowFormulaValidType,
 ):
     type = "boolean"
     baserow_field_type = "boolean"
@@ -454,6 +457,15 @@ class BaserowFormulaBooleanType(
         self, expr: "BaserowExpression[BaserowFormulaValidType]"
     ):
         return expr
+
+    def get_in_array_is_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        _, field_type = self.get_baserow_field_instance_and_type()
+        if not isinstance(field_type, HasValueFilterSupport):
+            raise FilterNotSupportedException(field_type)
+
+        return field_type.get_in_array_is_query(field_name, value, model_field, field)
 
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
         return JSONBSingleKeyArrayExpression(

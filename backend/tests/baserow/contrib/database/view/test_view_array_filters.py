@@ -31,6 +31,21 @@ class ArrayFiltersSetup:
     view_handler: ViewHandler
 
 
+class BooleanLookupRow(int, Enum):
+    """
+    Helper enum for boolean lookup field filters tests.
+
+    Test data is fixed, so we want to point expected rows indexes. Using this enum
+    allows to do it in more descriptive way. Each member is an index of a row with
+    a specific data for the test.
+    """
+
+    MIXED = 0
+    ALL_FALSE = 1
+    ALL_TRUE = 2
+    NO_VALUES = 3
+
+
 def boolean_field_factory(data_fixture, table, user):
     return data_fixture.create_boolean_field(name="target", user=user, table=table)
 
@@ -94,6 +109,74 @@ def setup(data_fixture, target_field_factory) -> ArrayFiltersSetup:
         view_handler=view_handler,
         model=model,
     )
+
+
+def boolean_lookup_filter_proc(
+    data_fixture: "Fixtures",
+    filter_type_name: str,
+    test_value: str,
+    expected_rows: list[BooleanLookupRow],
+):
+    """
+    Common boolean lookup field test procedure. Each test operates on a fixed set of
+    data, where each table row contains a lookup field with a predefined set of linked
+    rows.
+    """
+
+    test_setup = setup(data_fixture, boolean_field_factory)
+
+    dict_rows = [{test_setup.target_field.db_column: idx % 2} for idx in range(0, 10)]
+
+    linked_rows = test_setup.row_handler.create_rows(
+        user=test_setup.user, table=test_setup.other_table, rows_values=dict_rows
+    )
+    rows = [
+        # mixed
+        {
+            test_setup.link_row_field.db_column: [
+                linked_rows[0].id,
+                linked_rows[1].id,
+                linked_rows[2].id,
+                linked_rows[3].id,
+                linked_rows[4].id,
+            ]
+        },
+        # all false
+        {
+            test_setup.link_row_field.db_column: [
+                linked_rows[0].id,
+                linked_rows[2].id,
+                linked_rows[4].id,
+            ]
+        },
+        # all true
+        {
+            test_setup.link_row_field.db_column: [
+                linked_rows[1].id,
+                linked_rows[3].id,
+                linked_rows[5].id,
+                linked_rows[7].id,
+            ]
+        },
+        # all none
+        {test_setup.link_row_field.db_column: []},
+    ]
+    r_mixed, r_false, r_true, r_none = test_setup.row_handler.create_rows(
+        user=test_setup.user, table=test_setup.table, rows_values=rows
+    )
+    rows = [r_mixed, r_false, r_true, r_none]
+    selected = [rows[idx] for idx in expected_rows]
+
+    test_setup.view_handler.create_filter(
+        test_setup.user,
+        test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type_name=filter_type_name,
+        value=test_value,
+    )
+    q = test_setup.view_handler.get_queryset(test_setup.grid_view)
+    assert len(q) == len(selected)
+    assert set([r.id for r in q]) == set([r.id for r in selected])
 
 
 @pytest.mark.parametrize(
@@ -1573,21 +1656,6 @@ def test_has_value_length_is_lower_than_uuid_field_types(data_fixture):
     assert len(ids) == 4
 
 
-class BooleanLookupRow(int, Enum):
-    """
-    Helper enum for boolean lookup field filters tests.
-
-    Test data is fixed, so we want to point expected rows indexes. Using this enum
-    allows to do it in more descriptive way. Each member is an index of a row with
-    a specific data for the test.
-    """
-
-    MIXED = 0
-    ALL_FALSE = 1
-    ALL_TRUE = 2
-    NO_VALUES = 3
-
-
 @pytest.mark.parametrize(
     "filter_type_name,test_value,expected_rows",
     [
@@ -1604,7 +1672,7 @@ class BooleanLookupRow(int, Enum):
     ],
 )
 @pytest.mark.django_db
-def test_all_of_array_are_filter_boolean_lookup_field_type(
+def test_has_all_values_equal_filter_boolean_lookup_field_type(
     data_fixture, filter_type_name, test_value, expected_rows
 ):
     boolean_lookup_filter_proc(
@@ -1633,7 +1701,7 @@ def test_all_of_array_are_filter_boolean_lookup_field_type(
     ],
 )
 @pytest.mark.django_db
-def test_any_of_array_is_filter_boolean_lookup_field_type(
+def test_has_value_equal_filter_boolean_lookup_field_type(
     data_fixture, filter_type_name, test_value, expected_rows
 ):
     boolean_lookup_filter_proc(
@@ -1657,7 +1725,7 @@ def test_any_of_array_is_filter_boolean_lookup_field_type(
     ],
 )
 @pytest.mark.django_db
-def test_none_of_array_is_filter_boolean_lookup_field_type(
+def test_has_not_value_equal_filter_boolean_lookup_field_type(
     data_fixture, filter_type_name, test_value, expected_rows
 ):
     boolean_lookup_filter_proc(
@@ -1685,83 +1753,9 @@ def test_none_of_array_is_filter_boolean_lookup_field_type(
     ],
 )
 @pytest.mark.django_db
-def test_empty_filters_boolean_lookup_field_type(
+def test_empty_not_empty_filters_boolean_lookup_field_type(
     data_fixture, filter_type_name, test_value, expected_rows
 ):
     boolean_lookup_filter_proc(
         data_fixture, filter_type_name, test_value, expected_rows
     )
-
-
-def boolean_lookup_filter_proc(
-    data_fixture: "Fixtures",
-    filter_type_name: str,
-    test_value: str,
-    expected_rows: list[BooleanLookupRow],
-):
-    """
-    Common boolean lookup field test procedure. Each test operates on a fixed set of
-    data, where each table row contains a lookup field with a predefined set of linked
-    rows.
-
-    :param data_fixture:
-    :param filter_type_name:
-    :param test_value:
-    :param expected_rows:
-    :return:
-    """
-
-    test_setup = setup(data_fixture, boolean_field_factory)
-
-    dict_rows = [{test_setup.target_field.db_column: idx % 2} for idx in range(0, 10)]
-
-    linked_rows = test_setup.row_handler.create_rows(
-        user=test_setup.user, table=test_setup.other_table, rows_values=dict_rows
-    )
-    rows = [
-        # mixed
-        {
-            test_setup.link_row_field.db_column: [
-                linked_rows[0].id,
-                linked_rows[1].id,
-                linked_rows[2].id,
-                linked_rows[3].id,
-                linked_rows[4].id,
-            ]
-        },
-        # all false
-        {
-            test_setup.link_row_field.db_column: [
-                linked_rows[0].id,
-                linked_rows[2].id,
-                linked_rows[4].id,
-            ]
-        },
-        # all true
-        {
-            test_setup.link_row_field.db_column: [
-                linked_rows[1].id,
-                linked_rows[3].id,
-                linked_rows[5].id,
-                linked_rows[7].id,
-            ]
-        },
-        # all none
-        {test_setup.link_row_field.db_column: []},
-    ]
-    r_mixed, r_false, r_true, r_none = test_setup.row_handler.create_rows(
-        user=test_setup.user, table=test_setup.table, rows_values=rows
-    )
-    rows = [r_mixed, r_false, r_true, r_none]
-    selected = [rows[idx] for idx in expected_rows]
-
-    test_setup.view_handler.create_filter(
-        test_setup.user,
-        test_setup.grid_view,
-        field=test_setup.lookup_field,
-        type_name=filter_type_name,
-        value=test_value,
-    )
-    q = test_setup.view_handler.get_queryset(test_setup.grid_view)
-    assert len(q) == len(selected)
-    assert set([r.id for r in q]) == set([r.id for r in selected])

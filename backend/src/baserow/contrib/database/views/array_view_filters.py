@@ -1,10 +1,7 @@
 from loguru import logger
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
-from baserow.contrib.database.fields.field_types import (
-    BooleanFieldType,
-    FormulaFieldType,
-)
+from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.filter_support import (
     FilterNotSupportedException,
     HasValueContainsFilterSupport,
@@ -74,7 +71,7 @@ class HasValueEqualViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaTextType.type),
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
-            FormulaFieldType.array_of(BooleanFieldType.type),
+            FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
         ),
     ]
 
@@ -82,11 +79,11 @@ class HasValueEqualViewFilterType(ViewFilterType):
         try:
             field_type = field_type_registry.get_by_model(field)
             if not isinstance(field_type, HasValueFilterSupport):
-                raise FilterNotSupportedException()
+                raise FilterNotSupportedException(field_type)
             return field_type.get_in_array_is_query(
                 field_name, value, model_field, field
             )
-        except Exception:
+        except FilterNotSupportedException:
             return self.default_filter_on_exception()
 
 

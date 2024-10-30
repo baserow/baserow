@@ -3,8 +3,10 @@ import ViewFilterTypeNumber from '@baserow/modules/database/components/view/View
 import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/ViewFilterTypeBoolean'
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 import { ViewFilterType } from '@baserow/modules/database/viewFilters'
-import { _ } from 'lodash'
+import _ from 'lodash'
 import { ensureBoolean } from '@baserow/modules/core/utils/validator'
+import { mix } from '@baserow/modules/core/mixins'
+import booleanArrayAwareMixin from '@baserow/modules/database/mixins/booleanArrayAwareMixin'
 
 export class HasEmptyValueViewFilterType extends ViewFilterType {
   static getType() {
@@ -51,7 +53,10 @@ export class HasNotEmptyValueViewFilterType extends ViewFilterType {
     return !fieldType.getHasEmptyValueFilterFunction(field)(cellValue)
   }
 }
-export class HasValueEqualViewFilterType extends ViewFilterType {
+export class HasValueEqualViewFilterType extends mix(
+  booleanArrayAwareMixin,
+  ViewFilterType
+) {
   static getType() {
     return 'has_value_equal'
   }
@@ -64,7 +69,7 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
   matches(cellValue, filterValue, field, fieldType) {
     // filterValue may be raw and in cellValue items, .value should be `true`,
     // so we should call boolean-specific matches() function.
-    if (this.isBooleanLookupField(field)) {
+    if (this.isBooleanArrayField(field)) {
       fieldType = this.app.$registry.get('field', 'boolean')
       return fieldType.getHasValueEqualFilterFunction(field)(
         cellValue,
@@ -74,16 +79,8 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
     return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
   }
 
-  isBooleanLookupField(field) {
-    return (
-      field.array_formula_type === 'boolean' &&
-      field.type === 'lookup' &&
-      field.formula_type === 'array'
-    )
-  }
-
   prepareValue(value, field) {
-    if (this.isBooleanLookupField(field)) {
+    if (this.isBooleanArrayField(field)) {
       return value.trim() === '' ? '0' : value
     } else {
       return value
@@ -91,7 +88,7 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    if (this.isBooleanLookupField(field)) {
+    if (this.isBooleanArrayField(field)) {
       return ViewFilterTypeBoolean
     }
     return ViewFilterTypeText
@@ -109,7 +106,10 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
   }
 }
 
-export class HasNotValueEqualViewFilterType extends ViewFilterType {
+export class HasNotValueEqualViewFilterType extends mix(
+  booleanArrayAwareMixin,
+  ViewFilterType
+) {
   static getType() {
     return 'has_not_value_equal'
   }
@@ -122,7 +122,7 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
   matches(cellValue, filterValue, field, fieldType) {
     // filterValue may be raw and in cellValue items, .value should be `true`,
     // so we should call boolean-specific matches() function.
-    if (this.isBooleanLookupField(field)) {
+    if (this.isBooleanArrayField(field)) {
       fieldType = this.app.$registry.get('field', 'boolean')
       return fieldType.getHasNotValueEqualFilterFunction(field)(
         cellValue,
@@ -132,16 +132,8 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
     return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
   }
 
-  isBooleanLookupField(field) {
-    return (
-      field.array_formula_type === 'boolean' &&
-      field.type === 'lookup' &&
-      field.formula_type === 'array'
-    )
-  }
-
   prepareValue(value, field) {
-    if (this.isBooleanLookupField(field)) {
+    if (this.isBooleanArrayField(field)) {
       return value.trim() === '' ? '0' : value
     } else {
       return value
@@ -149,7 +141,7 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    if (this.isBooleanLookupField(field)) {
+    if (this.isBooleanArrayField(field)) {
       return ViewFilterTypeBoolean
     }
     return ViewFilterTypeText
@@ -324,10 +316,7 @@ export class HasAllValuesEqualViewFilterType extends ViewFilterType {
   }
 
   getCompatibleFieldTypes() {
-    return [
-      'array(boolean)',
-      FormulaFieldType.compatibleWithFormulaTypes('array(boolean)'),
-    ]
+    return [FormulaFieldType.compatibleWithFormulaTypes('array(boolean)')]
   }
 
   matches(cellValue, filterValue, field, fieldType) {

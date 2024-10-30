@@ -796,7 +796,7 @@ class RatingFieldType(FieldType):
         return old_field.max_value > new_max_value
 
 
-class BooleanFieldType(FieldType):
+class BooleanFieldType(HasValueFilterSupport, FieldType):
     type = "boolean"
     model_class = BooleanField
     _can_group_by = True
@@ -4569,7 +4569,6 @@ class FormulaFieldType(
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(field)
-
         if not isinstance(field_type, HasValueFilterSupport):
             raise FilterNotSupportedException()
 
@@ -5585,17 +5584,6 @@ class LookupFieldType(FormulaFieldType):
         target_field_name = target_field["name"]
 
         return {(target_field_name, via_field_name)}
-
-    def get_in_array_is_query(self, field_name, value, model_field, field):
-        ftype = field.target_field.get_type()
-        try:
-            return ftype.get_in_array_is_query(field_name, value, model_field, field)
-        except AttributeError as err:
-            logger.warning(
-                f"Cannot read get_in_array_is_query from "
-                f"{ftype}: {err}, using mixing"
-            )
-            return super().get_in_array_is_query(field_name, value, model_field, field)
 
 
 class MultipleCollaboratorsFieldType(
