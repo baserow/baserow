@@ -1,11 +1,14 @@
 <template>
-  <div v-if="!showCreationForm">
+  <div v-if="!showCreationForm" class="domains-settings">
     <Error :error="error"></Error>
 
     <div
       v-if="$fetchState.pending && !error.visible"
-      class="loading domains-settings__loading"
-    />
+      class="domains-settings__loading"
+    >
+      <span class="loading loading-absolute-center"></span>
+    </div>
+
     <template v-else>
       <DomainCard
         v-for="domain in domains"
