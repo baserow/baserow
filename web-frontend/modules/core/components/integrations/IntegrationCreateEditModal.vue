@@ -1,54 +1,58 @@
 <template>
-  <Modal>
-    <h2 class="box__title">
-      {{
-        create
-          ? $t('integrationCreateEditModal.createTitle')
-          : $t('integrationCreateEditModal.editTitle')
-      }}
-    </h2>
-    <div>
-      <Alert v-if="actualIntegrationType.warning" type="warning">
-        <template #title>{{
-          $t('integrationCreateEditModal.warningTitle')
-        }}</template>
-        <p>{{ actualIntegrationType.warning }}</p>
-      </Alert>
+  <ModalV2>
+    <template #header-content>
+      <h2>
+        {{
+          create
+            ? $t('integrationCreateEditModal.createTitle')
+            : $t('integrationCreateEditModal.editTitle')
+        }}
+      </h2>
+    </template>
 
-      <IntegrationEditForm
-        ref="form"
-        :application="application"
-        :default-values="create ? getDefaultIntegrationValues() : integration"
-        :integration-type="actualIntegrationType"
-        @submitted="submit"
-      />
+    <template #content>
+      <div>
+        <Alert v-if="actualIntegrationType.warning" type="warning">
+          <template #title>{{
+            $t('integrationCreateEditModal.warningTitle')
+          }}</template>
+          <p>{{ actualIntegrationType.warning }}</p>
+        </Alert>
 
-      <Error :error="error"></Error>
+        <IntegrationEditForm
+          ref="form"
+          :application="application"
+          :default-values="create ? getDefaultIntegrationValues() : integration"
+          :integration-type="actualIntegrationType"
+          @submitted="submit"
+        />
 
-      <div class="actions actions--right">
-        <Button
-          size="large"
-          :loading="loading"
-          :disabled="loading"
-          @click.prevent="$refs.form.submit()"
-        >
-          {{ create ? $t('action.create') : $t('action.save') }}
-        </Button>
+        <Error :error="error"></Error>
       </div>
-    </div>
-  </Modal>
+    </template>
+
+    <template #footer-content>
+      <Button
+        :loading="loading"
+        :disabled="loading"
+        @click.prevent="$refs.form.submit()"
+      >
+        {{ create ? $t('action.create') : $t('action.save') }}
+      </Button>
+    </template>
+  </ModalV2>
 </template>
 
 <script>
 import { mapActions } from 'vuex'
 import error from '@baserow/modules/core/mixins/error'
-import modal from '@baserow/modules/core/mixins/modal'
+import modalv2 from '@baserow/modules/core/mixins/modalv2'
 import IntegrationEditForm from '@baserow/modules/core/components/integrations/IntegrationEditForm'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 
 export default {
   components: { IntegrationEditForm },
-  mixins: [modal, error],
+  mixins: [modalv2, error],
   props: {
     application: {
       type: Object,

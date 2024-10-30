@@ -4,13 +4,8 @@
     v-if="!showCreateForm && editedUserSource === null"
     class="user-sources-settings"
   >
-    <h2 class="box__title">{{ $t('userSourceSettings.titleOverview') }}</h2>
     <Error :error="error"></Error>
-    <div v-if="!error.visible" class="actions actions--right">
-      <Button icon="iconoir-plus" @click="showForm()">
-        {{ $t('userSourceSettings.addUserSource') }}
-      </Button>
-    </div>
+
     <div
       v-for="userSource in userSources"
       :key="userSource.id"
@@ -59,29 +54,12 @@
       @submitted="updateUserSource"
       @values-changed="onValueChange"
     />
-    <div class="actions">
-      <ButtonText
-        type="secondary"
-        icon="iconoir-nav-arrow-left"
-        @click="editedUserSource = null"
-      >
-        {{ $t('action.back') }}
-      </ButtonText>
-      <Button
-        :disabled="actionInProgress || invalidForm"
-        :loading="actionInProgress"
-        size="large"
-        @click="$refs.userSourceForm.submit()"
-      >
-        {{ $t('action.save') }}
-      </Button>
-    </div>
   </div>
   <!-- Create user source -->
   <div v-else>
-    <h2 class="box__title">
+    <h4>
       {{ $t('userSourceSettings.titleAddUserSource') }}
-    </h2>
+    </h4>
     <Error :error="error"></Error>
     <CreateUserSourceForm
       ref="userSourceForm"
@@ -90,23 +68,6 @@
       @submitted="createUserSource"
       @values-changed="onValueChange"
     />
-    <div class="actions">
-      <ButtonText
-        type="secondary"
-        icon="iconoir-nav-arrow-left"
-        @click="hideForm"
-      >
-        {{ $t('action.back') }}
-      </ButtonText>
-      <Button
-        :disabled="actionInProgress || invalidForm"
-        :loading="actionInProgress"
-        size="large"
-        @click="$refs.userSourceForm.submit()"
-      >
-        {{ $t('action.create') }}
-      </Button>
-    </div>
   </div>
 </template>
 
@@ -117,6 +78,7 @@ import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import CreateUserSourceForm from '@baserow/modules/builder/components/userSource/CreateUserSourceForm'
 import UpdateUserSourceForm from '@baserow/modules/builder/components/userSource/UpdateUserSourceForm'
+import UserSourcesSettingsFooter from '@baserow/modules/builder/components/settings/UserSourcesSettingsFooter.vue'
 
 export default {
   name: 'UserSourceSettings',
@@ -174,9 +136,9 @@ export default {
     async showForm(userSourceToEdit) {
       if (userSourceToEdit) {
         this.editedUserSource = userSourceToEdit
-      } else {
-        this.showCreateForm = true
-      }
+        this.$emit('edit-user-source')
+      } else this.showCreateForm = true
+
       await this.$nextTick()
       this.onValueChange()
     },
@@ -230,6 +192,15 @@ export default {
       } catch (error) {
         notifyIf(error)
       }
+    },
+    getTitle() {
+      return this.$t('userSourceSettings.titleOverview')
+    },
+    getFooterComponent() {
+      return UserSourcesSettingsFooter
+    },
+    submitForm() {
+      this.$refs.userSourceForm.submit()
     },
   },
 }

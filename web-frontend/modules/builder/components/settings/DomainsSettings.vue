@@ -1,12 +1,7 @@
 <template>
-  <div v-if="!showForm">
-    <h2 class="box__title">{{ $t('domainSettings.titleOverview') }}</h2>
+  <div v-if="!showCreationForm">
     <Error :error="error"></Error>
-    <div class="actions actions--right">
-      <Button icon="iconoir-plus" @click="showForm = true">
-        {{ $t('domainSettings.addDomain') }}
-      </Button>
-    </div>
+
     <div
       v-if="$fetchState.pending && !error.visible"
       class="loading domains-settings__loading"
@@ -28,7 +23,13 @@
       {{ $t('domainSettings.noDomainMessage') }}
     </p>
   </div>
-  <DomainForm v-else :builder="builder" :hide-form="hideForm" />
+  <DomainForm
+    v-else
+    ref="form"
+    :builder="builder"
+    :hide-form="hideForm"
+    @loading="$emit('domain-form-loading', $event)"
+  />
 </template>
 
 <script>
@@ -36,6 +37,7 @@ import { mapActions, mapGetters } from 'vuex'
 import error from '@baserow/modules/core/mixins/error'
 import DomainCard from '@baserow/modules/builder/components/domain/DomainCard'
 import DomainForm from '@baserow/modules/builder/components/domain/DomainForm'
+import DomainsSettingsFooter from '@baserow/modules/builder/components/settings/DomainsSettingsFooter.vue'
 
 export default {
   name: 'DomainsSettings',
@@ -49,7 +51,7 @@ export default {
   },
   data() {
     return {
-      showForm: false,
+      showCreationForm: false,
     }
   },
   async fetch() {
@@ -69,7 +71,7 @@ export default {
       actionFetchDomains: 'domain/fetch',
     }),
     hideForm() {
-      this.showForm = false
+      this.showCreationForm = false
       this.hideError()
     },
     async deleteDomain({ id }) {
@@ -78,6 +80,18 @@ export default {
       } catch (error) {
         this.handleError(error)
       }
+    },
+    getTitle() {
+      return this.$t('domainSettings.titleOverview')
+    },
+    getFooterComponent() {
+      return DomainsSettingsFooter
+    },
+    showForm() {
+      this.showCreationForm = true
+    },
+    submitForm() {
+      this.$refs.form.submitForm()
     },
   },
 }

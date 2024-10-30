@@ -1,6 +1,6 @@
 <template>
   <ThemeProvider class="theme-settings">
-    <Tabs>
+    <Tabs no-padding>
       <Tab
         v-for="themeConfigBlock in themeConfigBlocks"
         :key="themeConfigBlock.getType()"
@@ -67,6 +67,9 @@ export default {
         )
         notifyIf(error, 'application')
       }
+    },
+    getTitle() {
+      return ''
     },
   },
 }

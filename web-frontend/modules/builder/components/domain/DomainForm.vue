@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h2 class="box__title">{{ $t('domainSettings.titleAddDomain') }}</h2>
+    <h4>{{ $t('domainSettings.titleAddDomain') }}</h4>
     <Error :error="error"></Error>
     <FormGroup class="margin-bottom-3">
       <Dropdown
@@ -24,24 +24,6 @@
       @submitted="createDomain($event)"
       @error="formHasError = $event"
     />
-    <div class="actions">
-      <ButtonText
-        type="secondary"
-        icon="iconoir-nav-arrow-left"
-        @click="hideForm"
-      >
-        {{ $t('action.back') }}
-      </ButtonText>
-
-      <Button
-        size="large"
-        :loading="createLoading"
-        :disabled="createLoading || formHasError"
-        @click="onSubmit"
-      >
-        {{ $t('action.create') }}
-      </Button>
-    </div>
   </div>
 </template>
 
@@ -87,14 +69,14 @@ export default {
     selectedDomainType() {
       this.$refs?.domainForm?.reset()
     },
+    createLoading(value) {
+      this.$emit('loading', value)
+    },
   },
   methods: {
     ...mapActions({
       actionCreateDomain: 'domain/create',
     }),
-    onSubmit() {
-      this.$refs.domainForm.submit()
-    },
     async createDomain(data) {
       this.createLoading = true
       try {
@@ -107,8 +89,10 @@ export default {
         this.hideForm()
       } catch (error) {
         this.handleAnyError(error)
+      } finally {
+        // this.createLoading = false
+        this.$emit('loading', false) // somehow the createLoading watcher is not triggered so I need to emit the event here as well
       }
-      this.createLoading = false
     },
     handleAnyError(error) {
       if (
@@ -118,6 +102,9 @@ export default {
       ) {
         this.handleError(error)
       }
+    },
+    submitForm() {
+      this.$refs.domainForm.submit()
     },
   },
 }

@@ -1,6 +1,5 @@
 <template>
   <div>
-    <h2 class="box__title">{{ $t('integrationSettings.title') }}</h2>
     <div v-if="state === 'pending'" class="integration-settings__loader" />
     <template v-if="state === 'loaded'">
       <template v-if="integrations.length > 0">
@@ -100,6 +99,9 @@ export default {
       } catch (error) {
         notifyIf(error)
       }
+    },
+    getTitle() {
+      return this.$t('integrationSettings.title')
     },
   },
 }
