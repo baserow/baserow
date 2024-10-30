@@ -16,10 +16,7 @@
         @delete="deleteDomain(domain)"
       />
     </template>
-    <p
-      v-if="!error.visible && !$fetchState.pending && domains.length === 0"
-      class="margin-top-3"
-    >
+    <p v-if="!error.visible && !$fetchState.pending && domains.length === 0">
       {{ $t('domainSettings.noDomainMessage') }}
     </p>
   </div>
