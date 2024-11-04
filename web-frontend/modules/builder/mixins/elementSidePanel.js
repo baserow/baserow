@@ -40,7 +40,7 @@ export default {
           this.element,
           this.workspace.id
         ) ||
-        !this.$refs.panelForm?.isFormValid()
+        !this.$refs.panelForm?.isFormValid(true)
       ) {
         return
       }
@@ -64,7 +64,7 @@ export default {
           })
         } catch (error) {
           // Restore the previous saved values from the store
-          this.$refs.panelForm?.reset()
+          this.$refs.panelForm?.reset(true)
           notifyIf(error)
         }
       }

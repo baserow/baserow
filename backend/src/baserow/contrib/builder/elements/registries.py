@@ -1,5 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generator, List, Optional, Type, TypedDict, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypedDict,
+    TypeVar,
+    Union,
+)
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -96,13 +107,20 @@ class ElementType(
             instance.
         """
 
-    def after_update(self, instance: ElementSubClass, values: Dict):
+    def after_update(
+        self,
+        instance: ElementSubClass,
+        values: Dict,
+        changes: Dict[str, Tuple],
+    ):
         """
         This hook is called right after the element has been updated.
 
         :param instance: The updated element instance.
         :param values: The values that were passed when creating the field
             instance.
+        :param changes: A dictionary containing all changes which were made to the
+            element prior to `after_update` being called.
         """
 
     def before_delete(self, instance: ElementSubClass):

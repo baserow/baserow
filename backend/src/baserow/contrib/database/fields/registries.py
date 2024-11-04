@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, NoReturn, Optional, Set, Tuple, Union
 from zipfile import ZipFile
 
@@ -1528,6 +1529,37 @@ class FieldType(
         """
 
         return self._can_be_primary_field
+
+    @cached_property
+    def _can_filter_by(self) -> bool:
+        """
+        Responsible for returning whether any view filter types are compatible
+        with this field type.
+        """
+
+        from baserow.contrib.database.views.registries import view_filter_type_registry
+
+        compatible_view_filters = [
+            view_filter_type
+            for view_filter_type in view_filter_type_registry.get_all()
+            if self.type in view_filter_type.compatible_field_types
+        ]
+
+        return len(compatible_view_filters) > 0
+
+    def check_can_filter_by(self, field: Field) -> bool:
+        """
+        Override this method if this field type can sometimes be filtered or sometimes
+        cannot be filtered depending on the individual field state. By default will just
+        return the bool property _can_filter_by so if your field type doesn't depend
+        on the field state and is always just True or False just set _can_filter_by
+        to the desired value.
+
+        :param field: The field to check to see if it can be filtered by or not.
+        :return: True if a view can be filtered by this field, False otherwise.
+        """
+
+        return self._can_filter_by
 
     def check_can_order_by(self, field: Field) -> bool:
         """

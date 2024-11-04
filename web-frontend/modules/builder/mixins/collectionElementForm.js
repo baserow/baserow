@@ -1,6 +1,7 @@
 import { mapGetters } from 'vuex'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
 import { CurrentRecordDataProviderType } from '@baserow/modules/builder/dataProviderTypes'
+import { FF_PROPERTY_OPTIONS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   mixins: [applicationContextMixin],
@@ -39,6 +40,20 @@ export default {
       const { element } = this.applicationContext
       const elementType = this.$registry.get('element', element.type)
       return elementType.hasCollectionAncestor(this.page, element)
+    },
+    /**
+     * In collection element forms, the ability to configure property options
+     * (e.g. allowing properties to be filterable, sortable and/or searchable)
+     * is dependent on whether the selected data source returns a list, and if
+     * the feature flag is enabled.
+     * @returns {boolean} - Whether the property options are available.
+     */
+    propertyOptionsAvailable() {
+      return (
+        this.selectedDataSource &&
+        this.selectedDataSourceReturnsList &&
+        this.$featureFlagIsEnabled(FF_PROPERTY_OPTIONS)
+      )
     },
     /**
      * In collection element forms, the ability to view paging options

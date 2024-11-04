@@ -1,7 +1,9 @@
+from django.conf import settings
 from django.core.asgi import get_asgi_application
 
 from channels.routing import ProtocolTypeRouter
 
+from baserow.config.helpers import ConcurrencyLimiterASGI
 from baserow.core.telemetry.telemetry import setup_logging, setup_telemetry
 from baserow.ws.routers import websocket_router
 
@@ -14,6 +16,12 @@ django_asgi_app = get_asgi_application()
 # logging setup. Otherwise Django will try to destroy and log handlers we added prior.
 setup_logging()
 
+
 application = ProtocolTypeRouter(
-    {"http": django_asgi_app, "websocket": websocket_router}
+    {
+        "http": ConcurrencyLimiterASGI(
+            django_asgi_app, max_concurrency=settings.ASGI_HTTP_MAX_CONCURRENCY
+        ),
+        "websocket": websocket_router,
+    }
 )

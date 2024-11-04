@@ -750,14 +750,26 @@ class FakeDispatchContext(DispatchContext):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    @property
+    def is_publicly_searchable(self):
+        return True
+
     def search_query(self):
         return self._search_query
 
     def searchable_fields(self):
         return self._searchable_fields
 
+    @property
+    def is_publicly_filterable(self):
+        return True
+
     def filters(self):
         return None
+
+    @property
+    def is_publicly_sortable(self):
+        return True
 
     def sortings(self):
         return None

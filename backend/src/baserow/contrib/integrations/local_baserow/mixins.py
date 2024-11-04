@@ -224,7 +224,7 @@ class LocalBaserowTableServiceFilterableMixin:
         queryset = super().get_queryset(service, table, dispatch_context, model)
         queryset = self.get_dispatch_filters(service, queryset, model, dispatch_context)
         dispatch_filters = dispatch_context.filters()
-        if dispatch_filters is not None:
+        if dispatch_filters is not None and dispatch_context.is_publicly_filterable:
             deserialized_filters = AdHocFilters.deserialize_dispatch_filters(
                 dispatch_filters
             )
@@ -359,7 +359,7 @@ class LocalBaserowTableServiceSortableMixin:
         queryset = super().get_queryset(service, table, dispatch_context, model)
 
         adhoc_sort = dispatch_context.sortings()
-        if adhoc_sort is not None:
+        if adhoc_sort is not None and dispatch_context.is_publicly_sortable:
             field_names = [field.strip("-") for field in adhoc_sort.split(",")]
             dispatch_context.validate_filter_search_sort_fields(
                 field_names, ServiceAdhocRefinements.SORT
@@ -464,7 +464,7 @@ class LocalBaserowTableServiceSearchableMixin:
                 service_search_query, search_mode=search_mode
             )
         adhoc_search_query = dispatch_context.search_query()
-        if adhoc_search_query is not None:
+        if adhoc_search_query is not None and dispatch_context.is_publicly_searchable:
             # This mixin's `get_queryset` method does not validate any adhoc
             # refinements, as the search query is not a field. We instead
             # restrict the fields that we search against to only those which

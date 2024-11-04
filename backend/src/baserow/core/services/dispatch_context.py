@@ -43,6 +43,13 @@ class DispatchContext(RuntimeFormulaContext, ABC):
 
         return new_context
 
+    @property
+    @abstractmethod
+    def is_publicly_searchable(self) -> bool:
+        """
+        Responsible for returning whether external users can apply search or not.
+        """
+
     @abstractmethod
     def search_query(self) -> Optional[str]:
         """
@@ -59,11 +66,25 @@ class DispatchContext(RuntimeFormulaContext, ABC):
 
         return []
 
+    @property
+    @abstractmethod
+    def is_publicly_filterable(self) -> bool:
+        """
+        Responsible for returning whether external users can apply filters or not.
+        """
+
     @abstractmethod
     def filters(self) -> Optional[str]:
         """
         Responsible for returning the on-demand filters, depending
         on which module the `DispatchContext` is used by.
+        """
+
+    @property
+    @abstractmethod
+    def is_publicly_sortable(self) -> bool:
+        """
+        Responsible for returning whether external users can apply sortings or not.
         """
 
     @abstractmethod

@@ -574,7 +574,17 @@
   },
   "collectionElementForm": {
     "noDataSourceMessage": "Choose a data source with multiple rows to list all results, or a single row data source to choose a property inside this row.",
-    "noSchemaPropertyMessage": "Choose a property inside the data source to use as the list data of your element."
+    "noSchemaPropertyMessage": "Choose a property inside the data source to use as the list data of your element.",
+    "propertyOptionLabel": "User actions"
+  },
+  "propertyOptionForm": {
+    "fieldHeading": "Field",
+    "filterHeading": "Filter",
+    "sortHeading": "Sort",
+    "searchHeading": "Search",
+    "optionUnavailable": "Unavailable",
+    "noPropertiesAvailable": "No fields available.",
+    "formDescription": "Choose which properties within this element's data source external users can filter, sort and search upon."
   },
   "repeatElementForm": {
     "dataSource": "Data source",

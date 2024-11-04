@@ -1,6 +1,5 @@
 <template>
   <div>
-    test1
     <p v-show="value === null" class="margin-bottom-1">
       <slot name="chooseValueState"></slot>
     </p>

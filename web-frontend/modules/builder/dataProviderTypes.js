@@ -550,6 +550,9 @@ export class CurrentRecordDataProviderType extends DataProviderType {
       [this.indexKey]: {
         type: 'number',
         title: this.app.i18n.t('currentRecordDataProviderType.index'),
+        sortable: false,
+        filterable: false,
+        searchable: false,
       },
       ...this.getDataSourceSchemaProperties(subSchema),
     }

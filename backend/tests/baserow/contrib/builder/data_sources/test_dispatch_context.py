@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest
@@ -13,6 +13,7 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceRefinementForbidden,
 )
+from baserow.contrib.builder.elements.element_types import collection_element_types
 from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from tests.baserow.contrib.builder.api.user_sources.helpers import (
@@ -88,11 +89,39 @@ def test_dispatch_context_page_from_context(mock_get_field_names, data_fixture):
     }
 
 
+@pytest.mark.django_db
+def test_dispatch_context_element_type(data_fixture):
+    element = data_fixture.create_builder_repeat_element()
+    element_type = element.get_type()
+
+    dispatch_context = BuilderDispatchContext(HttpRequest(), Mock())
+    assert dispatch_context.element_type is None
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), element.page, element=element
+    )
+    assert dispatch_context.element_type == element_type
+
+
 def test_dispatch_context_search_query():
     request = HttpRequest()
     request.GET["search_query"] = "foobar"
     dispatch_context = BuilderDispatchContext(request, None)
     assert dispatch_context.search_query() == "foobar"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("collection_element_type", collection_element_types())
+def test_dispatch_context_is_publicly_searchable(collection_element_type, data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = collection_element_type.model_class.objects.create(page=page)
+    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+    assert (
+        dispatch_context.is_publicly_searchable
+        == collection_element_type.is_publicly_searchable
+    )
 
 
 @pytest.mark.django_db
@@ -108,6 +137,20 @@ def test_dispatch_context_searchable_fields(data_fixture):
     element.property_options.create(schema_property="top_secret", searchable=False)
     dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
     assert dispatch_context.searchable_fields() == ["name", "location"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("collection_element_type", collection_element_types())
+def test_dispatch_context_is_publicly_filterable(collection_element_type, data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = collection_element_type.model_class.objects.create(page=page)
+    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+    assert (
+        dispatch_context.is_publicly_filterable
+        == collection_element_type.is_publicly_filterable
+    )
 
 
 def test_dispatch_context_filters():
@@ -126,6 +169,20 @@ def test_dispatch_context_filters():
     request.GET["filters"] = filter_data
     dispatch_context = BuilderDispatchContext(request, None)
     assert dispatch_context.filters() == filter_data
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("collection_element_type", collection_element_types())
+def test_dispatch_context_is_publicly_sortable(collection_element_type, data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = collection_element_type.model_class.objects.create(page=page)
+    dispatch_context = BuilderDispatchContext(HttpRequest(), page, element=element)
+    assert (
+        dispatch_context.is_publicly_sortable
+        == collection_element_type.is_publicly_sortable
+    )
 
 
 def test_dispatch_context_sortings():

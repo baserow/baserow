@@ -1,5 +1,16 @@
 import abc
-from typing import Any, Callable, Dict, Generator, List, Optional, Set, TypedDict, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    TypedDict,
+    Union,
+)
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -400,6 +411,11 @@ class RecordSelectorElementType(
         "default_value",
         "placeholder",
     ]
+
+    # The record selector cannot be sorted or filtered publicly,
+    # page visitors can only search against its data.
+    is_publicly_sortable = False
+    is_publicly_filterable = False
 
     class SerializedDict(CollectionElementTypeMixin.SerializedDict):
         required: bool
@@ -1659,7 +1675,9 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             [ChoiceElementOption(choice=instance, **option) for option in options]
         )
 
-    def after_update(self, instance: ChoiceElement, values: Dict):
+    def after_update(
+        self, instance: ChoiceElement, values: Dict, changes: Dict[str, Tuple]
+    ):
         options = values.get("options", None)
 
         if options is not None:

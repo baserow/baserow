@@ -141,6 +141,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "baserow.config.wsgi.application"
 ASGI_APPLICATION = "baserow.config.asgi.application"
 
+
+# `ASGI_HTTP_MAX_CONCURRENCY` sets max concurrent asgi requests to be processed by
+# the asgi application. It's configurable with `BASEROW_ASGI_HTTP_MAX_CONCURRENCY`
+# env variable.
+# The default is None - no concurrency limit
+ASGI_HTTP_MAX_CONCURRENCY = (
+    int(os.getenv("BASEROW_ASGI_HTTP_MAX_CONCURRENCY") or 0) or None
+)
+
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 REDIS_USERNAME = os.getenv("REDIS_USER", "")

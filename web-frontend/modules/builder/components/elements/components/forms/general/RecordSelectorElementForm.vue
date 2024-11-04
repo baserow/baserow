@@ -122,6 +122,21 @@
     >
       <Checkbox v-model="values.required"></Checkbox>
     </FormGroup>
+    <FormGroup
+      v-if="propertyOptionsAvailable"
+      small-label
+      class="margin-bottom-2"
+      :label="$t('collectionElementForm.propertyOptionLabel')"
+    >
+      <PropertyOptionForm
+        :default-values="element"
+        :is-filterable="element.is_publicly_filterable"
+        :is-sortable="element.is_publicly_sortable"
+        :is-searchable="element.is_publicly_searchable"
+        :data-source="selectedDataSource"
+        @values-changed="$emit('values-changed', $event)"
+      ></PropertyOptionForm>
+    </FormGroup>
   </form>
 </template>
 
@@ -132,10 +147,16 @@ import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle.vue'
 import { integer, maxValue, minValue, required } from 'vuelidate/lib/validators'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
+import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 
 export default {
   name: 'RecordSelectorElementForm',
-  components: { DataSourceDropdown, CustomStyle, InjectedFormulaInput },
+  components: {
+    PropertyOptionForm,
+    DataSourceDropdown,
+    CustomStyle,
+    InjectedFormulaInput,
+  },
   mixins: [formElementForm, collectionElementForm],
   data() {
     return {

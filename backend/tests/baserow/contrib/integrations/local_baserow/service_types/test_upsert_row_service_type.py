@@ -565,6 +565,7 @@ def test_export_import_local_baserow_upsert_row_service(
     database = data_fixture.create_database_application(workspace=workspace, order=1)
     table = data_fixture.create_database_table(database=database)
     field = data_fixture.create_text_field(table=table)
+    trashed_field = data_fixture.create_text_field(table=table, trashed=True)
     integration = data_fixture.create_local_baserow_integration(application=builder)
 
     get_row_service = LocalBaserowGetRow.objects.create(integration=integration)
@@ -578,6 +579,10 @@ def test_export_import_local_baserow_upsert_row_service(
     )
     upsert_row_service.field_mappings.create(
         field=field, value=f"get('data_source.{data_source.id}.{field.db_column}')"
+    )
+    upsert_row_service.field_mappings.create(
+        field=trashed_field,
+        value=f"get('data_source.{data_source.id}.{trashed_field.db_column}')",
     )
 
     data_fixture.create_local_baserow_create_row_workflow_action(

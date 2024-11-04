@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Type, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union, cast
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -342,12 +342,20 @@ class ElementHandler:
             allowed_updates, instance=element
         )
 
-        for key, value in allowed_updates.items():
-            setattr(element, key, value)
+        # Responsible for tracking the fields which changed in this update.
+        # This will be passed to `element_type.after_update` so that granular
+        # decisions can be made if certain field values changed.
+        element_changes: Dict[str, Tuple] = {}
+
+        for key, new_value in allowed_updates.items():
+            prev_value = getattr(element, key)
+            if prev_value != new_value:
+                element_changes[key] = (prev_value, new_value)
+            setattr(element, key, new_value)
 
         element.save()
 
-        element.get_type().after_update(element, kwargs)
+        element.get_type().after_update(element, kwargs, element_changes)
 
         return element
 
