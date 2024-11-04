@@ -32,6 +32,8 @@ def test_exporting_interesting_database(
         include_permission_data=False, reduce_disk_space_usage=False
     )
 
+    data_fixture.create_import_export_trusted_source(user=user)
+
     database = setup_interesting_test_database(
         data_fixture,
         user=user,
@@ -44,6 +46,7 @@ def test_exporting_interesting_database(
         data_fixture.save_content_in_user_file(user_file=user_file, storage=storage)
 
     resource = ImportExportHandler().export_workspace_applications(
+        user=user,
         applications=[database],
         import_export_config=cli_import_export_config,
         storage=storage,

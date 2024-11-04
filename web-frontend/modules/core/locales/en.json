@@ -154,7 +154,9 @@
     "databases": "Databases",
     "applications": "Applications",
     "successTitle": "Successfully imported the Baserow data",
-    "successMessage": "Imported {count} applications"
+    "successMessage": "Imported {count} applications",
+    "invalidResourceTitle": "Invalid resource",
+    "invalidResourceMessage": "The provided file is not a valid Baserow export."
   },
   "dashboardWorkspace": {
     "createApplication": "Create new"
@@ -481,7 +483,9 @@
     "emailVerificationDescription": "Controls whether email addresses have to be verified.",
     "emailVerificationNoVerification": "No verification",
     "emailVerificationRecommended": "Recommended",
-    "emailVerificationEnforced": "Enforced"
+    "emailVerificationEnforced": "Enforced",
+    "settingsVerifyImportSignature": "Verify import signature",
+    "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with."
   },
   "formSidebar": {
     "actions": {

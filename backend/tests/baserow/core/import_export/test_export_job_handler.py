@@ -16,6 +16,7 @@ def test_create_export_file(data_fixture):
     )
 
     file_name = ImportExportHandler().export_workspace_applications(
+        user=user,
         applications=[database],
         import_export_config=cli_import_export_config,
     )

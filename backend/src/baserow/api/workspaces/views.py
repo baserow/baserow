@@ -622,6 +622,7 @@ class ImportExportResourceUploadFileView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_INVALID_FILE",
                     "ERROR_FILE_SIZE_TOO_LARGE",
+                    "ERROR_RESOURCE_IS_INVALID",
                 ]
             ),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
@@ -634,6 +635,7 @@ class ImportExportResourceUploadFileView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             InvalidFileStreamError: ERROR_INVALID_FILE,
             FileSizeTooLargeError: ERROR_FILE_SIZE_TOO_LARGE,
+            ImportExportResourceInvalidFile: ERROR_RESOURCE_IS_INVALID,
         }
     )
     def post(self, request, workspace_id: int) -> Response:

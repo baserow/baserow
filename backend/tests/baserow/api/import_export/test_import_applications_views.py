@@ -117,6 +117,8 @@ def test_import_applications(data_fixture, api_client, tmpdir, use_tmp_media_roo
         settings.BASE_DIR, "../../../tests/baserow/api/import_export/sources"
     )
 
+    data_fixture.create_import_export_trusted_source(user=user)
+
     resource = data_fixture.create_import_export_resource(
         created_by=user, original_name="interesting_database.zip", is_valid=True
     )

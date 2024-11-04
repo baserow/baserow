@@ -133,6 +133,8 @@ def test_upload_valid_file(data_fixture, api_client, tmpdir, use_tmp_media_root)
     with open(f"{sources_path}/interesting_database_export.zip", "rb") as export_file:
         file_content = export_file.read()
 
+    data_fixture.create_import_export_trusted_source(user=user)
+
     uploaded_file = SimpleUploadedFile(
         "interesting_database_export.zip", file_content, content_type="application/zip"
     )

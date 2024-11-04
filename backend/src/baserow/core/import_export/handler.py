@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import json
 import os
@@ -18,6 +19,10 @@ from django.core.files.storage import Storage
 from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 import jsonschema
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from jsonschema import validate
 from loguru import logger
 from opentelemetry import trace
@@ -34,6 +39,7 @@ from baserow.core.models import (
     ExportApplicationsJob,
     ImportApplicationsJob,
     ImportExportResource,
+    ImportExportTrustedSource,
     Workspace,
 )
 from baserow.core.operations import ReadWorkspaceOperationType
@@ -55,7 +61,8 @@ tracer = trace.get_tracer(__name__)
 WORKSPACE_EXPORTS_LIMIT = 5
 EXPORT_FORMAT_VERSION = "1.0.0"
 MANIFEST_NAME = "manifest.json"
-INDENT = 4
+SIGNATURE_NAME = "manifest_signature.json"
+INDENT = settings.DEBUG and 4 or None
 
 
 class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
@@ -233,6 +240,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
     def create_manifest(
         self,
+        user: AbstractUser,
         exported_applications: List[Dict],
         export_tmp_path: str,
         storage: Storage,
@@ -244,6 +252,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         applications, such as their schema, contents, and configuration. The manifest
         file is saved to the specified storage.
 
+        :param user: The user performing the export operation.
         :param exported_applications: A list of dictionaries representing the exported
             applications.
         :param export_tmp_path: Temporary path where the export files will be stored.
@@ -268,8 +277,115 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         ) as file_handler:
             file_handler.write(json.dumps(manifest_data, indent=INDENT).encode("utf-8"))
 
+        self.sign_manifest(manifest_data, user, export_tmp_path, storage)
+
+    def get_or_create_key_pair(self, user: AbstractUser):
+        """
+        Retrieves or generates a key pair for the given user.
+
+        This method first attempts to retrieve an existing key pair from the
+        `ImportExportTrustedSource` model. If no key pair is found, a new RSA
+        key pair is generated, and the private and public keys are serialized
+        and stored in the `ImportExportTrustedSource` model.
+
+        :param user: The user for whom the key pair is being retrieved or generated.
+        :return: A tuple containing the private key and public key (pem).
+        """
+
+        trusted_resource = ImportExportTrustedSource.objects.filter(
+            private_key__isnull=False
+        ).first()
+
+        if trusted_resource:
+            private_key = serialization.load_pem_private_key(
+                trusted_resource.private_key.encode("utf-8"),
+                password=None,
+                backend=default_backend(),
+            )
+            public_key = serialization.load_pem_public_key(
+                trusted_resource.public_key.encode("utf-8"), backend=default_backend()
+            )
+            public_key_pem = public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+        else:
+            private_key = rsa.generate_private_key(
+                public_exponent=65537, key_size=2048, backend=default_backend()
+            )
+            public_key = private_key.public_key()
+
+            private_key_pem = private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+
+            public_key_pem = public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+
+            ImportExportTrustedSource.objects.create(
+                name="Key for " + user.username,
+                private_key=private_key_pem.decode("utf-8"),
+                public_key=public_key_pem.decode("utf-8"),
+                added_by=user,
+            )
+
+        return private_key, public_key_pem
+
+    def sign_manifest(
+        self,
+        manifest_data: Dict,
+        user: AbstractUser,
+        export_tmp_path: str,
+        storage: Storage,
+    ):
+        """
+        Signs the manifest file for the exported applications.
+
+        This method generates a digital signature for the manifest file using the user's
+        private key. The signature, along with the public key and a timestamp, is saved
+        to a signature file in the specified storage.
+
+        :param manifest_data: The manifest data to be signed.
+        :param user: The user performing the export operation.
+        :param export_tmp_path: The temporary path where the export files are stored.
+        :param storage: The storage instance to use for file operations.
+        """
+
+        manifest_bytes = json.dumps(manifest_data, sort_keys=True).encode()
+        digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+        digest.update(manifest_bytes)
+        manifest_hash = digest.finalize()
+
+        private_key, public_key_pem = self.get_or_create_key_pair(user=user)
+        signature = private_key.sign(
+            manifest_hash,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256(),
+        )
+
+        encoded_signature = base64.b64encode(signature).decode("utf-8")
+
+        signature_data = {
+            "signature": encoded_signature,
+            "public_key_pem": base64.b64encode(public_key_pem).decode("utf-8"),
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        export_path = join(export_tmp_path, SIGNATURE_NAME)
+        with _create_storage_dir_if_missing_and_open(
+            export_path, storage
+        ) as file_handler:
+            file_handler.write(json.dumps(signature_data, indent=None).encode("utf-8"))
+
     def export_workspace_applications(
         self,
+        user: AbstractUser,
         applications: List[Application],
         import_export_config: ImportExportConfig,
         storage: Optional[Storage] = None,
@@ -279,6 +395,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         Create zip file with exported applications. If applications param is provided,
         only those applications will be exported.
 
+        :param user: The user performing the export operation.
         :param applications: A list of Application instances that will be exported.
         :param import_export_config: provides configuration options for the
             import/export process to customize how it works.
@@ -309,7 +426,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             export_app_progress,
         )
 
-        self.create_manifest(exported_applications, export_tmp_path, storage)
+        self.create_manifest(user, exported_applications, export_tmp_path, storage)
         self.move_files_to_zip(
             exported_applications, export_file_path, export_tmp_path, storage
         )
@@ -382,6 +499,10 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                 manifest_path = join(export_tmp_path, MANIFEST_NAME)
                 with storage.open(manifest_path, "rb") as tmp_file:
                     files_zip.write(tmp_file.name, MANIFEST_NAME)
+
+                signature_path = join(export_tmp_path, SIGNATURE_NAME)
+                with storage.open(signature_path, "rb") as tmp_file:
+                    files_zip.write(tmp_file.name, SIGNATURE_NAME)
 
     def get_import_storage_path(self, *args) -> str:
         return str(join(settings.IMPORT_FILES_DIRECTORY, *args))
@@ -466,6 +587,10 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         schema_dir = os.path.join(settings.BASE_DIR, "../core/import_export/schema")
+
+        if MANIFEST_NAME not in zip_file.namelist():
+            raise ImportExportResourceInvalidFile("Manifest file is missing.")
+
         with zip_file.open(MANIFEST_NAME) as manifest_handler:
             try:
                 manifest_data = json.load(manifest_handler)
@@ -484,7 +609,79 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                 raise ImportExportResourceInvalidFile(
                     f"Manifest file is corrupted: {e.message}"
                 )
+
+        core_settings = CoreHandler().get_settings()
+
+        if core_settings.verify_import_signature:
+            self.validate_signature(zip_file, manifest_data)
         return manifest_data
+
+    def validate_signature(self, zip_file: ZipFile, manifest_data: Dict):
+        """
+        Validates the digital signature of the manifest file within the provided
+        zip file.
+
+        This method reads the signature file from the zip archive, verifies the digital
+        signature using the public key, and checks if the public key is trusted. If the
+        signature is invalid or the public key is not trusted, an
+        ImportWorkspaceFileCorruptedException is raised.
+
+        :param zip_file: The zip file containing the manifest and signature to
+            be validated.
+        :param manifest_data: The manifest data to be validated.
+        :raises ImportWorkspaceFileCorruptedException: If the signature is invalid or
+            the public key is not trusted.
+        """
+
+        if SIGNATURE_NAME not in zip_file.namelist():
+            raise ImportExportResourceInvalidFile("Signature file is missing.")
+
+        with zip_file.open(SIGNATURE_NAME) as manifest_handler:
+            try:
+                signature_data = json.load(manifest_handler)
+            except json.JSONDecodeError:
+                raise ImportExportResourceInvalidFile("Signature file is corrupted.")
+
+            public_key_pem = base64.b64decode(
+                signature_data.get("public_key_pem") or ""
+            )
+
+            try:
+                public_key = serialization.load_pem_public_key(
+                    public_key_pem, backend=default_backend()
+                )
+                decoded_key = public_key_pem.decode("utf-8")
+            except ValueError:
+                is_trusted = False
+            else:
+                is_trusted = ImportExportTrustedSource.objects.filter(
+                    public_key=decoded_key
+                ).exists()
+
+            if not is_trusted:
+                raise ImportExportResourceInvalidFile(
+                    "Signature public key is not trusted."
+                )
+
+            manifest_bytes = json.dumps(manifest_data, sort_keys=True).encode()
+            digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+            digest.update(manifest_bytes)
+            manifest_hash = digest.finalize()
+
+            signature_bytes = base64.b64decode(signature_data.get("signature") or "")
+
+            try:
+                public_key.verify(
+                    signature_bytes,
+                    manifest_hash,
+                    padding.PSS(
+                        mgf=padding.MGF1(hashes.SHA256()),
+                        salt_length=padding.PSS.MAX_LENGTH,
+                    ),
+                    hashes.SHA256(),
+                )
+            except InvalidSignature:
+                raise ImportExportResourceInvalidFile("Signature verification failed.")
 
     def validate_checksum(self, manifest: Dict, import_tmp_dir: str, storage: Storage):
         """
@@ -509,9 +706,14 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             for application_data in application_types["items"]:
                 for file_data in application_data["files"].values():
                     file_path = file_data["file"]
-                    computed_checksum = self.compute_checksum(
-                        join(import_tmp_dir, file_path), storage
-                    )
+                    full_path = join(import_tmp_dir, file_path)
+
+                    if not storage.exists(full_path):
+                        raise ImportExportResourceDoesNotExist(
+                            f"The file {file_path} does not exist."
+                        )
+
+                    computed_checksum = self.compute_checksum(full_path, storage)
                     is_valid = computed_checksum == file_data["checksum"]
                     validation_results[file_path] = is_valid
 
@@ -543,13 +745,27 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         :return: The imported Application instance.
         """
 
-        data_file_name = application_data["files"]["data"]["file"]
-        media_file_name = application_data["files"]["media"]["file"]
+        data_file_path = join(
+            import_tmp_path, application_data["files"]["data"]["file"]
+        )
+        media_file_path = join(
+            import_tmp_path, application_data["files"]["media"]["file"]
+        )
 
-        with storage.open(join(import_tmp_path, data_file_name)) as data_file:
+        if not storage.exists(data_file_path):
+            raise ImportExportResourceDoesNotExist(
+                f"The file {data_file_path} does not exist."
+            )
+
+        if not storage.exists(media_file_path):
+            raise ImportExportResourceDoesNotExist(
+                f"The file {media_file_path} does not exist."
+            )
+
+        with storage.open(data_file_path) as data_file:
             application_data = json.load(data_file)
 
-        with storage.open(join(import_tmp_path, media_file_name)) as media_file_handle:
+        with storage.open(media_file_path) as media_file_handle:
             with ZipFile(media_file_handle, "r") as media_file:
                 application_type = application_type_registry.get(
                     application_data["type"]
@@ -642,7 +858,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         import_export_config: ImportExportConfig,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
-    ):
+    ) -> List[Application]:
         """
         Imports applications into a workspace from a zip file.
 

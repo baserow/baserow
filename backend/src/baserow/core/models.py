@@ -55,6 +55,7 @@ __all__ = [
     "ExportApplicationsJob",
     "ImportApplicationsJob",
     "ImportExportResource",
+    "ImportExportTrustedSource",
 ]
 
 User = get_user_model()
@@ -149,6 +150,11 @@ class Settings(models.Model):
         choices=EmailVerificationOptions.choices,
         default=EmailVerificationOptions.NO_VERIFICATION,
         help_text="Controls whether user email addresses have to be verified.",
+    )
+    verify_import_signature = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="Indicates whether the signature of imported files should be verified.",
     )
 
 
@@ -762,3 +768,15 @@ class ImportApplicationsJob(
         null=True,
         help_text="The resource that contains the applications to import.",
     )
+
+
+class ImportExportTrustedSource(models.Model):
+    name = models.CharField(max_length=255)
+    private_key = models.TextField(help_text="The private key used to sign the export.")
+    public_key = models.TextField(
+        help_text="The public key used to verify the signature of the export."
+    )
+    added_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, help_text="The user that has created keys"
+    )
+    added_at = models.DateTimeField(auto_now_add=True)

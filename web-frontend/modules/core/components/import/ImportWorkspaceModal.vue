@@ -104,6 +104,7 @@ import error from '@baserow/modules/core/mixins/error'
 import ImportWorkspaceForm from '@baserow/modules/core/components/import/ImportWorkspaceForm.vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ImportApplicationsJobType } from '@baserow/modules/core/jobTypes'
+import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
 const STAGES = {
   UPLOAD: 'upload',
@@ -171,7 +172,9 @@ export default {
 
     async process() {
       await this.upload()
-      await this.importWorkspace()
+      if (this.currentStage === STAGES.IMPORT) {
+        await this.importWorkspace()
+      }
     },
 
     async upload() {
@@ -190,9 +193,12 @@ export default {
         this.resourceId = data.id
         this.currentStage = STAGES.IMPORT
       } catch (error) {
-        const message = error.handler.getMessage('userFile')
-        error.handler.handled()
-        this.error = message.message
+        this.handleError(error, 'import_export', {
+          ERROR_RESOURCE_IS_INVALID: new ResponseErrorMessage(
+            this.$t('importWorkspaceModal.invalidResourceTitle'),
+            this.$t('importWorkspaceModal.invalidResourceMessage')
+          ),
+        })
       } finally {
         this.uploading = false
       }
@@ -248,6 +254,7 @@ export default {
       this.importFile = null
       this.currentStage = STAGES.UPLOAD
       this.resourceId = null
+      this.hideError()
     },
 
     close() {

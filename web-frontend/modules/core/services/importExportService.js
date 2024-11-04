@@ -36,14 +36,11 @@ export default (client) => {
     },
 
     deleteResource(workspaceId, resourceId) {
-      return client.delete(
-        `/workspaces/${workspaceId}/import/${resourceId}/delete/`,
-        {
-          data: {
-            resource_id: resourceId,
-          },
-        }
-      )
+      return client.delete(`/workspaces/${workspaceId}/import/${resourceId}/`, {
+        data: {
+          resource_id: resourceId,
+        },
+      })
     },
   }
 }

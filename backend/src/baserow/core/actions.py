@@ -1202,6 +1202,7 @@ class ExportApplicationsActionType(ActionType):
         )
 
         resource = ImportExportHandler().export_workspace_applications(
+            user=user,
             applications=applications,
             import_export_config=cli_import_export_config,
             progress_builder=progress_builder,
