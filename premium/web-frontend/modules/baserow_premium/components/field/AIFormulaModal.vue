@@ -23,7 +23,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'

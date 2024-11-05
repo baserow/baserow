@@ -60,7 +60,7 @@
             v-model="values.source_table_id"
             :error="fieldHasErrors('source_table_id')"
             :disabled="disabled"
-            @input="$v.values.source_table_id.$touch()"
+            @input="v$.values.source_table_id.$touch()"
           >
             <DropdownItem
               v-for="table in tables"
@@ -72,8 +72,8 @@
           <template #error>
             <div
               v-if="
-                $v.values.source_table_id.$dirty &&
-                !$v.values.source_table_id.required
+                v$.values.source_table_id.$dirty &&
+                !v$.values.source_table_id.required
               "
             >
               {{ $t('error.requiredField') }}
@@ -87,7 +87,7 @@
 
 <script>
 import { mapGetters, mapState } from 'vuex'
-import { required, numeric } from 'vuelidate/lib/validators'
+import { required, numeric } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'

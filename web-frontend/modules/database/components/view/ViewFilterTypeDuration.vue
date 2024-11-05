@@ -3,7 +3,7 @@
     ref="input"
     v-model="formattedValue"
     :placeholder="field.duration_format"
-    :error="$v.formattedValue.$error"
+    :error="v$.formattedValue.$error"
     :disabled="disabled"
     @blur="updateFormattedValue(field, copy)"
     @keypress="onKeyPress(field, $event)"
@@ -33,7 +33,7 @@ export default {
   },
   methods: {
     isInputValid() {
-      return !this.$v.formattedValue.$error
+      return !this.v$.formattedValue.$error
     },
     focus() {
       this.$refs.input.focus()

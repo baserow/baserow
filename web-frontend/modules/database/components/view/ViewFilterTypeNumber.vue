@@ -2,7 +2,7 @@
   <FormInput
     ref="input"
     :value="focused ? copy : formattedValue"
-    :error="$v.copy.$error"
+    :error="v$.copy.$error"
     :disabled="disabled"
     @blur="onBlur()"
     @keypress="onKeyPress($event)"

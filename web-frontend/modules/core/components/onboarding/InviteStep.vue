@@ -6,7 +6,7 @@
     <FormGroup
       v-for="(email, i) in emails"
       :key="i"
-      :error="$v.emails.$each[i].$dirty && !$v.emails.$each[i].email"
+      :error="v$.emails.$each[i].$dirty && !v$.emails.$each[i].email"
       required
       small-label
       class="margin-bottom-2"
@@ -20,11 +20,11 @@
         v-model="emails[i]"
         :label="i === 0 ? $t('inviteStep.collaboratorsLabel') : null"
         :placeholder="'example@gmail.com'"
-        :error="$v.emails.$each[i].$dirty && !$v.emails.$each[i].email"
+        :error="v$.emails.$each[i].$dirty && !v$.emails.$each[i].email"
         icon-right="iconoir-mail"
         size="large"
         @input="updateValue(i, $event)"
-        @blur="$v.emails.$each[i].$touch()"
+        @blur="v$.emails.$each[i].$touch()"
       />
       <template #error>{{ $t('error.email') }}</template>
     </FormGroup>
@@ -32,7 +32,7 @@
 </template>
 
 <script>
-import { email } from 'vuelidate/lib/validators'
+import { email } from '@vuelidate/validators'
 
 export default {
   name: 'InviteStep',
@@ -46,7 +46,7 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.$v.$invalid
+      return !this.v$.$invalid
     },
     updateValue() {
       const emails = this.emails.filter((email) => !!email)

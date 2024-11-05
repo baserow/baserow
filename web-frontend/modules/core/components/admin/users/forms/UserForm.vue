@@ -12,7 +12,7 @@
         v-model="values.name"
         size="large"
         :error="fieldHasErrors('name')"
-        @blur="$v.values.name.$touch()"
+        @blur="v$.values.name.$touch()"
       >
       </FormInput>
       <template #error>{{ $t('userForm.error.invalidName') }}</template>
@@ -30,7 +30,7 @@
         v-model="values.username"
         size="large"
         :error="fieldHasErrors('username')"
-        @blur="$v.values.username.$touch()"
+        @blur="v$.values.username.$touch()"
       >
       </FormInput>
 
@@ -89,7 +89,7 @@
 </template>
 
 <script>
-import { email, maxLength, minLength, required } from 'vuelidate/lib/validators'
+import { email, maxLength, minLength, required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 

@@ -26,7 +26,9 @@ export default {
     }
   },
   mounted() {
-    this.values = Object.assign({}, this.values, this.getDefaultValues())
+    for (const [key, value] of Object.entries(this.getDefaultValues())) {
+      this.values[key] = value
+    }
   },
   watch: {
     values: {
@@ -111,8 +113,8 @@ export default {
       return children
     },
     touch(deep = false) {
-      if ('$v' in this) {
-        this.$v.$touch()
+      if ('v$' in this) {
+        this.v$.$touch()
       }
 
       // Also touch all the child forms so that all the error messages are going to
@@ -142,9 +144,7 @@ export default {
      */
     fieldHasErrors(fieldName) {
       // a field can be without any validators
-      return this.$v.values[fieldName]
-        ? this.$v.values[fieldName].$error
-        : false
+      return this.v$[fieldName]?.$error || false
     },
     /**
      * Returns true is everything is valid.
@@ -155,8 +155,8 @@ export default {
     isFormValid(deep = false) {
       // Some forms might not do any validation themselves. If they don't, then they
       // are by definition valid if their children are valid.
-      const thisFormInvalid = '$v' in this && this.$v.$invalid
-      return !thisFormInvalid && this.areChildFormsValid(deep)
+      const thisFormInvalid = 'v$' in this && this.v$.$invalid
+      return !thisFormInvalid && this.areChildFormsValid()
     },
     /**
      * Returns true if all the child form components are valid.
@@ -207,8 +207,8 @@ export default {
         this.getDefaultValues()
       )
 
-      if ('$v' in this) {
-        this.$v.$reset()
+      if ('v$' in this) {
+        this.v$.$reset()
       }
 
       await this.$nextTick()

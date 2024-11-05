@@ -31,7 +31,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {

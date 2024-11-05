@@ -7,13 +7,13 @@
         :label="$t('uploadViaURLUserFileUpload.urlLabel')"
         small-label
         required
-        :error="$v.values.url.$error"
+        :error="v$.values.url.$error"
       >
         <FormInput
           v-model="values.url"
           size="large"
-          :error="$v.values.url.$error"
-          @blur="$v.values.url.$touch()"
+          :error="v$.values.url.$error"
+          @blur="v$.values.url.$touch()"
         >
         </FormInput>
 
@@ -32,7 +32,7 @@
 </template>
 
 <script>
-import { required, url } from 'vuelidate/lib/validators'
+import { required, url } from '@vuelidate/validators'
 
 import error from '@baserow/modules/core/mixins/error'
 import UserFileService from '@baserow/modules/core/services/userFile'
@@ -50,8 +50,8 @@ export default {
   },
   methods: {
     async upload(url) {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      if (this.v$.$invalid) {
         return
       }
 

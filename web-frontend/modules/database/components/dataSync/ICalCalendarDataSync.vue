@@ -15,14 +15,14 @@
         :error="fieldHasErrors('ical_url')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
-        @blur="$v.values.ical_url.$touch()"
+        @blur="v$.values.ical_url.$touch()"
       >
       </FormInput>
       <template #error>
-        <div v-if="$v.values.ical_url.$dirty && !$v.values.ical_url.required">
+        <div v-if="v$.values.ical_url.$dirty && !v$.values.ical_url.required">
           {{ $t('error.requiredField') }}
         </div>
-        <div v-else-if="$v.values.ical_url.$dirty && !$v.values.ical_url.url">
+        <div v-else-if="v$.values.ical_url.$dirty && !v$.values.ical_url.url">
           {{ $t('error.invalidURL') }}
         </div>
       </template>
@@ -31,7 +31,7 @@
 </template>
 
 <script>
-import { required, url } from 'vuelidate/lib/validators'
+import { required, url } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 

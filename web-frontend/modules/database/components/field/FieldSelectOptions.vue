@@ -27,9 +27,9 @@
         <FormInput
           ref="inputs"
           v-model="item.value"
-          :error="$v.value.$each[index].value.$error"
+          :error="v$.value.$each[index].value.$error"
           @input="$emit('input', value)"
-          @blur="$v.value.$each[index].value.$touch()"
+          @blur="v$.value.$each[index].value.$touch()"
         />
         <ButtonIcon
           tag="a"
@@ -49,7 +49,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import ColorSelectContext from '@baserow/modules/core/components/ColorSelectContext'
 import { randomColor } from '@baserow/modules/core/utils/colors'

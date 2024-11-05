@@ -7,9 +7,9 @@
           v-model="values.name"
           :disabled="!hasPermission"
           :has-errors="fieldHasErrors('name')"
-          :validation-state="$v.values.name"
+          :validation-state="v$.values.name"
           :is-creation="isCreation"
-          @blur="$v.values.name.$touch()"
+          @blur="v$.values.name.$touch()"
         />
       </div>
       <div class="col col-6">
@@ -17,7 +17,7 @@
           v-model="values.path"
           :disabled="!hasPermission"
           :has-errors="fieldHasErrors('path')"
-          :validation-state="$v.values.path"
+          :validation-state="v$.values.path"
           @blur="onPathBlur"
         />
       </div>
@@ -37,7 +37,7 @@
 </template>
 
 <script>
-import { maxLength, required } from 'vuelidate/lib/validators'
+import { maxLength, required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import PageSettingsNameFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsNameFormElement'
@@ -216,7 +216,7 @@ export default {
       return path.replace(PATH_PARAM_REGEX, ILLEGAL_PATH_SAMPLE_CHARACTER)
     },
     onPathBlur() {
-      this.$v.values.path.$touch()
+      this.v$.values.path.$touch()
       this.hasPathBeenEdited = true
     },
     onPathParamUpdate(paramTypeName, paramType) {

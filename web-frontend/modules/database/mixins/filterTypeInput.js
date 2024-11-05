@@ -29,12 +29,12 @@ export default {
   created() {
     this.copy = this.prepareCopy(this.filter.value)
     if (this.copy) {
-      this.$v.$touch()
+      this.v$.$touch()
     }
   },
   methods: {
     isInputValid() {
-      return !this.$v.copy.$error
+      return !this.v$.copy.$error
     },
     prepareCopy(value) {
       return value
@@ -46,7 +46,7 @@ export default {
       }
 
       clearTimeout(delayTimeout)
-      this.$v.$touch()
+      this.v$.$touch()
 
       if (!this.isInputValid()) {
         return

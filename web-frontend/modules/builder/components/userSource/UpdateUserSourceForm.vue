@@ -8,7 +8,7 @@
         :error-message="getError('name')"
       >
         <FormInput
-          v-model="$v.values.name.$model"
+          v-model="v$.values.name.$model"
           size="large"
           class="update-user-source-form__name-input"
           :placeholder="$t('updateUserSourceForm.nameFieldPlaceholder')"
@@ -21,7 +21,7 @@
         small-label
       >
         <IntegrationDropdown
-          v-model="$v.values.integration_id.$model"
+          v-model="v$.values.integration_id.$model"
           :application="builder"
           :integrations="integrations"
           :integration-type="userSourceType.integrationType"
@@ -101,7 +101,7 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { required, maxLength } from '@vuelidate/validators'
 
 export default {
   components: { IntegrationDropdown },
@@ -232,10 +232,10 @@ export default {
       return false
     },
     getError(fieldName) {
-      if (!this.$v.values[fieldName].$dirty) {
+      if (!this.v$.values[fieldName].$dirty) {
         return ''
       }
-      const fieldState = this.$v.values[fieldName]
+      const fieldState = this.v$.values[fieldName]
       if (!fieldState.required) {
         return this.$t('error.requiredField')
       }

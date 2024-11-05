@@ -13,13 +13,13 @@
         :error="fieldHasErrors('github_issues_owner')"
         :disabled="disabled"
         size="large"
-        @blur="$v.values.github_issues_owner.$touch()"
+        @blur="v$.values.github_issues_owner.$touch()"
       />
       <template #error>
         <span
           v-if="
-            $v.values.github_issues_owner.$dirty &&
-            !$v.values.github_issues_owner.required
+            v$.values.github_issues_owner.$dirty &&
+            !v$.values.github_issues_owner.required
           "
         >
           {{ $t('error.requiredField') }}
@@ -40,13 +40,13 @@
         :error="fieldHasErrors('github_issues_repo')"
         :disabled="disabled"
         size="large"
-        @blur="$v.values.github_issues_repo.$touch()"
+        @blur="v$.values.github_issues_repo.$touch()"
       />
       <template #error>
         <span
           v-if="
-            $v.values.github_issues_owner.$dirty &&
-            !$v.values.github_issues_owner.required
+            v$.values.github_issues_owner.$dirty &&
+            !v$.values.github_issues_owner.required
           "
         >
           {{ $t('error.requiredField') }}
@@ -77,13 +77,13 @@
         :error="fieldHasErrors('github_issues_api_token')"
         :disabled="disabled"
         size="large"
-        @blur="$v.values.github_issues_api_token.$touch()"
+        @blur="v$.values.github_issues_api_token.$touch()"
       />
       <template #error>
         <span
           v-if="
-            $v.values.github_issues_api_token.$dirty &&
-            !$v.values.github_issues_api_token.required
+            v$.values.github_issues_api_token.$dirty &&
+            !v$.values.github_issues_api_token.required
           "
         >
           {{ $t('error.requiredField') }}
@@ -94,7 +94,7 @@
 </template>
 
 <script>
-import { required, requiredIf } from 'vuelidate/lib/validators'
+import { required, requiredIf } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {

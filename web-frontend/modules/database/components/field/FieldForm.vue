@@ -7,45 +7,45 @@
           v-model="values.name"
           :error="fieldHasErrors('name')"
           :placeholder="$t('fieldForm.name')"
-          @blur="$v.values.name.$touch()"
+          @blur="v$.values.name.$touch()"
           @input="isPrefilledWithSuggestedFieldName = false"
           @keydown.enter="handleKeydownEnter($event)"
         ></FormInput>
         <template #error>
-          <span v-if="$v.values.name.$dirty && !$v.values.name.required">
+          <span v-if="v$.values.name.$dirty && !v$.values.name.required">
             {{ $t('error.requiredField') }}
           </span>
           <span
             v-else-if="
-              $v.values.name.$dirty && !$v.values.name.mustHaveUniqueFieldName
+              v$.values.name.$dirty && !v$.values.name.mustHaveUniqueFieldName
             "
           >
             {{ $t('fieldForm.fieldAlreadyExists') }}
           </span>
           <span
             v-else-if="
-              $v.values.name.$dirty &&
-              !$v.values.name.mustNotClashWithReservedName
+              v$.values.name.$dirty &&
+              !v$.values.name.mustNotClashWithReservedName
             "
           >
             {{ $t('error.nameNotAllowed') }}
           </span>
-          <span v-else-if="$v.values.name.$dirty && !$v.values.name.maxLength">
+          <span v-else-if="v$.values.name.$dirty && !v$.values.name.maxLength">
             {{ $t('error.nameTooLong') }}
           </span>
         </template>
       </FormGroup>
 
-      <FormGroup v-if="forcedType === null" :error="$v.values.type.$error">
+      <FormGroup v-if="forcedType === null" :error="v$.values.type.$error">
         <Dropdown
           ref="fieldTypesDropdown"
           v-model="values.type"
-          :error="$v.values.type.$error"
+          :error="v$.values.type.$error"
           :fixed-items="true"
           :disabled="
             defaultValues.immutable_type || defaultValues.immutable_properties
           "
-          @hide="$v.values.type.$touch()"
+          @hide="v$.values.type.$touch()"
         >
           <DropdownItem
             v-for="(fieldType, type) in fieldTypes"
@@ -97,7 +97,7 @@
           :name="values.name"
           :default-values="defaultValues"
           :database="database"
-          @validate="$v.$touch"
+          @validate="v$.$touch"
           @suggested-field-name="handleSuggestedFieldName($event)"
         />
       </template>
@@ -127,7 +127,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { required, maxLength } from '@vuelidate/validators'
 import FormTextarea from '@baserow/modules/core/components/FormTextarea'
 
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'

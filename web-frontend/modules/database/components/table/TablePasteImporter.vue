@@ -3,7 +3,7 @@
     <FormGroup
       :label="$t('tablePasteImporter.pasteLabel')"
       small-label
-      :error="$v.content.$error"
+      :error="v$.content.$error"
       class="margin-bottom-2"
       required
       :helper-text="$t('tablePasteImporter.pasteDescription')"
@@ -32,7 +32,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import importer from '@baserow/modules/database/mixins/importer'

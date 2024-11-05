@@ -14,12 +14,12 @@
         :placeholder="$t('databaseImportStep.tableNameLabel') + '...'"
         size="large"
         :error="
-          $v.tableName.$dirty && !$v.tableName.required
+          v$.tableName.$dirty && !v$.tableName.required
             ? $t('error.requiredField')
             : false
         "
         @input="updateValue"
-        @blur="$v.tableName.$touch()"
+        @blur="v$.tableName.$touch()"
       />
     </FormGroup>
 
@@ -58,7 +58,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import { uuid } from '@baserow/modules/core/utils/string'
 import SimpleGrid from '@baserow/modules/database/components/view/grid/SimpleGrid'
 
@@ -111,7 +111,7 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.$v.$invalid && this.getData !== null && this.dataLoaded
+      return !this.v$.$invalid && this.getData !== null && this.dataLoaded
     },
     updateValue() {
       const tableName = this.tableName

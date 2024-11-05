@@ -18,10 +18,10 @@
       <Dropdown
         v-model="values.ai_file_field_id"
         class="dropdown--floating"
-        :error="$v.values.ai_file_field_id.$error"
+        :error="v$.values.ai_file_field_id.$error"
         :fixed-items="true"
         :show-search="false"
-        @hide="$v.values.ai_file_field_id.$touch()"
+        @hide="v$.values.ai_file_field_id.$touch()"
       >
         <DropdownItem
           :name="$t('fieldAISubForm.emptyFileField')"
@@ -63,7 +63,7 @@
     <FormGroup
       small-label
       :label="$t('fieldAISubForm.prompt')"
-      :error="$v.values.ai_prompt.$dirty && $v.values.ai_prompt.$error"
+      :error="v$.values.ai_prompt.$dirty && v$.values.ai_prompt.$error"
       required
     >
       <div style="max-width: 366px">
@@ -72,7 +72,7 @@
           :data-providers="dataProviders"
           :application-context="applicationContext"
           :placeholder="$t('fieldAISubForm.promptPlaceholder')"
-          @input="$v.values.ai_prompt.$touch()"
+          @input="v$.values.ai_prompt.$touch()"
         ></FormulaInputField>
       </div>
       <template #error> {{ $t('error.requiredField') }}</template>
@@ -92,7 +92,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'

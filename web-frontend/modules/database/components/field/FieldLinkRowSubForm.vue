@@ -5,14 +5,14 @@
       small-label
       :label="$t('fieldLinkRowSubForm.selectTableLabel')"
       required
-      :error="$v.values.link_row_table_id.$error"
+      :error="v$.values.link_row_table_id.$error"
     >
       <Dropdown
         v-model="values.link_row_table_id"
-        :error="$v.values.link_row_table_id.$error"
+        :error="v$.values.link_row_table_id.$error"
         :fixed-items="true"
         :disabled="!isSelectedFieldAccessible"
-        @hide="$v.values.link_row_table_id.$touch()"
+        @hide="v$.values.link_row_table_id.$touch()"
         @input="tableChange"
       >
         <DropdownItem
@@ -65,7 +65,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'

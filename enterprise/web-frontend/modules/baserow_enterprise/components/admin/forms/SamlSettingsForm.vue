@@ -27,13 +27,13 @@
         @blur="$v.values.domain.$touch()"
       ></FormInput>
       <template #error>
-        <span v-if="$v.values.domain.$dirty && !$v.values.domain.required">
+        <span v-if="v$.values.domain.$dirty && !v$.values.domain.required">
           {{ $t('error.requiredField') }}
         </span>
 
         <span
           v-else-if="
-            $v.values.domain.$dirty && !$v.values.domain.mustHaveUniqueDomain
+            v$.values.domain.$dirty && !v$.values.domain.mustHaveUniqueDomain
           "
           class="error"
         >
@@ -64,7 +64,7 @@
       ></FormTextarea>
 
       <template #error>
-        <span v-if="$v.values.metadata.$dirty && !$v.values.metadata.required">
+        <span v-if="v$.values.metadata.$dirty && !v$.values.metadata.required">
           {{ $t('error.requiredField') }}
         </span>
         <span v-else-if="serverErrors.metadata">
@@ -191,8 +191,8 @@
 </template>
 
 <script>
-import { maxLength, required, helpers } from 'vuelidate/lib/validators'
 import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 
 const alphanumericDotDashUnderscore = helpers.regex(
   'alphanumericDotDashUnderscore',

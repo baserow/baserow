@@ -11,7 +11,7 @@
         v-model="values.license"
         :error="fieldHasErrors('license')"
         :rows="6"
-        @blur="$v.values.license.$touch()"
+        @blur="v$.values.license.$touch()"
       />
 
       <template #error>
@@ -24,7 +24,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 

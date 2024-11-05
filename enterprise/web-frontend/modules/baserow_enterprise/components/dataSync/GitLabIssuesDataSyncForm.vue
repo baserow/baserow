@@ -96,7 +96,7 @@
 </template>
 
 <script>
-import { required, requiredIf, url } from 'vuelidate/lib/validators'
+import { required, requiredIf, url } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {

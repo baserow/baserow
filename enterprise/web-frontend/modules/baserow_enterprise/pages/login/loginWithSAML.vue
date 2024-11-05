@@ -21,13 +21,13 @@
         >
           <FormInput
             ref="email"
-            v-model="values.email"
+            v-model="state.email"
             type="email"
             size="large"
             :placeholder="$t('login.emailPlaceholder')"
             :error="fieldHasErrors('email') || loginRequestError"
             @input="loginRequestError = null"
-            @blur="$v.values.email.$touch()"
+            @blur="v$.email.$touch"
           ></FormInput>
 
           <template #error>
@@ -74,8 +74,10 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import decamelize from 'decamelize'
-import { required, email } from 'vuelidate/lib/validators'
+import { required, email } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import workspaceInvitationToken from '@baserow/modules/core/mixins/workspaceInvitationToken'
@@ -132,6 +134,18 @@ export default {
       },
     }
   },
+  setup() {
+    const state = reactive({
+      email: '',
+    })
+
+    const rules = computed(() => ({
+      email: { required, email },
+    }))
+
+    const v$ = useVuelidate(rules, state)
+    return { v$, state }
+  },
   computed: {
     ...mapGetters({
       passwordLoginEnabled: 'authProvider/getPasswordLoginEnabled',
@@ -146,9 +160,9 @@ export default {
   },
   methods: {
     async login() {
-      this.$v.$touch()
+      this.v$.$touch()
       this.loginRequestError = false
-      if (this.$v.$invalid) {
+      if (this.v$.$invalid) {
         this.focusOnFirstError()
         return
       }
@@ -161,7 +175,7 @@ export default {
         const { data } = await samlAuthProviderService(
           this.$client
         ).getSamlLoginUrl({
-          email: this.values.email,
+          email: this.state.email,
           original,
         })
         window.location = this.getRedirectUrlWithValidQueryParams(

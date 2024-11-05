@@ -56,13 +56,13 @@
               :key="setting.key"
               small-label
               :label="setting.label"
-              :error="$v.settings[type][setting.key].$error"
+              :error="v$.settings[type][setting.key].$error"
               required
               class="margin-bottom-2"
             >
               <FormInput
-                v-model.trim="$v.settings[type][setting.key].$model"
-                :error="$v.settings[type][setting.key].$error"
+                v-model.trim="v$.settings[type][setting.key].$model"
+                :error="v$.settings[type][setting.key].$error"
               />
 
               <template v-if="setting.description" #helper>
@@ -74,7 +74,7 @@
       </div>
       <div class="actions actions--right">
         <Button
-          :disabled="updateLoading || $v.$invalid || !$v.$anyDirty"
+          :disabled="updateLoading || v$.$invalid || !v$.$anyDirty"
           :loading="updateLoading"
           icon="iconoir-edit-pencil"
         >
@@ -145,9 +145,9 @@ export default {
       }
     },
     async updateSettings() {
-      this.$v.$touch()
+      this.v$.$touch()
 
-      if (this.$v.$invalid) {
+      if (this.v$.$invalid) {
         return
       }
 

@@ -13,7 +13,7 @@
           size="large"
           :error="fieldHasErrors('name')"
           class="snapshots-modal__name-input"
-          @blur="$v.values.name.$touch()"
+          @blur="v$.values.name.$touch()"
         />
       </slot>
 
@@ -26,7 +26,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import moment from '@baserow/modules/core/moment'
 

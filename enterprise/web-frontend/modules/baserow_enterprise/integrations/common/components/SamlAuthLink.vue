@@ -41,7 +41,7 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
-import { required, email } from 'vuelidate/lib/validators'
+import { required, email } from '@vuelidate/validators'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
 
 export default {
