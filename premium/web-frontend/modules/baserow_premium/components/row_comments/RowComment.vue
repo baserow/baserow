@@ -1,40 +1,52 @@
 <template>
   <div
     :class="{
-      'row-comments__comment--right': ownComment,
       'row-comments__comment--editing': editing,
     }"
     class="row-comments__comment"
   >
     <div class="row-comments__comment-head">
-      <div
-        class="row-comments__comment-head-details"
-        :class="{ 'row-comments__comment-head-details--right': ownComment }"
-      >
-        <div v-if="!ownComment" class="row-comments__comment-head-initial">
-          {{ firstName | nameAbbreviation }}
-        </div>
+      <div class="row-comments__comment-head-details">
+        <Avatar
+          v-if="!ownComment"
+          rounded
+          :initials="firstName | nameAbbreviation"
+        />
+        <Avatar
+          v-else
+          color="purple"
+          rounded
+          :initials="userName | nameAbbreviation"
+        />
+
         <div class="row-comments__comment-head-name">
           {{ ownComment ? $t('rowComment.you') : firstName }}
-        </div>
-        <div :title="timeTooltip" class="row-comments__comment-head-time">
-          <span>{{ localCreationTime }}</span>
-          <span v-if="comment.edited && !comment.trashed">
+
+          <span
+            v-if="comment.edited && !comment.trashed"
+            class="row-comments__comment-edited"
+          >
             ({{ $t('rowComment.edited') }})
           </span>
         </div>
-        <a
-          v-if="ownComment && !editing && !comment.trashed"
-          ref="commentContextLink"
-          :class="{ disabled: operationPending }"
-          class="row-comments__comment-context"
-          @click.prevent="openRowCommentContext"
-        >
-          <i
-            class="baserow-icon-more-horizontal"
-            :class="{ pending: operationPending }"
-          ></i>
-        </a>
+
+        <div class="row-comments__comment-head-extra">
+          <a
+            v-if="ownComment && !editing && !comment.trashed"
+            ref="commentContextLink"
+            :class="{ disabled: operationPending }"
+            class="row-comments__comment-context"
+            @click.prevent="openRowCommentContext"
+          >
+            <i
+              class="baserow-icon-more-horizontal"
+              :class="{ pending: operationPending }"
+            ></i>
+          </a>
+          <div :title="timeTooltip" class="row-comments__comment-head-time">
+            <span>{{ localCreationTime }}</span>
+          </div>
+        </div>
         <RowCommentContext
           ref="commentContext"
           :comment="comment"
@@ -120,6 +132,7 @@ export default {
   computed: {
     ...mapGetters({
       userId: 'auth/getUserId',
+      userName: 'auth/getUsername',
     }),
     creating() {
       return this.comment.isTemporary

@@ -60,7 +60,7 @@
 
       <ImportErrorReport :job="job" :error="error"></ImportErrorReport>
 
-      <Tabs v-if="dataLoaded" no-padding>
+      <Tabs v-if="dataLoaded" no-padding-x>
         <Tab :title="$t('importFileModal.importPreview')">
           <SimpleGrid
             class="import-modal__preview"

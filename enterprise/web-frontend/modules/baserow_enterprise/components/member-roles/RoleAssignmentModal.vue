@@ -1,6 +1,6 @@
 <template>
   <Modal :small="true" :full-height="true">
-    <Tabs no-padding class="role-assignment-model__full-height-tabs">
+    <Tabs no-padding-x class="role-assignment-model__full-height-tabs">
       <Tab
         :title="$t('roleAssignmentModal.membersTab')"
         class="role-assignment-model__full-height-tab"

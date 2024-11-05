@@ -3,13 +3,15 @@
     :selected-index="selectedTabIndex"
     full-height
     grow-items
-    no-padding
+    no-padding-y
+    no-padding-x
     class="row-edit-modal-sidebar"
   >
     <Tab
       v-for="sidebarType in sidebarTypes"
       :key="sidebarType.getType()"
       :title="sidebarType.getName()"
+      no-scroll
     >
       <component
         :is="sidebarType.getComponent()"

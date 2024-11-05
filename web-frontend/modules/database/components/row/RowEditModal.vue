@@ -1,27 +1,22 @@
 <template>
-  <Modal
+  <ModalV2
     ref="modal"
     :full-height="hasRightSidebar"
     :right-sidebar="hasRightSidebar"
-    :content-scrollable="hasRightSidebar"
-    :right-sidebar-scrollable="false"
-    :collapsible-right-sidebar="true"
+    sidebar-no-scroll
+    :footer="false"
+    :header="false"
+    topbar
     @hidden="hidden"
   >
-    <template #actions>
-      <component
-        :is="actionComponent"
-        v-for="(actionComponent, i) in rowModalActionComponents"
-        :key="i"
-        :database="database"
-        :table="table"
-        :row="row"
-      >
-      </component>
-    </template>
-    <template #content>
-      <div v-if="enableNavigation" class="row-edit-modal__navigation">
-        <div v-if="navigationLoading" class="loading"></div>
+    <template #topbar-content>
+      <div class="row-edit-modal__navigation">
+        <div
+          v-if="navigationLoading"
+          class="row-edit-modal__navigation-loading"
+        >
+          <span class="loading"> </span>
+        </div>
         <template v-else>
           <a
             class="row-edit-modal__navigation-item"
@@ -36,43 +31,81 @@
             <i class="iconoir-nav-arrow-down"></i>
           </a>
         </template>
+
+        <span class="row-edit-modal__heading">
+          {{ $t('localBaserowGetRowForm.rowFieldLabel') }}:
+          <strong v-if="!loading">{{ row.id }}</strong>
+        </span>
       </div>
-      <div class="box__title">
-        <h2 class="row-modal__title">
-          {{ heading }}
-        </h2>
-      </div>
-      <RowEditModalFieldsList
-        :primary-is-sortable="primaryIsSortable"
-        :fields="visibleFields"
-        :sortable="!readOnly && fieldsSortable"
-        :can-modify-fields="!readOnly && canModifyFields"
-        :hidden="false"
-        :read-only="readOnly"
-        :row="row"
-        :view="view"
-        :table="table"
+    </template>
+
+    <template #topbar-actions>
+      <component
+        :is="actionComponent"
+        v-for="(actionComponent, i) in rowModalActionComponents"
+        :key="i"
         :database="database"
-        :all-fields-in-table="allFieldsInTable"
-        @field-updated="$emit('field-updated', $event)"
-        @field-deleted="$emit('field-deleted')"
-        @order-fields="$emit('order-fields', $event)"
-        @toggle-field-visibility="$emit('toggle-field-visibility', $event)"
-        @update="update"
-        @refresh-row="$emit('refresh-row', $event)"
-      ></RowEditModalFieldsList>
-      <RowEditModalHiddenFieldsSection
-        v-if="hiddenFields.length"
-        :show-hidden-fields="showHiddenFields"
-        @toggle-hidden-fields-visibility="
-          $emit('toggle-hidden-fields-visibility')
+        :table="table"
+        :row="row"
+      >
+      </component>
+
+      <li
+        v-if="hasRightSidebar"
+        class="modal__topbar-icon"
+        :class="{ 'modal__topbar-icon--active': !collapseSidebar }"
+        @click="handleCollapseSidebar"
+      >
+        <i class="iconoir-message-text"></i>
+      </li>
+
+      <li
+        v-if="!readOnly && displayRowActions"
+        ref="contextMoreLink"
+        class="modal__topbar-icon"
+        @click="
+          $refs.moreContext.toggle($refs.contextMoreLink, 'bottom', 'right', 0)
         "
       >
+        <i class="baserow-icon-more-vertical"></i>
+      </li>
+
+      <Context ref="moreContext">
+        <ul class="context__menu">
+          <li class="context__menu-item">
+            <a
+              class="context__menu-item-link js-ctx-delete-row"
+              @click="handleRowDuplicate"
+            >
+              <i class="context__menu-item-icon iconoir-copy"></i>
+              {{ $t('gridView.duplicateRow') }}
+            </a>
+          </li>
+
+          <li class="context__menu-item context__menu-item--with-separator">
+            <a
+              class="context__menu-item-link context__menu-item-link--delete js-ctx-delete-row"
+              :class="{ 'context__menu-item-link--loading': loadingDeleteRow }"
+              @click="$emit('delete-row', row)"
+            >
+              <i class="context__menu-item-icon iconoir-bin"></i>
+              {{ $t('gridView.deleteRow') }}
+            </a>
+          </li>
+        </ul>
+      </Context>
+    </template>
+
+    <template #content>
+      <div v-if="loading" class="loading-absolute-center" />
+
+      <template v-else>
         <RowEditModalFieldsList
           :primary-is-sortable="primaryIsSortable"
-          :fields="hiddenFields"
-          :sortable="false"
-          :hidden="true"
+          :fields="visibleFields"
+          :sortable="!readOnly && fieldsSortable"
+          :can-modify-fields="!readOnly && canModifyFields"
+          :hidden="false"
           :read-only="readOnly"
           :row="row"
           :view="view"
@@ -81,50 +114,78 @@
           :all-fields-in-table="allFieldsInTable"
           @field-updated="$emit('field-updated', $event)"
           @field-deleted="$emit('field-deleted')"
+          @order-fields="$emit('order-fields', $event)"
           @toggle-field-visibility="$emit('toggle-field-visibility', $event)"
           @update="update"
           @refresh-row="$emit('refresh-row', $event)"
-        >
-        </RowEditModalFieldsList>
-      </RowEditModalHiddenFieldsSection>
-      <div
-        v-if="
-          !readOnly &&
-          canModifyFields &&
-          $hasPermission(
-            'database.table.create_field',
-            table,
-            database.workspace.id
-          )
-        "
-        class="actions"
-      >
-        <span ref="createFieldContextLink">
-          <ButtonText
-            icon="iconoir-plus"
-            @click="
-              $refs.createFieldContext.toggle($refs.createFieldContextLink)
-            "
-          >
-            {{ $t('rowEditModal.addField') }}
-          </ButtonText></span
-        >
-
-        <CreateFieldContext
-          ref="createFieldContext"
-          :table="table"
-          :view="view"
-          :all-fields-in-table="allFieldsInTable"
-          :database="database"
-          @field-created="$emit('field-created', $event)"
-          @field-created-callback-done="
-            $emit('field-created-callback-done', $event)
+        ></RowEditModalFieldsList>
+        <RowEditModalHiddenFieldsSection
+          v-if="hiddenFields.length"
+          :show-hidden-fields="showHiddenFields"
+          @toggle-hidden-fields-visibility="
+            $emit('toggle-hidden-fields-visibility')
           "
-        ></CreateFieldContext>
-      </div>
+        >
+          <RowEditModalFieldsList
+            :primary-is-sortable="primaryIsSortable"
+            :fields="hiddenFields"
+            :sortable="false"
+            :hidden="true"
+            :read-only="readOnly"
+            :row="row"
+            :view="view"
+            :table="table"
+            :database="database"
+            :all-fields-in-table="allFieldsInTable"
+            @field-updated="$emit('field-updated', $event)"
+            @field-deleted="$emit('field-deleted')"
+            @toggle-field-visibility="$emit('toggle-field-visibility', $event)"
+            @update="update"
+            @refresh-row="$emit('refresh-row', $event)"
+          >
+          </RowEditModalFieldsList>
+        </RowEditModalHiddenFieldsSection>
+        <div
+          v-if="
+            !readOnly &&
+            canModifyFields &&
+            $hasPermission(
+              'database.table.create_field',
+              table,
+              database.workspace.id
+            )
+          "
+          class="actions"
+        >
+          <span ref="createFieldContextLink">
+            <ButtonText
+              type="secondary"
+              icon="iconoir-plus"
+              @click="
+                $refs.createFieldContext.toggle($refs.createFieldContextLink)
+              "
+            >
+              {{ $t('rowEditModal.addField') }}
+            </ButtonText></span
+          >
+          <CreateFieldContext
+            ref="createFieldContext"
+            :table="table"
+            :view="view"
+            :all-fields-in-table="allFieldsInTable"
+            :database="database"
+            @field-created="$emit('field-created', $event)"
+            @field-created-callback-done="
+              $emit('field-created-callback-done', $event)
+            "
+          ></CreateFieldContext>
+        </div>
+      </template>
     </template>
-    <template #sidebar>
+
+    <template #sidebar-content>
       <RowEditModalSidebar
+        v-if="!loading"
         :row="row"
         :table="table"
         :database="database"
@@ -132,12 +193,12 @@
         :read-only="readOnly"
       ></RowEditModalSidebar>
     </template>
-  </Modal>
+  </ModalV2>
 </template>
 
 <script>
 import { mapGetters } from 'vuex'
-import modal from '@baserow/modules/core/mixins/modal'
+import modalv2 from '@baserow/modules/core/mixins/modalv2'
 import CreateFieldContext from '@baserow/modules/database/components/field/CreateFieldContext'
 import RowEditModalFieldsList from './RowEditModalFieldsList.vue'
 import RowEditModalHiddenFieldsSection from './RowEditModalHiddenFieldsSection.vue'
@@ -152,7 +213,8 @@ export default {
     RowEditModalHiddenFieldsSection,
     RowEditModalSidebar,
   },
-  mixins: [modal],
+  mixins: [modalv2],
+
   props: {
     database: {
       type: Object,
@@ -198,11 +260,6 @@ export default {
       type: Boolean,
       required: true,
     },
-    enableNavigation: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
     fieldsSortable: {
       type: Boolean,
       required: false,
@@ -213,6 +270,18 @@ export default {
       required: false,
       default: () => true,
     },
+    displayRowActions: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
+  data() {
+    return {
+      collapseSidebar: false,
+      loading: false,
+      loadingDeleteRow: false,
+    }
   },
   computed: {
     ...mapGetters({
@@ -369,6 +438,22 @@ export default {
     update(context) {
       context.table = this.table
       this.$emit('update', context)
+    },
+    handleCollapseSidebar() {
+      this.collapseSidebar = !this.collapseSidebar
+      this.$refs.modal.collapseRightSidebar()
+    },
+    handleRowDuplicate() {
+      this.$refs.moreContext.hide()
+      this.loading = true
+      this.$emit('duplicate-row', this.row)
+    },
+    navigateToNextRow() {
+      this.$emit('navigate-next', this.nextRow)
+      this.loading = false
+    },
+    toggleLoadingDeleteRow() {
+      this.loadingDeleteRow = !this.loadingDeleteRow
     },
   },
 }

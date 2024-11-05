@@ -861,7 +861,8 @@
   },
   "rowHistorySidebar": {
     "name": "History",
-    "empty": "No changes yet. You'll be able to track any changes to this row here.",
+    "noChangesYet": "No changes yet",
+    "empty": "You'll be able to track any changes to this row here.",
     "you": "You"
   },
   "fieldPasswordSubForm": {

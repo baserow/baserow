@@ -4,7 +4,7 @@
       <li
         v-for="item in value"
         :key="item.id"
-        class="field-multiple-select__item"
+        class="field-multiple-select__item margin-top-0"
         :class="'background-color--' + item.color"
       >
         <div class="field-multiple-select__name">

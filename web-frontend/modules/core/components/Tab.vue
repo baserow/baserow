@@ -1,5 +1,12 @@
 <template>
-  <div v-if="isActive" class="tab" @click="$emit('click', $event)">
+  <div
+    v-if="isActive"
+    class="tab"
+    :class="{
+      'tab--no-scroll': noScroll,
+    }"
+    @click="$emit('click', $event)"
+  >
     <slot></slot>
   </div>
 </template>
@@ -30,6 +37,14 @@ export default {
       type: String,
       required: false,
       default: null,
+    },
+    /**
+     * If true it will not scroll the content of the tab.
+     */
+    noScroll: {
+      type: Boolean,
+      default: false,
+      required: false,
     },
   },
   data() {
