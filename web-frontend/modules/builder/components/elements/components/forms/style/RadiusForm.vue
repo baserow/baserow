@@ -11,9 +11,9 @@
         small-label
         required
         horizontal-narrow
-        :error-message="backgroundRadiusError"
+        :error-message="getFirstErrorMessage('background_radius')"
       >
-        <PixelValueSelector v-model="values.background_radius" />
+        <PixelValueSelector v-model="v$.values.background_radius.$model" />
       </FormGroup>
 
       <FormGroup
@@ -23,17 +23,17 @@
         small-label
         required
         horizontal-narrow
-        :error-message="borderRadiusError"
+        :error-message="getFirstErrorMessage('border_radius')"
       >
-        <PixelValueSelector v-model="values.border_radius" />
+        <PixelValueSelector v-model="v$.values.border_radius.$model" />
       </FormGroup>
     </FormSection>
   </form>
 </template>
 
 <script>
-import { required, integer, between } from 'vuelidate/lib/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { required, integer, between, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
 
@@ -60,6 +60,9 @@ export default {
       default: () => false,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {
@@ -67,28 +70,6 @@ export default {
         border_radius: 0,
       },
     }
-  },
-  computed: {
-    backgroundRadiusError() {
-      if (this.$v.values.background_radius.$invalid) {
-        return this.$t('error.minMaxValueField', {
-          min: 0,
-          max: MAX_RADIUS_PX,
-        })
-      } else {
-        return ''
-      }
-    },
-    borderRadiusError() {
-      if (this.$v.values.border_radius.$invalid) {
-        return this.$t('error.minMaxValueField', {
-          min: 0,
-          max: MAX_RADIUS_PX,
-        })
-      } else {
-        return ''
-      }
-    },
   },
   methods: {
     getDefaultValues() {
@@ -102,14 +83,32 @@ export default {
     return {
       values: {
         background_radius: {
-          required,
-          integer,
-          between: between(0, MAX_RADIUS_PX),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          between: helpers.withMessage(
+            this.$t('error.minMaxValueField', {
+              min: 0,
+              max: MAX_RADIUS_PX,
+            }),
+            between(0, MAX_RADIUS_PX)
+          ),
         },
         border_radius: {
-          required,
-          integer,
-          between: between(0, MAX_RADIUS_PX),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          between: helpers.withMessage(
+            this.$t('error.minMaxValueField', {
+              min: 0,
+              max: MAX_RADIUS_PX,
+            }),
+            between(0, MAX_RADIUS_PX)
+          ),
         },
       },
     }

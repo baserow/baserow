@@ -9,14 +9,13 @@
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.values.name.$model"
         size="large"
         :error="fieldHasErrors('name')"
-        @blur="$v.values.name.$touch()"
       >
       </FormInput>
 
-      <template #error> {{ $t('error.requiredField') }}</template>
+      <template #error> {{ v$.values.name.$errors[0]?.$message }}</template>
     </FormGroup>
 
     <FormGroup
@@ -27,9 +26,9 @@
       class="margin-bottom-2"
     >
       <Dropdown
-        v-model="values.workspace"
+        v-model="v$.values.workspace.$model"
         class="col-4"
-        @hide="$v.values.workspace.$touch()"
+        @hide="v$.values.workspace.$touch"
       >
         <DropdownItem
           v-for="workspace in workspaces"
@@ -40,7 +39,7 @@
       </Dropdown>
 
       <template #error>
-        {{ $t('error.requiredField') }}
+        {{ v$.values.workspace.$errors[0]?.$message }}
       </template>
     </FormGroup>
 
@@ -49,14 +48,18 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import { mapState } from 'vuex'
-import { required } from 'vuelidate/lib/validators'
+import { required, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'APITokenForm',
   mixins: [form],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {
@@ -73,11 +76,23 @@ export default {
   mounted() {
     this.$refs.name.focus()
   },
-  validations: {
-    values: {
-      name: { required },
-      workspace: { required },
-    },
+  validations() {
+    return {
+      values: {
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        workspace: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
 }
 </script>

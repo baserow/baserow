@@ -10,24 +10,14 @@
       <template #label>{{ $t('gitlabIssuesDataSync.url') }}</template>
       <FormInput
         ref="gitlab_url"
-        v-model="values.gitlab_url"
+        v-model="v$.values.gitlab_url.$model"
         size="large"
         :error="fieldHasErrors('gitlab_url')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
-        @blur="$v.values.gitlab_url.$touch()"
       />
       <template #error>
-        <span
-          v-if="$v.values.gitlab_url.$dirty && !$v.values.gitlab_url.required"
-        >
-          {{ $t('error.requiredField') }}
-        </span>
-        <span
-          v-else-if="$v.values.gitlab_url.$dirty && !$v.values.gitlab_url.url"
-        >
-          {{ $t('error.invalidURL') }}
-        </span>
+        {{ v$.values.gitlab_url.$errors[0]?.$message }}
       </template>
     </FormGroup>
 
@@ -40,21 +30,13 @@
       small-label
     >
       <FormInput
-        v-model="values.gitlab_project_id"
+        v-model="v$.values.gitlab_project_id.$model"
         :error="fieldHasErrors('gitlab_project_id')"
         :disabled="disabled"
         size="large"
-        @blur="$v.values.gitlab_project_id.$touch()"
       />
       <template #error>
-        <span
-          v-if="
-            $v.values.gitlab_project_id.$dirty &&
-            !$v.values.gitlab_project_id.required
-          "
-        >
-          {{ $t('error.requiredField') }}
-        </span>
+        {{ v$.values.gitlab_project_id.$errors[0]?.$message }}
       </template>
     </FormGroup>
 
@@ -75,28 +57,21 @@
       "
     >
       <FormInput
-        v-model="values.gitlab_access_token"
+        v-model="v$.values.gitlab_access_token.$model"
         :error="fieldHasErrors('gitlab_access_token')"
         :disabled="disabled"
         size="large"
-        @blur="$v.values.gitlab_access_token.$touch()"
       />
       <template #error>
-        <span
-          v-if="
-            $v.values.gitlab_access_token.$dirty &&
-            !$v.values.gitlab_access_token.required
-          "
-        >
-          {{ $t('error.requiredField') }}
-        </span>
+        {{ v$.values.gitlab_access_token.$errors[0]?.$message }}
       </template>
     </FormGroup>
   </form>
 </template>
 
 <script>
-import { required, requiredIf, url } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, requiredIf, url, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -114,6 +89,9 @@ export default {
       default: false,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     const allowedValues = ['gitlab_url', 'gitlab_project_id']
     if (!this.update) {
@@ -130,12 +108,26 @@ export default {
   validations() {
     return {
       values: {
-        gitlab_url: { required, url },
-        gitlab_project_id: { required },
+        gitlab_url: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          url: helpers.withMessage(this.$t('error.invalidURL'), url),
+        },
+        gitlab_project_id: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
         gitlab_access_token: {
-          required: requiredIf(() => {
-            return this.allowedValues.includes('gitlab_access_token')
-          }),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            requiredIf(() => {
+              return this.allowedValues.includes('gitlab_access_token')
+            })
+          ),
         },
       },
     }

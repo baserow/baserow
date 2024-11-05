@@ -68,7 +68,7 @@ export default {
     },
   },
   data() {
-    return { inError: false }
+    return { inError: false, values: {} }
   },
   computed: {
     ...mapGetters({ domains: 'domain/getDomains' }),
@@ -100,7 +100,7 @@ export default {
     },
   },
   watch: {
-    '$v.$anyDirty'() {
+    'v$.$anyDirty'() {
       this.checkValidity()
     },
   },

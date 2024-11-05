@@ -14,15 +14,15 @@
       required
       small-label
       :label="$t('fieldRatingSubForm.style')"
-      :error="$v.values.style.$error"
+      :error="fieldHasErrors('style')"
     >
       <Dropdown
-        v-model="values.style"
+        v-model="v$.values.style.$model"
         class="dropdown--floating rating-field-form__dropdown-style"
-        :error="$v.values.style.$error"
+        :error="fieldHasErrors('style')"
         :fixed-items="true"
         :show-search="false"
-        @hide="$v.values.style.$touch()"
+        @hide="v$.values.style.$touch"
       >
         <DropdownItem
           v-for="style in styles"
@@ -38,15 +38,15 @@
       required
       small-label
       :label="$t('fieldRatingSubForm.maxValue')"
-      :error="$v.values.max_value.$error"
+      :error="fieldHasErrors('max_value')"
     >
       <Dropdown
-        v-model="values.max_value"
+        v-model="v$.values.max_value.$model"
         class="dropdown--floating"
-        :error="$v.values.max_value.$error"
+        :error="fieldHasErrors('max_value')"
         :show-search="false"
         :fixed-items="true"
-        @hide="$v.values.max_value.$touch()"
+        @hide="v$.values.max_value.$touch"
       >
         <DropdownItem
           v-for="index in 10"
@@ -66,7 +66,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
 
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
@@ -78,6 +79,9 @@ export default {
   name: 'FieldRatingSubForm',
   components: { ColorSelectContext },
   mixins: [form, fieldSubForm],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: ['max_value', 'color', 'style'],
@@ -90,6 +94,7 @@ export default {
       styles: ['star', 'heart', 'thumbs-up', 'flag', 'smile'],
     }
   },
+
   methods: {
     openColor() {
       this.$refs.colorContext.setActive(this.values.color)
@@ -104,12 +109,14 @@ export default {
       this.values.color = color
     },
   },
-  validations: {
-    values: {
-      max_value: { required },
-      color: { required },
-      style: { required },
-    },
+  validations() {
+    return {
+      values: {
+        max_value: { required },
+        color: { required },
+        style: { required },
+      },
+    }
   },
 }
 </script>

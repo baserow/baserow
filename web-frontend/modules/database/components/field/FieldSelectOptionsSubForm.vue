@@ -47,8 +47,8 @@ export default {
   },
   methods: {
     isFormValid() {
-      this.$refs.selectOptions.$v.$touch()
-      return !this.$refs.selectOptions.$v.$invalid
+      this.$refs.selectOptions.v$.$touch()
+      return !this.$refs.selectOptions.v$.$invalid
     },
     checkFetchOptions() {
       if (

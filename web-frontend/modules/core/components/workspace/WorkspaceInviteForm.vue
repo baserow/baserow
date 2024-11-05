@@ -8,21 +8,21 @@
             ref="email"
             v-model="values.email"
             :error="fieldHasErrors('email')"
-            @blur="$v.values.email.$touch()"
+            @blur="v$.values.email.$touch"
           >
           </FormInput>
 
           <template #error>
-            {{ $t('workspaceInviteForm.errorInvalidEmail') }}
+            {{ v$.values.email.$errors[0]?.$message }}
           </template>
         </FormGroup>
       </div>
       <div class="col col-5">
-        <FormGroup>
+        <FormGroup :error="v$.values.permissions.$error">
           <div class="workspace-invite-form__role-selector">
             <slot name="roleSelectorLabel"></slot>
             <Dropdown
-              v-model="values.permissions"
+              v-model="v$.values.permissions.$model"
               class="workspace-invite-form__role-selector-dropdown"
               :show-search="false"
               fixed-items
@@ -71,20 +71,16 @@
         </FormGroup>
       </div>
       <div class="col col-12 margin-top-2 margin-bottom-2">
-        <FormGroup :error="fieldHasErrors('message')">
+        <FormGroup :error="v$.values.message.$error">
           <FormInput
             ref="message"
-            v-model="values.message"
-            :error="fieldHasErrors('message')"
+            v-model="v$.values.message.$model"
+            :error="v$.values.message.$error"
             :placeholder="$t('workspaceInviteForm.optionalMessagePlaceholder')"
           ></FormInput>
 
           <template #error>
-            {{
-              $t('workspaceInviteForm.errorTooLongMessage', {
-                amount: messageMaxLength,
-              })
-            }}
+            {{ v$.values.message.$errors[0]?.$message }}
           </template>
         </FormGroup>
       </div>
@@ -94,7 +90,8 @@
 </template>
 
 <script>
-import { required, email, maxLength } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, email, maxLength, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 
@@ -108,6 +105,9 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -156,11 +156,30 @@ export default {
       }
     },
   },
-  validations: {
-    values: {
-      email: { required, email },
-      message: { maxLength: maxLength(MESSAGE_MAX_LENGTH) },
-    },
+  validations() {
+    return {
+      values: {
+        email: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          email: helpers.withMessage(
+            this.$t('workspaceInviteForm.errorInvalidEmail'),
+            email
+          ),
+        },
+        message: {
+          maxLength: helpers.withMessage(
+            this.$t('workspaceInviteForm.errorTooLongMessage', {
+              amount: this.messageMaxLength,
+            }),
+            maxLength(MESSAGE_MAX_LENGTH)
+          ),
+        },
+        permissions: {},
+      },
+    }
   },
 }
 </script>

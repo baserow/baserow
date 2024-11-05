@@ -3,20 +3,14 @@
     <FormGroup
       required
       class="margin-bottom-2"
-      :error-message="
-        $v.values.name.$dirty && !$v.values.name.required
-          ? $t('error.requiredField')
-          : !$v.values.name.maxLength
-          ? $t('error.maxLength', { max: 255 })
-          : ''
-      "
+      :error-message="getFirstErrorMessage('name')"
     >
       <FormInput
         v-model="values.name"
         required
         :label="$t('integrationEditForm.name')"
         :placeholder="$t('integrationEditForm.namePlaceholder')"
-        @blur="$v.values.name.$touch()"
+        @blur="v$.values.name.$touch"
       />
     </FormGroup>
 
@@ -29,8 +23,9 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 
 export default {
   mixins: [form],
@@ -44,6 +39,9 @@ export default {
       required: true,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return { values: { name: '' }, allowedValues: ['name'] }
   },
@@ -51,8 +49,14 @@ export default {
     return {
       values: {
         name: {
-          required,
-          maxLength: maxLength(255),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(255)
+          ),
         },
       },
     }

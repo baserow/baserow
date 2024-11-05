@@ -9,14 +9,14 @@
         class="margin-bottom-2"
       >
         <RadioGroup
-          v-model="values.style_background"
+          v-model="v$.values.style_background.$model"
           type="button"
           :options="backgroundTypes"
         />
       </FormGroup>
       <FormGroup
         v-if="
-          values.style_background === BACKGROUND_TYPES.COLOR &&
+          v$.values.style_background.$model === BACKGROUND_TYPES.COLOR &&
           isStyleAllowed('style_background_color')
         "
         class="margin-bottom-2"
@@ -24,7 +24,7 @@
         required
       >
         <ColorInput
-          v-model="values.style_background_color"
+          v-model="v$.values.style_background_color.$model"
           small
           :color-variables="colorVariables"
         />
@@ -36,19 +36,19 @@
         required
         class="margin-top-2"
       >
-        <ImageInput v-model="values.style_background_file" />
+        <ImageInput v-model="v$.values.style_background_file.$model" />
       </FormGroup>
       <FormGroup
         v-if="
           isStyleAllowed('style_background_mode') &&
-          values.style_background_file
+          v$.values.style_background_file.$model
         "
         :label="$t('defaultStyleForm.backgroundImageMode')"
         small-label
         required
       >
         <RadioGroup
-          v-model="values.style_background_mode"
+          v-model="v$.values.style_background_mode.$model"
           type="button"
           :options="backgroundModes"
         />
@@ -61,7 +61,7 @@
         required
         class="margin-bottom-2"
       >
-        <Dropdown v-model="values.style_width">
+        <Dropdown v-model="v$.values.style_width.$model">
           <DropdownItem
             v-for="type in Object.values(WIDTH_TYPES)"
             :key="type.value"
@@ -109,6 +109,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import StyleBoxForm from '@baserow/modules/builder/components/elements/components/forms/style/StyleBoxForm'
 import RadiusForm from '@baserow/modules/builder/components/elements/components/forms/style/RadiusForm'
 import styleForm from '@baserow/modules/builder/mixins/styleForm'
@@ -123,6 +124,37 @@ import { IMAGE_FILE_TYPES } from '@baserow/modules/core/enums'
 export default {
   components: { StyleBoxForm, RadiusForm },
   mixins: [styleForm],
+  setup() {
+    return { v$: useVuelidate() }
+  },
+
+  data() {
+    return {
+      values: {
+        style_background: BACKGROUND_TYPES.NONE,
+        style_background_color: '',
+        style_background_file: null,
+        style_background_mode: BACKGROUND_MODES.FILL,
+        style_width: WIDTH_TYPES.AUTO,
+        style_margin_top: 0,
+        style_border_top_color: '',
+        style_border_top_size: 0,
+        style_padding_top: 0,
+        style_margin_left: 0,
+        style_border_left_color: '',
+        style_border_left_size: 0,
+        style_padding_left: 0,
+        style_margin_bottom: 0,
+        style_border_bottom_color: '',
+        style_border_bottom_size: 0,
+        style_padding_bottom: 0,
+        style_margin_right: 0,
+        style_border_right_color: '',
+        style_border_right_size: 0,
+        style_padding_right: 0,
+      },
+    }
+  },
   computed: {
     BACKGROUND_TYPES: () => BACKGROUND_TYPES,
     WIDTH_TYPES: () => WIDTH_TYPES,
@@ -158,6 +190,32 @@ export default {
     IMAGE_FILE_TYPES() {
       return IMAGE_FILE_TYPES
     },
+  },
+  validations() {
+    return {
+      values: {
+        style_background: {},
+        style_background_color: {},
+        style_background_file: {},
+        style_background_mode: {},
+        style_width: {},
+        style_border_top_color: {},
+        style_border_top_size: {},
+        style_padding_top: {},
+        style_margin_left: {},
+        style_border_left_color: {},
+        style_border_left_size: {},
+        style_padding_left: {},
+        style_margin_bottom: {},
+        style_border_bottom_color: {},
+        style_border_bottom_size: {},
+        style_padding_bottom: {},
+        style_margin_right: {},
+        style_border_right_color: {},
+        style_border_right_size: {},
+        style_padding_right: {},
+      },
+    }
   },
 }
 </script>

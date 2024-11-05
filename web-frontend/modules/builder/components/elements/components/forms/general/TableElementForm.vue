@@ -51,14 +51,14 @@
       small-label
       :label="$t('tableElementForm.itemsPerPage')"
       required
-      :error-message="errorMessageItemsPerPage"
+      :error-message="getFirstErrorMessage('items_per_page')"
     >
       <FormInput
-        v-model="values.items_per_page"
+        v-model="v$.values.items_per_page.$model"
         :placeholder="$t('tableElementForm.itemsPerPagePlaceholder')"
         :to-value="(value) => parseInt(value)"
         type="number"
-        @blur="$v.values.items_per_page.$touch()"
+        @blur="v$.values.items_per_page.$touch"
       />
     </FormGroup>
 
@@ -81,7 +81,6 @@
         :placeholder="$t('elementForms.textInputPlaceholder')"
       />
     </FormGroup>
-
     <FormSection class="margin-bottom-2" :title="$t('tableElementForm.fields')">
       <template v-if="values.fields?.length">
         <ButtonText
@@ -142,20 +141,17 @@
                 required
                 class="margin-bottom-2"
                 :label="$t('tableElementForm.name')"
-                :error-message="
-                  !$v.values.fields.$each[index].name.required
-                    ? $t('error.requiredField')
-                    : !$v.values.fields.$each[index].name.maxLength
-                    ? $t('error.maxLength', { max: 255 })
-                    : ''
-                "
+                :error-message="v$.values.fields.$each.$message[index]?.[0]"
               >
                 <FormInput
-                  v-model="field.name"
+                  v-model="v$.values.fields.$model[index].name"
                   class="table-element-form__field-label"
                 >
                 </FormInput>
-                <template v-if="values.fields.length > 1" #after-input>
+                <template
+                  v-if="v$.values.fields.$model.length > 1"
+                  #after-input
+                >
                   <ButtonIcon icon="iconoir-bin" @click="removeField(field)" />
                 </template>
               </FormGroup>
@@ -247,6 +243,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import {
   getNextAvailableNameInSequence,
@@ -258,7 +255,8 @@ import {
   integer,
   minValue,
   maxValue,
-} from 'vuelidate/lib/validators'
+  helpers,
+} from '@vuelidate/validators'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import { TABLE_ORIENTATION } from '@baserow/modules/builder/enums'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
@@ -279,6 +277,9 @@ export default {
     CustomStyle,
   },
   mixins: [collectionElementForm],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: [
@@ -315,18 +316,6 @@ export default {
     collectionFieldBaseTheme() {
       return { ...this.builder.theme, ...this.values.styles?.table }
     },
-    errorMessageItemsPerPage() {
-      return this.$v.values.items_per_page.$dirty &&
-        !this.$v.values.items_per_page.required
-        ? this.$t('error.requiredField')
-        : !this.$v.values.items_per_page.integer
-        ? this.$t('error.integerField')
-        : !this.$v.values.items_per_page.minValue
-        ? this.$t('error.minValueField', { min: 1 })
-        : !this.$v.values.items_per_page.maxValue
-        ? this.$t('error.maxValueField', { max: this.maxItemPerPage })
-        : ''
-    },
     computedDataSourceId: {
       get() {
         return this.element.data_source_id
@@ -345,10 +334,10 @@ export default {
       actionSetDeviceTypeSelected: 'page/setDeviceTypeSelected',
     }),
     addField() {
-      this.values.fields.push({
+      this.v$.values.fields.$model.push({
         name: getNextAvailableNameInSequence(
           this.$t('tableElementForm.fieldDefaultName'),
-          this.values.fields.map(({ name }) => name)
+          this.v$.values.fields.$model.map(({ name }) => name)
         ),
         value: '',
         type: 'text',
@@ -357,36 +346,44 @@ export default {
       })
     },
     changeFieldType(fieldToUpdate, newType) {
-      this.values.fields = this.values.fields.map((field) => {
-        if (field.id === fieldToUpdate.id) {
-          // When the type of the workflow action changes we assign a new UID to
-          // trigger the backend workflow action removal
-          return {
-            id: field.id,
-            uid: uuid(),
-            name: field.name,
-            type: newType,
+      this.v$.values.fields.$model = this.v$.values.fields.$model.map(
+        (field) => {
+          if (field.id === fieldToUpdate.id) {
+            // When the type of the workflow action changes we assign a new UID to
+            // trigger the backend workflow action removal
+            return {
+              id: field.id,
+              uid: uuid(),
+              name: field.name,
+              type: newType,
+            }
           }
+          return field
         }
-        return field
-      })
+      )
     },
     updateField(fieldToUpdate, values) {
-      this.values.fields = this.values.fields.map((field) => {
-        if (field.id === fieldToUpdate.id) {
-          return { ...field, ...values }
+      this.v$.values.fields.$model = this.v$.values.fields.$model.map(
+        (field, index) => {
+          if (field.id === fieldToUpdate.id) {
+            return { ...field, ...values }
+          }
+          return field
         }
-        return field
-      })
+      )
     },
     removeField(field) {
-      this.values.fields = this.values.fields.filter((item) => item !== field)
+      this.v$.values.fields.$model = this.v$.values.fields.$model.filter(
+        (item) => item !== field
+      )
     },
     orderFields(newOrder) {
       const fieldById = Object.fromEntries(
-        this.values.fields.map((field) => [field.id, field])
+        this.v$.values.fields.$model.map((field) => [field.id, field])
       )
-      this.values.fields = newOrder.map((fieldId) => fieldById[fieldId])
+      this.v$.values.fields.$model = newOrder.map(
+        (fieldId) => fieldById[fieldId]
+      )
     },
     fieldInError(field) {
       return this.collectionTypes[field.type].isInError({
@@ -412,21 +409,38 @@ export default {
     },
   },
   validations() {
-    const itemsPerPageRules = { integer }
+    const itemsPerPageRules = {
+      integer: helpers.withMessage(this.$t('error.integerField'), integer),
+    }
     if (this.pagingOptionsAvailable) {
-      itemsPerPageRules.required = required
-      itemsPerPageRules.minValue = minValue(1)
-      itemsPerPageRules.maxValue = maxValue(this.maxItemPerPage)
+      itemsPerPageRules.required = helpers.withMessage(
+        this.$t('error.requiredField'),
+        required
+      )
+      itemsPerPageRules.minValue = helpers.withMessage(
+        this.$t('error.minValueField', { min: 1 }),
+        minValue(1)
+      )
+      itemsPerPageRules.maxValue = helpers.withMessage(
+        this.$t('error.maxValueField', { max: this.maxItemPerPage }),
+        maxValue(this.maxItemPerPage)
+      )
     }
     return {
       values: {
         fields: {
-          $each: {
+          $each: helpers.forEach({
             name: {
-              required,
-              maxLength: maxLength(225),
+              required: helpers.withMessage(
+                this.$t('error.requiredField'),
+                required
+              ),
+              maxLength: helpers.withMessage(
+                this.$t('error.maxLength', { max: 255 }),
+                maxLength(225)
+              ),
             },
-          },
+          }),
         },
         items_per_page: itemsPerPageRules,
       },

@@ -4,27 +4,27 @@
     <p>{{ $t('inviteStep.description') }}</p>
 
     <FormGroup
-      v-for="(email, i) in emails"
-      :key="i"
-      :error="$v.emails.$each[i].$dirty && !$v.emails.$each[i].email"
+      v-for="(email, index) in emails"
+      :key="index"
+      :error="v$.emails.$each.$response?.$data[index]?.email.$error"
       required
       small-label
       class="margin-bottom-2"
     >
-      <template v-if="i === 0" #label
+      <template v-if="index === 0" #label
         ><span class="margin-bottom-2">{{
           $t('inviteStep.collaboratorsLabel')
         }}</span></template
       >
       <FormInput
-        v-model="emails[i]"
-        :label="i === 0 ? $t('inviteStep.collaboratorsLabel') : null"
+        v-model="email.email"
+        :label="index === 0 ? $t('inviteStep.collaboratorsLabel') : null"
         :placeholder="'example@gmail.com'"
-        :error="$v.emails.$each[i].$dirty && !$v.emails.$each[i].email"
+        :error="v$.emails.$each.$response?.$data[index]?.email.$error"
         icon-right="iconoir-mail"
         size="large"
-        @input="updateValue(i, $event)"
-        @blur="$v.emails.$each[i].$touch()"
+        @input=";[v$.emails.$touch(), updateValue(index, $event)]"
+        @blur="v$.emails.$touch"
       />
       <template #error>{{ $t('error.email') }}</template>
     </FormGroup>
@@ -32,13 +32,32 @@
 </template>
 
 <script>
-import { email } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive } from 'vue'
+import { email, helpers } from '@vuelidate/validators'
 
 export default {
   name: 'InviteStep',
-  data() {
+  setup() {
+    const values = reactive({
+      emails: [
+        { email: '' },
+        { email: '' },
+        { email: '' },
+        { email: '' },
+        { email: '' },
+      ],
+    })
+
+    const rules = {
+      emails: {
+        $each: helpers.forEach({ email: { email } }),
+      },
+    }
+
     return {
-      emails: ['', '', '', '', ''],
+      emails: values.emails,
+      v$: useVuelidate(rules, values, { $lazy: true }),
     }
   },
   mounted() {
@@ -46,19 +65,14 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.$v.$invalid
+      if (!this.v$.$dirty) return true
+      return !this.v$.$invalid && this.v$.$dirty
     },
     updateValue() {
-      const emails = this.emails.filter((email) => !!email)
+      const filteredEmails = this.emails.filter((email) => !!email.email)
+      const emails = filteredEmails.map((email) => email.email)
       this.$emit('update-data', { emails })
     },
-  },
-  validations() {
-    return {
-      emails: {
-        $each: { email },
-      },
-    }
   },
 }
 </script>

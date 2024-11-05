@@ -16,16 +16,16 @@
       <FormGroup
         small-label
         :label="$t('field.emailAddress')"
-        :error="$v.account.email.$error"
+        :error="v$.account.email.$error"
         required
         class="mb-24"
       >
         <FormInput
           v-if="invitation !== null"
           ref="email"
+          v-model="account.email"
           type="email"
           disabled
-          :value="account.email"
           :placeholder="$t('signup.emailPlaceholder')"
         ></FormInput>
 
@@ -37,8 +37,8 @@
           type="text"
           autocomplete="username"
           :placeholder="$t('signup.emailPlaceholder')"
-          :error="$v.account.email.$error"
-          @blur="$v.account.email.$touch()"
+          :error="v$.account.email.$error"
+          @blur="v$.account.email.$touch"
         />
 
         <template #error>
@@ -50,17 +50,18 @@
       <FormGroup
         small-label
         :label="$t('field.name')"
-        :error="$v.account.name.$error"
+        :error="v$.account.name.$error"
         required
         class="mb-24"
       >
         <FormInput
+          ref="name"
           v-model="account.name"
-          :error="$v.account.name.$error"
+          :error="v$.account.name.$error"
           type="text"
           size="large"
           :placeholder="$t('signup.namePlaceholder')"
-          @blur="$v.account.name.$touch()"
+          @blur="v$.account.name.$touch"
         >
         </FormInput>
 
@@ -78,7 +79,7 @@
       >
         <PasswordInput
           v-model="account.password"
-          :validation-state="$v.account.password"
+          :validation-state="v$.account.password"
           :placeholder="$t('signup.passwordPlaceholder')"
           :error-placeholder-class="'auth__control-error'"
           :show-error-icon="true"
@@ -111,7 +112,9 @@
 </template>
 
 <script>
-import { email, maxLength, minLength, required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
+import { email, maxLength, minLength, required } from '@vuelidate/validators'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
@@ -133,14 +136,35 @@ export default {
       default: null,
     },
   },
+  setup() {
+    const values = reactive({
+      account: {
+        email: '',
+        password: '',
+        name: '',
+      },
+    })
+
+    const rules = computed(() => ({
+      account: {
+        email: { required, email },
+        name: {
+          required,
+          minLength: minLength(2),
+          maxLength: maxLength(150),
+        },
+        password: passwordValidation,
+      },
+    }))
+
+    return {
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      account: values.account,
+    }
+  },
   data() {
     return {
       loading: false,
-      account: {
-        email: '',
-        name: '',
-        password: '',
-      },
     }
   },
   computed: {
@@ -157,7 +181,7 @@ export default {
   },
   methods: {
     async register() {
-      this.$v.$touch()
+      this.v$.$touch()
       let registerComponentsValid = true
 
       for (let i = 0; i < this.registerComponents.length; i++) {
@@ -170,7 +194,7 @@ export default {
         }
       }
 
-      if (this.$v.$invalid || !registerComponentsValid) {
+      if (this.v$.$invalid || !registerComponentsValid) {
         return
       }
 
@@ -223,17 +247,6 @@ export default {
     },
     updatedAccount({ key, value }) {
       this.$set(this.account, key, value)
-    },
-  },
-  validations: {
-    account: {
-      email: { required, email },
-      name: {
-        required,
-        minLength: minLength(2),
-        maxLength: maxLength(150),
-      },
-      password: passwordValidation,
     },
   },
 }

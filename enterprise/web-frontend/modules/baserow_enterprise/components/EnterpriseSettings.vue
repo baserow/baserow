@@ -96,8 +96,8 @@ export default {
   },
   methods: {
     async updateSettings(values) {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      if (this.v$.$invalid) {
         return
       }
       try {
@@ -114,6 +114,5 @@ export default {
       this.$refs.userFilesModal.hide()
     },
   },
-  validations: {},
 }
 </script>

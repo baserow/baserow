@@ -4,14 +4,14 @@
       :label="$t('fieldDateSubForm.dateFormatLabel')"
       small-label
       required
-      :error="$v.values.date_format.$error"
+      :error="v$.values.date_format.$error"
       class="margin-bottom-2"
     >
       <Dropdown
-        v-model="values.date_format"
-        :error="$v.values.date_format.$error"
+        v-model="v$.values.date_format.$model"
+        :error="v$.values.date_format.$error"
         :fixed-items="true"
-        @hide="$v.values.date_format.$touch()"
+        @hide="v$.values.date_format.$touch"
       >
         <DropdownItem
           :name="$t('fieldDateSubForm.dateFormatEuropean') + ' (20/02/2020)'"
@@ -40,9 +40,9 @@
       class="margin-bottom-2 margin-top-1"
     >
       <Dropdown
-        v-model="values.date_time_format"
+        v-model="v$.values.date_time_format.$model"
         :fixed-items="true"
-        @hide="$v.values.date_time_format.$touch()"
+        @hide="v$.values.date_time_format.$touch"
       >
         <DropdownItem
           :name="$t('fieldDateSubForm.24Hour') + ' (23:00)'"
@@ -107,7 +107,8 @@
 
 <script>
 import moment from '@baserow/modules/core/moment'
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
 
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
@@ -119,6 +120,9 @@ export default {
     PaginatedDropdown,
   },
   mixins: [form, fieldSubForm],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: [
@@ -221,14 +225,16 @@ export default {
       }
     },
   },
-  validations: {
-    values: {
-      date_format: { required },
-      date_time_format: { required },
-      date_show_tzinfo: { required },
-      date_force_timezone: {},
-      date_force_timezone_offset: {},
-    },
+  validations() {
+    return {
+      values: {
+        date_format: { required },
+        date_time_format: { required },
+        date_show_tzinfo: { required },
+        date_force_timezone: {},
+        date_force_timezone_offset: {},
+      },
+    }
   },
 }
 </script>

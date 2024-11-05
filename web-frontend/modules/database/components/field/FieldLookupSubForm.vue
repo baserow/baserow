@@ -91,7 +91,6 @@ export default {
       },
     },
   },
-  validations: {},
   methods: {
     getFormulaType(field) {
       return field.array_formula_type || field.formula_type || field.type

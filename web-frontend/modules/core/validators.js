@@ -4,7 +4,8 @@
   
   modules/core/components/helpers/PasswordInput.vue
 */
-import { maxLength, minLength, required } from 'vuelidate/lib/validators'
+
+import { maxLength, minLength, required } from '@vuelidate/validators'
 
 export const passwordValidation = {
   required,

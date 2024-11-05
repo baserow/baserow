@@ -11,31 +11,18 @@
       required
       :label="$t('aiFormulaModal.label')"
       :help-text="$t('aiFormulaModal.labelDescription')"
-      :error="$v.values.ai_prompt.$dirty && $v.values.ai_prompt.$error"
+      :error="fieldHasErrors('ai_prompt')"
     >
       <FormTextarea
-        v-model="values.ai_prompt"
-        :error="$v.values.ai_prompt.$dirty && $v.values.ai_prompt.$error"
+        v-model="v$.values.ai_prompt.$model"
+        :error="fieldHasErrors('ai_prompt')"
         auto-expandable
         :min-rows="5"
-        @input="$v.values.ai_prompt.$touch()"
+        @input="v$.values.ai_prompt.$touch"
       >
       </FormTextarea>
       <template #error>
-        <div v-if="$v.values.ai_prompt.$dirty && !$v.values.ai_prompt.required">
-          {{ $t('error.requiredField') }}
-        </div>
-        <span
-          v-else-if="
-            $v.values.ai_prompt.$dirty && !$v.values.ai_prompt.maxLength
-          "
-        >
-          {{
-            $t('error.maxLength', {
-              max: $v.values.ai_prompt.$params.maxLength.max,
-            })
-          }}</span
-        >
+        {{ v$.values.ai_prompt.$errors[0]?.$message }}
       </template>
     </FormGroup>
     <div class="align-right">
@@ -45,8 +32,9 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import SelectAIModelForm from '@baserow/modules/core/components/ai/SelectAIModelForm'
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 
@@ -60,6 +48,9 @@ export default {
       required: true,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: ['ai_prompt'],
@@ -68,13 +59,23 @@ export default {
       },
     }
   },
-  validations: {
-    values: {
-      ai_prompt: {
-        required,
-        maxLength: maxLength(1000),
+  validations() {
+    return {
+      values: {
+        ai_prompt: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', {
+              max: 1000,
+            }),
+            maxLength(1000)
+          ),
+        },
       },
-    },
+    }
   },
 }
 </script>

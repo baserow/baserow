@@ -8,7 +8,11 @@
       small-label
       class="margin-bottom-2"
     >
-      <Dropdown v-model="values.interval" :disabled="disabled" size="large">
+      <Dropdown
+        v-model="v$.values.interval.$model"
+        :disabled="disabled"
+        size="large"
+      >
         <DropdownItem
           :name="$t('dataSyncPeriodicIntervalForm.manual')"
           value="MANUAL"
@@ -29,41 +33,41 @@
           v-if="values.interval === 'DAILY'"
           small-label
           :label="$t('dataSyncPeriodicIntervalForm.hour')"
-          :error="$v.hour.$dirty && $v.hour.$error"
+          :error="v$.hour.$error"
           required
         >
           <FormInput
-            v-model="hour"
+            v-model="v$.hour.$model"
             :disabled="disabled"
             size="large"
             type="number"
             :min="0"
             :max="23"
-            @blur="$v.hour.$touch()"
+            @blur="v$.hour.$touch"
             @input="updateWhen"
           />
         </FormGroup>
         <FormGroup
           small-label
           :label="$t('dataSyncPeriodicIntervalForm.minute')"
-          :error="$v.minute.$dirty && $v.minute.$error"
+          :error="v$.minute.$error"
           required
         >
           <FormInput
-            v-model="minute"
+            v-model="v$.minute.$model"
             :disabled="disabled"
             size="large"
             type="number"
             :min="0"
             :max="59"
-            @blur="$v.minute.$touch()"
+            @blur="v$.minute.$touch"
             @input="updateWhen"
           />
         </FormGroup>
         <FormGroup
           small-label
           :label="$t('dataSyncPeriodicIntervalForm.second')"
-          :error="$v.second.$dirty && $v.second.$error"
+          :error="v$.second.$error"
           required
         >
           <FormInput
@@ -73,7 +77,7 @@
             type="number"
             :min="0"
             :max="59"
-            @blur="$v.second.$touch()"
+            @blur="v$.second.$touch"
             @input="updateWhen"
           />
         </FormGroup>
@@ -95,8 +99,9 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import moment from '@baserow/modules/core/moment'
-import { required, numeric, minValue, maxValue } from 'vuelidate/lib/validators'
+import { required, numeric, minValue, maxValue } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -108,6 +113,9 @@ export default {
       required: false,
       default: false,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {

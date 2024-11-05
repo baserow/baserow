@@ -27,7 +27,7 @@
             :placeholder="$t('login.emailPlaceholder')"
             :error="fieldHasErrors('email') || loginRequestError"
             @input="loginRequestError = null"
-            @blur="$v.values.email.$touch()"
+            @blur="v$.values.email.$touch"
           ></FormInput>
 
           <template #error>
@@ -74,8 +74,10 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive } from 'vue'
 import decamelize from 'decamelize'
-import { required, email } from 'vuelidate/lib/validators'
+import { required, email } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import workspaceInvitationToken from '@baserow/modules/core/mixins/workspaceInvitationToken'
@@ -85,6 +87,24 @@ import samlAuthProviderService from '@baserow_enterprise/services/samlAuthProvid
 export default {
   mixins: [form, error],
   layout: 'login',
+  setup() {
+    const values = reactive({
+      values: {
+        email: '',
+      },
+    })
+
+    const rules = {
+      values: {
+        email: { required, email },
+      },
+    }
+
+    return {
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      values: values.values,
+    }
+  },
   async asyncData({ app, redirect, store, route }) {
     // the SuperUser must create the account using username and password
     if (store.getters['settings/get'].show_admin_signup_page === true) {
@@ -127,9 +147,6 @@ export default {
       loading: false,
       redirectImmediately: false,
       loginRequestError: false,
-      values: {
-        email: '',
-      },
     }
   },
   computed: {
@@ -146,9 +163,9 @@ export default {
   },
   methods: {
     async login() {
-      this.$v.$touch()
+      this.v$.$touch()
       this.loginRequestError = false
-      if (this.$v.$invalid) {
+      if (this.v$.$invalid) {
         this.focusOnFirstError()
         return
       }
@@ -180,11 +197,6 @@ export default {
         }
       }
       return parsedUrl.toString()
-    },
-  },
-  validations: {
-    values: {
-      email: { required, email },
     },
   },
 }

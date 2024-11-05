@@ -55,16 +55,18 @@ export class LocalBaserowTableServiceType extends ServiceType {
    * @returns {string} - The description of the service.
    */
   getDescription(service, application) {
-    const integration = this.app.store.getters[
-      'integration/getIntegrationById'
-    ](application, service.integration_id)
+    if (service.integration_id) {
+      const integration = this.app.store.getters[
+        'integration/getIntegrationById'
+      ](application, service.integration_id)
 
-    const databases = integration?.context_data?.databases || []
+      const databases = integration?.context_data?.databases || []
 
-    const tableSelected = databases
-      .map((database) => database.tables)
-      .flat()
-      .find(({ id }) => id === service.table_id)
+      if (databases) {
+        const tableSelected = databases
+          .map((database) => database.tables)
+          .flat()
+          .find(({ id }) => id === service.table_id)
 
     let description = this.name
     if (service.table_id && tableSelected) {

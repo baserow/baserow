@@ -1,5 +1,6 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import UsersAdminTable from '@baserow/modules/core/components/admin/users/UsersAdminTable'
+import UserForm from '@baserow/modules/core/components/admin/users/forms/UserForm'
 import moment from '@baserow/modules/core/moment'
 import flushPromises from 'flush-promises'
 import UserAdminUserHelpers from '@baserow/test/helpers/userAdminHelpers'
@@ -185,12 +186,13 @@ describe('User Admin Component Tests', () => {
 
     const validPassword = '1'.repeat(8)
 
-    expect(
-      await ui.attemptToChangePasswordReturningModalError(
-        validPassword,
-        validPassword + 'DifferentFromFirst'
-      )
-    ).toContain('changePasswordForm.error.doesntMatch')
+    const errors = await ui.attemptToChangePasswordReturningModalError(
+      validPassword,
+      validPassword + 'DifferentFromFirst'
+    )
+    expect(errors.length).toBeGreaterThan(0)
+    const error = errors.find((obj) => obj.$property === 'passwordConfirm')
+    expect(error.$validator).toMatch('sameAsPassword')
   })
 
   test('users password cant be changed less than 8 characters', async () => {
@@ -198,12 +200,14 @@ describe('User Admin Component Tests', () => {
 
     const tooShortPassword = '1'.repeat(7)
 
-    expect(
-      await ui.attemptToChangePasswordReturningModalError(
-        tooShortPassword,
-        tooShortPassword
-      )
-    ).toContain('error.minLength')
+    const errors = await ui.attemptToChangePasswordReturningModalError(
+      tooShortPassword,
+      tooShortPassword
+    )
+
+    expect(errors.length).toBeGreaterThan(0)
+    const error = errors.find((obj) => obj.$property === 'password')
+    expect(error.$validator).toMatch('minLength')
   })
 
   test('users password cant be changed to more than 256 characters', async () => {
@@ -211,12 +215,14 @@ describe('User Admin Component Tests', () => {
 
     const tooLongPassword = '1'.repeat(257)
 
-    expect(
-      await ui.attemptToChangePasswordReturningModalError(
-        tooLongPassword,
-        tooLongPassword
-      )
-    ).toContain('error.maxLength')
+    const errors = await ui.attemptToChangePasswordReturningModalError(
+      tooLongPassword,
+      tooLongPassword
+    )
+
+    expect(errors.length).toBeGreaterThan(0)
+    const error = errors.find((obj) => obj.$property === 'password')
+    expect(error.$validator).toMatch('maxLength')
   })
 
   test('users password can be changed to 256 characters', async () => {
@@ -296,10 +302,9 @@ describe('User Admin Component Tests', () => {
 
     const tooShortFullName = '1'
 
-    const modal = await ui.changeFullName(tooShortFullName)
-    const error = ui.getModalFieldErrorText(modal)
-
-    expect(error).toContain('userForm.error.invalidName')
+    const editUserModal = await ui.changeFullName(tooShortFullName)
+    const userFormComponent = editUserModal.findComponent(UserForm)
+    expect(userFormComponent.vm.v$.values.name.minLength.$invalid).toBe(true)
   })
 
   test('a users full name cant be changed to more than 150 characters', async () => {
@@ -307,10 +312,9 @@ describe('User Admin Component Tests', () => {
 
     const tooLongFullName = '1'.repeat(151)
 
-    const modal = await ui.changeFullName(tooLongFullName)
-    const error = ui.getModalFieldErrorText(modal)
-
-    expect(error).toContain('userForm.error.invalidName')
+    const editUserModal = await ui.changeFullName(tooLongFullName)
+    const userFormComponent = editUserModal.findComponent(UserForm)
+    expect(userFormComponent.vm.v$.values.name.maxLength.$invalid).toBe(true)
   })
 
   test('a users username be changed', async () => {
@@ -341,10 +345,9 @@ describe('User Admin Component Tests', () => {
 
     const invalidEmail = '1'
 
-    const modal = await ui.changeEmail(invalidEmail)
-    const error = ui.getModalFieldErrorText(modal)
-
-    expect(error).toContain('userForm.error.invalidEmail')
+    const editUserModal = await ui.changeEmail(invalidEmail)
+    const userFormComponent = editUserModal.findComponent(UserForm)
+    expect(userFormComponent.vm.v$.values.username.email.$invalid).toBe(true)
   })
 
   test('changing a users username and closing without saving resets the modals form', async () => {
@@ -355,15 +358,13 @@ describe('User Admin Component Tests', () => {
 
     const usernameEnteredButNotSaved = 'invalid'
 
-    await ui.changeEmail(usernameEnteredButNotSaved, {
+    const editUserModal = await ui.changeEmail(usernameEnteredButNotSaved, {
       clickSave: false,
       exit: true,
     })
-    await flushPromises()
-    const emailField = await ui.getUserEditModalEmailField()
-    await flushPromises()
 
-    expect(emailField.element.value).toBe(initialUsername)
+    const userFormComponent = editUserModal.findComponent(UserForm)
+    expect(userFormComponent.vm.v$.values.username.$model).toBe(initialUsername)
   })
   test('a user can be set as staff ', async () => {
     await testToggleStaff(false)
