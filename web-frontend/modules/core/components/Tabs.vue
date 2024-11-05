@@ -4,7 +4,8 @@
     :class="{
       'tabs--full-height': fullHeight,
       'tabs--large-offset': largeOffset,
-      'tabs--nopadding': noPadding,
+      'tabs--no-padding-x': noPaddingX,
+      'tabs--no-padding-y': noPaddingY,
       'tabs--grow-items': growItems,
     }"
   >
@@ -76,9 +77,17 @@ export default {
       default: false,
     },
     /**
-     * Removes the padding from the tabs container and header.
+     * Removes the padding from the left and right of the tabs container and header.
      */
-    noPadding: {
+    noPaddingX: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
+     * Removes the padding from the top and bottom of the tabs container.
+     */
+    noPaddingY: {
       type: Boolean,
       required: false,
       default: false,

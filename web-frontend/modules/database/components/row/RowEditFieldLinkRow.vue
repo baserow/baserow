@@ -1,5 +1,14 @@
 <template>
   <div class="control__elements">
+    <span v-if="!readOnly" class="row-modal__choose-button">
+      <ButtonText
+        type="secondary"
+        icon="iconoir-plus"
+        @click.prevent="$refs.selectModal.show()"
+      >
+        {{ $t('rowEditFieldLinkRow.addLink') }}
+      </ButtonText>
+    </span>
     <ul class="field-link-row__items">
       <li v-for="item in value" :key="item.id" class="field-link-row__item">
         <component
@@ -26,10 +35,6 @@
         </a>
       </li>
     </ul>
-    <a v-if="!readOnly" class="add" @click.prevent="$refs.selectModal.show()">
-      <i class="iconoir-plus add__icon"></i>
-      {{ $t('rowEditFieldLinkRow.addLink') }}
-    </a>
     <div v-show="touched && !valid" class="error">
       {{ error }}
     </div>
@@ -56,14 +61,12 @@
     ></ForeignRowEditModal>
   </div>
 </template>
-
 <script>
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import linkRowField from '@baserow/modules/database/mixins/linkRowField'
 import SelectRowModal from '@baserow/modules/database/components/row/SelectRowModal'
 import ForeignRowEditModal from '@baserow/modules/database/components/row/ForeignRowEditModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-
 export default {
   components: { SelectRowModal, ForeignRowEditModal },
   mixins: [rowEditField, linkRowField],
@@ -102,7 +105,6 @@ export default {
       if (this.readOnly || this.isInForeignRowEditModal) {
         return
       }
-
       this.itemLoadingId = item.id
       try {
         await this.$refs.rowEditModal.show(item.id)

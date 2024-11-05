@@ -29,12 +29,14 @@
     "viewPricing": "View pricing"
   },
   "rowCommentSidebar": {
-    "onlyPremium": "Row comments are available in the premium version.",
-    "readOnlyNoComment": "No comments for this row.",
-    "noComment": "No comments for this row yet. Use the form below to add a comment.",
+    "noCommentsYet": "No comments yet",
+    "noComment": "Use the form below to start a conversation.",
     "comment": "Comment",
     "more": "More information",
-    "name": "Comments"
+    "name": "Comments",
+    "upgradeTitle": "Upgrade to use row comments",
+    "upgradeText": "Row comments are available in the premium version of Baserow.",
+    "upgradeButton": "Upgrade now"
   },
   "rowComment": {
     "you": "You",

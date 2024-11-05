@@ -1,7 +1,11 @@
 <template>
   <div class="row-history-entry">
     <div class="row-history-entry__header">
-      <span class="row-history-entry__initials">{{ initials }}</span>
+      <Avatar
+        :color="ownChange ? 'purple' : 'blue'"
+        :initials="initials"
+        rounded
+      />
       <span class="row-history-entry__name">{{ name }}</span>
       <span class="row-history-entry__timestamp" :title="timestampTooltip">{{
         formattedTimestamp
@@ -53,6 +57,9 @@ export default {
     },
   },
   computed: {
+    ownChange() {
+      return this.entry.user.id === this.$store.getters['auth/getUserObject'].id
+    },
     name() {
       if (this.entry.user.id === this.$store.getters['auth/getUserObject'].id) {
         return this.$t('rowHistorySidebar.you')

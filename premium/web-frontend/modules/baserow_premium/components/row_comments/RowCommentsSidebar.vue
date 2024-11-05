@@ -1,47 +1,60 @@
 <template>
-  <div>
+  <div style="height: 100%">
     <template v-if="!hasPremiumFeaturesEnabled">
       <div class="row-comments">
         <div class="row-comments__empty">
-          <i class="row-comments__empty-icon iconoir-multi-bubble"></i>
-          <div class="row-comments__empty-text">
-            {{ $t('rowCommentSidebar.onlyPremium') }}
+          <div>
+            <h4>
+              {{ $t('rowCommentSidebar.upgradeTitle') }}
+            </h4>
+            <p>
+              {{ $t('rowCommentSidebar.upgradeText') }}
+            </p>
+            <Button
+              icon="baserow-icon-lock-open"
+              type="primary"
+              @click="$refs.premiumModal.show()"
+            >
+              {{ $t('rowCommentSidebar.upgradeButton') }}
+            </Button>
+
+            <PremiumModal
+              ref="premiumModal"
+              :name="$t('rowCommentSidebar.name')"
+              :workspace="workspace"
+            ></PremiumModal>
           </div>
-          <Button
-            type="primary"
-            icon="iconoir-no-lock"
-            @click="$refs.premiumModal.show()"
-          >
-            {{ $t('rowCommentSidebar.more') }}
-          </Button>
         </div>
-        <PremiumModal
-          ref="premiumModal"
-          :name="$t('rowCommentSidebar.name')"
-          :workspace="workspace"
-        ></PremiumModal>
       </div>
     </template>
     <template v-else>
       <div v-if="!loaded && loading" class="loading-absolute-center" />
-      <div v-else>
+      <template v-else>
         <div class="row-comments">
           <div v-if="currentCount === 0" class="row-comments__empty">
-            <i class="row-comments__empty-icon iconoir-multi-bubble"></i>
-            <div class="row-comments__empty-text">
-              <template
-                v-if="
-                  !$hasPermission(
-                    'database.table.create_comment',
-                    table,
-                    workspace.id
-                  )
-                "
-                >{{ $t('rowCommentSidebar.readOnlyNoComment') }}</template
-              >
-              <template v-else>
-                {{ $t('rowCommentSidebar.noComment') }}
-              </template>
+            <div class="row-comments__empty-content">
+              <ButtonIcon
+                type="secondary"
+                class="margin-bottom-2"
+                icon="iconoir-message-text"
+              ></ButtonIcon>
+
+              <div>
+                <h4>
+                  {{ $t('rowCommentSidebar.noCommentsYet') }}
+                </h4>
+                <p
+                  v-if="
+                    $hasPermission(
+                      'database.table.create_comment',
+                      table,
+                      workspace.id
+                    )
+                  "
+                >
+                  {{ $t('rowCommentSidebar.noComment') }}
+                </p>
+              </div>
             </div>
           </div>
           <div v-else class="row-comments__body">
@@ -97,7 +110,7 @@
             />
           </div>
         </div>
-      </div>
+      </template>
     </template>
   </div>
 </template>

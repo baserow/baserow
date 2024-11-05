@@ -1,10 +1,45 @@
 .row-edit-modal__navigation {
-  margin-bottom: 15px;
-  height: 20px;
+  @include flex-align-items;
+}
+
+.row-edit-modal__navigation-loading {
+  width: 64px;
 }
 
 .row-edit-modal__navigation-item {
-  padding: 5px;
-  color: $color-neutral-500;
-  font-size: 18px;
+  border: 1px solid $palette-neutral-400;
+  height: 32px;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $palette-neutral-500;
+  font-size: 14px;
+
+  &:hover {
+    color: $palette-neutral-700;
+  }
+
+  &:nth-child(1) {
+    border-top-left-radius: $rounded-md;
+    border-bottom-left-radius: $rounded-md;
+  }
+
+  &:nth-child(2) {
+    border-top-right-radius: $rounded-md;
+    border-bottom-right-radius: $rounded-md;
+    position: relative;
+    left: -1px;
+  }
+}
+
+.row-edit-modal__heading {
+  font-size: 12px;
+  margin-left: 24px;
+  color: $palette-neutral-900;
+
+  strong {
+    font-weight: 400;
+    color: $palette-neutral-1200;
+  }
 }

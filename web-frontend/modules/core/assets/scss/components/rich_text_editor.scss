@@ -133,21 +133,21 @@
 
 .rich-text-editor__mention,
 span[data-type='mention'] {
-  padding: 0 2px;
-  background-color: rgba(6, 46, 71, 0.08);
-  font-weight: 600;
+  padding: 0 4px;
+  background-color: $palette-neutral-100;
+  font-weight: 500;
 
   @include rounded($rounded);
 }
 
 .rich-text-editor__mention--current-user {
-  color: $color-primary-700;
-  background-color: $color-primary-100;
+  color: $palette-blue-500;
+  background-color: $palette-blue-50;
 }
 
 .rich-text-editor__mention--user-gone {
   text-decoration: line-through;
-  background-color: $color-error-100;
+  background-color: $palette-red-50;
 }
 
 .rich-text-editor__mention-dropdown {

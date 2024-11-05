@@ -11,6 +11,7 @@
       :class="{
         'modalv2--full-height': fullHeight && size !== 'fullscreen',
         'modalv2--with-sidebar': sidebar,
+        'modalv2--sidebar-no-scroll': sidebarNoScroll,
         'modalv2--with-topbar': topbar,
         'modalv2--with-header': header,
         'modalv2--with-right-sidebar': rightSidebar,
@@ -83,6 +84,14 @@ export default {
      * If the modal has a topbar.
      */
     topbar: {
+      type: Boolean,
+      default: false,
+      required: false,
+    },
+    /**
+     * Remove vertical scroll from sidebar.
+     */
+    sidebarNoScroll: {
       type: Boolean,
       default: false,
       required: false,

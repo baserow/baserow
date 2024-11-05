@@ -1,6 +1,5 @@
 .row-comments {
-  @include absolute(0, 0, 0, 0);
-
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -17,14 +16,18 @@
 }
 
 .row-comments__empty {
-  text-align: center;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  margin: 0 30px;
+  position: relative;
   height: 100%;
-  border-top-left-radius: 6px;
+  overflow-y: auto;
+  text-align: center;
+  display: grid;
+  place-items: center;
+}
+
+.row-comments__empty-content {
+  display: table-cell;
+  vertical-align: middle;
+  padding: 30px;
 }
 
 .row-comments__empty-icon {
@@ -34,8 +37,6 @@
 
 .row-comments__empty-text {
   font-size: 14px;
-  line-height: 160%;
-  margin-bottom: 30px;
 }
 
 .row-comments__loading {
@@ -49,32 +50,34 @@
 }
 
 .row-comments__comment--editing {
-  background-color: $color-neutral-100;
+  background-color: $palette-neutral-100;
 }
 
 .row-comments__comment-head {
   display: flex;
   margin-bottom: 6px;
-
-  .row-comments__comment--right & {
-    justify-items: flex-end;
-    flex-direction: row-reverse;
-  }
 }
 
 .row-comments__comment-head-initial {
   flex: 0 0 30px;
   border-radius: 100%;
-  background-color: $color-primary-500;
+  background-color: $palette-blue-500;
   color: $white;
   font-weight: 600;
 
   @include center-text(30px, 12px);
+}
 
-  .row-comments__comment--right & {
-    margin-right: 0;
-    margin-left: 10px;
-  }
+.row-comments__comment-edited {
+  color: $palette-neutral-700;
+  font-size: 11px;
+}
+
+.row-comments__comment-head-extra {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  gap: 8px;
 }
 
 .row-comments__comment-head-details {
@@ -85,10 +88,6 @@
   justify-content: left;
   gap: 8px;
   align-items: center;
-
-  .row-comments__comment--right & {
-    justify-content: right;
-  }
 }
 
 .row-comments__comment-head-name {
@@ -96,37 +95,29 @@
 
   font-size: 12px;
   line-height: 22px;
-
-  .row-comments__comment--right & {
-    text-align: right;
-  }
 }
 
 .row-comments__comment-head-time {
   @extend %ellipsis;
 
-  font-size: 12px;
-  font-weight: 400;
-  color: $color-neutral-400;
-
-  .row-comments__comment--right & {
-    text-align: right;
-  }
+  font-size: 11px;
+  color: $palette-neutral-700;
 }
 
 .row-comments__comment-text {
   font-size: 13px;
   line-height: 22px;
   background-color: white;
-  padding: 10px 16px;
+  padding: 10px 12px;
   width: fit-content;
   max-width: 100%;
-  margin-left: 0;
+  margin-left: 30px;
   margin-right: auto;
   border-top-left-radius: 3px;
   word-wrap: break-word;
-  border: 1px solid $color-neutral-200;
+  border: 1px solid $palette-neutral-400;
   white-space: pre-line;
+  word-break: break-all;
 
   @include rounded($rounded-md);
   @include elevation($elevation-low);
@@ -135,25 +126,12 @@
     font-size: 13px;
   }
 
-  .row-comments__comment--right & {
-    background-color: $color-primary-200;
-    border: 1px solid $color-primary-200;
-    text-align: right;
-    margin-left: auto;
-    margin-right: 0;
-    border-top-right-radius: 3px;
-    box-shadow: none;
-
-    @include rounded($rounded-md);
-  }
-
   .row-comments__comment--editing & {
     background-color: white;
     text-align: revert;
-    border: 1px solid $color-neutral-200;
-    margin-right: 20px;
-    margin-left: 0;
-    width: 100%;
+    border: 1px solid $palette-neutral-400;
+    margin-left: 30px;
+    width: auto;
   }
 
   & p {
@@ -165,7 +143,8 @@
   position: relative;
   flex-shrink: 0;
   padding: 20px;
-  border-top: solid 1px $color-neutral-200;
+  border-top: solid 1px $palette-neutral-200;
+  margin-top: auto;
 
   .rich-text-editor__content {
     @extend %form-input;
@@ -229,21 +208,19 @@
 .row-comment__day-separator {
   position: relative;
   height: 1px;
-  background: $color-neutral-200;
+  background: $palette-neutral-200;
   margin: 32px 0;
 
   span {
     position: absolute;
-    top: -16px;
+    top: -15px;
     left: 50%;
     transform: translateX(-50%);
-    background: white;
-    padding: 8px 12px;
-    border: 1px solid $color-neutral-200;
-    border-radius: 80px;
+    padding: 8px 16px;
     font-weight: 500;
-
-    @include elevation($elevation-low);
+    font-size: 11px;
+    color: $palette-neutral-900;
+    background: $palette-neutral-25;
   }
 }
 
