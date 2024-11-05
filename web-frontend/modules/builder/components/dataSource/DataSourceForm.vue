@@ -53,7 +53,7 @@
             v-model="values.name"
             class="data-source-form__name-input"
             :placeholder="$t('dataSourceForm.namePlaceholder')"
-            @blur="$v.values.name.$touch()"
+            @blur="v$.values.name.$touch()"
           />
         </FormGroup>
       </div>
@@ -76,7 +76,7 @@
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import form from '@baserow/modules/core/mixins/form'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { required, maxLength } from '@vuelidate/validators'
 import { DATA_PROVIDERS_ALLOWED_DATA_SOURCES } from '@baserow/modules/builder/enums'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 
@@ -179,28 +179,28 @@ export default {
         ])
     },
     nameError() {
-      if (!this.$v.values.name.$dirty) {
+      if (!this.v$.values.name.$dirty) {
         return ''
       }
-      return !this.$v.values.name.required
+      return !this.v$.values.name.required
         ? this.$t('error.requiredField')
-        : !this.$v.values.name.maxLength
+        : !this.v$.values.name.maxLength
         ? this.$t('error.maxLength', { max: 255 })
-        : !this.$v.values.name.unique
+        : !this.v$.values.name.unique
         ? this.$t('dataSourceForm.errorUniqueName')
         : ''
     },
     typeError() {
-      if (!this.$v.values.type.$dirty) {
+      if (!this.v$.values.type.$dirty) {
         return ''
       }
-      return !this.$v.values.type.required ? this.$t('error.requiredField') : ''
+      return !this.v$.values.type.required ? this.$t('error.requiredField') : ''
     },
     integrationError() {
-      if (!this.$v.values.integration_id.$dirty) {
+      if (!this.v$.values.integration_id.$dirty) {
         return ''
       }
-      return !this.$v.values.integration_id.required
+      return !this.v$.values.integration_id.required
         ? this.$t('error.requiredField')
         : ''
     },

@@ -11,15 +11,15 @@
         :label="$t('passwordSettings.oldPasswordLabel')"
         small-label
         required
-        :error="$v.account.oldPassword.$error"
+        :error="v$.account.oldPassword.$error"
         class="margin-bottom-2"
       >
         <FormInput
           v-model="account.oldPassword"
-          :error="$v.account.oldPassword.$error"
+          :error="v$.account.oldPassword.$error"
           type="password"
           size="large"
-          @blur="$v.account.oldPassword.$touch()"
+          @blur="v$.account.oldPassword.$touch()"
         ></FormInput>
         <template #error>
           {{ $t('passwordSettings.oldPasswordRequiredError') }}</template
@@ -28,13 +28,13 @@
 
       <PasswordInput
         v-model="account.newPassword"
-        :validation-state="$v.account.newPassword"
+        :validation-state="v$.account.newPassword"
         :label="$t('passwordSettings.newPasswordLabel')"
         class="margin-bottom-2"
       ></PasswordInput>
 
       <FormGroup
-        :error="$v.account.passwordConfirm.$error"
+        :error="v$.account.passwordConfirm.$error"
         :label="$t('passwordSettings.repeatNewPasswordLabel')"
         required
         small-label
@@ -42,10 +42,10 @@
       >
         <FormInput
           v-model="account.passwordConfirm"
-          :error="$v.account.passwordConfirm.$error"
+          :error="v$.account.passwordConfirm.$error"
           type="password"
           size="large"
-          @blur="$v.account.passwordConfirm.$touch()"
+          @blur="v$.account.passwordConfirm.$touch()"
         >
         </FormInput>
 
@@ -70,7 +70,7 @@
 </template>
 
 <script>
-import { sameAs, required } from 'vuelidate/lib/validators'
+import { sameAs, required } from '@vuelidate/validators'
 
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
@@ -94,9 +94,9 @@ export default {
   },
   methods: {
     async changePassword() {
-      this.$v.$touch()
+      this.v$.$touch()
 
-      if (this.$v.$invalid) {
+      if (this.v$.$invalid) {
         return
       }
 

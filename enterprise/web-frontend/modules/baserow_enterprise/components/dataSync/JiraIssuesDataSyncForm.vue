@@ -14,13 +14,13 @@
         size="large"
         :error="fieldHasErrors('jira_url')"
         @focus.once="$event.target.select()"
-        @blur="$v.values.jira_url.$touch()"
+        @blur="v$.values.jira_url.$touch()"
       />
       <template #error>
-        <span v-if="$v.values.jira_url.$dirty && !$v.values.jira_url.required">
+        <span v-if="v$.values.jira_url.$dirty && !v$.values.jira_url.required">
           {{ $t('error.requiredField') }}
         </span>
-        <span v-else-if="$v.values.jira_url.$dirty && !$v.values.jira_url.url">
+        <span v-else-if="v$.values.jira_url.$dirty && !v$.values.jira_url.url">
           {{ $t('error.invalidURL') }}
         </span>
       </template>
@@ -40,12 +40,12 @@
         size="large"
         :error="fieldHasErrors('jira_username')"
         @focus.once="$event.target.select()"
-        @blur="$v.values.jira_username.$touch()"
+        @blur="v$.values.jira_username.$touch()"
       />
       <template #error>
         <span
           v-if="
-            $v.values.jira_username.$dirty && !$v.values.jira_username.required
+            v$.values.jira_username.$dirty && !v$.values.jira_username.required
           "
         >
           {{ $t('error.requiredField') }}
@@ -67,13 +67,13 @@
         size="large"
         :error="fieldHasErrors('jira_api_token')"
         @focus.once="$event.target.select()"
-        @blur="$v.values.jira_api_token.$touch()"
+        @blur="v$.values.jira_api_token.$touch()"
       />
       <template #error>
         <span
           v-if="
-            $v.values.jira_api_token.$dirty &&
-            !$v.values.jira_api_token.required
+            v$.values.jira_api_token.$dirty &&
+            !v$.values.jira_api_token.required
           "
         >
           {{ $t('error.requiredField') }}
@@ -98,7 +98,7 @@
 </template>
 
 <script>
-import { required, url } from 'vuelidate/lib/validators'
+import { required, url } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {

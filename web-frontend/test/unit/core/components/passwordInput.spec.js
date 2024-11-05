@@ -19,7 +19,7 @@ describe('Password Input Tests', () => {
         return { password: '' }
       },
       template:
-        '<div> <password-input v-model="password" :validation-state="$v.password"></password-input> </div>',
+        '<div> <password-input v-model="password" :validation-state="v$.password"></password-input> </div>',
       components: { 'password-input': PasswordInput },
       validations: {
         password: passwordValidation,
@@ -51,8 +51,8 @@ describe('Password Input Tests', () => {
     const wrapper = mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
-    await wrapper.vm.$v.password.$touch()
-    const inputInvalid = wrapper.vm.$v.$invalid
+    await wrapper.vm.v$.password.$touch()
+    const inputInvalid = wrapper.vm.v$.$invalid
     const errorDiv = getErrorDiv(wrapper)
     expect(errorDiv.exists()).toBeFalsy()
     expect(inputInvalid).toBeFalsy()
@@ -63,8 +63,8 @@ describe('Password Input Tests', () => {
     const wrapper = mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
-    await wrapper.vm.$v.password.$touch()
-    const inputInvalid = wrapper.vm.$v.$invalid
+    await wrapper.vm.v$.password.$touch()
+    const inputInvalid = wrapper.vm.v$.$invalid
     const errorDiv = getErrorDiv(wrapper)
     const errorText = getErrorText(errorDiv)
     expect(errorText).toBe('error.minLength')
@@ -76,8 +76,8 @@ describe('Password Input Tests', () => {
     const wrapper = mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
-    await wrapper.vm.$v.password.$touch()
-    const inputInvalid = wrapper.vm.$v.$invalid
+    await wrapper.vm.v$.password.$touch()
+    const inputInvalid = wrapper.vm.v$.$invalid
     const errorDiv = getErrorDiv(wrapper)
     const errorText = getErrorText(errorDiv)
     expect(errorText).toBe('error.inputRequired')
@@ -89,8 +89,8 @@ describe('Password Input Tests', () => {
     const wrapper = mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
-    await wrapper.vm.$v.password.$touch()
-    const inputInvalid = wrapper.vm.$v.$invalid
+    await wrapper.vm.v$.password.$touch()
+    const inputInvalid = wrapper.vm.v$.$invalid
     const errorDiv = getErrorDiv(wrapper)
     const errorText = getErrorText(errorDiv)
     expect(errorText).toBe('error.maxLength')
@@ -102,8 +102,8 @@ describe('Password Input Tests', () => {
     const wrapper = mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
-    await wrapper.vm.$v.password.$touch()
-    const inputInvalid = wrapper.vm.$v.$invalid
+    await wrapper.vm.v$.password.$touch()
+    const inputInvalid = wrapper.vm.v$.$invalid
     const errorDiv = getErrorDiv(wrapper)
     expect(errorDiv.exists()).toBeFalsy()
     expect(inputInvalid).toBeFalsy()
@@ -114,8 +114,8 @@ describe('Password Input Tests', () => {
     const wrapper = mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
-    await wrapper.vm.$v.password.$touch()
-    const inputInvalid = wrapper.vm.$v.$invalid
+    await wrapper.vm.v$.password.$touch()
+    const inputInvalid = wrapper.vm.v$.$invalid
     const errorDiv = getErrorDiv(wrapper)
     expect(errorDiv.exists()).toBeFalsy()
     expect(inputInvalid).toBeFalsy()

@@ -9,13 +9,13 @@
       small-label
       :label="$t('fieldSelectThroughFieldSubForm.selectThroughFieldLabel')"
       required
-      :error="$v.values.through_field_id.$error"
+      :error="v$.values.through_field_id.$error"
     >
       <Dropdown
         v-model="values.through_field_id"
-        :error="$v.values.through_field_id.$error"
+        :error="v$.values.through_field_id.$error"
         :fixed-items="true"
-        @hide="$v.values.through_field_id.$touch()"
+        @hide="v$.values.through_field_id.$touch()"
         @input="throughFieldChanged($event)"
       >
         <DropdownItem
@@ -34,7 +34,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { LinkRowFieldType } from '@baserow/modules/database/fieldTypes'

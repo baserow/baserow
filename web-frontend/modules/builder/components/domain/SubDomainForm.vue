@@ -17,7 +17,7 @@
 </template>
 
 <script>
-import { maxLength, required } from 'vuelidate/lib/validators'
+import { maxLength, required } from '@vuelidate/validators'
 import domainForm from '@baserow/modules/builder/mixins/domainForm'
 
 export default {
@@ -33,11 +33,11 @@ export default {
   },
   computed: {
     errorMessage() {
-      return this.$v.values.domain_name.$dirty &&
-        !this.$v.values.domain_name.required
+      return this.v$.values.domain_name.$dirty &&
+        !this.v$.values.domain_name.required
         ? this.$t('error.requiredField')
-        : this.$v.values.domain_name.$dirty &&
-          !this.$v.values.domain_name.maxLength
+        : this.v$.values.domain_name.$dirty &&
+          !this.v$.values.domain_name.maxLength
         ? this.$t('error.maxLength', { max: 255 })
         : this.serverErrors.domain_name &&
           this.serverErrors.domain_name.code === 'invalid'

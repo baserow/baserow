@@ -53,7 +53,7 @@
 </template>
 
 <script>
-import { required, integer, between } from 'vuelidate/lib/validators'
+import { required, integer, between } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import { themeToColorVariables } from '@baserow/modules/builder/utils/theme'
 
@@ -104,21 +104,21 @@ export default {
       return themeToColorVariables(this.builder.theme)
     },
     marginError() {
-      if (this.$v.values.margin.$invalid) {
+      if (this.v$.values.margin.$invalid) {
         return this.$t('error.minMaxValueField', { min: 0, max: 200 })
       } else {
         return ''
       }
     },
     paddingError() {
-      if (this.$v.values.padding.$invalid) {
+      if (this.v$.values.padding.$invalid) {
         return this.$t('error.minMaxValueField', { min: 0, max: 200 })
       } else {
         return ''
       }
     },
     sizeError() {
-      if (this.$v.values.border_size.$invalid) {
+      if (this.v$.values.border_size.$invalid) {
         return this.$t('error.minMaxValueField', { min: 0, max: 200 })
       } else {
         return ''

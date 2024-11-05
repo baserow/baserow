@@ -58,7 +58,7 @@
         :placeholder="$t('tableElementForm.itemsPerPagePlaceholder')"
         :to-value="(value) => parseInt(value)"
         type="number"
-        @blur="$v.values.items_per_page.$touch()"
+        @blur="v$.values.items_per_page.$touch()"
       />
     </FormGroup>
 
@@ -143,9 +143,9 @@
                 class="margin-bottom-2"
                 :label="$t('tableElementForm.name')"
                 :error-message="
-                  !$v.values.fields.$each[index].name.required
+                  !v$.values.fields.$each[index].name.required
                     ? $t('error.requiredField')
-                    : !$v.values.fields.$each[index].name.maxLength
+                    : !v$.values.fields.$each[index].name.maxLength
                     ? $t('error.maxLength', { max: 255 })
                     : ''
                 "
@@ -258,7 +258,7 @@ import {
   integer,
   minValue,
   maxValue,
-} from 'vuelidate/lib/validators'
+} from '@vuelidate/validators'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import { TABLE_ORIENTATION } from '@baserow/modules/builder/enums'
@@ -317,14 +317,14 @@ export default {
       return { ...this.builder.theme, ...this.values.styles?.table }
     },
     errorMessageItemsPerPage() {
-      return this.$v.values.items_per_page.$dirty &&
-        !this.$v.values.items_per_page.required
+      return this.v$.values.items_per_page.$dirty &&
+        !this.v$.values.items_per_page.required
         ? this.$t('error.requiredField')
-        : !this.$v.values.items_per_page.integer
+        : !this.v$.values.items_per_page.integer
         ? this.$t('error.integerField')
-        : !this.$v.values.items_per_page.minValue
+        : !this.v$.values.items_per_page.minValue
         ? this.$t('error.minValueField', { min: 1 })
-        : !this.$v.values.items_per_page.maxValue
+        : !this.v$.values.items_per_page.maxValue
         ? this.$t('error.maxValueField', { max: this.maxItemPerPage })
         : ''
     },

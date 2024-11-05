@@ -19,7 +19,7 @@
     </div>
     <FormGroup
       v-if="what === 'own'"
-      :error="$v.tableName.$dirty && !$v.tableName.required"
+      :error="v$.tableName.$dirty && !v$.tableName.required"
       :label="$t('databaseScratchTrackStep.tableName')"
       required
       small-label
@@ -29,9 +29,9 @@
         v-model="tableName"
         :placeholder="$t('databaseScratchTrackStep.tableName') + '...'"
         size="large"
-        :error="$v.tableName.$dirty && !$v.tableName.required"
+        :error="v$.tableName.$dirty && !v$.tableName.required"
         @input="updateValue"
-        @blur="$v.tableName.$touch()"
+        @blur="v$.tableName.$touch()"
       />
       <template #error>{{ $t('error.requiredField') }}</template>
     </FormGroup>
@@ -41,7 +41,7 @@
         v-for="(row, index) in [0, 1, 2]"
         :key="index"
         class="margin-bottom-2"
-        :error="$v['row' + index].$dirty && $v['row' + index].$invalid"
+        :error="v$['row' + index].$dirty && v$['row' + index].$invalid"
         small-label
       >
         <template v-if="index === 0" #label>
@@ -51,9 +51,9 @@
           v-model="$data['row' + index]"
           :placeholder="$t('databaseScratchTrackStep.rowName') + '...'"
           size="large"
-          :error="$v['row' + index].$dirty && $v['row' + index].$invalid"
+          :error="v$['row' + index].$dirty && v$['row' + index].$invalid"
           @input="updateValue"
-          @blur="$v['row' + index].$touch()"
+          @blur="v$['row' + index].$touch()"
         />
         <template #error>{{ $t('error.requiredField') }}</template>
       </FormGroup>
@@ -62,7 +62,7 @@
 </template>
 
 <script>
-import { required, requiredIf } from 'vuelidate/lib/validators'
+import { required, requiredIf } from '@vuelidate/validators'
 
 export default {
   name: 'DatabaseScratchTrackStep',
@@ -108,7 +108,7 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.$v.$invalid
+      return !this.v$.$invalid
     },
     select(value) {
       if (

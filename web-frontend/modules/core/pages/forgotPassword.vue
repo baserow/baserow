@@ -34,16 +34,16 @@
             small-label
             :label="$t('field.emailAddress')"
             required
-            :error="$v.account.email.$error"
+            :error="v$.email.$error"
             class="margin-bottom-2"
           >
             <FormInput
               ref="email"
-              v-model="account.email"
-              :error="$v.account.email.$error"
+              v-model="state.email"
+              :error="v$.email.$error"
               :disabled="success"
               size="large"
-              @blur="$v.account.email.$touch()"
+              @blur="v$.email.$touch()"
             >
             </FormInput>
             <template #error>
@@ -97,7 +97,9 @@
 </template>
 
 <script>
-import { required, email } from 'vuelidate/lib/validators'
+import { required, email } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 import error from '@baserow/modules/core/mixins/error'
 import AuthService from '@baserow/modules/core/services/auth'
@@ -108,13 +110,22 @@ export default {
   components: { LangPicker },
   mixins: [error],
   layout: 'login',
+  setup() {
+    const state = reactive({
+      email: '',
+    })
+
+    const rules = computed(() => ({
+      email: { required, email },
+    }))
+
+    const v$ = useVuelidate(rules, state)
+    return { v$, state }
+  },
   data() {
     return {
       loading: false,
       success: false,
-      account: {
-        email: '',
-      },
     }
   },
   head() {
@@ -129,8 +140,8 @@ export default {
   },
   methods: {
     async sendLink() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      if (this.v$.$invalid) {
         return
       }
 
@@ -140,7 +151,7 @@ export default {
       try {
         const resetUrl = `${this.$config.BASEROW_EMBEDDED_SHARE_URL}/reset-password`
         await AuthService(this.$client).sendResetPasswordEmail(
-          this.account.email,
+          this.state.email,
           resetUrl
         )
         this.success = true
@@ -149,11 +160,6 @@ export default {
         this.loading = false
         this.handleError(error, 'passwordReset')
       }
-    },
-  },
-  validations: {
-    account: {
-      email: { required, email },
     },
   },
 }

@@ -12,22 +12,22 @@
             ref="name"
             v-model="values.name"
             :error="fieldHasErrors('name')"
-            @blur="$v.values.name.$touch()"
+            @blur="v$.values.name.$touch()"
           >
           </FormInput>
 
           <template #error>
             <span
-              v-if="fieldHasErrors('name') && !$v.values.name.required"
+              v-if="fieldHasErrors('name') && !v$.values.name.required"
               class="error"
             >
               {{ $t('error.requiredField') }}
             </span>
-            <span v-if="$v.values.name.$dirty && hasMinMaxError" class="error">
+            <span v-if="v$.values.name.$dirty && hasMinMaxError" class="error">
               {{
                 $t('error.minMaxLength', {
-                  max: $v.values.name.$params.maxLength.max,
-                  min: $v.values.name.$params.minLength.min,
+                  max: v$.values.name.$params.maxLength.max,
+                  min: v$.values.name.$params.minLength.min,
                 })
               }}
             </span>
@@ -140,7 +140,7 @@
 </template>
 
 <script>
-import { required, maxLength, minLength } from 'vuelidate/lib/validators'
+import { required, maxLength, minLength } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
@@ -187,7 +187,7 @@ export default {
       return this.roles.length > 0 ? this.roles[this.roles.length - 1] : null
     },
     hasMinMaxError() {
-      return !this.$v.values.name.maxLength || !this.$v.values.name.minLength
+      return !this.v$.values.name.maxLength || !this.v$.values.name.minLength
     },
     atLeastOneBillableRole() {
       return this.roles.some((role) => role.isBillable)

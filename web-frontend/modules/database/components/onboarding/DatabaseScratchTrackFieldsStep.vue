@@ -59,20 +59,20 @@
             :placeholder="$t('databaseScratchTrackFieldsStep.fieldName')"
             size="large"
             :error="
-              $v.ownField.props.name.$dirty && $v.ownField.props.name.$invalid
+              v$.ownField.props.name.$dirty && v$.ownField.props.name.$invalid
             "
-            @blur="$v.ownField.props.name.$touch()"
+            @blur="v$.ownField.props.name.$touch()"
           />
           <p
             v-if="
-              $v.ownField.props.name.$dirty && $v.ownField.props.name.$invalid
+              v$.ownField.props.name.$dirty && v$.ownField.props.name.$invalid
             "
             class="control__messages--error"
           >
-            <template v-if="!$v.ownField.props.name.required">
+            <template v-if="!v$.ownField.props.name.required">
               {{ $t('error.requiredField') }}
             </template>
-            <template v-if="!$v.ownField.props.name.uniqueNameValidator">
+            <template v-if="!v$.ownField.props.name.uniqueNameValidator">
               {{ $t('error.alreadyInUse') }}
             </template>
           </p>
@@ -83,7 +83,7 @@
 </template>
 
 <script>
-import { requiredIf } from 'vuelidate/lib/validators'
+import { requiredIf } from '@vuelidate/validators'
 import { DatabaseScratchTrackOnboardingType } from '@baserow/modules/database/onboardingTypes'
 
 export default {
@@ -156,7 +156,7 @@ export default {
       return isActive
     },
     isValid() {
-      return !this.$v.$invalid
+      return !this.v$.$invalid
     },
     toggleSelection(value) {
       const isAlreadySelected = this.isChipActive(value)
@@ -219,10 +219,10 @@ export default {
       // doesn't trigger validation if the value doesn't change.
       // We want only to trigger validation if own field is selected
       if (value !== 'own' && this.isChipActive('own')) {
-        const tmp = this.$v.ownField.props.name.$model
-        this.$v.ownField.props.name.$model = ''
-        this.$v.ownField.props.name.$model = tmp
-        this.$v.ownField.props.name.$touch()
+        const tmp = this.v$.ownField.props.name.$model
+        this.v$.ownField.props.name.$model = ''
+        this.v$.ownField.props.name.$model = tmp
+        this.v$.ownField.props.name.$touch()
       }
     },
   },

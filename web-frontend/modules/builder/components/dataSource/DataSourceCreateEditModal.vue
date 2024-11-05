@@ -38,7 +38,7 @@
         <Button
           size="large"
           :loading="loading"
-          :disabled="loading || !changed || $refs.dataSourceForm.$v.$anyError"
+          :disabled="loading || !changed || $refs.dataSourceForm.v$.$anyError"
           @click.prevent="$refs.dataSourceForm.submit()"
         >
           {{ create ? $t('action.create') : $t('action.save') }}

@@ -3,16 +3,16 @@
     <FormGroup
       small-label
       :label="$t('selectAIModelForm.AIType')"
-      :error="$v.values.ai_generative_ai_type.$error"
+      :error="v$.values.ai_generative_ai_type.$error"
       required
     >
       <Dropdown
         v-model="values.ai_generative_ai_type"
         class="dropdown--floating"
-        :error="$v.values.ai_generative_ai_type.$errors"
+        :error="v$.values.ai_generative_ai_type.$errors"
         :fixed-items="true"
         :show-search="false"
-        @hide="$v.values.ai_generative_ai_type.$touch()"
+        @hide="v$.values.ai_generative_ai_type.$touch()"
         @change="$refs.aiModel.select(aIModelsPerType[0])"
       >
         <DropdownItem
@@ -25,8 +25,8 @@
       <template #error>
         <div
           v-if="
-            $v.values.ai_generative_ai_type.$dirty &&
-            !$v.values.ai_generative_ai_type.required
+            v$.values.ai_generative_ai_type.$dirty &&
+            !v$.values.ai_generative_ai_type.required
           "
         >
           {{ $t('error.requiredField') }}
@@ -37,17 +37,17 @@
     <FormGroup
       small-label
       :label="$t('selectAIModelForm.AIModel')"
-      :error="$v.values.ai_generative_ai_model.$error"
+      :error="v$.values.ai_generative_ai_model.$error"
       required
     >
       <Dropdown
         ref="aiModel"
         v-model="values.ai_generative_ai_model"
         class="dropdown--floating"
-        :error="$v.values.ai_generative_ai_model.$error"
+        :error="v$.values.ai_generative_ai_model.$error"
         :fixed-items="true"
         :show-search="false"
-        @hide="$v.values.ai_generative_ai_model.$touch()"
+        @hide="v$.values.ai_generative_ai_model.$touch()"
       >
         <DropdownItem
           v-for="aIType in aIModelsPerType"
@@ -59,8 +59,8 @@
       <template #error>
         <div
           v-if="
-            $v.values.ai_generative_ai_model.$dirty &&
-            !$v.values.ai_generative_ai_model.required
+            v$.values.ai_generative_ai_model.$dirty &&
+            !v$.values.ai_generative_ai_model.required
           "
         >
           {{ $t('error.requiredField') }}
@@ -74,7 +74,7 @@
       :help-icon-tooltip="
         $t('selectAIModelForm.temperatureDescription', { max: maxTemperature })
       "
-      :error="$v.values.ai_temperature.$error"
+      :error="v$.values.ai_temperature.$error"
       required
     >
       <FormInput
@@ -83,11 +83,11 @@
         :min="0"
         :max="maxTemperature"
         type="number"
-        :error="$v.values.ai_temperature.$error"
-        @blur="$v.values.ai_temperature.$touch()"
+        :error="v$.values.ai_temperature.$error"
+        @blur="v$.values.ai_temperature.$touch()"
       ></FormInput>
       <template #error>
-        <div v-if="$v.values.ai_temperature.$error">
+        <div v-if="v$.values.ai_temperature.$error">
           {{ temperatureErrorMessage }}
         </div>
       </template>
@@ -97,7 +97,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { required, decimal, minValue, maxValue } from 'vuelidate/lib/validators'
+import { required, decimal, minValue, maxValue } from '@vuelidate/validators'
 import modal from '@baserow/modules/core/mixins/modal'
 import form from '@baserow/modules/core/mixins/form'
 
@@ -156,12 +156,12 @@ export default {
         .getMaxTemperature()
     },
     temperatureErrorMessage() {
-      return this.$v.values.ai_temperature.$dirty &&
-        !this.$v.values.ai_temperature.decimal
+      return this.v$.values.ai_temperature.$dirty &&
+        !this.v$.values.ai_temperature.decimal
         ? this.$t('error.decimalField')
-        : !this.$v.values.ai_temperature.minValue
+        : !this.v$.values.ai_temperature.minValue
         ? this.$t('error.minValueField', { min: 0 })
-        : !this.$v.values.ai_temperature.maxValue
+        : !this.v$.values.ai_temperature.maxValue
         ? this.$t('error.maxValueField', { max: this.maxTemperature })
         : ''
     },

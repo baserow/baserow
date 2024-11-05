@@ -23,7 +23,7 @@
           :database="database"
           class="margin-bottom-2"
         ></ExporterTypeChoices>
-        <div v-if="$v.values.exporter_type.$error" class="error">
+        <div v-if="v$.values.exporter_type.$error" class="error">
           {{ $t('exportTableForm.typeError') }}
         </div>
       </div>
@@ -38,7 +38,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import viewTypeHasExporterTypes from '@baserow/modules/database/utils/viewTypeHasExporterTypes'

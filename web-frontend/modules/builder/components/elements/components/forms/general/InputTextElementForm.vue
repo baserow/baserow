@@ -81,13 +81,13 @@
       required
       class="margin-bottom-2"
       :error-message="
-        $v.values.rows.$dirty && !$v.values.rows.required
+        v$.values.rows.$dirty && !v$.values.rows.required
           ? $t('error.requiredField')
-          : !$v.values.rows.integer
+          : !v$.values.rows.integer
           ? $t('error.integerField')
-          : !$v.values.rows.minValue
+          : !v$.values.rows.minValue
           ? $t('error.minValueField', { min: 1 })
-          : !$v.values.rows.maxValue
+          : !v$.values.rows.maxValue
           ? $t('error.maxValueField', { max: 100 })
           : ''
       "
@@ -132,7 +132,7 @@ import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import { required, integer, minValue, maxValue } from '@vuelidate/validators'
 
 export default {
   name: 'InputTextElementForm',
