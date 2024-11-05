@@ -9,10 +9,10 @@
     <ABFormGroup
       :label="$t('authFormElement.email')"
       :error-message="
-        $v.values.email.$dirty
-          ? !$v.values.email.required
+        v$.values.email.$dirty
+          ? !v$.values.email.required
             ? $t('error.requiredField')
-            : !$v.values.email.email
+            : !v$.values.email.email
             ? $t('error.invalidEmail')
             : ''
           : ''
@@ -23,14 +23,14 @@
       <ABInput
         v-model="values.email"
         :placeholder="$t('authFormElement.emailPlaceholder')"
-        @blur="$v.values.email.$touch()"
+        @blur="v$.values.email.$touch()"
       />
     </ABFormGroup>
     <ABFormGroup
       :label="$t('authFormElement.password')"
       :error-message="
-        $v.values.password.$dirty
-          ? !$v.values.password.required
+        v$.values.password.$dirty
+          ? !v$.values.password.required
             ? $t('error.requiredField')
             : ''
           : ''
@@ -42,11 +42,11 @@
         v-model="values.password"
         type="password"
         :placeholder="$t('authFormElement.passwordPlaceholder')"
-        @blur="$v.values.password.$touch()"
+        @blur="v$.values.password.$touch()"
       />
     </ABFormGroup>
     <div :style="getStyleOverride('login_button')" class="auth-form__footer">
-      <ABButton :disabled="$v.$error" :loading="loading" size="large">
+      <ABButton :disabled="v$.$error" :loading="loading" size="large">
         {{ resolvedLoginButtonLabel }}
       </ABButton>
     </div>
@@ -58,7 +58,7 @@
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import element from '@baserow/modules/builder/mixins/element'
-import { required, email } from 'vuelidate/lib/validators'
+import { required, email } from '@vuelidate/validators'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { mapActions } from 'vuex'
 
@@ -148,8 +148,8 @@ export default {
         })
       }
 
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      if (this.v$.$invalid) {
         this.focusOnFirstError()
         return
       }
@@ -167,7 +167,7 @@ export default {
         })
         this.values.password = ''
         this.values.email = ''
-        this.$v.$reset()
+        this.v$.$reset()
         this.fireEvent(
           this.elementType.getEventByName(this.element, 'after_login')
         )
@@ -176,8 +176,8 @@ export default {
           const response = error.handler.response
           if (response && response.status === 401) {
             this.values.password = ''
-            this.$v.$reset()
-            this.$v.$touch()
+            this.v$.$reset()
+            this.v$.$touch()
             this.$refs.passwordRef.focus()
 
             if (response.data?.error === 'ERROR_INVALID_CREDENTIALS') {

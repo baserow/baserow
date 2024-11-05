@@ -25,14 +25,14 @@
           required
           class="margin-bottom-2"
           :error-message="
-            $v.values.image_max_width.$dirty &&
-            !$v.values.image_max_width.integer
+            v$.values.image_max_width.$dirty &&
+            !v$.values.image_max_width.integer
               ? $t('error.integerField')
-              : !$v.values.image_max_width.minValue
+              : !v$.values.image_max_width.minValue
               ? $t('error.minValueField', { min: 0 })
-              : !$v.values.image_max_width.maxValue
+              : !v$.values.image_max_width.maxValue
               ? $t('error.maxValueField', { max: 100 })
-              : !$v.values.image_max_width.required
+              : !v$.values.image_max_width.required
               ? $t('error.requiredField')
               : ''
           "
@@ -65,12 +65,12 @@
           :label="$t('imageThemeConfigBlock.maxHeightLabel')"
           class="margin-bottom-2"
           :error-message="
-            $v.values.image_max_height.$dirty &&
-            !$v.values.image_max_height.integer
+            v$.values.image_max_height.$dirty &&
+            !v$.values.image_max_height.integer
               ? $t('error.integerField')
-              : !$v.values.image_max_height.minValue
+              : !v$.values.image_max_height.minValue
               ? $t('error.minValueField', { min: 5 })
-              : !$v.values.image_max_height.maxValue
+              : !v$.values.image_max_height.maxValue
               ? $t('error.maxValueField', { max: 3000 })
               : ''
           "
@@ -140,7 +140,7 @@ import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/T
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 import { IMAGE_SOURCE_TYPES } from '@baserow/modules/builder/enums'
-import { integer, maxValue, minValue, required } from 'vuelidate/lib/validators'
+import { integer, maxValue, minValue, required } from '@vuelidate/validators'
 
 export default {
   name: 'ImageThemeConfigBlock',

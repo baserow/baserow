@@ -7,7 +7,7 @@
       <FormGroup :error="fieldHasErrors('password')">
         <PasswordInput
           v-model="values.password"
-          :validation-state="$v.values.password"
+          :validation-state="v$.values.password"
           :show-password-icon="true"
           :disabled="loading"
         />
@@ -23,7 +23,7 @@
         <Button
           type="primary"
           :loading="loading"
-          :disabled="loading || $v.$invalid"
+          :disabled="loading || v$.$invalid"
         >
           {{ $t(saveText) }}
         </Button>
@@ -81,7 +81,7 @@ export default {
   methods: {
     clearInput() {
       this.values.password = ''
-      this.$v.$reset()
+      this.v$.$reset()
     },
     show() {
       this.clearInput()

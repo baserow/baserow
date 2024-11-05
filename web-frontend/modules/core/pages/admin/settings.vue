@@ -172,15 +172,15 @@
             </div>
           </div>
           <div class="admin-settings__control">
-            <FormGroup :error="$v.account_deletion_grace_delay.$error">
+            <FormGroup :error="v$.account_deletion_grace_delay.$error">
               <FormInput
                 v-model="account_deletion_grace_delay"
-                :error="$v.account_deletion_grace_delay.$error"
+                :error="v$.account_deletion_grace_delay.$error"
                 type="number"
                 size="large"
                 @input="
                   ;[
-                    $v.account_deletion_grace_delay.$touch(),
+                    v$.account_deletion_grace_delay.$touch(),
                     updateAccountDeletionGraceDelay($event),
                   ]
                 "
@@ -226,7 +226,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { required, integer, between } from 'vuelidate/lib/validators'
+import { required, integer, between } from '@vuelidate/validators'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SettingsService from '@baserow/modules/core/services/settings'
@@ -296,8 +296,8 @@ export default {
   },
   methods: {
     async updateSettings(values) {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      if (this.v$.$invalid) {
         return
       }
       try {
@@ -313,7 +313,7 @@ export default {
       const existingValue = this.settings.account_deletion_grace_delay
 
       if (
-        !this.$v.account_deletion_grace_delay.$error &&
+        !this.v$.account_deletion_grace_delay.$error &&
         existingValue !== parseInt(this.account_deletion_grace_delay)
       ) {
         this.updateSettings({

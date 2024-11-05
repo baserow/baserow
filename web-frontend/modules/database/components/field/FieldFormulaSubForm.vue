@@ -26,15 +26,15 @@
       :fields="fieldsUsableInFormula"
       :error="formulaError"
       :database="database"
-      @blur="$v.values.formula.$touch()"
-      @hidden="$v.values.formula.$touch()"
+      @blur="v$.values.formula.$touch()"
+      @hidden="v$.values.formula.$touch()"
     >
     </FormulaAdvancedEditContext>
   </div>
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -89,10 +89,10 @@ export default {
       })
     },
     formulaError() {
-      const dirty = this.$v.values.formula.$dirty
-      if (dirty && !this.$v.values.formula.required) {
+      const dirty = this.v$.values.formula.$dirty
+      if (dirty && !this.v$.values.formula.required) {
         return 'Please enter a formula'
-      } else if (dirty && !this.$v.values.formula.parseFormula) {
+      } else if (dirty && !this.v$.values.formula.parseFormula) {
         return (
           `Error in the formula on line ${this.parsingError.line} starting at
         letter ${this.parsingError.character}` +

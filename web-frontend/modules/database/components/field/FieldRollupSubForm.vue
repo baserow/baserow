@@ -19,14 +19,14 @@
         required
         small-label
         :label="$t('fieldRollupSubForm.label')"
-        :error="$v.values.rollup_function.$error"
+        :error="v$.values.rollup_function.$error"
       >
         <Dropdown
           v-model="values.rollup_function"
           max-width
-          :error="$v.values.rollup_function.$error"
+          :error="v$.values.rollup_function.$error"
           :fixed-items="true"
-          @hide="$v.values.rollup_function.$touch()"
+          @hide="v$.values.rollup_function.$touch()"
         >
           <DropdownItem
             v-for="f in rollupFunctions"
@@ -55,7 +55,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'

@@ -32,7 +32,7 @@
           <div
             v-if="
               fieldHasErrors('startDateFieldId') &&
-              !$v.values.startDateFieldId.required
+              !v$.values.startDateFieldId.required
             "
             class="error"
           >
@@ -66,7 +66,7 @@
           <div
             v-if="
               fieldHasErrors('endDateFieldId') &&
-              !$v.values.endDateFieldId.required
+              !v$.values.endDateFieldId.required
             "
             class="error"
           >
@@ -83,7 +83,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import {
   filterDateFields,
@@ -209,8 +209,8 @@ export default {
       return start && end && dateFieldsAreCompatible(start, end)
     },
     submit() {
-      this.$v.$touch()
-      if (this.$v.$invalid || !this.dateSettingsAreValid()) {
+      this.v$.$touch()
+      if (this.v$.$invalid || !this.dateSettingsAreValid()) {
         return
       }
       this.$emit('submitted', this.values)

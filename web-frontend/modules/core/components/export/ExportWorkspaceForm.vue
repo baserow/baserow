@@ -12,7 +12,7 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 export default {
   name: 'ExportWorkspaceForm',

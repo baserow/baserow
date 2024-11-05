@@ -7,21 +7,21 @@
     </p>
     <FormGroup
       :label="$t('importFromAirtable.airtableShareLinkTitle')"
-      :error="$v.values.airtableUrl.$error"
+      :error="v$.values.airtableUrl.$error"
       small-label
       required
       class="margin-bottom-2"
     >
       <FormInput
         v-model="values.airtableUrl"
-        :error="$v.values.airtableUrl.$error"
+        :error="v$.values.airtableUrl.$error"
         :placeholder="$t('importFromAirtable.airtableShareLinkPaste')"
         size="large"
-        @blur="$v.values.airtableUrl.$touch()"
+        @blur="v$.values.airtableUrl.$touch()"
         @input="
           $emit(
             'input',
-            $v.values.airtableUrl.$invalid ? '' : values.airtableUrl
+            v$.values.airtableUrl.$invalid ? '' : values.airtableUrl
           )
         "
       ></FormInput>

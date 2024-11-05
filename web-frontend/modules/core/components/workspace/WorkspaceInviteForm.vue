@@ -8,7 +8,7 @@
             ref="email"
             v-model="values.email"
             :error="fieldHasErrors('email')"
-            @blur="$v.values.email.$touch()"
+            @blur="v$.values.email.$touch()"
           >
           </FormInput>
 
@@ -94,7 +94,7 @@
 </template>
 
 <script>
-import { required, email, maxLength } from 'vuelidate/lib/validators'
+import { required, email, maxLength } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 

@@ -30,7 +30,7 @@
         <FormInput
           v-model="values.value"
           :error="fieldHasErrors('value')"
-          @blur="$v.values.value.$touch()"
+          @blur="v$.values.value.$touch()"
         >
         </FormInput>
       </div>
@@ -46,7 +46,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import { randomColor } from '@baserow/modules/core/utils/colors'
 import ColorSelectContext from '@baserow/modules/core/components/ColorSelectContext'

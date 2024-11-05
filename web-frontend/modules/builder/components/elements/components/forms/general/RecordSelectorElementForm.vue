@@ -28,13 +28,13 @@
       small-label
       :label="$t('recordSelectorElementForm.itemsPerPage')"
       :error-message="
-        $v.values.items_per_page.$dirty && !$v.values.items_per_page.required
+        v$.values.items_per_page.$dirty && !v$.values.items_per_page.required
           ? $t('error.requiredField')
-          : !$v.values.items_per_page.integer
+          : !v$.values.items_per_page.integer
           ? $t('error.integerField')
-          : !$v.values.items_per_page.minValue
+          : !v$.values.items_per_page.minValue
           ? $t('error.minValueField', { min: 5 })
-          : !$v.values.items_per_page.maxValue
+          : !v$.values.items_per_page.maxValue
           ? $t('error.maxValueField', { max: maxItemPerPage })
           : ''
       "
@@ -44,7 +44,7 @@
         type="number"
         :to-value="(value) => parseInt(value)"
         :placeholder="$t('recordSelectorElementForm.itemsPerPagePlaceholder')"
-        @blur="$v.values.items_per_page.$touch()"
+        @blur="v$.values.items_per_page.$touch()"
       />
     </FormGroup>
     <!--
@@ -145,7 +145,7 @@ import collectionElementForm from '@baserow/modules/builder/mixins/collectionEle
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle.vue'
-import { integer, maxValue, minValue, required } from 'vuelidate/lib/validators'
+import { integer, maxValue, minValue, required } from '@vuelidate/validators'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 

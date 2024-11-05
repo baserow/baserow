@@ -14,7 +14,7 @@
         size="large"
         :placeholder="$t('applicationForm.namePlaceholder')"
         @focus.once="$event.target.select()"
-        @blur="$v.values.name.$touch()"
+        @blur="v$.values.name.$touch()"
       ></FormInput>
 
       <template #error>
@@ -40,7 +40,7 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 export default {
   name: 'BlankDatabaseForm',

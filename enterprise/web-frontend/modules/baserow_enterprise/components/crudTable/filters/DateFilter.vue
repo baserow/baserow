@@ -3,7 +3,7 @@
     <div ref="date">
       <FormInput
         v-model="dateString"
-        :error="$v.copy.$error"
+        :error="v$.copy.$error"
         :disabled="disabled"
         :placeholder="placeholder"
         @focus="$refs.dateContext.toggle($refs.date, 'bottom', 'left', 0)"
@@ -89,7 +89,7 @@ export default {
     this.setCopy(this.value)
   },
   mounted() {
-    this.$v.$touch()
+    this.v$.$touch()
   },
   methods: {
     clear() {

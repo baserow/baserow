@@ -2,16 +2,16 @@
   <div>
     <FormGroup
       small-label
-      :error="$v.values.number_decimal_places.$error"
+      :error="v$.values.number_decimal_places.$error"
       :label="$t('fieldNumberSubForm.decimalPlacesLabel')"
       :class="{ 'margin-bottom-2': allowSetNumberNegative }"
       required
     >
       <Dropdown
         v-model="values.number_decimal_places"
-        :error="$v.values.number_decimal_places.$error"
+        :error="v$.values.number_decimal_places.$error"
         :fixed-items="true"
-        @hide="$v.values.number_decimal_places.$touch()"
+        @hide="v$.values.number_decimal_places.$touch()"
       >
         <DropdownItem name="0 (1)" :value="0"></DropdownItem>
         <DropdownItem name="1 (1.0)" :value="1"></DropdownItem>
@@ -40,7 +40,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'

@@ -4,7 +4,7 @@
       <FormInput
         v-model="dateString"
         :disabled="disabled"
-        :error="$v.dateString.$error"
+        :error="v$.dateString.$error"
         :placeholder="getDatePlaceholder(field)"
         @focus="$refs.dateContext.toggle($refs.date, 'bottom', 'left', 0)"
         @blur="$refs.dateContext.hide()"
@@ -57,11 +57,11 @@ export default {
     }
   },
   mounted() {
-    this.$v.$touch()
+    this.v$.$touch()
   },
   methods: {
     isInputValid() {
-      return !this.$v.dateString.$error
+      return !this.v$.dateString.$error
     },
     chooseDate(value) {
       const timezone = this.getTimezone()

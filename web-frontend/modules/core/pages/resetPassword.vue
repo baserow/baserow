@@ -33,8 +33,8 @@
             class="margin-bottom-2"
           >
             <PasswordInput
-              v-model="account.password"
-              :validation-state="$v.account.password"
+              v-model="state.password"
+              :validation-state="v$.password"
               :placeholder="$t('signup.passwordPlaceholder')"
               :error-placeholder-class="'auth__control-error'"
               :show-error-icon="true"
@@ -46,14 +46,14 @@
             :label="$t('resetPassword.repeatNewPassword')"
             required
             class="margin-bottom-2"
-            :error="$v.account.passwordConfirm.$error"
+            :error="v$.passwordConfirm.$error"
           >
             <FormInput
-              v-model="account.passwordConfirm"
-              :error="$v.account.passwordConfirm.$error"
+              v-model="state.passwordConfirm"
+              :error="v$.passwordConfirm.$error"
               type="password"
               size="large"
-              @blur="$v.account.passwordConfirm.$touch()"
+              @blur="v$.passwordConfirm.$touch"
             >
             </FormInput>
 
@@ -105,7 +105,9 @@
 </template>
 
 <script>
-import { sameAs } from 'vuelidate/lib/validators'
+import { sameAs } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
 import LangPicker from '@baserow/modules/core/components/LangPicker'
@@ -119,14 +121,26 @@ export default {
   components: { LangPicker, PasswordInput },
   mixins: [error],
   layout: 'login',
+  setup() {
+    const state = reactive({
+      password: '',
+      passwordConfirm: '',
+    })
+
+    const rules = computed(() => ({
+      password: passwordValidation,
+      passwordConfirm: {
+        sameAsPassword: sameAs(state.password),
+      },
+    }))
+
+    const v$ = useVuelidate(rules, state)
+    return { v$, state }
+  },
   data() {
     return {
       loading: false,
       success: false,
-      account: {
-        password: '',
-        passwordConfirm: '',
-      },
     }
   },
   head() {
@@ -141,8 +155,8 @@ export default {
   },
   methods: {
     async resetPassword() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      if (this.v$.$invalid) {
         return
       }
 
@@ -153,7 +167,7 @@ export default {
         const token = this.$route.params.token
         await AuthService(this.$client).resetPassword(
           token,
-          this.account.password
+          this.state.password
         )
         this.success = true
         this.loading = false
@@ -170,14 +184,6 @@ export default {
           ),
         })
       }
-    },
-  },
-  validations: {
-    account: {
-      password: passwordValidation,
-      passwordConfirm: {
-        sameAsPassword: sameAs('password'),
-      },
     },
   },
 }

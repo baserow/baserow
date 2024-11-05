@@ -13,13 +13,13 @@
       :label="label"
       small-label
       required
-      :error="$v.values.target_field_id.$error"
+      :error="v$.values.target_field_id.$error"
     >
       <Dropdown
         v-model="values.target_field_id"
-        :error="$v.values.target_field_id.$error"
+        :error="v$.values.target_field_id.$error"
         :fixed-items="true"
-        @hide="$v.values.target_field_id.$touch()"
+        @hide="v$.values.target_field_id.$touch()"
         @input="targetFieldChanged($event)"
       >
         <DropdownItem
@@ -37,7 +37,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import FieldService from '@baserow/modules/database/services/field'

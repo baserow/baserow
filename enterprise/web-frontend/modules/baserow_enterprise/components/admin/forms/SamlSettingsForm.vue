@@ -22,17 +22,17 @@
         :error="fieldHasErrors('domain') || serverErrors.domain"
         :placeholder="$t('samlSettingsForm.domainPlaceholder')"
         @input="serverErrors.domain = null"
-        @blur="$v.values.domain.$touch()"
+        @blur="v$.values.domain.$touch()"
       ></FormInput>
 
       <template #error>
-        <span v-if="$v.values.domain.$dirty && !$v.values.domain.required">
+        <span v-if="v$.values.domain.$dirty && !v$.values.domain.required">
           {{ $t('error.requiredField') }}
         </span>
 
         <span
           v-else-if="
-            $v.values.domain.$dirty && !$v.values.domain.mustHaveUniqueDomain
+            v$.values.domain.$dirty && !v$.values.domain.mustHaveUniqueDomain
           "
           class="error"
         >
@@ -59,11 +59,11 @@
         :error="fieldHasErrors('metadata') || serverErrors.metadata"
         :placeholder="$t('samlSettingsForm.metadataPlaceholder')"
         @input="serverErrors.metadata = null"
-        @blur="$v.values.metadata.$touch()"
+        @blur="v$.values.metadata.$touch()"
       ></FormTextarea>
 
       <template #error>
-        <span v-if="$v.values.metadata.$dirty && !$v.values.metadata.required">
+        <span v-if="v$.values.metadata.$dirty && !v$.values.metadata.required">
           {{ $t('error.requiredField') }}
         </span>
         <span v-else-if="serverErrors.metadata">
@@ -95,7 +95,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -156,8 +156,8 @@ export default {
       return this.$registry.get('authProvider', this.type).getVerifiedIcon()
     },
     submit() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      if (this.v$.$invalid) {
         return
       }
       this.$emit('submit', this.values)

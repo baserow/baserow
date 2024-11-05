@@ -46,23 +46,23 @@ modules/core/validators.js
     </FormInput>
 
     <template #error>
-      <span v-if="validationState.$error && !validationState.required">
+      <span v-if="validationState.$error && validationState.required.$invalid">
         <i v-if="showErrorIcon" class="iconoir-warning-triangle"></i>
         {{ $t('error.inputRequired') }}
       </span>
-      <span v-if="validationState.$error && !validationState.maxLength">
+      <span v-if="validationState.$error && validationState.maxLength.$invalid">
         <i v-if="showErrorIcon" class="iconoir-warning-triangle"></i>
         {{
           $t('error.maxLength', {
-            max: validationState.$params.maxLength.max,
+            max: validationState.maxLength.$params.max,
           })
         }}
       </span>
-      <span v-if="validationState.$error && !validationState.minLength">
+      <span v-if="validationState.$error && validationState.minLength.$invalid">
         <i v-if="showErrorIcon" class="iconoir-warning-triangle"></i>
         {{
           $t('error.minLength', {
-            min: validationState.$params.minLength.min,
+            min: validationState.minLength.$params.min,
           })
         }}
       </span>

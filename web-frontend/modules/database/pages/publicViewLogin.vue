@@ -32,7 +32,7 @@
             type="primary"
             size="large"
             :loading="loading"
-            :disabled="loading || $v.$invalid"
+            :disabled="loading || v$.$invalid"
           >
             {{ $t('publicViewAuthLogin.enter') }}
           </Button>
@@ -45,7 +45,7 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import { mapActions } from 'vuex'
 import { isRelativeUrl } from '@baserow/modules/core/utils/url'
 import languageDetection from '@baserow/modules/core/mixins/languageDetection'

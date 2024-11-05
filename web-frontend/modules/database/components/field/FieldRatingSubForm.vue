@@ -14,15 +14,15 @@
       required
       small-label
       :label="$t('fieldRatingSubForm.style')"
-      :error="$v.values.style.$error"
+      :error="v$.values.style.$error"
     >
       <Dropdown
         v-model="values.style"
         class="dropdown--floating rating-field-form__dropdown-style"
-        :error="$v.values.style.$error"
+        :error="v$.values.style.$error"
         :fixed-items="true"
         :show-search="false"
-        @hide="$v.values.style.$touch()"
+        @hide="v$.values.style.$touch()"
       >
         <DropdownItem
           v-for="style in styles"
@@ -38,15 +38,15 @@
       required
       small-label
       :label="$t('fieldRatingSubForm.maxValue')"
-      :error="$v.values.max_value.$error"
+      :error="v$.values.max_value.$error"
     >
       <Dropdown
         v-model="values.max_value"
         class="dropdown--floating"
-        :error="$v.values.max_value.$error"
+        :error="v$.values.max_value.$error"
         :show-search="false"
         :fixed-items="true"
-        @hide="$v.values.max_value.$touch()"
+        @hide="v$.values.max_value.$touch()"
       >
         <DropdownItem
           v-for="index in 10"
@@ -66,7 +66,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
