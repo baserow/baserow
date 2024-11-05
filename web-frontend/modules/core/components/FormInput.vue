@@ -32,6 +32,7 @@
         :type="type"
         :min="type == 'number' && min > -1 ? parseInt(min) : false"
         :max="type == 'number' && max > -1 ? parseInt(max) : false"
+        :step="type == 'number' && step > -1 ? parseFloat(step) : false"
         :placeholder="placeholder"
         :required="required"
         :autocomplete="autocomplete"
@@ -155,6 +156,11 @@ export default {
       default: -1,
     },
     max: {
+      type: Number,
+      required: false,
+      default: -1,
+    },
+    step: {
       type: Number,
       required: false,
       default: -1,

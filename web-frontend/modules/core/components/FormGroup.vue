@@ -20,6 +20,16 @@
     >
       <span>{{ label }} </span>
       <span v-if="!required" class="control__required">Optional</span>
+      <HelpIcon
+        v-if="helpIconTooltip"
+        :tooltip="helpIconTooltip"
+        :tooltip-content-type="'plain'"
+        :tooltip-content-classes="[
+          'tooltip__content--expandable',
+          'tooltip__content--expandable-plain-text',
+        ]"
+        :icon="'info-empty'"
+      />
     </label>
 
     <span
@@ -140,6 +150,11 @@ export default {
       type: String,
       required: false,
       default: null,
+    },
+    helpIconTooltip: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   computed: {

@@ -6,12 +6,13 @@ export default (client) => {
         { row_ids: rowIds }
       )
     },
-    generateAIFormula(tableId, aiType, aiModel, prompt) {
+    generateAIFormula(tableId, aiType, aiModel, temperature, prompt) {
       return client.post(
         `/database/fields/table/${tableId}/generate-ai-formula/`,
         {
           ai_type: aiType,
           ai_model: aiModel,
+          ai_temperature: temperature || null,
           ai_prompt: prompt,
         }
       )

@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -39,9 +40,10 @@ class GenerateFormulaWithAIActionType(ActionType):
         ai_type: str,
         ai_model: str,
         ai_prompt: str,
+        ai_temperature: Optional[float] = None,
     ):
         formula = AIFieldHandler.generate_formula_with_ai(
-            table, ai_type, ai_model, ai_prompt
+            table, ai_type, ai_model, ai_prompt, ai_temperature=ai_temperature
         )
         database = table.database
         workspace = database.workspace

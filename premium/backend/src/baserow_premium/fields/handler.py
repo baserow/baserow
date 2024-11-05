@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 
 from baserow_premium.prompts import get_generate_formula_prompt
 from langchain_core.output_parsers import JsonOutputParser
@@ -16,7 +17,12 @@ from .pydantic_models import BaserowFormulaModel
 class AIFieldHandler:
     @classmethod
     def generate_formula_with_ai(
-        cls, table: Table, ai_type: str, ai_model: str, ai_prompt: str
+        cls,
+        table: Table,
+        ai_type: str,
+        ai_model: str,
+        ai_prompt: str,
+        ai_temperature: Optional[float] = None,
     ) -> str:
         """
         Generate a formula using the provided AI type, model and prompt.
@@ -25,6 +31,7 @@ class AIFieldHandler:
         :param ai_type: The generate AI type that must be used.
         :param ai_model: The model related to the AI type that must be used.
         :param ai_prompt: The prompt that must be executed.
+        :param ai_temperature: The temperature that's passed into the prompt.
         :raises ModelDoesNotBelongToType: if the provided model doesn't belong to the
             type
         :return: The generated model.
@@ -56,7 +63,10 @@ class AIFieldHandler:
         )
 
         response = generative_ai_model_type.prompt(
-            ai_model, message, workspace=table.database.workspace
+            ai_model,
+            message,
+            workspace=table.database.workspace,
+            temperature=ai_temperature,
         )
         response_json = output_parser.parse(response)
 

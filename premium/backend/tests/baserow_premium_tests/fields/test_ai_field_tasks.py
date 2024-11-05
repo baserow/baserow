@@ -35,8 +35,39 @@ def test_generate_ai_field_value_view_generative_ai(
     generate_ai_values_for_rows(user.id, field.id, [rows[0].id])
     assert patched_rows_updated.call_count == 1
     updated_row = patched_rows_updated.call_args[1]["rows"][0]
-    assert getattr(updated_row, field.db_column) == "Generated: Hello"
+    assert (
+        getattr(updated_row, field.db_column)
+        == "Generated with temperature None: Hello"
+    )
     assert patched_rows_updated.call_args[1]["updated_field_ids"] == set([field.id])
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@patch("baserow.contrib.database.rows.signals.rows_updated.send")
+def test_generate_ai_field_value_view_generative_ai_with_temperature(
+    patched_rows_updated, premium_data_fixture
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
+
+    database = premium_data_fixture.create_database_application(
+        user=user, name="database"
+    )
+    table = premium_data_fixture.create_database_table(name="table", database=database)
+    field = premium_data_fixture.create_ai_field(
+        table=table, name="ai", ai_prompt="'Hello'", ai_temperature=0.7
+    )
+
+    rows = RowHandler().create_rows(user, table, rows_values=[{}])
+
+    generate_ai_values_for_rows(user.id, field.id, [rows[0].id])
+    updated_row = patched_rows_updated.call_args[1]["rows"][0]
+    assert (
+        getattr(updated_row, field.db_column) == "Generated with temperature 0.7: Hello"
+    )
 
 
 @pytest.mark.django_db
@@ -73,7 +104,10 @@ def test_generate_ai_field_value_view_generative_ai_parse_formula(
     generate_ai_values_for_rows(user.id, field.id, [rows[0].id])
     assert patched_rows_updated.call_count == 1
     updated_row = patched_rows_updated.call_args[1]["rows"][0]
-    assert getattr(updated_row, field.db_column) == "Generated: Hello Bram Wiepjes"
+    assert (
+        getattr(updated_row, field.db_column)
+        == "Generated with temperature None: Hello Bram Wiepjes"
+    )
     assert patched_rows_updated.call_args[1]["updated_field_ids"] == set([field.id])
 
 
@@ -107,7 +141,10 @@ def test_generate_ai_field_value_view_generative_ai_invalid_field(
     generate_ai_values_for_rows(user.id, field.id, [rows[0].id])
     assert patched_rows_updated.call_count == 1
     updated_row = patched_rows_updated.call_args[1]["rows"][0]
-    assert getattr(updated_row, field.db_column) == "Generated: Hello "
+    assert (
+        getattr(updated_row, field.db_column)
+        == "Generated with temperature None: Hello "
+    )
 
 
 @pytest.mark.django_db

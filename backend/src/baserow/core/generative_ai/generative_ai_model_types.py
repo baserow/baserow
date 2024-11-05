@@ -3,6 +3,7 @@ import re
 
 from django.conf import settings
 
+from anthropic import Anthropic, APIStatusError
 from ollama import Client as OllamaClient
 from ollama import RequestError as OllamaRequestError
 from ollama import ResponseError as OllamaResponseError
@@ -50,13 +51,17 @@ class OpenAIGenerativeAIModelType(
 
         return OpenAISettingsSerializer
 
-    def prompt(self, model, prompt, workspace=None):
+    def prompt(self, model, prompt, workspace=None, temperature=None):
         try:
             client = self.get_client(workspace)
+            kwargs = {}
+            if temperature:
+                kwargs["temperature"] = temperature
             chat_completion = client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
                 model=model,
                 stream=False,
+                **kwargs,
             )
         except (OpenAIError, OpenAIAPIStatusError) as exc:
             raise GenerativeAIPromptError(str(exc)) from exc
@@ -103,7 +108,9 @@ class OpenAIGenerativeAIModelType(
         except (OpenAIError, OpenAIAPIStatusError) as exc:
             raise AIFileError(str(exc)) from exc
 
-    def prompt_with_files(self, model, prompt, file_ids: list[FileId], workspace=None):
+    def prompt_with_files(
+        self, model, prompt, file_ids: list[FileId], workspace=None, temperature=None
+    ):
         try:
             client = self.get_client(workspace)
             assistant = client.beta.assistants.create(
@@ -117,11 +124,15 @@ class OpenAIGenerativeAIModelType(
                 {"file_id": file_id, "tools": [{"type": "file_search"}]}
                 for file_id in file_ids
             ]
+            kwargs = {}
+            if temperature:
+                kwargs["temperature"] = temperature
             message = client.beta.threads.messages.create(
                 thread_id=thread.id,
                 role="user",
                 content=prompt,
                 attachments=attachments,
+                **kwargs,
             )
             run = client.beta.threads.runs.create_and_poll(
                 thread_id=thread.id,
@@ -165,6 +176,55 @@ class OpenAIGenerativeAIModelType(
                 client.beta.assistants.delete(assistant_id=assistant.id)
 
 
+class AnthropicGenerativeAIModelType(GenerativeAIModelType):
+    type = "anthropic"
+
+    def get_api_key(self, workspace=None):
+        return (
+            self.get_workspace_setting(workspace, "api_key")
+            or settings.BASEROW_ANTHROPIC_API_KEY
+        )
+
+    def get_enabled_models(self, workspace=None):
+        workspace_models = self.get_workspace_setting(workspace, "models")
+        return workspace_models or settings.BASEROW_ANTHROPIC_MODELS
+
+    def is_enabled(self, workspace=None):
+        api_key = self.get_api_key(workspace)
+        return bool(api_key) and bool(self.get_enabled_models(workspace=workspace))
+
+    def get_client(self, workspace=None):
+        api_key = self.get_api_key(workspace)
+        return Anthropic(api_key=api_key)
+
+    def get_settings_serializer(self):
+        from baserow.api.generative_ai.serializers import AnthropicSettingsSerializer
+
+        return AnthropicSettingsSerializer
+
+    def prompt(self, model, prompt, workspace=None, temperature=None):
+        try:
+            client = self.get_client(workspace)
+            kwargs = {}
+            if temperature:
+                # Because some LLMs can have a temperature of 2, this is the maximum by
+                # default. We're changing it to a maximum of 1 because Ollama only
+                # accepts 1.
+                kwargs["temperature"] = min(temperature, 1)
+            message = client.messages.create(
+                messages=[
+                    {"role": "user", "content": [{"type": "text", "text": prompt}]}
+                ],
+                model=model,
+                max_tokens=4096,
+                stream=False,
+                **kwargs,
+            )
+            return message.content[0].text
+        except APIStatusError as exc:
+            raise GenerativeAIPromptError(str(exc)) from exc
+
+
 class OllamaGenerativeAIModelType(GenerativeAIModelType):
     type = "ollama"
 
@@ -186,10 +246,18 @@ class OllamaGenerativeAIModelType(GenerativeAIModelType):
         ollama_host = self.get_host(workspace)
         return OllamaClient(host=ollama_host)
 
-    def prompt(self, model, prompt, workspace=None):
+    def prompt(self, model, prompt, workspace=None, temperature=None):
         client = self.get_client(workspace)
+        options = {}
+        if temperature:
+            # Because some LLMs can have a temperature of 2, this is the maximum by
+            # default. We're changing it to a maximum of 1 because Ollama only
+            # accepts 1.
+            options["temperature"] = min(temperature, 1)
         try:
-            response = client.generate(model=model, prompt=prompt, stream=False)
+            response = client.generate(
+                model=model, prompt=prompt, stream=False, options=options
+            )
         except (OllamaRequestError, OllamaResponseError) as exc:
             raise GenerativeAIPromptError(str(exc)) from exc
 

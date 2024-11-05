@@ -49,13 +49,27 @@ def generate_ai_values_for_rows(self, user_id: int, field_id: int, row_ids: list
         found_rows_ids = [row.id for row in rows]
         raise RowDoesNotExist(sorted(list(set(req_row_ids) - set(found_rows_ids))))
 
-    generative_ai_model_type = generative_ai_model_type_registry.get(
-        ai_field.ai_generative_ai_type
-    )
-    ai_models = generative_ai_model_type.get_enabled_models(workspace=workspace)
+    try:
+        generative_ai_model_type = generative_ai_model_type_registry.get(
+            ai_field.ai_generative_ai_type
+        )
+        ai_models = generative_ai_model_type.get_enabled_models(workspace=workspace)
 
-    if ai_field.ai_generative_ai_model not in ai_models:
-        raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
+        if ai_field.ai_generative_ai_model not in ai_models:
+            raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
+    except ModelDoesNotBelongToType as exc:
+        # If the workspace AI settings have been removed before the task starts,
+        # or if the export worker doesn't have the right env vars yet, then it can
+        # fail. We therefore want to handle the error gracefully.
+        rows_ai_values_generation_error.send(
+            self,
+            user=user,
+            rows=rows,
+            field=ai_field,
+            table=table,
+            error_message=str(exc),
+        )
+        raise exc
 
     for i, row in enumerate(rows):
         context = HumanReadableRowContext(row, exclude_field_ids=[ai_field.id])
@@ -78,6 +92,7 @@ def generate_ai_values_for_rows(self, user_id: int, field_id: int, row_ids: list
                         message,
                         file_ids=file_ids,
                         workspace=workspace,
+                        temperature=ai_field.ai_temperature,
                     )
                 except Exception as exc:
                     raise exc
@@ -85,7 +100,10 @@ def generate_ai_values_for_rows(self, user_id: int, field_id: int, row_ids: list
                     generative_ai_model_type.delete_files(file_ids, workspace=workspace)
             else:
                 value = generative_ai_model_type.prompt(
-                    ai_field.ai_generative_ai_model, message, workspace=workspace
+                    ai_field.ai_generative_ai_model,
+                    message,
+                    workspace=workspace,
+                    temperature=ai_field.ai_temperature,
                 )
         except Exception as exc:
             # If the prompt fails once, we should not continue with the other rows.

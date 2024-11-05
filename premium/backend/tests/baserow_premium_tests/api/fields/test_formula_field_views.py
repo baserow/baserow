@@ -336,9 +336,135 @@ def test_generate_formula(premium_data_fixture, api_client):
         )
 
         prompt = mock.call_args[0][1]
+        temperature = mock.call_args[1]["temperature"]
         assert "You're a Baserow formula generator," in prompt
         assert f'"name": "{text_field.name}"' in prompt
         assert "Generate a formula with all field types" in prompt
+        assert temperature is None
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == {"formula": "field()"}
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+def test_generate_formula_with_temperature(premium_data_fixture, api_client):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user, token = premium_data_fixture.create_user_and_token(
+        email="test@test.nl",
+        password="password",
+        first_name="Test1",
+        has_active_premium_license=True,
+    )
+
+    database = premium_data_fixture.create_database_application(
+        user=user, name="database"
+    )
+    table = premium_data_fixture.create_database_table(name="table", database=database)
+    text_field = premium_data_fixture.create_text_field(table=table)
+
+    generative_ai_instance = generative_ai_model_type_registry.get("test_generative_ai")
+
+    with patch.object(
+        generative_ai_instance, "prompt", return_value='{"formula": "field()"}'
+    ) as mock:
+        response = api_client.post(
+            reverse(
+                "api:premium:fields:generate_ai_formula",
+                kwargs={"table_id": table.id},
+            ),
+            {
+                "ai_type": "test_generative_ai",
+                "ai_model": "test_1",
+                "ai_prompt": "Generate a formula with all field types",
+                "ai_temperature": 0.7,
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+        prompt = mock.call_args[0][1]
+        temperature = mock.call_args[1]["temperature"]
+        assert "You're a Baserow formula generator," in prompt
+        assert f'"name": "{text_field.name}"' in prompt
+        assert "Generate a formula with all field types" in prompt
+        assert temperature == 0.7
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {"formula": "field()"}
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+def test_generate_formula_with_temperature_validation(premium_data_fixture, api_client):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user, token = premium_data_fixture.create_user_and_token(
+        email="test@test.nl",
+        password="password",
+        first_name="Test1",
+        has_active_premium_license=True,
+    )
+
+    database = premium_data_fixture.create_database_application(
+        user=user, name="database"
+    )
+    table = premium_data_fixture.create_database_table(name="table", database=database)
+
+    response = api_client.post(
+        reverse(
+            "api:premium:fields:generate_ai_formula",
+            kwargs={"table_id": table.id},
+        ),
+        {
+            "ai_type": "test_generative_ai",
+            "ai_model": "test_1",
+            "ai_prompt": "Generate a formula with all field types",
+            "ai_temperature": 3,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["detail"]["ai_temperature"][0]["code"] == "max_value"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+def test_generate_formula_with_temperature_null(premium_data_fixture, api_client):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user, token = premium_data_fixture.create_user_and_token(
+        email="test@test.nl",
+        password="password",
+        first_name="Test1",
+        has_active_premium_license=True,
+    )
+
+    database = premium_data_fixture.create_database_application(
+        user=user, name="database"
+    )
+    table = premium_data_fixture.create_database_table(name="table", database=database)
+
+    generative_ai_instance = generative_ai_model_type_registry.get("test_generative_ai")
+
+    with patch.object(
+        generative_ai_instance, "prompt", return_value='{"formula": "field()"}'
+    ) as mock:
+        response = api_client.post(
+            reverse(
+                "api:premium:fields:generate_ai_formula",
+                kwargs={"table_id": table.id},
+            ),
+            {
+                "ai_type": "test_generative_ai",
+                "ai_model": "test_1",
+                "ai_prompt": "Generate a formula with all field types",
+                "ai_temperature": None,
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK

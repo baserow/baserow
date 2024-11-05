@@ -197,6 +197,11 @@
     "openaiOrganization": "Organization (optional)",
     "openaiModelsLabel": "Enabled Models",
     "openaiModelsDescription": "Provide a list of comma separated [OpenAI models](https://platform.openai.com/docs/models/continuous-model-upgrades) that can be used in Baserow. (e.g. `gpt-3.5-turbo,gpt-4`)",
+    "anthropic": "Anthropic",
+    "anthropicApiKeyLabel": "API Key",
+    "anthropicApiKeyDescription": "Provide an Anthropic API key if you would like to enable the integration. [Instructions on getting an API key](https://docs.anthropic.com/en/api/getting-started).",
+    "anthropicModelsLabel": "Enabled Models",
+    "anthropicModelsDescription": "Provide a list of comma separated [Anthropic models](https://docs.anthropic.com/en/docs/about-claude/models) that can be used in Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
     "ollama": "Ollama",
     "ollamaHostLabel": "Host",
     "ollamaHostDescription": "Provide the hostname to your [Ollama](https://ollama.com/) server. This typically runs locally on your own device.",
@@ -208,7 +213,9 @@
     "description": "These settings can be used to optionally set generative AI configuration on workspace level. Features like the AI field can be disabled because they lack an API key for one of the supported models. By providing the settings here, you can enable those features. Leaving a value blank defaults back to the global instance settings. Note that everyone in the workspace will share these settings.",
     "changedTitle": "Settings updated correctly",
     "changedDescription": "The settings have been updated and they will be now used in this workspace.",
-    "submitButton": "Update settings"
+    "submitButton": "Update settings",
+    "openSettings": "Open settings",
+    "hideSettings": "Hide settings"
   },
   "createWorkspaceModal": {
     "createNew": "Create new workspace",
@@ -693,7 +700,9 @@
   "selectAIModelForm": {
     "AIType": "AI Type",
     "AIModel": "AI Model",
-    "fileField": "File field"
+    "fileField": "File field",
+    "temperatureLabel": "Temperature",
+    "temperatureDescription": "The temperature of an LLM, a parameter set between 0 and {max}, adjusts response randomness—lower values yield focused answers, while higher values increase creativity."
   },
   "onboarding": {
     "title": "Onboarding",

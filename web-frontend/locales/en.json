@@ -9,7 +9,9 @@
     "billable": "Billable",
     "all": "All",
     "beta": "Beta",
-    "summarize": "Summarize"
+    "summarize": "Summarize",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
   },
   "action": {
     "upload": "Upload",
@@ -88,6 +90,7 @@
     "minMaxLength": "A minimum of {min} and a maximum of {max} characters is allowed here.",
     "requiredField": "This field is required.",
     "integerField": "The field must be an integer.",
+    "decimalField": "The field must be a decimal.",
     "minValueField": "The field must be greater than or equal to {min}.",
     "maxValueField": "The field must be less than or equal to {max}.",
     "minMaxValueField": "The field value must be between {min} and {max}.",

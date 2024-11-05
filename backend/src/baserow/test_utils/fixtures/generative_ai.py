@@ -21,7 +21,7 @@ class TestGenerativeAINoModelType(GenerativeAIModelType):
     def get_enabled_models(self, workspace=None):
         return []
 
-    def prompt(self, model, prompt, workspace=None):
+    def prompt(self, model, prompt, workspace=None, temperature=None):
         return ""
 
     def get_settings_serializer(self):
@@ -38,8 +38,8 @@ class TestGenerativeAIModelType(GenerativeAIModelType):
         models = self.get_workspace_setting(workspace, "models")
         return models if models else ["test_1"]
 
-    def prompt(self, model, prompt, workspace=None):
-        return f"Generated: {prompt}"
+    def prompt(self, model, prompt, workspace=None, temperature=None):
+        return f"Generated with temperature {temperature}: {prompt}"
 
     def get_settings_serializer(self):
         return GenerativeAIModelsSerializer
@@ -57,8 +57,8 @@ class TestGenerativeAIWithFilesModelType(
         models = self.get_workspace_setting(workspace, "models")
         return models if models else ["test_1"]
 
-    def prompt(self, model, prompt, workspace=None):
-        return f"Generated: {prompt}"
+    def prompt(self, model, prompt, workspace=None, temperature=None):
+        return f"Generated with temperature {temperature}: {prompt}"
 
     def get_settings_serializer(self):
         return GenerativeAIModelsSerializer
@@ -94,8 +94,9 @@ class TestGenerativeAIWithFilesModelType(
         prompt: str,
         file_ids: list[FileId],
         workspace: Optional[Workspace] = None,
+        temperature: Optional[float] = None,
     ):
-        return f"Generated with files {str(file_ids)}: {prompt}"
+        return f"Generated with files {str(file_ids)} and temperature {temperature}: {prompt}"
 
 
 class TestGenerativeAIModelTypePromptError(GenerativeAIModelType):
@@ -107,7 +108,7 @@ class TestGenerativeAIModelTypePromptError(GenerativeAIModelType):
     def get_enabled_models(self, workspace=None):
         return ["test_1"]
 
-    def prompt(self, model, prompt, workspace=None):
+    def prompt(self, model, prompt, workspace=None, temperature=None):
         raise GenerativeAIPromptError("Test error")
 
     def get_settings_serializer(self):

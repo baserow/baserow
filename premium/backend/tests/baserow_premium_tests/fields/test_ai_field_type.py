@@ -101,6 +101,112 @@ def test_create_ai_field_type_via_api(premium_data_fixture, api_client):
     assert response_json["ai_generative_ai_type"] == "test_generative_ai"
     assert response_json["ai_generative_ai_model"] == "test_1"
     assert response_json["ai_prompt"] == "'Who are you?'"
+    assert response_json["ai_temperature"] is None
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_create_ai_field_type_with_temperature_via_api(
+    premium_data_fixture, api_client
+):
+    user, token = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+    premium_data_fixture.register_fake_generate_ai_type()
+    premium_data_fixture.create_text_field(table=table, order=1, name="name")
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Test 1",
+            "type": "ai",
+            "ai_generative_ai_type": "test_generative_ai",
+            "ai_generative_ai_model": "test_1",
+            "ai_prompt": "'Who are you?'",
+            "ai_temperature": 0.7,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["ai_generative_ai_type"] == "test_generative_ai"
+    assert response_json["ai_generative_ai_model"] == "test_1"
+    assert response_json["ai_prompt"] == "'Who are you?'"
+    assert response_json["ai_temperature"] == 0.7
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_create_ai_field_type_with_temperature_validations_via_api(
+    premium_data_fixture, api_client
+):
+    user, token = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+    premium_data_fixture.register_fake_generate_ai_type()
+    premium_data_fixture.create_text_field(table=table, order=1, name="name")
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Test 1",
+            "type": "ai",
+            "ai_generative_ai_type": "test_generative_ai",
+            "ai_generative_ai_model": "test_1",
+            "ai_prompt": "'Who are you?'",
+            "ai_temperature": 3,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["ai_temperature"][0]["code"] == "max_value"
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Test 1",
+            "type": "ai",
+            "ai_generative_ai_type": "test_generative_ai",
+            "ai_generative_ai_model": "test_1",
+            "ai_prompt": "'Who are you?'",
+            "ai_temperature": -1,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["ai_temperature"][0]["code"] == "min_value"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_update_ai_field_temperature_none_via_api(premium_data_fixture, api_client):
+    user, token = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+    premium_data_fixture.register_fake_generate_ai_type()
+    field = premium_data_fixture.create_ai_field(
+        table=table, order=1, name="name", ai_temperature=0.7
+    )
+    file_field = premium_data_fixture.create_file_field(
+        table=table, order=2, name="file"
+    )
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field.id}),
+        {
+            "ai_generative_ai_type": "test_generative_ai_with_files",
+            "ai_generative_ai_model": "test_1",
+            "ai_temperature": None,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["ai_temperature"] is None
 
 
 @pytest.mark.django_db

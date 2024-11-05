@@ -71,6 +71,7 @@ typing_extensions==4.11.0
 ollama==0.1.9
 langchain==0.1.17
 openai==1.30.1
+anthropic==0.37.1
 jsonschema==4.17.3 # pinned due to version conflict
 # referencing==0.31.1 # pinned because of version conflict
 # premium ical feed feature

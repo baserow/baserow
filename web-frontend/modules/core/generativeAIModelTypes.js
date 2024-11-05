@@ -16,6 +16,10 @@ export class GenerativeAIModelType extends Registerable {
   getOrder() {
     return 50
   }
+
+  getMaxTemperature() {
+    return 2
+  }
 }
 
 const modelSettings = (label, description) => ({
@@ -71,6 +75,40 @@ export class OpenAIModelType extends GenerativeAIModelType {
   }
 }
 
+export class AnthropicModelType extends GenerativeAIModelType {
+  static getType() {
+    return 'anthropic'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('generativeAIModelType.anthropic')
+  }
+
+  getSettings() {
+    const { i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.anthropicApiKeyLabel'),
+        description: i18n.t('generativeAIModelType.anthropicApiKeyDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.anthropicModelsLabel'),
+        i18n.t('generativeAIModelType.anthropicModelsDescription')
+      ),
+    ]
+  }
+
+  getOrder() {
+    return 20
+  }
+
+  getMaxTemperature() {
+    return 1
+  }
+}
+
 export class OllamaModelType extends GenerativeAIModelType {
   static getType() {
     return 'ollama'
@@ -97,6 +135,10 @@ export class OllamaModelType extends GenerativeAIModelType {
   }
 
   getOrder() {
-    return 20
+    return 30
+  }
+
+  getMaxTemperature() {
+    return 1
   }
 }

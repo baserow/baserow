@@ -56,16 +56,26 @@ class AIFieldType(CollationSortMixin, FieldType):
     allowed_fields = [
         "ai_generative_ai_type",
         "ai_generative_ai_model",
+        "ai_temperature",
         "ai_prompt",
         "ai_file_field_id",
     ]
     serializer_field_names = [
         "ai_generative_ai_type",
         "ai_generative_ai_model",
+        "ai_temperature",
         "ai_prompt",
         "ai_file_field_id",
     ]
     serializer_field_overrides = {
+        "ai_temperature": serializers.FloatField(
+            required=False,
+            allow_null=True,
+            min_value=0,
+            max_value=2,
+            help_text="Between 0 and 2, adjusts response randomness—lower values yield "
+            "focused answers, while higher values increase creativity.",
+        ),
         "ai_prompt": FormulaSerializerField(
             help_text="The prompt that must run for each row. Must be an formula.",
             required=False,

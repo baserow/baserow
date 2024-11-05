@@ -18,25 +18,59 @@
         :key="type"
         class="margin-top-3"
       >
-        <h3 class="margin-bottom-2">{{ modelType.getName() }}</h3>
-        <FormGroup
-          v-for="setting in modelType.getSettings()"
-          :key="setting.key"
-          small-label
-          :label="setting.label"
-          :error="$v.settings[type][setting.key].$error"
-          required
-          class="margin-bottom-2"
-        >
-          <FormInput
-            v-model.trim="$v.settings[type][setting.key].$model"
-            :error="$v.settings[type][setting.key].$error"
-          />
-
-          <template v-if="setting.description" #helper>
-            <MarkdownIt :content="setting.description" />
+        <Expandable card>
+          <template #header="{ toggle, expanded }">
+            <div class="flex flex-100 justify-content-space-between">
+              <div>
+                <div class="margin-bottom-1">
+                  <strong>{{ modelType.getName() }}</strong>
+                </div>
+                <div>
+                  <a @click="toggle">
+                    <template v-if="expanded">{{
+                      $t('generativeAIWorkspaceSettings.hideSettings')
+                    }}</template>
+                    <template v-else>{{
+                      $t('generativeAIWorkspaceSettings.openSettings')
+                    }}</template>
+                    <i
+                      :class="
+                        expanded
+                          ? 'iconoir-nav-arrow-down'
+                          : 'iconoir-nav-arrow-right'
+                      "
+                    />
+                  </a>
+                </div>
+              </div>
+              <div>
+                {{
+                  isEnabled(type) ? $t('common.enabled') : $t('common.disabled')
+                }}
+              </div>
+            </div>
           </template>
-        </FormGroup>
+          <template #default>
+            <FormGroup
+              v-for="setting in modelType.getSettings()"
+              :key="setting.key"
+              small-label
+              :label="setting.label"
+              :error="$v.settings[type][setting.key].$error"
+              required
+              class="margin-bottom-2"
+            >
+              <FormInput
+                v-model.trim="$v.settings[type][setting.key].$model"
+                :error="$v.settings[type][setting.key].$error"
+              />
+
+              <template v-if="setting.description" #helper>
+                <MarkdownIt :content="setting.description" />
+              </template>
+            </FormGroup>
+          </template>
+        </Expandable>
       </div>
       <div class="actions actions--right">
         <Button
@@ -153,6 +187,13 @@ export default {
       } finally {
         this.updateLoading = false
       }
+    },
+    isEnabled(typeName) {
+      const enabled = this.workspace.generative_ai_models_enabled || {}
+      return (
+        Object.prototype.hasOwnProperty.call(enabled, typeName) &&
+        enabled[typeName].length > 0
+      )
     },
   },
   validations() {
