@@ -2,7 +2,6 @@
   <li
     class="tree__item"
     :class="{
-      active: application._.selected,
       'tree__item--loading': application._.loading,
     }"
   >

@@ -54,6 +54,7 @@ import {
   hasValueContainsWordFilterMixin,
   hasValueLengthIsLowerThanFilterMixin,
 } from '@baserow/modules/database/arrayFilterMixins'
+import _ from 'lodash'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
   getIconClass() {
@@ -1017,6 +1018,9 @@ export class BaserowFormulaURLType extends BaserowFormulaTypeDefinition {
   }
 
   toHumanReadableString(field, value) {
+    if (_.isString(value)) {
+      return value
+    }
     if (value?.label) {
       return `${value.label} (${value.url})`
     } else {

@@ -533,7 +533,7 @@ class DatabaseApplicationType(ApplicationType):
         # metadata is imported too.
         self._import_extra_metadata(serialized_tables, id_mapping, import_export_config)
 
-        self._import_data_sync(serialized_tables, id_mapping)
+        self._import_data_sync(serialized_tables, id_mapping, import_export_config)
 
         return imported_tables
 
@@ -552,14 +552,16 @@ class DatabaseApplicationType(ApplicationType):
                     source_workspace, table, serialized_table, import_export_config
                 )
 
-    def _import_data_sync(self, serialized_tables, id_mapping):
+    def _import_data_sync(self, serialized_tables, id_mapping, import_export_config):
         for serialized_table in serialized_tables:
             if not serialized_table.get("data_sync", None):
                 continue
             table = serialized_table["_object"]
             serialized_data_sync = serialized_table["data_sync"]
             data_sync_type = data_sync_type_registry.get(serialized_data_sync["type"])
-            data_sync_type.import_serialized(table, serialized_data_sync, id_mapping)
+            data_sync_type.import_serialized(
+                table, serialized_data_sync, id_mapping, import_export_config
+            )
 
     def _import_table_rows(
         self,

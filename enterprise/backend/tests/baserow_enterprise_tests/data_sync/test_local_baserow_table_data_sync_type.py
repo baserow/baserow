@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -14,7 +15,9 @@ from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.fields.models import NumberField
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.db import specific_iterator
+from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.test_utils.helpers import setup_interesting_test_table
 from baserow_enterprise.data_sync.baserow_table_data_sync import (
     BaserowFieldDataSyncProperty,
@@ -233,6 +236,70 @@ def test_sync_data_sync_table(enterprise_data_fixture):
     assert getattr(row, f"field_{field_2_field.id}") == getattr(
         source_row_1, f"field" f"_{field_2.id}"
     )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_authorized_user_is_none(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id"],
+        source_table_id=source_table.id,
+        authorized_user=None,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    data_sync.refresh_from_db()
+    assert data_sync.authorized_user_id == user.id
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_authorized_user_is_set(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    user_2 = enterprise_data_fixture.create_user()
+
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.create_user_workspace(
+        workspace=workspace, user=user_2, order=0
+    )
+
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    source_table = enterprise_data_fixture.create_database_table(
+        database=database, name="Source"
+    )
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id"],
+        source_table_id=source_table.id,
+        authorized_user=user,
+    )
+    handler.sync_data_sync_table(user=user_2, data_sync=data_sync)
+
+    data_sync.refresh_from_db()
+    assert data_sync.authorized_user_id == user.id
 
 
 @pytest.mark.django_db
@@ -639,3 +706,177 @@ def test_async_sync_data_sync_table_without_license(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_import_export_including_source_table(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    source_table = enterprise_data_fixture.create_database_table(
+        name="Source", database=database
+    )
+    text_field = enterprise_data_fixture.create_text_field(
+        table=source_table, name="Text"
+    )
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{text_field.id}"],
+        source_table_id=source_table.id,
+    )
+    properties = data_sync.synced_properties.all().order_by("key")
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    database_type = application_type_registry.get("database")
+    config = ImportExportConfig(include_permission_data=True)
+    serialized = database_type.export_serialized(database, config)
+
+    imported_workspace = enterprise_data_fixture.create_workspace()
+    imported_workspace_user = enterprise_data_fixture.create_user_workspace(
+        workspace=imported_workspace, user=user
+    )
+    id_mapping = {}
+
+    imported_database = database_type.import_serialized(
+        imported_workspace,
+        serialized,
+        config,
+        id_mapping,
+        None,
+        None,
+    )
+
+    imported_table = imported_database.table_set.filter(name="Test").first()
+    imported_source_table = imported_database.table_set.filter(name="Source").first()
+    imported_data_sync = imported_table.data_sync.specific
+    imported_text_field = imported_source_table.field_set.all().first()
+
+    assert imported_data_sync.authorized_user_id is None
+
+    assert imported_data_sync.source_table_id == imported_source_table.id
+    fields = imported_data_sync.table.field_set.all().order_by("id")
+    assert fields[0].read_only is True
+    assert fields[1].read_only is True
+
+    imported_properties = imported_data_sync.synced_properties.all().order_by("key")
+    assert imported_properties[0].key != f"field_{text_field.id}"
+    assert imported_properties[0].key == f"field_{imported_text_field.id}"
+    assert imported_properties[1].key == "id"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_import_export_duplicate_table(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    source_table = enterprise_data_fixture.create_database_table(
+        name="Source", database=database
+    )
+    text_field = enterprise_data_fixture.create_text_field(
+        table=source_table, name="Text"
+    )
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{text_field.id}"],
+        source_table_id=source_table.id,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    duplicated_table = TableHandler().duplicate_table(user, data_sync.table)
+    assert duplicated_table.id != data_sync.table_id
+
+    imported_data_sync = duplicated_table.data_sync.specific
+    assert imported_data_sync.source_table_id == data_sync.source_table_id
+    assert imported_data_sync.authorized_user_id is None
+
+    assert imported_data_sync.authorized_user_id is None
+
+    fields = imported_data_sync.table.field_set.all().order_by("id")
+    assert fields[0].read_only is True
+    assert fields[1].read_only is True
+
+    imported_properties = imported_data_sync.synced_properties.all().order_by("key")
+    assert imported_properties[0].key == f"field_{text_field.id}"
+    assert imported_properties[1].key == "id"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_import_export_excluding_source_table(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    workspace_2 = enterprise_data_fixture.create_workspace(user=user)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    database_2 = enterprise_data_fixture.create_database_application(
+        workspace=workspace_2
+    )
+    source_table = enterprise_data_fixture.create_database_table(
+        name="Source", database=database_2
+    )
+    text_field = enterprise_data_fixture.create_text_field(
+        table=source_table, name="Text"
+    )
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{text_field.id}"],
+        source_table_id=source_table.id,
+    )
+    properties = data_sync.synced_properties.all().order_by("key")
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    database_type = application_type_registry.get("database")
+    config = ImportExportConfig(include_permission_data=True)
+    serialized = database_type.export_serialized(database, config)
+
+    imported_workspace = enterprise_data_fixture.create_workspace()
+    imported_workspace_user = enterprise_data_fixture.create_user_workspace(
+        workspace=imported_workspace, user=user
+    )
+    id_mapping = {}
+
+    imported_database = database_type.import_serialized(
+        imported_workspace,
+        serialized,
+        config,
+        id_mapping,
+        None,
+        None,
+    )
+
+    imported_table = imported_database.table_set.filter(name="Test").first()
+    with pytest.raises(ObjectDoesNotExist):
+        imported_table.data_sync
+
+    fields = imported_table.field_set.all().order_by("id")
+    assert fields[0].read_only is False
+    assert fields[0].immutable_properties is False
+    assert fields[0].immutable_type is False
+    assert fields[1].read_only is False
+    assert fields[1].immutable_properties is False
+    assert fields[1].immutable_type is False

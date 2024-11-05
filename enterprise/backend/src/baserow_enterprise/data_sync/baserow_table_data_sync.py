@@ -35,6 +35,7 @@ from baserow.contrib.database.fields.models import (
     TextField,
 )
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationType
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
@@ -144,6 +145,15 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             DATA_SYNC, instance.table.database.workspace
         )
 
+    def before_sync_table(self, user, instance):
+        # If the authorized user was deleted, or the table was duplicated,
+        # the authorized user is set to `None`. In this case, we're setting the
+        # authorized user to the user on whos behalf the table is synced so that it
+        # will work.
+        if instance.authorized_user is None:
+            instance.authorized_user = user
+            instance.save()
+
     def _get_table(self, instance):
         try:
             table = TableHandler().get_table(instance.source_table_id)
@@ -201,3 +211,54 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         rows_queryset = model.objects.all().values(*["id"] + enabled_property_field_ids)
         progress.increment(by=9)  # makes the total `10`
         return rows_queryset
+
+    def import_serialized(
+        self, table, serialized_values, id_mapping, import_export_config
+    ):
+        serialized_copy = serialized_values.copy()
+        # Always unset the authorized user for security reasons. This is okay because
+        # the first user to sync the data sync table will become the authorized user.
+        serialized_copy["authorized_user_id"] = None
+        source_table_id = serialized_copy["source_table_id"]
+
+        if source_table_id in id_mapping["database_tables"]:
+            # If the source table exists in the mapping, it means that it was
+            # included in the export. In that case, we want to use that one as source
+            # table instead of the existing one.
+            serialized_copy["source_table_id"] = id_mapping["database_tables"][
+                source_table_id
+            ]
+            serialized_copy["authorized_user_id"] = None
+            data_sync = super().import_serialized(
+                table, serialized_copy, id_mapping, import_export_config
+            )
+
+            # Because we're now pointing to the newly imported data sync source table,
+            # the field id keys must also be remapped.
+            properties_to_update = []
+            for data_sync_property in data_sync.synced_properties.all():
+                key_field_id = get_field_id_from_field_key(data_sync_property.key)
+                if key_field_id:
+                    new_field_id = id_mapping["database_fields"][key_field_id]
+                    data_sync_property.key = f"field_{new_field_id}"
+                    properties_to_update.append(data_sync_property)
+            DataSyncSyncedProperty.objects.bulk_update(properties_to_update, ["key"])
+
+            return data_sync
+
+        if import_export_config.is_duplicate:
+            # When duplicating the database or table, and it doesn't exist in the
+            # id_mapping, then the source table is inside the same database or in
+            # another workspace. In that case, we want to keep using the same.
+            return super().import_serialized(
+                table, serialized_copy, id_mapping, import_export_config
+            )
+
+        # If the source table doesn't exist in the mapping, and we're not
+        # duplicating, then it's not possible to preserve the data sync. We'll then
+        # transform the fields to editable fields, keep the data, and keep the table
+        # as regular table.
+        table.field_set.all().update(
+            read_only=False, immutable_type=False, immutable_properties=False
+        )
+        return None

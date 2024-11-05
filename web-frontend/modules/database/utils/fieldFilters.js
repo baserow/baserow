@@ -31,6 +31,7 @@ export function genericContainsFilter(
   }
   humanReadableRowValue = humanReadableRowValue.toString().toLowerCase().trim()
   filterValue = filterValue.toString().toLowerCase().trim()
+
   return humanReadableRowValue.includes(filterValue)
 }
 
@@ -47,7 +48,7 @@ export function genericContainsWordFilter(
   // check using regex to match whole words
   // make sure to escape the filterValue as it may contain regex special characters
   filterValue = filterValue.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&')
-  return humanReadableRowValue.match(new RegExp(`\\b${filterValue}\\b`))
+  return !!humanReadableRowValue.match(new RegExp(`\\b${filterValue}\\b`))
 }
 
 export function genericHasEmptyValueFilter(cellValue, filterValue) {

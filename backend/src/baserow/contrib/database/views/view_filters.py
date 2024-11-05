@@ -61,6 +61,7 @@ from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaDateIntervalType,
     BaserowFormulaDurationType,
     BaserowFormulaSingleFileType,
+    BaserowFormulaURLType,
 )
 from baserow.core.datetime import get_timezones
 from baserow.core.models import WorkspaceUser
@@ -104,6 +105,7 @@ class EqualViewFilterType(ViewFilterType):
             BaserowFormulaTextType.type,
             BaserowFormulaCharType.type,
             BaserowFormulaNumberType.type,
+            BaserowFormulaURLType.type,
         ),
     ]
 
@@ -240,6 +242,7 @@ class ContainsViewFilterType(ViewFilterType):
             BaserowFormulaCharType.type,
             BaserowFormulaNumberType.type,
             BaserowFormulaDateType.type,
+            BaserowFormulaURLType.type,
         ),
     ]
 
@@ -270,6 +273,7 @@ class ContainsWordViewFilterType(ViewFilterType):
         FormulaFieldType.compatible_with_formula_types(
             BaserowFormulaTextType.type,
             BaserowFormulaCharType.type,
+            BaserowFormulaURLType.type,
         ),
     ]
 
@@ -305,6 +309,9 @@ class LengthIsLowerThanViewFilterType(ViewFilterType):
         URLFieldType.type,
         EmailFieldType.type,
         PhoneNumberFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaURLType.type,
+        ),
     ]
 
     def get_filter(self, field_name, value, model_field, field):
@@ -1488,6 +1495,7 @@ class EmptyViewFilterType(ViewFilterType):
             BaserowFormulaBooleanType.type,
             BaserowFormulaDateIntervalType.type,
             BaserowFormulaDurationType.type,
+            BaserowFormulaURLType.type,
             FormulaFieldType.array_of(BaserowFormulaSingleFileType.type),
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
         ),

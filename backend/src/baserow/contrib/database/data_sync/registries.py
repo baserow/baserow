@@ -9,6 +9,7 @@ from baserow.contrib.database.data_sync.export_serialized import (
 )
 from baserow.contrib.database.data_sync.models import DataSync, DataSyncSyncedProperty
 from baserow.contrib.database.fields.models import Field
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -94,6 +95,14 @@ class DataSyncType(
         :param instance: The related data sync instance.
         """
 
+    def before_sync_table(self, user: AbstractUser, instance: "DataSync"):
+        """
+        A hook that's called right before the table sync starts.
+
+        :param user: The user on whose behalf the table is synced.
+        :param instance: The related data sync instance.
+        """
+
     @abstractmethod
     def get_properties(self, instance: "DataSync") -> List[DataSyncProperty]:
         """
@@ -155,7 +164,13 @@ class DataSyncType(
             **type_specific,
         )
 
-    def import_serialized(self, table, serialized_values, id_mapping):
+    def import_serialized(
+        self,
+        table,
+        serialized_values,
+        id_mapping,
+        import_export_config: ImportExportConfig,
+    ):
         """
         Imports the data sync properties and the `allowed_fields`.
         """

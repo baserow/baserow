@@ -70,6 +70,7 @@ class ImportExportConfig:
 
     include_permission_data: bool
 
+    reduce_disk_space_usage: bool = False
     """
     Whether or not the import/export should attempt to save disk space by excluding
     certain pieces of optional data or processes that could instead be done later or
@@ -79,13 +80,18 @@ class ImportExportConfig:
     tsvector full text search columns as they can also be lazy loaded after the import
     when the user opens a view.
     """
-    reduce_disk_space_usage: bool = False
 
+    workspace_for_user_references: "Workspace" = None
     """
     Determines an alternative workspace to search for user references
     during imports.
     """
-    workspace_for_user_references: "Workspace" = None
+
+    is_duplicate: bool = False
+    """
+    Indicates whether the import export operation is duplicating an existing object.
+    The data then doesn't leave the instance.
+    """
 
 
 class Plugin(APIUrlsInstanceMixin, Instance):

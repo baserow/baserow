@@ -1494,7 +1494,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         progress.increment(by=start_progress)
 
         duplicate_import_export_config = ImportExportConfig(
-            include_permission_data=True, reduce_disk_space_usage=False
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            is_duplicate=True,
         )
         # export the application
         specific_application = application.specific

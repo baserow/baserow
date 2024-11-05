@@ -197,7 +197,12 @@ export class EqualViewFilterType extends ViewFilterType {
       'uuid',
       'autonumber',
       'duration',
-      FormulaFieldType.compatibleWithFormulaTypes('text', 'char', 'number'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'text',
+        'char',
+        'number',
+        'url'
+      ),
     ]
   }
 
@@ -243,7 +248,12 @@ export class NotEqualViewFilterType extends ViewFilterType {
       'uuid',
       'autonumber',
       'duration',
-      FormulaFieldType.compatibleWithFormulaTypes('text', 'char', 'number'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'text',
+        'char',
+        'number',
+        'url'
+      ),
     ]
   }
 
@@ -393,7 +403,8 @@ export class ContainsViewFilterType extends ViewFilterType {
         'text',
         'char',
         'number',
-        'date'
+        'date',
+        'url'
       ),
     ]
   }
@@ -438,7 +449,8 @@ export class ContainsNotViewFilterType extends ViewFilterType {
         'text',
         'char',
         'number',
-        'date'
+        'date',
+        'url'
       ),
     ]
   }
@@ -470,7 +482,7 @@ export class ContainsWordViewFilterType extends ViewFilterType {
       'email',
       'single_select',
       'multiple_select',
-      FormulaFieldType.compatibleWithFormulaTypes('text', 'char'),
+      FormulaFieldType.compatibleWithFormulaTypes('text', 'char', 'url'),
     ]
   }
 
@@ -513,7 +525,14 @@ export class LengthIsLowerThanViewFilterType extends ViewFilterType {
   }
 
   getCompatibleFieldTypes() {
-    return ['text', 'long_text', 'url', 'email', 'phone_number']
+    return [
+      'text',
+      'long_text',
+      'url',
+      'email',
+      'phone_number',
+      FormulaFieldType.compatibleWithFormulaTypes('url'),
+    ]
   }
 
   matches(rowValue, filterValue, field, fieldType) {
@@ -2702,6 +2721,7 @@ export class EmptyViewFilterType extends ViewFilterType {
         'boolean',
         'date',
         'number',
+        'url',
         FormulaFieldType.arrayOf('single_file'),
         FormulaFieldType.arrayOf('boolean')
       ),
@@ -2765,6 +2785,7 @@ export class NotEmptyViewFilterType extends ViewFilterType {
         'boolean',
         'date',
         'number',
+        'url',
         FormulaFieldType.arrayOf('single_file'),
         FormulaFieldType.arrayOf('boolean')
       ),
