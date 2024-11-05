@@ -180,7 +180,7 @@ class JSONArrayContainsValueExpr(BaserowFilterExpression):
         EXISTS(
             SELECT filtered_field ->> 'value'
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE UPPER(filtered_field ->> 'value') LIKE UPPER(%(value)s)
+            WHERE UPPER(filtered_field ->> 'value') LIKE UPPER(%(value)s::text)
         )
         """  # nosec B608
     )
@@ -209,32 +209,6 @@ class JSONArrayContainsValueLengthLowerThanExpr(BaserowFilterExpression):
             SELECT filtered_field ->> 'value'
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE LENGTH(filtered_field ->> 'value') < %(value)s
-        )
-        """  # nosec B608 %(value)s
-    )
-    # fmt: on
-
-
-class JSONArrayNoneIsExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        not %(value)s::boolean = any(
-            SELECT (filtered_field ->> 'value')::boolean
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-        ) AND JSONB_ARRAY_LENGTH(%(field_name)s) > 0
-        """  # nosec B608 %(value)s
-    )
-    # fmt: on
-
-
-class JSONArrayAnyIsExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        %(value)s::boolean = any(
-            SELECT (filtered_field ->> 'value')::boolean
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
         )
         """  # nosec B608 %(value)s
     )

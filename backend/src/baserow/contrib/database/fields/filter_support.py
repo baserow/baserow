@@ -5,6 +5,8 @@ from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import BooleanField, F, Q, Value
 
+from loguru import logger
+
 from baserow.contrib.database.fields.field_filters import (
     AnnotatedQ,
     OptionallyAnnotatedQ,
@@ -151,12 +153,27 @@ class HasValueLengthIsLowerThanFilterSupport:
         )
 
 
-def get_array_bool_json_expression(
-    json_expression: typing.Type[BaserowFilterExpression],
-    field_name: str,
-    value: str,
-    model_field,
-    field,
+class HasAllValuesEqualFilterSupport:
+    has_all_values_equal_expression: typing.ClassVar[
+        typing.Type[BaserowFilterExpression]
+    ]
+
+    def get_has_all_values_equal_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        try:
+            expression = self.__class__.has_all_values_equal_expression
+            return get_array_json_filter_expression(expression, field_name, value)
+
+        except Exception as err:
+            logger.error(
+                f"Error when creating {self.type} filter expression for {field_name} field with {value} value: {err}"
+            )
+            return self.default_filter_on_exception()
+
+
+def get_array_json_filter_expression(
+    json_expression: typing.Type[BaserowFilterExpression], field_name: str, value: str
 ) -> OptionallyAnnotatedQ:
     """
     helper to generate annotated query to get filtered json-based array.
@@ -170,15 +187,11 @@ def get_array_bool_json_expression(
     :return:
     """
 
-    value = value.strip()
-    # if not value:
-    #     return Q()
-    converted_value = True if value == "1" else False
     annotation_query = json_expression(
-        F(field_name), Value(converted_value), output_field=BooleanField()
+        F(field_name), Value(value), output_field=BooleanField()
     )
     hashed_value = hash(value)
     return AnnotatedQ(
-        annotation={f"{field_name}_none_of_array_is_{hashed_value}": annotation_query},
-        q={f"{field_name}_none_of_array_is_{hashed_value}": True},
+        annotation={f"{field_name}_array_expr_{hashed_value}": annotation_query},
+        q={f"{field_name}_array_expr_{hashed_value}": True},
     )

@@ -7,7 +7,18 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from itertools import cycle
 from random import randint, randrange, sample
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
@@ -80,11 +91,13 @@ from baserow.contrib.database.db.functions import RandomUUID
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
 from baserow.contrib.database.fields.filter_support import (
     FilterNotSupportedException,
+    HasAllValuesEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
+    get_array_json_filter_expression,
 )
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
@@ -121,6 +134,7 @@ from baserow.core.expressions import DateTrunc
 from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
+from baserow.core.formula.validator import ensure_boolean
 from baserow.core.handler import CoreHandler
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
@@ -129,6 +143,10 @@ from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import list_to_comma_separated_string
 
+from ..formula.expression_generator.django_expressions import (
+    JSONArrayAllAreExpr,
+    JSONArrayContainsValueExpr,
+)
 from .constants import BASEROW_BOOLEAN_FIELD_TRUE_VALUES, UPSERT_OPTION_DICT_KEY
 from .dependencies.exceptions import (
     CircularFieldDependencyError,
@@ -796,10 +814,11 @@ class RatingFieldType(FieldType):
         return old_field.max_value > new_max_value
 
 
-class BooleanFieldType(HasValueFilterSupport, FieldType):
+class BooleanFieldType(FieldType):
     type = "boolean"
     model_class = BooleanField
     _can_group_by = True
+    has_all_values_equal_expression = JSONArrayAllAreExpr
 
     def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
         """
@@ -842,18 +861,6 @@ class BooleanFieldType(HasValueFilterSupport, FieldType):
         self, boolean_formula_type: BaserowFormulaBooleanType
     ) -> BooleanField:
         return BooleanField()
-
-    def get_in_array_is_query(self, field_name, value, model_field, field):
-        from baserow.contrib.database.formula.expression_generator.django_expressions import (
-            JSONArrayAnyIsExpr,
-        )
-        from baserow.contrib.database.views.array_view_filters import (
-            get_array_bool_json_expression,
-        )
-
-        return get_array_bool_json_expression(
-            JSONArrayAnyIsExpr, field_name, value, model_field, field
-        )
 
 
 class DateFieldType(FieldType):
@@ -4377,6 +4384,7 @@ class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
 
 
 class FormulaFieldType(
+    HasAllValuesEqualFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueFilterSupport,
     HasValueContainsFilterSupport,
@@ -4571,7 +4579,6 @@ class FormulaFieldType(
         ) = self.get_field_instance_and_type_from_formula_field(field)
         if not isinstance(field_type, HasValueFilterSupport):
             raise FilterNotSupportedException()
-
         return field_type.get_in_array_is_query(
             field_name, value, model_field, field_instance
         )
@@ -4589,6 +4596,51 @@ class FormulaFieldType(
 
         return field_type.get_in_array_contains_query(
             field_name, value, model_field, field_instance
+        )
+
+    def _call_array_filtering_array_formula_field_type_handler(
+        self, field_name, value, model_field, field, subcls: Type, method_name: str
+    ):
+        """
+        Encapsulates a common logic behind filtering array-based formula fields.
+
+        :param field_name:
+        :param value:
+        :param model_field:
+        :param field:
+        :param subcls: a subclass to
+        :param method_name:
+        :return:
+        """
+        (
+            field_instance,
+            field_type,
+        ) = self.get_field_instance_and_type_from_formula_field(field)
+
+        if not isinstance(field_type, subcls):
+            logger.warning(
+                f"cannot use {field_type} in {subcls}.{method_name} call: field not in class hierarchy"
+            )
+            raise FilterNotSupportedException(field_type)
+        try:
+            handler = getattr(field_type, method_name)
+        except AttributeError:
+            logger.warning(
+                f"cannot use {field_type} in {subcls}.{method_name} call: field not in class hierarchy"
+            )
+            raise FilterNotSupportedException(method_name)
+        return handler(field_name, value, model_field, field_instance)
+
+    def get_has_all_values_equal_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        return self._call_array_filtering_array_formula_field_type_handler(
+            field_name,
+            value,
+            model_field,
+            field,
+            HasAllValuesEqualFilterSupport,
+            "get_has_all_values_equal_query",
         )
 
     def get_in_array_contains_word_query(

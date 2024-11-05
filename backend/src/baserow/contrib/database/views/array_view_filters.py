@@ -4,18 +4,15 @@ from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.filter_support import (
     FilterNotSupportedException,
+    HasAllValuesEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
-    get_array_bool_json_expression,
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaTextType
-from baserow.contrib.database.formula.expression_generator.django_expressions import (
-    JSONArrayAllAreExpr,
-)
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaBooleanType,
     BaserowFormulaCharType,
@@ -111,7 +108,6 @@ class HasValueContainsViewFilterType(ViewFilterType):
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
         try:
             field_type = field_type_registry.get_by_model(field)
-
             if not isinstance(field_type, HasValueContainsFilterSupport):
                 raise FilterNotSupportedException()
 
@@ -206,10 +202,12 @@ class HasAllValuesEqualViewFilterType(ViewFilterType):
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
         try:
-            return get_array_bool_json_expression(
-                JSONArrayAllAreExpr, field_name, value, model_field, field
+            field_type = field_type_registry.get_by_model(field)
+            if not isinstance(field_type, HasAllValuesEqualFilterSupport):
+                raise FilterNotSupportedException(field_type)
+            return field_type.get_has_all_values_equal_query(
+                field_name, value, model_field, field
             )
-
         except Exception as err:
             logger.error(
                 f"Error when creating {self.type} filter expression for {field_name} field with {value} value: {err}"

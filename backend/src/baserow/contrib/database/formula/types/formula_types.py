@@ -9,6 +9,7 @@ from django.db.models import Expression, F, Func, Q, QuerySet, TextField, Value
 from django.db.models.functions import Cast, Concat
 
 from dateutil import parser
+from loguru import logger
 from rest_framework import serializers
 from rest_framework.fields import Field
 
@@ -21,11 +22,13 @@ from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
 from baserow.contrib.database.fields.filter_support import (
     FilterNotSupportedException,
+    HasAllValuesEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
+    get_array_json_filter_expression,
 )
 from baserow.contrib.database.fields.mixins import get_date_time_format
 from baserow.contrib.database.fields.utils.duration import (
@@ -41,6 +44,10 @@ from baserow.contrib.database.formula.ast.tree import (
     BaserowIntegerLiteral,
     BaserowStringLiteral,
 )
+from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    JSONArrayAllAreExpr,
+    JSONArrayContainsValueExpr,
+)
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.formula.types.exceptions import UnknownFormulaType
 from baserow.contrib.database.formula.types.formula_type import (
@@ -50,6 +57,7 @@ from baserow.contrib.database.formula.types.formula_type import (
     BaserowFormulaValidType,
     UnTyped,
 )
+from baserow.core.formula.validator import ensure_boolean
 from baserow.core.storage import get_default_storage
 from baserow.core.utils import list_to_comma_separated_string
 
@@ -424,6 +432,7 @@ class BaserowFormulaNumberType(
 
 
 class BaserowFormulaBooleanType(
+    HasAllValuesEqualFilterSupport,
     HasValueFilterSupport,
     BaserowFormulaTypeHasEmptyBaserowExpression,
     BaserowFormulaValidType,
@@ -432,6 +441,7 @@ class BaserowFormulaBooleanType(
     baserow_field_type = "boolean"
     can_order_by_in_array = True
     can_group_by = True
+    has_all_values_equal_expression = JSONArrayAllAreExpr
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -461,11 +471,10 @@ class BaserowFormulaBooleanType(
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        _, field_type = self.get_baserow_field_instance_and_type()
-        if not isinstance(field_type, HasValueFilterSupport):
-            raise FilterNotSupportedException(field_type)
-
-        return field_type.get_in_array_is_query(field_name, value, model_field, field)
+        value = ensure_boolean(value.strip())
+        return get_array_json_filter_expression(
+            JSONArrayContainsValueExpr, field_name, value
+        )
 
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
         return JSONBSingleKeyArrayExpression(
@@ -475,6 +484,14 @@ class BaserowFormulaBooleanType(
             output_field=ArrayField(
                 base_field=models.DecimalField(max_digits=50, decimal_places=0)
             ),
+        )
+
+    def get_has_all_values_equal_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        value = "true" if ensure_boolean(value.strip()) else "false"
+        return super().get_has_all_values_equal_query(
+            field_name, value, model_field, field
         )
 
 
@@ -1001,6 +1018,7 @@ class BaserowFormulaSingleFileType(BaserowJSONBObjectBaseType):
 
 
 class BaserowFormulaArrayType(
+    HasAllValuesEqualFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueFilterSupport,
     HasValueContainsFilterSupport,
@@ -1176,7 +1194,6 @@ class BaserowFormulaArrayType(
     def get_in_array_is_query(self, field_name, value, model_field, field):
         if not isinstance(self.sub_type, HasValueFilterSupport):
             raise FilterNotSupportedException()
-
         return self.sub_type.get_in_array_is_query(
             field_name, value, model_field, field
         )
@@ -1210,6 +1227,18 @@ class BaserowFormulaArrayType(
             raise FilterNotSupportedException()
 
         return self.sub_type.get_in_array_length_is_lower_than_query(
+            field_name, value, model_field, field
+        )
+
+    def get_has_all_values_equal_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        if not isinstance(self.sub_type, HasAllValuesEqualFilterSupport):
+            logger.warning(
+                f"field {field} is not from {HasAllValuesEqualFilterSupport} hierarchy"
+            )
+            raise FilterNotSupportedException()
+        return self.sub_type.get_has_all_values_equal_query(
             field_name, value, model_field, field
         )
 
