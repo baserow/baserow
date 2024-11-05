@@ -1,17 +1,13 @@
 <template>
-  <div>
+  <div class="api-token-settings">
     <template v-if="page === 'list'">
-      <h2 class="box__title">{{ $t('apiTokenSettings.title') }}</h2>
-      <div class="align-right">
-        <a class="button button--primary" @click.prevent="page = 'create'">
-          {{ $t('apiTokenSettings.createToken') }}
-          <i class="iconoir-plus"></i>
-        </a>
-      </div>
       <Error :error="error"></Error>
-      <div v-if="listLoading" class="loading"></div>
-      <div v-else>
-        <p v-if="tokens.length === 0" class="margin-top-3">
+      <div v-if="listLoading" class="api-token-settings__loading">
+        <div class="loading-spinner"></div>
+      </div>
+
+      <template v-else>
+        <p v-if="tokens.length === 0">
           {{ $t('apiTokenSettings.noTokensMessage') }}
         </p>
         <APIToken
@@ -31,31 +27,11 @@
             {{ $t('apiTokenSettings.noPermissions') }}
           </SwitchInput>
         </div>
-      </div>
+      </template>
     </template>
     <template v-else-if="page === 'create'">
-      <h2 class="box__title">{{ $t('apiTokenSettings.createNewTitle') }}</h2>
       <Error :error="error"></Error>
-      <APITokenForm @submitted="create">
-        <div class="actions">
-          <ul class="action__links">
-            <li>
-              <a @click.prevent="page = 'list'">
-                <i class="iconoir-arrow-left"></i>
-                {{ $t('apiTokenSettings.backToOverview') }}
-              </a>
-            </li>
-          </ul>
-          <Button
-            type="primary"
-            size="large"
-            :loading="createLoading"
-            :disabled="createLoading"
-          >
-            {{ $t('apiTokenSettings.createToken') }}
-          </Button>
-        </div>
-      </APITokenForm>
+      <APITokenForm ref="form" @submitted="create"> </APITokenForm>
     </template>
   </div>
 </template>
@@ -83,6 +59,11 @@ export default {
       return this.$store.getters['workspace/get'](1)
     },
   },
+  watch: {
+    page(newVal) {
+      this.$emit('database-token-page-type-changed', newVal)
+    },
+  },
   /**
    * When the component is mounted we immediately want to fetch all the tokens.
    */
@@ -103,16 +84,16 @@ export default {
      * token is going to be added last.
      */
     async create(values) {
-      this.createLoading = true
+      this.$emit('loading', true)
       this.hideError()
 
       try {
         const { data } = await TokenService(this.$client).create(values)
         this.tokens.push(data)
-        this.createLoading = false
+        this.$emit('loading', false)
         this.page = 'list'
       } catch (error) {
-        this.createLoading = false
+        this.$emit('loading', false)
         this.handleError(error, 'token')
       }
     },
@@ -123,6 +104,15 @@ export default {
     deleteToken(tokenId) {
       const index = this.tokens.findIndex((token) => token.id === tokenId)
       this.tokens.splice(index, 1)
+    },
+    getCTALabel() {
+      return this.$t('apiTokenSettings.createToken')
+    },
+    setPageType(pageType) {
+      this.page = pageType
+    },
+    submitForm() {
+      this.$refs.form.submit()
     },
   },
 }
