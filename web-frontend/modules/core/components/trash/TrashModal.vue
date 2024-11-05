@@ -1,11 +1,6 @@
 <template>
-  <Modal
-    :full-height="true"
-    :left-sidebar="true"
-    :left-sidebar-scrollable="true"
-    :content-scrollable="true"
-  >
-    <template #sidebar>
+  <ModalV2 full-height left-sidebar no-content-padding>
+    <template #sidebar-content>
       <TrashSidebar
         v-if="!loading"
         :workspaces="workspaces"
@@ -14,13 +9,17 @@
         @selected="selectWorkspaceOrApp"
       ></TrashSidebar>
     </template>
+    <template #header-content>
+      <h2>{{ title }}</h2>
+      <p>{{ $t('trashContents.message', { duration: trashDuration }) }}</p>
+    </template>
     <template #content>
       <div v-if="loading" class="loading-absolute-center"></div>
       <div v-else-if="workspaces.length === 0" class="placeholder">
         <div class="placeholder__icon">
           <i class="iconoir-book-stack"></i>
         </div>
-        <h1 class="placeholder__title">{{ $t('trashModal.emptyTitle') }}</h1>
+        <h2>{{ $t('trashModal.emptyTitle') }}</h2>
         <p
           v-if="$hasPermission('create_workspace')"
           class="placeholder__content"
@@ -41,27 +40,48 @@
         :total-server-side-trash-contents-count="
           totalServerSideTrashContentsCount
         "
-        @empty="onEmpty"
         @restore="onRestore"
         @load-next-page="loadNextPage"
       ></TrashContent>
     </template>
-  </Modal>
+
+    <template #footer-content>
+      <Button
+        v-show="totalServerSideTrashContentsCount > 0 && !parentIsTrashed"
+        type="danger"
+        :loading="loadingContents"
+        :disabled="loadingContents"
+        @click="showEmptyModalIfNotLoading"
+      >
+        {{ emptyButtonText }}</Button
+      >
+
+      <TrashEmptyModal
+        ref="emptyModal"
+        :name="title"
+        :loading="loadingContents"
+        :selected-is-trashed="selectedItem?.trashed"
+        @empty="onEmpty"
+      ></TrashEmptyModal>
+    </template>
+  </ModalV2>
 </template>
 
 <script>
 import { mapState } from 'vuex'
 
-import modal from '@baserow/modules/core/mixins/modal'
+import modalv2 from '@baserow/modules/core/mixins/modalv2'
+import moment from '@baserow/modules/core/moment'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import TrashEmptyModal from '@baserow/modules/core/components/trash/TrashEmptyModal'
 import TrashService from '@baserow/modules/core/services/trash'
 import TrashSidebar from '@baserow/modules/core/components/trash/TrashSidebar'
 import TrashContent from '@baserow/modules/core/components/trash/TrashContents'
 
 export default {
   name: 'TrashModal',
-  components: { TrashSidebar, TrashContent },
-  mixins: [modal],
+  components: { TrashSidebar, TrashContent, TrashEmptyModal },
+  mixins: [modalv2],
   props: {
     initialWorkspace: {
       type: Object,
@@ -91,6 +111,46 @@ export default {
       selectedWorkspace: (state) => state.workspace.selected,
       selectedApplication: (state) => state.application.selected,
     }),
+    parentIsTrashed() {
+      return (
+        this.selectedTrashApplication !== null &&
+        this.selectedTrashWorkspace.trashed
+      )
+    },
+    selectedItem() {
+      return this.selectedTrashApplication === null
+        ? this.selectedTrashWorkspace
+        : this.selectedTrashApplication
+    },
+    selectedItemType() {
+      return this.selectedTrashApplication === null
+        ? 'workspace'
+        : 'application'
+    },
+    title() {
+      const title = this.selectedItem?.name
+      return title === ''
+        ? this.$t('trashContents.unnamed', {
+            type: this.$t('trashType.' + this.selectedItemType),
+            id: this.selectedItem.id,
+          })
+        : title
+    },
+    trashDuration() {
+      const hours = this.$config.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED
+      return moment().subtract(hours, 'hours').fromNow(true)
+    },
+    emptyButtonText() {
+      if (this.selectedItem?.trashed) {
+        return this.$t('trashContents.emptyButtonTrashed', {
+          type: this.$t('trashType.' + this.selectedItemType),
+        })
+      } else {
+        return this.$t('trashContents.emptyButtonNotTrashed', {
+          type: this.$t('trashType.' + this.selectedItemType),
+        })
+      }
+    },
   },
   methods: {
     /**
@@ -140,7 +200,7 @@ export default {
      * workspace or application depending on the props and shows the trash modal.
      **/
     async show(...args) {
-      modal.methods.show.call(this, ...args)
+      modalv2.methods.show.call(this, ...args)
 
       this.loading = true
       this.workspaces = []
@@ -339,6 +399,11 @@ export default {
             this.selectedTrashWorkspace.applications.splice(index, 1)
           }
         }
+      }
+    },
+    showEmptyModalIfNotLoading() {
+      if (!this.loadingContents) {
+        this.$refs.emptyModal.show()
       }
     },
   },
