@@ -1,6 +1,5 @@
 <template>
   <div>
-    <h2 class="box__title">{{ $t('generalSettings.titleOverview') }}</h2>
     <Error :error="error"></Error>
     <BuilderGeneralSettingsForm
       ref="settingsForm"
@@ -56,6 +55,9 @@ export default {
         this.$store.dispatch('toast/error', { title, message })
         this.$refs.settingsForm.reset()
       }
+    },
+    getTitle() {
+      return this.$t('generalSettings.titleOverview')
     },
   },
 }

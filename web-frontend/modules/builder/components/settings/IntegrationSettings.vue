@@ -1,10 +1,9 @@
 <template>
   <div>
-    <h2 class="box__title">{{ $t('integrationSettings.title') }}</h2>
     <div v-if="state === 'pending'" class="integration-settings__loader" />
     <template v-if="state === 'loaded'">
       <template v-if="integrations.length > 0">
-        <p class="margin-top-3">
+        <p class="margin-bottom-2">
           {{ $t('integrationSettings.integrationMessage') }}
         </p>
         <div
@@ -40,7 +39,7 @@
           />
         </div>
       </template>
-      <p v-else class="margin-top-3">
+      <p v-else>
         {{ $t('integrationSettings.noIntegrationMessage') }}
       </p>
     </template>
@@ -100,6 +99,9 @@ export default {
       } catch (error) {
         notifyIf(error)
       }
+    },
+    getTitle() {
+      return this.$t('integrationSettings.title')
     },
   },
 }

@@ -1,3 +1,8 @@
+.domains-settings {
+  height: 100%;
+  width: 100%;
+}
+
 .domain-settings__domain-type {
   display: inline-block;
   width: fit-content;
@@ -9,4 +14,6 @@
 
 .domains-settings__loading {
   margin: auto;
+  height: 100%;
+  position: relative;
 }
