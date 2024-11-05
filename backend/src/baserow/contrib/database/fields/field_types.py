@@ -22,6 +22,8 @@ from typing import (
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
+from dateutil import parser
+from dateutil.parser import ParserError
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.aggregates import StringAgg
@@ -47,9 +49,6 @@ from django.db.models import (
 )
 from django.db.models.fields.related import ManyToManyField
 from django.db.models.functions import Coalesce, RowNumber
-
-from dateutil import parser
-from dateutil.parser import ParserError
 from loguru import logger
 from rest_framework import serializers
 
@@ -97,7 +96,6 @@ from baserow.contrib.database.fields.filter_support import (
     HasValueEmptyFilterSupport,
     HasValueFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
-    get_array_json_filter_expression,
 )
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
@@ -134,7 +132,6 @@ from baserow.core.expressions import DateTrunc
 from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
-from baserow.core.formula.validator import ensure_boolean
 from baserow.core.handler import CoreHandler
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
@@ -142,11 +139,6 @@ from baserow.core.storage import get_default_storage
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import list_to_comma_separated_string
-
-from ..formula.expression_generator.django_expressions import (
-    JSONArrayAllAreExpr,
-    JSONArrayContainsValueExpr,
-)
 from .constants import BASEROW_BOOLEAN_FIELD_TRUE_VALUES, UPSERT_OPTION_DICT_KEY
 from .dependencies.exceptions import (
     CircularFieldDependencyError,
@@ -240,6 +232,9 @@ from .utils.duration import (
     is_duration_format_conversion_lossy,
     prepare_duration_value_for_db,
     text_value_sql_to_duration,
+)
+from ..formula.expression_generator.django_expressions import (
+    JSONArrayAllAreExpr,
 )
 
 User = get_user_model()
@@ -4602,16 +4597,21 @@ class FormulaFieldType(
         self, field_name, value, model_field, field, subcls: Type, method_name: str
     ):
         """
-        Encapsulates a common logic behind filtering array-based formula fields.
+        Encapsulates a common workflow behind getting a filter expression when
+        filtering array-based formula fields. The flow will:
+        * get the field type for the field
+        * check if the field type implements a specific interface provided with `subcls`
+        * call a method specified by `method_name`.
 
-        :param field_name:
-        :param value:
-        :param model_field:
-        :param field:
-        :param subcls: a subclass to
-        :param method_name:
+        :param field_name: field name to filter on
+        :param value: value to filter
+        :param model_field: field model
+        :param field: field instance
+        :param subcls: a subclass/protocol to check field type
+        :param method_name: a string with a method to call
         :return:
         """
+
         (
             field_instance,
             field_type,
