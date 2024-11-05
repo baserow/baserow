@@ -24,19 +24,20 @@
           v-if="invitation !== null"
           ref="email"
           type="email"
+          size="large"
           disabled
-          :value="values.email"
+          :value="state.email"
         ></FormInput>
         <FormInput
           v-else
           ref="email"
-          v-model="values.email"
+          v-model="state.email"
           type="email"
           size="large"
           :error="fieldHasErrors('email')"
           :placeholder="$t('login.emailPlaceholder')"
           autocomplete="username"
-          @blur="$v.values.email.$touch()"
+          @blur="v$.email.$touch"
         />
 
         <template #error>
@@ -59,13 +60,13 @@
         >
         <FormInput
           ref="password"
-          v-model="values.password"
+          v-model="state.password"
           type="password"
           size="large"
           :error="fieldHasErrors('password')"
           :placeholder="$t('login.passwordPlaceholder')"
           autocomplete="current-password"
-          @blur="$v.values.password.$touch()"
+          @blur="v$.password.$touch"
         />
         <template #error>
           <i class="iconoir-warning-triangle"></i>
@@ -89,7 +90,9 @@
 </template>
 
 <script>
-import { required, email } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
+import { required, email } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
@@ -109,18 +112,28 @@ export default {
       default: true,
     },
   },
+  setup() {
+    const state = reactive({
+      email: '',
+      password: '',
+    })
+
+    const rules = computed(() => ({
+      email: { required, email },
+      password: { required },
+    }))
+
+    const v$ = useVuelidate(rules, state)
+    return { v$, state }
+  },
   data() {
     return {
       loading: false,
-      values: {
-        email: '',
-        password: '',
-      },
     }
   },
   beforeMount() {
     if (this.invitation !== null) {
-      this.values.email = this.invitation.email
+      this.state.email = this.invitation.email
     }
   },
   async mounted() {
@@ -152,8 +165,9 @@ export default {
   },
   methods: {
     async login() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      const formValid = await this.v$.$validate()
+      if (!formValid) {
         this.focusOnFirstError()
         return
       }
@@ -162,15 +176,14 @@ export default {
       this.hideError()
 
       try {
-        const { email, password } = this.values
         const data = await this.$store.dispatch('auth/login', {
-          email,
-          password,
+          email: this.state.email,
+          password: this.state.password,
         })
 
         // If there is an invitation we can immediately accept that one after the user
         // successfully signs in.
-        if (this.invitation?.email === email) {
+        if (this.invitation?.email === this.state.email) {
           await WorkspaceService(this.$client).acceptInvitation(
             this.invitation.id
           )
@@ -197,7 +210,7 @@ export default {
             } else if (
               response.data?.error === 'ERROR_EMAIL_VERIFICATION_REQUIRED'
             ) {
-              this.$emit('email-not-verified', this.values.email)
+              this.$emit('email-not-verified', this.state.email)
             } else {
               this.showError(
                 this.$t('error.incorrectCredentialTitle'),
@@ -205,8 +218,8 @@ export default {
               )
             }
 
-            this.values.password = ''
-            this.$v.$reset()
+            this.state.password = ''
+            this.v$.$reset()
             this.$refs.password.focus()
           } else {
             const message = error.handler.getMessage('login')
@@ -219,12 +232,6 @@ export default {
           throw error
         }
       }
-    },
-  },
-  validations: {
-    values: {
-      email: { required, email },
-      password: { required },
     },
   },
 }

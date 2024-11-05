@@ -30,7 +30,7 @@
         :label="$t('columnElementForm.columnGapTitle')"
         :placeholder="$t('columnElementForm.columnGapPlaceholder')"
         type="number"
-        @blur="$v.values.column_gap.$touch()"
+        @blur="v$.values.column_gap.$touch()"
       />
     </FormGroup>
 
@@ -47,7 +47,7 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import { VERTICAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import { required, integer, minValue, maxValue } from '@vuelidate/validators'
 import VerticalAlignmentSelector from '@baserow/modules/builder/components/VerticalAlignmentSelector'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 
@@ -77,14 +77,14 @@ export default {
       }))
     },
     errorMessage() {
-      return this.$v.values.column_gap.$dirty &&
-        !this.$v.values.column_gap.required
+      return this.v$.values.column_gap.$dirty &&
+        !this.v$.values.column_gap.required
         ? this.$t('error.requiredField')
-        : !this.$v.values.column_gap.integer
+        : !this.v$.values.column_gap.integer
         ? this.$t('error.integerField')
-        : !this.$v.values.column_gap.minValue
+        : !this.v$.values.column_gap.minValue
         ? this.$t('error.minValueField', { min: 0 })
-        : !this.$v.values.column_gap.maxValue
+        : !this.v$.values.column_gap.maxValue
         ? this.$t('error.maxValueField', { max: 2000 })
         : ''
     },

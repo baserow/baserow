@@ -4,7 +4,7 @@
       ref="input"
       v-model="xAgo"
       type="text"
-      :error="$v.xAgo.$error"
+      :error="v$.xAgo.$error"
       :disabled="disabled"
       @input=";[setCopy($event), delayedUpdate($event, true)]"
       @keydown.enter=";[setCopy($event), delayedUpdate($event, true)]"
@@ -15,7 +15,7 @@
 </template>
 
 <script>
-import { integer, required } from 'vuelidate/lib/validators'
+import { integer, required } from '@vuelidate/validators'
 import filterTypeDateInput from '@baserow/modules/database/mixins/filterTypeDateInput'
 
 export default {
@@ -28,7 +28,7 @@ export default {
   },
   methods: {
     isInputValid() {
-      return !this.$v.xAgo.$error
+      return !this.v$.xAgo.$error
     },
     setCopy(value, sender) {
       const [, xAgo] = this.splitCombinedValue(value)

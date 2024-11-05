@@ -13,15 +13,15 @@
       ></SegmentControl>
     </div>
     <template v-if="hasName">
-      <FormGroup :error="$v.name.$dirty && !$v.name.required">
+      <FormGroup :error="v$.name.$dirty && !v$.name.required">
         <FormInput
           v-model="name"
           :placeholder="$t('databaseStep.databaseNameLabel')"
           :label="$t('databaseStep.databaseNameLabel')"
           size="large"
-          :error="$v.name.$dirty && !$v.name.required"
+          :error="v$.name.$dirty && !v$.name.required"
           @input="updateValue"
-          @blur="$v.name.$touch()"
+          @blur="v$.name.$touch()"
         />
         <template #error>{{ $t('error.requiredField') }}</template>
       </FormGroup>
@@ -35,7 +35,7 @@
 </template>
 
 <script>
-import { requiredIf } from 'vuelidate/lib/validators'
+import { requiredIf } from '@vuelidate/validators'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm.vue'
 
@@ -76,7 +76,7 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.$v.$invalid
+      return !this.v$.$invalid
     },
     updateValue() {
       this.$emit('update-data', {

@@ -12,13 +12,13 @@
         v-model="values.github_issues_owner"
         :error="fieldHasErrors('github_issues_owner')"
         size="large"
-        @blur="$v.values.github_issues_owner.$touch()"
+        @blur="v$.values.github_issues_owner.$touch()"
       />
       <template #error>
         <span
           v-if="
-            $v.values.github_issues_owner.$dirty &&
-            !$v.values.github_issues_owner.required
+            v$.values.github_issues_owner.$dirty &&
+            !v$.values.github_issues_owner.required
           "
         >
           {{ $t('error.requiredField') }}
@@ -38,13 +38,13 @@
         v-model="values.github_issues_repo"
         :error="fieldHasErrors('github_issues_repo')"
         size="large"
-        @blur="$v.values.github_issues_repo.$touch()"
+        @blur="v$.values.github_issues_repo.$touch()"
       />
       <template #error>
         <span
           v-if="
-            $v.values.github_issues_owner.$dirty &&
-            !$v.values.github_issues_owner.required
+            v$.values.github_issues_owner.$dirty &&
+            !v$.values.github_issues_owner.required
           "
         >
           {{ $t('error.requiredField') }}
@@ -63,13 +63,13 @@
         v-model="values.github_issues_api_token"
         :error="fieldHasErrors('github_issues_api_token')"
         size="large"
-        @blur="$v.values.github_issues_api_token.$touch()"
+        @blur="v$.values.github_issues_api_token.$touch()"
       />
       <template #error>
         <span
           v-if="
-            $v.values.github_issues_api_token.$dirty &&
-            !$v.values.github_issues_api_token.required
+            v$.values.github_issues_api_token.$dirty &&
+            !v$.values.github_issues_api_token.required
           "
         >
           {{ $t('error.requiredField') }}
@@ -80,7 +80,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {

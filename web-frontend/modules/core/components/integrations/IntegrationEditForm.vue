@@ -4,9 +4,9 @@
       required
       class="margin-bottom-2"
       :error-message="
-        $v.values.name.$dirty && !$v.values.name.required
+        v$.values.name.$dirty && !v$.values.name.required
           ? $t('error.requiredField')
-          : !$v.values.name.maxLength
+          : !v$.values.name.maxLength
           ? $t('error.maxLength', { max: 255 })
           : ''
       "
@@ -16,7 +16,7 @@
         required
         :label="$t('integrationEditForm.name')"
         :placeholder="$t('integrationEditForm.namePlaceholder')"
-        @blur="$v.values.name.$touch()"
+        @blur="v$.values.name.$touch()"
       />
     </FormGroup>
 
@@ -30,7 +30,7 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { required, maxLength } from '@vuelidate/validators'
 
 export default {
   mixins: [form],

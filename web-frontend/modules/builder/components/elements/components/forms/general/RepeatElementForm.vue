@@ -45,13 +45,13 @@
       required
       class="margin-bottom-2"
       :error-message="
-        $v.values.items_per_page.$dirty && !$v.values.items_per_page.required
+        v$.values.items_per_page.$dirty && !v$.values.items_per_page.required
           ? $t('error.requiredField')
-          : !$v.values.items_per_page.integer
+          : !v$.values.items_per_page.integer
           ? $t('error.integerField')
-          : !$v.values.items_per_page.minValue
+          : !v$.values.items_per_page.minValue
           ? $t('error.minValueField', { min: 1 })
-          : !$v.values.items_per_page.maxValue
+          : !v$.values.items_per_page.maxValue
           ? $t('error.maxValueField', { max: maxItemPerPage })
           : ''
       "
@@ -61,7 +61,7 @@
         :placeholder="$t('repeatElementForm.itemsPerPagePlaceholder')"
         :to-value="(value) => parseInt(value)"
         type="number"
-        @blur="$v.values.items_per_page.$touch()"
+        @blur="v$.values.items_per_page.$touch()"
       />
     </FormGroup>
 
@@ -149,7 +149,7 @@
 
 <script>
 import _ from 'lodash'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import { required, integer, minValue, maxValue } from '@vuelidate/validators'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import { mapActions, mapGetters } from 'vuex'
@@ -204,7 +204,7 @@ export default {
     },
     itemsPerRowError() {
       for (const device of this.deviceTypes) {
-        const validation = this.$v.values.items_per_row[device.getType()]
+        const validation = this.v$.values.items_per_row[device.getType()]
         if (validation.$dirty) {
           if (!validation.integer) {
             return this.$t('error.integerField')
@@ -254,7 +254,7 @@ export default {
       })
     },
     handlePerRowInput(event, deviceTypeType) {
-      this.$v.values.items_per_row[deviceTypeType].$touch()
+      this.v$.values.items_per_row[deviceTypeType].$touch()
       this.values.items_per_row[deviceTypeType] = parseInt(event)
       this.$emit('input', this.values)
     },

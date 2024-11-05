@@ -184,7 +184,6 @@ export default function CoreModule(options) {
   this.addLayout(path.resolve(__dirname, 'layouts/login.vue'), 'login')
 
   this.addPlugin({ src: path.resolve(__dirname, 'plugins/global.js') })
-  this.addPlugin({ src: path.resolve(__dirname, 'plugins/vuelidate.js') })
   this.addPlugin({
     src: path.resolve(__dirname, 'plugins/vue2-smooth-scroll.js'),
   })
@@ -198,7 +197,7 @@ export default function CoreModule(options) {
   // after the nuxt-i18n module's plugin
   this.appendPlugin({ src: path.resolve(__dirname, 'plugin.js') })
 
-  // This plugin must be added after nuxt-i18n module's plugin
+  // This plugin must be added after nuxt-i18n module's plugingit
   this.appendPlugin({ src: path.resolve(__dirname, 'plugins/i18n.js') })
 
   // The client handler depends on environment variables so the plugin must be added

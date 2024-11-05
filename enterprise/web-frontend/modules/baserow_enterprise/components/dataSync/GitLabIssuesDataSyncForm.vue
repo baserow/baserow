@@ -85,7 +85,7 @@
 </template>
 
 <script>
-import { required, url } from 'vuelidate/lib/validators'
+import { required, url } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {

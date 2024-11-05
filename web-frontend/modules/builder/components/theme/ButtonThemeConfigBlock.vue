@@ -301,8 +301,8 @@ import WidthSelector from '@baserow/modules/builder/components/WidthSelector'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
 import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
+import { required, integer, minValue, maxValue } from '@vuelidate/validators'
 
 const pixelSizeMin = 1
 const pixelSizeMax = 100
@@ -398,7 +398,7 @@ export default {
       return key.startsWith('button_')
     },
     getError(property) {
-      if (this.$v.values[property].$invalid) {
+      if (this.v$.values[property].$invalid) {
         return this.$t('error.minMaxValueField', minMax[property])
       }
       return null

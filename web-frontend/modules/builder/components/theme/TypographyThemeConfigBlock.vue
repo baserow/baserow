@@ -40,7 +40,7 @@
           class="margin-bottom-2"
           :label="$t('typographyThemeConfigBlock.size')"
           :error-message="
-            $v.values[`body_font_size`].$invalid
+            v$.values[`body_font_size`].$invalid
               ? $t('error.minMaxValueField', {
                   min: fontSizeMin,
                   max: bodyFontSizeMax,
@@ -52,7 +52,7 @@
             v-model="values.body_font_size"
             :default-value-when-empty="defaultValuesWhenEmpty[`body_font_size`]"
             class="typography-theme-config-block__input-number"
-            @blur="$v.values[`body_font_size`].$touch()"
+            @blur="v$.values[`body_font_size`].$touch()"
           />
           <template #after-input>
             <ResetButton
@@ -133,7 +133,7 @@
             class="margin-bottom-2"
             :label="$t('typographyThemeConfigBlock.size')"
             :error-message="
-              $v.values[`heading_${level}_font_size`].$invalid
+              v$.values[`heading_${level}_font_size`].$invalid
                 ? $t('error.minMaxValueField', {
                     min: fontSizeMin,
                     max: fontSizeMax,
@@ -147,7 +147,7 @@
                 defaultValuesWhenEmpty[`heading_${level}_font_size`]
               "
               class="typography-theme-config-block__input-number"
-              @blur="$v.values[`heading_${level}_font_size`].$touch()"
+              @blur="v$.values[`heading_${level}_font_size`].$touch()"
             />
             <template #after-input>
               <ResetButton
@@ -192,7 +192,7 @@
 </template>
 
 <script>
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import { required, integer, minValue, maxValue } from '@vuelidate/validators'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'

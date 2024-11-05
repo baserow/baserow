@@ -13,10 +13,10 @@
         size="large"
         :error="fieldHasErrors('name')"
         :placeholder="$t('oauthSettingsForm.providerNamePlaceholder')"
-        @blur="$v.values.name.$touch()"
+        @blur="v$.values.name.$touch()"
       ></FormInput>
 
-      <template v-if="$v.values.name.$dirty && !$v.values.name.required" #error>
+      <template v-if="v$.values.name.$dirty && !v$.values.name.required" #error>
         {{ $t('error.requiredField') }}</template
       >
     </FormGroup>
@@ -34,11 +34,11 @@
         size="large"
         :error="fieldHasErrors('client_id')"
         :placeholder="$t('oauthSettingsForm.clientIdPlaceholder')"
-        @blur="$v.values.client_id.$touch()"
+        @blur="v$.values.client_id.$touch()"
       ></FormInput>
 
       <template
-        v-if="$v.values.client_id.$dirty && !$v.values.client_id.required"
+        v-if="v$.values.client_id.$dirty && !v$.values.client_id.required"
         #error
       >
         {{ $t('error.requiredField') }}
@@ -58,11 +58,11 @@
         size="large"
         :error="fieldHasErrors('secret')"
         :placeholder="$t('oauthSettingsForm.secretPlaceholder')"
-        @blur="$v.values.secret.$touch()"
+        @blur="v$.values.secret.$touch()"
       ></FormInput>
 
       <template #error>
-        <span v-if="$v.values.secret.$dirty && !$v.values.secret.required">
+        <span v-if="v$.values.secret.$dirty && !v$.values.secret.required">
           {{ $t('error.requiredField') }}
         </span>
       </template>
@@ -80,7 +80,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -135,8 +135,8 @@ export default {
       }
     },
     submit() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
+      this.v$.$touch()
+      if (this.v$.$invalid) {
         return
       }
       this.$emit('submit', this.values)

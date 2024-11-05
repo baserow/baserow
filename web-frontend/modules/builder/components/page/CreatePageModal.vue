@@ -59,7 +59,7 @@ export default {
           path,
           pathParams,
         })
-        this.$refs.pageForm.$v.$reset()
+        this.$refs.pageForm.v$.$reset()
         this.hide()
         this.$router.push(
           {

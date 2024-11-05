@@ -107,7 +107,7 @@
 </template>
 
 <script>
-import { required, numeric } from 'vuelidate/lib/validators'
+import { required, numeric } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 

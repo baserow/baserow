@@ -58,7 +58,7 @@
             />
           </template>
         </div>
-        <div v-if="$v.filename.$error" class="error">
+        <div v-if="v$.filename.$error" class="error">
           {{ $t('error.requiredField') }}
         </div>
       </div>
@@ -71,7 +71,7 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import importer from '@baserow/modules/database/mixins/importer'

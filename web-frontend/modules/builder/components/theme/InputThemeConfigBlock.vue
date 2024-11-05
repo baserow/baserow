@@ -274,8 +274,8 @@ import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
 import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
+import { required, integer, minValue, maxValue } from '@vuelidate/validators'
 
 const minMax = {
   label_font_size: {
@@ -358,7 +358,7 @@ export default {
       return key.startsWith('input_') || key.startsWith('label_')
     },
     getError(property) {
-      if (this.$v.values[property].$invalid) {
+      if (this.v$.values[property].$invalid) {
         return this.$t('error.minMaxValueField', minMax[property])
       }
       return null

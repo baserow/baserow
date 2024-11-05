@@ -33,7 +33,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import { EMAIL_NOTIFICATIONS_FREQUENCY_OPTIONS } from '@baserow/modules/core/enums'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
