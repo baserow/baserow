@@ -154,6 +154,7 @@ class HasValueLengthIsLowerThanFilterSupport:
 
 
 class HasAllValuesEqualFilterSupport:
+    # helper attribute that provides filtering expression clas for the filter
     has_all_values_equal_expression: typing.ClassVar[
         typing.Type[BaserowFilterExpression]
     ]

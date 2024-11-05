@@ -22,8 +22,6 @@ from typing import (
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
-from dateutil import parser
-from dateutil.parser import ParserError
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.aggregates import StringAgg
@@ -49,6 +47,9 @@ from django.db.models import (
 )
 from django.db.models.fields.related import ManyToManyField
 from django.db.models.functions import Coalesce, RowNumber
+
+from dateutil import parser
+from dateutil.parser import ParserError
 from loguru import logger
 from rest_framework import serializers
 
@@ -139,6 +140,8 @@ from baserow.core.storage import get_default_storage
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import list_to_comma_separated_string
+
+from ..formula.expression_generator.django_expressions import JSONArrayAllAreExpr
 from .constants import BASEROW_BOOLEAN_FIELD_TRUE_VALUES, UPSERT_OPTION_DICT_KEY
 from .dependencies.exceptions import (
     CircularFieldDependencyError,
@@ -232,9 +235,6 @@ from .utils.duration import (
     is_duration_format_conversion_lossy,
     prepare_duration_value_for_db,
     text_value_sql_to_duration,
-)
-from ..formula.expression_generator.django_expressions import (
-    JSONArrayAllAreExpr,
 )
 
 User = get_user_model()

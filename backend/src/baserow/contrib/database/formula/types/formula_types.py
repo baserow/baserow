@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import Any, List, Optional, Set, Type, Union
 
 from django.contrib.postgres.fields import ArrayField, JSONField
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Expression, F, Func, Q, QuerySet, TextField, Value
 from django.db.models.functions import Cast, Concat
@@ -471,7 +472,11 @@ class BaserowFormulaBooleanType(
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        value = ensure_boolean(value.strip())
+        try:
+            value = ensure_boolean(value.strip())
+        except ValidationError:
+            return Q()
+
         return get_array_json_filter_expression(
             JSONArrayContainsValueExpr, field_name, value
         )
@@ -489,7 +494,10 @@ class BaserowFormulaBooleanType(
     def get_has_all_values_equal_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
-        value = "true" if ensure_boolean(value.strip()) else "false"
+        try:
+            value = "true" if ensure_boolean(value.strip()) else "false"
+        except ValidationError:
+            return Q()
         return super().get_has_all_values_equal_query(
             field_name, value, model_field, field
         )

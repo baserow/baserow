@@ -114,7 +114,8 @@ class HasValueContainsViewFilterType(ViewFilterType):
             return field_type.get_in_array_contains_query(
                 field_name, value, model_field, field
             )
-        except Exception:
+        except Exception as err:
+            logger.warning(f"Cannot use {self.type} filter on {field_name}: {err}")
             return self.default_filter_on_exception()
 
 
