@@ -146,6 +146,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                  
                 <ul
                   class="select__items select__items--no-max-height"
+                  style=""
                   tabindex="-1"
                 >
                   <li
@@ -293,6 +294,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                  
                 <ul
                   class="select__items select__items--no-max-height"
+                  style=""
                   tabindex="-1"
                 >
                   <li
@@ -653,6 +655,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                
               <ul
                 class="select__items select__items--no-max-height"
+                style=""
                 tabindex="-1"
               >
                 <li
@@ -776,6 +779,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                  
                 <ul
                   class="select__items select__items--no-max-height"
+                  style=""
                   tabindex="-1"
                 >
                   <li
@@ -923,6 +927,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                  
                 <ul
                   class="select__items select__items--no-max-height"
+                  style=""
                   tabindex="-1"
                 >
                   <li
@@ -1291,6 +1296,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                  
                 <ul
                   class="select__items select__items--no-max-height"
+                  style=""
                   tabindex="-1"
                 >
                   <li
@@ -1439,6 +1445,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                  
                 <ul
                   class="select__items select__items--no-max-height prevent-scroll"
+                  style=""
                   tabindex="-1"
                 >
                   <li
@@ -1807,6 +1814,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                  
                 <ul
                   class="select__items select__items--no-max-height"
+                  style=""
                   tabindex="-1"
                 >
                   <li
@@ -1955,6 +1963,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                  
                 <ul
                   class="select__items select__items--no-max-height prevent-scroll"
+                  style=""
                   tabindex="-1"
                 >
                   <li

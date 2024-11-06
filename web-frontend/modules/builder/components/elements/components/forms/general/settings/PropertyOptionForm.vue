@@ -96,6 +96,9 @@ export default {
         .get('service', this.dataSource.type)
         .getDataSchema(this.dataSource)
     },
+    elementType() {
+      return this.$registry.get('element', this.element.type)
+    },
     /**
      * Returns an object with schema properties as keys and their corresponding
      * property options as values. It's a convenience computed method to easily

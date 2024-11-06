@@ -599,6 +599,10 @@
     "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
     "propertySelectorMissingArrays": "No multiple valued fields found to repeat with."
   },
+  "recordSelectorElement": {
+    "emptyAdhocState": "No records matching '{query}' found.",
+    "emptyState": "No records found."
+  },
   "recordSelectorElementForm": {
     "selectRecordsFrom": "Select records from",
     "noDataSourceMessage": "Choose a data source with multiple rows to list all results.",

@@ -359,7 +359,7 @@ class LocalBaserowTableServiceSortableMixin:
         queryset = super().get_queryset(service, table, dispatch_context, model)
 
         adhoc_sort = dispatch_context.sortings()
-        if adhoc_sort is not None and dispatch_context.is_publicly_sortable:
+        if adhoc_sort and dispatch_context.is_publicly_sortable:
             field_names = [field.strip("-") for field in adhoc_sort.split(",")]
             dispatch_context.validate_filter_search_sort_fields(
                 field_names, ServiceAdhocRefinements.SORT

@@ -823,6 +823,87 @@ const CollectionElementTypeMixin = (Base) =>
     isCollectionElement = true
 
     /**
+     * A helper function responsible for returning this collection element's
+     * schema properties.
+     */
+    getSchemaProperties(dataSource) {
+      const serviceType = this.app.$registry.get('service', dataSource.type)
+      const schema = serviceType.getDataSchema(dataSource)
+      if (!schema) {
+        return []
+      }
+      return schema.type === 'array'
+        ? schema.items.properties
+        : schema.properties
+    }
+
+    /**
+     * Given a schema property name, is responsible for finding the matching
+     * property option in the element. If it doesn't exist, then we return
+     * an empty object, and it won't be included in the adhoc header.
+     * @param {object} element - the element we want to extract options from.
+     * @param {string} schemaProperty - the schema property name to check.
+     * @returns {object} - the matching property option, or an empty object.
+     */
+    getPropertyOptionsByProperty(element, schemaProperty) {
+      return (
+        element.property_options.find((option) => {
+          return option.schema_property === schemaProperty
+        }) || {}
+      )
+    }
+
+    /**
+     * Responsible for iterating over the schema's properties, filtering
+     * the results down to the properties which are `filterable`, `sortable`,
+     * and `searchable`, and then returning the property value.
+     * @param {string} option - the `filterable`, `sortable` or `searchable`
+     *  property option. If the value is `true` then the property will be
+     *  included in the adhoc header component.
+     * @param {object} element - the element we want to extract options from.
+     * @param {object} dataSource - the dataSource used by `element`.
+     * @returns {array} - an array of schema properties which are present
+     *  in the element's property options where `option` = `true`.
+     */
+    getPropertyOptionByType(option, element, dataSource) {
+      const schemaProperties = dataSource
+        ? this.getSchemaProperties(dataSource)
+        : []
+      return Object.entries(schemaProperties)
+        .filter(
+          ([schemaProperty, _]) =>
+            this.getPropertyOptionsByProperty(element, schemaProperty)[
+              option
+            ] || false
+        )
+        .map(([_, property]) => property)
+    }
+
+    /**
+     * An array of properties within this element which have been flagged
+     * as filterable by the page designer.
+     */
+    adhocFilterableProperties(element, dataSource) {
+      return this.getPropertyOptionByType('filterable', element, dataSource)
+    }
+
+    /**
+     * An array of properties within this element which have been flagged
+     * as sortable by the page designer.
+     */
+    adhocSortableProperties(element, dataSource) {
+      return this.getPropertyOptionByType('sortable', element, dataSource)
+    }
+
+    /**
+     * An array of properties within this element which have been flagged
+     * as searchable by the page designer.
+     */
+    adhocSearchableProperties(element, dataSource) {
+      return this.getPropertyOptionByType('searchable', element, dataSource)
+    }
+
+    /**
      * By default collection element will load their content at loading time
      * but if you don't want that you can return false here.
      */

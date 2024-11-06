@@ -194,6 +194,19 @@ export default {
       )
     },
   },
+  watch: {
+    'values.data_source_id': {
+      handler(value) {
+        this.values.data_source_id = value
+
+        // If the data source was removed we should also delete the name formula
+        if (value === null) {
+          this.values.option_name_suffix = ''
+        }
+      },
+      immediate: true,
+    },
+  },
   validations() {
     return {
       values: {
@@ -207,19 +220,6 @@ export default {
         },
       },
     }
-  },
-  watch: {
-    'values.data_source_id': {
-      handler(value) {
-        this.values.data_source_id = value
-
-        // If the data source was removed we should also delete the name formula
-        if (value === null) {
-          this.values.option_name_suffix = ''
-        }
-      },
-      immediate: true,
-    },
   },
 }
 </script>

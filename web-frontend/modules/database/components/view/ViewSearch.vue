@@ -15,6 +15,7 @@
       ref="context"
       :view="view"
       :fields="fields"
+      :read-only="readOnly"
       :store-prefix="storePrefix"
       :always-hide-rows-not-matching-search="alwaysHideRowsNotMatchingSearch"
       @refresh="$emit('refresh', $event)"
@@ -38,9 +39,15 @@ export default {
       type: Array,
       required: true,
     },
+    readOnly: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
     storePrefix: {
       type: String,
-      required: true,
+      required: false,
+      default: '',
     },
     alwaysHideRowsNotMatchingSearch: {
       type: Boolean,
@@ -52,6 +59,18 @@ export default {
     return {
       headerSearchTerm: '',
     }
+  },
+  watch: {
+    $props: {
+      immediate: true,
+      handler() {
+        if (!this.storePrefix.length && !this.readOnly) {
+          throw new Error(
+            'A storePrefix is required when the search is not read-only.'
+          )
+        }
+      },
+    },
   },
   mounted() {
     this.$priorityBus.$on(

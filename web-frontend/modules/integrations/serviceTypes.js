@@ -3,6 +3,7 @@ import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integ
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
 import { uuid } from '@baserow/modules/core/utils/string'
+import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
 
 export class LocalBaserowGetRowServiceType extends ServiceType {
   static getType() {
@@ -67,12 +68,12 @@ export class LocalBaserowGetRowServiceType extends ServiceType {
 
     const databases = integration.context_data?.databases
 
-    if (service.table_id && databases) {
-      const tableSelected = databases
-        .map((database) => database.tables)
-        .flat()
-        .find(({ id }) => id === service.table_id)
+    const tableSelected = databases
+      .map((database) => database.tables)
+      .flat()
+      .find(({ id }) => id === service.table_id)
 
+    if (service.table_id && tableSelected) {
       return `${this.name} - ${tableSelected.name}`
     }
 
@@ -104,6 +105,13 @@ export class LocalBaserowListRowsServiceType extends ServiceType {
 
   get formComponent() {
     return LocalBaserowListRowsForm
+  }
+
+  /**
+   * The Local Baserow adhoc filtering, sorting and searching component.
+   */
+  get adhocHeaderComponent() {
+    return LocalBaserowAdhocHeader
   }
 
   isValid(service) {
@@ -199,12 +207,12 @@ export class LocalBaserowListRowsServiceType extends ServiceType {
 
     const databases = integration.context_data?.databases
 
-    if (service.table_id && databases) {
-      const tableSelected = databases
-        .map((database) => database.tables)
-        .flat()
-        .find(({ id }) => id === service.table_id)
+    const tableSelected = databases
+      .map((database) => database.tables)
+      .flat()
+      .find(({ id }) => id === service.table_id)
 
+    if (service.table_id && tableSelected) {
       return `${this.name} - ${tableSelected.name}`
     }
 

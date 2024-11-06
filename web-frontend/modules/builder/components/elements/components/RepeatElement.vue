@@ -1,109 +1,121 @@
 <template>
-  <div
-    :class="{
-      [`repeat-element--orientation-${element.orientation}`]: true,
-    }"
-  >
-    <!-- If we have any contents to repeat... -->
-    <template v-if="elementContent.length > 0">
-      <div
-        class="repeat-element__repeated-elements"
-        :style="repeatedElementsStyles"
-      >
-        <!-- Iterate over each content -->
-        <div v-for="(content, index) in elementContent" :key="content.id">
-          <!-- If the container has an children -->
-          <template v-if="children.length > 0">
-            <!-- Iterate over each child -->
-            <template v-for="child in children">
-              <!-- The first iteration is editable if we're in editing mode -->
-              <ElementPreview
-                v-if="index === 0 && isEditMode"
-                :key="`${child.id}-${index}`"
-                :element="child"
-                :application-context-additions="{
-                  recordIndexPath: [
-                    ...applicationContext.recordIndexPath,
-                    index,
-                  ],
-                }"
-                @move="moveElement(child, $event)"
-              />
-              <!-- Other iterations are not editable -->
-              <!-- Override the mode so that any children are in public mode -->
-              <PageElement
-                v-else
-                v-show="!isCollapsed"
-                :key="`${child.id}_${index}`"
-                :element="child"
-                :force-mode="isEditMode ? 'public' : mode"
-                :application-context-additions="{
-                  recordIndexPath: [
-                    ...applicationContext.recordIndexPath,
-                    index,
-                  ],
-                }"
-                :class="{
-                  'repeat-element__preview': index > 0 && isEditMode,
-                }"
-              />
+  <div class="repeat-element--container">
+    <CollectionElementHeader
+      :element="element"
+      @filters-changed="adhocFilters = $event"
+      @sortings-changed="adhocSortings = $event"
+      @search-changed="adhocSearch = $event"
+    ></CollectionElementHeader>
+    <div
+      :class="{
+        [`repeat-element--orientation-${element.orientation}`]: true,
+      }"
+    >
+      <!-- If we have any contents to repeat... -->
+      <template v-if="elementContent.length > 0">
+        <div
+          class="repeat-element__repeated-elements"
+          :style="repeatedElementsStyles"
+        >
+          <!-- Iterate over each content -->
+          <div v-for="(content, index) in elementContent" :key="content.id">
+            <!-- If the container has an children -->
+            <template v-if="children.length > 0">
+              <!-- Iterate over each child -->
+              <template v-for="child in children">
+                <!-- The first iteration is editable if we're in editing mode -->
+                <ElementPreview
+                  v-if="index === 0 && isEditMode"
+                  :key="`${child.id}-${index}`"
+                  :element="child"
+                  :application-context-additions="{
+                    recordIndexPath: [
+                      ...applicationContext.recordIndexPath,
+                      index,
+                    ],
+                  }"
+                  @move="moveElement(child, $event)"
+                />
+                <!-- Other iterations are not editable -->
+                <!-- Override the mode so that any children are in public mode -->
+                <PageElement
+                  v-else
+                  v-show="!isCollapsed"
+                  :key="`${child.id}_${index}`"
+                  :element="child"
+                  :force-mode="isEditMode ? 'public' : mode"
+                  :application-context-additions="{
+                    recordIndexPath: [
+                      ...applicationContext.recordIndexPath,
+                      index,
+                    ],
+                  }"
+                  :class="{
+                    'repeat-element__preview': index > 0 && isEditMode,
+                  }"
+                />
+              </template>
             </template>
-          </template>
+          </div>
         </div>
-      </div>
-      <!-- We have contents, but the container has no children... -->
-      <template v-if="children.length === 0 && isEditMode">
-        <!-- Give the designer the chance to add child elements -->
-        <AddElementZone
-          :disabled="elementIsInError && !elementHasSourceOfData"
-          :tooltip="addElementErrorTooltipMessage"
-          @add-element="showAddElementModal"
-        ></AddElementZone>
-        <AddElementModal
-          ref="addElementModal"
-          :page="page"
-          :element-types-allowed="elementType.childElementTypes(page, element)"
-        ></AddElementModal>
-      </template>
-    </template>
-    <!-- We have no contents to repeat -->
-    <template v-else>
-      <!-- If we also have no children, allow the designer to add elements -->
-      <template v-if="children.length === 0 && isEditMode">
-        <AddElementZone
-          :disabled="elementIsInError && !elementHasSourceOfData"
-          :tooltip="addElementErrorTooltipMessage"
-          @add-element="showAddElementModal"
-        ></AddElementZone>
-        <AddElementModal
-          ref="addElementModal"
-          :page="page"
-          :element-types-allowed="elementType.childElementTypes(page, element)"
-        ></AddElementModal>
-      </template>
-      <!-- We have no contents, but we do have children in edit mode -->
-      <template v-else-if="isEditMode">
-        <div v-if="contentLoading" class="loading"></div>
-        <template v-else>
-          <ElementPreview
-            v-for="child in children"
-            :key="child.id"
-            :element="child"
-            @move="moveElement(child, $event)"
-          />
+        <!-- We have contents, but the container has no children... -->
+        <template v-if="children.length === 0 && isEditMode">
+          <!-- Give the designer the chance to add child elements -->
+          <AddElementZone
+            :disabled="elementIsInError && !elementHasSourceOfData"
+            :tooltip="addElementErrorTooltipMessage"
+            @add-element="showAddElementModal"
+          ></AddElementZone>
+          <AddElementModal
+            ref="addElementModal"
+            :page="page"
+            :element-types-allowed="
+              elementType.childElementTypes(page, element)
+            "
+          ></AddElementModal>
         </template>
       </template>
-    </template>
-    <div class="repeat-element__footer">
-      <ABButton
-        v-if="hasMorePage && children.length > 0"
-        :style="getStyleOverride('button')"
-        :disabled="contentLoading || !contentFetchEnabled"
-        :loading="contentLoading"
-        @click="loadMore()"
-      >
-        {{ resolvedButtonLoadMoreLabel || $t('repeatElement.showMore') }}
-      </ABButton>
+      <!-- We have no contents to repeat -->
+      <template v-else>
+        <!-- If we also have no children, allow the designer to add elements -->
+        <template v-if="children.length === 0 && isEditMode">
+          <AddElementZone
+            :disabled="elementIsInError && !elementHasSourceOfData"
+            :tooltip="addElementErrorTooltipMessage"
+            @add-element="showAddElementModal"
+          ></AddElementZone>
+          <AddElementModal
+            ref="addElementModal"
+            :page="page"
+            :element-types-allowed="
+              elementType.childElementTypes(page, element)
+            "
+          ></AddElementModal>
+        </template>
+        <!-- We have no contents, but we do have children in edit mode -->
+        <template v-else-if="isEditMode">
+          <div v-if="contentLoading" class="loading"></div>
+          <template v-else>
+            <ElementPreview
+              v-for="child in children"
+              :key="child.id"
+              :element="child"
+              @move="moveElement(child, $event)"
+            />
+          </template>
+        </template>
+      </template>
+      <div class="repeat-element__footer">
+        <ABButton
+          v-if="hasMorePage && children.length > 0"
+          :style="getStyleOverride('button')"
+          :disabled="contentLoading || !contentFetchEnabled"
+          :loading="contentLoading"
+          @click="loadMore()"
+        >
+          {{ resolvedButtonLoadMoreLabel || $t('repeatElement.showMore') }}
+        </ABButton>
+      </div>
     </div>
   </div>
 </template>
@@ -120,10 +132,12 @@ import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { RepeatElementType } from '@baserow/modules/builder/elementTypes'
+import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
 
 export default {
   name: 'RepeatElement',
   components: {
+    CollectionElementHeader,
     PageElement,
     ElementPreview,
     AddElementModal,

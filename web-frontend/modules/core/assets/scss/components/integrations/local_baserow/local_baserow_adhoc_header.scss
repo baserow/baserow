@@ -1,0 +1,10 @@
+.local-baserow-adhoc-header__container {
+  .header__filter-item {
+    margin-left: 0;
+
+    &.header__filter-item--right {
+      margin-left: auto;
+      margin-right: 0;
+    }
+  }
+}

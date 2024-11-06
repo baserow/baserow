@@ -6,6 +6,9 @@ import _ from 'lodash'
 export default {
   data() {
     return {
+      adhocFilters: undefined,
+      adhocSortings: undefined,
+      adhocSearch: undefined,
       currentOffset: 0,
       errorNotified: false,
       resetTimeout: null,
@@ -61,6 +64,13 @@ export default {
     elementHasSourceOfData() {
       return this.elementType.hasSourceOfData(this.element)
     },
+    adhocRefinements() {
+      return {
+        filters: this.adhocFilters,
+        sortings: this.adhocSortings,
+        search: this.adhocSearch,
+      }
+    },
     elementIsInError() {
       return this.elementType.isInError({
         page: this.page,
@@ -92,6 +102,13 @@ export default {
       },
       deep: true,
     },
+    adhocRefinements: {
+      handler(newValue, prevValue) {
+        if (!_.isEqual(newValue, prevValue)) {
+          this.debouncedReset()
+        }
+      },
+    },
   },
   async fetch() {
     if (!this.elementIsInError && this.elementType.fetchAtLoad) {
@@ -122,6 +139,9 @@ export default {
           dataSource: this.dataSource,
           data: this.dispatchContext,
           range,
+          filters: this.adhocRefinements.filters,
+          sortings: this.adhocRefinements.sortings,
+          search: this.adhocRefinements.search,
           mode: this.applicationContext.mode,
           replace,
         })

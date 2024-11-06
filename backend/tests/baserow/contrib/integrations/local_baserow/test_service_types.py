@@ -868,7 +868,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "type": "number",
             "title": "Id",
             "metadata": {},
-            "sortable": True,
+            "sortable": False,
             "filterable": False,
             "searchable": False,
         },

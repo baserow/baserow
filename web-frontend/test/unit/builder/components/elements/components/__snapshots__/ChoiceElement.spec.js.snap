@@ -47,10 +47,17 @@ exports[`ChoiceElement as default 1`] = `
                
               <ul
                 class="select__items"
+                style="display: none;"
                 tabindex="-1"
               />
                
-              <!---->
+              <div
+                class="select__items--empty"
+              >
+                
+        dropdown.empty
+      
+              </div>
                
               <!---->
             </div>
@@ -180,6 +187,7 @@ exports[`ChoiceElement as manual dropdown 1`] = `
                
               <ul
                 class="select__items"
+                style=""
                 tabindex="-1"
               >
                 <li

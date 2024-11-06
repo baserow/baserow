@@ -429,7 +429,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             "id": {
                 "type": "number",
                 "title": "Id",
-                "sortable": True,
+                "sortable": False,
                 "filterable": False,
                 "searchable": False,
             }

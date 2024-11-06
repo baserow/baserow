@@ -58,6 +58,11 @@ const actions = {
    * @param {object} element - the element object
    * @param {object} dataSource - the data source we want to dispatch
    * @param {object} range - the range of the data we want to fetch
+   * @param {object} filters - the adhoc filters to apply to the data
+   * @param {object} sortings - the adhoc sortings to apply to the data
+   * @param {object} search - the adhoc search to apply to the data
+   * @param {string} searchMode - the search mode to apply to the data.
+   * @param {string} mode - the mode of the application
    * @param {object} dispatchContext - the context to dispatch to the data
    * @param {bool} replace - if we want to replace the current content
    * @param {object} data - the query body
@@ -69,6 +74,10 @@ const actions = {
       element,
       dataSource,
       range,
+      filters = {},
+      sortings = null,
+      search = '',
+      searchMode = '',
       mode,
       data: dispatchContext,
       replace = false,
@@ -203,7 +212,7 @@ const actions = {
         const { data } = await service(this.app.$client).dispatch(
           dataSource.id,
           dispatchContext,
-          { range: rangeToFetch }
+          { range: rangeToFetch, filters, sortings, search, searchMode }
         )
 
         // With a list-type data source, the data object will return
