@@ -21,6 +21,7 @@ import {
   hasValueContainsWordFilterMixin,
   hasValueLengthIsLowerThanFilterMixin,
   hasEmptyValueFilterMixin,
+  hasAllValuesEqualFilterMixin,
 } from '@baserow/modules/database/arrayFilterMixins'
 import moment from '@baserow/modules/core/moment'
 import guessFormat from 'moment-guess'
@@ -163,7 +164,7 @@ import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
 import _ from 'lodash'
-import { ensureBoolean } from '@baserow/modules/core/utils/validator'
+import { trueValues } from '@baserow/modules/core/utils/constants'
 
 export class FieldType extends Registerable {
   /**
@@ -675,6 +676,10 @@ export class FieldType extends Registerable {
         filterValue
       )
     )
+  }
+
+  getFilterInputComponent(field, filterType) {
+    return null
   }
 
   /**
@@ -1652,7 +1657,11 @@ export class BooleanFieldType extends FieldType {
   }
 
   _prepareValue(value) {
-    return ensureBoolean(value)
+    return trueValues.includes(value)
+  }
+
+  parseInputValue(field, value) {
+    return this._prepareValue(value)
   }
 
   getDocsDataType(field) {
@@ -3517,6 +3526,7 @@ export class PhoneNumberFieldType extends FieldType {
 }
 
 export class FormulaFieldType extends mix(
+  hasAllValuesEqualFilterMixin,
   hasEmptyValueFilterMixin,
   hasValueEqualFilterMixin,
   hasValueContainsFilterMixin,
@@ -3563,6 +3573,10 @@ export class FormulaFieldType extends mix(
     return i18n.t('fieldType.formula')
   }
 
+  getFormulaSubtype(field) {
+    return this.app.$registry.get('formula_type', field.formula_type)
+  }
+
   getGridViewFieldComponent() {
     return GridViewFieldFormula
   }
@@ -3579,27 +3593,24 @@ export class FormulaFieldType extends mix(
     return RowCardFieldFormula
   }
 
+  getFilterInputComponent(field, filterType) {
+    this.getFormulaSubtype(field)?.getFilterInputComponent(field, filterType)
+  }
+
   _mapFormulaTypeToFieldType(formulaType) {
     return this.app.$registry.get('formula_type', formulaType).getFieldType()
   }
 
   getCardValueHeight(field) {
-    return (
-      this.app.$registry
-        .get('formula_type', field.formula_type)
-        .getCardComponent().height || 0
-    )
+    return this.getFormulaSubtype(field)?.getCardComponent().height || 0
   }
 
   getCanSortInView(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getCanSortInView(field)
+    return this.getFormulaSubtype(field)?.getCanSortInView(field)
   }
 
   getSort(name, order, field) {
-    return this.app.$registry
-      .get('formula_type', field.formula_type)
-      .getSort(name, order, field)
+    return this.getFormulaSubtype(field)?.getSort(name, order, field)
   }
 
   getEmptyValue(field) {
@@ -3607,9 +3618,7 @@ export class FormulaFieldType extends mix(
   }
 
   getDocsDataType(field) {
-    return this.app.$registry
-      .get('formula_type', field.formula_type)
-      .getDocsDataType(field)
+    return this.getFormulaSubtype(field)?.getDocsDataType(field)
   }
 
   getDocsDescription(field) {
@@ -3621,14 +3630,11 @@ export class FormulaFieldType extends mix(
   }
 
   getDocsResponseExample(field) {
-    return this.app.$registry
-      .get('formula_type', field.formula_type)
-      .getDocsResponseExample(field)
+    return this.getFormulaSubtype(field)?.getDocsResponseExample(field)
   }
 
   prepareValueForCopy(field, value) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.prepareValueForCopy(field, value)
+    return this.getFormulaSubtype(field)?.prepareValueForCopy(field, value)
   }
 
   getContainsFilterFunction(field) {
@@ -3648,15 +3654,11 @@ export class FormulaFieldType extends mix(
   }
 
   toHumanReadableString(field, value) {
-    return this.app.$registry
-      .get('formula_type', field.formula_type)
-      .toHumanReadableString(field, value)
+    return this.getFormulaSubtype(field)?.toHumanReadableString(field, value)
   }
 
   getSortIndicator(field) {
-    return this.app.$registry
-      .get('formula_type', field.formula_type)
-      .getSortIndicator(field)
+    return this.getFormulaSubtype(field)?.getSortIndicator(field)
   }
 
   getFormComponent() {
@@ -3688,51 +3690,63 @@ export class FormulaFieldType extends mix(
   }
 
   canRepresentDate(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.canRepresentDate(field)
+    return this.getFormulaSubtype(field)?.canRepresentDate(field)
   }
 
   getCanGroupByInView(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.canGroupByInView(field)
+    return this.getFormulaSubtype(field)?.canGroupByInView(field)
   }
 
   parseInputValue(field, value) {
-    const underlyingFieldType = this.app.$registry.get(
-      'field',
-      this._mapFormulaTypeToFieldType(field.formula_type)
+    // const underlyingFieldType = this.app.$registry.get(
+    //   'field',
+    //   this._mapFormulaTypeToFieldType(field.formula_type)
+    // )
+    const underlyingFieldType = this.getFormulaSubtype(field)
+    console.warn(
+      'formula parse input',
+      field,
+      underlyingFieldType.getType(),
+      value,
+      underlyingFieldType.parseInputValue(field, value)
     )
     return underlyingFieldType.parseInputValue(field, value)
   }
 
   canRepresentFiles(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.canRepresentFiles(field)
+    return this.getFormulaSubtype(field)?.canRepresentFiles(field)
+  }
+
+  getHasAllValuesEqualFilterFunction(field) {
+    return this.getFormulaSubtype(field)?.getHasAllValuesEqualFilterFunction(
+      field
+    )
   }
 
   getHasEmptyValueFilterFunction(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getHasEmptyValueFilterFunction(field)
+    return this.getFormulaSubtype(field)?.getHasEmptyValueFilterFunction(field)
   }
 
   getHasValueEqualFilterFunction(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getHasValueEqualFilterFunction(field)
+    return this.getFormulaSubtype(field)?.getHasValueEqualFilterFunction(field)
   }
 
   getHasValueContainsFilterFunction(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getHasValueContainsFilterFunction(field)
+    return this.getFormulaSubtype(field)?.getHasValueContainsFilterFunction(
+      field
+    )
   }
 
   getHasValueContainsWordFilterFunction(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getHasValueContainsWordFilterFunction(field)
+    return this.getFormulaSubtype(field)?.getHasValueContainsWordFilterFunction(
+      field
+    )
   }
 
   getHasValueLengthIsLowerThanFilterFunction(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getHasValueLengthIsLowerThanFilterFunction(field)
+    return this.getFormulaSubtype(
+      field
+    )?.getHasValueLengthIsLowerThanFilterFunction(field)
   }
 }
 

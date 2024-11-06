@@ -1,12 +1,8 @@
 import ViewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText'
 import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber'
-import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/ViewFilterTypeBoolean'
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 import { ViewFilterType } from '@baserow/modules/database/viewFilters'
-import _ from 'lodash'
-import { ensureBoolean } from '@baserow/modules/core/utils/validator'
-import { mix } from '@baserow/modules/core/mixins'
-import booleanArrayAwareMixin from '@baserow/modules/database/mixins/booleanArrayAwareMixin'
+import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
 
 export class HasEmptyValueViewFilterType extends ViewFilterType {
   static getType() {
@@ -53,10 +49,8 @@ export class HasNotEmptyValueViewFilterType extends ViewFilterType {
     return !fieldType.getHasEmptyValueFilterFunction(field)(cellValue)
   }
 }
-export class HasValueEqualViewFilterType extends mix(
-  booleanArrayAwareMixin,
-  ViewFilterType
-) {
+
+export class HasValueEqualViewFilterType extends ViewFilterType {
   static getType() {
     return 'has_value_equal'
   }
@@ -67,31 +61,13 @@ export class HasValueEqualViewFilterType extends mix(
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    // filterValue may be raw and in cellValue items, .value should be `true`,
-    // so we should call boolean-specific matches() function.
-    if (this.isBooleanArrayField(field)) {
-      fieldType = this.app.$registry.get('field', 'boolean')
-      return fieldType.getHasValueEqualFilterFunction(field)(
-        cellValue,
-        filterValue
-      )
-    }
+    filterValue = fieldType.parseInputValue(field, filterValue)
     return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
   }
 
-  prepareValue(value, field) {
-    if (this.isBooleanArrayField(field)) {
-      return value.trim() === '' ? '0' : value
-    } else {
-      return value
-    }
-  }
-
   getInputComponent(field) {
-    if (this.isBooleanArrayField(field)) {
-      return ViewFilterTypeBoolean
-    }
-    return ViewFilterTypeText
+    const fieldType = this.$app.registry.get('field_type', field.type)
+    return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
   }
 
   getCompatibleFieldTypes() {
@@ -106,10 +82,7 @@ export class HasValueEqualViewFilterType extends mix(
   }
 }
 
-export class HasNotValueEqualViewFilterType extends mix(
-  booleanArrayAwareMixin,
-  ViewFilterType
-) {
+export class HasNotValueEqualViewFilterType extends ViewFilterType {
   static getType() {
     return 'has_not_value_equal'
   }
@@ -120,31 +93,13 @@ export class HasNotValueEqualViewFilterType extends mix(
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    // filterValue may be raw and in cellValue items, .value should be `true`,
-    // so we should call boolean-specific matches() function.
-    if (this.isBooleanArrayField(field)) {
-      fieldType = this.app.$registry.get('field', 'boolean')
-      return fieldType.getHasNotValueEqualFilterFunction(field)(
-        cellValue,
-        filterValue
-      )
-    }
+    filterValue = fieldType.parseInputValue(field, filterValue)
     return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
   }
 
-  prepareValue(value, field) {
-    if (this.isBooleanArrayField(field)) {
-      return value.trim() === '' ? '0' : value
-    } else {
-      return value
-    }
-  }
-
   getInputComponent(field) {
-    if (this.isBooleanArrayField(field)) {
-      return ViewFilterTypeBoolean
-    }
-    return ViewFilterTypeText
+    const fieldType = this.$app.registry.get('field_type', field.type)
+    return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
   }
 
   getCompatibleFieldTypes() {
@@ -312,7 +267,8 @@ export class HasAllValuesEqualViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    return ViewFilterTypeBoolean
+    const fieldType = this.$app.registry.get('field_type', field.type)
+    return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
   }
 
   getCompatibleFieldTypes() {
@@ -320,10 +276,7 @@ export class HasAllValuesEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    const expected = ensureBoolean(filterValue)
-    if (cellValue.length === 0) {
-      return false
-    }
-    return _.every(_.map(cellValue, 'value'), (inVal) => inVal === expected)
+    filterValue = fieldType.parseInputValue(field, filterValue)
+    return fieldType.hasAllValuesEqualFilter(cellValue, filterValue, field)
   }
 }

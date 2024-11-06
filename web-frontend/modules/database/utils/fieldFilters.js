@@ -3,6 +3,8 @@
 // B: even if we removed the commas and compared filterValue against the concatted
 //    list of file names, we don't want the filterValue to accidentally match the end
 //    of one filename and the start of another.
+import _ from 'lodash'
+
 export function filenameContainsFilter(
   rowValue,
   humanReadableRowValue,
@@ -65,6 +67,17 @@ export function genericHasEmptyValueFilter(cellValue, filterValue) {
   }
 
   return false
+}
+
+export function genericHasAllValuesEqualFilter(cellValue, filterValue) {
+  if (!Array.isArray(cellValue)) {
+    return false
+  }
+
+  if (cellValue.length === 0) {
+    return false
+  }
+  return _.every(_.map(cellValue, 'value'), (inVal) => inVal === filterValue)
 }
 
 export function genericHasValueEqualFilter(cellValue, filterValue) {
