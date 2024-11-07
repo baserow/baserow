@@ -13,6 +13,7 @@ from baserow.contrib.database.fields.field_filters import (
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
     BaserowFilterExpression,
+    JSONArrayAllAreExpr,
     JSONArrayContainsValueExpr,
     JSONArrayContainsValueLengthLowerThanExpr,
     JSONArrayContainsValueSimilarToExpr,
@@ -158,21 +159,30 @@ class HasValueLengthIsLowerThanFilterSupport:
 
 
 class HasAllValuesEqualFilterSupport:
-    # helper attribute that provides filtering expression clas for the filter
-    has_all_values_equal_expression: typing.ClassVar[
-        typing.Type[BaserowFilterExpression]
-    ]
-
     def get_has_all_values_equal_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
+        """
+        Creates a query expression to filter rows where all values of an array in
+        the specified field are equal to a specific value
+
+        :param field_name: The name of the field
+        :param value: The value that should be present in all array elements
+            in the field
+        :param model_field: Field's schema model instance.
+        :param field: Field's instance.
+        :return: A Q or AnnotatedQ filter given value.
+        """
+
         try:
-            expression = self.__class__.has_all_values_equal_expression
-            return get_array_json_filter_expression(expression, field_name, value)
+            return get_array_json_filter_expression(
+                JSONArrayAllAreExpr, field_name, value
+            )
 
         except Exception as err:
             logger.error(
-                f"Error when creating {self.type} filter expression for {field_name} field with {value} value: {err}"
+                f"Error when creating {self.type} filter expression "
+                f"for {field_name} field with {value} value: {err}"
             )
             return self.default_filter_on_exception()
 

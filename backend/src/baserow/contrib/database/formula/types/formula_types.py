@@ -442,7 +442,6 @@ class BaserowFormulaBooleanType(
     baserow_field_type = "boolean"
     can_order_by_in_array = True
     can_group_by = True
-    has_all_values_equal_expression = JSONArrayAllAreExpr
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:

@@ -815,7 +815,6 @@ class BooleanFieldType(FieldType):
     type = "boolean"
     model_class = BooleanField
     _can_group_by = True
-    has_all_values_equal_expression = JSONArrayAllAreExpr
 
     def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
         """
