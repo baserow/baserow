@@ -1701,6 +1701,7 @@ export class BooleanFieldType extends FieldType {
   }
 
   getHasValueEqualFilterFunction(field, negate = false) {
+    const that = this
     return (cellValue, filterValue) => {
       const value = that._prepareValue(filterValue)
       const out = genericHasValueEqualFilter(cellValue, value)

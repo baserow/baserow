@@ -496,7 +496,7 @@ class BaserowFormulaBooleanType(
         try:
             value = "true" if ensure_boolean(value.strip()) else "false"
         except ValidationError:
-            value = 'false'
+            value = "false"
         return super().get_has_all_values_equal_query(
             field_name, value, model_field, field
         )
