@@ -3594,7 +3594,10 @@ export class FormulaFieldType extends mix(
   }
 
   getFilterInputComponent(field, filterType) {
-    this.getFormulaSubtype(field)?.getFilterInputComponent(field, filterType)
+    return this.getFormulaSubtype(field)?.getFilterInputComponent(
+      field,
+      filterType
+    )
   }
 
   _mapFormulaTypeToFieldType(formulaType) {
@@ -3703,13 +3706,6 @@ export class FormulaFieldType extends mix(
     //   this._mapFormulaTypeToFieldType(field.formula_type)
     // )
     const underlyingFieldType = this.getFormulaSubtype(field)
-    console.warn(
-      'formula parse input',
-      field,
-      underlyingFieldType.getType(),
-      value,
-      underlyingFieldType.parseInputValue(field, value)
-    )
     return underlyingFieldType.parseInputValue(field, value)
   }
 

@@ -60,13 +60,24 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasValueEqual')
   }
 
+  getDefaultValue(field) {
+    // has_value_equal filter by default sends an empty string. For consistency
+    // a default value should be in pair with a default value from the input component.
+    return this.prepareValue('', field)
+  }
+
   matches(cellValue, filterValue, field, fieldType) {
     filterValue = fieldType.parseInputValue(field, filterValue)
     return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
   }
 
+  prepareValue(value, field) {
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.parseInputValue(field, value).toString()
+  }
+
   getInputComponent(field) {
-    const fieldType = this.$app.registry.get('field_type', field.type)
+    const fieldType = this.app.$registry.get('field', field.type)
     return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
   }
 
@@ -97,8 +108,19 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
     return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
   }
 
+  getDefaultValue(field) {
+    // has_not_value_equal filter by default sends an empty string. For consistency
+    // a default value should be in pair with a default value from the input component.
+    return this.prepareValue('', field)
+  }
+
+  prepareValue(value, field) {
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.parseInputValue(field, value).toString()
+  }
+
   getInputComponent(field) {
-    const fieldType = this.$app.registry.get('field_type', field.type)
+    const fieldType = this.app.$registry.get('field', field.type)
     return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
   }
 
@@ -267,7 +289,7 @@ export class HasAllValuesEqualViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    const fieldType = this.$app.registry.get('field_type', field.type)
+    const fieldType = this.app.$registry.get('field', field.type)
     return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
   }
 

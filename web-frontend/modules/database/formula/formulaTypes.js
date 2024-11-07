@@ -366,11 +366,24 @@ export class BaserowFormulaBooleanType extends BaserowFormulaTypeDefinition {
   }
 
   getHasAllValuesEqualFilterFunction(field) {
-    return genericHasAllValuesEqualFilter
+    return (cellValue, filterValue) => {
+      const parsedValue = this.parseInputValue(field, filterValue)
+      return genericHasAllValuesEqualFilter(cellValue, parsedValue)
+    }
   }
 
   getHasValueContainsFilterFunction(field) {
-    return genericHasValueContainsFilter
+    return (cellValue, filterValue) => {
+      const parsedValue = this.parseInputValue(field, filterValue)
+      return genericHasValueContainsFilter(cellValue, parsedValue)
+    }
+  }
+
+  parseInputValue(field, filterValue) {
+    if (filterValue === '') {
+      return false
+    }
+    return super.parseInputValue(field, filterValue)
   }
 }
 
@@ -590,8 +603,7 @@ export class BaserowFormulaArrayType extends mix(
   }
 
   getFilterInputComponent(field, filterType) {
-    const subtype = this.getSubtype(field)
-    return subtype.getFilterInputComponent(field, filterType)
+    return this.getSubtype(field)?.getFilterInputComponent(field, filterType)
   }
 
   getFunctionalGridViewFieldComponent() {
