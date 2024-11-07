@@ -4595,54 +4595,19 @@ class FormulaFieldType(
             field_name, value, model_field, field_instance
         )
 
-    def _call_array_filtering_array_formula_field_type_handler(
-        self, field_name, value, model_field, field, subcls: Type, method_name: str
-    ):
-        """
-        Encapsulates a common workflow behind getting a filter expression when
-        filtering array-based formula fields. The flow will:
-        * get the field type for the field
-        * check if the field type implements a specific interface provided with `subcls`
-        * call a method specified by `method_name`.
-
-        :param field_name: field name to filter on
-        :param value: value to filter
-        :param model_field: field model
-        :param field: field instance
-        :param subcls: a subclass/protocol to check field type
-        :param method_name: a string with a method to call
-        :return:
-        """
-
+    def get_has_all_values_equal_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(field)
 
-        if not isinstance(field_type, subcls):
-            logger.warning(
-                f"cannot use {field_type} in {subcls}.{method_name} call: field not in class hierarchy"
-            )
-            raise FilterNotSupportedException(field_type)
-        try:
-            handler = getattr(field_type, method_name)
-        except AttributeError:
-            logger.warning(
-                f"cannot use {field_type} in {subcls}.{method_name} call: field not in class hierarchy"
-            )
-            raise FilterNotSupportedException(method_name)
-        return handler(field_name, value, model_field, field_instance)
+        if not isinstance(field_type, HasAllValuesEqualFilterSupport):
+            raise FilterNotSupportedException()
 
-    def get_has_all_values_equal_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> "OptionallyAnnotatedQ":
-        return self._call_array_filtering_array_formula_field_type_handler(
-            field_name,
-            value,
-            model_field,
-            field,
-            HasAllValuesEqualFilterSupport,
-            "get_has_all_values_equal_query",
+        return field_type.get_has_all_values_equal_query(
+            field_name, value, model_field, field_instance
         )
 
     def get_in_array_contains_word_query(
