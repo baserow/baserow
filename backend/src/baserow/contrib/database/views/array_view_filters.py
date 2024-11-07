@@ -1,5 +1,3 @@
-from loguru import logger
-
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.filter_support import (
@@ -46,7 +44,7 @@ class HasEmptyValueViewFilterType(ViewFilterType):
                 raise FilterNotSupportedException(field_type)
 
             return field_type.get_in_array_empty_query(field_name, model_field, field)
-        except Exception:
+        except FilterNotSupportedException:
             return self.default_filter_on_exception()
 
 
@@ -114,8 +112,7 @@ class HasValueContainsViewFilterType(ViewFilterType):
             return field_type.get_in_array_contains_query(
                 field_name, value, model_field, field
             )
-        except Exception as err:
-            logger.warning(f"Cannot use {self.type} filter on {field_name}: {err}")
+        except FilterNotSupportedException:
             return self.default_filter_on_exception()
 
 
@@ -150,7 +147,7 @@ class HasValueContainsWordViewFilterType(ViewFilterType):
             return field_type.get_in_array_contains_word_query(
                 field_name, value, model_field, field
             )
-        except Exception:
+        except FilterNotSupportedException:
             return self.default_filter_on_exception()
 
 
@@ -185,7 +182,7 @@ class HasValueLengthIsLowerThanViewFilterType(ViewFilterType):
             return field_type.get_in_array_length_is_lower_than_query(
                 field_name, value, model_field, field
             )
-        except Exception:
+        except FilterNotSupportedException:
             return self.default_filter_on_exception()
 
 
@@ -209,8 +206,5 @@ class HasAllValuesEqualViewFilterType(ViewFilterType):
             return field_type.get_has_all_values_equal_query(
                 field_name, value, model_field, field
             )
-        except Exception as err:
-            logger.error(
-                f"Error when creating {self.type} filter expression for {field_name} field with {value} value: {err}"
-            )
+        except FilterNotSupportedException:
             return self.default_filter_on_exception()
