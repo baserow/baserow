@@ -46,7 +46,6 @@ from baserow.contrib.database.formula.ast.tree import (
     BaserowStringLiteral,
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
-    JSONArrayAllAreExpr,
     JSONArrayContainsValueExpr,
 )
 from baserow.contrib.database.formula.registries import formula_function_registry

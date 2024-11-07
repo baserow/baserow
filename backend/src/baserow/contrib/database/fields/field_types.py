@@ -7,18 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from itertools import cycle
 from random import randint, randrange, sample
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
@@ -110,9 +99,6 @@ from baserow.contrib.database.formula import (
     BaserowFormulaTextType,
     BaserowFormulaType,
     FormulaHandler,
-)
-from baserow.contrib.database.formula.expression_generator.django_expressions import (
-    JSONArrayAllAreExpr,
 )
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.formula.types.formula_types import (
