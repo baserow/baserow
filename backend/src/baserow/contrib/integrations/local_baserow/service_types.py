@@ -32,6 +32,12 @@ from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     IncompatibleField,
 )
+from baserow.contrib.database.fields.field_types import (
+    CreatedByFieldType,
+    LastModifiedByFieldType,
+    LinkRowFieldType,
+    MultipleCollaboratorsFieldType,
+)
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import (
     field_aggregation_registry,
@@ -153,6 +159,18 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             help_text="The id of the Baserow integration we want the data for.",
         ),
     }
+
+    # Three lists which represent the Baserow `FieldType` which are not permitted
+    # as sortable, searchable and filterable in our integrations. These field types
+    # may well be sortable, searchable and filterable normally, but not in integrations.
+    unsupported_adhoc_sortable_field_types = []
+    unsupported_adhoc_searchable_field_types = []
+    unsupported_adhoc_filterable_field_types = [
+        LinkRowFieldType.type,
+        CreatedByFieldType.type,
+        LastModifiedByFieldType.type,
+        MultipleCollaboratorsFieldType.type,
+    ]
 
     class SerializedDict(ServiceDict):
         table_id: int
@@ -443,9 +461,14 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             properties[field.db_column] = {
                 "title": field.name,
                 "default": default_value,
-                "searchable": field_type.is_searchable(field),
-                "sortable": field_type.check_can_order_by(field),
-                "filterable": field_type.check_can_filter_by(field),
+                "searchable": field_type.is_searchable(field)
+                and field_type.type
+                not in self.unsupported_adhoc_searchable_field_types,
+                "sortable": field_type.check_can_order_by(field)
+                and field_type.type not in self.unsupported_adhoc_sortable_field_types,
+                "filterable": field_type.check_can_filter_by(field)
+                and field_type.type
+                not in self.unsupported_adhoc_filterable_field_types,
                 "original_type": field_type.type,
                 "metadata": field_serializer.data,
             } | self.get_json_type_from_response_serializer_field(field, field_type)
@@ -1077,7 +1100,7 @@ class LocalBaserowAggregateRowsUserServiceType(
         Responsible for generating a dictionary in the JSON Schema spec. Despite
         this service inheriting from `LocalBaserowTableServiceType`, it does not need
         to generate a schema for the table's fields. We instead want to generate
-        a schema based on the `service.field`.
+        a schema based on the service's aggregation type.
 
         :param service: A `LocalBaserowAggregateRows` instance.
         :return: A schema dictionary, or None if no `Field` has been applied.
@@ -1086,17 +1109,42 @@ class LocalBaserowAggregateRowsUserServiceType(
         if not service.field:
             return None
 
-        field = service.field.specific
-        field_type = field_type_registry.get_by_model(field)
+        # Pluck out the aggregation type which this service uses. We'll use its
+        # `result_type` to inform the schema what the expected `result` format is.
+        aggregation_type = field_aggregation_registry.get(service.aggregation_type)
 
-        properties = {
-            field.db_column: {
-                "title": f"{field.name} result",
-                "original_type": field_type.type,
-            }
-            | self.get_json_type_from_response_serializer_field(field, field_type)
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": {
+                "result": {
+                    "title": f"{service.field.name} result",
+                    "type": aggregation_type.result_type,
+                }
+            },
         }
-        return self.get_schema_for_return_type(service, properties)
+
+    def get_context_data(self, service: LocalBaserowAggregateRows) -> None:
+        """
+        The Local Baserow aggregate rows service type does not provide any
+        `get_context_data` results.
+
+        :param service: A LocalBaserowAggregateRows instance.
+        :return: None
+        """
+
+        return None
+
+    def get_context_data_schema(self, service: LocalBaserowAggregateRows) -> None:
+        """
+        The Local Baserow aggregate rows service type does not provide any
+        `get_context_data_schema` results.
+
+        :param service: A LocalBaserowAggregateRows instance.
+        :return: None
+        """
+
+        return None
 
     def enhance_queryset(self, queryset):
         return super().enhance_queryset(queryset).select_related("field")
@@ -1180,11 +1228,12 @@ class LocalBaserowAggregateRowsUserServiceType(
             field_id = values.pop("field_id")
             if field_id is not None:
                 field = FieldHandler().get_field(field_id)
-                if instance:
-                    table_id = instance.table_id
-                else:
-                    table_id = values["table"].id
-                if field.table_id == table_id:
+                # Validate against the `table` in the user-provided `values`,
+                # otherwise validate against the persisted `instance.table`.
+                table_to_validate = values.get(
+                    "table", getattr(instance, "table", None)
+                )
+                if field.table_id == table_to_validate.id:
                     values["field"] = field
                 else:
                     raise DRFValidationError(
@@ -1322,15 +1371,17 @@ class LocalBaserowAggregateRowsUserServiceType(
                 raise ServiceImproperlyConfigured(
                     f"The field with ID {service.field.id} is trashed."
                 )
-            model = table.get_model(field_ids=[service.field.id])
-            model_field = model._meta.get_field(service.field.db_column)
-            queryset = self.build_queryset(service, table, dispatch_context)
+            field = service.field
+            model = self.get_table_model(service)
+            model_field = model._meta.get_field(field.db_column)
+            queryset = self.build_queryset(
+                service, table, dispatch_context, model=model
+            )
             agg_type = field_aggregation_registry.get(service.aggregation_type)
-            result = agg_type.aggregate(queryset, model_field, service.field)
+            result = agg_type.aggregate(queryset, model_field, field)
+
             return {
-                "data": {
-                    f"{service.field.db_column}": result,
-                },
+                "data": {"result": result},
                 "baserow_table_model": model,
             }
         except DjangoFieldDoesNotExist as ex:
@@ -1356,6 +1407,16 @@ class LocalBaserowAggregateRowsUserServiceType(
         """
 
         return data["data"]
+
+    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+        """
+        Returns the usual properties for this service type.
+        """
+
+        if path[0] == "result":
+            return ["result"]
+
+        return []
 
 
 class LocalBaserowGetRowUserServiceType(

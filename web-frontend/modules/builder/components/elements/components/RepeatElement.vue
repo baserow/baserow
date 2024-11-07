@@ -77,6 +77,12 @@
       </template>
       <!-- We have no contents to repeat -->
       <template v-else>
+        <!-- We have no element content, but do have an adhoc refinements in public mode -->
+        <template v-if="(adhocSearch || adhocFilters) && !isEditMode">
+          <p class="repeat-element__empty-message">
+            {{ $t('repeatElement.emptyState') }}
+          </p>
+        </template>
         <!-- If we also have no children, allow the designer to add elements -->
         <template v-if="children.length === 0 && isEditMode">
           <AddElementZone

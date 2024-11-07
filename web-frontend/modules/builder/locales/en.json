@@ -570,7 +570,8 @@
     "empty": "No items have been found.",
     "showMore": "Show more",
     "missingDataSourceTooltip": "Choose a data source to begin adding elements.",
-    "missingSchemaPropertyTooltip": "Choose a property to begin adding elements."
+    "missingSchemaPropertyTooltip": "Choose a property to begin adding elements.",
+    "emptyState": "No records found."
   },
   "collectionElementForm": {
     "noDataSourceMessage": "Choose a data source with multiple rows to list all results, or a single row data source to choose a property inside this row.",

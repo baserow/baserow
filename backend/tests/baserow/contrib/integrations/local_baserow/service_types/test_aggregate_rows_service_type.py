@@ -36,10 +36,9 @@ def test_local_baserow_aggregate_rows_service_generate_schema(data_fixture):
         "title": f"Aggregation{service.id}Schema",
         "type": "object",
         "properties": {
-            field.db_column: {
+            "result": {
                 "title": f"{field.name} result",
                 "type": "string",
-                "original_type": "number",
             },
         },
     }
@@ -235,7 +234,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_table(data_fixture):
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert result["baserow_table_model"]
-    assert result["data"] == {f"field_{field.id}": Decimal("20")}
+    assert result["data"] == {"result": Decimal("20")}
 
 
 @pytest.mark.django_db
@@ -275,7 +274,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_view(data_fixture):
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert result["baserow_table_model"]
-    assert result["data"] == {f"field_{field.id}": Decimal("20")}
+    assert result["data"] == {"result": Decimal("20")}
 
 
 @pytest.mark.django_db
@@ -320,7 +319,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_total(data_fixture):
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert result["baserow_table_model"]
-    assert result["data"] == {f"field_{field.id}": 50.0}
+    assert result["data"] == {"result": 50.0}
 
 
 @pytest.mark.django_db
@@ -365,7 +364,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_view_filters(data_fixtu
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert result["baserow_table_model"]
-    assert result["data"] == {f"field_{field.id}": 6.0}
+    assert result["data"] == {"result": 6.0}
 
 
 @pytest.mark.django_db
@@ -414,7 +413,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_service_filters(data_fi
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert result["baserow_table_model"]
-    assert result["data"] == {f"field_{field.id}": 14.0}
+    assert result["data"] == {"result": 14.0}
 
 
 @pytest.mark.django_db(transaction=True)
@@ -459,7 +458,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_search(data_fixture):
         )
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert result["baserow_table_model"]
-    assert result["data"] == {f"field_{field_2.id}": 1500.0}
+    assert result["data"] == {"result": 1500.0}
 
 
 @pytest.mark.django_db

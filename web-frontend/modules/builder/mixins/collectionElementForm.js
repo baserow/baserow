@@ -97,13 +97,18 @@ export default {
     },
     /**
      * Returns all data sources that are available to the current page.
+     * The data source will need a `type` and a valid schema.
      * @returns {Array} - The data sources the page designer can choose from.
      */
     dataSources() {
       const pages = [this.sharedPage, this.page]
       return this.$store.getters['dataSource/getPagesDataSources'](
         pages
-      ).filter((dataSource) => dataSource.type)
+      ).filter((dataSource) => {
+        const serviceType =
+          dataSource.type && this.$registry.get('service', dataSource.type)
+        return serviceType?.getDataSchema(dataSource)
+      })
     },
     selectedDataSource() {
       if (!this.values.data_source_id) {

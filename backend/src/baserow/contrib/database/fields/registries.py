@@ -2043,6 +2043,11 @@ class FieldAggregationType(Instance):
     attributes.
     """
 
+    result_type = "string"
+    """Informs features which use field aggregation types what the aggregation
+    result type be. At the moment the result is always a string, but in the future
+    if we generated an array for example, the result type would be 'array'."""
+
     with_total = False
     """Determines if the result of the aggregation needs to
     be computed using the total count of rows."""
@@ -2062,6 +2067,16 @@ class FieldAggregationType(Instance):
             raise IncompatibleField()
 
         aggregation_dict = self._get_aggregation_dict(queryset, model_field, field)
+
+        # Check if the returned aggregations contain a `AnnotatedAggregation`,
+        # and if so, apply the annotations and only keep the actual aggregation in
+        # the dict. This is needed because some aggregations require annotated values
+        # before they work.
+        for key, value in aggregation_dict.items():
+            if isinstance(value, AnnotatedAggregation):
+                queryset = queryset.annotate(**value.annotations)
+                aggregation_dict[key] = value.aggregation
+
         results = queryset.aggregate(**aggregation_dict)
         return self._compute_final_aggregation(
             results[f"{field.db_column}_raw"], results.get("total", None)
