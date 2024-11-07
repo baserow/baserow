@@ -111,6 +111,9 @@ from baserow.contrib.database.formula import (
     BaserowFormulaType,
     FormulaHandler,
 )
+from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    JSONArrayAllAreExpr,
+)
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaArrayType,
@@ -141,7 +144,6 @@ from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import list_to_comma_separated_string
 
-from ..formula.expression_generator.django_expressions import JSONArrayAllAreExpr
 from .constants import BASEROW_BOOLEAN_FIELD_TRUE_VALUES, UPSERT_OPTION_DICT_KEY
 from .dependencies.exceptions import (
     CircularFieldDependencyError,

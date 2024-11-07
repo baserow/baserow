@@ -43,7 +43,7 @@ class HasEmptyValueViewFilterType(ViewFilterType):
             field_type = field_type_registry.get_by_model(field)
 
             if not isinstance(field_type, HasValueEmptyFilterSupport):
-                raise FilterNotSupportedException()
+                raise FilterNotSupportedException(field_type)
 
             return field_type.get_in_array_empty_query(field_name, model_field, field)
         except Exception:
@@ -109,7 +109,7 @@ class HasValueContainsViewFilterType(ViewFilterType):
         try:
             field_type = field_type_registry.get_by_model(field)
             if not isinstance(field_type, HasValueContainsFilterSupport):
-                raise FilterNotSupportedException()
+                raise FilterNotSupportedException(field_type)
 
             return field_type.get_in_array_contains_query(
                 field_name, value, model_field, field
@@ -145,7 +145,7 @@ class HasValueContainsWordViewFilterType(ViewFilterType):
             field_type = field_type_registry.get_by_model(field)
 
             if not isinstance(field_type, HasValueContainsWordFilterSupport):
-                raise FilterNotSupportedException()
+                raise FilterNotSupportedException(field_type)
 
             return field_type.get_in_array_contains_word_query(
                 field_name, value, model_field, field
@@ -180,7 +180,7 @@ class HasValueLengthIsLowerThanViewFilterType(ViewFilterType):
             field_type = field_type_registry.get_by_model(field)
 
             if not isinstance(field_type, HasValueLengthIsLowerThanFilterSupport):
-                raise FilterNotSupportedException()
+                raise FilterNotSupportedException(field_type)
 
             return field_type.get_in_array_length_is_lower_than_query(
                 field_name, value, model_field, field

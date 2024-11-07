@@ -23,7 +23,11 @@ if typing.TYPE_CHECKING:
 
 
 class FilterNotSupportedException(Exception):
-    pass
+    def __str__(self):
+        return (
+            f"Filter doesn't support given field type: "
+            f"{self.args[0] if self.args else 'not specified' }"
+        )
 
 
 class HasValueEmptyFilterSupport:
