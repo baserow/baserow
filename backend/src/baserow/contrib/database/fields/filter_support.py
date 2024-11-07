@@ -145,7 +145,10 @@ class HasValueLengthIsLowerThanFilterSupport:
         value = value.strip()
         if not value:
             return Q()
-        converted_value = int(value)
+        try:
+            converted_value = int(value)
+        except (TypeError, ValueError):
+            return Q()
         annotation_query = JSONArrayContainsValueLengthLowerThanExpr(
             F(field_name), Value(converted_value), output_field=BooleanField()
         )
