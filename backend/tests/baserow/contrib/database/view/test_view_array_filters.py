@@ -46,14 +46,6 @@ class BooleanLookupRow(int, Enum):
     NO_VALUES = 3
 
 
-BOOLEAN_LOOKUP_ROWS_ALL = [
-    BooleanLookupRow.MIXED,
-    BooleanLookupRow.ALL_FALSE,
-    BooleanLookupRow.ALL_TRUE,
-    BooleanLookupRow.NO_VALUES,
-]
-
-
 def boolean_field_factory(data_fixture, table, user):
     return data_fixture.create_boolean_field(name="target", user=user, table=table)
 
@@ -1680,7 +1672,7 @@ def test_has_value_length_is_lower_than_uuid_field_types(data_fixture):
         (
             "has_all_values_equal",
             "",
-            BOOLEAN_LOOKUP_ROWS_ALL,
+            [BooleanLookupRow.ALL_FALSE],
         ),
     ],
 )
@@ -1709,7 +1701,7 @@ def test_has_all_values_equal_filter_boolean_lookup_field_type(
         (
             "has_value_equal",
             "",
-            BOOLEAN_LOOKUP_ROWS_ALL,
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
         ),
     ],
 )
@@ -1738,7 +1730,7 @@ def test_has_value_equal_filter_boolean_lookup_field_type(
         (
             "has_not_value_equal",
             "",
-            BOOLEAN_LOOKUP_ROWS_ALL,
+            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
         ),
     ],
 )

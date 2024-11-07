@@ -474,7 +474,7 @@ class BaserowFormulaBooleanType(
         try:
             value = ensure_boolean(value.strip())
         except ValidationError:
-            return Q()
+            value = False
 
         return get_array_json_filter_expression(
             JSONArrayContainsValueExpr, field_name, value
@@ -496,7 +496,7 @@ class BaserowFormulaBooleanType(
         try:
             value = "true" if ensure_boolean(value.strip()) else "false"
         except ValidationError:
-            return Q()
+            value = 'false'
         return super().get_has_all_values_equal_query(
             field_name, value, model_field, field
         )
