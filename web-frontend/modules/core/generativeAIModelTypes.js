@@ -109,6 +109,40 @@ export class AnthropicModelType extends GenerativeAIModelType {
   }
 }
 
+export class MistralModelType extends GenerativeAIModelType {
+  static getType() {
+    return 'mistral'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('generativeAIModelType.mistral')
+  }
+
+  getSettings() {
+    const { i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.mistralApiKeyLabel'),
+        description: i18n.t('generativeAIModelType.mistralApiKeyDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.mistralModelsLabel'),
+        i18n.t('generativeAIModelType.mistralModelsDescription')
+      ),
+    ]
+  }
+
+  getOrder() {
+    return 30
+  }
+
+  getMaxTemperature() {
+    return 1
+  }
+}
+
 export class OllamaModelType extends GenerativeAIModelType {
   static getType() {
     return 'ollama'
@@ -135,7 +169,7 @@ export class OllamaModelType extends GenerativeAIModelType {
   }
 
   getOrder() {
-    return 30
+    return 40
   }
 
   getMaxTemperature() {

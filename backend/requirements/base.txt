@@ -184,6 +184,8 @@ drf-spectacular==0.27.2
     # via -r base.in
 elementpath==4.4.0
     # via xmlschema
+eval-type-backport==0.2.0
+    # via mistralai
 faker==25.0.1
     # via -r base.in
 filelock==3.16.1
@@ -234,6 +236,7 @@ httptools==0.6.1
 httpx==0.27.0
     # via
     #   anthropic
+    #   mistralai
     #   ollama
     #   openai
 huggingface-hub==0.26.1
@@ -276,6 +279,8 @@ jsonpatch==1.33
     # via
     #   langchain
     #   langchain-core
+jsonpath-python==1.0.6
+    # via mistralai
 jsonpointer==2.4
     # via jsonpatch
 jsonschema==4.17.3
@@ -308,6 +313,8 @@ marshmallow==3.21.2
     # via dataclasses-json
 mdurl==0.1.2
     # via markdown-it-py
+mistralai==1.1.0
+    # via -r base.in
 monotonic==1.6
     # via posthog
 msgpack==1.0.8
@@ -475,14 +482,15 @@ pyasn1-modules==0.4.0
     #   service-identity
 pycparser==2.22
     # via cffi
-pydantic==2.7.3
+pydantic==2.9.2
     # via
     #   anthropic
     #   langchain
     #   langchain-core
     #   langsmith
+    #   mistralai
     #   openai
-pydantic-core==2.18.4
+pydantic-core==2.23.4
     # via pydantic
 pygments==2.18.0
     # via rich
@@ -502,13 +510,14 @@ pysaml2==7.5.0
     # via -r base.in
 python-crontab==3.1.0
     # via django-celery-beat
-python-dateutil==2.9.0.post0
+python-dateutil==2.8.2
     # via
     #   botocore
     #   celery
     #   celery-redbeat
     #   faker
     #   icalendar
+    #   mistralai
     #   posthog
     #   pysaml2
     #   python-crontab
@@ -624,7 +633,9 @@ typing-extensions==4.11.0
     #   twisted
     #   typing-inspect
 typing-inspect==0.9.0
-    # via dataclasses-json
+    # via
+    #   dataclasses-json
+    #   mistralai
 tzdata==2024.1
     # via
     #   -r base.in

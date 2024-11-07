@@ -4,6 +4,8 @@ import re
 from django.conf import settings
 
 from anthropic import Anthropic, APIStatusError
+from mistralai import Mistral
+from mistralai.models import HTTPValidationError, SDKError
 from ollama import Client as OllamaClient
 from ollama import RequestError as OllamaRequestError
 from ollama import ResponseError as OllamaResponseError
@@ -208,7 +210,7 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
             kwargs = {}
             if temperature:
                 # Because some LLMs can have a temperature of 2, this is the maximum by
-                # default. We're changing it to a maximum of 1 because Ollama only
+                # default. We're changing it to a maximum of 1 because Anthropic only
                 # accepts 1.
                 kwargs["temperature"] = min(temperature, 1)
             message = client.messages.create(
@@ -222,6 +224,53 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
             )
             return message.content[0].text
         except APIStatusError as exc:
+            raise GenerativeAIPromptError(str(exc)) from exc
+
+
+class MistralGenerativeAIModelType(GenerativeAIModelType):
+    type = "mistral"
+
+    def get_api_key(self, workspace=None):
+        return (
+            self.get_workspace_setting(workspace, "api_key")
+            or settings.BASEROW_MISTRAL_API_KEY
+        )
+
+    def get_enabled_models(self, workspace=None):
+        workspace_models = self.get_workspace_setting(workspace, "models")
+        return workspace_models or settings.BASEROW_MISTRAL_MODELS
+
+    def is_enabled(self, workspace=None):
+        api_key = self.get_api_key(workspace)
+        return bool(api_key) and bool(self.get_enabled_models(workspace=workspace))
+
+    def get_client(self, workspace=None):
+        api_key = self.get_api_key(workspace)
+        return Mistral(api_key=api_key)
+
+    def get_settings_serializer(self):
+        from baserow.api.generative_ai.serializers import MistralSettingsSerializer
+
+        return MistralSettingsSerializer
+
+    def prompt(self, model, prompt, workspace=None, temperature=None):
+        try:
+            client = self.get_client(workspace)
+            kwargs = {}
+            if temperature:
+                # Because some LLMs can have a temperature of 2, this is the maximum by
+                # default. We're changing it to a maximum of 1 because Mistral only
+                # accepts 1.
+                kwargs["temperature"] = min(temperature, 1)
+            response = client.chat.complete(
+                messages=[
+                    {"role": "user", "content": [{"type": "text", "text": prompt}]}
+                ],
+                model=model,
+                **kwargs,
+            )
+            return response.choices[0].message.content
+        except (HTTPValidationError, SDKError) as exc:
             raise GenerativeAIPromptError(str(exc)) from exc
 
 
