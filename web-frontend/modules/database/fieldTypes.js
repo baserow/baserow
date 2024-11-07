@@ -1700,25 +1700,8 @@ export class BooleanFieldType extends FieldType {
     return true
   }
 
-  /**
-   * This is a wrapper on genericHasValueEqualFilter function that normalizes
-   * filterValue. cellValue for boolean lookup fields looks like this:
-   *
-   * [{value: true}, {value: false}]
-   *
-   * filterValue can be raw, so may be a string, like `"1"`. A regular comparison
-   * will fail where it should not. This method will normalize filterValue to
-   * a proper Boolean value to have a correct comparison.
-   *
-   *
-   *
-   * @param field
-   * @param negate = false
-   * @returns {function(*, *): boolean}
-   */
   getHasValueEqualFilterFunction(field, negate = false) {
-    const that = this
-    const call = (cellValue, filterValue) => {
+    return (cellValue, filterValue) => {
       const value = that._prepareValue(filterValue)
       const out = genericHasValueEqualFilter(cellValue, value)
       if (negate) {
@@ -1726,7 +1709,6 @@ export class BooleanFieldType extends FieldType {
       }
       return filterValue === '' || out
     }
-    return call
   }
 
   getHasNotValueEqualFilterFunction(field) {
@@ -3701,10 +3683,6 @@ export class FormulaFieldType extends mix(
   }
 
   parseInputValue(field, value) {
-    // const underlyingFieldType = this.app.$registry.get(
-    //   'field',
-    //   this._mapFormulaTypeToFieldType(field.formula_type)
-    // )
     const underlyingFieldType = this.getFormulaSubtype(field)
     return underlyingFieldType.parseInputValue(field, value)
   }
