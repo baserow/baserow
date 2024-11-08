@@ -174,6 +174,15 @@ class BaserowEnterpriseConfig(AppConfig):
             LocalBaserowPasswordAppAuthProviderType()
         )
 
+        from baserow.core.feature_flags import FF_BUILDER_SAML, feature_flag_is_enabled
+
+        if feature_flag_is_enabled(FF_BUILDER_SAML):
+            from baserow_enterprise.integrations.common.app_auth_provider_types import (
+                SamlAppAuthProviderType,
+            )
+
+            app_auth_provider_type_registry.register(SamlAppAuthProviderType())
+
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
             AuthFormElementType,

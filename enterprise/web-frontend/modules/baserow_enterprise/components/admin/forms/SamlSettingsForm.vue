@@ -21,11 +21,14 @@
         ref="domain"
         v-model="values.domain"
         size="large"
-        :error="fieldHasErrors('domain') || serverErrors.domain"
+        :error="fieldHasErrors('domain') || !!serverErrors.domain"
         :placeholder="$t('samlSettingsForm.domainPlaceholder')"
-        @input="serverErrors.domain = null"
+        @input="onInput()"
         @blur="$v.values.domain.$touch()"
+        <<<<<<<
+        HEAD
       ></FormInput>
+      ======= /> >>>>>>> 9b3b8ea9a (Add Saml auth provider)
       <template #error>
         <span v-if="$v.values.domain.$dirty && !$v.values.domain.required">
           {{ $t('error.requiredField') }}
@@ -50,16 +53,16 @@
       small-label
       required
       :label="$t('samlSettingsForm.metadata')"
-      :error="fieldHasErrors('metadata')"
+      :error="fieldHasErrors('metadata') || !!serverErrors.metadata"
       class="margin-bottom-2"
     >
       <FormTextarea
         ref="metadata"
         v-model="values.metadata"
         :rows="12"
-        :error="fieldHasErrors('metadata') || serverErrors.metadata"
+        :error="fieldHasErrors('metadata') || !!serverErrors.metadata"
         :placeholder="$t('samlSettingsForm.metadataPlaceholder')"
-        @input="serverErrors.metadata = null"
+        @input="onInput()"
         @blur="$v.values.metadata.$touch()"
       ></FormTextarea>
 
@@ -201,15 +204,18 @@ export default {
   name: 'SamlSettingsForm',
   mixins: [form],
   props: {
+    authProviders: {
+      type: Object,
+      required: true,
+    },
     authProvider: {
       type: Object,
       required: false,
       default: () => ({}),
     },
     authProviderType: {
-      type: String,
-      required: false,
-      default: null,
+      type: Object,
+      required: true,
     },
   },
   data() {
@@ -219,17 +225,15 @@ export default {
       values: {
         domain: '',
         metadata: '',
-        email_attr_key: '',
-        first_name_attr_key: '',
-        last_name_attr_key: '',
+        email_attr_key: 'user.email',
+        first_name_attr_key: 'user.first_name',
+        last_name_attr_key: 'user.last_name',
       },
     }
   },
   computed: {
     samlDomains() {
-      const samlAuthProviders =
-        this.$store.getters['authProviderAdmin/getAll'].saml?.authProviders ||
-        []
+      const samlAuthProviders = this.authProviders.saml?.authProviders || []
       return samlAuthProviders
         .filter(
           (authProvider) => authProvider.domain !== this.authProvider.domain
@@ -244,7 +248,8 @@ export default {
       }
     },
     type() {
-      return this.authProviderType || this.authProvider.type
+      return this.authProviderType.getType()
+      // return this.authProviderType || this.authProvider.type
     },
   },
   methods: {
@@ -256,15 +261,10 @@ export default {
         this.values.last_name_attr_key === this.defaultAttrs.last_name_attr_key
       )
     },
-    getDefaultValues() {
-      const authProviderAttrs = {
-        email_attr_key: this.authProvider.email_attr_key,
-        first_name_attr_key: this.authProvider.first_name_attr_key,
-        last_name_attr_key: this.authProvider.last_name_attr_key,
-      }
-      const samlAttrs = this.authProvider.id
-        ? authProviderAttrs
-        : this.defaultAttrs
+    onInput() {
+      this.serverErrors.domain = null
+    },
+    /*getDefaultValues() {
       return {
         domain: this.authProvider.domain || '',
         metadata: this.authProvider.metadata || '',
@@ -283,16 +283,18 @@ export default {
       } else if (this.$v.values[fieldName].required === false) {
         return this.$t('error.requiredField')
       }
-    },
+    },*/
     getRelayStateUrl() {
-      return this.$store.getters['authProviderAdmin/getType'](this.type)
-        .relayStateUrl
+      return this.authProviderType.getRelayStateUrl()
+      /*return this.$store.getters['authProviderAdmin/getType'](this.type)
+        .relayStateUrl*/
     },
     getAcsUrl() {
-      return this.$store.getters['authProviderAdmin/getType'](this.type).acsUrl
+      return this.authProviderType.getAcsUrl()
+      // return this.$store.getters['authProviderAdmin/getType'](this.type).acsUrl
     },
     getVerifiedIcon() {
-      return this.$registry.get('authProvider', this.type).getVerifiedIcon()
+      return this.authProviderType.getVerifiedIcon()
     },
     submit() {
       this.$v.$touch()

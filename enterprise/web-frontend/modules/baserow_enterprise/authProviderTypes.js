@@ -47,63 +47,116 @@ export class PasswordAuthProviderType extends AuthProviderType {
   }
 }
 
-export class SamlAuthProviderType extends AuthProviderType {
-  static getType() {
-    return 'saml'
+export const SamlAuthProviderTypeMixin = (Base) =>
+  class extends Base {
+    static getType() {
+      return 'saml'
+    }
+
+    getIcon() {
+      return SAMLIcon
+    }
+
+    getVerifiedIcon() {
+      return VerifiedProviderIcon
+    }
+
+    getName() {
+      return 'SSO SAML provider'
+    }
+
+    getProviderName(provider) {
+      return `SSO SAML: ${provider.domain}`
+    }
+
+    getLoginActionComponent() {
+      return SamlLoginAction
+    }
+
+    getAdminListComponent() {
+      return AuthProviderItem
+    }
+
+    getAdminSettingsFormComponent() {
+      return SamlSettingsForm
+    }
+
+    getRelayStateUrl() {
+      return this.app.store.getters['authProviderAdmin/getType'](this.getType())
+        .relayStateUrl
+    }
+    getAcsUrl() {
+      return this.app.store.getters['authProviderAdmin/getType'](this.getType())
+        .acsUrl
+    }
+
+    populateLoginOptions(authProviderOption) {
+      const loginOptions = super.populateLoginOptions(authProviderOption)
+      return {
+        redirectUrl: authProviderOption.redirect_url,
+        domainRequired: authProviderOption.domain_required,
+        ...loginOptions,
+      }
+    }
+
+    populate(authProviderType) {
+      const populated = super.populate(authProviderType)
+      return {
+        acsUrl: authProviderType.acs_url,
+        relayStateUrl: authProviderType.relay_state_url,
+        ...populated,
+      }
+    }
   }
 
-  getIcon() {
-    return SAMLIcon
-  }
-
-  getVerifiedIcon() {
-    return VerifiedProviderIcon
-  }
-
-  getName() {
-    return 'SSO SAML provider'
-  }
-
-  getProviderName(provider) {
-    return `SSO SAML: ${provider.domain}`
-  }
-
-  getLoginActionComponent() {
-    return SamlLoginAction
-  }
-
-  getAdminListComponent() {
-    return AuthProviderItem
-  }
-
-  getAdminSettingsFormComponent() {
-    return SamlSettingsForm
-  }
-
+export class SamlAuthProviderType extends SamlAuthProviderTypeMixin(
+  AuthProviderType
+) {
   getOrder() {
     return 50
   }
-
-  populateLoginOptions(authProviderOption) {
-    const loginOptions = super.populateLoginOptions(authProviderOption)
-    return {
-      redirectUrl: authProviderOption.redirect_url,
-      domainRequired: authProviderOption.domain_required,
-      ...loginOptions,
-    }
-  }
-
-  populate(authProviderType) {
-    const populated = super.populate(authProviderType)
-    return {
-      acsUrl: authProviderType.acs_url,
-      relayStateUrl: authProviderType.relay_state_url,
-      ...populated,
-    }
-  }
 }
 
-export class GoogleAuthProviderType extends AuthProviderType {
+export const OAuth2AuthProviderTypeMixin = (Base) =>
+  class extends Base {
+    getLoginButtonComponent() {
+      return LoginButton
+    }
+
+    getAdminListComponent() {
+      return AuthProviderItem
+    }
+
+    getAdminSettingsFormComponent() {
+      return OAuth2SettingsForm
+    }
+    getCallbackUrl(authProvider) {
+      if (!authProvider.id) {
+        const nextProviderId =
+          this.app.store.getters['authProviderAdmin/getNextProviderId']
+        return `${this.app.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${nextProviderId}/`
+      }
+      return `${this.app.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${authProvider.id}/`
+    }
+
+    populateLoginOptions(authProviderOption) {
+      const loginOptions = super.populateLoginOptions(authProviderOption)
+      return {
+        ...loginOptions,
+      }
+    }
+
+    populate(authProviderType) {
+      const populated = super.populate(authProviderType)
+      return {
+        ...populated,
+      }
+    }
+  }
+
+export class GoogleAuthProviderType extends OAuth2AuthProviderTypeMixin(
+  AuthProviderType
+) {
   static getType() {
     return 'google'
   }
@@ -120,38 +173,14 @@ export class GoogleAuthProviderType extends AuthProviderType {
     return provider.name ? provider.name : `Google`
   }
 
-  getLoginButtonComponent() {
-    return LoginButton
-  }
-
-  getAdminListComponent() {
-    return AuthProviderItem
-  }
-
-  getAdminSettingsFormComponent() {
-    return OAuth2SettingsForm
-  }
-
   getOrder() {
     return 50
   }
-
-  populateLoginOptions(authProviderOption) {
-    const loginOptions = super.populateLoginOptions(authProviderOption)
-    return {
-      ...loginOptions,
-    }
-  }
-
-  populate(authProviderType) {
-    const populated = super.populate(authProviderType)
-    return {
-      ...populated,
-    }
-  }
 }
 
-export class FacebookAuthProviderType extends AuthProviderType {
+export class FacebookAuthProviderType extends OAuth2AuthProviderTypeMixin(
+  AuthProviderType
+) {
   static getType() {
     return 'facebook'
   }
@@ -168,38 +197,14 @@ export class FacebookAuthProviderType extends AuthProviderType {
     return provider.name ? provider.name : this.getName()
   }
 
-  getLoginButtonComponent() {
-    return LoginButton
-  }
-
-  getAdminListComponent() {
-    return AuthProviderItem
-  }
-
-  getAdminSettingsFormComponent() {
-    return OAuth2SettingsForm
-  }
-
   getOrder() {
     return 50
   }
-
-  populateLoginOptions(authProviderOption) {
-    const loginOptions = super.populateLoginOptions(authProviderOption)
-    return {
-      ...loginOptions,
-    }
-  }
-
-  populate(authProviderType) {
-    const populated = super.populate(authProviderType)
-    return {
-      ...populated,
-    }
-  }
 }
 
-export class GitHubAuthProviderType extends AuthProviderType {
+export class GitHubAuthProviderType extends OAuth2AuthProviderTypeMixin(
+  AuthProviderType
+) {
   static getType() {
     return 'github'
   }
@@ -216,34 +221,8 @@ export class GitHubAuthProviderType extends AuthProviderType {
     return provider.name ? provider.name : this.getName()
   }
 
-  getLoginButtonComponent() {
-    return LoginButton
-  }
-
-  getAdminListComponent() {
-    return AuthProviderItem
-  }
-
-  getAdminSettingsFormComponent() {
-    return OAuth2SettingsForm
-  }
-
   getOrder() {
     return 50
-  }
-
-  populateLoginOptions(authProviderOption) {
-    const loginOptions = super.populateLoginOptions(authProviderOption)
-    return {
-      ...loginOptions,
-    }
-  }
-
-  populate(authProviderType) {
-    const populated = super.populate(authProviderType)
-    return {
-      ...populated,
-    }
   }
 }
 
@@ -279,23 +258,11 @@ export class GitLabAuthProviderType extends AuthProviderType {
   getOrder() {
     return 50
   }
-
-  populateLoginOptions(authProviderOption) {
-    const loginOptions = super.populateLoginOptions(authProviderOption)
-    return {
-      ...loginOptions,
-    }
-  }
-
-  populate(authProviderType) {
-    const populated = super.populate(authProviderType)
-    return {
-      ...populated,
-    }
-  }
 }
 
-export class OpenIdConnectAuthProviderType extends AuthProviderType {
+export class OpenIdConnectAuthProviderType extends OAuth2AuthProviderTypeMixin(
+  AuthProviderType
+) {
   static getType() {
     return 'openid_connect'
   }
@@ -312,33 +279,11 @@ export class OpenIdConnectAuthProviderType extends AuthProviderType {
     return provider.name ? provider.name : this.getName()
   }
 
-  getLoginButtonComponent() {
-    return LoginButton
-  }
-
-  getAdminListComponent() {
-    return AuthProviderItem
-  }
-
   getAdminSettingsFormComponent() {
     return OpenIdConnectSettingsForm
   }
 
   getOrder() {
     return 50
-  }
-
-  populateLoginOptions(authProviderOption) {
-    const loginOptions = super.populateLoginOptions(authProviderOption)
-    return {
-      ...loginOptions,
-    }
-  }
-
-  populate(authProviderType) {
-    const populated = super.populate(authProviderType)
-    return {
-      ...populated,
-    }
   }
 }

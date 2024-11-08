@@ -65,7 +65,10 @@
               v-if="hasAtLeastOneOfThisType(appAuthType)"
               :integration="integration"
               :current-user-source="fullValues"
+              :auth-providers="[]"
+              :auth-provider="appAuthProvider"
               :default-values="appAuthProvider"
+              :auth-provider-type="appAuthType"
               excluded-form
               @values-changed="updateAuthProvider(appAuthProvider, $event)"
             />

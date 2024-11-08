@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -26,43 +26,33 @@ from baserow_enterprise.sso.utils import is_sso_feature_active
 from .models import SamlAuthProviderModel
 
 
-class SamlAuthProviderType(AuthProviderType):
+class SamlAuthProviderTypeMixin:
     """
     The SAML authentication provider type allows users to login using SAML.
     """
 
     type = "saml"
-    model_class = SamlAuthProviderModel
-    allowed_fields: List[str] = [
-        "id",
-        "domain",
-        "type",
-        "enabled",
+
+    class SamlSerializedDict(TypedDict):
+        metadata: Dict
+        is_verified: bool
+
+    saml_allowed_fields: List[str] = [
         "metadata",
         "is_verified",
         "email_attr_key",
         "first_name_attr_key",
         "last_name_attr_key",
     ]
-    serializer_field_names = [
-        "domain",
+    saml_serializer_field_names = [
         "metadata",
-        "enabled",
         "is_verified",
         "email_attr_key",
         "first_name_attr_key",
         "last_name_attr_key",
     ]
-    serializer_field_overrides = {
-        "domain": serializers.CharField(
-            validators=[validate_domain],
-            required=True,
-            help_text="The email domain registered with this provider.",
-        ),
-        "enabled": serializers.BooleanField(
-            help_text="Whether the provider is enabled or not.",
-            required=False,
-        ),
+
+    saml_serializer_field_overrides = {
         "metadata": serializers.CharField(
             validators=[validate_saml_metadata],
             required=True,
@@ -107,12 +97,50 @@ class SamlAuthProviderType(AuthProviderType):
             validate_unique_saml_domain(values["domain"], provider)
         return super().before_update(user, provider, **values)
 
+
+class SamlAuthProviderType(AuthProviderType, SamlAuthProviderTypeMixin):
+    """
+    The SAML authentication provider type allows users to login using SAML.
+    """
+
+    model_class = SamlAuthProviderModel
+
+    @property
+    def allowed_fields(self) -> List[str]:
+        return [
+            "id",
+            "domain",
+            "type",
+            "enabled",
+        ] + SamlAuthProviderTypeMixin.saml_allowed_fields
+
+    @property
+    def serializer_field_names(self):
+        return [
+            "domain",
+            "enabled",
+        ] + SamlAuthProviderTypeMixin.saml_serializer_field_names
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "domain": serializers.CharField(
+                validators=[validate_domain],
+                required=True,
+                help_text="The email domain registered with this provider.",
+            ),
+            "enabled": serializers.BooleanField(
+                help_text="Whether the provider is enabled or not.",
+                required=False,
+            ),
+        } | SamlAuthProviderTypeMixin.saml_serializer_field_overrides
+
     def get_login_options(self, **kwargs) -> Optional[Dict[str, Any]]:
         single_sign_on_feature_active = is_sso_feature_active()
         if not single_sign_on_feature_active:
             return None
 
-        configured_domains = SamlAuthProviderModel.objects.filter(enabled=True).count()
+        configured_domains = self.model_class.objects.filter(enabled=True).count()
         if not configured_domains:
             return None
 

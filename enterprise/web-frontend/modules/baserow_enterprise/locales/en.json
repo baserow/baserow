@@ -311,7 +311,8 @@
     "roleFieldPlaceholder": "Select a field..."
   },
   "appAuthProviderType": {
-    "localBaserowPassword": "Email/Password"
+    "localBaserowPassword": "Email/Password",
+    "commonSaml": "Saml SSO"
   },
   "localBaserowPasswordAppAuthProviderForm": {
     "passwordFieldLabel": "Select password field",

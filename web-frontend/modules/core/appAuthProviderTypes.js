@@ -1,18 +1,14 @@
-import { Registerable } from '@baserow/modules/core/registry'
+import { BaseAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 
-export class AppAuthProviderType extends Registerable {
+export class AppAuthProviderType extends BaseAuthProviderType {
   get name() {
-    throw new Error('Must be set on the type.')
+    return this.getName()
   }
 
   /**
    * The form to edit this user source.
    */
   get formComponent() {
-    return null
-  }
-
-  getOrder() {
-    return 0
+    return this.getAdminSettingsFormComponent()
   }
 }

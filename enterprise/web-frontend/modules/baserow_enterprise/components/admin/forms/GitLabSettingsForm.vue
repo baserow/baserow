@@ -113,10 +113,18 @@ export default {
   name: 'GitLabSettingsForm',
   mixins: [form],
   props: {
+    authProviders: {
+      type: Object,
+      required: true,
+    },
     authProvider: {
       type: Object,
       required: false,
       default: () => ({}),
+    },
+    authProviderType: {
+      type: Object,
+      required: true,
     },
   },
   data() {
@@ -124,7 +132,7 @@ export default {
       allowedValues: ['name', 'base_url', 'client_id', 'secret'],
       values: {
         name: '',
-        base_url: '',
+        base_url: 'https://gitlab.com',
         client_id: '',
         secret: '',
       },
@@ -132,9 +140,7 @@ export default {
   },
   computed: {
     providerName() {
-      return this.$registry
-        .get('authProvider', 'gitlab')
-        .getProviderName(this.authProvider)
+      return this.authProviderType.getProviderName(this.authProvider)
     },
     callbackUrl() {
       if (!this.authProvider.id) {
@@ -146,14 +152,14 @@ export default {
     },
   },
   methods: {
-    getDefaultValues() {
+    /*getDefaultValues() {
       return {
         name: this.providerName,
         base_url: this.authProvider.base_url || 'https://gitlab.com',
         client_id: this.authProvider.client_id || '',
         secret: this.authProvider.secret || '',
       }
-    },
+    },*/
     submit() {
       this.$v.$touch()
       if (this.$v.$invalid) {

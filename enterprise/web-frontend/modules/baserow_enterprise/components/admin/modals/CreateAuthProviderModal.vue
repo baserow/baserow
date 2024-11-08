@@ -3,14 +3,15 @@
     <h2 class="box__title">
       {{
         $t('createSettingsAuthProviderModal.title', {
-          type: getProviderTypeName(),
+          type: authProviderType.getName(),
         })
       }}
     </h2>
-    <div v-if="authProviderType">
+    <div>
       <component
         :is="getProviderAdminSettingsFormComponent()"
         ref="providerSettingsForm"
+        :auth-providers="authProviders"
         :auth-provider-type="authProviderType"
         @submit="create($event)"
       >
@@ -38,9 +39,8 @@ export default {
   mixins: [modal],
   props: {
     authProviderType: {
-      type: String,
-      required: false,
-      default: null,
+      type: Object,
+      required: true,
     },
   },
   data() {
@@ -48,23 +48,21 @@ export default {
       loading: false,
     }
   },
+  computed: {
+    authProviders() {
+      return this.$store.getters['authProviderAdmin/getAll']
+    },
+  },
   methods: {
     getProviderAdminSettingsFormComponent() {
-      return this.$registry
-        .get('authProvider', this.authProviderType)
-        .getAdminSettingsFormComponent()
-    },
-    getProviderTypeName() {
-      if (!this.authProviderType) return ''
-
-      return this.$registry.get('authProvider', this.authProviderType).getName()
+      return this.authProviderType.getAdminSettingsFormComponent()
     },
     async create(values) {
       this.loading = true
       this.serverErrors = {}
       try {
         await this.$store.dispatch('authProviderAdmin/create', {
-          type: this.authProviderType,
+          type: this.authProviderType.getType(),
           values,
         })
         this.$emit('created')

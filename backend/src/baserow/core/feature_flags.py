@@ -3,6 +3,7 @@ from django.conf import settings
 from baserow.core.exceptions import FeatureDisabledException
 
 FF_DASHBOARDS = "dashboards"
+FF_BUILDER_SAML = "builder_saml"
 FF_ENABLE_ALL = "*"
 FF_FILTER_DISPATCH_DATA_USING_ONLY = "filter_dispatch_data_using_only"
 

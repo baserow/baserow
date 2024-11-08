@@ -27,7 +27,10 @@ import {
 } from '@baserow_enterprise/licenseTypes'
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
 import { LocalBaserowUserSourceType } from '@baserow_enterprise/integrations/userSourceTypes'
-import { LocalBaserowPasswordAppAuthProviderType } from '@baserow_enterprise/integrations/appAuthProviderTypes'
+import {
+  LocalBaserowPasswordAppAuthProviderType,
+  SamlAppAuthProviderType,
+} from '@baserow_enterprise/integrations/appAuthProviderTypes'
 import { AuthFormElementType } from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
@@ -113,6 +116,10 @@ export default (context) => {
   app.$registry.register(
     'appAuthProvider',
     new LocalBaserowPasswordAppAuthProviderType(context)
+  )
+  app.$registry.register(
+    'appAuthProvider',
+    new SamlAppAuthProviderType(context)
   )
 
   app.$registry.register('roles', new EnterpriseAdminRoleType(context))

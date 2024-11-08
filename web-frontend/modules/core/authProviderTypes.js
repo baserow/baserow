@@ -2,10 +2,9 @@ import { Registerable } from '@baserow/modules/core/registry'
 import PasswordAuthIcon from '@baserow/modules/core/assets/images/providers/Key.svg'
 
 /**
- * The authorization provider type base class that can be extended when creating
- * a plugin for the frontend.
+ * Base class for authorization provider types
  */
-export class AuthProviderType extends Registerable {
+export class BaseAuthProviderType extends Registerable {
   /**
    * The icon for the provider
    */
@@ -81,6 +80,16 @@ export class AuthProviderType extends Registerable {
     }
   }
 
+  getOrder() {
+    throw new Error('The order of an application type must be set.')
+  }
+}
+
+/**
+ * The authorization provider type base class that can be extended when creating
+ * a plugin for the frontend.
+ */
+export class AuthProviderType extends BaseAuthProviderType {
   constructor(...args) {
     super(...args)
     this.type = this.getType()
@@ -107,10 +116,6 @@ export class AuthProviderType extends Registerable {
       name: this.getName(),
       routeName: this.routeName,
     }
-  }
-
-  getOrder() {
-    throw new Error('The order of an application type must be set.')
   }
 }
 

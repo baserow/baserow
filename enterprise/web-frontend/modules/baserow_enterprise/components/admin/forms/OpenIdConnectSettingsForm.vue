@@ -115,10 +115,18 @@ export default {
   name: 'OpenIdConnectSettingsForm',
   mixins: [form],
   props: {
+    authProviders: {
+      type: Object,
+      required: true,
+    },
     authProvider: {
       type: Object,
       required: false,
       default: () => ({}),
+    },
+    authProviderType: {
+      type: Object,
+      required: true,
     },
     serverErrors: {
       type: Object,
@@ -139,23 +147,24 @@ export default {
   },
   computed: {
     callbackUrl() {
-      if (!this.authProvider.id) {
+      return this.authProviderType.getCallbackUrl(this.authProvider)
+      /*if (!this.authProvider.id) {
         const nextProviderId =
           this.$store.getters['authProviderAdmin/getNextProviderId']
         return `${this.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${nextProviderId}/`
       }
-      return `${this.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${this.authProvider.id}/`
+      return `${this.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${this.authProvider.id}/`*/
     },
   },
   methods: {
-    getDefaultValues() {
+    /*getDefaultValues() {
       return {
         name: this.authProvider.name || '',
         base_url: this.authProvider.base_url || '',
         client_id: this.authProvider.client_id || '',
         secret: this.authProvider.secret || '',
       }
-    },
+    },*/
     submit() {
       this.$v.$touch()
       if (this.$v.$invalid) {
