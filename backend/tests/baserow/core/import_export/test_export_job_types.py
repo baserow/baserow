@@ -7,6 +7,7 @@ from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import ExportApplicationsJob
 
 
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_no_exported_files_on_error(data_fixture):
     user = data_fixture.create_user()
@@ -22,11 +23,12 @@ def test_no_exported_files_on_error(data_fixture):
             sync=True,
         )
         assert job.state == JOB_FAILED
-        assert job.exported_file_name is None
+        assert job.resource is None
 
     assert ExportApplicationsJob.objects.count() == 0
 
 
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_success_export(data_fixture):
     user = data_fixture.create_user()
@@ -41,4 +43,4 @@ def test_success_export(data_fixture):
         sync=True,
     )
     assert job.state == JOB_FINISHED
-    assert job.exported_file_name is not None
+    assert job.resource is not None

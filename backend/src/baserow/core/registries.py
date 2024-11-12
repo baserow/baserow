@@ -93,6 +93,11 @@ class ImportExportConfig:
     The data then doesn't leave the instance.
     """
 
+    only_structure: bool = False
+    """
+    Whether or not the export should include the user data
+    """
+
 
 class Plugin(APIUrlsInstanceMixin, Instance):
     """

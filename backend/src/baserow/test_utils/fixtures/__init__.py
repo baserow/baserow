@@ -11,6 +11,7 @@ from .element import ElementFixtures
 from .field import FieldFixtures
 from .file_import import FileImportFixtures
 from .generative_ai import GenerativeAIFixtures
+from .import_export import ImportExportWorkspaceFixtures
 from .integration import IntegrationFixtures
 from .job import JobFixtures
 from .notifications import NotificationsFixture
@@ -63,6 +64,7 @@ class Fixtures(
     UserSourceUserFixtures,
     GenerativeAIFixtures,
     DataSyncFixtures,
+    ImportExportWorkspaceFixtures,
 ):
     def __init__(self, fake=None):
         self.fake = fake

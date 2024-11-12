@@ -594,9 +594,13 @@ class DatabaseConfig(AppConfig):
         airtable_column_type_registry.register(RichTextTextAirtableColumnType())
         airtable_column_type_registry.register(CountAirtableColumnType())
 
-        from .data_sync.data_sync_types import ICalCalendarDataSyncType
+        from .data_sync.data_sync_types import (
+            ICalCalendarDataSyncType,
+            PostgreSQLDataSyncType,
+        )
 
         data_sync_type_registry.register(ICalCalendarDataSyncType())
+        data_sync_type_registry.register(PostgreSQLDataSyncType())
 
         from baserow.contrib.database.table.usage_types import (
             TableWorkspaceStorageUsageItemType,

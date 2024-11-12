@@ -83,3 +83,6 @@ PUBLIC_WEB_FRONTEND_URL = "http://localhost:3000"
 BASEROW_EMBEDDED_SHARE_URL = "http://localhost:3000"
 
 FEATURE_FLAGS = "*"
+
+# We must allow this because we're connecting to the same database in the tests.
+BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE = False

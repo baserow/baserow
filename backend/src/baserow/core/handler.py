@@ -197,6 +197,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                 "show_baserow_help_request",
                 "co_branding_logo",
                 "email_verification",
+                "verify_import_signature",
             ],
             settings_instance,
         )

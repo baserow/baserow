@@ -7,6 +7,9 @@ def create_missing_shared_page(apps, schema_editor):
     Builder = apps.get_model("builder", "builder")
     Page = apps.get_model("builder", "page")
 
+    # An update in case we have imported a template with a shared page
+    Page.objects.filter(path="__shared__").update(shared=True)
+
     pages_to_create = []
     for builder in Builder.objects.exclude(page__in=Page.objects.filter(shared=True)):
         pages_to_create.append(

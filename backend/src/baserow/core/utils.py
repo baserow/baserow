@@ -7,13 +7,14 @@ import math
 import os
 import random
 import re
+import socket
 import string
 from collections import defaultdict, namedtuple
 from decimal import Decimal
 from fractions import Fraction
 from itertools import chain, islice
 from numbers import Number
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
 
 from django.conf import settings
 from django.db import transaction
@@ -1139,3 +1140,36 @@ def merge_dicts_no_duplicates(*dicts):
                 merged_dict[key] = dictionary[key]
 
     return merged_dict
+
+
+def get_all_ips(hostname: str) -> Set:
+    """
+    Returns a set of all IP addresses of the provided hostname.
+
+    :param hostname: The hostname where to get the IP addresses from.
+    :return: A set containing the IP addresses of the hostname.
+    """
+
+    try:
+        addr_info = socket.getaddrinfo(hostname, None)
+        # Extract unique IP addresses from addr_info (both IPv4 and IPv6)
+        ips = {info[4][0] for info in addr_info}
+        return ips
+    except socket.gaierror:
+        return set()
+
+
+def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
+    """
+    Resolves the IP addresses of both hostnames, and checks they resolve to the same IP
+    address. In this case, `are_hostnames_same("localhost", "localhost") == True`
+    because they're both resolving to the same IP.
+
+    :param hostname1: First hostname to compare.
+    :param hostname2: Second hostname to compare
+    :return: True if the hostnames point to the same IP.
+    """
+
+    ips1 = get_all_ips(hostname1)
+    ips2 = get_all_ips(hostname2)
+    return not ips1.isdisjoint(ips2)

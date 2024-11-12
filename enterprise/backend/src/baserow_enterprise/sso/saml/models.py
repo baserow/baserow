@@ -17,6 +17,34 @@ class SamlAuthProviderModel(AuthProviderModel):
             "make SAML the only authentication provider. "
         ),
     )
+    email_attr_key = models.CharField(
+        max_length=32,
+        default="user.email",
+        db_default="user.email",
+        help_text=(
+            "The key in the SAML response that contains the email address of the user. "
+            "If this is not set, the email will be taken from the user's profile."
+        ),
+    )
+    first_name_attr_key = models.CharField(
+        max_length=32,
+        default="user.first_name",
+        db_default="user.first_name",
+        help_text=(
+            "The key in the SAML response that contains the first name of the user. "
+            "If this is not set, the first name will be taken from the user's profile."
+        ),
+    )
+    last_name_attr_key = models.CharField(
+        max_length=32,
+        default="user.last_name",
+        db_default="user.last_name",
+        blank=True,
+        help_text=(
+            "The key in the SAML response that contains the last name of the user. "
+            "If this is not set, the last name will be taken from the user's profile."
+        ),
+    )
 
 
 @receiver(pre_save, sender=SamlAuthProviderModel)

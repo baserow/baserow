@@ -12,9 +12,12 @@
       :key="index"
     ></component>
     <Error :error="error"></Error>
-    <div class="export-workspace-modal">
+    <div>
+      <h4 class="margin-bottom-2">
+        {{ $t('exportWorkspaceForm.exportSettingsLabel') }}
+      </h4>
       <ExportWorkspaceForm ref="form" @submitted="submitted">
-        <template v-if="jobIsRunning || jobHasSucceeded" #select-applications>
+        <template v-if="jobIsRunning || jobIsFinished" #select-applications>
           <div class="margin-right-2">
             <ProgressBar
               :value="job.progress_percentage"
@@ -36,10 +39,10 @@
           </Button>
         </template>
       </ExportWorkspaceForm>
-      <div class="snapshots-modal__list">
+      <div class="export-workspace__list">
         <div
           v-if="exportJobLoading"
-          class="loading snapshots-modal__list--loading"
+          class="loading export-workspace__list--loading"
         ></div>
         <div v-else-if="exportJobs.length > 0">
           <ExportWorkspaceListItem
@@ -63,7 +66,7 @@
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
-import WorkspaceService from '@baserow/modules/core/services/workspace'
+import ExportWorkspaceService from '@baserow/modules/core/services/importExportService'
 import job from '@baserow/modules/core/mixins/job'
 import ExportWorkspaceForm from '@baserow/modules/core/components/export/ExportWorkspaceForm'
 import { ExportApplicationsJobType } from '@baserow/modules/core/jobTypes'
@@ -111,7 +114,7 @@ export default {
       this.createLoading = true
       this.hideError()
       try {
-        const { data: job } = await WorkspaceService(
+        const { data: job } = await ExportWorkspaceService(
           this.$client
         ).exportApplications(this.workspace.id, values)
         this.job = job
@@ -122,7 +125,7 @@ export default {
       }
     },
 
-    onJobDone() {
+    onJobFinished() {
       this.createLoading = false
       this.createFinished = true
       if (
@@ -146,7 +149,7 @@ export default {
       this.exportJobLoading = true
 
       try {
-        const { data: exportJobs } = await WorkspaceService(
+        const { data: exportJobs } = await ExportWorkspaceService(
           this.$client
         ).listExports(this.workspace.id)
         this.exportJobs = exportJobs?.results || []

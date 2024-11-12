@@ -4,7 +4,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import fields, serializers
 
-from baserow.api.export.serializers import CoreExportedFileURLSerializerMixin
+from baserow.api.serializers import FileURLSerializerMixin
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.contrib.database.export.models import ExportJob
 from baserow.contrib.database.export.registries import table_exporter_registry
@@ -59,7 +59,7 @@ SUPPORTED_CSV_COLUMN_SEPARATORS = [
 ]
 
 
-class ExportedFileURLSerializerMixin(CoreExportedFileURLSerializerMixin):
+class ExportedFileURLSerializerMixin(FileURLSerializerMixin):
     """
     When mixed in to a model serializer for an ExportJob this will add an url field
     with the actual usable url of the export job's file (if it has one).

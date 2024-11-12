@@ -5,6 +5,7 @@ import EnterpriseFeatures from '@baserow_enterprise/features'
 import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
 import JiraIssuesDataSyncForm from '@baserow_enterprise/components/dataSync/JiraIssuesDataSyncForm'
 import GitHubIssuesDataSyncForm from '@baserow_enterprise/components/dataSync/GitHubIssuesDataSyncForm'
+import GitLabIssuesDataSyncForm from '@baserow_enterprise/components/dataSync/GitLabIssuesDataSyncForm'
 
 export class LocalBaserowTableDataSyncType extends DataSyncType {
   static getType() {
@@ -76,6 +77,33 @@ export class GitHubIssuesDataSyncType extends DataSyncType {
 
   getFormComponent() {
     return GitHubIssuesDataSyncForm
+  }
+
+  isDeactivated(workspaceId) {
+    return !this.app.$hasFeature(EnterpriseFeatures.DATA_SYNC, workspaceId)
+  }
+
+  getDeactivatedClickModal() {
+    return EnterpriseModal
+  }
+}
+
+export class GitLabIssuesDataSyncType extends DataSyncType {
+  static getType() {
+    return 'gitlab_issues'
+  }
+
+  getIconClass() {
+    return 'baserow-icon-gitlab'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('enterpriseDataSyncType.gitlabIssues')
+  }
+
+  getFormComponent() {
+    return GitLabIssuesDataSyncForm
   }
 
   isDeactivated(workspaceId) {

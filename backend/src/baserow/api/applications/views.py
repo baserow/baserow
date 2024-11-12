@@ -59,13 +59,6 @@ from .serializers import (
     PolymorphicApplicationUpdateSerializer,
 )
 
-DuplicateApplicationJobTypeSerializer = job_type_registry.get(
-    DuplicateApplicationJobType.type
-).get_serializer_class(
-    base_class=JobSerializer,
-    meta_ref_name="SingleDuplicateApplicationJobTypeSerializer",
-)
-
 
 class AllApplicationsView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -524,7 +517,7 @@ class AsyncDuplicateApplicationView(APIView):
         ),
         request=None,
         responses={
-            202: DuplicateApplicationJobTypeSerializer,
+            202: DuplicateApplicationJobType().response_serializer_class,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",

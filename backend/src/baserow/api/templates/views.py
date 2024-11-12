@@ -37,12 +37,6 @@ from baserow.core.models import TemplateCategory
 
 from .errors import ERROR_TEMPLATE_DOES_NOT_EXIST, ERROR_TEMPLATE_FILE_DOES_NOT_EXIST
 
-InstallTemplateJobTypeSerializer = job_type_registry.get(
-    InstallTemplateJobType.type
-).get_serializer_class(
-    base_class=JobSerializer, meta_ref_name="SingleInstallTemplateJobTypeSerializer"
-)
-
 
 class TemplatesView(APIView):
     permission_classes = (AllowAny,)
@@ -162,7 +156,7 @@ class AsyncInstallTemplateView(APIView):
         ),
         request=None,
         responses={
-            202: InstallTemplateJobTypeSerializer,
+            202: InstallTemplateJobType().response_serializer_class,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",

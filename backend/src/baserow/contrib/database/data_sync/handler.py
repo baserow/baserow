@@ -2,11 +2,13 @@ from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
+from django.db.models import Prefetch
 from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import CreateTableDatabaseTableOperationType
@@ -16,6 +18,7 @@ from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.signals import table_created, table_updated
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.view_types import GridViewType
+from baserow.core.db import specific_queryset
 from baserow.core.handler import CoreHandler
 from baserow.core.utils import ChildProgressBuilder, extract_allowed, remove_duplicates
 
@@ -143,6 +146,7 @@ class DataSyncHandler:
                 has_primary = True
                 baserow_field.primary = True
             baserow_field.save()
+            metadata = data_sync_property.get_metadata(baserow_field)
 
             properties_to_create.append(
                 DataSyncSyncedProperty(
@@ -150,6 +154,7 @@ class DataSyncHandler:
                     field=baserow_field,
                     key=synced_property,
                     unique_primary=data_sync_property.unique_primary,
+                    metadata=metadata,
                 )
             )
 
@@ -422,7 +427,12 @@ class DataSyncHandler:
             ):
                 synced_properties.insert(0, data_sync_property.key)
 
-        enabled_properties = DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
+        enabled_properties = DataSyncSyncedProperty.objects.filter(
+            data_sync=data_sync
+        ).prefetch_related(
+            Prefetch("field", queryset=specific_queryset(Field.objects.all())),
+            "field__select_options",
+        )
         enabled_properties_per_key = {p.key: p for p in enabled_properties}
         enabled_property_keys = enabled_properties_per_key.keys()
         properties_to_be_removed = []
@@ -444,6 +454,12 @@ class DataSyncHandler:
                 enabled_property = enabled_properties_per_key[synced_property]
                 existing_field_class = enabled_property.field.specific_class
                 new_field = data_sync_property.to_baserow_field()
+
+                existing_metadata = enabled_property.metadata
+                new_metadata = data_sync_property.get_metadata(
+                    enabled_property.field, existing_metadata
+                )
+
                 # If the field type, immutable_properties or unique_primary has changed,
                 # then the field must be updated.
                 if (
@@ -452,8 +468,13 @@ class DataSyncHandler:
                     != enabled_property.field.immutable_properties
                     or data_sync_property.unique_primary
                     != enabled_property.unique_primary
+                    # If the metadata has changed, then the field must be updated
+                    # because the metadata is updated there. This is for example used
+                    # in the local Baserow data sync to map the select option cell
+                    # values.
+                    or existing_metadata != new_metadata
                 ):
-                    properties_to_be_updated.append(data_sync_property)
+                    properties_to_be_updated.append((data_sync_property, new_metadata))
 
         for enabled_property in enabled_properties:
             if enabled_property.key not in synced_properties:
@@ -484,18 +505,22 @@ class DataSyncHandler:
                 name=new_name,
                 **field_kwargs,
             )
+            metadata = data_sync_property.get_metadata(field)
             DataSyncSyncedProperty.objects.create(
                 data_sync=data_sync,
                 field=field,
                 key=data_sync_property.key,
                 unique_primary=data_sync_property.unique_primary,
+                metadata=metadata,
             )
 
-        for data_sync_property in properties_to_be_updated:
+        for data_sync_property, new_metadata in properties_to_be_updated:
             enabled_property = enabled_properties_per_key[data_sync_property.key]
             baserow_field = data_sync_property.to_baserow_field()
             baserow_field_type = field_type_registry.get_by_model(baserow_field)
             field_kwargs = baserow_field.__dict__
+            field_kwargs["read_only"] = True
+            field_kwargs["immutable_type"] = True
             field_kwargs[
                 "immutable_properties"
             ] = data_sync_property.immutable_properties
@@ -506,7 +531,13 @@ class DataSyncHandler:
                 **field_kwargs,
             )
             enabled_property.unique_primary = data_sync_property.unique_primary
-            enabled_property.save(update_fields=("unique_primary",))
+            enabled_property.metadata = new_metadata
+            enabled_property.save(
+                update_fields=(
+                    "unique_primary",
+                    "metadata",
+                )
+            )
 
         for data_sync_property_instance in properties_to_be_removed:
             field = data_sync_property_instance.field

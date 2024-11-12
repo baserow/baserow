@@ -9,9 +9,9 @@ from jira2markdown import convert
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import JSONDecodeError, RequestException
 
-from baserow.contrib.database.data_sync.data_sync_types import compare_date
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
+from baserow.contrib.database.data_sync.utils import compare_date
 from baserow.contrib.database.fields.models import (
     DateField,
     LongTextField,

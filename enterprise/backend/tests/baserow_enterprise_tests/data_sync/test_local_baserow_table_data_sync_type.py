@@ -21,6 +21,7 @@ from baserow.core.registries import ImportExportConfig, application_type_registr
 from baserow.test_utils.helpers import setup_interesting_test_table
 from baserow_enterprise.data_sync.baserow_table_data_sync import (
     BaserowFieldDataSyncProperty,
+    supported_field_types,
 )
 from baserow_enterprise.data_sync.models import LocalBaserowTableDataSync
 
@@ -311,8 +312,7 @@ def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_f
     source_fields = [
         field
         for field in specific_iterator(source_table.field_set.all())
-        if field_type_registry.get_by_model(field).type
-        in BaserowFieldDataSyncProperty.supported_field_types
+        if field_type_registry.get_by_model(field).type in supported_field_types
     ]
 
     database = enterprise_data_fixture.create_database_application(user=user)
@@ -374,6 +374,7 @@ def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_f
         "positive_decimal": "",
         "positive_int": "",
         "rating": "0",
+        "single_select": "",
         "text": "",
         "url": "",
         "created_on_date_eu": "02/01/2021",
@@ -416,6 +417,7 @@ def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_f
         "positive_decimal": "1.2",
         "positive_int": "1",
         "rating": "3",
+        "single_select": "A",
         "text": "text",
         "url": "https://www.google.com",
         "created_on_date_eu": "02/01/2021",
@@ -443,8 +445,7 @@ def test_sync_data_sync_table_is_equal(enterprise_data_fixture):
     source_fields = [
         field
         for field in specific_iterator(source_table.field_set.all())
-        if field_type_registry.get_by_model(field).type
-        in BaserowFieldDataSyncProperty.supported_field_types
+        if field_type_registry.get_by_model(field).type in supported_field_types
     ]
 
     database = enterprise_data_fixture.create_database_application(user=user)
@@ -880,3 +881,336 @@ def test_import_export_excluding_source_table(enterprise_data_fixture):
     assert fields[1].read_only is False
     assert fields[1].immutable_properties is False
     assert fields[1].immutable_type is False
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_single_select_field(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    source_single_select_field = enterprise_data_fixture.create_single_select_field(
+        table=source_table, name="Single select"
+    )
+    source_option_a = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="A", color="blue"
+    )
+    source_option_b = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="B", color="red"
+    )
+
+    source_model = source_table.get_model()
+    source_model.objects.create(
+        **{
+            f"field_{source_single_select_field.id}_id": source_option_a.id,
+        }
+    )
+    source_model.objects.create(
+        **{
+            f"field_{source_single_select_field.id}_id": source_option_b.id,
+        }
+    )
+    source_model.objects.create(
+        **{
+            f"field_{source_single_select_field.id}": None,
+        }
+    )
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{source_single_select_field.id}"],
+        source_table_id=source_table.id,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    row_id_field = fields[0]
+    single_select_field = fields[1]
+    options = single_select_field.select_options.all()
+
+    assert single_select_field.read_only is True
+    assert single_select_field.immutable_type is True
+    assert single_select_field.immutable_properties is True
+
+    model = data_sync.table.get_model()
+    rows = list(model.objects.all())
+    assert len(rows) == 3
+
+    row_a = rows[0]
+    row_b = rows[1]
+    row_empty = rows[2]
+    assert getattr(row_a, f"field_{single_select_field.id}_id") == options[0].id
+    assert getattr(row_b, f"field_{single_select_field.id}_id") == options[1].id
+    assert getattr(row_empty, f"field_{single_select_field.id}_id") is None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_single_select_field_and_making_changes(
+    enterprise_data_fixture,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    source_single_select_field = enterprise_data_fixture.create_single_select_field(
+        table=source_table, name="Single select"
+    )
+    source_option_a = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="A", color="blue"
+    )
+    source_option_b = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="B", color="red"
+    )
+
+    source_model = source_table.get_model()
+    source_row_a = source_model.objects.create(
+        **{
+            f"field_{source_single_select_field.id}_id": source_option_a.id,
+        }
+    )
+    source_row_b = source_model.objects.create(
+        **{
+            f"field_{source_single_select_field.id}_id": source_option_b.id,
+        }
+    )
+    source_row_b_2 = source_model.objects.create(
+        **{
+            f"field_{source_single_select_field.id}_id": source_option_b.id,
+        }
+    )
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{source_single_select_field.id}"],
+        source_table_id=source_table.id,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    source_option_b.delete()
+    source_option_c = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="C", color="orange"
+    )
+
+    setattr(
+        source_row_b_2, f"field_{source_single_select_field.id}_id", source_option_c.id
+    )
+    source_row_b_2.save()
+    source_row_c = source_model.objects.create(
+        **{
+            f"field_{source_single_select_field.id}_id": source_option_c.id,
+        }
+    )
+
+    print("LAST")
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    row_id_field = fields[0]
+    single_select_field = fields[1]
+    options = single_select_field.select_options.all()
+
+    assert options[0].value == "A"
+    assert options[1].value == "C"
+
+    model = data_sync.table.get_model()
+    rows = list(model.objects.all())
+    assert len(rows) == 4
+
+    row_a = rows[0]
+    row_b = rows[1]
+    row_b_2 = rows[2]
+    row_c = rows[3]
+    assert getattr(row_a, f"field_{single_select_field.id}_id") == options[0].id
+    assert getattr(row_b, f"field_{single_select_field.id}_id") is None
+    assert getattr(row_b_2, f"field_{single_select_field.id}_id") == options[1].id
+    assert getattr(row_c, f"field_{single_select_field.id}_id") == options[1].id
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_single_select_get_metadata_create(
+    enterprise_data_fixture, django_assert_num_queries
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    source_single_select_field = enterprise_data_fixture.create_single_select_field(
+        table=source_table, name="Single select"
+    )
+    source_option_a = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="A", color="blue"
+    )
+    source_option_b = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="B", color="red"
+    )
+
+    target_single_select_field_1 = enterprise_data_fixture.create_single_select_field(
+        table=source_table, name="Single select"
+    )
+
+    data_sync_property = BaserowFieldDataSyncProperty(
+        field=source_single_select_field,
+        immutable_properties=False,
+        name="name",
+        key="field",
+    )
+
+    with django_assert_num_queries(2):
+        metadata = data_sync_property.get_metadata(target_single_select_field_1)
+
+    target_select_options = list(target_single_select_field_1.select_options.all())
+    assert len(target_select_options) == 2
+
+    assert target_select_options[0].value == "A"
+    assert target_select_options[0].color == "blue"
+    assert target_select_options[1].value == "B"
+    assert target_select_options[1].color == "red"
+
+    assert metadata == {
+        "select_options_mapping": {
+            str(source_option_a.id): target_select_options[0].id,
+            str(source_option_b.id): target_select_options[1].id,
+        }
+    }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_single_select_get_metadata_update(
+    enterprise_data_fixture, django_assert_num_queries
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    source_single_select_field = enterprise_data_fixture.create_single_select_field(
+        table=source_table, name="Single select"
+    )
+    source_option_a = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="A", color="blue"
+    )
+    source_option_b = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="B", color="red"
+    )
+
+    target_single_select_field_1 = enterprise_data_fixture.create_single_select_field(
+        table=source_table, name="Single select"
+    )
+
+    data_sync_property = BaserowFieldDataSyncProperty(
+        field=source_single_select_field,
+        immutable_properties=False,
+        name="name",
+        key="field",
+    )
+    metadata = data_sync_property.get_metadata(target_single_select_field_1)
+
+    target_select_options_old = list(target_single_select_field_1.select_options.all())
+
+    source_option_a.value = "C"
+    source_option_a.save()
+    source_option_b.value = "D"
+    source_option_b.save()
+
+    data_sync_property = BaserowFieldDataSyncProperty(
+        field=source_single_select_field,
+        immutable_properties=False,
+        name="name",
+        key="field",
+    )
+    with django_assert_num_queries(2):
+        metadata = data_sync_property.get_metadata(
+            target_single_select_field_1, metadata
+        )
+
+    target_select_options = list(target_single_select_field_1.select_options.all())
+    assert len(target_select_options) == 2
+
+    # The option must be updated, but the ID must stay the same as before because
+    # it's an update.
+    assert target_select_options[0].id == target_select_options_old[0].id
+    assert target_select_options[0].value == "C"
+    assert target_select_options[1].id == target_select_options_old[1].id
+    assert target_select_options[1].value == "D"
+
+    assert metadata == {
+        "select_options_mapping": {
+            str(source_option_a.id): target_select_options[0].id,
+            str(source_option_b.id): target_select_options[1].id,
+        }
+    }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_single_select_get_metadata_delete(
+    enterprise_data_fixture, django_assert_num_queries
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    source_single_select_field = enterprise_data_fixture.create_single_select_field(
+        table=source_table, name="Single select"
+    )
+    source_option_a = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="A", color="blue"
+    )
+    source_option_b = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="B", color="red"
+    )
+
+    target_single_select_field_1 = enterprise_data_fixture.create_single_select_field(
+        table=source_table, name="Single select"
+    )
+
+    data_sync_property = BaserowFieldDataSyncProperty(
+        field=source_single_select_field,
+        immutable_properties=False,
+        name="name",
+        key="field",
+    )
+    metadata = data_sync_property.get_metadata(target_single_select_field_1)
+
+    source_option_a.delete()
+
+    with django_assert_num_queries(3):
+        metadata = data_sync_property.get_metadata(
+            target_single_select_field_1, metadata
+        )
+
+    target_select_options = list(target_single_select_field_1.select_options.all())
+    assert len(target_select_options) == 1
+
+    assert target_select_options[0].value == "B"
+
+    assert metadata == {
+        "select_options_mapping": {str(source_option_b.id): target_select_options[0].id}
+    }

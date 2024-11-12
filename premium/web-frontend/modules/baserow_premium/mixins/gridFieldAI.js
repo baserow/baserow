@@ -28,6 +28,12 @@ export default {
   },
   methods: {
     isGenerating(parent, props) {
+      // If no storePrefix is provided, then the cell is rendered outside of the
+      // grid view where it can't have a generating state.
+      if (!props.storePrefix) {
+        return false
+      }
+
       return parent.$store.getters[
         props.storePrefix + 'view/grid/hasPendingFieldOps'
       ](props.field.id, parent.row.id)

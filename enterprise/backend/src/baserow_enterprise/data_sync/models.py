@@ -55,3 +55,19 @@ class GitHubIssuesDataSync(DataSync):
         max_length=255,
         help_text="The API token used to authenticate requests to GitHub.",
     )
+
+
+class GitLabIssuesDataSync(DataSync):
+    gitlab_url = models.URLField(
+        max_length=2000,
+        help_text="The base URL to your GitLab instance (e.g. https://gitlab.com)",
+        default="https://gitlab.com",
+    )
+    gitlab_project_id = models.CharField(
+        max_length=255,
+        help_text="The ID of the GitLab project where to sync the " "issues with.",
+    )
+    gitlab_access_token = models.CharField(
+        max_length=255,
+        help_text="The API access token used to authenticate requests to GitLab.",
+    )

@@ -2,14 +2,16 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from django.db.models import Prefetch
+
 from baserow_premium.fields.field_types import AIFieldType
 from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
-from baserow.contrib.database.data_sync.data_sync_types import compare_date
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.models import DataSyncSyncedProperty
 from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
+from baserow.contrib.database.data_sync.utils import compare_date
 from baserow.contrib.database.fields.field_types import (
     AutonumberFieldType,
     BooleanFieldType,
@@ -23,6 +25,7 @@ from baserow.contrib.database.fields.field_types import (
     NumberFieldType,
     PhoneNumberFieldType,
     RatingFieldType,
+    SingleSelectFieldType,
     TextFieldType,
     URLFieldType,
     UUIDFieldType,
@@ -32,6 +35,7 @@ from baserow.contrib.database.fields.models import (
     Field,
     LongTextField,
     NumberField,
+    SelectOption,
     TextField,
 )
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -39,12 +43,44 @@ from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationType
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
-from baserow.core.db import specific_iterator
+from baserow.core.db import specific_iterator, specific_queryset
 from baserow.core.handler import CoreHandler
 from baserow.core.utils import ChildProgressBuilder
 from baserow_enterprise.features import DATA_SYNC
 
 from .models import LocalBaserowTableDataSync
+
+
+def prepare_single_select_value(value, enabled_property):
+    try:
+        # The metadata contains a mapping of the select options where the key is the
+        # old ID and the value is the new ID. For some reason the key is converted to
+        # a string when moved into the JSON field.
+        return enabled_property.metadata["select_options_mapping"][str(value)]
+    except (KeyError, TypeError):
+        return None
+
+
+# List of Baserow supported field types that can be included in the data sync.
+supported_field_types = {
+    TextFieldType.type: {},
+    LongTextFieldType.type: {},
+    URLFieldType.type: {},
+    EmailFieldType.type: {},
+    NumberFieldType.type: {},
+    RatingFieldType.type: {},
+    BooleanFieldType.type: {},
+    DateFieldType.type: {},
+    DurationFieldType.type: {},
+    FileFieldType.type: {},
+    PhoneNumberFieldType.type: {},
+    CreatedOnFieldType.type: {},
+    LastModifiedFieldType.type: {},
+    UUIDFieldType.type: {},
+    AutonumberFieldType.type: {},
+    AIFieldType.type: {},
+    SingleSelectFieldType.type: {"prepare_value": prepare_single_select_value},
+}
 
 
 class RowIDDataSyncProperty(DataSyncProperty):
@@ -58,24 +94,6 @@ class RowIDDataSyncProperty(DataSyncProperty):
 
 
 class BaserowFieldDataSyncProperty(DataSyncProperty):
-    supported_field_types = [
-        TextFieldType.type,
-        LongTextFieldType.type,
-        URLFieldType.type,
-        EmailFieldType.type,
-        NumberFieldType.type,
-        RatingFieldType.type,
-        BooleanFieldType.type,
-        DateFieldType.type,
-        DurationFieldType.type,
-        FileFieldType.type,
-        PhoneNumberFieldType.type,
-        CreatedOnFieldType.type,
-        LastModifiedFieldType.type,
-        UUIDFieldType.type,
-        AutonumberFieldType.type,
-        AIFieldType.type,
-    ]
     field_types_override = {
         CreatedOnFieldType.type: DateField,
         LastModifiedFieldType.type: DateField,
@@ -101,8 +119,87 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
                 for allowed_field in allowed_fields
                 if hasattr(self.field, allowed_field)
                 and hasattr(model_class, allowed_field)
+                # Select options can't be set directly because that results in an error.
+                and allowed_field != "select_options"
             }
         )
+
+    def get_metadata(self, baserow_field, existing_metadata=None):
+        new_metadata = super().get_metadata(baserow_field, existing_metadata)
+        field_type = field_type_registry.get_by_model(baserow_field)
+
+        # If the field type doesn't support select options, then there is no reason
+        # fetch them, create new ones, and return the mapping.
+        if not field_type.can_have_select_options:
+            return new_metadata
+
+        if new_metadata is None:
+            new_metadata = {}
+        new_metadata["select_options_mapping"] = {}
+
+        # Based on the existing mapping, we can figure out which select options must
+        # be created, updated, and deleted in the synced field.
+        existing_mapping = {}
+        if existing_metadata:
+            existing_mapping = existing_metadata.get("select_options_mapping", {})
+
+        # Collect existing select options and prepare new field options. By storing
+        # them all in a list, we can loop over them and decide if they should be
+        # created, updated, or deleted.
+        source_field_options = self.field.select_options.all()
+        target_field_options = [
+            SelectOption(
+                value=field_option.value,
+                color=field_option.color,
+                order=field_option.order,
+                field=baserow_field,
+            )
+            for field_option in source_field_options
+        ]
+
+        # Prepare lists to track which options need to be created, updated, or deleted.
+        to_create = []
+        to_update = []
+        to_delete_ids = set(existing_mapping.values())
+
+        # Loop through the new options to decide on create or update actions.
+        for existing_option, new_option in zip(
+            source_field_options, target_field_options
+        ):
+            target_id = existing_mapping.get(str(existing_option.id))
+
+            # If a target_id exists in the mapping, we update, otherwise, we create new.
+            if target_id:
+                new_option.id = target_id
+                to_update.append((new_option, existing_option.id))
+                to_delete_ids.discard(target_id)
+            else:
+                to_create.append((new_option, existing_option.id))
+
+        if to_create:
+            created_select_options = SelectOption.objects.bulk_create(
+                [r[0] for r in to_create]
+            )
+            for created_option, existing_option_id in zip(
+                created_select_options, [r[1] for r in to_create]
+            ):
+                new_metadata["select_options_mapping"][
+                    str(existing_option_id)
+                ] = created_option.id
+
+        if to_update:
+            SelectOption.objects.bulk_update(
+                [r[0] for r in to_update], fields=["value", "color", "order", "field"]
+            )
+            for updated_option, existing_option_id in to_update:
+                new_metadata["select_options_mapping"][
+                    str(existing_option_id)
+                ] = updated_option.id
+
+        if to_delete_ids:
+            SelectOption.objects.filter(id__in=to_delete_ids).delete()
+
+        return new_metadata
 
     def is_equal(self, baserow_row_value: Any, data_sync_row_value: Any) -> bool:
         # The CreatedOn and LastModified fields are always stored as datetime in the
@@ -179,7 +276,9 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             LicenseHandler.raise_if_workspace_doesnt_have_feature(
                 DATA_SYNC, instance.table.database.workspace
             )
-        fields = specific_iterator(table.field_set.all())
+        fields = specific_iterator(
+            table.field_set.all().prefetch_related("select_options")
+        )
         properties = [RowIDDataSyncProperty("id", "Row ID")]
 
         return properties + [
@@ -191,7 +290,7 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             )
             for field in fields
             if field_type_registry.get_by_model(field).type
-            in BaserowFieldDataSyncProperty.supported_field_types
+            in supported_field_types.keys()
         ]
 
     def get_all_rows(
@@ -204,12 +303,39 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         # most of it is related to fetching the row values.
         progress = ChildProgressBuilder.build(progress_builder, child_total=10)
         table = self._get_table(instance)
-        enabled_properties = DataSyncSyncedProperty.objects.filter(data_sync=instance)
+        enabled_properties = DataSyncSyncedProperty.objects.filter(
+            data_sync=instance
+        ).prefetch_related(
+            Prefetch("field", queryset=specific_queryset(Field.objects.all()))
+        )
         enabled_property_field_ids = [p.key for p in enabled_properties]
         model = table.get_model()
         progress.increment(by=1)  # makes the total `1`
         rows_queryset = model.objects.all().values(*["id"] + enabled_property_field_ids)
-        progress.increment(by=9)  # makes the total `10`
+        progress.increment(by=7)  # makes the total `8`
+
+        # Loop over all properties and rows to prepare the value if needed .This is
+        # used to map the select options cell value, for example.
+        for enabled_property in enabled_properties:
+            # No need to change the value for the ID because that field not
+            # dynamically part of the source table schema.
+            if enabled_property.key == "id":
+                continue
+
+            # Even though `enabled_property.field` is the synced field and not the
+            # source field, we can safely use that to get the supported field object
+            # because the target and source field is equal.
+            field_type = field_type_registry.get_by_model(
+                enabled_property.field.specific_class
+            )
+            supported_field = supported_field_types[field_type.type]
+            if "prepare_value" in supported_field:
+                for row in rows_queryset:
+                    row[enabled_property.key] = supported_field["prepare_value"](
+                        row[enabled_property.key], enabled_property
+                    )
+        progress.increment(by=2)  # makes the total `10`
+
         return rows_queryset
 
     def import_serialized(

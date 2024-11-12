@@ -110,7 +110,7 @@ export default {
     fieldWidths() {
       const fieldWidths = {}
       this.visibleFields.forEach((field) => {
-        fieldWidths[field.id] = this.getFieldWidth(field.id)
+        fieldWidths[field.id] = this.getFieldWidth(field)
       })
       return fieldWidths
     },

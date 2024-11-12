@@ -5,9 +5,9 @@ import pytest
 import responses
 from freezegun import freeze_time
 
-from baserow.contrib.database.data_sync.data_sync_types import compare_date
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import DataSyncSyncedProperty
+from baserow.contrib.database.data_sync.utils import compare_date
 
 ICAL_FEED_WITH_ONE_ITEMS_WITHOUT_DTEND = """BEGIN:VCALENDAR
 VERSION:2.0

@@ -1,9 +1,10 @@
 import pytest
 
-from baserow.core.import_export_handler import ImportExportHandler
+from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.registries import ImportExportConfig
 
 
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_create_export_file(data_fixture):
     user = data_fixture.create_user()
@@ -15,9 +16,9 @@ def test_create_export_file(data_fixture):
     )
 
     file_name = ImportExportHandler().export_workspace_applications(
-        workspace=workspace,
-        import_export_config=cli_import_export_config,
+        user=user,
         applications=[database],
+        import_export_config=cli_import_export_config,
     )
 
     assert file_name is not None

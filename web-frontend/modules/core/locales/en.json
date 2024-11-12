@@ -136,7 +136,37 @@
     "cancel": "Cancel",
     "download":  "Download",
     "importingState": "Importing",
-    "noExports": "No exports for this workspace yet."
+    "noExports": "No exports for this workspace yet.",
+    "created": "created"
+  },
+  "exportWorkspaceForm": {
+    "exportSettingsLabel": "Export settings",
+    "onlyStructureLabel": "Export structure only",
+    "onlyStructureDescription": "If enabled, only the structure of the applications will be exported. The data will not be included."
+  },
+  "importWorkspaceModal": {
+    "title": "Import Baserow data",
+    "description": "You can import an existing Baserow data by uploading the .zip file from other Baserow instance.",
+    "import": "Import data",
+    "upload": "Upload",
+    "cancel": "Cancel",
+    "done": "Done",
+    "close": "Close",
+    "retry": "Retry",
+    "uploading": "uploading...",
+    "chooseFile": "Choose file",
+    "selectApplications": "Select data to import",
+    "deselectAll": "Deselect all",
+    "selectAll": "Select all",
+    "databases": "Databases",
+    "applications": "Applications",
+    "successTitle": "Successfully imported the Baserow data",
+    "successMessage": "Imported {count} applications",
+    "signatureVerificationNote": "It's not possible to import a zip file from an untrusted source.",
+    "invalidResourceTitle": "Invalid resource",
+    "invalidResourceMessage": "The provided file is not a valid Baserow export.",
+    "untrustedPublicKeyTitle": "Untrusted signature",
+    "untrustedPublicKeyMessage": "The provided file is signed with an untrusted public key. Ask your administrator to add the public key to the list of trusted keys or disable the signature verification to be able to import this file."
   },
   "dashboardWorkspace": {
     "createApplication": "Create new"
@@ -177,6 +207,7 @@
   "workspaceContext": {
     "renameWorkspace": "Rename workspace",
     "exportWorkspace": "Export data",
+    "importWorkspace": "Import data",
     "settings": "Settings",
     "members": "Members",
     "auditLog": "Audit log",
@@ -294,7 +325,9 @@
     "fromTemplate": "From template",
     "fromTemplateDesc": "Quickly start with one of our recommended templates",
     "table": "Table",
-    "tableDesc": "Create a new place to manage data in your database."
+    "tableDesc": "Create a new place to manage data in your database.",
+    "importWorkspace": "Import data",
+    "importWorkspaceDesc": "Add existing data from a Baserow instance."
   },
   "applicationForm": {
     "nameLabel": "Name",
@@ -472,7 +505,9 @@
     "emailVerificationDescription": "Controls whether email addresses have to be verified.",
     "emailVerificationNoVerification": "No verification",
     "emailVerificationRecommended": "Recommended",
-    "emailVerificationEnforced": "Enforced"
+    "emailVerificationEnforced": "Enforced",
+    "settingsVerifyImportSignature": "Verify import signature",
+    "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with."
   },
   "formSidebar": {
     "actions": {

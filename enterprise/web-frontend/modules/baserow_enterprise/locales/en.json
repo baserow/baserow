@@ -111,7 +111,16 @@
     "invalidMetadata": "Invalid XML metadata for the Identity Provider",
     "relayStateUrl": "Default Relay State URL",
     "acsUrl": "Single Sign On URL",
-    "providerIsVerified": "The provider has been verified"
+    "providerIsVerified": "The provider has been verified",
+    "samlResponseSettings": "SAML Response Attributes",
+    "defaultAttrs": "Default",
+    "customAttrs": "Custom",
+    "emailAttrKey": "Email",
+    "emailAttrKeyHelper": "The email address that will be used as username for the user.",
+    "firstNameAttrKey": "First name",
+    "firstNameAttrKeyHelper": "The first name of the user or the full name if 'Last name' is not provided.",
+    "lastNameAttrKey": "Last name",
+    "lastNameAttrKeyHelper": "Last name of the user (optional). Clear this value to provide the full name via 'First name'."
   },
   "createSettingsAuthProviderModal": {
     "title": "Add a new {type}"
@@ -339,7 +348,8 @@
   "enterpriseDataSyncType": {
     "localBaserowTable": "Sync Baserow table",
     "jiraIssues": "Sync Jira issues",
-    "githubIssues": "Sync GitHub issues"
+    "githubIssues": "Sync GitHub issues",
+    "gitlabIssues": "Sync GitLab issues"
   },
   "localBaserowTableDataSync": {
     "name": "Source table ID",
@@ -365,5 +375,13 @@
     "repoHelper": "The name of the repository. Typically in the top left corner `owner / repo`",
     "apiToken": "API token",
     "apiTokenHelper": "Can be generated here https://github.com/settings/tokens by clicking on `Generate new token`, select `All repositories`, then under `Repository permissions` set `Issues` to `read-only`."
+  },
+  "gitlabIssuesDataSync": {
+    "url": "Base URL",
+    "urlHelper": "The base URL of your GitLab instance. (e.g. https://gitlab.com)",
+    "projectId": "Project ID",
+    "projectIdHelper": "The ID of the project where you want to sync the issues from. Can be found by going to your project page (e.g. https://gitlab.com/baserow/baserow), click on the three dots in the top right corner, and then on 'Copy project ID: 12345678'.",
+    "accessToken": "Access token",
+    "accessTokenHelper": "Can be generated here https://gitlab.com/-/user_settings/personal_access_tokens by clicking on `Add new token`, select `read_api`."
   }
 }

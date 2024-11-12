@@ -16,7 +16,15 @@ from baserow.api.errors import (
     ERROR_PERMISSION_DENIED,
     ERROR_USER_NOT_IN_GROUP,
 )
-from baserow.api.export.serializers import ExportWorkspaceExportedFileURLSerializerMixin
+from baserow.api.import_export.errors import (
+    ERROR_RESOURCE_DOES_NOT_EXIST,
+    ERROR_RESOURCE_IS_INVALID,
+)
+from baserow.api.import_export.serializers import (
+    ExportWorkspaceExportedFileURLSerializerMixin,
+    ImportResourceSerializer,
+    InstalledApplicationsSerializer,
+)
 from baserow.api.templates.errors import (
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
@@ -27,6 +35,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import (
     DuplicateApplicationActionType,
     ExportApplicationsActionType,
+    ImportApplicationsActionType,
     InstallTemplateActionType,
 )
 from baserow.core.exceptions import (
@@ -39,11 +48,18 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.import_export.exceptions import (
+    ImportExportResourceDoesNotExist,
+    ImportExportResourceInvalidFile,
+)
+from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.jobs.registries import JobType
 from baserow.core.models import (
     Application,
     DuplicateApplicationJob,
     ExportApplicationsJob,
+    ImportApplicationsJob,
+    ImportExportResource,
     InstallTemplateJob,
 )
 from baserow.core.operations import (
@@ -206,6 +222,19 @@ class InstallTemplateJobType(JobType):
         return installed_applications
 
 
+@contextmanager
+def _empty_transaction_context():
+    """
+    Each application is isolated, so a single transaction for all of them together is
+    unnecessary and increases the risk of incurring into the `max_locks_per_transaction`
+    error. The `import_export_handler` creates a transaction for each
+    application in a `repeatable_read` isolation level to guarantee consistency in the
+    data read.
+    """
+
+    yield
+
+
 class ExportApplicationsJobType(JobType):
     type = "export_applications"
     model_class = ExportApplicationsJob
@@ -220,7 +249,6 @@ class ExportApplicationsJobType(JobType):
     job_exceptions_map = {PermissionDenied: ERROR_PERMISSION_DENIED}
 
     request_serializer_field_names = [
-        "workspace_id",
         "application_ids",
         "only_structure",
     ]
@@ -250,24 +278,29 @@ class ExportApplicationsJobType(JobType):
 
     def transaction_atomic_context(self, job: "DuplicateApplicationJob"):
         """
-        Each application is isolated, so a single transaction for all of them together
-        is unnecessary and increases the risk of `max_locks_per_transaction`.
-        Instead, the `import_export_handler` creates a transaction for each
-        application in a `repeatable_read` isolation level to guarantee consistency
-        in the data read.
+        The `import_export_handler` creates a transaction for each application in a
+        `repeatable_read` isolation level to guarantee consistency in the data read and
+        avoid the `max_locks_per_transaction` error.
         """
 
-        @contextmanager
-        def empty_context():
-            yield
+        return _empty_transaction_context()
 
-        return empty_context()
+    def fetch_applications(self, user, workspace, application_ids):
+        """
+        Fetches the applications that are going to be exported. If the user does not
+        have access to the workspace or the applications, a PermissionDenied
+        exception is raised.
 
-    def get_workspace_and_applications(self, user, workspace_id, application_ids):
-        handler = CoreHandler()
-        workspace = handler.get_workspace(workspace_id=workspace_id)
+        :param user: The user that is going to export the applications.
+        :param workspace: The workspace where the applications are located.
+        :param application_ids: The IDs of the applications that are going to be
+            exported.
+        :return: The applications that are going to be exported.
+        :raises PermissionDenied: If the user does not have access to the workspace or
+            the applications.
+        """
 
-        handler.check_permissions(
+        CoreHandler().check_permissions(
             user,
             ReadWorkspaceOperationType.type,
             workspace=workspace,
@@ -293,50 +326,125 @@ class ExportApplicationsJobType(JobType):
                 "not have access to them."
             )
 
-        return workspace, applications
+        return applications
 
     def prepare_values(
         self, values: Dict[str, Any], user: AbstractUser
     ) -> Dict[str, Any]:
         workspace_id = values.get("workspace_id")
-        application_ids = values.get("application_ids")
+        workspace = CoreHandler().get_workspace(workspace_id=workspace_id)
 
-        self.get_workspace_and_applications(
-            user=user, workspace_id=workspace_id, application_ids=application_ids
-        )
+        application_ids = values.get("application_ids") or []
+        self.fetch_applications(user, workspace, application_ids)
+        only_structure = values.get("only_structure", False)
 
         return {
-            "workspace_id": workspace_id,
-            "application_ids": ",".join(map(str, application_ids))
-            if application_ids
-            else "",
+            "workspace": workspace,
+            "application_ids": application_ids,
+            "only_structure": only_structure,
         }
 
-    def run(self, job: ExportApplicationsJob, progress: Progress) -> str:
-        application_ids = job.application_ids
-        if application_ids:
-            application_ids = application_ids.split(",")
-
-        workspace, applications = self.get_workspace_and_applications(
-            user=job.user,
-            workspace_id=job.workspace_id,
-            application_ids=application_ids,
+    def run(self, job: ExportApplicationsJob, progress: Progress):
+        applications = self.fetch_applications(
+            job.user, job.workspace, job.application_ids
         )
 
         progress_builder = progress.create_child_builder(
             represents_progress=progress.total
         )
 
-        exported_file_name = action_type_registry.get_by_type(
-            ExportApplicationsActionType
-        ).do(
+        resource = action_type_registry.get_by_type(ExportApplicationsActionType).do(
             job.user,
-            workspace=workspace,
+            workspace=job.workspace,
             applications=applications,
+            only_structure=job.only_structure,
             progress_builder=progress_builder,
         )
 
-        job.exported_file_name = exported_file_name
-        job.save(update_fields=("exported_file_name",))
+        job.resource = resource
 
-        return exported_file_name
+
+class ImportApplicationsJobType(JobType):
+    type = "import_applications"
+    model_class = ImportApplicationsJob
+    max_count = 1
+
+    api_exceptions_map = {
+        UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+        ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+        ImportExportResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
+        ImportExportResourceInvalidFile: ERROR_RESOURCE_IS_INVALID,
+    }
+
+    job_exceptions_map = {
+        ImportExportResourceDoesNotExist: ImportExportResourceDoesNotExist.message,
+        ImportExportResourceInvalidFile: ImportExportResourceInvalidFile.message,
+    }
+
+    request_serializer_field_names = ["resource_id"]
+    request_serializer_field_overrides = {
+        "resource_id": serializers.IntegerField(
+            min_value=1,
+            help_text="The ID of the import resource that contains the applications.",
+        ),
+    }
+
+    serializer_field_names = ["installed_applications", "workspace_id", "resource"]
+    serializer_field_overrides = {
+        "workspace_id": serializers.IntegerField(),
+        "installed_applications": InstalledApplicationsSerializer(
+            source="application_ids"
+        ),
+        "resource": ImportResourceSerializer(),
+    }
+
+    def transaction_atomic_context(self, job: "DuplicateApplicationJob"):
+        """
+        The `import_export_handler` imports every application in a separated transaction
+        to avoid the `max_locks_per_transaction` error.
+        """
+
+        return _empty_transaction_context()
+
+    def prepare_values(
+        self, values: Dict[str, Any], user: AbstractUser
+    ) -> Dict[str, Any]:
+        workspace_id = values.get("workspace_id")
+        workspace = ImportExportHandler().get_workspace_or_raise(user, workspace_id)
+
+        resource = ImportExportResource.objects.filter(
+            id=values.get("resource_id"), created_by=user
+        ).first()
+
+        if not resource:
+            raise ImportExportResourceDoesNotExist("Import file does not exist.")
+        elif not resource.is_valid:
+            raise ImportExportResourceInvalidFile(
+                "Import file is invalid or corrupted."
+            )
+
+        return {
+            "workspace": workspace,
+            "resource": resource,
+        }
+
+    def run(self, job: ImportApplicationsJob, progress: Progress):
+        workspace = ImportExportHandler().get_workspace_or_raise(
+            job.user, job.workspace_id
+        )
+
+        progress_builder = progress.create_child_builder(
+            represents_progress=progress.total
+        )
+
+        imported_applications = action_type_registry.get_by_type(
+            ImportApplicationsActionType
+        ).do(
+            job.user,
+            workspace=workspace,
+            resource=job.resource,
+            progress_builder=progress_builder,
+        )
+
+        job.application_ids = [app.id for app in imported_applications]

@@ -121,29 +121,32 @@ class DatabaseApplicationType(ApplicationType):
                     view_type.export_serialized(view, table_cache, files_zip, storage)
                 )
 
-            model = table.get_model(fields=fields, add_dependencies=False)
             serialized_rows = []
-            row_queryset = model.objects.all()
-            if table.created_by_column_added:
-                row_queryset = row_queryset.select_related("created_by")
-            if table.last_modified_by_column_added:
-                row_queryset = row_queryset.select_related("last_modified_by")
-            for row in row_queryset:
-                serialized_row = DatabaseExportSerializedStructure.row(
-                    id=row.id,
-                    order=str(row.order),
-                    created_on=row.created_on.isoformat(),
-                    updated_on=row.updated_on.isoformat(),
-                    created_by=getattr(row, "created_by", None),
-                    last_modified_by=getattr(row, "last_modified_by", None),
-                )
-                for field_object in model._field_objects.values():
-                    field_name = field_object["name"]
-                    field_type = field_object["type"]
-                    serialized_row[field_name] = field_type.get_export_serialized_value(
-                        row, field_name, table_cache, files_zip, storage
+            if not import_export_config.only_structure:
+                model = table.get_model(fields=fields, add_dependencies=False)
+                row_queryset = model.objects.all()
+                if table.created_by_column_added:
+                    row_queryset = row_queryset.select_related("created_by")
+                if table.last_modified_by_column_added:
+                    row_queryset = row_queryset.select_related("last_modified_by")
+                for row in row_queryset:
+                    serialized_row = DatabaseExportSerializedStructure.row(
+                        id=row.id,
+                        order=str(row.order),
+                        created_on=row.created_on.isoformat(),
+                        updated_on=row.updated_on.isoformat(),
+                        created_by=getattr(row, "created_by", None),
+                        last_modified_by=getattr(row, "last_modified_by", None),
                     )
-                serialized_rows.append(serialized_row)
+                    for field_object in model._field_objects.values():
+                        field_name = field_object["name"]
+                        field_type = field_object["type"]
+                        serialized_row[
+                            field_name
+                        ] = field_type.get_export_serialized_value(
+                            row, field_name, table_cache, files_zip, storage
+                        )
+                    serialized_rows.append(serialized_row)
 
             serialized_data_sync = None
             if hasattr(table, "data_sync"):

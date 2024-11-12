@@ -27,6 +27,21 @@
         </a>
       </li>
       <li
+        v-if="
+          $hasPermission(
+            'workspace.create_application',
+            workspace,
+            workspace.id
+          ) && $featureFlagIsEnabled(FF_EXPORT_WORKSPACE)
+        "
+        class="context__menu-item"
+      >
+        <a class="context__menu-item-link" @click="openImportData">
+          <i class="context__menu-item-icon iconoir-arrow-down-circle"></i>
+          {{ $t('workspaceContext.importWorkspace') }}
+        </a>
+      </li>
+      <li
         v-if="$hasPermission('workspace.update', workspace, workspace.id)"
         class="context__menu-item"
       >
@@ -114,6 +129,13 @@
       :workspace="workspace"
     >
     </ExportWorkspaceModal>
+    <ImportWorkspaceModal
+      v-if="
+        $hasPermission('workspace.create_application', workspace, workspace.id)
+      "
+      ref="importWorkspaceModal"
+      :workspace="workspace"
+    ></ImportWorkspaceModal>
     <LeaveWorkspaceModal
       ref="leaveWorkspaceModal"
       :workspace="workspace"
@@ -130,6 +152,7 @@
 import context from '@baserow/modules/core/mixins/context'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ExportWorkspaceModal from '@baserow/modules/core/components/export/ExportWorkspaceModal.vue'
+import ImportWorkspaceModal from '@baserow/modules/core/components/import/ImportWorkspaceModal.vue'
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import LeaveWorkspaceModal from '@baserow/modules/core/components/workspace/LeaveWorkspaceModal'
 import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal'
@@ -139,6 +162,7 @@ export default {
   name: 'WorkspaceContext',
   components: {
     ExportWorkspaceModal,
+    ImportWorkspaceModal,
     LeaveWorkspaceModal,
     TrashModal,
     WorkspaceSettingsModal,
@@ -168,6 +192,10 @@ export default {
     openExportData() {
       this.$refs.context.hide()
       this.$refs.exportWorkspaceModal.show()
+    },
+    openImportData() {
+      this.$refs.context.hide()
+      this.$refs.importWorkspaceModal.show()
     },
     async deleteWorkspace() {
       this.loading = true

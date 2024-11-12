@@ -39,10 +39,6 @@ export default {
       type: Boolean,
       required: true,
     },
-    storePrefix: {
-      type: String,
-      required: true,
-    },
   },
   computed: {
     subType() {
