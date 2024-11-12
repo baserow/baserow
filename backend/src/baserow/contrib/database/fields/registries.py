@@ -975,7 +975,7 @@ class FieldType(
         field_id = serialized_copy.pop("id")
         serialized_copy.pop("type")
         select_options = (
-            serialized_copy.pop("select_options")
+            serialized_copy.pop("select_options", [])
             if self.can_have_select_options
             else []
         )

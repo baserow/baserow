@@ -1,35 +1,11 @@
-from django.test.utils import override_settings
 from django.urls import reverse
 
 import pytest
 from rest_framework.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
-    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db
-@override_settings(
-    FEATURE_FLAGS="",
-)
-def test_delete_resource_with_feature_flag_disabled(data_fixture, api_client, tmpdir):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-
-    response = api_client.delete(
-        reverse(
-            "api:workspaces:import_workspace_resource",
-            kwargs={"workspace_id": workspace.id, "resource_id": 1},
-        ),
-        data={},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
 @pytest.mark.import_export_workspace

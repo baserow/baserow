@@ -267,7 +267,16 @@ export class ViewType extends Registerable {
    * via a real time event by another user. It can be used to check if data in an store
    * needs to be updated.
    */
-  rowUpdated(context, tableId, fields, row, values, metadata, storePrefix) {}
+  rowUpdated(
+    context,
+    tableId,
+    fields,
+    row,
+    values,
+    metadata,
+    updatedFieldIds,
+    storePrefix
+  ) {}
 
   /**
    * Event that is called when something went wrong while generating AI values
@@ -722,6 +731,7 @@ export class GridViewType extends ViewType {
     row,
     values,
     metadata,
+    updatedFieldIds,
     storePrefix = ''
   ) {
     if (this.isCurrentView(store, tableId)) {
@@ -731,6 +741,7 @@ export class GridViewType extends ViewType {
         row,
         values,
         metadata,
+        updatedFieldIds,
       })
       await store.dispatch(storePrefix + 'view/grid/fetchByScrollTopDelayed', {
         scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
@@ -971,6 +982,7 @@ export const BaseBufferedRowViewTypeMixin = (Base) =>
       row,
       values,
       metadata,
+      updatedFieldIds,
       storePrefix = ''
     ) {
       if (this.isCurrentView(store, tableId)) {

@@ -78,17 +78,13 @@ from baserow.contrib.database.api.views.errors import (
 )
 from baserow.contrib.database.db.functions import RandomUUID
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
-from baserow.contrib.database.fields.filter_support import (
-    FilterNotSupportedException,
-    HasAllValuesEqualFilterSupport,
-    HasValueContainsFilterSupport,
-    HasValueContainsWordFilterSupport,
-    HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
-    HasValueLengthIsLowerThanFilterSupport,
+from baserow.contrib.database.fields.filter_support.formula import (
+    FormulaArrayFilterSupport,
 )
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
+    BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES,
+    BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES,
     BaserowExpression,
     BaserowFormulaBooleanType,
     BaserowFormulaCharType,
@@ -159,7 +155,6 @@ from .expressions import extract_jsonb_array_values_to_single_string
 from .field_cache import FieldCache
 from .field_filters import (
     AnnotatedQ,
-    OptionallyAnnotatedQ,
     contains_filter,
     contains_word_filter,
     filename_contains_filter,
@@ -4365,15 +4360,7 @@ class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
         return collate_expression(Value(value))
 
 
-class FormulaFieldType(
-    HasAllValuesEqualFilterSupport,
-    HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
-    HasValueContainsFilterSupport,
-    HasValueContainsWordFilterSupport,
-    HasValueLengthIsLowerThanFilterSupport,
-    ReadOnlyFieldType,
-):
+class FormulaFieldType(FormulaArrayFilterSupport, ReadOnlyFieldType):
     type = "formula"
     model_class = FormulaField
     _db_column_fields = []
@@ -4388,11 +4375,27 @@ class FormulaFieldType(
         "formula_type",
     ]
     allowed_fields = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + CORE_FORMULA_FIELDS
-    serializer_field_names = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + CORE_FORMULA_FIELDS
-    serializer_field_overrides = {
+    request_serializer_field_names = (
+        BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES + CORE_FORMULA_FIELDS
+    )
+    request_serializer_field_overrides = {
         "error": serializers.CharField(required=False, read_only=True),
         "nullable": serializers.BooleanField(required=False, read_only=True),
     }
+    serializer_field_names = (
+        BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES + CORE_FORMULA_FIELDS
+    )
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.contrib.database.formula.types.formula_types import (
+            get_baserow_formula_type_serializer_field_overrides,
+        )
+
+        return {
+            **self.request_serializer_field_overrides,
+            **get_baserow_formula_type_serializer_field_overrides(),
+        }
 
     @staticmethod
     def _stack_error_mapper(e):
@@ -4533,96 +4536,6 @@ class FormulaFieldType(
             value,
             {"field": field_instance, "type": field_type, "name": field_object["name"]},
             rich_value=rich_value,
-        )
-
-    def get_in_array_empty_query(self, field_name, model_field, field: FormulaField):
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        if not isinstance(field_type, HasValueEmptyFilterSupport):
-            raise FilterNotSupportedException()
-
-        return field_type.get_in_array_empty_query(
-            field_name, model_field, field_instance
-        )
-
-    def get_in_array_is_query(
-        self,
-        field_name: str,
-        value: str,
-        model_field: models.Field,
-        field: FormulaField,
-    ) -> Q | OptionallyAnnotatedQ:
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-        if not isinstance(field_type, HasValueFilterSupport):
-            raise FilterNotSupportedException()
-        return field_type.get_in_array_is_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_in_array_contains_query(
-        self, field_name, value, model_field, field: FormulaField
-    ):
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        if not isinstance(field_type, HasValueContainsFilterSupport):
-            raise FilterNotSupportedException()
-
-        return field_type.get_in_array_contains_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_has_all_values_equal_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> "OptionallyAnnotatedQ":
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        if not isinstance(field_type, HasAllValuesEqualFilterSupport):
-            raise FilterNotSupportedException()
-
-        return field_type.get_has_all_values_equal_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_in_array_contains_word_query(
-        self, field_name, value, model_field, field: FormulaField
-    ):
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        if not isinstance(field_type, HasValueContainsWordFilterSupport):
-            raise FilterNotSupportedException()
-
-        return field_type.get_in_array_contains_word_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_in_array_length_is_lower_than_query(
-        self, field_name, value, model_field, field: FormulaField
-    ):
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        if not isinstance(field_type, HasValueLengthIsLowerThanFilterSupport):
-            raise FilterNotSupportedException()
-
-        return field_type.get_in_array_length_is_lower_than_query(
-            field_name, value, model_field, field_instance
         )
 
     def contains_query(self, field_name, value, model_field, field: FormulaField):
@@ -5034,6 +4947,14 @@ class CountFieldType(FormulaFieldType):
         "nullable": serializers.BooleanField(required=False, read_only=True),
     }
 
+    @property
+    def request_serializer_field_names(self):
+        return self.serializer_field_names
+
+    @property
+    def request_serializer_field_overrides(self):
+        return self.serializer_field_overrides
+
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
@@ -5183,6 +5104,14 @@ class RollupFieldType(FormulaFieldType):
         ),
         "nullable": serializers.BooleanField(required=False, read_only=True),
     }
+
+    @property
+    def request_serializer_field_names(self):
+        return self.serializer_field_names
+
+    @property
+    def request_serializer_field_overrides(self):
+        return self.serializer_field_overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
@@ -5379,7 +5308,16 @@ class LookupFieldType(FormulaFieldType):
             "parameter if both are provided, however only one is required.",
         ),
         "nullable": serializers.BooleanField(required=False, read_only=True),
+        "error": serializers.CharField(required=False, read_only=True),
     }
+
+    @property
+    def request_serializer_field_names(self):
+        return self.serializer_field_names
+
+    @property
+    def request_serializer_field_overrides(self):
+        return self.serializer_field_overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs

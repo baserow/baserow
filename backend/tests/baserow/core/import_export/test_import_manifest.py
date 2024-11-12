@@ -30,7 +30,7 @@ def test_import_without_signature_and_check_enabled(
 ):
     user = data_fixture.create_user()
 
-    data_fixture.create_import_export_trusted_source(user=user)
+    data_fixture.create_import_export_trusted_source()
     zip_name = "interesting_database_without_signature_disabled_check.zip"
 
     resource = data_fixture.create_import_export_resource(
@@ -70,7 +70,7 @@ def test_import_without_signature_and_check_disabled(
     core_settings.verify_import_signature = False
     core_settings.save()
 
-    data_fixture.create_import_export_trusted_source(user=user)
+    data_fixture.create_import_export_trusted_source()
     zip_name = "interesting_database_without_signature_enabled_check.zip"
 
     resource = data_fixture.create_import_export_resource(
@@ -103,7 +103,7 @@ def test_import_without_signature_and_check_disabled(
 def test_import_without_signature_data(data_fixture, use_tmp_media_root, tmp_path):
     user = data_fixture.create_user()
 
-    data_fixture.create_import_export_trusted_source(user=user)
+    data_fixture.create_import_export_trusted_source()
 
     zip_name = "interesting_database_without_signature_data.zip"
 

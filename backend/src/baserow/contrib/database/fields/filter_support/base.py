@@ -23,14 +23,6 @@ if typing.TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
 
 
-class FilterNotSupportedException(Exception):
-    def __str__(self):
-        return (
-            f"Filter doesn't support given field type: "
-            f"{self.args[0] if self.args else 'not specified' }"
-        )
-
-
 class HasValueEmptyFilterSupport:
     def get_in_array_empty_query(
         self, field_name: str, model_field: models.Field, field: "Field"

@@ -2,38 +2,10 @@ import os
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test.utils import override_settings
 from django.urls import reverse
 
 import pytest
-from rest_framework.status import (
-    HTTP_200_OK,
-    HTTP_400_BAD_REQUEST,
-    HTTP_403_FORBIDDEN,
-    HTTP_404_NOT_FOUND,
-)
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db
-@override_settings(
-    FEATURE_FLAGS="",
-)
-def test_upload_file_with_feature_flag_disabled(data_fixture, api_client, tmpdir):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:import_workspace_upload_file",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        data={},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
 
 @pytest.mark.import_export_workspace
@@ -133,7 +105,7 @@ def test_upload_valid_file(data_fixture, api_client, tmpdir, use_tmp_media_root)
     with open(f"{sources_path}/interesting_database_export.zip", "rb") as export_file:
         file_content = export_file.read()
 
-    data_fixture.create_import_export_trusted_source(user=user)
+    data_fixture.create_import_export_trusted_source()
 
     uploaded_file = SimpleUploadedFile(
         "interesting_database_export.zip", file_content, content_type="application/zip"

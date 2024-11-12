@@ -28,7 +28,7 @@ def test_exporting_interesting_database(
         include_permission_data=False, reduce_disk_space_usage=False
     )
 
-    data_fixture.create_import_export_trusted_source(user=user)
+    data_fixture.create_import_export_trusted_source()
 
     database = setup_interesting_test_database(
         data_fixture,

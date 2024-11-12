@@ -864,6 +864,21 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "metadata": {},
             "type": "string",
         },
+        field_db_column_by_name["ai_choice"]: {
+            "title": "ai_choice",
+            "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
+            "original_type": "ai",
+            "metadata": {},
+            "properties": {
+                "color": {"title": "color", "type": "string"},
+                "id": {"title": "id", "type": "number"},
+                "value": {"title": "value", "type": "string"},
+            },
+            "type": "object",
+        },
         "id": {
             "type": "number",
             "title": "Id",

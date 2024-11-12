@@ -84,7 +84,7 @@ export default {
         const isNotThisField = f.id !== this.defaultValues.id
         const canBeReferencedByFormulaField = this.$registry
           .get('field', f.type)
-          .canBeReferencedByFormulaField()
+          .canBeReferencedByFormulaField(f)
         return isNotThisField && canBeReferencedByFormulaField
       })
     },

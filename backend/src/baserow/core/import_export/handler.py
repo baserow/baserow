@@ -1148,3 +1148,102 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             ImportExportResource.objects_and_trash.filter(
                 id__in=resources_to_delete
             ).delete()
+
+    def add_trusted_public_key(self, name, public_key_data):
+        """
+        Adds a new trusted public key to the `ImportExportTrustedSource` model.
+
+        :param name: The name of the trusted public key.
+        :param public_key_data: Public key in PEM format.
+        """
+
+        try:
+            decoded_public_key = base64.b64decode(public_key_data)
+            public_key = serialization.load_pem_public_key(
+                decoded_public_key, backend=default_backend()
+            )
+            public_key_pem = public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            ).decode("utf-8")
+        except Exception:  # noqa
+            logger.error("Provided public key is invalid or in wrong format")
+            return
+
+        try:
+            source = ImportExportTrustedSource.objects.get(public_key=public_key_pem)
+            logger.warning(
+                f"Key with that public key already exists with ID #{source.id}"
+            )
+        except ImportExportTrustedSource.DoesNotExist:
+            ImportExportTrustedSource.objects.create(
+                name=name,
+                public_key=public_key_pem,
+            )
+            logger.info("Public key added", name)
+        except ImportExportTrustedSource.MultipleObjectsReturned:
+            logger.error("Multiple keys found with the same name", name)
+
+    def list_trusted_public_keys(self):
+        """
+        Lists all trusted public keys.
+
+        This method retrieves and prints all the trusted public keys stored in the
+        database.
+        """
+
+        col_widths = {
+            "ID": 10,
+            "Created At": 20,
+            "Name": 30,
+            "Public Key (last 50 chars)": 50,
+        }
+        headers = list(col_widths.keys())
+        divider = "-" * (sum(col_widths.values()) + len(col_widths) * 3)
+
+        print(divider)
+        print(
+            f"{headers[0]:<{col_widths['ID']}} | "
+            f"{headers[1]:<{col_widths['Created At']}} | "
+            f"{headers[2]:<{col_widths['Name']}} | "
+            f"{headers[3]:<{col_widths['Public Key (last 50 chars)']}}"
+        )
+        print(divider)
+
+        for record in ImportExportTrustedSource.objects.all():
+            public_key_str = record.public_key.replace(
+                "-----END PUBLIC KEY-----", ""
+            ).replace("\n", "")[-50:]
+            created_at_str = record.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            print(
+                f"{str(record.id):<{col_widths['ID']}} | "
+                f"{created_at_str:<{col_widths['Created At']}} | "
+                f"{record.name:<{col_widths['Name']}} | "
+                f"{public_key_str:<{col_widths['Public Key (last 50 chars)']}}"
+            )
+        print(divider)
+
+    def delete_trusted_public_key(self, source_id: str):
+        """
+        Deletes a trusted public key by its ID.
+
+        This method attempts to delete a trusted public key from the
+        `ImportExportTrustedSource` model based on the provided ID.
+
+        Only keys without an associated private key can be deleted.
+
+        :param source_id: The ID of the trusted public key to be deleted.
+        """
+
+        try:
+            source = ImportExportTrustedSource.objects.get(id=source_id)
+        except ImportExportTrustedSource.DoesNotExist:
+            logger.warning(f"Trusted public key for ID #{source_id} does not exist")
+        else:
+            if source.private_key:
+                logger.warning(
+                    f"Trusted source cannot be removed as it has a private key"
+                )
+            else:
+                source.delete()
+                logger.info(f"Trusted public key for ID #{source_id} removed")

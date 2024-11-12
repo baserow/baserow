@@ -20,7 +20,9 @@ export default {
   computed: {
     copy() {
       const value = this.filter.value
-      return value === '' ? null : parseInt(value) || null
+      return value === '' || value.includes(',')
+        ? null
+        : parseInt(value) || null
     },
   },
   methods: {

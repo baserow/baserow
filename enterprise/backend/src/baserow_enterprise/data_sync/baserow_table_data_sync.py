@@ -5,6 +5,7 @@ from uuid import UUID
 from django.db.models import Prefetch
 
 from baserow_premium.fields.field_types import AIFieldType
+from baserow_premium.fields.registries import ai_field_output_registry
 from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
@@ -33,7 +34,6 @@ from baserow.contrib.database.fields.field_types import (
 from baserow.contrib.database.fields.models import (
     DateField,
     Field,
-    LongTextField,
     NumberField,
     SelectOption,
     TextField,
@@ -51,14 +51,19 @@ from baserow_enterprise.features import DATA_SYNC
 from .models import LocalBaserowTableDataSync
 
 
-def prepare_single_select_value(value, enabled_property):
+def prepare_single_select_value(value, field, metadata):
     try:
         # The metadata contains a mapping of the select options where the key is the
         # old ID and the value is the new ID. For some reason the key is converted to
         # a string when moved into the JSON field.
-        return enabled_property.metadata["select_options_mapping"][str(value)]
+        return metadata["select_options_mapping"][str(value)]
     except (KeyError, TypeError):
         return None
+
+
+def prepare_ai_value(value, field, metadata):
+    output_type = ai_field_output_registry.get(field.ai_output_type)
+    return output_type.prepare_data_sync_value(value, field, metadata)
 
 
 # List of Baserow supported field types that can be included in the data sync.
@@ -78,7 +83,7 @@ supported_field_types = {
     LastModifiedFieldType.type: {},
     UUIDFieldType.type: {},
     AutonumberFieldType.type: {},
-    AIFieldType.type: {},
+    AIFieldType.type: {"prepare_value": prepare_ai_value},
     SingleSelectFieldType.type: {"prepare_value": prepare_single_select_value},
 }
 
@@ -99,7 +104,6 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
         LastModifiedFieldType.type: DateField,
         UUIDFieldType.type: TextField,
         AutonumberFieldType.type: NumberField,
-        AIFieldType.type: LongTextField,
     }
 
     def __init__(self, field, immutable_properties, **kwargs):
@@ -332,7 +336,9 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             if "prepare_value" in supported_field:
                 for row in rows_queryset:
                     row[enabled_property.key] = supported_field["prepare_value"](
-                        row[enabled_property.key], enabled_property
+                        row[enabled_property.key],
+                        enabled_property.field,
+                        enabled_property.metadata,
                     )
         progress.increment(by=2)  # makes the total `10`
 

@@ -15,14 +15,11 @@
     ></div>
     <ul v-else class="context__menu">
       <li
-        v-if="
-          $hasPermission('workspace.read', workspace, workspace.id) &&
-          $featureFlagIsEnabled(FF_EXPORT_WORKSPACE)
-        "
+        v-if="$hasPermission('workspace.read', workspace, workspace.id)"
         class="context__menu-item"
       >
         <a class="context__menu-item-link" @click="openExportData">
-          <i class="context__menu-item-icon iconoir-arrow-up-circle"></i>
+          <i class="context__menu-item-icon iconoir-share-ios"></i>
           {{ $t('workspaceContext.exportWorkspace') }}
         </a>
       </li>
@@ -32,12 +29,12 @@
             'workspace.create_application',
             workspace,
             workspace.id
-          ) && $featureFlagIsEnabled(FF_EXPORT_WORKSPACE)
+          )
         "
         class="context__menu-item"
       >
         <a class="context__menu-item-link" @click="openImportData">
-          <i class="context__menu-item-icon iconoir-arrow-down-circle"></i>
+          <i class="context__menu-item-icon iconoir-import"></i>
           {{ $t('workspaceContext.importWorkspace') }}
         </a>
       </li>
@@ -156,7 +153,6 @@ import ImportWorkspaceModal from '@baserow/modules/core/components/import/Import
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import LeaveWorkspaceModal from '@baserow/modules/core/components/workspace/LeaveWorkspaceModal'
 import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal'
-import { FF_EXPORT_WORKSPACE } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'WorkspaceContext',
@@ -177,7 +173,6 @@ export default {
   data() {
     return {
       loading: false,
-      FF_EXPORT_WORKSPACE,
     }
   },
   methods: {

@@ -1,5 +1,5 @@
 <template>
-  <div ref="cell" class="grid-view__cell active">
+  <div ref="cell" class="grid-view__cell grid-field-single-select__cell active">
     <div
       ref="dropdownLink"
       class="grid-field-single-select grid-field-single-select--selected"
@@ -18,6 +18,7 @@
         class="iconoir-nav-arrow-down grid-field-single-select__icon"
       ></i>
     </div>
+    <slot name="default" :slot-props="{ editing, opened: true }"></slot>
     <FieldSelectOptionsDropdown
       v-if="!readOnly"
       ref="dropdown"

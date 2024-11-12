@@ -274,6 +274,7 @@ def public_rows_updated(
                     table_id=PUBLIC_PLACEHOLDER_ENTITY_ID,
                     serialized_rows_before_update=visible_fields_only_old_rows,
                     serialized_rows=visible_fields_only_updated_rows,
+                    updated_field_ids=list(updated_field_ids),
                     metadata={},
                 ),
                 slug=public_view.slug,

@@ -4,7 +4,9 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
+from functools import reduce
 from math import ceil, floor
+from types import MappingProxyType
 from typing import Any, Dict, NamedTuple, Optional, Tuple, Union
 
 from django.core.exceptions import ValidationError
@@ -61,6 +63,7 @@ from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaDateIntervalType,
     BaserowFormulaDurationType,
     BaserowFormulaSingleFileType,
+    BaserowFormulaSingleSelectType,
     BaserowFormulaURLType,
 )
 from baserow.core.datetime import get_timezones
@@ -243,11 +246,11 @@ class ContainsViewFilterType(ViewFilterType):
             BaserowFormulaNumberType.type,
             BaserowFormulaDateType.type,
             BaserowFormulaURLType.type,
+            BaserowFormulaSingleSelectType.type,
         ),
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        # Check if the model_field accepts the value.
         try:
             field_type = field_type_registry.get_by_model(field)
             return field_type.contains_query(field_name, value, model_field, field)
@@ -274,6 +277,7 @@ class ContainsWordViewFilterType(ViewFilterType):
             BaserowFormulaTextType.type,
             BaserowFormulaCharType.type,
             BaserowFormulaURLType.type,
+            BaserowFormulaSingleSelectType.type,
         ),
     ]
 
@@ -1067,19 +1071,37 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
     """
 
     type = "single_select_equal"
-    compatible_field_types = [SingleSelectFieldType.type]
+    compatible_field_types = [
+        SingleSelectFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaSingleSelectType.type
+        ),
+    ]
+
+    def _get_filter(field_name, value, model_field, field):
+        return Q(**{f"{field_name}_id": value})
+
+    def _get_formula_filter(field_name, value, model_field, field):
+        return Q(**{f"{field_name}__id": value})
+
+    filter_functions = MappingProxyType(
+        {
+            SingleSelectFieldType.type: _get_filter,
+            FormulaFieldType.type: _get_formula_filter,
+        }
+    )
 
     def get_filter(self, field_name, value, model_field, field):
         value = value.strip()
 
-        if value == "":
-            return Q()
-
         try:
             int(value)
-            return Q(**{f"{field_name}_id": value})
-        except Exception:
+        except ValueError:
             return Q()
+
+        field_type = field_type_registry.get_by_model(field)
+        filter_function = self.filter_functions[field_type.type]
+        return filter_function(field_name, value, model_field, field)
 
     def set_import_serialized_value(self, value, id_mapping):
         try:
@@ -1104,15 +1126,46 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
     """
 
     type = "single_select_is_any_of"
-    compatible_field_types = [SingleSelectFieldType.type]
+    compatible_field_types = [
+        SingleSelectFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaSingleSelectType.type
+        ),
+    ]
+
+    def _get_filter(field_name, option_ids, model_field, field):
+        return Q(**{f"{field_name}_id__in": option_ids})
+
+    def _get_formula_filter(field_name, option_ids, model_field, field):
+        return reduce(
+            lambda x, y: x | y,
+            [Q(**{f"{field_name}__id": str(option_id)}) for option_id in option_ids],
+        )
+
+    filter_functions = MappingProxyType(
+        {
+            SingleSelectFieldType.type: _get_filter,
+            FormulaFieldType.type: _get_formula_filter,
+        }
+    )
+
+    def parse_option_ids(self, value):
+        try:
+            return [int(v) for v in value.split(",") if v.isdigit()]
+        except ValueError:
+            return []
 
     def get_filter(self, field_name, value: str, model_field, field):
+        value = value.strip()
         if not value:
             return Q()
 
-        option_ids = [int(v) for v in value.split(",") if v.isdigit()]
+        if not (option_ids := self.parse_option_ids(value)):
+            return self.default_filter_on_exception()
 
-        return Q(**{f"{field_name}_id__in": option_ids})
+        field_type = field_type_registry.get_by_model(field)
+        filter_function = self.filter_functions[field_type.type]
+        return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value, id_mapping):
         splitted = value.split(",")
@@ -1496,6 +1549,7 @@ class EmptyViewFilterType(ViewFilterType):
             BaserowFormulaDateIntervalType.type,
             BaserowFormulaDurationType.type,
             BaserowFormulaURLType.type,
+            BaserowFormulaSingleSelectType.type,
             FormulaFieldType.array_of(BaserowFormulaSingleFileType.type),
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
         ),

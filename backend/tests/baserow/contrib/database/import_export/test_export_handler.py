@@ -247,12 +247,12 @@ def test_can_export_every_interesting_different_field_to_csv(
         "phone_number,formula_text,formula_int,formula_bool,formula_decimal,formula_dateinterval,"
         "formula_date,formula_singleselect,formula_email,formula_link_with_label,"
         "formula_link_url_only,formula_multipleselect,count,rollup,duration_rollup_sum,"
-        "duration_rollup_avg,lookup,uuid,autonumber,password,ai\r\n"
+        "duration_rollup_avg,lookup,uuid,autonumber,password,ai,ai_choice\r\n"
         "1,,,,,,,,,0,False,,,,,,,01/02/2021 12:00,01/02/2021,02/01/2021 12:00,02/01/2021,"
         "02/01/2021 13:00,01/02/2021 12:00,01/02/2021,02/01/2021 12:00,02/01/2021,02/01/2021 13:00,"
         "user@example.com,user@example.com,,,,,,,,,,,,,,,,,,,test FORMULA,1,True,33.3333333333,"
         "1d 0:00,2020-01-01,,,label (https://google.com),https://google.com,,0,0.000,"
-        "0:00,0:00,,00000000-0000-4000-8000-000000000001,1,,\r\n"
+        "0:00,0:00,,00000000-0000-4000-8000-000000000001,1,,,\r\n"
         "2,text,long_text,https://www.google.com,test@example.com,-1,1,-1.2,1.2,3,True,"
         "02/01/2020 01:23,02/01/2020,01/02/2020 01:23,01/02/2020,01/02/2020 02:23,"
         "01/02/2020 02:23,01/02/2021 12:00,01/02/2021,02/01/2021 12:00,02/01/2021,"
@@ -267,7 +267,7 @@ def test_can_export_every_interesting_different_field_to_csv(
         '"user2@example.com,user3@example.com",\'+4412345678,test FORMULA,1,True,33.3333333333,'
         "1d 0:00,2020-01-01,A,test@example.com,label (https://google.com),https://google.com,"
         '"C,D,E",3,-122.222,0:04,0:02,"linked_row_1,linked_row_2,",'
-        "00000000-0000-4000-8000-000000000002,2,True,I'm an AI.\r\n"
+        "00000000-0000-4000-8000-000000000002,2,True,I'm an AI.,Object\r\n"
     )
 
     assert contents == expected

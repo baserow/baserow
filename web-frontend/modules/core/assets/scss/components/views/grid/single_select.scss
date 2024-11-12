@@ -1,3 +1,13 @@
+.grid-field-single-select__cell {
+  &.active {
+    bottom: auto;
+    right: auto;
+    height: auto;
+    min-height: calc(100% + 4px);
+    min-width: calc(100% + 4px);
+  }
+}
+
 .grid-field-single-select {
   position: relative;
   display: block;

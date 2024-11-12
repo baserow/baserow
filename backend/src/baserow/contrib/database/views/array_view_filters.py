@@ -1,13 +1,15 @@
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_types import FormulaFieldType
-from baserow.contrib.database.fields.filter_support import (
-    FilterNotSupportedException,
+from baserow.contrib.database.fields.filter_support.base import (
     HasAllValuesEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
+)
+from baserow.contrib.database.fields.filter_support.exceptions import (
+    FilterNotSupportedException,
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaTextType

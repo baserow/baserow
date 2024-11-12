@@ -2506,7 +2506,7 @@ export const actions = {
    */
   async updatedExistingRow(
     { commit, getters, dispatch },
-    { view, fields, row, values, metadata }
+    { view, fields, row, values, metadata, updatedFieldIds = [] }
   ) {
     const oldRow = clone(row)
     const newRow = Object.assign(clone(row), values)
@@ -2646,15 +2646,21 @@ export const actions = {
       // sure the loading state will stop if the value is updated. This is done even
       // if the row is not found in the buffer because it could have been removed from
       // the buffer when scrolling outside the buffer range.
-      const updatedFieldIds = Object.entries(values)
+      const getFieldId = (key) => parseInt(key.split('_')[1])
+      const fieldIdsToClearPendingOperationsFor = Object.entries(values)
         .filter(
           ([key, value]) =>
-            key.startsWith('field_') && !_.isEqual(value, oldRow[key])
+            key.startsWith('field_') &&
+            // Either the value has changed.
+            (_.isEqual(value, oldRow[key]) ||
+              // Or the backend has just recalculated the value, even if it hasn't
+              // actually changed.
+              updatedFieldIds.includes(getFieldId(key)))
         )
-        .map(([key, value]) => parseInt(key.split('_')[1]))
+        .map(([key, value]) => getFieldId(key))
 
       commit('CLEAR_PENDING_FIELD_OPERATIONS', {
-        fieldIds: updatedFieldIds,
+        fieldIds: fieldIdsToClearPendingOperationsFor,
         rowId: row.id,
       })
 

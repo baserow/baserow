@@ -404,7 +404,8 @@ export class ContainsViewFilterType extends ViewFilterType {
         'char',
         'number',
         'date',
-        'url'
+        'url',
+        'single_select'
       ),
     ]
   }
@@ -450,7 +451,8 @@ export class ContainsNotViewFilterType extends ViewFilterType {
         'char',
         'number',
         'date',
-        'url'
+        'url',
+        'single_select'
       ),
     ]
   }
@@ -482,7 +484,12 @@ export class ContainsWordViewFilterType extends ViewFilterType {
       'email',
       'single_select',
       'multiple_select',
-      FormulaFieldType.compatibleWithFormulaTypes('text', 'char', 'url'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'text',
+        'char',
+        'url',
+        'single_select'
+      ),
     ]
   }
 
@@ -2193,7 +2200,10 @@ export class SingleSelectEqualViewFilterType extends ViewFilterType {
   }
 
   getCompatibleFieldTypes() {
-    return ['single_select']
+    return [
+      'single_select',
+      FormulaFieldType.compatibleWithFormulaTypes('single_select'),
+    ]
   }
 
   matches(rowValue, filterValue, field, fieldType) {
@@ -2223,7 +2233,10 @@ export class SingleSelectNotEqualViewFilterType extends ViewFilterType {
   }
 
   getCompatibleFieldTypes() {
-    return ['single_select']
+    return [
+      'single_select',
+      FormulaFieldType.compatibleWithFormulaTypes('single_select'),
+    ]
   }
 
   matches(rowValue, filterValue, field, fieldType) {
@@ -2254,7 +2267,10 @@ export class SingleSelectIsAnyOfViewFilterType extends ViewFilterType {
   }
 
   getCompatibleFieldTypes() {
-    return ['single_select']
+    return [
+      'single_select',
+      FormulaFieldType.compatibleWithFormulaTypes('single_select'),
+    ]
   }
 
   prepareValue(value, field) {
@@ -2722,6 +2738,7 @@ export class EmptyViewFilterType extends ViewFilterType {
         'date',
         'number',
         'url',
+        'single_select',
         FormulaFieldType.arrayOf('single_file'),
         FormulaFieldType.arrayOf('boolean')
       ),
@@ -2786,6 +2803,7 @@ export class NotEmptyViewFilterType extends ViewFilterType {
         'date',
         'number',
         'url',
+        'single_select',
         FormulaFieldType.arrayOf('single_file'),
         FormulaFieldType.arrayOf('boolean')
       ),

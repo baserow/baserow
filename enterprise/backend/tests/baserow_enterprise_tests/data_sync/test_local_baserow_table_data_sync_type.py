@@ -389,6 +389,7 @@ def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_f
         "last_modified_datetime_eu_tzone": "02/01/2021 13:00",
         "autonumber": "1",
         "ai": "",
+        "ai_choice": "",
         "uuid": "00000000-0000-4000-8000-000000000001",
     }
     assert results == {
@@ -432,6 +433,7 @@ def test_sync_data_sync_table_with_interesting_table_as_source(enterprise_data_f
         "last_modified_datetime_eu_tzone": "02/01/2021 13:00",
         "autonumber": "2",
         "ai": "I'm an AI.",
+        "ai_choice": "Object",
         "uuid": "00000000-0000-4000-8000-000000000002",
     }
 

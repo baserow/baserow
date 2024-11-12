@@ -1,5 +1,4 @@
 const FF_ENABLE_ALL = '*'
-export const FF_EXPORT_WORKSPACE = 'export_workspace'
 export const FF_DASHBOARDS = 'dashboards'
 
 /**

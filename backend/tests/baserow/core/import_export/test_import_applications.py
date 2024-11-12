@@ -25,7 +25,7 @@ def test_import_with_missing_files(data_fixture, use_tmp_media_root, tmp_path):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace()
 
-    data_fixture.create_import_export_trusted_source(user=user)
+    data_fixture.create_import_export_trusted_source()
 
     zip_name = "interesting_database_export_missing_files.zip"
     resource = data_fixture.create_import_export_resource(
@@ -63,7 +63,7 @@ def test_import_with_modified_files(data_fixture, use_tmp_media_root, tmp_path):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace()
 
-    data_fixture.create_import_export_trusted_source(user=user)
+    data_fixture.create_import_export_trusted_source()
 
     zip_name = "interesting_database_export_modified_files.zip"
     resource = data_fixture.create_import_export_resource(
@@ -102,7 +102,7 @@ def test_import_with_unexpected_files(data_fixture, use_tmp_media_root, tmp_path
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace()
 
-    data_fixture.create_import_export_trusted_source(user=user)
+    data_fixture.create_import_export_trusted_source()
 
     zip_name = "interesting_database_export_unexpected_files.zip"
     resource = data_fixture.create_import_export_resource(

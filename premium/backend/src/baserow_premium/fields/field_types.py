@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError, models
-from django.db.models import Value
+from django.db import IntegrityError
+from django.utils.functional import lazy
 
 from baserow_premium.api.fields.exceptions import (
     ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
@@ -15,15 +15,13 @@ from baserow.api.generative_ai.errors import (
     ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
 )
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
-from baserow.contrib.database.fields.field_filters import (
-    contains_filter,
-    contains_word_filter,
+from baserow.contrib.database.fields.field_types import (
+    CollationSortMixin,
+    SelectOptionBaseFieldType,
 )
-from baserow.contrib.database.fields.field_types import CollationSortMixin, TextField
 from baserow.contrib.database.fields.models import Field
-from baserow.contrib.database.fields.registries import FieldType
-from baserow.contrib.database.formula import BaserowFormulaTextType, BaserowFormulaType
-from baserow.core.db import collate_expression
+from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.formula import BaserowFormulaType
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
@@ -35,6 +33,7 @@ from baserow.core.generative_ai.registries import (
 )
 
 from .models import AIField
+from .registries import ai_field_output_registry
 from .visitors import replace_field_id_references
 
 User = get_user_model()
@@ -43,7 +42,7 @@ if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel
 
 
-class AIFieldType(CollationSortMixin, FieldType):
+class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     """
     The AI field can automatically query a generative AI model based on the provided
     prompt. It's possible to reference other fields to generate a unique output.
@@ -53,21 +52,29 @@ class AIFieldType(CollationSortMixin, FieldType):
     model_class = AIField
     can_be_in_form_view = False
     keep_data_on_duplication = True
-    allowed_fields = [
+    allowed_fields = SelectOptionBaseFieldType.allowed_fields + [
         "ai_generative_ai_type",
         "ai_generative_ai_model",
+        "ai_output_type",
         "ai_temperature",
         "ai_prompt",
         "ai_file_field_id",
     ]
-    serializer_field_names = [
+    serializer_field_names = SelectOptionBaseFieldType.allowed_fields + [
         "ai_generative_ai_type",
         "ai_generative_ai_model",
+        "ai_output_type",
         "ai_temperature",
         "ai_prompt",
         "ai_file_field_id",
     ]
     serializer_field_overrides = {
+        "ai_output_type": serializers.ChoiceField(
+            required=False,
+            choices=lazy(ai_field_output_registry.get_types, list)(),
+            help_text="The desired output type of the field. It will try to force the "
+            "response of the prompt to match it.",
+        ),
         "ai_temperature": serializers.FloatField(
             required=False,
             allow_null=True,
@@ -89,6 +96,7 @@ class AIFieldType(CollationSortMixin, FieldType):
             allow_null=True,
             default=None,
         ),
+        **SelectOptionBaseFieldType.serializer_field_overrides,
     }
     api_exceptions_map = {
         GenerativeAITypeDoesNotExist: ERROR_GENERATIVE_AI_DOES_NOT_EXIST,
@@ -96,52 +104,173 @@ class AIFieldType(CollationSortMixin, FieldType):
         GenerativeAITypeDoesNotSupportFileField: ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
         IntegrityError: ERROR_FIELD_DOES_NOT_EXIST,
     }
-    can_get_unique_values = False
+    can_get_unique_values = True
+    can_have_select_options = True
+
+    def get_baserow_field_type(self, instance):
+        output_type = ai_field_output_registry.get(instance.ai_output_type)
+        baserow_field_type = field_type_registry.get_by_type(
+            output_type.baserow_field_type
+        )
+        return baserow_field_type
 
     def get_serializer_field(self, instance, **kwargs):
-        required = kwargs.get("required", False)
-        return serializers.CharField(
-            **{
-                "required": required,
-                "allow_null": not required,
-                "allow_blank": not required,
-                **kwargs,
-            }
-        )
+        kwargs["read_only"] = True
+        baserow_field_type = self.get_baserow_field_type(instance)
+        return baserow_field_type.get_serializer_field(instance, **kwargs)
+
+    def get_response_serializer_field(self, instance, **kwargs):
+        baserow_field_type = self.get_baserow_field_type(instance)
+        return baserow_field_type.get_response_serializer_field(instance, **kwargs)
 
     def get_model_field(self, instance, **kwargs):
-        return models.TextField(null=True, **kwargs)
+        baserow_field_type = self.get_baserow_field_type(instance)
+        return baserow_field_type.get_model_field(instance, **kwargs)
 
     def get_serializer_help_text(self, instance):
         return (
-            "Holds a text value that is generated by a generative AI model using a "
+            "Holds a value that is generated by a generative AI model using a "
             "dynamic prompt."
         )
 
     def random_value(self, instance, fake, cache):
-        return fake.name()
+        baserow_field_type = self.get_baserow_field_type(instance)
+        return baserow_field_type.random_value(instance, fake, cache)
 
     def to_baserow_formula_type(self, field) -> BaserowFormulaType:
-        return BaserowFormulaTextType(nullable=True)
-
-    def from_baserow_formula_type(
-        self, formula_type: BaserowFormulaTextType
-    ) -> TextField:
-        return TextField()
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.to_baserow_formula_type(field)
 
     def get_value_for_filter(self, row: "GeneratedTableModel", field: Field) -> any:
-        value = getattr(row, field.db_column)
-        return collate_expression(Value(value))
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.get_value_for_filter(row, field)
 
-    def contains_query(self, *args):
-        return contains_filter(*args)
+    def get_alter_column_prepare_old_value(self, connection, from_field, to_field):
+        baserow_field_type = self.get_baserow_field_type(from_field)
+        return baserow_field_type.get_alter_column_prepare_old_value(
+            connection, from_field, to_field
+        )
 
-    def contains_word_query(self, *args):
-        return contains_word_filter(*args)
+    def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
+        baserow_field_type = self.get_baserow_field_type(to_field)
+        return baserow_field_type.get_alter_column_prepare_new_value(
+            connection, from_field, to_field
+        )
+
+    def contains_query(self, field_name, value, model_field, field):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.contains_query(field_name, value, model_field, field)
+
+    def contains_word_query(self, field_name, value, model_field, field):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.contains_word_query(
+            field_name, value, model_field, field
+        )
+
+    def check_can_order_by(self, field: Field) -> bool:
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.check_can_order_by(field)
+
+    def check_can_group_by(self, field: Field) -> bool:
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.check_can_group_by(field)
+
+    def get_search_expression(self, field: Field, queryset):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.get_search_expression(field, queryset)
+
+    def is_searchable(self, field):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.is_searchable(field)
+
+    def enhance_queryset(self, queryset, field, name, **kwargs):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.enhance_queryset(queryset, field, name)
+
+    def get_order(self, field, field_name, order_direction):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.get_order(field, field_name, order_direction)
+
+    def serialize_to_input_value(self, field, value):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.serialize_to_input_value(field, value)
+
+    def valid_for_bulk_update(self, field):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.valid_for_bulk_update(field)
+
+    def prepare_value_for_db(self, instance, value):
+        baserow_field_type = self.get_baserow_field_type(instance)
+        return baserow_field_type.prepare_value_for_db(instance, value)
+
+    def prepare_value_for_db_in_bulk(
+        self, instance, values_by_row, continue_on_error=False
+    ):
+        baserow_field_type = self.get_baserow_field_type(instance)
+        return baserow_field_type.prepare_value_for_db_in_bulk(
+            instance, values_by_row, continue_on_error
+        )
+
+    def get_group_by_serializer_field(self, field, **kwargs):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.get_group_by_serializer_field(field, **kwargs)
+
+    def get_group_by_field_unique_value(self, field, field_name, value):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.get_group_by_field_unique_value(
+            field, field_name, value
+        )
+
+    def get_group_by_field_filters_and_annotations(
+        self, field, field_name, base_queryset, value
+    ):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.get_group_by_field_filters_and_annotations(
+            field, field_name, base_queryset, value
+        )
+
+    def get_export_serialized_value(
+        self,
+        row,
+        field_name,
+        cache,
+        files_zip=None,
+        storage=None,
+    ):
+        field_object = row.get_field_object(field_name)
+        baserow_field_type = self.get_baserow_field_type(field_object["field"])
+        return baserow_field_type.get_export_serialized_value(
+            row, field_name, cache, files_zip, storage
+        )
+
+    def set_import_serialized_value(
+        self,
+        row,
+        field_name,
+        value,
+        id_mapping,
+        cache,
+        files_zip=None,
+        storage=None,
+    ):
+        field_object = row.get_field_object(field_name)
+        baserow_field_type = self.get_baserow_field_type(field_object["field"])
+        return baserow_field_type.set_import_serialized_value(
+            row, field_name, value, id_mapping, cache, files_zip, storage
+        )
+
+    def get_export_value(self, value, field_object, rich_value=False):
+        baserow_field_type = self.get_baserow_field_type(field_object["field"])
+        return baserow_field_type.get_export_value(value, field_object, rich_value)
+
+    def get_human_readable_value(self, value, field_object):
+        baserow_field_type = self.get_baserow_field_type(field_object["field"])
+        return baserow_field_type.get_human_readable_value(value, field_object)
 
     def _validate_field_kwargs(
-        self, ai_type, model_type, ai_file_field_id, workspace=None
+        self, ai_output_type, ai_type, model_type, ai_file_field_id, workspace=None
     ):
+        ai_field_output_registry.get(ai_output_type)
         ai_type = generative_ai_model_type_registry.get(ai_type)
         models = ai_type.get_enabled_models(workspace=workspace)
         if model_type not in models:
@@ -154,12 +283,19 @@ class AIFieldType(CollationSortMixin, FieldType):
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
+        ai_output_type = field_kwargs.get(
+            "ai_output_type", AIField._meta.get_field("ai_output_type").default
+        )
         ai_type = field_kwargs.get("ai_generative_ai_type", None)
         model_type = field_kwargs.get("ai_generative_ai_model", None)
         ai_file_field_id = field_kwargs.get("ai_file_field_id", None)
         workspace = table.database.workspace
         self._validate_field_kwargs(
-            ai_type, model_type, ai_file_field_id, workspace=workspace
+            ai_output_type, ai_type, model_type, ai_file_field_id, workspace=workspace
+        )
+
+        return super().before_create(
+            table, primary, allowed_field_values, order, user, field_kwargs
         )
 
     def before_update(self, from_field, to_field_values, user, field_kwargs):
@@ -167,6 +303,11 @@ class AIFieldType(CollationSortMixin, FieldType):
         if isinstance(from_field, AIField):
             update_field = from_field
 
+        ai_output_type = (
+            field_kwargs.get("ai_output_type", None)
+            or getattr(update_field, "ai_output_type", None)
+            or AIField._meta.get_field("ai_output_type").default
+        )
         ai_type = field_kwargs.get("ai_generative_ai_type", None) or getattr(
             update_field, "ai_generative_ai_type", None
         )
@@ -179,8 +320,10 @@ class AIFieldType(CollationSortMixin, FieldType):
             ai_file_field_id = getattr(update_field, "ai_file_field_id", None)
         workspace = from_field.table.database.workspace
         self._validate_field_kwargs(
-            ai_type, model_type, ai_file_field_id, workspace=workspace
+            ai_output_type, ai_type, model_type, ai_file_field_id, workspace=workspace
         )
+
+        return super().before_update(from_field, to_field_values, user, field_kwargs)
 
     def after_import_serialized(
         self,
@@ -209,3 +352,17 @@ class AIFieldType(CollationSortMixin, FieldType):
 
         if save:
             field.save()
+
+    def should_backup_field_data_for_same_type_update(
+        self, old_field, new_field_attrs
+    ) -> bool:
+        backup = super().should_backup_field_data_for_same_type_update(
+            old_field, new_field_attrs
+        )
+        # Backup the field if the output type changes because
+        ai_output_changed = (
+            "ai_output_type" in new_field_attrs
+            and new_field_attrs["ai_output_type"]
+            and new_field_attrs["ai_output_type"] != old_field.ai_output_type
+        )
+        return backup or ai_output_changed

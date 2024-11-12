@@ -24,7 +24,7 @@ class ImportExportWorkspaceFixtures:
         ) as file_handler:
             file_handler.write(content)
 
-    def create_import_export_trusted_source(self, user):
+    def create_import_export_trusted_source(self):
         return ImportExportTrustedSource.objects.create(
             name="Test trusted source",
             private_key=TEST_IMPORT_EXPORT_PRIVATE_KEY,

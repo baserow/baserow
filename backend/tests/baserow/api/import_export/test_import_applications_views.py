@@ -1,7 +1,6 @@
 import os
 
 from django.conf import settings
-from django.test.utils import override_settings
 from django.urls import reverse
 
 import pytest
@@ -9,33 +8,8 @@ from rest_framework.status import (
     HTTP_200_OK,
     HTTP_202_ACCEPTED,
     HTTP_400_BAD_REQUEST,
-    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db
-@override_settings(
-    FEATURE_FLAGS="",
-)
-def test_import_applications_with_feature_flag_disabled(
-    data_fixture, api_client, tmpdir
-):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:import_workspace_async",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        data={"resource_id": 1},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
 @pytest.mark.import_export_workspace
@@ -117,7 +91,7 @@ def test_import_applications(data_fixture, api_client, tmpdir, use_tmp_media_roo
         settings.BASE_DIR, "../../../tests/baserow/api/import_export/sources"
     )
 
-    data_fixture.create_import_export_trusted_source(user=user)
+    data_fixture.create_import_export_trusted_source()
 
     resource = data_fixture.create_import_export_resource(
         created_by=user, original_name="interesting_database.zip", is_valid=True

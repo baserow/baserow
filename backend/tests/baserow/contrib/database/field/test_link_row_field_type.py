@@ -303,7 +303,9 @@ def test_link_row_field_type_with_text_values(data_fixture):
     for field_type in [
         f
         for f in field_type_registry.get_all()
-        if f.can_get_unique_values and not f.read_only
+        # The AI field is not compatible because it some field kwargs are required and
+        # not passed in.
+        if f.can_get_unique_values and not f.read_only and f.type != "ai"
     ]:
         field_type_name = field_type.type
         field_name = f"Field {field_type_name}"

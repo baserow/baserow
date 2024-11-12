@@ -52,7 +52,6 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
     WorkspaceUserIsLastAdmin,
 )
-from baserow.core.feature_flags import FF_EXPORT_WORKSPACE, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
     ImportExportResourceDoesNotExist,
@@ -516,8 +515,6 @@ class ListExportWorkspaceApplicationsView(APIView):
         Lists all available exports created for a given workspace.
         """
 
-        feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
-
         exports = ImportExportHandler().list_exports(request.user, workspace_id)
         return Response(
             ListExportWorkspaceApplicationsSerializer({"results": exports}).data
@@ -584,8 +581,6 @@ class AsyncExportWorkspaceApplicationsView(APIView):
         the workspace are exported.
         """
 
-        feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
-
         job = JobHandler().create_and_start_job(
             request.user,
             ExportApplicationsJobType.type,
@@ -645,8 +640,6 @@ class ImportExportResourceUploadFileView(APIView):
         }
     )
     def post(self, request, workspace_id: int) -> Response:
-        feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
-
         handler = ImportExportHandler()
         handler.get_workspace_or_raise(user=request.user, workspace_id=workspace_id)
 
@@ -692,8 +685,6 @@ class ImportExportResourceView(APIView):
         }
     )
     def delete(self, request, workspace_id, resource_id: str) -> Response:
-        feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
-
         handler = ImportExportHandler()
         handler.get_workspace_or_raise(user=request.user, workspace_id=workspace_id)
 
@@ -749,8 +740,6 @@ class AsyncImportApplicationsView(APIView):
         ImportApplicationsJobType().request_serializer_class, return_validated=True
     )
     def post(self, request, data: Dict, workspace_id: int) -> Response:
-        feature_flag_is_enabled(FF_EXPORT_WORKSPACE, raise_if_disabled=True)
-
         job = JobHandler().create_and_start_job(
             request.user,
             ImportApplicationsJobType.type,

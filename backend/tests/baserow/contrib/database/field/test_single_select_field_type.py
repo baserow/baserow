@@ -1,6 +1,9 @@
 import os
+from dataclasses import Field, dataclass
 from io import BytesIO
+from typing import Dict, List, Type
 
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.shortcuts import reverse
@@ -8,6 +11,7 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 from faker import Faker
+from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.api.rows.serializers import (
@@ -20,7 +24,10 @@ from baserow.contrib.database.fields.models import SelectOption, SingleSelectFie
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils import DeferredForeignKeyUpdater
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import GridView
+from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import AnyInt
@@ -1328,3 +1335,456 @@ def test_single_select_field_type_get_order_collate(data_fixture):
         result += getattr(char, f"field_{single_select_field.id}").value
 
     assert result == sorted_chars
+
+
+@dataclass
+class ViewWithFieldsSetup:
+    user: AbstractUser
+    table: Table
+    grid_view: GridView
+    fields: Dict[str, Field]
+    model: Type[GeneratedTableModel]
+    rows: List[Type[GeneratedTableModel]]
+    options: List[SelectOption]
+
+
+def setup_view_for_single_select_field(data_fixture, option_values):
+    """
+    Setup a view with a single select field and some options. `field_name` must be one
+    of the following: "single_select", "ref_single_select", "ref_ref_single_select".
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    single_select_field = data_fixture.create_single_select_field(
+        table=table, name="single_select"
+    )
+    formula_field = data_fixture.create_formula_field(
+        table=table, formula="field('single_select')", name="ref_single_select"
+    )
+    ref_formula_field = data_fixture.create_formula_field(
+        table=table, formula="field('ref_single_select')", name="ref_ref_single_select"
+    )
+
+    options = [
+        data_fixture.create_select_option(field=single_select_field, value=value)
+        if value
+        else None
+        for value in option_values
+    ]
+
+    model = table.get_model()
+
+    def prep_row(option):
+        return {single_select_field.db_column: option.id if option else None}
+
+    rows = RowHandler().force_create_rows(
+        user, table, [prep_row(option) for option in options], model=model
+    )
+
+    fields = {
+        "single_select": single_select_field,
+        "ref_single_select": formula_field,
+        "ref_ref_single_select": ref_formula_field,
+    }
+
+    return ViewWithFieldsSetup(
+        user=user,
+        table=table,
+        grid_view=grid_view,
+        fields=fields,
+        model=model,
+        rows=rows,
+        options=options,
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
+)
+def test_single_select_equal_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_single_select_field(data_fixture, ["A", "B", None])
+    handler = ViewHandler()
+
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    option_a, option_b, _ = test_setup.options
+    row_1, row_2, _ = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="single_select_equal", value=""
+    )
+    ids = [
+        r.id
+        for r in handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 3
+
+    view_filter.value = str(option_a.id)
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_1.id in ids
+
+    view_filter.value = str(option_b.id)
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_2.id in ids
+
+    view_filter.value = "-1"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 0
+
+    view_filter.value = "Test"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+
+
+@pytest.mark.django_db
+def test_single_select_equal_filter_type_export_import():
+    view_filter_type = view_filter_type_registry.get("single_select_equal")
+    id_mapping = {"database_field_select_options": {1: 2}}
+    assert view_filter_type.get_export_serialized_value("1", {}) == "1"
+    assert view_filter_type.set_import_serialized_value("1", id_mapping) == "2"
+    assert view_filter_type.set_import_serialized_value("", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("wrong", id_mapping) == ""
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
+)
+def test_single_select_not_equal_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_single_select_field(data_fixture, ["A", "B", None])
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    option_a, option_b, _ = test_setup.options
+    row_1, row_2, row_3 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="single_select_not_equal", value=""
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+
+    view_filter.value = str(option_a.id)
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_2.id in ids
+    assert row_3.id in ids
+
+    view_filter.value = str(option_b.id)
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_3.id in ids
+
+    view_filter.value = "-1"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+
+    view_filter.value = "Test"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
+)
+def test_single_select_is_empty_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_single_select_field(
+        data_fixture,
+        ["A", "B", None],
+    )
+
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="empty"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_3.id in ids
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
+)
+def test_single_select_is_not_empty_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_single_select_field(data_fixture, ["A", "B", None])
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="not_empty"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
+)
+def test_single_select_contains_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_single_select_field(
+        data_fixture, ["A", "AA", "B", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3, _ = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="contains", value="A"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+
+    view_filter.value = "AA"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_2.id in ids
+
+    view_filter.value = "B"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_3.id in ids
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
+)
+def test_single_select_contains_not_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_single_select_field(
+        data_fixture, ["A", "AA", "B", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3, row_4 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="contains_not", value="A"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_3.id in ids
+    assert row_4.id in ids
+
+    view_filter.value = "AA"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert ids == unordered([row_1.id, row_3.id, row_4.id])
+
+    view_filter.value = "B"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+    assert ids == unordered([row_1.id, row_2.id, row_4.id])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
+)
+def test_single_select_contains_word_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_single_select_field(
+        data_fixture, ["A", "AA", "B", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3, row_4 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="contains_word", value="A"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_1.id in ids
+
+    view_filter.value = "AA"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_2.id in ids
+
+    view_filter.value = "B"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_3.id in ids
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
+)
+def test_single_select_doest_contains_word_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_single_select_field(
+        data_fixture, ["A", "AA", "B", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3, row_4 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="doesnt_contain_word", value="A"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+    assert ids == unordered([row_2.id, row_3.id, row_4.id])
+
+    view_filter.value = "AA"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+    assert ids == unordered([row_1.id, row_3.id, row_4.id])
+
+    view_filter.value = "B"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+    assert ids == unordered([row_1.id, row_2.id, row_4.id])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
+)
+def test_single_select_is_any_of_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_single_select_field(
+        data_fixture, ["AAA", "AAB", "ABB", "BBB", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    field = test_setup.fields[field_name]
+    rows = test_setup.rows
+    (option_1, option_2, option_3, option_4, _) = test_setup.options
+    options = (option_1, option_2, option_3, option_4)
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view,
+        field=field,
+        type="single_select_is_any_of",
+        value=f"{option_1.id},{option_2.id}",
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # only two last (ABB, BBB) are selected
+    assert len(ids) == 2
+    # first two rows only
+    assert set([r.id for r in rows[:2]]) == set(ids)
+
+    # no match values
+    view_filter.value = ""
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # all rows are visible because the value is empty.
+    assert len(ids) == 5
+
+    # no match values
+    view_filter.value = "12345678,12345679,12345680"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # all rows are filtered out
+    assert ids == []
+
+    # no match values
+    view_filter.value = "true,false"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # all rows are filtered out
+    assert len(ids) == 0
+
+    view_filter.value = ",".join([str(o.id) for o in options])
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # all the rows with an option are selected
+    assert len(ids) == 4
+    assert set(ids) == set([o.id for o in rows[:4]])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["single_select", "ref_single_select", "ref_ref_single_select"]
+)
+def test_single_select_is_none_of_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_single_select_field(
+        data_fixture, ["AAA", "AAB", "ABB", "BBB", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    field = test_setup.fields[field_name]
+    rows = test_setup.rows
+    (option_1, option_2, option_3, option_4, _) = test_setup.options
+    options = (option_1, option_2, option_3, option_4)
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view,
+        field=field,
+        type="single_select_is_none_of",
+        value=f"{option_1.id},{option_2.id}",
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # only two last (ABB, BBB) are selected
+    assert len(ids) == 3
+    assert set([rows[2].id, rows[3].id, rows[4].id]) == set(ids)
+
+    # no match values
+    view_filter.value = ""
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # all rows are visible because the value is empty.
+    assert len(ids) == 5
+
+    # no match values
+    view_filter.value = "12345678,12345679,12345680"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # all options are selected
+    assert len(ids) == 5
+    assert set(ids) == set([o.id for o in rows])
+
+    view_filter.value = ",".join([str(o.id) for o in options])
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # only the empty row is selected
+    assert ids == [rows[4].id]

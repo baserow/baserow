@@ -2019,10 +2019,38 @@ describe('All Tests', () => {
   )
 
   test.each(singleSelectValuesInFilterCases)(
+    'SingleSelectIsAnyOfViewFilterType',
+    (values) => {
+      const fieldType = new FormulaFieldType()
+      const field = {
+        formula_type: 'single_select',
+      }
+      const result = new SingleSelectIsAnyOfViewFilterType({
+        app: testApp._app,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(values.is_any_of)
+    }
+  )
+
+  test.each(singleSelectValuesInFilterCases)(
     'SingleSelectIsNoneOfViewFilterType',
     (values) => {
       const fieldType = new SingleSelectFieldType()
       const field = {}
+      const result = new SingleSelectIsNoneOfViewFilterType({
+        app: testApp._app,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(values.is_none_of)
+    }
+  )
+
+  test.each(singleSelectValuesInFilterCases)(
+    'SingleSelectIsNoneOfViewFilterType',
+    (values) => {
+      const fieldType = new FormulaFieldType()
+      const field = {
+        formula_type: 'single_select',
+      }
       const result = new SingleSelectIsNoneOfViewFilterType({
         app: testApp._app,
       }).matches(values.rowValue, values.filterValue, field, fieldType)

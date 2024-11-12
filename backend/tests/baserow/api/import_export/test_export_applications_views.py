@@ -1,7 +1,6 @@
 import json
 import zipfile
 
-from django.test.utils import override_settings
 from django.urls import reverse
 
 import pytest
@@ -10,37 +9,11 @@ from rest_framework.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
-    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
 
 from baserow.core.import_export.handler import EXPORT_FORMAT_VERSION, MANIFEST_NAME
 from baserow.version import VERSION
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db
-@override_settings(
-    FEATURE_FLAGS="",
-)
-def test_exporting_workspace_with_feature_flag_disabled(
-    data_fixture, api_client, tmpdir
-):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-    data_fixture.create_database_application(workspace=workspace)
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:export_workspace_async",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        data={},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
 @pytest.mark.import_export_workspace
@@ -277,29 +250,6 @@ def test_exporting_workspace_with_single_empty_database(
             assert exported_database["files"]["data"]["checksum"] is not None
             assert exported_database["files"]["media"]["file"] is not None
             assert exported_database["files"]["media"]["checksum"] is not None
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db
-@override_settings(
-    FEATURE_FLAGS="",
-)
-def test_list_exports_with_feature_flag_disabled(data_fixture, api_client, tmpdir):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-    data_fixture.create_database_application(workspace=workspace)
-
-    response = api_client.get(
-        reverse(
-            "api:workspaces:export_workspace_list",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        data={},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
 @pytest.mark.import_export_workspace

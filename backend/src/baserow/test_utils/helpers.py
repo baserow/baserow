@@ -250,6 +250,9 @@ def setup_interesting_test_table(
         "phone_number": "+4412345678",
         "password": "test",
         "ai": "I'm an AI.",
+        "ai_choice": SelectOption.objects.get(
+            value="Object", field_id=name_to_field_id["ai_choice"]
+        ).id,
     }
 
     with freeze_time("2020-02-01 01:23"):
