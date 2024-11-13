@@ -43,6 +43,7 @@ def test_local_baserow_aggregate_rows_service_generate_schema(data_fixture):
         },
     }
     assert service_type.generate_schema(Mock(field=None)) is None
+    assert service_type.generate_schema(Mock(aggregation_type="")) is None
 
 
 def test_local_baserow_aggregate_rows_resolve_service_formulas():

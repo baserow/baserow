@@ -81,7 +81,7 @@
           @click="openImportWorkspaceModal()"
         >
           <span class="context__menu-item-title">
-            <i class="context__menu-item-icon iconoir-page"></i>
+            <i class="context__menu-item-icon iconoir-import"></i>
             {{ $t('createApplicationContext.importWorkspace') }}</span
           >
           <div

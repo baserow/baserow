@@ -1109,10 +1109,11 @@ class LocalBaserowAggregateRowsUserServiceType(
         a schema based on the service's aggregation type.
 
         :param service: A `LocalBaserowAggregateRows` instance.
-        :return: A schema dictionary, or None if no `Field` has been applied.
+        :return: A schema dictionary, or None if no `field` or `aggregation_type`
+            have been applied.
         """
 
-        if not service.field:
+        if not service.field or not service.aggregation_type:
             return None
 
         # Pluck out the aggregation type which this service uses. We'll use its
