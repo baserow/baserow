@@ -4,6 +4,20 @@ import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 import { ViewFilterType } from '@baserow/modules/database/viewFilters'
 import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
+import _ from 'lodash'
+
+/**
+ * This function normalizes boolean values that may be used internally in the filter
+ * to values that can be transferred to the backend.
+ * @param value
+ * @returns {string|*}
+ */
+const normalizeBooleanForFilters = (value) => {
+  if (!_.isBoolean(value)) {
+    return value
+  }
+  return value ? '1' : '0'
+}
 
 export class HasEmptyValueViewFilterType extends ViewFilterType {
   static getType() {
@@ -76,7 +90,7 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
 
   prepareValue(value, field) {
     const fieldType = this.app.$registry.get('field', field.type)
-    return fieldType.parseInputValue(field, value).toString()
+    return normalizeBooleanForFilters(fieldType.parseInputValue(field, value))
   }
 
   getInputComponent(field) {
@@ -120,7 +134,7 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
 
   prepareValue(value, field) {
     const fieldType = this.app.$registry.get('field', field.type)
-    return fieldType.parseInputValue(field, value).toString()
+    return normalizeBooleanForFilters(fieldType.parseInputValue(field, value))
   }
 
   getInputComponent(field) {

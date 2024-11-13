@@ -472,13 +472,12 @@ class BaserowFormulaBooleanType(
     ):
         return expr
 
-    def _get_prep_value(self, value):
+    def _get_prep_value(self, value: str):
         from baserow.contrib.database.fields.registries import field_type_registry
 
         baserow_field_type = field_type_registry.get(self.baserow_field_type)
         # boolean field type doesn't expect instance value
         field_instance = baserow_field_type.get_model_field(None)
-
         try:
             # get_prep_value can return None
             return field_instance.get_prep_value(value) or False
