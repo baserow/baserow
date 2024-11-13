@@ -1,51 +1,50 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import moment from '@baserow/modules/core/moment'
 import {
-  MultipleSelectHasFilterType,
-  MultipleSelectHasNotFilterType,
-  HasFileTypeViewFilterType,
+  DateAfterDaysAgoViewFilterType,
+  DateAfterOrEqualViewFilterType,
+  DateAfterTodayViewFilterType,
+  DateAfterViewFilterType,
+  DateBeforeOrEqualViewFilterType,
+  DateBeforeTodayViewFilterType,
+  DateBeforeViewFilterType,
+  DateEqualsCurrentMonthViewFilterType,
+  DateEqualsCurrentWeekViewFilterType,
+  DateEqualsCurrentYearViewFilterType,
+  DateEqualsDaysAgoViewFilterType,
+  DateEqualsTodayViewFilterType,
+  DateEqualsYearsAgoViewFilterType,
+  DateEqualViewFilterType,
+  DateIsAfterMultiStepViewFilterType,
+  DateIsBeforeMultiStepViewFilterType,
+  DateIsEqualMultiStepViewFilterType,
+  DateIsNotEqualMultiStepViewFilterType,
+  DateIsOnOrAfterMultiStepViewFilterType,
+  DateIsOnOrBeforeMultiStepViewFilterType,
+  DateIsWithinMultiStepViewFilterType,
+  DateNotEqualViewFilterType,
+  DateWithinDaysViewFilterType,
+  DateWithinMonthsViewFilterType,
+  DateWithinWeeksViewFilterType,
   FilesLowerThanViewFilterType,
+  HasFileTypeViewFilterType,
+  HigherThanOrEqualViewFilterType,
+  HigherThanViewFilterType,
+  IsEvenAndWholeViewFilterType,
   LengthIsLowerThanViewFilterType,
   LinkRowContainsFilterType,
   LinkRowNotContainsFilterType,
-  IsEvenAndWholeViewFilterType,
-  HigherThanViewFilterType,
-  HigherThanOrEqualViewFilterType,
-  LowerThanViewFilterType,
   LowerThanOrEqualViewFilterType,
+  LowerThanViewFilterType,
+  MultipleSelectHasFilterType,
+  MultipleSelectHasNotFilterType,
   SingleSelectIsAnyOfViewFilterType,
   SingleSelectIsNoneOfViewFilterType,
-  DateIsBeforeMultiStepViewFilterType,
-  DateIsAfterMultiStepViewFilterType,
-  DateIsOnOrAfterMultiStepViewFilterType,
-  DateIsOnOrBeforeMultiStepViewFilterType,
-  DateIsEqualMultiStepViewFilterType,
-  DateIsNotEqualMultiStepViewFilterType,
-  DateIsWithinMultiStepViewFilterType,
-  // DEPRECATED
-  DateEqualsCurrentWeekViewFilterType,
-  DateEqualsCurrentMonthViewFilterType,
-  DateEqualsCurrentYearViewFilterType,
-  DateBeforeOrEqualViewFilterType,
-  DateBeforeViewFilterType,
-  DateBeforeTodayViewFilterType,
-  DateAfterDaysAgoViewFilterType,
-  DateAfterViewFilterType,
-  DateAfterOrEqualViewFilterType,
-  DateAfterTodayViewFilterType,
-  DateEqualViewFilterType,
-  DateNotEqualViewFilterType,
-  DateEqualsTodayViewFilterType,
-  DateWithinDaysViewFilterType,
-  DateWithinWeeksViewFilterType,
-  DateWithinMonthsViewFilterType,
-  DateEqualsDaysAgoViewFilterType,
-  DateEqualsYearsAgoViewFilterType,
 } from '@baserow/modules/database/viewFilters'
 import {
   DurationFieldType,
-  NumberFieldType,
   FormulaFieldType,
+  NumberFieldType,
   SingleSelectFieldType,
 } from '@baserow/modules/database/fieldTypes'
 
@@ -1359,13 +1358,126 @@ const numberValueIsLowerThanOrEqualCases = [
   },
 ]
 
+const formulaUrlFieldEmptyCases = [
+  { filterType: 'empty', filterValue: null, expectedResult: false },
+  {
+    filterType: 'empty',
+    rowValue: '',
+    filterValue: null,
+    expectedResult: true,
+  },
+]
+
+const formulaUrlFieldNotEmptyCases = [
+  { filterType: 'not_empty', filterValue: null, expectedResult: true },
+  {
+    filterType: 'not_empty',
+    rowValue: '',
+    filterValue: null,
+    expectedResult: false,
+  },
+]
+
+const formulaUrlFieldFilterEqualCases = [
+  {
+    filterType: 'equal',
+    filterValue: 'http://example.com/foo/bar',
+    expectedResult: true,
+  },
+  {
+    filterType: 'equal',
+    filterValue: 'http://example.com/foobar',
+    expectedResult: false,
+  },
+]
+
+const formulaUrlFieldFilterContainsCases = [
+  {
+    filterType: 'contains',
+    filterValue: 'foobar',
+    expectedResult: false,
+  },
+  {
+    filterType: 'contains',
+    filterValue: 'foo/bar',
+    expectedResult: true,
+  },
+]
+
+const formulaUrlFieldFilterContainsWordCases = [
+  {
+    filterType: 'contains_word',
+    filterValue: 'foo',
+    expectedResult: true,
+  },
+  {
+    filterType: 'contains_word',
+    filterValue: 'foobar',
+    expectedResult: false,
+  },
+]
+const formulaUrlFieldFilterLengthIsLowerThanCases = [
+  {
+    filterType: 'length_is_lower_than',
+    filterValue: '3',
+    expectedResult: false,
+  },
+  {
+    filterType: 'length_is_lower_than',
+    filterValue: '30',
+    expectedResult: true,
+  },
+]
+const formulaUrlFieldFilterDoesntContainWordCases = [
+  {
+    filterType: 'doesnt_contain_word',
+    filterValue: 'foobar',
+    expectedResult: true,
+  },
+  {
+    filterType: 'doesnt_contain_word',
+    filterValue: 'foo',
+    expectedResult: false,
+  },
+  {
+    filterType: 'doesnt_contain_word',
+    filterValue: 'foo',
+    expectedResult: false,
+  },
+]
+
+const formulaUrlFieldFilterDoesNotContainCases = [
+  {
+    filterType: 'contains_not',
+    filterValue: 'foobar',
+    expectedResult: true,
+  },
+  {
+    filterType: 'contains_not',
+    filterValue: 'foo/bar',
+    expectedResult: false,
+  },
+]
+
+const formulaUrlFieldFilterNotEqualCases = [
+  {
+    filterType: 'not_equal',
+    filterValue: 'http://example.com/foo/bar',
+    expectedResult: false,
+  },
+  {
+    filterType: 'not_equal',
+    filterValue: 'http://example.com/foobar',
+    expectedResult: true,
+  },
+]
+
 describe('All Tests', () => {
   let testApp = null
 
   beforeAll(() => {
     testApp = new TestApp()
   })
-
   afterEach(() => {
     testApp.afterEach()
   })
@@ -1907,6 +2019,20 @@ describe('All Tests', () => {
   )
 
   test.each(singleSelectValuesInFilterCases)(
+    'SingleSelectIsAnyOfViewFilterType',
+    (values) => {
+      const fieldType = new FormulaFieldType()
+      const field = {
+        formula_type: 'single_select',
+      }
+      const result = new SingleSelectIsAnyOfViewFilterType({
+        app: testApp._app,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(values.is_any_of)
+    }
+  )
+
+  test.each(singleSelectValuesInFilterCases)(
     'SingleSelectIsNoneOfViewFilterType',
     (values) => {
       const fieldType = new SingleSelectFieldType()
@@ -1916,5 +2042,82 @@ describe('All Tests', () => {
       }).matches(values.rowValue, values.filterValue, field, fieldType)
       expect(result).toBe(values.is_none_of)
     }
+  )
+
+  test.each(singleSelectValuesInFilterCases)(
+    'SingleSelectIsNoneOfViewFilterType',
+    (values) => {
+      const fieldType = new FormulaFieldType()
+      const field = {
+        formula_type: 'single_select',
+      }
+      const result = new SingleSelectIsNoneOfViewFilterType({
+        app: testApp._app,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(values.is_none_of)
+    }
+  )
+
+  const runUrlFormulafieldTest = (values) => {
+    const filterClass = testApp._app.$registry.get(
+      'viewFilter',
+      values.filterType
+    )
+    const fieldType = new FormulaFieldType({ app: testApp._app })
+    const field = { formula_type: 'url', formula: '' }
+    const result = filterClass.matches(
+      values.rowValue !== undefined
+        ? values.rowValue
+        : 'http://example.com/foo/bar',
+      values.filterValue,
+      field,
+      fieldType
+    )
+    expect(result).toBe(values.expectedResult)
+  }
+
+  test.each(formulaUrlFieldEmptyCases)(
+    'formulaUrlFieldFilters empty values test case',
+    runUrlFormulafieldTest
+  )
+
+  test.each(formulaUrlFieldNotEmptyCases)(
+    'formulaUrlFieldFilters not empty values test case %j',
+    runUrlFormulafieldTest
+  )
+
+  test.each(formulaUrlFieldFilterEqualCases)(
+    'formulaUrlFieldFilters equal test case %j',
+    runUrlFormulafieldTest
+  )
+
+  test.each(formulaUrlFieldFilterNotEqualCases)(
+    'formulaUrlFieldFilters not equal test case %j',
+    runUrlFormulafieldTest
+  )
+
+  test.each(formulaUrlFieldFilterContainsCases)(
+    'formulaUrlFieldFilters contains test case %j',
+    runUrlFormulafieldTest
+  )
+
+  test.each(formulaUrlFieldFilterDoesNotContainCases)(
+    'formulaUrlFieldFilters contains test case %j',
+    runUrlFormulafieldTest
+  )
+
+  test.each(formulaUrlFieldFilterContainsWordCases)(
+    'formulaUrlFieldFilters contains word test case %j',
+    runUrlFormulafieldTest
+  )
+
+  test.each(formulaUrlFieldFilterDoesntContainWordCases)(
+    'formulaUrlFieldFilters does not contain word test case %j',
+    runUrlFormulafieldTest
+  )
+
+  test.each(formulaUrlFieldFilterLengthIsLowerThanCases)(
+    'formulaUrlFieldFilters lenght is lower than test case %j',
+    runUrlFormulafieldTest
   )
 })

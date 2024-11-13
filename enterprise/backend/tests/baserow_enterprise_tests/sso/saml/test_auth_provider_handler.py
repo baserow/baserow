@@ -7,29 +7,48 @@ from baserow_enterprise.sso.saml.handler import SamlAuthProviderHandler
 
 
 @pytest.mark.django_db()
+@pytest.mark.parametrize(
+    "email_attr_key,first_name_attr_key,last_name_attr_key",
+    [
+        ("user.email", "user.first_name", "user.last_name"),
+        ("user.email", "user.first_name", ""),
+        ("email", "name", "giveName"),
+        ("email", "name", ""),
+    ],
+)
 @override_settings(DEBUG=True)
-def test_get_user_info_from_authn_user_identity():
+def test_get_user_info_from_authn_user_identity(
+    email_attr_key, first_name_attr_key, last_name_attr_key, enterprise_data_fixture
+):
+    auth_provider = enterprise_data_fixture.create_saml_auth_provider(
+        domain="test1.com",
+        email_attr_key=email_attr_key,
+        first_name_attr_key=first_name_attr_key,
+        last_name_attr_key=last_name_attr_key,
+    )
     user_info = SamlAuthProviderHandler.get_user_info_from_authn_user_identity(
-        {"user.email": ["some@email.com"], "user.name": ["John"]}
+        auth_provider, {email_attr_key: ["some@email.com"], "user.name": ["John"]}
     )
     assert user_info.email == "some@email.com"
     assert user_info.name == "John"
 
     user_info = SamlAuthProviderHandler.get_user_info_from_authn_user_identity(
+        auth_provider,
         {
-            "user.email": ["some@email.com"],
-            "user.first_name": ["John"],
-        }
+            email_attr_key: ["some@email.com"],
+            first_name_attr_key: ["John"],
+        },
     )
     assert user_info.email == "some@email.com"
     assert user_info.name == "John"
 
     user_info = SamlAuthProviderHandler.get_user_info_from_authn_user_identity(
+        auth_provider,
         {
-            "user.email": ["some@email.com"],
-            "user.first_name": ["John"],
-            "user.last_name": ["Doe"],
-        }
+            email_attr_key: ["some@email.com"],
+            first_name_attr_key: ["John"],
+            last_name_attr_key: ["Doe"],
+        },
     )
     assert user_info.email == "some@email.com"
     assert user_info.name == "John Doe"
@@ -37,13 +56,14 @@ def test_get_user_info_from_authn_user_identity():
     assert user_info.workspace_invitation_token is None
 
     user_info = SamlAuthProviderHandler.get_user_info_from_authn_user_identity(
-        {"user.email": ["some@email.com"]}
+        auth_provider, {email_attr_key: ["some@email.com"]}
     )
     assert user_info.email == "some@email.com"
     assert user_info.name == "some@email.com"
 
     user_info = SamlAuthProviderHandler.get_user_info_from_authn_user_identity(
-        {"user.email": ["some@email.com"], "user.name": ["John Doe"]},
+        auth_provider,
+        {email_attr_key: ["some@email.com"], "user.name": ["John Doe"]},
         {"language": "it", "workspace_invitation_token": "1234"},
     )
     assert user_info.email == "some@email.com"

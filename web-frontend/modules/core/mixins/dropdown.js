@@ -225,7 +225,9 @@ export default {
               : [...items, ...traverse(child.$children)],
           []
         )
-      return traverse(this.$children)
+      const components = traverse(this.$children)
+      this.hasDropdownItem = components.length > 0
+      return components
     },
     focusout(event) {
       // Hide only if we loose focus in favor of another element which is not a
@@ -270,8 +272,6 @@ export default {
       this.hover = this.value
       this.opener = isElementOrigin ? target : null
       this.$emit('show')
-
-      this.hasDropdownItem = this.getDropdownItemComponents().length > 0
 
       this.$nextTick(() => {
         // We have to wait for the input to be visible before we can focus.

@@ -15,12 +15,14 @@ from baserow.core.utils import (
     ChildProgressBuilder,
     MirrorDict,
     Progress,
+    are_hostnames_same,
     atomic_if_not_already,
     dict_to_object,
     escape_csv_cell,
     extract_allowed,
     find_intermediate_order,
     find_unused_name,
+    get_all_ips,
     get_baserow_saas_base_url,
     get_value_at_path,
     grouper,
@@ -650,3 +652,12 @@ def test_get_baserow_saas_base_url_with_debug():
 
 def test_remove_duplicates():
     assert remove_duplicates([1, 2, 2, 3]) == [1, 2, 3]
+
+
+def test_get_all_ips():
+    assert get_all_ips("localhost") == {"127.0.0.1", "::1"}
+
+
+def test_are_hostnames_same():
+    assert are_hostnames_same("localhost", "localhost") is True
+    assert are_hostnames_same("baserow.io", "localhost") is False

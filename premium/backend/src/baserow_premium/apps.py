@@ -23,12 +23,20 @@ class BaserowPremiumConfig(AppConfig):
         )
 
         from .fields.actions import GenerateFormulaWithAIActionType
+        from .fields.ai_field_output_types import (
+            ChoiceAIFieldOutputType,
+            TextAIFieldOutputType,
+        )
         from .fields.field_converters import AIFieldConverter
         from .fields.field_types import AIFieldType
+        from .fields.registries import ai_field_output_registry
 
         field_type_registry.register(AIFieldType())
 
         field_converter_registry.register(AIFieldConverter())
+
+        ai_field_output_registry.register(TextAIFieldOutputType())
+        ai_field_output_registry.register(ChoiceAIFieldOutputType())
 
         from baserow.contrib.database.rows.registries import row_metadata_registry
         from baserow.contrib.database.views.registries import (

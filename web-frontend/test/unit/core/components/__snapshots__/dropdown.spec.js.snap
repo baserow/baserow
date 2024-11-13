@@ -44,6 +44,7 @@ exports[`Dropdown component Test slots 1`] = `
      
     <ul
       class="select__items"
+      style=""
       tabindex="-1"
     >
       <li
@@ -114,6 +115,7 @@ exports[`Dropdown component With items 1`] = `
      
     <ul
       class="select__items"
+      style=""
       tabindex="-1"
     >
       <li
@@ -199,6 +201,7 @@ exports[`Dropdown component With items 2`] = `
      
     <ul
       class="select__items"
+      style=""
       tabindex="-1"
     >
       <li
@@ -510,10 +513,17 @@ exports[`Dropdown component basics 1`] = `
      
     <ul
       class="select__items"
+      style="display: none;"
       tabindex="-1"
     />
      
-    <!---->
+    <div
+      class="select__items--empty"
+    >
+      
+        dropdown.empty
+      
+    </div>
      
     <!---->
   </div>
@@ -546,10 +556,17 @@ exports[`Dropdown component basics 2`] = `
      
     <ul
       class="select__items"
+      style="display: none;"
       tabindex="-1"
     />
      
-    <!---->
+    <div
+      class="select__items--empty"
+    >
+      
+        dropdown.empty
+      
+    </div>
      
     <!---->
   </div>
@@ -595,10 +612,17 @@ exports[`Dropdown component basics 3`] = `
      
     <ul
       class="select__items"
+      style="display: none;"
       tabindex="-1"
     />
      
-    <!---->
+    <div
+      class="select__items--empty"
+    >
+      
+        dropdown.empty
+      
+    </div>
      
     <!---->
   </div>
@@ -649,6 +673,7 @@ exports[`Dropdown component change value prop 1`] = `
      
     <ul
       class="select__items"
+      style=""
       tabindex="-1"
     >
       <li
@@ -765,6 +790,7 @@ exports[`Dropdown component test focus 1`] = `
      
     <ul
       class="select__items prevent-scroll"
+      style=""
       tabindex="-1"
     >
       <li
@@ -850,6 +876,7 @@ exports[`Dropdown component test focus 2`] = `
      
     <ul
       class="select__items prevent-scroll"
+      style=""
       tabindex="-1"
     >
       <li
@@ -935,6 +962,7 @@ exports[`Dropdown component test interactions 1`] = `
      
     <ul
       class="select__items prevent-scroll"
+      style=""
       tabindex="-1"
     >
       <li
@@ -1051,6 +1079,7 @@ exports[`Dropdown component test interactions 2`] = `
      
     <ul
       class="select__items prevent-scroll"
+      style=""
       tabindex="-1"
     >
       <li

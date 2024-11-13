@@ -483,7 +483,7 @@ export default {
     },
     leftFieldsWidth() {
       return this.leftFields.reduce(
-        (value, field) => this.getFieldWidth(field.id) + value,
+        (value, field) => this.getFieldWidth(field) + value,
         0
       )
     },
@@ -1330,14 +1330,15 @@ export default {
             }
             continue
           }
-          elementRight += this.getFieldWidth(fieldOption[0])
+          elementRight += this.getFieldWidth(this.fields[fieldOption[0]])
           if (fieldOption[0] === fieldId) {
             break
           }
         }
         const rowHeight =
           this.$store.getters[this.storePrefix + 'view/grid/getRowHeight']
-        const elementLeft = elementRight - this.getFieldWidth(fieldId)
+        const elementLeft =
+          elementRight - this.getFieldWidth(this.fields[fieldId])
         const elementBottom =
           -verticalContainer.scrollTop + rowHeight + rowIndex * rowHeight
         const elementTop = elementBottom - rowHeight
@@ -1544,7 +1545,7 @@ export default {
       const primary = this.allVisibleFields.find((f) => f.primary)
       const maxWidth =
         this.gridViewRowDetailsWidth +
-        (primary ? this.getFieldWidth(primary.id) : 0) +
+        (primary ? this.getFieldWidth(primary) : 0) +
         300
 
       this.canFitInTwoColumns = this.$el.clientWidth > maxWidth

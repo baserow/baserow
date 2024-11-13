@@ -12,6 +12,7 @@ DOCKERCLI:=docker
 DOCKERC:=$(DOCKERCLI) compose
 
 DOCKER_SPLIT_CONF:=-f docker-compose.yml -f docker-compose.dev.yml
+DOCKER_ALL_IN_ONE_CONF:=-f deploy/all-in-one/docker-compose.yml -f deploy/all-in-one/docker-compose.dev.yml
 
 .PHONY: install build .callsubcmd $(SUBDIRS) help package-build test tests\
 		lint lint-fix docker-lint changelog\
@@ -36,8 +37,15 @@ help:
 	@echo " make docker-stop - stop local dev env"
 	@echo " make docker-status - show current docker containers"
 	@echo " make docker-clean - remove docker images"
-
-
+	@echo " make docker-lint - validate dockerfiles"
+	@echo " make docker-backend-shell - start a shell in backend container"
+	@echo " make docker-backend-logs - follow logs in backend container"
+	@echo " make docker-backend-attach - attach to backend container"
+	@echo ""
+	@echo " make docker-allinone-build - build all-in-one dev container"
+	@echo " make docker-allinone-start - start all-in-one dev container"
+	@echo " make docker-allinone-stop - stop all-in-one dev container"
+	@echo ""
 # create .env file with default values if no file exists
 .env:
 	@cat .env.example > .env
@@ -120,6 +128,40 @@ docker-lint:
         heroku.Dockerfile \
         e2e-tests/Dockerfile \
         deploy/*/Dockerfile
+
+# those images are required to build all-in-one image
+.docker-build-standalone-images:
+	docker build -f backend/Dockerfile . -t baserow_backend
+	docker build -f web-frontend/Dockerfile . -t baserow_web-frontend
+
+docker-allinone-build: DOCKER_CONFIG_FILES=$(DOCKER_ALL_IN_ONE_CONF)
+docker-allinone-build: .docker-build-standalone-images .docker-build
+
+docker-allinone-start: DOCKER_CONFIG_FILES=$(DOCKER_ALL_IN_ONE_CONF)
+docker-allinone-start: docker-allinone-build .docker-start
+
+docker-allinone-stop: DOCKER_CONFIG_FILES=$(DOCKER_ALL_IN_ONE_CONF)
+docker-allinone-stop: .docker-stop
+
+docker-allinone-restart: docker-allinone-stop docker-allinone-start
+
+docker-allinone-shell:
+	$(DOCKERC) $(DOCKER_ALL_IN_ONE_CONF) exec baserow_all_in_one bash
+
+docker-allinone-attach:
+	$(DOCKERC) $(DOCKER_ALL_IN_ONE_CONF) attach baserow_all_in_one
+
+docker-allinone-logs:
+	$(DOCKERC) $(DOCKER_ALL_IN_ONE_CONF) logs -tf baserow_all_in_one
+
+docker-backend-shell:
+	$(DOCKERC) $(DOCKER_SPLIT_CONF) exec backend bash
+
+docker-backend-attach:
+	$(DOCKERC) $(DOCKER_SPLIT_CONF) attach backend
+
+docker-backend-logs:
+	$(DOCKERC) $(DOCKER_SPLIT_CONF) logs -tf backend
 
 clean: SUBCMD=clean
 clean: .subcmd docker-clean

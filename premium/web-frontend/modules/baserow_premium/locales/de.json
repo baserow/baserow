@@ -10,11 +10,12 @@
             "dashboard": "Dashboard",
             "users": "Benutzer",
             "workspaces": "Arbeitsbereiche",
-            "licenses": "Lizenzen"
+            "licenses": "Lizenzen verwalten"
         },
         "viewType": {
             "kanban": "Kanban",
-            "calendar": "Kalender"
+            "calendar": "Kalender",
+            "timeline": "Zeitleiste"
         },
         "exporterType": {
             "json": "Nach JSON exportieren",
@@ -168,7 +169,7 @@
         "selectOption": "Option auswählen"
     },
     "kanbanViewStakedBy": {
-        "title": "Gruppen Feld",
+        "title": "Feld gruppieren",
         "chooseField": "Nach welchem einzelnen Feld sollen die Karten gestapelt werden?"
     },
     "kanbanViewStack": {
@@ -365,7 +366,7 @@
     },
     "gridViewFieldAI": {
         "generate": "Generieren",
-        "regenerate": "Regenerieren"
+        "regenerate": "Erneut generieren"
     },
     "rowEditFieldAI": {
         "generate": "Generieren",
@@ -373,7 +374,10 @@
     },
     "fieldAISubForm": {
         "prompt": "Eingabeaufforderung",
-        "premiumFeature": "Das KI-Feld ist eine Premium-Funktion"
+        "premiumFeature": "Das KI-Feld ist eine Premium-Funktion",
+        "promptPlaceholder": "Was ist Baserow?",
+        "emptyFileField": "Kein",
+        "fileFieldHelp": "Die erste kompatible Datei im Feld wird als Wissensbasis für die Eingabeaufforderung verwendet. Die Datei muss eine Textdatei mit einer unterstützten Dateierweiterung wie .txt, .md, .pdf oder .docx sein."
     },
     "premiumFieldType": {
         "ai": "KI-Eingabeaufforderung",
@@ -390,5 +394,47 @@
     "formulaFieldAI": {
         "generateWithAI": "Mittels KI generieren",
         "featureName": "Formel mittels KI generieren"
+    },
+    "calendarViewType": {
+        "sharedViewDescription": "Fügen Sie diesen Link in ihre Kalenderanwendung ein",
+        "sharedViewText": "Erlauben Sie jedem, die Daten in dieser Ansicht zu sehen, oder synchronisieren Sie Ereignisse mit Ihrem externen Kalender.",
+        "sharedViewEnableSyncToExternalCalendar": "In einen externen Kalender synchronisieren",
+        "sharedViewDisableSyncToExternalCalendar": "Externen Sync deaktivieren",
+        "sharedViewTitle": "In einen externen Kalender synchronisieren"
+    },
+    "timelineViewHeader": {
+        "dateSettings": "Datumseinstellungen",
+        "labels": "Labels"
+    },
+    "selectDateFieldContext": {
+        "save": "Speichern"
+    },
+    "timelineDateSettingsForm": {
+        "startDateField": "Startdatum",
+        "endDateField": "Enddatum",
+        "noCompatibleDateFields": "In der Tabelle fehlen Datumsfelder. Bitte erstellen Sie in der Tabelle zunächst ein Start- und ein End-Datumsfeld.",
+        "forceTimezone": "{timezone}",
+        "includeTime": "Datum und Zeit",
+        "incompatibleFieldsErrorTitle": "Inkompatible Felder",
+        "incompatibleFieldsErrorMessage": "Die Felder sind nicht miteinander kompatibel. Bitte wählen Sie zwei gültige Datumsfelder in der Tabelle aus, die dieselben Einstellungen für „Zeit einschließen“ und dieselbe Zeitzone für alle Mitwirkenden verwenden.",
+        "dateOnly": "Nur Datum"
+    },
+    "initTimelineViewSettings": {
+        "settings": "Datumseinstellungen"
+    },
+    "viewDateSelector": {
+        "today": "Heute"
+    },
+    "timelineGridRow": {
+        "days": "0 | 1 Tag | {count} Tage"
+    },
+    "timelineTimescaleContext": {
+        "month": "Monat",
+        "quarter": "Quartal",
+        "hour": "Stunde",
+        "day": "Tag",
+        "week": "Woche",
+        "year": "Jahr",
+        "disabledTooltip": "Diese Option ist nur für Datumsfelder verfügbar, bei denen „Zeit einschließen“ aktiviert ist."
     }
 }

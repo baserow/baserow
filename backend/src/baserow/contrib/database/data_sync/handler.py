@@ -2,11 +2,13 @@ from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
+from django.db.models import Prefetch
 from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import CreateTableDatabaseTableOperationType
@@ -16,8 +18,9 @@ from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.signals import table_created, table_updated
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.view_types import GridViewType
+from baserow.core.db import specific_queryset
 from baserow.core.handler import CoreHandler
-from baserow.core.utils import extract_allowed, remove_duplicates
+from baserow.core.utils import ChildProgressBuilder, extract_allowed, remove_duplicates
 
 from .exceptions import (
     DataSyncDoesNotExist,
@@ -143,6 +146,7 @@ class DataSyncHandler:
                 has_primary = True
                 baserow_field.primary = True
             baserow_field.save()
+            metadata = data_sync_property.get_metadata(baserow_field)
 
             properties_to_create.append(
                 DataSyncSyncedProperty(
@@ -150,6 +154,7 @@ class DataSyncHandler:
                     field=baserow_field,
                     key=synced_property,
                     unique_primary=data_sync_property.unique_primary,
+                    metadata=metadata,
                 )
             )
 
@@ -178,7 +183,12 @@ class DataSyncHandler:
     def get_table_sync_lock_key(self, data_sync_id):
         return f"data_sync_{data_sync_id}_syncing_table"
 
-    def sync_data_sync_table(self, user: AbstractUser, data_sync: DataSync) -> DataSync:
+    def sync_data_sync_table(
+        self,
+        user: AbstractUser,
+        data_sync: DataSync,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> DataSync:
         """
         Synchronizes the table with the data sync. This will automatically create
         missing rows, update existing rows, and delete rows that no longer exist. There
@@ -186,6 +196,8 @@ class DataSyncHandler:
 
         :param user: The user on whose behalf the data sync is triggered.
         :param data_sync: The data sync object that must be synced.
+        :param progress_builder: If provided will be used to build a child progress bar
+            and report on this methods progress to the parent of the progress_builder.
         :raises SyncDataSyncTableAlreadyRunning: if the data sync table is already
             being synced. Only one can run concurrently.
         :return:
@@ -209,7 +221,7 @@ class DataSyncHandler:
                 )
 
             try:
-                self._do_sync_table(user, data_sync)
+                self._do_sync_table(user, data_sync, progress_builder)
             finally:
                 cache.delete(lock_key)
         # If calling `get_all_rows` fails with a `SyncError`, then it's an expected
@@ -235,10 +247,14 @@ class DataSyncHandler:
 
         return data_sync
 
-    def _do_sync_table(self, user, data_sync):
+    def _do_sync_table(self, user, data_sync, progress_builder):
+        progress = ChildProgressBuilder.build(progress_builder, 100)
+
         data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+        data_sync_type.before_sync_table(user, data_sync)
         all_properties = data_sync_type.get_properties(data_sync)
         key_to_property = {p.key: p for p in all_properties}
+        progress.increment(by=1)
 
         # Before doing anything we would need to run the
         # `set_data_sync_synced_properties` with the same visible properties. This is
@@ -256,6 +272,7 @@ class DataSyncHandler:
             synced_properties=flat_enabled_properties,
             data_sync_properties=all_properties,
         )
+        progress.increment(by=1)  # makes the total `1`
 
         model = data_sync.table.get_model()
         unique_primary_keys = [p.key for p in all_properties if p.unique_primary]
@@ -264,6 +281,7 @@ class DataSyncHandler:
         enabled_properties = DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
         key_to_field_id = {p.key: f"field_{p.field_id}" for p in enabled_properties}
         key_to_property = {p.key: p for p in all_properties}
+        progress.increment(by=1)  # makes the total `2`
 
         existing_rows_queryset = model.objects.all().values(
             # There is no need to fetch the rows cell values from the row because we
@@ -271,13 +289,22 @@ class DataSyncHandler:
             *["id"]
             + list(key_to_field_id.values())
         )
+        progress.increment(by=6)  # makes the total `9`
+
         existing_rows_in_table = {
             tuple(row[key_to_field_id[key]] for key in unique_primary_keys): row
             for row in existing_rows_queryset
         }
+        progress.increment(by=1)  # makes the total `10`
+
         rows_of_data_sync = {
             tuple(row[key] for key in unique_primary_keys): row
-            for row in data_sync_type.get_all_rows(data_sync)
+            for row in data_sync_type.get_all_rows(
+                data_sync,
+                progress_builder=progress.create_child_builder(
+                    represents_progress=56  # makes the total `66`
+                ),
+            )
         }
 
         rows_to_create = []
@@ -289,6 +316,7 @@ class DataSyncHandler:
                         for property in enabled_properties
                     }
                 )
+        progress.increment(by=1)  # makes the total `67`
 
         rows_to_update = []
         for existing_id, existing_record in existing_rows_in_table.items():
@@ -305,11 +333,13 @@ class DataSyncHandler:
                         changed = True
                 if changed:
                     rows_to_update.append(existing_record)
+        progress.increment(by=2)  # makes the total `69`
 
         row_ids_to_delete = []
         for existing_id in existing_rows_in_table.keys():
             if existing_id not in rows_of_data_sync:
                 row_ids_to_delete.append(existing_rows_in_table[existing_id]["id"])
+        progress.increment(by=1)  # makes the total `70`
 
         if len(rows_to_create) > 0:
             RowHandler().create_rows(
@@ -322,6 +352,7 @@ class DataSyncHandler:
                 send_webhook_events=False,
                 skip_search_update=True,
             )
+        progress.increment(by=10)  # makes the total `80`
 
         if len(rows_to_update) > 0:
             RowHandler().update_rows(
@@ -333,6 +364,7 @@ class DataSyncHandler:
                 send_webhook_events=False,
                 skip_search_update=True,
             )
+        progress.increment(by=10)  # makes the total `90`
 
         if len(row_ids_to_delete) > 0:
             RowHandler().delete_rows(
@@ -345,12 +377,14 @@ class DataSyncHandler:
                 # The rows should not be trashed
                 permanently_delete=True,
             )
+        progress.increment(by=10)  # makes the total `100`
 
         if (
             len(rows_to_create) > 0
             or len(rows_to_update) > 0
             or len(row_ids_to_delete) > 0
         ):
+            # No need to include this in the progress because it triggers a celery task.
             SearchHandler.field_value_updated_or_created(data_sync.table)
 
     def set_data_sync_synced_properties(
@@ -393,7 +427,12 @@ class DataSyncHandler:
             ):
                 synced_properties.insert(0, data_sync_property.key)
 
-        enabled_properties = DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
+        enabled_properties = DataSyncSyncedProperty.objects.filter(
+            data_sync=data_sync
+        ).prefetch_related(
+            Prefetch("field", queryset=specific_queryset(Field.objects.all())),
+            "field__select_options",
+        )
         enabled_properties_per_key = {p.key: p for p in enabled_properties}
         enabled_property_keys = enabled_properties_per_key.keys()
         properties_to_be_removed = []
@@ -415,6 +454,12 @@ class DataSyncHandler:
                 enabled_property = enabled_properties_per_key[synced_property]
                 existing_field_class = enabled_property.field.specific_class
                 new_field = data_sync_property.to_baserow_field()
+
+                existing_metadata = enabled_property.metadata
+                new_metadata = data_sync_property.get_metadata(
+                    enabled_property.field, existing_metadata
+                )
+
                 # If the field type, immutable_properties or unique_primary has changed,
                 # then the field must be updated.
                 if (
@@ -423,8 +468,13 @@ class DataSyncHandler:
                     != enabled_property.field.immutable_properties
                     or data_sync_property.unique_primary
                     != enabled_property.unique_primary
+                    # If the metadata has changed, then the field must be updated
+                    # because the metadata is updated there. This is for example used
+                    # in the local Baserow data sync to map the select option cell
+                    # values.
+                    or existing_metadata != new_metadata
                 ):
-                    properties_to_be_updated.append(data_sync_property)
+                    properties_to_be_updated.append((data_sync_property, new_metadata))
 
         for enabled_property in enabled_properties:
             if enabled_property.key not in synced_properties:
@@ -455,18 +505,22 @@ class DataSyncHandler:
                 name=new_name,
                 **field_kwargs,
             )
+            metadata = data_sync_property.get_metadata(field)
             DataSyncSyncedProperty.objects.create(
                 data_sync=data_sync,
                 field=field,
                 key=data_sync_property.key,
                 unique_primary=data_sync_property.unique_primary,
+                metadata=metadata,
             )
 
-        for data_sync_property in properties_to_be_updated:
+        for data_sync_property, new_metadata in properties_to_be_updated:
             enabled_property = enabled_properties_per_key[data_sync_property.key]
             baserow_field = data_sync_property.to_baserow_field()
             baserow_field_type = field_type_registry.get_by_model(baserow_field)
             field_kwargs = baserow_field.__dict__
+            field_kwargs["read_only"] = True
+            field_kwargs["immutable_type"] = True
             field_kwargs[
                 "immutable_properties"
             ] = data_sync_property.immutable_properties
@@ -477,7 +531,13 @@ class DataSyncHandler:
                 **field_kwargs,
             )
             enabled_property.unique_primary = data_sync_property.unique_primary
-            enabled_property.save(update_fields=("unique_primary",))
+            enabled_property.metadata = new_metadata
+            enabled_property.save(
+                update_fields=(
+                    "unique_primary",
+                    "metadata",
+                )
+            )
 
         for data_sync_property_instance in properties_to_be_removed:
             field = data_sync_property_instance.field

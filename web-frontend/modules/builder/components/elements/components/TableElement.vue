@@ -1,5 +1,11 @@
 <template>
   <div class="table-element">
+    <CollectionElementHeader
+      :element="element"
+      @filters-changed="adhocFilters = $event"
+      @sortings-changed="adhocSortings = $event"
+      @search-changed="adhocSearch = $event"
+    ></CollectionElementHeader>
     <ABTable
       :fields="fields"
       :rows="rows"
@@ -62,10 +68,11 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import BaserowTable from '@baserow/modules/builder/components/elements/components/BaserowTable'
 import collectionElement from '@baserow/modules/builder/mixins/collectionElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
+import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
 
 export default {
   name: 'TableElement',
-  components: { BaserowTable },
+  components: { CollectionElementHeader, BaserowTable },
   mixins: [element, collectionElement],
   props: {
     /**

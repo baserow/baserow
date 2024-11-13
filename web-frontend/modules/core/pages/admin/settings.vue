@@ -38,6 +38,23 @@
             {{ baserowVersion }}
           </div>
         </div>
+        <div class="admin-settings__item">
+          <div class="admin-settings__label">
+            <div class="admin-settings__name">
+              {{ $t('settings.settingsVerifyImportSignature') }}
+            </div>
+            <div class="admin-settings__description">
+              {{ $t('settings.settingsVerifyImportSignatureDescription') }}
+            </div>
+          </div>
+          <div class="admin-settings__control">
+            <SwitchInput
+              :value="settings.verify_import_signature"
+              @input="updateSettings({ verify_import_signature: $event })"
+              >{{ $t('settings.enabled') }}</SwitchInput
+            >
+          </div>
+        </div>
       </div>
       <div class="admin-settings__group">
         <h2 class="admin-settings__group-title">

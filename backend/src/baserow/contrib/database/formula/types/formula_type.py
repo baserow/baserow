@@ -127,6 +127,18 @@ class BaserowFormulaType(abc.ABC):
 
         return cls.user_overridable_formatting_option_fields + cls.get_internal_fields()
 
+    @classmethod
+    def get_request_serializer_field_names(cls) -> List[str]:
+        return cls.all_fields()
+
+    @classmethod
+    def get_serializer_field_names(cls) -> List[str]:
+        return cls.all_fields()
+
+    @classmethod
+    def get_serializer_field_overrides(cls) -> List[str]:
+        return {}
+
     @property
     @abc.abstractmethod
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -244,6 +256,10 @@ class BaserowFormulaType(abc.ABC):
 
     @property
     def can_represent_files(self) -> bool:
+        return False
+
+    @property
+    def can_represent_select_options(self) -> bool:
         return False
 
     @property

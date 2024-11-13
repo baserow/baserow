@@ -435,4 +435,317 @@ describe('Text-based array view filters', () => {
       )
     }
   )
+
+  const hasSelectOptionsEqualCases = [
+    {
+      cellValue: [],
+      filterValue: '1',
+      expected: false,
+    },
+    {
+      cellValue: [
+        { value: { id: 2, value: 'B' } },
+        { value: { id: 1, value: 'A' } },
+      ],
+      filterValue: '1',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: { id: 1, value: 'A' } }],
+      filterValue: '2',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: { id: 3, value: 'Aa' } }],
+      filterValue: '1',
+      expected: false,
+    },
+  ]
+
+  const hasSelectOptionEqualSupportedFields = [
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'single_select',
+    },
+  ]
+
+  describe.each(hasSelectOptionEqualSupportedFields)(
+    'HasValueEqualViewFilterType %j',
+    (field) => {
+      test.each(hasSelectOptionsEqualCases)(
+        'filter matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasValueEqualViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(testValues.expected)
+        }
+      )
+    }
+  )
+
+  describe.each(hasSelectOptionEqualSupportedFields)(
+    'HasNotValueEqualViewFilterType %j',
+    (field) => {
+      test.each(hasSelectOptionsEqualCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotValueEqualViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(!testValues.expected)
+        }
+      )
+    }
+  )
+
+  const hasSelectOptionContainsCases = [
+    {
+      cellValue: [],
+      filterValue: 'A',
+      expected: false,
+    },
+    {
+      cellValue: [
+        { value: { id: 2, value: 'B' } },
+        { value: { id: 1, value: 'A' } },
+      ],
+      filterValue: 'A',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: { id: 1, value: 'A' } }],
+      filterValue: 'B',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: { id: 3, value: 'Aa' } }],
+      filterValue: 'a',
+      expected: true,
+    },
+  ]
+
+  const hasSelectOptionContainsSupportedFields = [
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'single_select',
+    },
+  ]
+
+  describe.each(hasSelectOptionContainsSupportedFields)(
+    'HasValueContainsViewFilterType %j',
+    (field) => {
+      test.each(hasSelectOptionContainsCases)(
+        'filter matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasValueContainsViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(testValues.expected)
+        }
+      )
+    }
+  )
+
+  describe.each(hasSelectOptionContainsSupportedFields)(
+    'HasNotValueContainsViewFilterType %j',
+    (field) => {
+      test.each(hasSelectOptionContainsCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotValueContainsViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(!testValues.expected)
+        }
+      )
+    }
+  )
+
+  const hasSelectOptionContainsWordCases = [
+    {
+      cellValue: [],
+      filterValue: 'A',
+      expected: false,
+    },
+    {
+      cellValue: [
+        { value: { id: 2, value: 'B' } },
+        { value: { id: 1, value: 'Aa' } },
+      ],
+      filterValue: 'Aa',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: { id: 1, value: 'A' } }],
+      filterValue: 'B',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: { id: 3, value: 'Aa' } }],
+      filterValue: 'a',
+      expected: false,
+    },
+  ]
+
+  const hasSelectOptionsContainsWordSupportedFields = [
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'single_select',
+    },
+  ]
+
+  describe.each(hasSelectOptionsContainsWordSupportedFields)(
+    'HasValueContainsWordViewFilterType %j',
+    (field) => {
+      test.each(hasSelectOptionContainsWordCases)(
+        'filter matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasValueContainsWordViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(testValues.expected)
+        }
+      )
+    }
+  )
+
+  describe.each(hasSelectOptionsContainsWordSupportedFields)(
+    'HasNotValueContainsWordViewFilterType %j',
+    (field) => {
+      test.each(hasSelectOptionContainsWordCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotValueContainsWordViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(!testValues.expected)
+        }
+      )
+    }
+  )
+
+  const hasEmptySelectOptionsCases = [
+    {
+      cellValue: [],
+      expected: false,
+    },
+    {
+      cellValue: [{ value: { id: 1, value: 'a' } }, { value: null }],
+      expected: true,
+    },
+    {
+      cellValue: [{ value: null }],
+      expected: true,
+    },
+    {
+      cellValue: [{ value: { id: 2, value: 'b' } }],
+      expected: false,
+    },
+  ]
+
+  const hasEmptySelectOptionSupportedFields = [
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'single_select',
+    },
+  ]
+
+  describe.each(hasEmptySelectOptionSupportedFields)(
+    'HasEmptyValueViewFilterType %j',
+    (field) => {
+      test.each(hasEmptySelectOptionsCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasEmptyValueViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(testValues.expected)
+        }
+      )
+    }
+  )
+
+  describe.each(hasEmptySelectOptionSupportedFields)(
+    'HasNotEmptyValueViewFilterType %j',
+    (field) => {
+      test.each(hasEmptySelectOptionsCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotEmptyValueViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(!testValues.expected)
+        }
+      )
+    }
+  )
 })

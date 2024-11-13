@@ -10,7 +10,12 @@
       :loading="workflowActionsInProgress"
       @click="fireEvent(elementType.getEventByName(element, 'click'))"
     >
-      {{ resolvedValue || $t('buttonElement.noValue') }}
+      {{
+        element.value
+          ? resolvedValue ||
+            (mode === 'editing' ? $t('buttonElement.emptyValue') : '&nbsp;')
+          : $t('buttonElement.missingValue')
+      }}
     </ABButton>
   </div>
 </template>

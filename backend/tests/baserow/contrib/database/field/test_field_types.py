@@ -1,4 +1,5 @@
 import os
+from unittest.mock import Mock
 
 from django.core.exceptions import ValidationError
 from django.test.utils import override_settings
@@ -22,6 +23,7 @@ from baserow.contrib.database.fields.models import (
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.fields.utils import DeferredForeignKeyUpdater
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import setup_interesting_test_table
 
@@ -926,3 +928,13 @@ def test_field_type_prepare_db_value_with_invalid_values(data_fixture):
 
         with pytest.raises(ValidationError):
             field_type.prepare_value_for_db(field, test_payload)
+
+
+@pytest.mark.parametrize("field_type", field_type_registry.get_all())
+def test_field_type_check_can_filter_by(field_type):
+    compatible_view_filters = [
+        vft
+        for vft in view_filter_type_registry.get_all()
+        if field_type.type in vft.compatible_field_types
+    ]
+    assert field_type.check_can_filter_by(Mock()) == (len(compatible_view_filters) > 0)

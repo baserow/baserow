@@ -114,7 +114,7 @@ export default {
           .filter((f) => {
             return this.$registry
               .get('field', f.type)
-              .canBeReferencedByFormulaField()
+              .canBeReferencedByFormulaField(f)
           })
           .filter((f) => {
             return this.$hasPermission(

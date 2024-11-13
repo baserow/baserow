@@ -59,7 +59,7 @@
           class="select__search-input"
           :placeholder="searchText === null ? $t('action.search') : searchText"
           tabindex="0"
-          @keyup="search(query)"
+          @keyup="emitSearch ? $emit('query-change', query) : search(query)"
         />
       </div>
       <ul
@@ -91,5 +91,15 @@ import dropdown from '@baserow/modules/core/mixins/dropdown'
 export default {
   name: 'ABDropdown',
   mixins: [dropdown],
+  props: {
+    /**
+     * When `emitSearch` is set to `true`, this will emit the search
+     * query instead of performing local, per dropdown-item, search.
+     */
+    emitSearch: {
+      type: Boolean,
+      default: false,
+    },
+  },
 }
 </script>

@@ -140,9 +140,10 @@ export default {
         // direction, then it will break out of it. We will therefore close it. This can
         // happen the height or width of the viewport decreases.
         if (
-          (css.bottom && css.bottom < 0) ||
+          (css.bottom && css.bottom < this.getWindowScrollHeight()) ||
           (css.right && css.right < 0) ||
-          (css.top && css.top > window.innerHeight)
+          (css.top &&
+            css.top > window.innerHeight + this.getWindowScrollHeight())
         ) {
           this.hide()
           return
@@ -161,7 +162,9 @@ export default {
           const maxHeight =
             css.top || css.bottom
               ? `calc(100vh - ${
-                  (css.top || css.bottom) + this.maxHeightOffset
+                  (css.top || css.bottom) +
+                  this.maxHeightOffset -
+                  this.getWindowScrollHeight()
                 }px)`
               : 'none'
           this.$el.style['max-height'] = maxHeight
@@ -426,15 +429,21 @@ export default {
       }
 
       if (verticalAdjusted === 'bottom') {
-        positions.top = targetBottom + verticalOffset
+        positions.top =
+          targetBottom + verticalOffset + this.getWindowScrollHeight()
       }
 
       if (verticalAdjusted === 'over-bottom' || verticalAdjusted === 'over') {
-        positions.top = targetTop + verticalOffset
+        positions.top =
+          targetTop + verticalOffset + this.getWindowScrollHeight()
       }
 
       if (verticalAdjusted === 'top') {
-        positions.bottom = window.innerHeight - targetTop + verticalOffset
+        positions.bottom =
+          window.innerHeight -
+          targetTop +
+          verticalOffset +
+          this.getWindowScrollHeight()
       }
 
       if (verticalAdjusted === 'over-top' || verticalAdjusted === 'over') {
@@ -469,9 +478,15 @@ export default {
       // with the full height of the element without scrollbar to calculate the optimal
       // position.
       const scrollHeight = this.$el.scrollHeight
-      const canTop = targetRect.top - scrollHeight - verticalOffset > 0
+      const canTop =
+        targetRect.top -
+          scrollHeight -
+          verticalOffset +
+          this.getWindowScrollHeight() >
+        0
       const canBottom =
-        window.innerHeight -
+        window.innerHeight +
+          this.getWindowScrollHeight() -
           targetRect.bottom -
           scrollHeight -
           this.maxHeightOffset -
@@ -506,6 +521,9 @@ export default {
       }
 
       return { vertical, horizontal }
+    },
+    getWindowScrollHeight() {
+      return window?.scrollY || 0
     },
     isOpen() {
       return this.open

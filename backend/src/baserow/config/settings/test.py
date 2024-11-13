@@ -71,6 +71,10 @@ if "baserow.middleware.ConcurrentUserRequestsMiddleware" in MIDDLEWARE:
 BASEROW_OPENAI_API_KEY = None
 BASEROW_OPENAI_ORGANIZATION = None
 BASEROW_OPENAI_MODELS = []
+BASEROW_ANTHROPIC_API_KEY = None
+BASEROW_ANTHROPIC_MODELS = []
+BASEROW_MISTRAL_API_KEY = None
+BASEROW_MISTRAL_MODELS = []
 BASEROW_OLLAMA_HOST = None
 BASEROW_OLLAMA_MODELS = []
 
@@ -79,3 +83,6 @@ PUBLIC_WEB_FRONTEND_URL = "http://localhost:3000"
 BASEROW_EMBEDDED_SHARE_URL = "http://localhost:3000"
 
 FEATURE_FLAGS = "*"
+
+# We must allow this because we're connecting to the same database in the tests.
+BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE = False

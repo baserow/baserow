@@ -130,6 +130,7 @@ class SamlAuthProviderHandler:
     @classmethod
     def get_user_info_from_authn_user_identity(
         cls,
+        saml_auth_provider: SamlAuthProviderModel,
         authn_identity: Dict[str, str],
         saml_request_data: Optional[Dict[str, str]] = None,
     ) -> UserInfo:
@@ -139,6 +140,7 @@ class SamlAuthProviderHandler:
         SAML request (e.g. language and group invitation token) to
         create/retrieve the correct user.
 
+        :param saml_auth_provider: The related saml auth provider model instance.
         :param authn_identity: The dict returned by
             `authn_response.get_identity()` that contains the user identity
             information.
@@ -148,17 +150,22 @@ class SamlAuthProviderHandler:
             create/retrieve the correct user.
         """
 
+        email_key = saml_auth_provider.email_attr_key
+        first_name_key = saml_auth_provider.first_name_attr_key
+        last_name_key = saml_auth_provider.last_name_attr_key
+
         saml_request_data = saml_request_data or {}
-        email = authn_identity["user.email"][0]
-        if "user.name" in authn_identity:
-            name = authn_identity["user.name"][0]
-        elif "user.first_name" in authn_identity:
-            first_name = authn_identity["user.first_name"][0]
-            if "user.last_name" in authn_identity:
-                last_name = authn_identity["user.last_name"][0]
+        email = authn_identity[email_key][0]
+        if first_name_key in authn_identity:
+            first_name = authn_identity[first_name_key][0]
+            if last_name_key in authn_identity:
+                last_name = authn_identity[last_name_key][0]
             else:
                 last_name = ""
             name = f"{first_name} {last_name}".strip()
+        elif "user.name" in authn_identity:
+            # kept for backward compatibility
+            name = authn_identity["user.name"][0]
         else:
             name = email
         return UserInfo(email, name, **saml_request_data)
@@ -233,7 +240,7 @@ class SamlAuthProviderHandler:
             cls.check_authn_response_is_valid_or_raise(authn_response)
             authn_user_identity = authn_response.get_identity()
             idp_provided_user_info = cls.get_user_info_from_authn_user_identity(
-                authn_user_identity, saml_request_data
+                saml_auth_provider, authn_user_identity, saml_request_data
             )
         except (InvalidSamlConfiguration, InvalidSamlResponse) as exc:
             logger.exception(exc)
@@ -242,10 +249,11 @@ class SamlAuthProviderHandler:
             logger.exception(exc)
             raise InvalidSamlResponse(str(exc))
 
+        saml_provider_type = saml_auth_provider.get_type()
         (
             user,
             _,
-        ) = saml_auth_provider.get_type().get_or_create_user_and_sign_in(
+        ) = saml_provider_type.get_or_create_user_and_sign_in(
             saml_auth_provider, idp_provided_user_info
         )
 

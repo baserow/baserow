@@ -1,0 +1,49 @@
+.export-workspace__export {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &:not(:last-child) {
+    margin-bottom: 20px;
+  }
+}
+
+.export-workspace__info {
+  min-height: 36px;
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+}
+
+.export-workspace__list {
+  border-top: 1px solid #d9dbde;
+  padding-top: 30px;
+  margin-top: 30px;
+}
+
+.export-workspace__list--loading {
+  margin: auto;
+}
+
+.export-workspace__name {
+  font-weight: 600;
+  padding-bottom: 5px;
+}
+
+.export-workspace__detail {
+  color: $color-neutral-500;
+}
+
+.export-workspace__actions a {
+  display: inline-block;
+  margin-left: 20px;
+}
+
+.export-workspace__structure-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.export-workspace__structure-label {
+  margin-left: 10px;
+}

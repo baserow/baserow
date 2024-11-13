@@ -110,7 +110,16 @@
         "providerIsVerified": "El proveedor ha sido verificado",
         "domain": "Dominio",
         "metadata": "Metadatos",
-        "metadataPlaceholder": "Pegue los metadatos del proveedor de identidad..."
+        "metadataPlaceholder": "Pegue los metadatos del proveedor de identidad...",
+        "defaultAttrs": "Por defecto",
+        "customAttrs": "A medida",
+        "emailAttrKey": "Correo electrónico",
+        "firstNameAttrKey": "Nombre",
+        "firstNameAttrKeyHelper": "El nombre del usuario o el nombre completo si no se indica «Apellidos».",
+        "samlResponseSettings": "Atributos de respuesta SAML",
+        "emailAttrKeyHelper": "El correo electrónico que se utilizará como nombre de usuario para el usuario.",
+        "lastNameAttrKey": "Apellido",
+        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borre este valor para proporcionar el nombre completo a través de «Nombre»."
     },
     "createSettingsAuthProviderModal": {
         "title": "Añadir un nuevo {tipo}"
@@ -345,6 +354,38 @@
         "workspace": "Espacio de trabajo"
     },
     "enterpriseDataSyncType": {
-        "localBaserowTable": "Sincronizar tabla Baserow"
+        "localBaserowTable": "Sincronizar tabla Baserow",
+        "jiraIssues": "Sincronizar incidencias de Jira",
+        "githubIssues": "Sincronizar incidencias de GitHub",
+        "gitlabIssues": "Sincronizar incidencias de GitLab"
+    },
+    "jiraIssuesDataSync": {
+        "urlHelper": "La URL base de tu instancia de Jira (por ejemplo, https://your-domain.atlassian.net).",
+        "projectKey": "Clave del proyecto Jira (opcional)",
+        "jiraUrl": "URL de instancia de Jira",
+        "projectKeyHelper": "La clave del proyecto de Jira (por ejemplo, PROJ). Se puede encontrar haciendo clic en `Configuración del proyecto` en Jira. Si no se proporciona, se devolverán todas las incidencias.",
+        "jiraUsername": "Nombre de usuario de Jira",
+        "usernameHelper": "El nombre de usuario de la cuenta de Jira utilizada para autenticarse. Este es el correo electrónico que se utiliza para iniciar sesión.",
+        "apiToken": "Token API de Jira",
+        "apiTokenHelper": "El token de API de la cuenta de Jira utilizada para la autenticación. Puede crearse en https://id.atlassian.com/manage-profile/security/api-tokens."
+    },
+    "githubIssuesDataSync": {
+        "repo": "Repositorio",
+        "repoHelper": "El nombre del repositorio. Típicamente en la esquina superior izquierda `owner / repo`",
+        "apiTokenHelper": "Se puede generar aquí https://github.com/settings/tokens haciendo clic en `Generate new token`, seleccione `All repositories`, luego en `Repository permissions` ponga `Issues` en `read-only`.",
+        "owner": "Propietario",
+        "ownerHelper": "Nombre de usuario o propietario del repositorio. Típicamente en la esquina superior izquierda `owner / repo`",
+        "apiToken": "Token API"
+    },
+    "gitlabIssuesDataSync": {
+        "url": "URL base",
+        "urlHelper": "La URL base de tu instancia de GitLab. (por ejemplo, https://gitlab.com)",
+        "projectId": "ID del proyecto",
+        "accessToken": "Clave de acceso",
+        "projectIdHelper": "El ID del proyecto desde el que quieres sincronizar las incidencias. Puedes encontrarlo yendo a la página de tu proyecto (por ejemplo, https://gitlab.com/baserow/baserow), haz clic en los tres puntos de la esquina superior derecha y, a continuación, en 'Copiar ID de proyecto: 12345678'.",
+        "accessTokenHelper": "Se puede generar aquí https://gitlab.com/-/user_settings/personal_access_tokens haciendo clic en `Add new token`, seleccione `read_api`."
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "Ten en cuenta que una exportación no incluirá ningún permiso establecido en la aplicación y sus tablas."
     }
 }

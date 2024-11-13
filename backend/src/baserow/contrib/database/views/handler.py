@@ -1976,6 +1976,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :return: The created view sort instance.
         """
 
+        field = field.specific
+
         workspace = view.table.database.workspace
         CoreHandler().check_permissions(
             user, ReadFieldOperationType.type, workspace=workspace, context=field

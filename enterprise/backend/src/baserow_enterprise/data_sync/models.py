@@ -42,3 +42,32 @@ class JiraIssuesDataSync(DataSync):
         max_length=255,
         help_text="The API token of the Jira account used for authentication.",
     )
+
+
+class GitHubIssuesDataSync(DataSync):
+    github_issues_owner = models.CharField(
+        max_length=255, help_text="The owner of the repository on GitHub."
+    )
+    github_issues_repo = models.CharField(
+        max_length=255, help_text="The name of the repository on GitHub."
+    )
+    github_issues_api_token = models.CharField(
+        max_length=255,
+        help_text="The API token used to authenticate requests to GitHub.",
+    )
+
+
+class GitLabIssuesDataSync(DataSync):
+    gitlab_url = models.URLField(
+        max_length=2000,
+        help_text="The base URL to your GitLab instance (e.g. https://gitlab.com)",
+        default="https://gitlab.com",
+    )
+    gitlab_project_id = models.CharField(
+        max_length=255,
+        help_text="The ID of the GitLab project where to sync the " "issues with.",
+    )
+    gitlab_access_token = models.CharField(
+        max_length=255,
+        help_text="The API access token used to authenticate requests to GitLab.",
+    )

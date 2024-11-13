@@ -6,6 +6,7 @@ import {
   CreateSnapshotJobType,
   DuplicateApplicationJobType,
   ExportApplicationsJobType,
+  ImportApplicationsJobType,
   InstallTemplateJobType,
   RestoreSnapshotJobType,
 } from '@baserow/modules/core/jobTypes'
@@ -20,6 +21,8 @@ import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspa
 import {
   OpenAIModelType,
   OllamaModelType,
+  AnthropicModelType,
+  MistralModelType,
 } from '@baserow/modules/core/generativeAIModelTypes'
 import {
   UploadFileUserFileUploadType,
@@ -141,6 +144,8 @@ export default (context, inject) => {
   )
 
   registry.register('generativeAIModel', new OpenAIModelType(context))
+  registry.register('generativeAIModel', new AnthropicModelType(context))
+  registry.register('generativeAIModel', new MistralModelType(context))
   registry.register('generativeAIModel', new OllamaModelType(context))
 
   registry.register('permissionManager', new CorePermissionManagerType(context))
@@ -193,6 +198,7 @@ export default (context, inject) => {
   registry.register('job', new CreateSnapshotJobType(context))
   registry.register('job', new RestoreSnapshotJobType(context))
   registry.register('job', new ExportApplicationsJobType(context))
+  registry.register('job', new ImportApplicationsJobType(context))
 
   registry.register(
     'workspaceSettingsPage',

@@ -138,7 +138,8 @@ class AdHocFilters:
                 data[key] = sanitize_adhoc_filter_value(value)
 
         api_filters = None
-        if (filters := data.get("filters", None)) and len(filters) > 0:
+        filter_object = {"filters": data}
+        if (filters := filter_object.get("filters", None)) and len(filters) > 0:
             api_filters = validate_api_grouped_filters(
                 data, user_field_names=user_field_names, deserialize_filters=False
             )

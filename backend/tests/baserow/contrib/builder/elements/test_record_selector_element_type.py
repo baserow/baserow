@@ -14,7 +14,7 @@ def test_record_selector_element_extract_formula_properties(data_fixture):
 
     # If the record selector has no data source, then the formula properties are empty
     element = data_fixture.create_builder_record_selector_element(data_source=None)
-    properties = element_type.extract_formula_properties(element, {})
+    properties = element_type.extract_formula_properties(element)
     assert properties == {}
 
     # If the record selector has a data source *without* a table then the
@@ -23,7 +23,7 @@ def test_record_selector_element_extract_formula_properties(data_fixture):
     element = data_fixture.create_builder_record_selector_element(
         data_source=data_source
     )
-    properties = element_type.extract_formula_properties(element, {})
+    properties = element_type.extract_formula_properties(element)
     assert properties == {element.data_source.service_id: ["id"]}
 
     # If the record selector has a data source *with* a table that does not
@@ -35,7 +35,7 @@ def test_record_selector_element_extract_formula_properties(data_fixture):
     element = data_fixture.create_builder_record_selector_element(
         data_source=data_source
     )
-    properties = element_type.extract_formula_properties(element, {})
+    properties = element_type.extract_formula_properties(element)
     assert properties == {data_source.service_id: ["id"]}
 
     # If the record selector has a data source whose table defines a name property
@@ -48,7 +48,7 @@ def test_record_selector_element_extract_formula_properties(data_fixture):
     element = data_fixture.create_builder_record_selector_element(
         data_source=data_source
     )
-    properties = element_type.extract_formula_properties(element, {})
+    properties = element_type.extract_formula_properties(element)
     assert properties == {data_source.service_id: ["id", field.db_column]}
 
 

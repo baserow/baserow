@@ -40,8 +40,19 @@ class SamlAuthProviderType(AuthProviderType):
         "enabled",
         "metadata",
         "is_verified",
+        "email_attr_key",
+        "first_name_attr_key",
+        "last_name_attr_key",
     ]
-    serializer_field_names = ["domain", "metadata", "enabled", "is_verified"]
+    serializer_field_names = [
+        "domain",
+        "metadata",
+        "enabled",
+        "is_verified",
+        "email_attr_key",
+        "first_name_attr_key",
+        "last_name_attr_key",
+    ]
     serializer_field_overrides = {
         "domain": serializers.CharField(
             validators=[validate_domain],
@@ -61,6 +72,26 @@ class SamlAuthProviderType(AuthProviderType):
             required=False,
             read_only=True,
             help_text="Whether or not a user sign in correctly with this SAML provider.",
+        ),
+        "email_attr_key": serializers.CharField(
+            required=False,
+            help_text=(
+                "The key in the SAML response that contains the email address of the user."
+            ),
+        ),
+        "first_name_attr_key": serializers.CharField(
+            required=False,
+            help_text=(
+                "The key in the SAML response that contains the first name of the user."
+            ),
+        ),
+        "last_name_attr_key": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            help_text=(
+                "The key in the SAML response that contains the last name of the user. "
+                "If this is not set, the first name attr will be used as full name."
+            ),
         ),
     }
     api_exceptions_map: ExceptionMappingType = {

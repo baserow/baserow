@@ -2,6 +2,7 @@ import json
 from collections import defaultdict
 from io import BytesIO
 from tempfile import tempdir
+from unittest.mock import Mock
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.contrib.contenttypes.models import ContentType
@@ -1072,6 +1073,71 @@ def test_sanitize_element_roles_fixes_default_user_role(
     )
 
     assert result == cleaned_roles
+
+
+@pytest.mark.parametrize("collection_element_type", collection_element_types())
+def test_collection_element_type_publicly_searchable_sortable_filterable(
+    collection_element_type,
+):
+    expected_results = {
+        "repeat": {
+            "is_publicly_sortable": True,
+            "is_publicly_searchable": True,
+            "is_publicly_filterable": True,
+        },
+        "table": {
+            "is_publicly_sortable": True,
+            "is_publicly_searchable": True,
+            "is_publicly_filterable": True,
+        },
+        "record_selector": {
+            "is_publicly_sortable": False,
+            "is_publicly_searchable": True,
+            "is_publicly_filterable": False,
+        },
+    }
+    expected_result = expected_results.get(collection_element_type.type)
+    if not expected_result:
+        # A new collection element type has been implemented and
+        # needs to be added to the expected results.
+        pytest.fail(
+            f"Missing expected result for collection element type {collection_element_type.type}"
+        )
+    assert (
+        collection_element_type.is_publicly_sortable
+        == expected_result["is_publicly_sortable"]
+    )
+    assert (
+        collection_element_type.is_publicly_searchable
+        == expected_result["is_publicly_searchable"]
+    )
+    assert (
+        collection_element_type.is_publicly_filterable
+        == expected_result["is_publicly_filterable"]
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("collection_element_type", collection_element_types())
+def test_collection_element_type_after_update(collection_element_type, data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = collection_element_type.model_class.objects.create(page=page)
+    element.property_options.create(schema_property="field_123")
+
+    # The `after_update` method drops all property options, and creates
+    # only what is provided into the method in its `values`.
+    collection_element_type.after_update(
+        element, {"property_options": [{"schema_property": "field_456"}]}, {}
+    )
+    assert element.property_options.count() == 1
+    assert element.property_options.filter(schema_property="field_456").exists()
+
+    # The `after_update` method drops all property options if the data source
+    # has changed.
+    collection_element_type.after_update(element, {}, {"data_source": (Mock(), Mock())})
+    assert element.property_options.count() == 0
 
 
 @pytest.mark.django_db

@@ -1,5 +1,5 @@
 import dataclasses
-from typing import List
+from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -23,6 +23,7 @@ from baserow.core.action.registries import (
 )
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.utils import ChildProgressBuilder
 
 
 class CreateDataSyncTableActionType(UndoableActionType):
@@ -115,9 +116,16 @@ class SyncDataSyncTableActionType(ActionType):
         data_sync_id: int
 
     @classmethod
-    def do(cls, user: AbstractUser, data_sync: DataSync):
+    def do(
+        cls,
+        user: AbstractUser,
+        data_sync: DataSync,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ):
         data_sync = data_sync.specific
-        data_sync = DataSyncHandler().sync_data_sync_table(user, data_sync)
+        data_sync = DataSyncHandler().sync_data_sync_table(
+            user, data_sync, progress_builder
+        )
 
         table = data_sync.table
         database = table.database

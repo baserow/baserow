@@ -141,6 +141,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "baserow.config.wsgi.application"
 ASGI_APPLICATION = "baserow.config.asgi.application"
 
+
+# `ASGI_HTTP_MAX_CONCURRENCY` sets max concurrent asgi requests to be processed by
+# the asgi application. It's configurable with `BASEROW_ASGI_HTTP_MAX_CONCURRENCY`
+# env variable.
+# The default is None - no concurrency limit
+ASGI_HTTP_MAX_CONCURRENCY = (
+    int(os.getenv("BASEROW_ASGI_HTTP_MAX_CONCURRENCY") or 0) or None
+)
+
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 REDIS_USERNAME = os.getenv("REDIS_USER", "")
@@ -483,7 +492,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.28.0",
+    "VERSION": "1.29.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -808,7 +817,7 @@ BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT = int(
     os.getenv("BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT", 100)
 )
 
-# The amount of rows that can be imported when creating a table.
+# The amount of rows that can be imported when creating a table or data sync.
 INITIAL_TABLE_DATA_LIMIT = None
 if "INITIAL_TABLE_DATA_LIMIT" in os.environ:
     INITIAL_TABLE_DATA_LIMIT = int(os.getenv("INITIAL_TABLE_DATA_LIMIT"))
@@ -835,6 +844,8 @@ BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = int(
 EXPORT_FILES_DIRECTORY = "export_files"
 EXPORT_CLEANUP_INTERVAL_MINUTES = 5
 EXPORT_FILE_EXPIRE_MINUTES = 60
+
+IMPORT_FILES_DIRECTORY = "import_files"
 
 # The interval in minutes that the mentions cleanup job should run. This job will
 # remove mentions that are no longer used.
@@ -1089,6 +1100,18 @@ BASEROW_MAX_PENDING_WORKSPACE_INVITES = int(
     os.getenv("BASEROW_MAX_PENDING_WORKSPACE_INVITES", 0)
 )
 
+BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES = int(
+    os.getenv("BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES", 5)
+)
+BASEROW_IMPORT_EXPORT_RESOURCE_REMOVAL_AFTER_DAYS = int(
+    os.getenv("BASEROW_IMPORT_EXPORT_RESOURCE_REMOVAL_AFTER_DAYS", 5)
+)
+
+# The maximum number of rows that will be exported when exporting a table.
+# If `0` then all rows will be exported.
+BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT = int(
+    os.getenv("BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT", 0)
+)
 
 PERMISSION_MANAGERS = [
     "view_ownership",
@@ -1250,8 +1273,33 @@ BASEROW_OPENAI_MODELS = os.getenv("BASEROW_OPENAI_MODELS", "")
 BASEROW_OPENAI_MODELS = (
     BASEROW_OPENAI_MODELS.split(",") if BASEROW_OPENAI_MODELS else []
 )
+
+BASEROW_ANTHROPIC_API_KEY = os.getenv("BASEROW_ANTHROPIC_API_KEY", None)
+BASEROW_ANTHROPIC_MODELS = os.getenv("BASEROW_ANTHROPIC_MODELS", "")
+BASEROW_ANTHROPIC_MODELS = (
+    BASEROW_ANTHROPIC_MODELS.split(",") if BASEROW_ANTHROPIC_MODELS else []
+)
+
+BASEROW_MISTRAL_API_KEY = os.getenv("BASEROW_MISTRAL_API_KEY", None)
+BASEROW_MISTRAL_MODELS = os.getenv("BASEROW_MISTRAL_MODELS", "")
+BASEROW_MISTRAL_MODELS = (
+    BASEROW_MISTRAL_MODELS.split(",") if BASEROW_MISTRAL_MODELS else []
+)
+
 BASEROW_OLLAMA_HOST = os.getenv("BASEROW_OLLAMA_HOST", None)
 BASEROW_OLLAMA_MODELS = os.getenv("BASEROW_OLLAMA_MODELS", "")
 BASEROW_OLLAMA_MODELS = (
     BASEROW_OLLAMA_MODELS.split(",") if BASEROW_OLLAMA_MODELS else []
+)
+
+BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE = str_to_bool(
+    os.getenv("BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE", "true")
+)
+BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST = os.getenv(
+    "BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST", ""
+)
+BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST = (
+    BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST.split(",")
+    if BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST
+    else []
 )

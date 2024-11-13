@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from django.contrib.auth.models import AbstractUser
 
@@ -111,29 +111,6 @@ class BuilderWorkflowActionType(
         [m.save() for m in updated_models]
 
         return created_instance
-
-    def extract_formula_properties(
-        self,
-        instance: BuilderWorkflowAction,
-        element_map: Dict[str, BuilderWorkflowAction],
-        **kwargs,
-    ) -> Dict[int, List[str]]:
-        """
-        Extract all formula field names of the workflow action instance.
-
-        Returns a dict where keys are the Service ID and values are a list of
-        field names, e.g.: {164: ['field_5440', 'field_5441', 'field_5439']}
-        """
-
-        from baserow.contrib.builder.elements.handler import ElementHandler
-
-        formula_context = ElementHandler().get_import_context_addition(
-            instance.element_id, element_map
-        )
-
-        return super().extract_formula_properties(
-            instance, **(kwargs | formula_context)
-        )
 
 
 class BuilderWorkflowActionTypeRegistry(

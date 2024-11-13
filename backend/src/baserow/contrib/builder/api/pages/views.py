@@ -48,12 +48,6 @@ from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 
-DuplicatePageJobTypeSerializer = job_type_registry.get(
-    DuplicatePageJobType.type
-).get_serializer_class(
-    base_class=JobSerializer, meta_ref_name="SingleDuplicatePageJobTypeSerializer"
-)
-
 
 class PagesView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -271,7 +265,7 @@ class AsyncDuplicatePageView(APIView):
         ),
         request=None,
         responses={
-            202: DuplicatePageJobTypeSerializer,
+            202: DuplicatePageJobType().response_serializer_class,
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",

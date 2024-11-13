@@ -394,6 +394,7 @@ class SnapshotHandler:
             include_permission_data=True,
             reduce_disk_space_usage=True,
             workspace_for_user_references=workspace,
+            is_duplicate=True,
         )
         try:
             exported_application = application_type.export_serialized(
@@ -454,7 +455,9 @@ class SnapshotHandler:
         application_type = application_type_registry.get_by_model(application)
 
         restore_snapshot_import_export_config = ImportExportConfig(
-            include_permission_data=True, reduce_disk_space_usage=False
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            is_duplicate=True,
         )
         # Temporary set the workspace for the application so that the permissions can
         # be correctly set during the import process.

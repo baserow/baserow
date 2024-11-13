@@ -52,6 +52,10 @@ import {
   AIFieldType,
   PremiumFormulaFieldType,
 } from '@baserow_premium/fieldTypes'
+import {
+  ChoiceAIFieldOutputType,
+  TextAIFieldOutputType,
+} from '@baserow_premium/aiFieldOutputTypes'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -93,6 +97,8 @@ export default (context) => {
   store.registerModule('template/view/calendar', calendarStore)
   store.registerModule('template/view/timeline', timelineStore)
   store.registerModule('impersonating', impersonatingStore)
+
+  app.$registry.registerNamespace('aiFieldOutputType')
 
   app.$registry.register('plugin', new PremiumPlugin(context))
   app.$registry.register('admin', new DashboardType(context))
@@ -159,5 +165,14 @@ export default (context) => {
   app.$registry.register(
     'rowModalSidebar',
     new CommentsRowModalSidebarType(context)
+  )
+
+  app.$registry.register(
+    'aiFieldOutputType',
+    new TextAIFieldOutputType(context)
+  )
+  app.$registry.register(
+    'aiFieldOutputType',
+    new ChoiceAIFieldOutputType(context)
   )
 }

@@ -409,7 +409,10 @@
     "promptPlaceholder": "What is Baserow?",
     "premiumFeature": "The AI field is a premium feature",
     "emptyFileField": "None",
-    "fileFieldHelp": "The first compatible file in the field will be used as the knowledge base for the prompt. The file has to be a text file with the supported file extension like .txt, .md, .pdf, .docx."
+    "fileFieldHelp": "The first compatible file in the field will be used as the knowledge base for the prompt. The file has to be a text file with the supported file extension like .txt, .md, .pdf, .docx.",
+    "outputType": "Output type",
+    "outputTypeTooltip": "Select your desired output format to guide the LLM in generating responses that match your desired options.",
+    "outputTypeChangedWarning": "Clears the generated cell values."
   },
   "rowEditFieldAI": {
     "generate": "Generate",
@@ -426,5 +429,11 @@
   "formulaFieldAI": {
     "generateWithAI": "Generate using AI",
     "featureName": "Generate formula using AI"
+  },
+  "aiOutputType": {
+    "text": "Text",
+    "textDescription": "Generates free text based on the prompt.",
+    "choice": "Choice",
+    "choiceDescription": "Chooses only one of the field options."
   }
 }

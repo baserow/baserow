@@ -23,6 +23,7 @@ class SettingsSerializer(serializers.ModelSerializer):
             "show_baserow_help_request",
             "co_branding_logo",
             "email_verification",
+            "verify_import_signature",
         )
         extra_kwargs = {
             "allow_new_signups": {"required": False},
@@ -33,6 +34,7 @@ class SettingsSerializer(serializers.ModelSerializer):
             "track_workspace_usage": {"required": False},
             "show_baserow_help_request": {"required": False},
             "email_verification": {"required": False},
+            "verify_import_signature": {"required": False},
         }
 
     def to_representation(self, instance):

@@ -123,7 +123,6 @@
 @import 'preview';
 @import 'deactivated_label';
 @import 'snapshots_modal';
-@import 'exports_modal';
 @import 'import_modal';
 @import 'row_edit_modal';
 @import 'row_edit_modal_sidebar';
@@ -179,3 +178,5 @@
 @import 'onboarding_tool_preview';
 @import 'create_application_context';
 @import 'dashboard/all';
+@import 'export_workspace';
+@import 'import_workspace';

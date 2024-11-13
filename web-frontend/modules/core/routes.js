@@ -30,6 +30,7 @@ export const routes = [
     name: 'reset-password',
     path: '/reset-password/:token',
     component: path.resolve(__dirname, 'pages/resetPassword.vue'),
+    meta: { preventPageViewTracking: true },
   },
   {
     name: 'verify-email-address',
@@ -50,6 +51,7 @@ export const routes = [
     name: 'workspace-invitation',
     path: '/workspace-invitation/:token',
     component: path.resolve(__dirname, 'pages/workspaceInvitation.vue'),
+    meta: { preventPageViewTracking: true },
   },
   {
     name: 'admin-settings',

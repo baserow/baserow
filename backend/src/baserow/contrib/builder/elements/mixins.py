@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -41,6 +41,8 @@ from baserow.contrib.builder.elements.types import (
 )
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.types import ElementDict
+from baserow.contrib.database.fields.utils import get_field_id_from_field_key
+from baserow.core.formula.types import BaserowFormula
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.utils import merge_dicts_no_duplicates
 
@@ -130,6 +132,15 @@ class ContainerElementTypeMixin:
 class CollectionElementTypeMixin:
     is_collection_element = True
 
+    # Three properties which define whether this collection element
+    # is allowed to be publicly sortable, filterable and searchable
+    # by page visitors. Can be overridden by subclasses to influence
+    # whether page designers can flag collection elements and their
+    # properties as sortable, filterable and searchable.
+    is_publicly_sortable = True
+    is_publicly_filterable = True
+    is_publicly_searchable = True
+
     allowed_fields = [
         "data_source",
         "data_source_id",
@@ -143,6 +154,9 @@ class CollectionElementTypeMixin:
         "items_per_page",
         "button_load_more_label",
         "property_options",
+        "is_publicly_sortable",
+        "is_publicly_filterable",
+        "is_publicly_searchable",
     ]
 
     class SerializedDict(ElementDict):
@@ -155,16 +169,25 @@ class CollectionElementTypeMixin:
     def enhance_queryset(self, queryset):
         return queryset.prefetch_related("property_options")
 
-    def after_update(self, instance: CollectionElementSubClass, values):
+    def after_update(
+        self, instance: CollectionElementSubClass, values, changes: Dict[str, Tuple]
+    ):
         """
         After the element has been updated we need to update the property options.
 
         :param instance: The instance of the element that has been updated.
         :param values: The values that have been updated.
+        :param changes: A dictionary containing all changes which were made to the
+            collection element prior to `after_update` being called.
         :return: None
         """
 
-        if "property_options" in values:
+        # Following a DataSource change, from one DataSource to another, we drop all
+        # property options. This is due to the fact that the `schema_property` in the
+        # property options are specific to that data source's schema.
+        data_source_changed = "data_source" in changes
+
+        if "property_options" in values or data_source_changed:
             instance.property_options.all().delete()
             try:
                 CollectionElementPropertyOptions.objects.bulk_create(
@@ -173,7 +196,7 @@ class CollectionElementTypeMixin:
                             **option,
                             element=instance,
                         )
-                        for option in values["property_options"]
+                        for option in values.get("property_options", [])
                     ]
                 )
             except IntegrityError as e:
@@ -186,6 +209,21 @@ class CollectionElementTypeMixin:
         from baserow.core.formula.serializers import FormulaSerializerField
 
         return {
+            "is_publicly_sortable": serializers.BooleanField(
+                read_only=True,
+                default=self.is_publicly_sortable,
+                help_text="Whether this collection element is publicly sortable.",
+            ),
+            "is_publicly_filterable": serializers.BooleanField(
+                read_only=True,
+                default=self.is_publicly_filterable,
+                help_text="Whether this collection element is publicly filterable.",
+            ),
+            "is_publicly_searchable": serializers.BooleanField(
+                read_only=True,
+                default=self.is_publicly_searchable,
+                help_text="Whether this collection element is publicly searchable.",
+            ),
             "data_source_id": serializers.IntegerField(
                 allow_null=True,
                 default=None,
@@ -316,6 +354,22 @@ class CollectionElementTypeMixin:
         if prop_name == "data_source_id" and value:
             return id_mapping["builder_data_sources"][value]
 
+        if prop_name == "property_options" and "database_fields" in id_mapping:
+            property_options = []
+            for po in value:
+                field_id = get_field_id_from_field_key(po["schema_property"])
+                if field_id is None:
+                    # If we can't translate the `schema_property` into a Field ID, then
+                    # it's not a `Field` db_column value. For example this can happen
+                    # if someone chooses to have a `id` property option.
+                    property_options.append(po)
+                    continue
+                new_field_id = id_mapping["database_fields"][field_id]
+                property_options.append(
+                    {**po, "schema_property": f"field_{new_field_id}"}
+                )
+            return property_options
+
         return super().deserialize_property(
             prop_name,
             value,
@@ -377,12 +431,42 @@ class CollectionElementTypeMixin:
         )
 
         # Create property options
-        options = [CollectionElementPropertyOptions(**po) for po in property_options]
+        options = [
+            CollectionElementPropertyOptions(**po, element=instance)
+            for po in property_options
+        ]
         CollectionElementPropertyOptions.objects.bulk_create(options)
 
         instance.property_options.add(*options)
 
         return instance
+
+    def extract_formula_properties(
+        self, instance: Element, **kwargs
+    ) -> Dict[int, List[BaserowFormula]]:
+        """
+        Some collection elements (e.g. Repeat Element) may have a nested
+        collection element which uses a schema_property. This property points
+        to a field name that is connected to the parent collection element's
+        data source.
+
+        This method is overridden to ensure that any schema_property is also
+        included in the list of field names used by the element.
+        """
+
+        properties = super().extract_formula_properties(instance, **kwargs)
+
+        if schema_property := instance.schema_property:
+            # if we have a data_source_id in the context from a parent or from the
+            # current instance
+            data_source_id = instance.data_source_id or kwargs.get(
+                "data_source_id", None
+            )
+            if data_source_id:
+                data_source = DataSourceHandler().get_data_source(data_source_id)
+                properties[data_source.service_id] = [schema_property]
+
+        return properties
 
 
 class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
@@ -463,12 +547,16 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
         )
         instance.fields.add(*created_fields)
 
-    def after_update(self, instance: CollectionElementSubClass, values):
+    def after_update(
+        self, instance: CollectionElementSubClass, values, changes: Dict[str, Tuple]
+    ):
         """
         After the element has been updated we need to update the fields.
 
         :param instance: The instance of the element that has been updated.
         :param values: The values that have been updated.
+        :param changes: A dictionary containing all changes which were made to the
+            collection element prior to `after_update` being called.
         :return: None
         """
 
@@ -495,7 +583,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
             )
             instance.fields.add(*created_fields)
 
-        super().after_update(instance, values)
+        super().after_update(instance, values, changes)
 
     def before_delete(self, instance: CollectionElementSubClass):
         # Call the before_delete hook of all fields
@@ -598,7 +686,6 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
     def extract_formula_properties(
         self,
         instance: CollectionElementSubClass,
-        element_map: Dict[str, Element],
         **kwargs,
     ) -> Dict[int, List[str]]:
         """
@@ -608,15 +695,12 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
         field names, e.g.: {164: ['field_5440', 'field_5441', 'field_5439']}
         """
 
-        from baserow.contrib.builder.elements.handler import ElementHandler
-
         # First get from the current element
-        result = super().extract_formula_properties(instance, element_map, **kwargs)
+        result = super().extract_formula_properties(instance, **kwargs)
 
         # then extract the properties used in the collection field formulas
-        formula_context = ElementHandler().get_import_context_addition(
-            instance.id, element_map
-        )
+        formula_context = kwargs | self.import_context_addition(instance)
+
         for collection_field in instance.fields.all():
             result = merge_dicts_no_duplicates(
                 result,

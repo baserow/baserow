@@ -70,6 +70,7 @@ import form from '@baserow/modules/core/mixins/form'
 import LocalBaserowTableSelector from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableSelector'
 import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceConditionalForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
+import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
 
 export default {
   components: {
@@ -77,25 +78,7 @@ export default {
     LocalBaserowTableSelector,
     LocalBaserowTableServiceConditionalForm,
   },
-  mixins: [form],
-  inject: ['page'],
-  props: {
-    builder: {
-      type: Object,
-      required: true,
-    },
-    contextData: {
-      type: Object,
-      required: false,
-      default: () => ({
-        databases: [],
-      }),
-    },
-    dataSource: {
-      type: Object,
-      required: true,
-    },
-  },
+  mixins: [form, localBaserowService],
   data() {
     return {
       allowedValues: [
@@ -116,74 +99,6 @@ export default {
       },
       tableLoading: false,
     }
-  },
-  computed: {
-    dataSourceFilters: {
-      get() {
-        return this.excludeTrashedFields(this.values.filters)
-      },
-      set(newValue) {
-        this.values.filters = newValue
-      },
-    },
-    dataSourceLoading() {
-      return this.$store.getters['dataSource/getLoading'](this.page)
-    },
-    fakeTableId: {
-      get() {
-        return this.values.table_id
-      },
-      set(newValue) {
-        // If we currently have a `table_id` selected, and the `newValue`
-        // is different to the current `table_id`, then reset the `filters`
-        // to a blank array, and `view_id` to `null`.
-        if (this.values.table_id && this.values.table_id !== newValue) {
-          this.values.filters = []
-          this.values.view_id = null
-        }
-        this.values.table_id = newValue
-      },
-    },
-    databases() {
-      return this.contextData?.databases || []
-    },
-    tables() {
-      return this.databases.map((database) => database.tables).flat()
-    },
-    tableSelected() {
-      return this.tables.find(({ id }) => id === this.values.table_id)
-    },
-    tableFields() {
-      return this.tableSelected?.fields || []
-    },
-  },
-  watch: {
-    'values.table_id'(newValue, oldValue) {
-      if (oldValue && newValue !== oldValue) {
-        this.tableLoading = true
-      }
-    },
-    dataSourceLoading: {
-      handler() {
-        this.tableLoading = false
-      },
-      immediate: true,
-    },
-  },
-  methods: {
-    /**
-     * Given an array of objects containing a `field` property (e.g. the data
-     * source filters array), this method will return a new array
-     * containing only the objects where the field is part of the schema, so,
-     * untrashed.
-     *
-     * @param {Array} value - The array of objects to filter.
-     * @returns {Array} - The filtered array.
-     */
-    excludeTrashedFields(value) {
-      const localBaserowFieldIds = this.tableFields.map(({ id }) => id)
-      return value.filter(({ field }) => localBaserowFieldIds.includes(field))
-    },
   },
 }
 </script>

@@ -84,6 +84,8 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
 
     actual_result_per_field_name = {}
 
+    ai_choice_select_options = Field.objects.get(name="ai_choice").select_options.all()
+
     for field in fields_to_group_by:
         counts = handler.get_group_by_metadata_in_rows([field], rows, queryset)
         serialized = serialize_group_by_metadata(counts)[field.db_column]
@@ -257,5 +259,13 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
         "duration_dhms": [
             {"count": 1, "field_duration_dhms": 90066.0},
             {"count": 1, "field_duration_dhms": None},
+        ],
+        "ai": [
+            {"count": 1, "field_ai": "I'm an AI."},
+            {"count": 1, "field_ai": None},
+        ],
+        "ai_choice": [
+            {"count": 1, "field_ai_choice": ai_choice_select_options[0].id},
+            {"count": 1, "field_ai_choice": None},
         ],
     }

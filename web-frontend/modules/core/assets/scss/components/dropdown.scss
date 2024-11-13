@@ -11,7 +11,7 @@
   display: block;
   width: 100%;
   border: 1px solid $palette-neutral-400;
-  padding: 12px 16px;
+  padding: 12px;
   box-sizing: border-box;
   color: $palette-neutral-1200;
 
@@ -30,6 +30,8 @@
 
   .dropdown--large & {
     @include fixed-height(44px, 13px);
+
+    padding: 12px 16px;
   }
 
   .dropdown--disabled & {

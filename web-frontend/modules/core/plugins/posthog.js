@@ -38,6 +38,12 @@ export default function ({ app: { router, $config, store } }, inject) {
         posthog.identify(userId, { user_email: userEmail })
       }
 
+      // Some pages must not be tracked like the ones that can expose a sensitive token.
+      const preventTracking = !!to.meta.preventPageViewTracking
+      if (preventTracking) {
+        return
+      }
+
       // Note: this might also be a good place to call posthog.register(...) in
       // order to update your properties on each page view
       posthog.capture('$pageview', {

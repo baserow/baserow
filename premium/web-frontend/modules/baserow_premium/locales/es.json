@@ -298,7 +298,8 @@
         "publicLogoRemoval": "Eliminación del logo público",
         "personalViews": "Vistas personales",
         "calendarView": "Vista del calendario",
-        "aiFeatures": "Campo de IA"
+        "aiFeatures": "Campo de IA",
+        "timelineView": "Vista cronológica"
     },
     "formViewModeType": {
         "surveyDescription": "Un campo es visible al mismo tiempo.",
@@ -373,7 +374,10 @@
         "premiumFeature": "El campo de IA es una función premium",
         "emptyFileField": "Ninguno",
         "fileFieldHelp": "El primer archivo compatible del campo se utilizará como base de conocimientos para la consulta. El archivo tiene que ser un archivo de texto con la extensión de archivo compatible como .txt, .md, .pdf, .docx.",
-        "promptPlaceholder": "¿Qué es Baserow?"
+        "promptPlaceholder": "¿Qué es Baserow?",
+        "outputType": "Tipo de salida",
+        "outputTypeTooltip": "Selecciona el formato de salida que desees para guiar al LLM en la generación de respuestas que se ajusten a tus opciones deseadas.",
+        "outputTypeChangedWarning": "Borra los valores de celda generados."
     },
     "rowEditFieldAI": {
         "generate": "Generar",
@@ -430,5 +434,20 @@
     },
     "timelineGridRow": {
         "days": "0 | 1 día | {count} días"
+    },
+    "timelineTimescaleContext": {
+        "hour": "Hora",
+        "day": "Día",
+        "week": "Semana",
+        "month": "Mes",
+        "quarter": "Trimestral",
+        "year": "Año",
+        "disabledTooltip": "Esta opción solo está disponible para campos de fecha con la opción `incluir hora` activada."
+    },
+    "aiOutputType": {
+        "text": "Texto",
+        "choice": "Elección",
+        "textDescription": "Genera un texto libre basado en la pregunta.",
+        "choiceDescription": "Elige sólo una de las opciones de campo."
     }
 }

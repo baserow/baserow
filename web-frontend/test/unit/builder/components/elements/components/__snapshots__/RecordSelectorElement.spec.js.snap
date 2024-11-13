@@ -49,9 +49,10 @@ exports[`RecordSelectorElement does not paginate if API returns 400/404 1`] = `
                
               <ul
                 class="select__items"
+                style=""
                 tabindex="-1"
               >
-                  
+                   
                 <section
                   class="infinite-scroll"
                 >
@@ -263,9 +264,10 @@ exports[`RecordSelectorElement does not paginate if API returns 400/404 2`] = `
                
               <ul
                 class="select__items"
+                style=""
                 tabindex="-1"
               >
-                  
+                   
                 <section
                   class="infinite-scroll"
                 >
@@ -477,9 +479,10 @@ exports[`RecordSelectorElement does not paginate if API returns 400/404 3`] = `
                
               <ul
                 class="select__items"
+                style=""
                 tabindex="-1"
               >
-                  
+                   
                 <section
                   class="infinite-scroll"
                 >
@@ -691,9 +694,10 @@ exports[`RecordSelectorElement resolves suffix formulas 1`] = `
                
               <ul
                 class="select__items"
+                style=""
                 tabindex="-1"
               >
-                  
+                   
                 <section
                   class="infinite-scroll"
                 >
@@ -827,9 +831,10 @@ exports[`RecordSelectorElement resolves suffix formulas 2`] = `
                
               <ul
                 class="select__items"
+                style=""
                 tabindex="-1"
               >
-                  
+                   
                 <section
                   class="infinite-scroll"
                 >

@@ -41,6 +41,16 @@ export default {
       return elementType.hasCollectionAncestor(this.page, element)
     },
     /**
+     * In collection element forms, the ability to configure property options
+     * (e.g. allowing properties to be filterable, sortable and/or searchable)
+     * is dependent on whether the selected data source returns a list, and if
+     * the feature flag is enabled.
+     * @returns {boolean} - Whether the property options are available.
+     */
+    propertyOptionsAvailable() {
+      return this.selectedDataSource && this.selectedDataSourceReturnsList
+    },
+    /**
      * In collection element forms, the ability to view paging options
      * (e.g. items per page, or styling the load more button) is dependent
      * on whether the selected data source returns a list. When a single row
@@ -87,13 +97,18 @@ export default {
     },
     /**
      * Returns all data sources that are available to the current page.
+     * The data source will need a `type` and a valid schema.
      * @returns {Array} - The data sources the page designer can choose from.
      */
     dataSources() {
       const pages = [this.sharedPage, this.page]
       return this.$store.getters['dataSource/getPagesDataSources'](
         pages
-      ).filter((dataSource) => dataSource.type)
+      ).filter((dataSource) => {
+        const serviceType =
+          dataSource.type && this.$registry.get('service', dataSource.type)
+        return serviceType?.getDataSchema(dataSource)
+      })
     },
     selectedDataSource() {
       if (!this.values.data_source_id) {

@@ -1005,7 +1005,9 @@
         "reportMessage": "De volgende rij indexen konden'niet worden geïmporteerd:"
     },
     "dataSyncType": {
-        "icalCalendar": "Sync iCal feed"
+        "icalCalendar": "Sync iCal feed",
+        "syncError": "Sync-fout",
+        "postgresql": "PostgreSQL tabel synchroniseren"
     },
     "iCalCalendarDataSync": {
         "name": "iCal URL",
@@ -1031,5 +1033,16 @@
     },
     "createViewLink": {
         "inCompatibleWithDataSync": "Dit weergavetype is niet compatibel met een data sync tabel."
+    },
+    "postgreSQLDataSync": {
+        "host": "Host",
+        "username": "Gebruikersnaam",
+        "password": "Wachtwoord",
+        "database": "Database",
+        "table": "Tabel",
+        "sslMode": "SSL-modus",
+        "schema": "Schema",
+        "description": "Synchroniseert een PostgreSQL tabel met een Baserow tabel die overeenkomt met de onderstaande gegevens. Let op dat wanneer de synchronisatie start, het alle rijen in de opgegeven tabel zal selecteren. Hoewel Baserow alleen gegevens selecteert, raden we sterk aan om de gebruiker te beperken tot een alleen-lezen verbinding.",
+        "port": "Poort"
     }
 }

@@ -376,7 +376,7 @@
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "Haga clic para editar la fórmula",
-        "fields": "Campo",
+        "fields": "Campos",
         "functions": "Funciones",
         "operators": "Operadores",
         "fieldType": "Un campo {type}"
@@ -1008,7 +1008,9 @@
         "inCompatibleWithDataSync": "Este tipo de vista no es compatible con una tabla de sincronización de datos."
     },
     "dataSyncType": {
-        "icalCalendar": "Sincronizar iCal"
+        "icalCalendar": "Sincronizar iCal",
+        "syncError": "Error de sincronización",
+        "postgresql": "Sincronizar tabla PostgreSQL"
     },
     "createDataSync": {
         "next": "Siguiente",
@@ -1031,5 +1033,16 @@
     "iCalCalendarDataSync": {
         "name": "URL de iCal",
         "description": "La sincronización del calendario iCal, se sincroniza automáticamente con las entradas del archivo de calendario de la URL. Solo admite el tipo de archivo ICS (Internet Calendar and Scheduling)."
+    },
+    "postgreSQLDataSync": {
+        "host": "Host",
+        "username": "Nombre de usuario",
+        "password": "Contraseña",
+        "database": "Base de datos",
+        "schema": "Esquema",
+        "table": "Tabla",
+        "port": "Puerto",
+        "sslMode": "Modo SSL",
+        "description": "Sincroniza una tabla de PostgreSQL con una tabla de Baserow que coincida con los detalles proporcionados a continuación. Tenga en cuenta que cuando se inicia la sincronización, se seleccionarán todas las filas de la tabla proporcionada. Aunque Baserow solo selecciona datos, recomendamos encarecidamente limitar al usuario a una conexión de solo lectura."
     }
 }

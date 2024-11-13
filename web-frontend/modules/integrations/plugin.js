@@ -10,6 +10,7 @@ import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integ
 import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
+  LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/serviceTypes'
 
 export default (context) => {
@@ -36,5 +37,9 @@ export default (context) => {
   app.$registry.register(
     'service',
     new LocalBaserowListRowsServiceType(context)
+  )
+  app.$registry.register(
+    'service',
+    new LocalBaserowAggregateRowsServiceType(context)
   )
 }

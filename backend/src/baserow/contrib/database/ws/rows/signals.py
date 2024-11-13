@@ -81,6 +81,9 @@ def rows_updated(
                 serialized_rows=get_row_serializer_class(
                     model, RowSerializer, is_response=True
                 )(rows, many=True).data,
+                # Broadcast a list of updated fields so that the listener can take
+                # action even if the value didn't change.
+                updated_field_ids=list(updated_field_ids),
                 metadata=row_metadata_registry.generate_and_merge_metadata_for_rows(
                     user, table, [row.id for row in rows]
                 ),
@@ -213,6 +216,7 @@ class RealtimeRowMessages:
         serialized_rows_before_update: List[Dict[str, Any]],
         serialized_rows: List[Dict[str, Any]],
         metadata: Dict[int, Dict[str, Any]],
+        updated_field_ids: List[int],
     ) -> Dict[str, Any]:
         return {
             "type": "rows_updated",
@@ -223,6 +227,7 @@ class RealtimeRowMessages:
             "rows_before_update": serialized_rows_before_update,
             "rows": serialized_rows,
             "metadata": metadata,
+            "updated_field_ids": updated_field_ids,
         }
 
     @staticmethod

@@ -180,6 +180,7 @@ export class KanbanViewType extends PremiumViewType {
     row,
     values,
     metadata,
+    updatedFieldIds,
     storePrefix = ''
   ) {
     if (this.isCurrentView(store, tableId)) {
@@ -386,6 +387,7 @@ export class CalendarViewType extends PremiumViewType {
     row,
     values,
     metadata,
+    updatedFieldIds,
     storePrefix = ''
   ) {
     if (this.isCurrentView(store, tableId)) {

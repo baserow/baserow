@@ -1,0 +1,2 @@
+class FilterNotSupportedException(Exception):
+    pass

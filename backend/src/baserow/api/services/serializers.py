@@ -65,6 +65,7 @@ class PublicServiceSerializer(serializers.ModelSerializer):
     """
 
     type = serializers.SerializerMethodField(help_text="The type of the service.")
+    schema = serializers.SerializerMethodField(help_text="The schema of the service.")
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
@@ -74,12 +75,17 @@ class PublicServiceSerializer(serializers.ModelSerializer):
     def get_context_data(self, instance):
         return instance.get_type().get_context_data(instance.specific)
 
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_schema(self, instance):
+        return instance.get_type().generate_schema(instance.specific)
+
     class Meta:
         model = Service
-        fields = ("id", "type")
+        fields = ("id", "type", "schema")
         extra_kwargs = {
             "id": {"read_only": True},
             "type": {"read_only": True},
+            "schema": {"read_only": True},
             "context_data": {"read_only": True},
         }
 

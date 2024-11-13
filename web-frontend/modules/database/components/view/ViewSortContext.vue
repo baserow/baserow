@@ -36,12 +36,12 @@
           </a>
 
           <div class="sortings__description">
-            <template v-if="index === 0">{{
-              $t('viewSortContext.sortBy')
-            }}</template>
-            <template v-if="index > 0">{{
-              $t('viewSortContext.thenBy')
-            }}</template>
+            <template v-if="index === 0"
+              >{{ $t('viewSortContext.sortBy') }}
+            </template>
+            <template v-if="index > 0"
+              >{{ $t('viewSortContext.thenBy') }}
+            </template>
           </div>
           <div class="sortings__field">
             <Dropdown
@@ -69,9 +69,9 @@
               :class="{ active: sort.order === 'ASC' }"
               @click="updateSort(sort, { order: 'ASC' })"
             >
-              <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                getSortIndicator(field, 1)
-              }}</template>
+              <template v-if="getSortIndicator(field, 0) === 'text'"
+                >{{ getSortIndicator(field, 1) }}
+              </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 1)"
@@ -79,9 +79,9 @@
 
               <i class="iconoir-arrow-right"></i>
 
-              <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                getSortIndicator(field, 2)
-              }}</template>
+              <template v-if="getSortIndicator(field, 0) === 'text'"
+                >{{ getSortIndicator(field, 2) }}
+              </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 2)"
@@ -92,9 +92,9 @@
               :class="{ active: sort.order === 'DESC' }"
               @click="updateSort(sort, { order: 'DESC' })"
             >
-              <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                getSortIndicator(field, 2)
-              }}</template>
+              <template v-if="getSortIndicator(field, 0) === 'text'"
+                >{{ getSortIndicator(field, 2) }}
+              </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 2)"
@@ -102,9 +102,9 @@
 
               <i class="iconoir-arrow-right"></i>
 
-              <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                getSortIndicator(field, 1)
-              }}</template>
+              <template v-if="getSortIndicator(field, 0) === 'text'"
+                >{{ getSortIndicator(field, 1) }}
+              </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 1)"
@@ -124,8 +124,8 @@
             $refs.addContext.toggle($refs.addContextToggle, 'bottom', 'left', 4)
           "
         >
-          {{ $t('viewSortContext.addSort') }}</ButtonText
-        >
+          {{ $t('viewSortContext.addSort') }}
+        </ButtonText>
         <Context
           ref="addContext"
           class="sortings__add-context"
@@ -142,7 +142,7 @@
               <a class="context__menu-item-link" @click="addSort(field)">
                 <i
                   class="context__menu-item-icon"
-                  :class="field._.type.iconClass"
+                  :class="getFieldType(field).iconClass"
                 ></i>
                 {{ field.name }}
               </a>
@@ -188,8 +188,11 @@ export default {
     },
   },
   methods: {
+    getFieldType(field) {
+      return this.$registry.get('field', field.type)
+    },
     getCanSortInView(field) {
-      return this.$registry.get('field', field.type).getCanSortInView(field)
+      return this.getFieldType(field).getCanSortInView(field)
     },
     getField(fieldId) {
       for (const i in this.fields) {
@@ -249,9 +252,9 @@ export default {
       }
     },
     getSortIndicator(field, index) {
-      return this.$registry
-        .get('field', field.type)
-        .getSortIndicator(field, this.$registry)[index]
+      return this.getFieldType(field).getSortIndicator(field, this.$registry)[
+        index
+      ]
     },
   },
 }

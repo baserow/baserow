@@ -3,7 +3,9 @@ import fs from 'fs'
 
 import {
   TextFieldType,
+  SingleSelectFieldType,
   MultipleSelectFieldType,
+  MultipleCollaboratorsFieldType,
 } from '@baserow/modules/database/fieldTypes'
 import { firstBy } from 'thenby'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -124,6 +126,34 @@ describe('MultipleSelectFieldType sorting', () => {
     ids = testTableDataWithNull.map((obj) => obj.id)
     expect(ids).toEqual([3, 2, 1])
   })
+
+  test('Test sort matches backend', () => {
+    // This is a naive sorting test running on Node.js and thus not really testing
+    // collation sorting in the browsers where this functionality is mostly used The
+    // Peseta character in particular seems to be sorted differently in our Node.js,
+    // hence it will be ignored for this test
+    const sortedChars = fs
+      .readFileSync(
+        path.join(__dirname, '/../../../../tests/sorted_chars.txt'),
+        'utf8'
+      )
+      .replace(/^\uFEFF/, '') // strip BOM
+      .replace('₧', '') // ignore Peseta
+    const data = fs
+      .readFileSync(
+        path.join(__dirname, '/../../../../tests/all_chars.txt'),
+        'utf8'
+      )
+      .replace(/^\uFEFF/, '') // strip BOM
+      .replace('₧', '') // ignore Peseta
+    const rows = Array.from(data).map((value) => {
+      return { v: [{ value }] }
+    })
+    const sortFunction = new MultipleSelectFieldType().getSort('v', 'ASC')
+    rows.sort(sortFunction)
+    const result = rows.map((v) => v.v[0].value).join('')
+    expect(result).toBe(sortedChars)
+  })
 })
 
 describe('TextFieldType sorting', () => {
@@ -154,6 +184,78 @@ describe('TextFieldType sorting', () => {
     const sortFunction = new TextFieldType().getSort('v', 'ASC')
     chars.sort(sortFunction)
     const result = chars.map((value) => value.v).join('')
+    expect(result).toBe(sortedChars)
+  })
+})
+
+describe('SingleSelectFieldType sorting', () => {
+  test('Test sort matches backend', () => {
+    // This is a naive sorting test running on Node.js and thus not really testing
+    // collation sorting in the browsers where this functionality is mostly used The
+    // Peseta character in particular seems to be sorted differently in our Node.js,
+    // hence it will be ignored for this test
+    const sortedChars = fs
+      .readFileSync(
+        path.join(__dirname, '/../../../../tests/sorted_chars.txt'),
+        'utf8'
+      )
+      .replace(/^\uFEFF/, '') // strip BOM
+      .replace('₧', '') // ignore Peseta
+    const data = fs
+      .readFileSync(
+        path.join(__dirname, '/../../../../tests/all_chars.txt'),
+        'utf8'
+      )
+      .replace(/^\uFEFF/, '') // strip BOM
+      .replace('₧', '') // ignore Peseta
+    const rows = Array.from(data).map((value) => {
+      return { v: { value } }
+    })
+    const sortFunction = new SingleSelectFieldType().getSort('v', 'ASC')
+    rows.sort(sortFunction)
+    const result = rows.map((v) => v.v.value).join('')
+    expect(result).toBe(sortedChars)
+  })
+})
+
+describe('MultipleCollaboratorsFieldType sorting', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test('Test sort matches backend', () => {
+    // This is a naive sorting test running on Node.js and thus not really testing
+    // collation sorting in the browsers where this functionality is mostly used The
+    // Peseta character in particular seems to be sorted differently in our Node.js,
+    // hence it will be ignored for this test
+    const sortedChars = fs
+      .readFileSync(
+        path.join(__dirname, '/../../../../tests/sorted_chars.txt'),
+        'utf8'
+      )
+      .replace(/^\uFEFF/, '') // strip BOM
+      .replace('₧', '') // ignore Peseta
+    const data = fs
+      .readFileSync(
+        path.join(__dirname, '/../../../../tests/all_chars.txt'),
+        'utf8'
+      )
+      .replace(/^\uFEFF/, '') // strip BOM
+      .replace('₧', '') // ignore Peseta
+    const rows = Array.from(data).map((value) => {
+      return { v: [{ name: value }] }
+    })
+    const sortFunction = new MultipleCollaboratorsFieldType({
+      app: testApp,
+    }).getSort('v', 'ASC')
+    rows.sort(sortFunction)
+    const result = rows.map((v) => v.v[0].name).join('')
     expect(result).toBe(sortedChars)
   })
 })

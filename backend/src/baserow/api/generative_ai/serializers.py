@@ -22,6 +22,24 @@ class OpenAISettingsSerializer(GenerativeAIModelsSerializer):
     )
 
 
+class AnthropicSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The Anthropic API key that is used to authenticate with the "
+        "Anthropic API.",
+    )
+
+
+class MistralSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The Mistral API key that is used to authenticate with the Mistral "
+        "API.",
+    )
+
+
 class OllamaSettingsSerializer(GenerativeAIModelsSerializer):
     host = serializers.CharField(
         allow_blank=True,

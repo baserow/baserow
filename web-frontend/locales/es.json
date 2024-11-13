@@ -10,7 +10,10 @@
         "table": "Tabla",
         "billable": "Facturable",
         "all": "Todos",
-        "beta": "Beta"
+        "beta": "Beta",
+        "enabled": "Activado",
+        "disabled": "Desactivado",
+        "summarize": "Resumir"
     },
     "action": {
         "upload": "Subir",
@@ -60,7 +63,11 @@
         "databaseDesc": "Crear una colección organizada de datos estructurados.",
         "builders": "Aplicaciones",
         "databases": "Bases de datos",
-        "builderDesc": "Crea fácilmente sitios web, aplicaciones web y portales sin código."
+        "builderDesc": "Crea fácilmente sitios web, aplicaciones web y portales sin código.",
+        "dashboards": "Paneles de control",
+        "dashboardDefaultName": "Tablero sin título",
+        "dashboard": "Tablero",
+        "dashboardDesc": "Visualice sus datos y métricas con gráficos, tablas o gráficos."
     },
     "settingType": {
         "account": "Cuenta",
@@ -90,7 +97,9 @@
         "invalidNumber": "El campo debe ser un número.",
         "email": "El campo debe ser un correo electrónico.",
         "invalidURL": "Por favor, introduce una URL válida.",
-        "alreadyInUse": "Este nombre de campo ya está en uso."
+        "alreadyInUse": "Este nombre de campo ya está en uso.",
+        "decimalField": "El campo debe ser un decimal.",
+        "invalidCharacters": "Este campo contiene caracteres inválidos."
     },
     "permission": {
         "admin": "Admin",

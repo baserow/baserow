@@ -45,7 +45,8 @@
     },
     "serviceType": {
         "localBaserowGetRow": "Leggi {singleRow}",
-        "localBaserowListRows": "Righe multiple"
+        "localBaserowListRows": "Elenca {multiple rows}",
+        "localBaserowAggregateRows": "Aggrega campo"
     },
     "userSourceType": {
         "localBaserow": "Autenticazione tramite tabella di Baserow"
@@ -72,5 +73,13 @@
     "integrationsCommon": {
         "singleRow": "Singola riga",
         "multipleRows": "Più righe"
+    },
+    "localBaserowAggregateRowsForm": {
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Aggregazione",
+        "searchFieldPlaceHolder": "Inserisci un termine per la ricerca...",
+        "noTableChosenForFiltering": "Scegli una tabella per iniziare ad usare i filtri.",
+        "filterTabTitle": "Filtri",
+        "searchTabTitle": "Cerca"
     }
 }

@@ -72,6 +72,24 @@ class LocalBaserowListRows(
     """
 
 
+class LocalBaserowAggregateRows(
+    LocalBaserowViewService, LocalBaserowFilterableServiceMixin, SearchableServiceMixin
+):
+    """
+    A model for the local baserow aggregate rows service configuration data.
+    """
+
+    field = models.ForeignKey(
+        "database.Field",
+        help_text="The aggregated field.",
+        null=True,
+        on_delete=models.SET_NULL,
+    )
+    aggregation_type = models.CharField(
+        default="", blank=True, max_length=48, help_text="The field aggregation type."
+    )
+
+
 class LocalBaserowGetRow(
     LocalBaserowViewService, LocalBaserowFilterableServiceMixin, SearchableServiceMixin
 ):

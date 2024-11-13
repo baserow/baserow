@@ -228,6 +228,21 @@
         </template>
       </DeviceSelector>
     </FormGroup>
+    <FormGroup
+      v-if="propertyOptionsAvailable"
+      small-label
+      class="margin-top-2 margin-bottom-2"
+      :label="$t('collectionElementForm.propertyOptionLabel')"
+    >
+      <PropertyOptionForm
+        :default-values="element"
+        :is-filterable="element.is_publicly_filterable"
+        :is-sortable="element.is_publicly_sortable"
+        :is-searchable="element.is_publicly_searchable"
+        :data-source="selectedDataSource"
+        @values-changed="$emit('values-changed', $event)"
+      ></PropertyOptionForm>
+    </FormGroup>
   </form>
 </template>
 
@@ -252,10 +267,12 @@ import { mapActions, mapGetters } from 'vuex'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
 import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown'
+import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 
 export default {
   name: 'TableElementForm',
   components: {
+    PropertyOptionForm,
     DataSourceDropdown,
     ServiceSchemaPropertySelector,
     InjectedFormulaInput,

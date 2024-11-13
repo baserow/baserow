@@ -123,6 +123,9 @@ x-backend-variables: &backend-variables
   BASEROW_ROW_HISTORY_RETENTION_DAYS:
   BASEROW_USER_LOG_ENTRY_CLEANUP_INTERVAL_MINUTES:
   BASEROW_USER_LOG_ENTRY_RETENTION_DAYS:
+  BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES:
+  BASEROW_IMPORT_EXPORT_RESOURCE_REMOVAL_AFTER_DAYS:
+  BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT:
   BASEROW_MAX_ROW_REPORT_ERROR_COUNT:
   BASEROW_JOB_SOFT_TIME_LIMIT:
   BASEROW_FRONTEND_JOBS_POLLING_TIMEOUT_MS:
@@ -172,6 +175,10 @@ x-backend-variables: &backend-variables
   BASEROW_OPENAI_API_KEY:
   BASEROW_OPENAI_ORGANIZATION:
   BASEROW_OPENAI_MODELS:
+  BASEROW_ANTHROPIC_API_KEY:
+  BASEROW_ANTHROPIC_MODELS:
+  BASEROW_MISTRAL_API_KEY:
+  BASEROW_MISTRAL_MODELS:
   BASEROW_OLLAMA_HOST:
   BASEROW_OLLAMA_MODELS:
   BASEROW_SERVE_FILES_THROUGH_BACKEND:
@@ -180,6 +187,9 @@ x-backend-variables: &backend-variables
   BASEROW_ICAL_VIEW_MAX_EVENTS: ${BASEROW_ICAL_VIEW_MAX_EVENTS:-}
   BASEROW_ACCESS_TOKEN_LIFETIME_MINUTES:
   BASEROW_REFRESH_TOKEN_LIFETIME_HOURS:
+  BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE:
+  BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST:
+  BASEROW_ASGI_HTTP_MAX_CONCURRENCY: ${BASEROW_ASGI_HTTP_MAX_CONCURRENCY:-}
 
 
 services:
@@ -207,7 +217,7 @@ services:
       local:
 
   backend:
-    image: baserow/backend:1.28.0
+    image: baserow/backend:1.29.0
     restart: unless-stopped
 
     environment:
@@ -221,7 +231,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:1.28.0
+    image: baserow/web-frontend:1.29.0
     restart: unless-stopped
     environment:
       BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
@@ -257,7 +267,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:1.28.0
+    image: baserow/backend:1.29.0
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -274,7 +284,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:1.28.0
+    image: baserow/backend:1.29.0
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -291,7 +301,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:1.28.0
+    image: baserow/backend:1.29.0
     restart: unless-stopped
     command: celery-beat
     environment:

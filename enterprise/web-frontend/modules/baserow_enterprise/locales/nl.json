@@ -110,7 +110,16 @@
         "invalidMetadata": "Ongeldige XML-metadata voor de identiteitsprovider",
         "relayStateUrl": "Standaard Relay State URL",
         "providerIsVerified": "De provider is geverifieerd",
-        "acsUrl": "URL voor Single Sign On"
+        "acsUrl": "URL voor Single Sign On",
+        "emailAttrKey": "E-mail",
+        "emailAttrKeyHelper": "Het e-mailadres dat zal worden gebruikt als gebruikersnaam voor de gebruiker.",
+        "firstNameAttrKey": "Voornaam",
+        "firstNameAttrKeyHelper": "De voornaam van de gebruiker of de volledige naam als 'Achternaam' niet is opgegeven.",
+        "lastNameAttrKeyHelper": "Achternaam van de gebruiker (optioneel). Wis deze waarde om de volledige naam op te geven via 'Voornaam'.",
+        "defaultAttrs": "Standaard",
+        "customAttrs": "Maatwerk",
+        "samlResponseSettings": "SAML antwoord attributen",
+        "lastNameAttrKey": "Achternaam"
     },
     "authProviderTypes": {
         "password": "E-mail- en wachtwoordverificatie"
@@ -345,6 +354,38 @@
         "table": "Tabel"
     },
     "enterpriseDataSyncType": {
-        "localBaserowTable": "Sync Baserow tabel"
+        "localBaserowTable": "Sync Baserow tabel",
+        "jiraIssues": "Jira issues synchroniseren",
+        "githubIssues": "GitHub issues synchroniseren",
+        "gitlabIssues": "GitLab issues synchroniseren"
+    },
+    "jiraIssuesDataSync": {
+        "urlHelper": "De basis URL van je Jira instantie (bijvoorbeeld https://your-domain.atlassian.net).",
+        "projectKey": "Jira projectsleutel (optioneel)",
+        "usernameHelper": "De gebruikersnaam van het Jira account dat wordt gebruikt om te verifiëren. Dit is het e-mailadres dat je gebruikt om je aan te melden.",
+        "apiToken": "Jira API token",
+        "projectKeyHelper": "De projectsleutel van het Jira project (bijv. PROJ). Kan gevonden worden door te klikken op `Projectinstellingen` in Jira. Als deze niet wordt opgegeven, worden alle issues geretourneerd.",
+        "jiraUrl": "Jira instantie URL",
+        "jiraUsername": "Jira gebruikersnaam",
+        "apiTokenHelper": "Het API-token van het Jira-account dat wordt gebruikt voor verificatie. Kan worden aangemaakt op https://id.atlassian.com/manage-profile/security/api-tokens."
+    },
+    "githubIssuesDataSync": {
+        "apiToken": "API-token",
+        "owner": "Eigenaar",
+        "ownerHelper": "Gebruikersnaam of eigenaar van de repository. Typisch in de linkerbovenhoek `eigenaar / repo`.",
+        "repo": "Repository",
+        "repoHelper": "De naam van de repository. Meestal in de linkerbovenhoek `eigenaar / repo`.",
+        "apiTokenHelper": "Kan hier https://github.com/settings/tokens gegenereerd worden door te klikken op `Generate new token`, selecteer `All repositories`, zet dan onder `Repository permissions` `Issues` op `read-only`."
+    },
+    "gitlabIssuesDataSync": {
+        "projectId": "Project-ID",
+        "accessToken": "Toegangs token",
+        "url": "Basis URL",
+        "urlHelper": "De basis URL van je GitLab instantie. (bijv. https://gitlab.com)",
+        "projectIdHelper": "Het ID van het project waarvan je de issues wilt synchroniseren. Dit kun je vinden door naar je projectpagina te gaan (bijv. https://gitlab.com/baserow/baserow), op de drie puntjes in de rechterbovenhoek te klikken en dan op 'Kopieer project ID: 12345678'.",
+        "accessTokenHelper": "Kan hier https://gitlab.com/-/user_settings/personal_access_tokens worden gegenereerd door te klikken op `Add new token`, selecteer `read_api`."
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "Houd er rekening mee dat een export geen rechten bevat die zijn ingesteld op de applicatie en de tabellen."
     }
 }

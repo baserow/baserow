@@ -92,13 +92,19 @@ def get_element_property_names(
     "external" key, since all builder Elements are user-facing.
     """
 
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
     results = {}
 
     for element in elements:
+        formula_context = ElementHandler().get_import_context_addition(
+            element.parent_element_id, element_map
+        )
+
         results = merge_dicts_no_duplicates(
             results,
             element.get_type().extract_formula_properties(
-                element.specific, element_map
+                element.specific, **formula_context
             ),
         )
 
@@ -119,6 +125,7 @@ def get_workflow_action_property_names(
         - "external" property names are those needed in the frontend.
     """
 
+    from baserow.contrib.builder.elements.handler import ElementHandler
     from baserow.contrib.builder.workflow_actions.workflow_action_types import (
         BuilderWorkflowServiceActionType,
     )
@@ -126,8 +133,12 @@ def get_workflow_action_property_names(
     results = {"internal": {}, "external": {}}
 
     for workflow_action in workflow_actions:
+        formula_context = ElementHandler().get_import_context_addition(
+            workflow_action.element_id, element_map
+        )
+
         found_properties = workflow_action.get_type().extract_formula_properties(
-            workflow_action, element_map
+            workflow_action, **formula_context
         )
 
         if isinstance(workflow_action.get_type(), BuilderWorkflowServiceActionType):

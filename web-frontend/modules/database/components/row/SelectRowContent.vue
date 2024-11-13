@@ -78,6 +78,7 @@ import {
 } from '@baserow/modules/database/utils/view'
 import { GridViewType } from '@baserow/modules/database/viewTypes'
 import SimpleGrid from '@baserow/modules/database/components/view/grid/SimpleGrid.vue'
+import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 
 export default {
   name: 'SelectRowContent',
@@ -292,6 +293,7 @@ export default {
           page,
           size: 10,
           search: this.search,
+          searchMode: getDefaultSearchModeFromEnv(this.$config),
           viewId: this.viewId,
         })
         data.results.forEach((part, index) => populateRow(data.results[index]))

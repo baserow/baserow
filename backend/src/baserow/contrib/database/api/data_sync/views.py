@@ -47,12 +47,6 @@ from .serializers import (
     ListDataSyncPropertySerializer,
 )
 
-SyncDataSyncTableJobTypeSerializer = job_type_registry.get(
-    SyncDataSyncTableJobType.type
-).get_serializer_class(
-    base_class=JobSerializer, meta_ref_name="SingleSyncDataSyncTableJobTypeSerializer"
-)
-
 
 class DataSyncsView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -146,7 +140,7 @@ class SyncDataSyncTableView(APIView):
         ),
         request=None,
         responses={
-            202: SyncDataSyncTableJobTypeSerializer,
+            202: SyncDataSyncTableJobType().response_serializer_class,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",

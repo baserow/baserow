@@ -53,7 +53,12 @@ import {
   hasValueContainsFilterMixin,
   hasValueContainsWordFilterMixin,
   hasValueLengthIsLowerThanFilterMixin,
+  hasSelectOptionIdEqualMixin,
+  hasSelectOptionValueContainsFilterMixin,
+  hasSelectOptionValueContainsWordFilterMixin,
+  formulaArrayFilterMixin,
 } from '@baserow/modules/database/arrayFilterMixins'
+import _ from 'lodash'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
   getIconClass() {
@@ -516,11 +521,7 @@ export class BaserowFormulaInvalidType extends BaserowFormulaTypeDefinition {
 }
 
 export class BaserowFormulaArrayType extends mix(
-  hasEmptyValueFilterMixin,
-  hasValueEqualFilterMixin,
-  hasValueContainsFilterMixin,
-  hasValueContainsWordFilterMixin,
-  hasValueLengthIsLowerThanFilterMixin,
+  formulaArrayFilterMixin,
   BaserowFormulaTypeDefinition
 ) {
   static getType() {
@@ -704,38 +705,6 @@ export class BaserowFormulaArrayType extends mix(
     )
     return subType.getHasEmptyValueFilterFunction(field)
   }
-
-  getHasValueEqualFilterFunction(field) {
-    const subType = this.app.$registry.get(
-      'formula_type',
-      field.array_formula_type
-    )
-    return subType.getHasValueEqualFilterFunction(field)
-  }
-
-  getHasValueContainsFilterFunction(field) {
-    const subType = this.app.$registry.get(
-      'formula_type',
-      field.array_formula_type
-    )
-    return subType.getHasValueContainsFilterFunction(field)
-  }
-
-  getHasValueContainsWordFilterFunction(field) {
-    const subType = this.app.$registry.get(
-      'formula_type',
-      field.array_formula_type
-    )
-    return subType.getHasValueContainsWordFilterFunction(field)
-  }
-
-  getHasValueLengthIsLowerThanFilterFunction(field) {
-    const subType = this.app.$registry.get(
-      'formula_type',
-      field.array_formula_type
-    )
-    return subType.getHasValueLengthIsLowerThanFilterFunction(field)
-  }
 }
 
 export class BaserowFormulaFileType extends BaserowFormulaTypeDefinition {
@@ -841,7 +810,13 @@ export class BaserowFormulaFileType extends BaserowFormulaTypeDefinition {
   }
 }
 
-export class BaserowFormulaSingleSelectType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaSingleSelectType extends mix(
+  hasEmptyValueFilterMixin,
+  hasSelectOptionIdEqualMixin,
+  hasSelectOptionValueContainsFilterMixin,
+  hasSelectOptionValueContainsWordFilterMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'single_select'
   }
@@ -983,7 +958,14 @@ export class BaserowFormulaLinkType extends BaserowFormulaTypeDefinition {
   }
 }
 
-export class BaserowFormulaURLType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaURLType extends mix(
+  hasEmptyValueFilterMixin,
+  hasValueEqualFilterMixin,
+  hasValueContainsFilterMixin,
+  hasValueContainsWordFilterMixin,
+  hasValueLengthIsLowerThanFilterMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'url'
   }
@@ -1017,6 +999,9 @@ export class BaserowFormulaURLType extends BaserowFormulaTypeDefinition {
   }
 
   toHumanReadableString(field, value) {
+    if (_.isString(value)) {
+      return value
+    }
     if (value?.label) {
       return `${value.label} (${value.url})`
     } else {

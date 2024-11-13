@@ -12,6 +12,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import ViewDecoration
 from baserow.contrib.database.views.registries import view_type_registry
+from baserow.test_utils.helpers import AnyStr
 
 
 @pytest.mark.django_db
@@ -20,7 +21,17 @@ def test_import_export_grid_view_w_decorator(data_fixture):
         name="Test", order=1, filter_type="AND", filters_disabled=False
     )
     field = data_fixture.create_text_field(table=grid_view.table)
+    single_select = data_fixture.create_single_select_field(table=grid_view.table)
+    option = data_fixture.create_select_option(
+        field=single_select, value="A", color="blue"
+    )
     imported_field = data_fixture.create_text_field(table=grid_view.table)
+    imported_single_select = data_fixture.create_single_select_field(
+        table=grid_view.table
+    )
+    imported_option = data_fixture.create_select_option(
+        field=imported_single_select, value="A", color="blue"
+    )
 
     view_decoration = data_fixture.create_view_decoration(
         view=grid_view,
@@ -38,15 +49,29 @@ def test_import_export_grid_view_w_decorator(data_fixture):
             "colors": [
                 {
                     "filter_groups": [{"id": 1}],
-                    "filters": [{"field": field.id, "group": 1}],
+                    "filters": [
+                        {"field": field.id, "group": 1, "value": ""},
+                        {
+                            "type": "single_select_equal",
+                            "field": single_select.id,
+                            "group": 1,
+                            "value": option.id,
+                        },
+                    ],
                 },
-                {"filters": [{"field": field.id}]},
+                {"filters": [{"field": field.id, "value": ""}]},
             ]
         },
         order=2,
     )
 
-    id_mapping = {"database_fields": {field.id: imported_field.id}}
+    id_mapping = {
+        "database_fields": {
+            field.id: imported_field.id,
+            single_select.id: imported_single_select.id,
+        },
+        "database_field_select_options": {option.id: imported_option.id},
+    }
 
     grid_view_type = view_type_registry.get("grid")
     serialized = grid_view_type.export_serialized(grid_view, None, None, None)
@@ -72,13 +97,25 @@ def test_import_export_grid_view_w_decorator(data_fixture):
         == imported_view_decorations[1].value_provider_type
     )
 
-    # a new id is generated for every inserted color
-    for color in imported_view_decorations[1].value_provider_conf["colors"]:
-        assert color["id"] is not None
-        assert color["filters"][0]["field"] == imported_field.id
-        group = color["filters"][0].get("group", None)
-        if group is not None:
-            assert group == color["filter_groups"][0]["id"]
+    assert imported_view_decorations[1].value_provider_conf["colors"] == [
+        {
+            "id": AnyStr(),  # a new id is generated for every inserted color
+            "filters": [
+                {"field": imported_field.id, "group": 1, "value": ""},
+                {
+                    "type": "single_select_equal",
+                    "field": imported_single_select.id,
+                    "group": 1,
+                    "value": imported_option.id,
+                },
+            ],
+            "filter_groups": [{"id": 1}],
+        },
+        {
+            "id": AnyStr(),
+            "filters": [{"field": imported_field.id, "value": ""}],
+        },
+    ]
 
 
 @pytest.mark.django_db

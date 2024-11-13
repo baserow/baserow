@@ -727,7 +727,7 @@ export class FieldType extends Registerable {
    * Override and return true if the field type can be referenced by a formula field.
    * @return {boolean}
    */
-  canBeReferencedByFormulaField() {
+  canBeReferencedByFormulaField(field) {
     return false
   }
 
@@ -2935,10 +2935,7 @@ export class SingleSelectFieldType extends FieldType {
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name].value
       const stringB = b[name] === null ? '' : '' + b[name].value
-
-      return order === 'ASC'
-        ? stringA.localeCompare(stringB)
-        : stringB.localeCompare(stringA)
+      return collatedStringCompare(stringA, stringB, order)
     }
   }
 
@@ -3162,9 +3159,7 @@ export class MultipleSelectFieldType extends FieldType {
       const stringB =
         valuesB.length > 0 ? valuesB.map((obj) => obj.value).join('') : ''
 
-      return order === 'ASC'
-        ? stringA.localeCompare(stringB)
-        : stringB.localeCompare(stringA)
+      return collatedStringCompare(stringA, stringB, order)
     }
   }
 
@@ -3873,9 +3868,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
         stringB = valuesB.map((obj) => obj.name).join('')
       }
 
-      return order === 'ASC'
-        ? stringA.localeCompare(stringB)
-        : stringB.localeCompare(stringA)
+      return collatedStringCompare(stringA, stringB, order)
     }
   }
 

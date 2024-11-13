@@ -41,6 +41,8 @@ import {
 import {
   LocalBaserowTableDataSyncType,
   JiraIssuesDataSyncType,
+  GitHubIssuesDataSyncType,
+  GitLabIssuesDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
 
 export default (context) => {
@@ -124,4 +126,6 @@ export default (context) => {
 
   app.$registry.register('dataSync', new LocalBaserowTableDataSyncType(context))
   app.$registry.register('dataSync', new JiraIssuesDataSyncType(context))
+  app.$registry.register('dataSync', new GitHubIssuesDataSyncType(context))
+  app.$registry.register('dataSync', new GitLabIssuesDataSyncType(context))
 }

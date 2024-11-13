@@ -120,20 +120,38 @@ export default {
         ? this.$v.values[fieldName].$error
         : false
     },
+    getChildForms(deep = false) {
+      const children = []
+      const getDeep = (child) => {
+        if ('isFormValid' in child) {
+          children.push(child)
+        } else if (deep) {
+          child.$children.forEach(getDeep)
+        }
+      }
+
+      for (const child of this.$children) {
+        getDeep(child)
+      }
+      return children
+    },
     /**
      * Returns true is everything is valid.
+     *
+     * `deep` parameter allow to deeply search the form elements and not staying at the
+     * first level of children.
      */
-    isFormValid() {
+    isFormValid(deep = false) {
       // Some forms might not do any validation themselves. If they don't, then they
       // are by definition valid if their children are valid.
       const thisFormInvalid = '$v' in this && this.$v.$invalid
-      return !thisFormInvalid && this.areChildFormsValid()
+      return !thisFormInvalid && this.areChildFormsValid(deep)
     },
     /**
      * Returns true if all the child form components are valid.
      */
-    areChildFormsValid() {
-      for (const child of this.$children) {
+    areChildFormsValid(deep = false) {
+      for (const child of this.getChildForms(deep)) {
         if ('isFormValid' in child && !child.isFormValid()) {
           return false
         }
@@ -160,8 +178,11 @@ export default {
     },
     /**
      * Resets the form and the child forms to its original state.
+     *
+     * `deep` parameter allow to deeply search the form elements and not staying at the
+     * first level of children.
      */
-    reset() {
+    async reset(deep = false) {
       Object.assign(
         this.values,
         this.$options.data.call(this).values,
@@ -172,13 +193,12 @@ export default {
         this.$v.$reset()
       }
 
-      // Also reset the child forms.
-      for (const child of this.$children) {
-        if ('isFormValid' in child) {
-          child.reset()
-        }
-      }
+      await this.$nextTick()
+
+      // Also reset the child forms after a tick to allow default values to be updated.
+      this.getChildForms(deep).forEach((child) => child.reset())
     },
+
     /**
      * Returns if a child form has indicated it handled the error, false otherwise.
      */

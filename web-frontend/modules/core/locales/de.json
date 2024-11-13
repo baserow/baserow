@@ -19,14 +19,21 @@
     "sidebar": {
         "createWorkspace": "Arbeitsbereich erstellen",
         "inviteOthers": "Andere einladen",
-        "logoff": "Abmeldung",
+        "logoff": "Abmelden",
         "errorNoWorkspace": "Sie haben keine Arbeitsbereiche.",
         "admin": "Administrator",
         "dashboard": "Dashboard",
         "trash": "Papierkorb",
-        "settings": "Einstellungen",
+        "settings": "Meine Einstellungen",
         "members": "Mitglieder",
-        "notifications": "Benachrichtigungen"
+        "notifications": "Benachrichtigungen",
+        "addNewWorkspace": "Neuen Arbeitsbereich hinzufügen",
+        "adminTools": "Administrations-Tools",
+        "home": "Startseite",
+        "adminSettings": "Administrations-Einstellungen",
+        "general": "Allgemein",
+        "people": "Personen",
+        "licenses": "Lizenzen"
     },
     "accountForm": {
         "nameLabel": "Ihr Name",
@@ -39,7 +46,7 @@
         "submitButton": "Konto aktualisieren"
     },
     "settingsModal": {
-        "title": "Einstellungen"
+        "title": "Meine Einstellungen"
     },
     "passwordSettings": {
         "title": "Passwort ändern",
@@ -185,10 +192,14 @@
         "retry": "Erneut versuchen"
     },
     "createApplicationContext": {
-        "fromTemplate": "Von Vorlage"
+        "fromTemplate": "Von Vorlage",
+        "fromTemplateDesc": "Starten Sie zügig mit einer unserer empfohlenen Vorlagen",
+        "table": "Tabelle",
+        "tableDesc": "Erstellen Sie einen neuen Ort, um die Daten in Ihrer Datenbank zu verwalten."
     },
     "applicationForm": {
-        "nameLabel": "Name"
+        "nameLabel": "Name",
+        "namePlaceholder": "Geben Sie den Namen ein..."
     },
     "connectingNotification": {
         "title": "Wiederverbindung",
@@ -221,7 +232,7 @@
     "dashboard": {
         "title": "Dashboard",
         "alertTitle": "Wir benötigen Ihre Hilfe!",
-        "alertText": "Wenn Sie Baserow nützlich finden, dann sind Sie herzlich eingeladen, uns einen Stern auf GitLab zu geben oder von uns zu erzählen. Indem Sie Baserow teilen helfen Sie uns, das Produkt zu verbessern und es für Ihre Zwecke nützlicher zu machen.",
+        "alertText": "Indem Sie Baserow teilen, helfen Sie uns, das Produkt weiter zu verbessern und für Ihre Zwecke nützlicher zu machen.",
         "tweetContent": "Entdecken Sie @baserow, ein Open-Source-Datenbank-Tool ohne Code und eine Alternative zu Airtable!",
         "redditTitle": "Baserow - Eine Open-Source No-Code-Datenbank",
         "noWorkspaceTitle": "Keine Arbeitsbereiche gefunden",
@@ -233,7 +244,20 @@
         "shareOnReddit": "Teilen auf Reddit",
         "shareOnFacebook": "Teilen auf Facebook",
         "shareOnLinkedIn": "Teilen auf LinkedIn",
-        "noWorkspaceTextWithoutCreatePermission": "Sie sind kein Mitglied eines Arbeitsbereichs. Anwendungen wie Datenbanken gehören zu einer Arbeitsbereich. Um sie zu erstellen, müssen Sie also zuerst von einem Administrator in einen Arbeitsbereich eingeladen werden."
+        "noWorkspaceTextWithoutCreatePermission": "Sie sind kein Mitglied eines Arbeitsbereichs. Anwendungen wie Datenbanken gehören zu einer Arbeitsbereich. Um sie zu erstellen, müssen Sie also zuerst von einem Administrator in einen Arbeitsbereich eingeladen werden.",
+        "tutorialsMessage": "Erkunden Sie das Potential von Baserow",
+        "tutorials": "Tutorials",
+        "apiDocumentationMessage": "Erfahren Sie mehr über unseren Quelltext",
+        "apiDocumentation": "API-Dokumentation",
+        "emptyWorkspace": "Dieser Arbeitsbereich ist leer",
+        "emptyWorkspaceMessage": "Starten Sie, indem Sie eine neue Datenbank oder Anwendung erstellen.",
+        "addNew": "Neu hinzufügen...",
+        "noWorkspace": "Kein Arbeitsbereich",
+        "noWorkspaceDescription": "Legen Sie los, indem Sie einen neuen Arbeitsbereich anlegen",
+        "suggestedTemplates": "Vorgeschlagene Vorlagen",
+        "resources": "Ressourcen",
+        "knowledgeBase": "Wissensdatenbank",
+        "knowledgeBaseMessage": "Finden Sie Antworten auf all Ihre Fragen"
     },
     "login": {
         "title": "Anmeldung",
@@ -784,5 +808,11 @@
     "workspaceStep": {
         "title": "Erstellen Sie Ihren Arbeitsbereich",
         "workspaceLabel": "Name des Arbeitsbereichs"
+    },
+    "dashboardApplication": {
+        "createdAt": "erstellt"
+    },
+    "templateCard": {
+        "viewMore": "Mehr anzeigen"
     }
 }

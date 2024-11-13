@@ -43,7 +43,8 @@
     },
     "serviceType": {
         "localBaserowGetRow": "Rij ophalen",
-        "localBaserowListRows": "Rijen ophalen"
+        "localBaserowListRows": "Rijen ophalen",
+        "localBaserowAggregateRows": "Veld samenvatten"
     },
     "userSourceType": {
         "localBaserow": "Baserow tabel authenticatie"
@@ -72,5 +73,13 @@
     "integrationsCommon": {
         "singleRow": "enkele rij",
         "multipleRows": "meerdere rijen"
+    },
+    "localBaserowAggregateRowsForm": {
+        "filterTabTitle": "Filters",
+        "searchTabTitle": "Zoeken",
+        "aggregationFieldLabel": "Veld",
+        "aggregationTypeLabel": "Aggregatie",
+        "searchFieldPlaceHolder": "Voer een zoekterm in...",
+        "noTableChosenForFiltering": "Kies een tabel om te beginnen met het gebruik van gegevensbronfilters."
     }
 }

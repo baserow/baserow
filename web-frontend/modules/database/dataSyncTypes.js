@@ -1,6 +1,7 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
 import ICalCalendarDataSync from '@baserow/modules/database/components/dataSync/ICalCalendarDataSync'
+import PostgreSQLDataSync from '@baserow/modules/database/components/dataSync/PostgreSQLDataSync'
 
 export class DataSyncType extends Registerable {
   /**
@@ -75,5 +76,24 @@ export class ICalCalendarDataSyncType extends DataSyncType {
 
   getFormComponent() {
     return ICalCalendarDataSync
+  }
+}
+
+export class PostgreSQLDataSyncType extends DataSyncType {
+  static getType() {
+    return 'postgresql'
+  }
+
+  getIconClass() {
+    return 'baserow-icon-postgresql'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('dataSyncType.postgresql')
+  }
+
+  getFormComponent() {
+    return PostgreSQLDataSync
   }
 }

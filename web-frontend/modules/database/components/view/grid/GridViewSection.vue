@@ -122,7 +122,7 @@
         <div
           v-for="field in visibleFields"
           :key="field.id"
-          :style="{ width: getFieldWidth(field.id) + 'px' }"
+          :style="{ width: getFieldWidth(field) + 'px' }"
         >
           <GridViewFieldFooter
             :database="database"
@@ -256,7 +256,7 @@ export default {
      */
     width() {
       let width = Object.values(this.visibleFields).reduce(
-        (value, field) => this.getFieldWidth(field.id) + value,
+        (value, field) => this.getFieldWidth(field) + value,
         0
       )
 
@@ -277,7 +277,7 @@ export default {
     draggingOffset() {
       let offset = this.visibleFields
         .filter((f) => f.primary)
-        .reduce((sum, f) => sum + this.getFieldWidth(f.id), 0)
+        .reduce((sum, f) => sum + this.getFieldWidth(f), 0)
 
       if (this.includeRowDetails) {
         offset += this.gridViewRowDetailsWidth
@@ -531,7 +531,7 @@ export default {
       // Create an array containing the fields that are currently visible in the
       // viewport and must be rendered.
       const fieldsToRender = this.visibleFields.filter((field) => {
-        const width = this.getFieldWidth(field.id)
+        const width = this.getFieldWidth(field)
         const right = left + width
         const visible = right >= viewportStart && left <= viewportEnd
         if (visible && leftOffset === null) {

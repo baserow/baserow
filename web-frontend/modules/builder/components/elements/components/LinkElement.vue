@@ -5,7 +5,12 @@
     :style="getStyleOverride(element.variant)"
   >
     <ABLink :target="element.target" :url="url" :variant="element.variant">
-      {{ resolvedValue || $t('linkElement.noValue') }}
+      {{
+        element.value
+          ? resolvedValue ||
+            (mode === 'editing' ? $t('linkElement.emptyValue') : '&nbsp;')
+          : $t('linkElement.missingValue')
+      }}
     </ABLink>
   </div>
 </template>

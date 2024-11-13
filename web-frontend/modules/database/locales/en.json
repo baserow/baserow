@@ -969,11 +969,24 @@
     "migrateButtonTooltip": "New filter available. Click to upgrade. It works the same."
   },
   "dataSyncType": {
-    "icalCalendar": "Sync iCal feed"
+    "syncError": "Sync error",
+    "icalCalendar": "Sync iCal feed",
+    "postgresql": "Sync PostgreSQL table"
   },
   "iCalCalendarDataSync": {
     "name": "iCal URL",
     "description": "The iCal calendar sync, synchronizes automatically with the entries in the calendar file of the URL. It only supports the ICS (Internet Calendar and Scheduling) file type."
+  },
+  "postgreSQLDataSync": {
+    "description": "Synchronizes a PostgreSQL table with a Baserow table matching the provided details below. Note that when the synchronization starts, it will select all the rows in the provided table. Even though Baserow only selects data, we strongly recommend limiting the user to a read-only connection.",
+    "host": "Host",
+    "username": "Username",
+    "password": "Password",
+    "database": "Database",
+    "schema": "Schema",
+    "table": "Table",
+    "port": "Port",
+    "sslMode": "SSL Mode"
   },
   "createDataSync": {
     "next": "Next",

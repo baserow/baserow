@@ -18,40 +18,34 @@
         </Button>
       </div>
     </div>
-    <div
+    <component
+      :is="outputGridViewFieldComponent"
       v-else
       ref="cell"
-      class="grid-view__cell grid-field-long-text__cell active"
-      :class="{ editing: opened }"
-      @keyup.enter="opened = true"
+      v-bind="$props"
+      :read-only="true"
     >
-      <div v-if="!opened" class="grid-field-long-text">{{ value }}</div>
-      <template v-else>
-        <div class="grid-field-long-text__textarea">
-          {{ value }}
-        </div>
+      <template v-if="!readOnly && editing" #default="{ editing }">
         <div style="background-color: #fff; padding: 8px">
-          <template v-if="!readOnly">
-            <ButtonText
-              v-if="!isDeactivated"
-              icon="iconoir-magic-wand"
-              :disabled="!modelAvailable || generating"
-              :loading="generating"
-              @click.prevent.stop="generate()"
-            >
-              {{ $t('gridViewFieldAI.regenerate') }}
-            </ButtonText>
-            <ButtonText
-              v-else
-              icon="iconoir-lock"
-              @click.prevent.stop="$refs.clickModal.show()"
-            >
-              {{ $t('gridViewFieldAI.regenerate') }}
-            </ButtonText>
-          </template>
+          <ButtonText
+            v-if="!isDeactivated"
+            icon="iconoir-magic-wand"
+            :disabled="!modelAvailable || generating"
+            :loading="generating"
+            @click.prevent.stop="generate()"
+          >
+            {{ $t('gridViewFieldAI.regenerate') }}
+          </ButtonText>
+          <ButtonText
+            v-else
+            icon="iconoir-lock"
+            @click.prevent.stop="$refs.clickModal.show()"
+          >
+            {{ $t('gridViewFieldAI.regenerate') }}
+          </ButtonText>
         </div>
       </template>
-    </div>
+    </component>
     <component
       :is="deactivatedClickComponent"
       v-if="isDeactivated && workspace"
@@ -74,6 +68,12 @@ export default {
   computed: {
     fieldName() {
       return this.$registry.get('field', this.field.type).getName()
+    },
+    outputGridViewFieldComponent() {
+      return this.$registry
+        .get('aiFieldOutputType', this.field.ai_output_type)
+        .getBaserowFieldType()
+        .getGridViewFieldComponent(this.field)
     },
   },
   methods: {

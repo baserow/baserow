@@ -2,6 +2,8 @@ from collections import defaultdict
 
 import pytest
 
+from baserow.contrib.builder.elements.element_types import RepeatElementType
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
     ButtonElement,
     Element,
@@ -10,6 +12,7 @@ from baserow.contrib.builder.elements.models import (
 )
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.utils import MirrorDict
 
 
@@ -162,3 +165,116 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
     assert link.value == migrated_ref
     assert link.navigate_to_url == migrated_ref
     assert link.page_parameters[0]["value"] == migrated_ref
+
+
+@pytest.mark.django_db
+def test_extract_formula_properties_includes_schema_property_for_nested_collection(
+    data_fixture,
+):
+    """
+    Ensure the RepeatElementType::extract_formula_properties() method includes
+    the schema_property field if it exists, when the Repeat is a nested element.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    table = data_fixture.create_database_table(database=database)
+    multiple_select_field = data_fixture.create_multiple_select_field(
+        table=table, name="option_field", order=1, primary=True
+    )
+    data_fixture.create_select_option(
+        field=multiple_select_field, value="Green", color="green", order=0
+    )
+
+    page = data_fixture.create_builder_page(builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+
+    # Create a parent Repeat element that has a data source
+    parent_repeat = data_fixture.create_builder_repeat_element(
+        data_source=data_source, page=page
+    )
+
+    properties = RepeatElementType().extract_formula_properties(parent_repeat)
+    assert properties == {}
+
+    # Create a child Repeat with a schema_property
+    child_repeat = data_fixture.create_builder_repeat_element(
+        page=page,
+        data_source=None,
+        parent_element_id=parent_repeat.id,
+        schema_property=multiple_select_field.db_column,
+    )
+    formula_context = ElementHandler().get_import_context_addition(
+        child_repeat.parent_element_id, {}
+    )
+
+    properties = RepeatElementType().extract_formula_properties(
+        child_repeat, **formula_context
+    )
+
+    # We expect that the schema_property field ID to be present
+    assert properties == {data_source.service_id: [f"field_{multiple_select_field.id}"]}
+
+
+@pytest.mark.django_db
+def test_extract_formula_properties_includes_schema_property_for_single_row(
+    data_fixture,
+):
+    """
+    Ensure the RepeatElementType::extract_formula_properties() method includes
+    the schema_property field if it exists, when the repeat uses a Get Row service.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+
+    table = data_fixture.create_database_table(database=database)
+    multiple_select_field = data_fixture.create_multiple_select_field(
+        table=table, name="option_field", order=1, primary=True
+    )
+    option = data_fixture.create_select_option(
+        field=multiple_select_field, value="Green", color="green", order=0
+    )
+
+    handler = RowHandler()
+    handler.create_rows(
+        user=user,
+        table=table,
+        rows_values=[
+            {
+                f"field_{multiple_select_field.id}": [option.id],
+            },
+        ],
+    )
+
+    page = data_fixture.create_builder_page(builder=builder)
+    get_row_service = data_fixture.create_local_baserow_get_row_service(
+        integration=integration,
+        row_id=table.get_model().objects.first().id,
+    )
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        user=user,
+        page=page,
+        table=table,
+        service=get_row_service,
+    )
+
+    # Create a Repeat element that uses the Single Row data source
+    repeat = data_fixture.create_builder_repeat_element(
+        data_source=data_source,
+        page=page,
+        schema_property=multiple_select_field.db_column,
+    )
+
+    properties = RepeatElementType().extract_formula_properties(repeat)
+    assert properties == {data_source.service_id: [f"field_{multiple_select_field.id}"]}

@@ -105,6 +105,8 @@ import {
   HasValueContainsWordViewFilterType,
   HasNotValueContainsWordViewFilterType,
   HasValueLengthIsLowerThanViewFilterType,
+  HasAnySelectOptionEqualViewFilterType,
+  HasNoneSelectOptionEqualViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
 import {
   CSVImporterType,
@@ -112,7 +114,10 @@ import {
   XMLImporterType,
   JSONImporterType,
 } from '@baserow/modules/database/importerTypes'
-import { ICalCalendarDataSyncType } from '@baserow/modules/database/dataSyncTypes'
+import {
+  ICalCalendarDataSyncType,
+  PostgreSQLDataSyncType,
+} from '@baserow/modules/database/dataSyncTypes'
 import {
   RowsCreatedWebhookEventType,
   RowsUpdatedWebhookEventType,
@@ -484,6 +489,14 @@ export default (context) => {
     'viewFilter',
     new HasValueLengthIsLowerThanViewFilterType(context)
   )
+  app.$registry.register(
+    'viewFilter',
+    new HasAnySelectOptionEqualViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNoneSelectOptionEqualViewFilterType(context)
+  )
   app.$registry.register('viewFilter', new ContainsViewFilterType(context))
   app.$registry.register('viewFilter', new ContainsNotViewFilterType(context))
   app.$registry.register('viewFilter', new ContainsWordViewFilterType(context))
@@ -598,6 +611,7 @@ export default (context) => {
   app.$registry.register('importer', new XMLImporterType(context))
   app.$registry.register('importer', new JSONImporterType(context))
   app.$registry.register('dataSync', new ICalCalendarDataSyncType(context))
+  app.$registry.register('dataSync', new PostgreSQLDataSyncType(context))
   app.$registry.register('settings', new APITokenSettingsType(context))
   app.$registry.register('exporter', new CSVTableExporterType(context))
   app.$registry.register(

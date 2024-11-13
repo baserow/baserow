@@ -1,0 +1,7 @@
+{
+    "type": "feature",
+    "message": "Allow to limit concurency for uvicorn workers in asgi backend.",
+    "issue_number": 2773,
+    "bullet_points": [],
+    "created_at": "2024-10-27"
+}

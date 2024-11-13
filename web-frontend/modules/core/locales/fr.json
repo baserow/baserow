@@ -129,7 +129,9 @@
         "leaveWorkspace": "Quitter le projet",
         "deleteWorkspace": "Supprimer le projet",
         "auditLog": "Journal d'audit",
-        "settings": "Paramètres"
+        "settings": "Paramètres",
+        "importWorkspace": "Importer",
+        "exportWorkspace": "Exporter"
     },
     "createWorkspaceModal": {
         "createNew": "Nouveau projet",
@@ -195,7 +197,9 @@
         "fromTemplate": "À partir d'un modèle",
         "fromTemplateDesc": "Démarrer rapidement avec l'un de nos modèles recommandés",
         "tableDesc": "Créez un nouvel espace pour gérer des données dans votre base.",
-        "table": "Table"
+        "table": "Table",
+        "importWorkspaceDesc": "Importer des données existantes à partir d'une instance Baserow.",
+        "importWorkspace": "Importer"
     },
     "applicationForm": {
         "nameLabel": "Nom",
@@ -327,7 +331,9 @@
         "userSettings": "Utilisateur",
         "emailVerification": "Vérification de l'adresse électronique",
         "baserowVersion": "Version de Baserow",
-        "baserowVersionDescription": "Le numéro de version de cette instance."
+        "baserowVersionDescription": "Le numéro de version de cette instance.",
+        "settingsVerifyImportSignature": "Vérifier la signature de l'importation",
+        "settingsVerifyImportSignatureDescription": "Lorsqu'elle est activée, la signature des données importées est vérifiée afin de s'assurer que les données n'ont pas été altérées."
     },
     "copyingNotification": {
         "title": "Copie en cours...",
@@ -474,7 +480,9 @@
         "monthsAgo": "il y a 0 mois | il y a 1 mois | il y a {n} mois",
         "minutesAgo": "il y a 0 minute | il y a 1 minute | il y a {n} minutes",
         "hoursAgo": "Il y a 0 heure | Il y a 1 heure | Il y a {n} heures",
-        "secondsAgo": "A l'instant | Il y a 1 seconde | Il y a {n} secondes"
+        "secondsAgo": "A l'instant | Il y a 1 seconde | Il y a {n} secondes",
+        "justNow": "à l'instant",
+        "lessThanMinuteAgo": "il y a moins d'une minute"
     },
     "duplicateApplicationJobType": {
         "duplicating": "Duplication",
@@ -737,14 +745,26 @@
         "ollamaHostLabel": "Hôte",
         "ollamaHostDescription": "Indiquez le nom d'hôte de votre serveur [Ollama] (https://ollama.com/). Celui-ci s'exécute généralement localement sur votre propre serveur.",
         "ollamaModelsLabel": "Modèles activés",
-        "ollamaModelsDescription": "Fournir une liste de [modèles Ollama installés] (https://ollama.com/library) séparés par des virgules. Notez que le modèle doit être téléchargé et installé avant de pouvoir être utilisé. (par exemple `llama2,mistral`)"
+        "ollamaModelsDescription": "Fournir une liste de [modèles Ollama installés] (https://ollama.com/library) séparés par des virgules. Notez que le modèle doit être téléchargé et installé avant de pouvoir être utilisé. (par exemple `llama2,mistral`)",
+        "anthropicApiKeyLabel": "Clé d'API",
+        "anthropicModelsLabel": "Modèles activés",
+        "anthropicModelsDescription": "Fournissez une liste de [modèles Anthropic](https://docs.anthropic.com/en/docs/about-claude/models) séparés par des virgules que vous souhaitez utilisés dans Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "mistral": "Mistral",
+        "mistralApiKeyLabel": "Clé d'API",
+        "mistralApiKeyDescription": "Fournissez une clé API Mistral si vous souhaitez activer l'intégration. [Instructions sur l'obtention d'une clé API](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralModelsLabel": "Modèles activés",
+        "mistralModelsDescription": "Fournissez une liste de [modèles Mistral] (https://docs.mistral.ai/getting-started/models/models_overview/) séparés par des virgules qui vous souhaitez utiliser dans Baserow. (par exemple : `mistral-large-latest,mistral-small-latest`)",
+        "anthropic": "Anthropic",
+        "anthropicApiKeyDescription": "Fournissez une clé API Anthropic si vous souhaitez activer l'intégration. [Instructions sur l'obtention d'une clé API](https://docs.anthropic.com/en/api/getting-started)."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Paramètres de l'IA générative",
         "changedTitle": "Les paramètres ont été mis à jour",
         "changedDescription": "Les paramètres ont été mis à jour et seront désormais utilisés dans ce Projet.",
         "submitButton": "Enregistrer",
-        "description": "Ces paramètres peuvent être utilisés pour définir la configuration de l'IA générative au niveau da Projet. Des fonctionnalités telles que le champ IA peuvent être désactivées parce qu'elles ne disposent pas d'une clé API pour l'un des modèles pris en charge. En fournissant les paramètres ici, vous pouvez activer ces fonctionnalités. Si vous laissez une valeur vide, les paramètres globaux de l'instance sont rétablis par défaut. Notez que tous les utilisateurs du Projet partageront ces paramètres."
+        "description": "Ces paramètres peuvent être utilisés pour définir la configuration de l'IA générative au niveau da Projet. Des fonctionnalités telles que le champ IA peuvent être désactivées parce qu'elles ne disposent pas d'une clé API pour l'un des modèles pris en charge. En fournissant les paramètres ici, vous pouvez activer ces fonctionnalités. Si vous laissez une valeur vide, les paramètres globaux de l'instance sont rétablis par défaut. Notez que tous les utilisateurs du Projet partageront ces paramètres.",
+        "openSettings": "Ouvrir la configuration",
+        "hideSettings": "Fermer"
     },
     "dashboardVerifyEmail": {
         "title": "Veuillez vérifier votre boîte aux lettres et cliquer sur le lien pour vérifier votre adresse électronique.",
@@ -808,7 +828,9 @@
     "selectAIModelForm": {
         "AIType": "Type d'IA",
         "AIModel": "Modèle d'IA",
-        "fileField": "Champ de fichier"
+        "fileField": "Champ de fichier",
+        "temperatureLabel": "Température",
+        "temperatureDescription": "La température d'un LLM, un paramètre défini entre 0 et {max}, ajuste le caractère aléatoire des réponses - les valeurs les plus basses donnent des réponses ciblées, tandis que les valeurs les plus élevées augmentent la créativité."
     },
     "workspaceStep": {
         "title": "Créez votre Projet",
@@ -829,5 +851,46 @@
     },
     "templateCard": {
         "viewMore": "Voir plus"
+    },
+    "exportWorkspaceModal": {
+        "title": "Exporter",
+        "description": "Vos données seront exportées sous la forme d'un fichier ZIP, qui pourra être importé dans d'autres instances de Baserow.",
+        "exportSettings": "Paramètres d'exportation",
+        "export": "Exporter",
+        "reset": "Nouvel export",
+        "cancel": "Annuler",
+        "download": "Télécharger",
+        "noExports": "Il n'y a pas d'export pour ce projet.",
+        "created": "Créé le",
+        "importingState": "Import en cours"
+    },
+    "exportWorkspaceForm": {
+        "onlyStructureLabel": "Exporter uniquement la structure",
+        "exportSettingsLabel": "Paramètres d'exportation",
+        "onlyStructureDescription": "Si cette option est activée, seule la structure des applications sera exportée. Les données ne seront pas incluses."
+    },
+    "importWorkspaceModal": {
+        "title": "Importer des données",
+        "upload": "Envoyer",
+        "cancel": "Annuler",
+        "close": "Fermer",
+        "retry": "Réessayer",
+        "uploading": "envoi…",
+        "chooseFile": "Choisir un fichier",
+        "selectApplications": "Sélectionner les données à importer",
+        "deselectAll": "Désélectionner tout",
+        "selectAll": "Sélectionner tout",
+        "applications": "Applications",
+        "successTitle": "L'importation des données est réussie",
+        "successMessage": "{count} applications importées",
+        "signatureVerificationNote": "Il n'est pas possible d'importer un fichier zip à partir d'une source non fiable.",
+        "invalidResourceTitle": "Ressource invalide",
+        "invalidResourceMessage": "Le fichier fourni n'est pas une exportation Baserow valide.",
+        "untrustedPublicKeyTitle": "Signature inconnue",
+        "untrustedPublicKeyMessage": "Le fichier fourni est signé avec une clé publique non approuvée. Demandez à votre administrateur d'ajouter la clé publique à la liste des clés de confiance ou de désactiver la vérification de la signature pour pouvoir importer ce fichier.",
+        "description": "Vous pouvez importer des données Baserow existantes en téléchargeant le fichier .zip d'une autre instance Baserow.",
+        "import": "Importer",
+        "done": "Valider",
+        "databases": "Bases de données"
     }
 }

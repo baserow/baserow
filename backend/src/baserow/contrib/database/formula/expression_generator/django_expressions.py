@@ -209,3 +209,45 @@ class JSONArrayContainsValueLengthLowerThanExpr(BaserowFilterExpression):
         """  # nosec B608 %(value)s
     )
     # fmt: on
+
+
+class JSONArrayEqualSelectOptionIdExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT filtered_field -> 'value' ->> 'id'
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE (filtered_field -> 'value' ->> 'id') LIKE (%(value)s)
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayContainsSelectOptionValueExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT filtered_field -> 'value' ->> 'value'
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE UPPER(filtered_field -> 'value' ->> 'value') LIKE UPPER(%(value)s)
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayContainsSelectOptionValueSimilarToExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        r"""
+        EXISTS(
+            SELECT filtered_field -> 'value' ->> 'value'
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE filtered_field -> 'value' ->> 'value' ~* ('\y' || %(value)s || '\y')
+        )
+        """  # nosec B608 %(value)s
+    )
+    # fmt: on

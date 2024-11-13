@@ -23,9 +23,15 @@
       </Button>
     </div>
   </div>
-  <div v-else class="grid-view__cell grid-field-long-text__cell">
-    <div class="grid-field-long-text">{{ props.value }}</div>
-  </div>
+  <component
+    :is="$options.methods.getFunctionalOutputFieldComponent(parent, props)"
+    v-else
+    :workspace-id="props.workspaceId"
+    :field="props.field"
+    :value="props.value"
+    :state="props.state"
+    :read-only="props.readOnly"
+  />
 </template>
 
 <script>
@@ -40,6 +46,12 @@ export default {
       return parent.$registry
         .get('field', AIFieldType.getType())
         .isDeactivated(props.workspaceId)
+    },
+    getFunctionalOutputFieldComponent(parent, props) {
+      return parent.$registry
+        .get('aiFieldOutputType', props.field.ai_output_type)
+        .getBaserowFieldType()
+        .getFunctionalGridViewFieldComponent(props.field)
     },
   },
 }

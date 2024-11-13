@@ -139,7 +139,8 @@
     "invalidFormula": "The formula is invalid"
   },
   "headingElement": {
-    "noValue": "No title..."
+    "missingValue": "Missing title...",
+    "emptyValue": "Empty title..."
   },
   "headingElementForm": {
     "levelTitle": "Level",
@@ -149,7 +150,8 @@
     "textError": "The value is invalid."
   },
   "textElement": {
-    "noValue": "Empty text..."
+    "missingValue": "Missing text...",
+    "emptyValue": "Empty text..."
   },
   "textElementForm": {
     "textTitle": "Text",
@@ -160,7 +162,8 @@
     "textFormatTypeMarkdown": "Markdown"
   },
   "imageElement": {
-    "emptyState": "No alt text defined..."
+    "missingValue": "Missing alt text...",
+    "emptyValue": "Empty alt text..."
   },
   "generalForm": {
     "labelTitle": "Label",
@@ -198,7 +201,8 @@
     "uploadFileButton": "Upload file"
   },
   "iframeElementForm": {
-    "empty": "Empty IFrame...",
+    "missingValue": "Missing IFrame source...",
+    "emptyValue": "Empty IFrame source...",
     "sourceTypeLabel": "Source type",
     "urlLabel": "URL",
     "urlPlaceholder": "Link to the external resource to be embedded",
@@ -267,7 +271,8 @@
     "subDomain": "Subdomain of {domain}"
   },
   "linkElement": {
-    "noValue": "Unnamed..."
+    "missingValue": "Missing link text...",
+    "emptyValue": "Empty link text..."
   },
   "linkNavigationSelection": {
     "navigateTo": "Navigate to",
@@ -510,7 +515,8 @@
     "valuePlaceholder": "Enter text..."
   },
   "buttonElement": {
-    "noValue": "Unnamed..."
+    "missingValue": "Missing button text...",
+    "emptyValue": "Empty button text..."
   },
   "eventTypes": {
     "clickLabel": "On click",
@@ -564,11 +570,22 @@
     "empty": "No items have been found.",
     "showMore": "Show more",
     "missingDataSourceTooltip": "Choose a data source to begin adding elements.",
-    "missingSchemaPropertyTooltip": "Choose a property to begin adding elements."
+    "missingSchemaPropertyTooltip": "Choose a property to begin adding elements.",
+    "emptyState": "No records found."
   },
   "collectionElementForm": {
     "noDataSourceMessage": "Choose a data source with multiple rows to list all results, or a single row data source to choose a property inside this row.",
-    "noSchemaPropertyMessage": "Choose a property inside the data source to use as the list data of your element."
+    "noSchemaPropertyMessage": "Choose a property inside the data source to use as the list data of your element.",
+    "propertyOptionLabel": "User actions"
+  },
+  "propertyOptionForm": {
+    "fieldHeading": "Field",
+    "filterHeading": "Filter",
+    "sortHeading": "Sort",
+    "searchHeading": "Search",
+    "optionUnavailable": "Unavailable",
+    "noPropertiesAvailable": "No fields available.",
+    "formDescription": "Choose which properties within this element's data source external users can filter, sort and search upon."
   },
   "repeatElementForm": {
     "dataSource": "Data source",
@@ -582,6 +599,10 @@
     "buttonLoadMoreLabel": "Show more label",
     "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
     "propertySelectorMissingArrays": "No multiple valued fields found to repeat with."
+  },
+  "recordSelectorElement": {
+    "emptyAdhocState": "No records matching '{query}' found.",
+    "emptyState": "No records found."
   },
   "recordSelectorElementForm": {
     "selectRecordsFrom": "Select records from",
@@ -664,7 +685,8 @@
     "integrationFieldLabel": "Integration"
   },
   "formContainerElement": {
-    "submitDeactivatedText": "Complete all required fields to submit"
+    "submitDeactivatedText": "Complete all required fields to submit",
+    "defaultSubmitButtonLabel": "Submit"
   },
   "formContainerElementForm": {
     "submitButtonLabel": "Submit button",

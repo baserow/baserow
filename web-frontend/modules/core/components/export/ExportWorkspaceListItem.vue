@@ -1,16 +1,16 @@
 <template>
-  <div class="exports-modal__export">
-    <div class="exports-modal__info">
+  <div class="export-workspace__export">
+    <div class="export-workspace__info">
       <div>
-        <div class="exports-modal__name">
+        <div class="export-workspace__name">
           {{ name }}
         </div>
-        <div class="exports-modal__detail">
-          {{ $t('snapshotListItem.created') }} {{ timeAgo }}
+        <div class="export-workspace__detail">
+          {{ $t('exportWorkspaceModal.created') }} {{ timeAgo }}
         </div>
       </div>
     </div>
-    <div class="exports-modal__actions">
+    <div class="export-workspace__actions">
       <DownloadLink
         :url="exportJob.url"
         :filename="exportJob.exported_file_name"

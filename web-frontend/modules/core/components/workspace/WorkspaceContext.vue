@@ -1,6 +1,7 @@
 <template>
   <Context
     ref="context"
+    ph-autocapture="workspace-context"
     overflow-scroll
     max-height-if-outside-viewport
     @shown="fetchRolesAndPermissions"
@@ -14,15 +15,27 @@
     ></div>
     <ul v-else class="context__menu">
       <li
-        v-if="
-          $hasPermission('workspace.read', workspace, workspace.id) &&
-          $featureFlagIsEnabled(FF_EXPORT_WORKSPACE)
-        "
+        v-if="$hasPermission('workspace.read', workspace, workspace.id)"
         class="context__menu-item"
       >
         <a class="context__menu-item-link" @click="openExportData">
-          <i class="context__menu-item-icon iconoir-arrow-up-circle"></i>
+          <i class="context__menu-item-icon iconoir-share-ios"></i>
           {{ $t('workspaceContext.exportWorkspace') }}
+        </a>
+      </li>
+      <li
+        v-if="
+          $hasPermission(
+            'workspace.create_application',
+            workspace,
+            workspace.id
+          )
+        "
+        class="context__menu-item"
+      >
+        <a class="context__menu-item-link" @click="openImportData">
+          <i class="context__menu-item-icon iconoir-import"></i>
+          {{ $t('workspaceContext.importWorkspace') }}
         </a>
       </li>
       <li
@@ -113,6 +126,13 @@
       :workspace="workspace"
     >
     </ExportWorkspaceModal>
+    <ImportWorkspaceModal
+      v-if="
+        $hasPermission('workspace.create_application', workspace, workspace.id)
+      "
+      ref="importWorkspaceModal"
+      :workspace="workspace"
+    ></ImportWorkspaceModal>
     <LeaveWorkspaceModal
       ref="leaveWorkspaceModal"
       :workspace="workspace"
@@ -129,15 +149,16 @@
 import context from '@baserow/modules/core/mixins/context'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ExportWorkspaceModal from '@baserow/modules/core/components/export/ExportWorkspaceModal.vue'
+import ImportWorkspaceModal from '@baserow/modules/core/components/import/ImportWorkspaceModal.vue'
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import LeaveWorkspaceModal from '@baserow/modules/core/components/workspace/LeaveWorkspaceModal'
 import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal'
-import { FF_EXPORT_WORKSPACE } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'WorkspaceContext',
   components: {
     ExportWorkspaceModal,
+    ImportWorkspaceModal,
     LeaveWorkspaceModal,
     TrashModal,
     WorkspaceSettingsModal,
@@ -152,7 +173,6 @@ export default {
   data() {
     return {
       loading: false,
-      FF_EXPORT_WORKSPACE,
     }
   },
   methods: {
@@ -167,6 +187,10 @@ export default {
     openExportData() {
       this.$refs.context.hide()
       this.$refs.exportWorkspaceModal.show()
+    },
+    openImportData() {
+      this.$refs.context.hide()
+      this.$refs.importWorkspaceModal.show()
     },
     async deleteWorkspace() {
       this.loading = true

@@ -1,6 +1,8 @@
+import os
 from io import BytesIO
 
 from django.apps.registry import apps
+from django.contrib.auth import get_user_model
 
 import pytest
 from faker import Faker
@@ -11,8 +13,11 @@ from baserow.contrib.database.fields.models import MultipleCollaboratorsField
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.handler import CoreHandler
+from baserow.core.models import WORKSPACE_USER_PERMISSION_ADMIN, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import AnyInt
+
+User = get_user_model()
 
 
 @pytest.mark.django_db
@@ -576,3 +581,72 @@ def test_multiple_collaborators_are_row_values_equal(
             )
             is False
         )
+
+
+@pytest.mark.django_db
+def test_multiple_collaborators_field_type_get_order_collate(data_fixture):
+    workspace = data_fixture.create_workspace()
+    user = data_fixture.create_user(workspace=workspace)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
+        table=table, name="field", order=1, primary=True
+    )
+
+    model = table.get_model()
+
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    with open(
+        dir_path + "/../../../../../../tests/all_chars.txt", mode="r", encoding="utf-8"
+    ) as f:
+        all_chars = f.read()
+    with open(
+        dir_path + "/../../../../../../tests/sorted_chars.txt",
+        mode="r",
+        encoding="utf-8",
+    ) as f:
+        sorted_chars = f.read()
+
+    users, rows = [], []
+    for char in all_chars:
+        email = data_fixture.fake.unique.email()
+        users.append(User(first_name=char, username=email, email=email))
+        rows.append(model())
+
+    users = User.objects.bulk_create(users)
+    rows = model.objects.bulk_create(rows)
+
+    workspace_users = []
+    for user in users:
+        workspace_users.append(
+            WorkspaceUser(
+                workspace=workspace,
+                user=user,
+                order=0,
+                permissions=WORKSPACE_USER_PERMISSION_ADMIN,
+            )
+        )
+    WorkspaceUser.objects.bulk_create(workspace_users)
+
+    relations = []
+    field_name = f"field_{multiple_collaborators_field.id}"
+
+    for row, user in zip(rows, users):
+        relation, _ = RowHandler()._prepare_m2m_field_related_objects(
+            row, field_name, [user.id]
+        )
+        relations.extend(relation)
+
+    getattr(model, field_name).through.objects.bulk_create(relations)
+
+    queryset = (
+        model.objects.all()
+        .order_by_fields_string(field_name)
+        .prefetch_related(field_name)
+    )
+    result = ""
+    for char in queryset:
+        all_collaborators = list(getattr(char, field_name).all())
+        result += all_collaborators[0].first_name
+
+    assert result == sorted_chars

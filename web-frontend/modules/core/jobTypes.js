@@ -264,3 +264,13 @@ export class ExportApplicationsJobType extends JobType {
     return 'exportApplications'
   }
 }
+
+export class ImportApplicationsJobType extends JobType {
+  static getType() {
+    return 'import_applications'
+  }
+
+  getName() {
+    return 'importApplications'
+  }
+}

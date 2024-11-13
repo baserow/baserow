@@ -478,10 +478,10 @@ class DispatchDataSourceView(APIView):
         )
         serializer.is_valid(raise_exception=True)
 
-        # An `element` will be provided if we're dispatching a collection
-        # element's data source with adhoc refinements.
+        # If we've been provided with an element, we need to pass it to the dispatch
+        # context. This could be a collection element. If it is, it will be used for
+        # adhoc filtering and sorting if we have any filters in the querystring.
         element = serializer.validated_data.get("data_source").get("element")
-
         dispatch_context = BuilderDispatchContext(
             request,
             data_source.page,

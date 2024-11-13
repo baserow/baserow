@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Type
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -20,7 +20,8 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.utils import ServiceAdhocRefinements
 
 if TYPE_CHECKING:
-    from baserow.contrib.builder.elements.models import CollectionElement
+    from baserow.contrib.builder.elements.models import Element
+    from baserow.contrib.builder.elements.registries import ElementType
     from baserow.core.workflow_actions.models import WorkflowAction
 
 CACHE_KEY_PREFIX = "used_properties_for_page"
@@ -44,7 +45,7 @@ class BuilderDispatchContext(DispatchContext):
         request: HttpRequest,
         page: Page,
         workflow_action: Optional["WorkflowAction"] = None,
-        element: Optional["CollectionElement"] = None,
+        element: Optional["Element"] = None,
         offset: Optional[int] = None,
         count: Optional[int] = None,
         only_expose_public_formula_fields: Optional[bool] = True,
@@ -64,6 +65,19 @@ class BuilderDispatchContext(DispatchContext):
     @property
     def data_provider_registry(self):
         return builder_data_provider_type_registry
+
+    @property
+    def element_type(self) -> Optional[Type["ElementType"]]:
+        """
+        If we have been provided with an `element` in the constructor, we will
+        return its element type.
+        :return: An `ElementType` subclass.
+        """
+
+        if not self.element:
+            return None
+
+        return self.element.get_type()  # type: ignore
 
     def get_cache_key(self) -> Optional[str]:
         """
@@ -159,9 +173,17 @@ class BuilderDispatchContext(DispatchContext):
         :raises DataSourceRefinementForbidden: If `self.element` is `None`.
         """
 
+        # We need an element to be able to validate filter, search and sort fields.
         if not self.element:
             raise DataSourceRefinementForbidden(
                 "An element is required to validate filter, search and sort fields."
+            )
+
+        # And more specifically, it needs to be a collection element.
+        if not getattr(self.element_type, "is_collection_element", False):
+            raise DataSourceRefinementForbidden(
+                "A collection element is required to validate filter, "
+                "search and sort fields."
             )
 
         if "element_property_options" not in self.cache:
@@ -175,6 +197,17 @@ class BuilderDispatchContext(DispatchContext):
             }
 
         return self.cache["element_property_options"]
+
+    @property
+    def is_publicly_searchable(self) -> bool:
+        """
+        Responsible for returning whether this `element` is searchable or not.
+        This is determined by the `is_publicly_searchable` property option on the
+        collection element type.
+        :return: A boolean.
+        """
+
+        return getattr(self.element_type, "is_publicly_searchable", False)
 
     def search_query(self) -> Optional[str]:
         """
@@ -202,6 +235,17 @@ class BuilderDispatchContext(DispatchContext):
             if options["searchable"]
         ]
 
+    @property
+    def is_publicly_filterable(self) -> bool:
+        """
+        Responsible for returning whether this `element` is filterable or not.
+        This is determined by the `is_publicly_filterable` property option on the
+        collection element type.
+        :return: A boolean.
+        """
+
+        return getattr(self.element_type, "is_publicly_filterable", False)
+
     def filters(self) -> Optional[str]:
         """
         In a `BuilderDispatchContext`, we will use the HTTP request's
@@ -212,6 +256,17 @@ class BuilderDispatchContext(DispatchContext):
         """
 
         return self.request.GET.get("filters", None)
+
+    @property
+    def is_publicly_sortable(self) -> bool:
+        """
+        Responsible for returning whether this `element` is sortable or not.
+        This is determined by the `is_publicly_sortable` property option on the
+        collection element type.
+        :return: A boolean.
+        """
+
+        return getattr(self.element_type, "is_publicly_sortable", False)
 
     def sortings(self) -> Optional[str]:
         """

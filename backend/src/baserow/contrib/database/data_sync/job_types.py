@@ -87,7 +87,11 @@ class SyncDataSyncTableJobType(JobType):
             return
 
         data_sync = action_type_registry.get_by_type(SyncDataSyncTableActionType).do(
-            job.user, data_sync
+            job.user,
+            data_sync,
+            progress_builder=progress.create_child_builder(
+                represents_progress=progress.total
+            ),
         )
 
         if data_sync.last_error:

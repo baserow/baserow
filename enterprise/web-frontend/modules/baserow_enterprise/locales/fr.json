@@ -113,7 +113,16 @@
         "providerIsVerified": "Le fournisseur a été vérifié",
         "invalidDomain": "Nom de domaine invalide",
         "invalidMetadata": "Métadonnées XML non valides pour le fournisseur d'identité",
-        "relayStateUrl": "URL par défaut du relais d'état"
+        "relayStateUrl": "URL par défaut du relais d'état",
+        "defaultAttrs": "Par défaut",
+        "customAttrs": "Personnalisés",
+        "firstNameAttrKey": "Prénom",
+        "firstNameAttrKeyHelper": "Le prénom de l'utilisateur ou le nom complet si le \"Nom de famille\" n'est pas fourni.",
+        "lastNameAttrKeyHelper": "Nom de famille de l'utilisateur (facultatif). Effacez cette valeur pour fournir le nom complet via le champ « Prénom ».",
+        "emailAttrKeyHelper": "L'adresse électronique qui sera utilisée comme nom d'utilisateur.",
+        "samlResponseSettings": "Attributs de la réponse SAML",
+        "emailAttrKey": "Courriel",
+        "lastNameAttrKey": "Nom"
     },
     "createSettingsAuthProviderModal": {
         "title": "Ajouter un nouveau {type}"
@@ -338,7 +347,10 @@
         "loginButtonLabel": "Libéllé du bouton de connexion"
     },
     "enterpriseDataSyncType": {
-        "localBaserowTable": "Synchroniser la table Baserow"
+        "localBaserowTable": "Synchroniser la table Baserow",
+        "jiraIssues": "Synchroniser les tickets Jira",
+        "githubIssues": "Synchroniser les tickets GitHub",
+        "gitlabIssues": "Synchroniser les tickets GitLab"
     },
     "localBaserowTableDataSync": {
         "name": "ID table source",
@@ -346,5 +358,34 @@
         "workspace": "Projet",
         "table": "Table",
         "database": "Base de données"
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "Sachez qu'un export ne contiendra pas les autorisations définies pour l'application."
+    },
+    "jiraIssuesDataSync": {
+        "projectKey": "Clé du projet Jira (facultatif)",
+        "apiTokenHelper": "Le jeton d'API du compte Jira utilisé pour l'authentification. Il peut être créé à l'adresse https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "jiraUrl": "URL de l'instance Jira",
+        "urlHelper": "L'URL de base de votre instance Jira (par exemple, https://your-domain.atlassian.net).",
+        "projectKeyHelper": "La clé de projet du projet Jira (par exemple, PROJ). On peut la trouver en cliquant sur \"Paramètres du projet\" dans Jira. Si elle n'est pas fournie, touts les tickets seront renvoyés.",
+        "jiraUsername": "Nom d'utilisateur Jira",
+        "usernameHelper": "Le nom d'utilisateur du compte Jira utilisé pour l'authentification. Il s'agit de l'email que vous utilisez pour vous connecter.",
+        "apiToken": "Jeton d'API Jira"
+    },
+    "githubIssuesDataSync": {
+        "ownerHelper": "Nom d'utilisateur ou propriétaire du dépôt. Typiquement dans le coin supérieur gauche `Propriétaire / dépôt`",
+        "repo": "Dépôt",
+        "repoHelper": "Le nom du dépôt. Typiquement dans le coin supérieur gauche `propriétaire / dépôt`",
+        "apiToken": "Jeton d'API",
+        "apiTokenHelper": "Peut être généré ici https://github.com/settings/tokens en cliquant sur `Générer un nouveau jeton`, sélectionnez `Tous les dépôts`, puis sous `Autorisations du dépôt` mettez `Tickets` à `Lecture-seule`.",
+        "owner": "Propriétaire"
+    },
+    "gitlabIssuesDataSync": {
+        "url": "URL de base",
+        "urlHelper": "L'URL de base de votre instance GitLab. (par exemple https://gitlab.com)",
+        "accessTokenHelper": "Peut être généré ici https://gitlab.com/-/user_settings/personal_access_tokens en cliquant sur `Ajouter nouveau jeton`, sélectionnez `lire_api`.",
+        "projectIdHelper": "L'ID du projet à partir duquel vous souhaitez synchroniser les tickets. Vous pouvez le trouver en allant sur la page de votre projet (par exemple https://gitlab.com/baserow/baserow), en cliquant sur les trois points dans le coin supérieur droit, puis sur \"Copier l'ID du projet : 12345678'.",
+        "accessToken": "Jeton d'accès",
+        "projectId": "ID du projet"
     }
 }

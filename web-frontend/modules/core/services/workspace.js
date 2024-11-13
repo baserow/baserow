@@ -74,12 +74,6 @@ export default (client) => {
       createInitialWorkspace(values) {
         return client.post('/workspaces/create-initial-workspace/', values)
       },
-      exportApplications(workspaceId, values) {
-        return client.post(`/workspaces/${workspaceId}/export/async/`, values)
-      },
-      listExports(workspaceId) {
-        return client.get(`/workspaces/${workspaceId}/export/`)
-      },
     }
   )
 }

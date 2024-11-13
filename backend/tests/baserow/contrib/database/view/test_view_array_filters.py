@@ -49,6 +49,12 @@ def uuid_field_factory(data_fixture, table, user):
     return data_fixture.create_uuid_field(name="target", user=user, table=table)
 
 
+def single_select_field_factory(data_fixture, table, user):
+    return data_fixture.create_single_select_field(
+        name="target", user=user, table=table
+    )
+
+
 def setup(data_fixture, target_field_factory):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
@@ -85,28 +91,47 @@ def setup(data_fixture, target_field_factory):
     )
 
 
+def text_field_value_factory(data_fixture, target_field, value=None):
+    return value or ""
+
+
+def single_select_field_value_factory(data_fixture, target_field, value=None):
+    return (
+        data_fixture.create_select_option(field=target_field, value=value)
+        if value
+        else None
+    )
+
+
 @pytest.mark.parametrize(
-    "target_field_factory",
+    "target_field_factory,target_field_value_factory",
     [
-        text_field_factory,
-        long_text_field_factory,
-        email_field_factory,
-        phone_number_field_factory,
-        url_field_factory,
+        (text_field_factory, text_field_value_factory),
+        (long_text_field_factory, text_field_value_factory),
+        (email_field_factory, text_field_value_factory),
+        (phone_number_field_factory, text_field_value_factory),
+        (url_field_factory, text_field_value_factory),
+        (single_select_field_factory, single_select_field_value_factory),
     ],
 )
 @pytest.mark.django_db
-def test_has_empty_value_filter_text_field_types(data_fixture, target_field_factory):
+def test_has_empty_value_filter_text_field_types(
+    data_fixture, target_field_factory, target_field_value_factory
+):
     test_setup = setup(data_fixture, target_field_factory)
 
+    row_A_value = target_field_value_factory(data_fixture, test_setup.target_field, "A")
+    row_B_value = target_field_value_factory(data_fixture, test_setup.target_field, "B")
+    row_empty_value = target_field_value_factory(data_fixture, test_setup.target_field)
+
     other_row_A = test_setup.other_table_model.objects.create(
-        **{f"field_{test_setup.target_field.id}": "A"}
+        **{f"field_{test_setup.target_field.id}": row_A_value}
     )
     other_row_B = test_setup.other_table_model.objects.create(
-        **{f"field_{test_setup.target_field.id}": "B"}
+        **{f"field_{test_setup.target_field.id}": row_B_value}
     )
     other_row_empty = test_setup.other_table_model.objects.create(
-        **{f"field_{test_setup.target_field.id}": ""}
+        **{f"field_{test_setup.target_field.id}": row_empty_value}
     )
     row_1 = test_setup.row_handler.create_row(
         user=test_setup.user,
@@ -189,29 +214,34 @@ def test_has_empty_value_filter_uuid_field_types(data_fixture):
 
 
 @pytest.mark.parametrize(
-    "target_field_factory",
+    "target_field_factory,target_field_value_factory",
     [
-        text_field_factory,
-        long_text_field_factory,
-        email_field_factory,
-        phone_number_field_factory,
-        url_field_factory,
+        (text_field_factory, text_field_value_factory),
+        (long_text_field_factory, text_field_value_factory),
+        (email_field_factory, text_field_value_factory),
+        (phone_number_field_factory, text_field_value_factory),
+        (url_field_factory, text_field_value_factory),
+        (single_select_field_factory, single_select_field_value_factory),
     ],
 )
 @pytest.mark.django_db
 def test_has_not_empty_value_filter_text_field_types(
-    data_fixture, target_field_factory
+    data_fixture, target_field_factory, target_field_value_factory
 ):
     test_setup = setup(data_fixture, target_field_factory)
 
+    row_A_value = target_field_value_factory(data_fixture, test_setup.target_field, "A")
+    row_B_value = target_field_value_factory(data_fixture, test_setup.target_field, "B")
+    row_empty_value = target_field_value_factory(data_fixture, test_setup.target_field)
+
     other_row_A = test_setup.other_table_model.objects.create(
-        **{f"field_{test_setup.target_field.id}": "A"}
+        **{f"field_{test_setup.target_field.id}": row_A_value}
     )
     other_row_B = test_setup.other_table_model.objects.create(
-        **{f"field_{test_setup.target_field.id}": "B"}
+        **{f"field_{test_setup.target_field.id}": row_B_value}
     )
     other_row_empty = test_setup.other_table_model.objects.create(
-        **{f"field_{test_setup.target_field.id}": ""}
+        **{f"field_{test_setup.target_field.id}": row_empty_value}
     )
     row_1 = test_setup.row_handler.create_row(
         user=test_setup.user,
@@ -1560,3 +1590,540 @@ def test_has_value_length_is_lower_than_uuid_field_types(data_fixture):
         ).all()
     ]
     assert len(ids) == 4
+
+
+@pytest.mark.django_db
+def test_has_value_equal_filter_single_select_field(data_fixture):
+    test_setup = setup(data_fixture, single_select_field_factory)
+
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
+    opt_c = data_fixture.create_select_option(field=test_setup.target_field, value="c")
+
+    other_row_a = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_a}
+    )
+    other_row_b = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_b}
+    )
+    other_row_c = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_c}
+    )
+
+    row_1 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_a.id, other_row_b.id]
+        },
+    )
+    row_2 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={f"field_{test_setup.link_row_field.id}": [other_row_a.id]},
+    )
+    row_3 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_b.id, other_row_c.id]
+        },
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_equal",
+        value=str(opt_a.id),
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+
+    view_filter.value = str(opt_b.id)
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_3.id in ids
+
+
+@pytest.mark.django_db
+def test_has_not_value_equal_filter_single_select_field(data_fixture):
+    test_setup = setup(data_fixture, single_select_field_factory)
+
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
+    opt_c = data_fixture.create_select_option(field=test_setup.target_field, value="c")
+
+    other_row_a = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_a}
+    )
+    other_row_b = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_b}
+    )
+    other_row_c = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_c}
+    )
+
+    row_1 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_a.id, other_row_b.id]
+        },
+    )
+    row_2 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={f"field_{test_setup.link_row_field.id}": [other_row_a.id]},
+    )
+    row_3 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_b.id, other_row_c.id]
+        },
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_not_value_equal",
+        value=str(opt_c.id),
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+
+    view_filter.value = str(opt_b.id)
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert row_2.id in ids
+
+
+@pytest.mark.django_db
+def test_has_value_contains_filter_single_select_field(data_fixture):
+    test_setup = setup(data_fixture, single_select_field_factory)
+
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="ba")
+    opt_c = data_fixture.create_select_option(field=test_setup.target_field, value="c")
+
+    other_row_a = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_a}
+    )
+    other_row_b = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_b}
+    )
+    other_row_c = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_c}
+    )
+
+    row_1 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_a.id, other_row_b.id]
+        },
+    )
+    row_2 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={f"field_{test_setup.link_row_field.id}": [other_row_a.id]},
+    )
+    row_3 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_b.id, other_row_c.id]
+        },
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_contains",
+        value="a",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 3
+    assert row_1.id in ids
+    assert row_2.id in ids
+    assert row_3.id in ids
+
+    view_filter.value = "c"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert row_3.id in ids
+
+
+@pytest.mark.django_db
+def test_has_not_value_contains_filter_single_select_field(data_fixture):
+    test_setup = setup(data_fixture, single_select_field_factory)
+
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="ba")
+    opt_c = data_fixture.create_select_option(field=test_setup.target_field, value="c")
+
+    other_row_a = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_a}
+    )
+    other_row_b = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_b}
+    )
+    other_row_c = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_c}
+    )
+
+    row_1 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_a.id, other_row_b.id]
+        },
+    )
+    row_2 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={f"field_{test_setup.link_row_field.id}": [other_row_a.id]},
+    )
+    row_3 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_b.id, other_row_c.id]
+        },
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_not_value_contains",
+        value="a",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 0
+
+    view_filter.value = "c"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+
+
+@pytest.mark.django_db
+def test_has_value_contains_word_filter_single_select_field(data_fixture):
+    test_setup = setup(data_fixture, single_select_field_factory)
+
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
+    opt_c = data_fixture.create_select_option(field=test_setup.target_field, value="ca")
+
+    other_row_a = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_a}
+    )
+    other_row_b = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_b}
+    )
+    other_row_c = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_c}
+    )
+
+    row_1 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_a.id, other_row_b.id]
+        },
+    )
+    row_2 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={f"field_{test_setup.link_row_field.id}": [other_row_a.id]},
+    )
+    row_3 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_b.id, other_row_c.id]
+        },
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_contains_word",
+        value="a",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+
+    view_filter.value = "ca"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert row_3.id in ids
+
+
+@pytest.mark.django_db
+def test_has_not_value_contains_word_filter_single_select_field(data_fixture):
+    test_setup = setup(data_fixture, single_select_field_factory)
+
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
+    opt_c = data_fixture.create_select_option(field=test_setup.target_field, value="ca")
+
+    other_row_a = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_a}
+    )
+    other_row_b = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_b}
+    )
+    other_row_c = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_c}
+    )
+
+    row_1 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_a.id, other_row_b.id]
+        },
+    )
+    row_2 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={f"field_{test_setup.link_row_field.id}": [other_row_a.id]},
+    )
+    row_3 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_b.id, other_row_c.id]
+        },
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_not_value_contains_word",
+        value="a",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert row_3.id in ids
+
+    view_filter.value = "ca"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+
+
+@pytest.mark.django_db
+def test_has_any_select_option_equal_filter_single_select_field(data_fixture):
+    test_setup = setup(data_fixture, single_select_field_factory)
+
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
+    opt_c = data_fixture.create_select_option(field=test_setup.target_field, value="c")
+
+    other_row_a = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_a}
+    )
+    other_row_b = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_b}
+    )
+    other_row_c = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_c}
+    )
+
+    row_1 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_a.id, other_row_b.id]
+        },
+    )
+    row_2 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={f"field_{test_setup.link_row_field.id}": [other_row_a.id]},
+    )
+    row_3 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_b.id, other_row_c.id]
+        },
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_any_select_option_equal",
+        value=f"{opt_a.id},{opt_c.id}",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 3
+    assert row_1.id in ids
+    assert row_2.id in ids
+    assert row_3.id in ids
+
+    view_filter.value = f"{opt_b.id},{opt_c.id}"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_3.id in ids
+
+
+@pytest.mark.django_db
+def test_has_none_select_option_equal_filter_single_select_field(data_fixture):
+    test_setup = setup(data_fixture, single_select_field_factory)
+
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
+    opt_c = data_fixture.create_select_option(field=test_setup.target_field, value="ca")
+
+    other_row_a = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_a}
+    )
+    other_row_b = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_b}
+    )
+    other_row_c = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_c}
+    )
+
+    row_1 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_a.id, other_row_b.id]
+        },
+    )
+    row_2 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={f"field_{test_setup.link_row_field.id}": [other_row_a.id]},
+    )
+    row_3 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [other_row_b.id, other_row_c.id]
+        },
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_none_select_option_equal",
+        value=f"{opt_a.id},{opt_c.id}",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 0
+
+    view_filter.value = f"{opt_b.id},{opt_c.id}"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert row_2.id in ids

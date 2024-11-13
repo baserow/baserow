@@ -1,5 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generator, List, Optional, Type, TypedDict, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypedDict,
+    TypeVar,
+    Union,
+)
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -96,13 +107,20 @@ class ElementType(
             instance.
         """
 
-    def after_update(self, instance: ElementSubClass, values: Dict):
+    def after_update(
+        self,
+        instance: ElementSubClass,
+        values: Dict,
+        changes: Dict[str, Tuple],
+    ):
         """
         This hook is called right after the element has been updated.
 
         :param instance: The updated element instance.
         :param values: The values that were passed when creating the field
             instance.
+        :param changes: A dictionary containing all changes which were made to the
+            element prior to `after_update` being called.
         """
 
     def before_delete(self, instance: ElementSubClass):
@@ -305,30 +323,6 @@ class ElementType(
             return value or 0
 
         return value
-
-    def extract_formula_properties(
-        self,
-        instance: Element,
-        element_map: Dict[str, Element],
-        **kwargs,
-    ) -> Dict[int, List[str]]:
-        """
-        Extract all formula field names of the element instance.
-
-        Returns a dict where keys are the Service ID and values are a list of
-        field names, e.g.: {164: ['field_5440', 'field_5441', 'field_5439']}
-        """
-
-        from baserow.contrib.builder.elements.handler import ElementHandler
-
-        # We get the context from the parent elements
-        formula_context = ElementHandler().get_import_context_addition(
-            instance.parent_element_id, element_map
-        )
-
-        return super().extract_formula_properties(
-            instance, **(kwargs | formula_context)
-        )
 
     @abstractmethod
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:

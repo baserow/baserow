@@ -34,17 +34,21 @@ export default {
     },
   },
   methods: {
-    getFieldWidth(fieldId) {
+    getFieldWidth(field) {
       const hasFieldOptions = Object.prototype.hasOwnProperty.call(
         this.fieldOptions,
-        fieldId
+        field.id
       )
 
-      if (hasFieldOptions && this.fieldOptions[fieldId].hidden) {
+      if (
+        hasFieldOptions &&
+        this.fieldOptions[field.id].hidden &&
+        !field.primary
+      ) {
         return 0
       }
 
-      return hasFieldOptions ? this.fieldOptions[fieldId].width : 200
+      return hasFieldOptions ? this.fieldOptions[field.id].width : 200
     },
     async moveFieldWidth(field, width) {
       await this.$store.dispatch(

@@ -8,12 +8,14 @@
     <ABDropdown
       ref="recordSelectorDropdown"
       v-model="inputValue"
+      :show-search="adhocSearchEnabled"
+      :emit-search="adhocSearchEnabled"
       class="choice-element"
-      :show-search="false"
       :placeholder="resolvedPlaceholder"
       :multiple="element.multiple"
       :before-show="beforeShow"
       @hide="onFormElementTouch"
+      @query-change="adhocSearch = $event"
       @scroll="$refs.infiniteScroll.handleScroll($event)"
     >
       <template #value>
@@ -23,6 +25,15 @@
         <span class="ab-dropdown__selected-text">
           {{ selectedValueDisplay }}
         </span>
+      </template>
+      <template #emptyState>
+        {{
+          adhocSearchEnabled
+            ? $t('recordSelectorElement.emptyAdhocState', {
+                query: adhocSearch,
+              })
+            : $t('recordSelectorElement.emptyState')
+        }}
       </template>
       <template #defaultValue>
         <template v-if="loading">
@@ -99,6 +110,14 @@ export default {
     }
   },
   computed: {
+    adhocSearchEnabled() {
+      return (
+        this.elementType.adhocSearchableProperties(
+          this.element,
+          this.dataSource
+        ).length > 0
+      )
+    },
     resolvedLabel() {
       return ensureString(this.resolveFormula(this.element.label))
     },

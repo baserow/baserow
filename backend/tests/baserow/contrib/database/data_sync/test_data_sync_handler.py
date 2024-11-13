@@ -7,16 +7,16 @@ import pytest
 import responses
 from freezegun import freeze_time
 
-from baserow.contrib.database.data_sync.data_sync_types import (
-    ICalCalendarDataSyncType,
-    UIDICalCalendarDataSyncProperty,
-)
 from baserow.contrib.database.data_sync.exceptions import (
     PropertyNotFound,
     SyncDataSyncTableAlreadyRunning,
     UniquePrimaryPropertyNotFound,
 )
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
+from baserow.contrib.database.data_sync.ical_data_sync_type import (
+    ICalCalendarDataSyncType,
+    UIDICalCalendarDataSyncProperty,
+)
 from baserow.contrib.database.data_sync.models import (
     DataSync,
     DataSyncSyncedProperty,
@@ -752,7 +752,7 @@ def test_sync_data_sync_table_sync_error(data_fixture):
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.database.data_sync.data_sync_types.ICalCalendarDataSyncType.get_all_rows"
+    "baserow.contrib.database.data_sync.ical_data_sync_type.ICalCalendarDataSyncType.get_all_rows"
 )
 def test_sync_data_sync_table_exception_raised(mock_get_all_rows, data_fixture):
     mock_get_all_rows.side_effect = ValueError

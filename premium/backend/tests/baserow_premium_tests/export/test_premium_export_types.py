@@ -111,7 +111,8 @@ def test_can_export_every_interesting_different_field_to_json(
     "uuid": "00000000-0000-4000-8000-000000000001",
     "autonumber": 1,
     "password": "",
-    "ai": ""
+    "ai": "",
+    "ai_choice": ""
 },
 {
     "id": 2,
@@ -230,7 +231,8 @@ def test_can_export_every_interesting_different_field_to_json(
     "uuid": "00000000-0000-4000-8000-000000000002",
     "autonumber": 2,
     "password": true,
-    "ai": "I'm an AI."
+    "ai": "I'm an AI.",
+    "ai_choice": "Object"
 }
 ]
 """
@@ -393,6 +395,7 @@ def test_can_export_every_interesting_different_field_to_xml(
       <autonumber>1</autonumber>
       <password/>
       <ai/>
+      <ai-choice/>
    </row>
    <row>
       <id>2</id>
@@ -512,6 +515,7 @@ def test_can_export_every_interesting_different_field_to_xml(
       <autonumber>2</autonumber>
       <password>true</password>
       <ai>I'm an AI.</ai>
+      <ai-choice>Object</ai-choice>
    </row>
 </rows>
 """
