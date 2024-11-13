@@ -1,5 +1,76 @@
 # Changelog
 
+## Released 1.29.0
+
+### New features
+* Use backend and frontend matching collate sort for single select, multiple select, and multiple collaborators field types. [#1944](https://gitlab.com/baserow/baserow/-/issues/1944)
+* [Builder] Only return Data Source field data when used by a formula in a Page. [#2063](https://gitlab.com/baserow/baserow/-/issues/2063)
+* [Builder] Allow sharing data sources across pages [#2486](https://gitlab.com/baserow/baserow/-/issues/2486)
+* [Builder] Allow collection elements to be filtered, sorted and searched against. [#2516](https://gitlab.com/baserow/baserow/-/issues/2516)
+* Add Anthropic AI integration. [#2564](https://gitlab.com/baserow/baserow/-/issues/2564)
+* Allow to limit concurency for uvicorn workers in asgi backend. [#2773](https://gitlab.com/baserow/baserow/-/issues/2773)
+* Allow exporting workspace applications [#2930](https://gitlab.com/baserow/baserow/-/issues/2930)
+* Allow importing workspace applications [#2951](https://gitlab.com/baserow/baserow/-/issues/2951)
+* Allow settings temperature in AI field and AI formula generation. [#3060](https://gitlab.com/baserow/baserow/-/issues/3060)
+* [Builder] Introducing the new row aggregations service to the application builder. [#3069](https://gitlab.com/baserow/baserow/-/issues/3069)
+* Baserow table data sync single select field compatibility. [#3074](https://gitlab.com/baserow/baserow/-/issues/3074)
+* Jira issues data sync. [#3075](https://gitlab.com/baserow/baserow/-/issues/3075)
+* GitLab issues data sync. [#3076](https://gitlab.com/baserow/baserow/-/issues/3076)
+* GitHub issues data sync. [#3077](https://gitlab.com/baserow/baserow/-/issues/3077)
+* PostgreSQL data sync. [#3079](https://gitlab.com/baserow/baserow/-/issues/3079)
+* Added progress to the data sync. [#3075](https://gitlab.com/baserow/baserow/-/issues/3075)
+* url formula field type filtering [#3111](https://gitlab.com/baserow/baserow/-/issues/3111)
+* Mistral AI integration. [#3141](https://gitlab.com/baserow/baserow/-/issues/3141)
+* AI choice output type for classification purposes. [#3143](https://gitlab.com/baserow/baserow/-/issues/3143)
+* Add ability to change attributes in SAML response payload. [#3155](https://gitlab.com/baserow/baserow/-/issues/3155)
+* Add CLI command for managing public keys for trusted sources [#3173](https://gitlab.com/baserow/baserow/-/issues/3173)
+* Add new limit settings for import export workspace applications [#3180](https://gitlab.com/baserow/baserow/-/issues/3180)
+* Add collaborate badge UI component
+* Add filters support for formula referencing a single select field. [#3174](https://gitlab.com/baserow/baserow/-/issues/3174)
+* Add filters support for lookups of single select fields. [#3182](https://gitlab.com/baserow/baserow/-/issues/3182)
+* Added indicator next to the view name in the header.
+* Show summary label in the footer of the grid view.
+
+### Bug fixes
+* Increase `max_length` for `submit_action_redirect_url` and fix validation. [#2018](https://gitlab.com/baserow/baserow/-/issues/2018)
+* Keep AI field field ID references when duplicating table. [#2747](https://gitlab.com/baserow/baserow/-/issues/2747)
+* FieldType.prepare_db_value validates arbitrary values in fields [#2768](https://gitlab.com/baserow/baserow/-/issues/2768)
+* [Builder] Fix reactivity issue when deleting user source [#2867](https://gitlab.com/baserow/baserow/-/issues/2867)
+* Form field condition groups restored on export/import [#2981](https://gitlab.com/baserow/baserow/-/issues/2981)
+* Include the field description in export/import [#3022](https://gitlab.com/baserow/baserow/-/issues/3022)
+* [Builder] Prevent excessive API requests in collection elements [#3028](https://gitlab.com/baserow/baserow/-/issues/3028)
+* Fixes problem where AI field loading state didn't persist when it left the button. [#3039](https://gitlab.com/baserow/baserow/-/issues/3039)
+* Fix a bug causing the UI to crash with an error message when creating a gallery view with an image from a lookup field. [#3059](https://gitlab.com/baserow/baserow/-/issues/3059)
+* [Builder] Resolved an issue with removing a search query from a data source after one had been set. [#3092](https://gitlab.com/baserow/baserow/-/issues/3092)
+* password fields are not searchable [#3093](https://gitlab.com/baserow/baserow/-/issues/3093)
+* handle missing value key in adhoc filters [#3101](https://gitlab.com/baserow/baserow/-/issues/3101)
+* [Builder] Ensure that the field name associated with a Repeat Element's schema_property is extracted. [#3136](https://gitlab.com/baserow/baserow/-/issues/3136)
+* Resolved an API documentation mistake which incorrectly stated that application endpoints return views, they do not. [#3139](https://gitlab.com/baserow/baserow/-/issues/3139)
+* Fix for primary field becomes invisible when set to a hidden field in grid view [#3168](https://gitlab.com/baserow/baserow/-/issues/3168)
+* Resolved an issue with exporting workspace applications when a color decoration pointed to a single select option. [#3177](https://gitlab.com/baserow/baserow/-/issues/3177)
+* Don't export deleted relations for link row fields. [#3183](https://gitlab.com/baserow/baserow/-/issues/3183)
+* [Builder] Fix broken data source for published website when using some field types in the table
+* [Builder] Fix record selector name and option suffix formula resolution bug
+* [Builder] Resolved an issue with creating and updating rows in workflow actions.
+* Disable webhook type fields if not selected.
+* Fix a bug causing an error importing the templates.
+* Fix AI form and validation
+* Fix Baserow table data sync export import authorized user and source table bug.
+* fix dropdown padding
+* Fix license check when exporting audit log from workspace as non-staff.
+* Fix showing warning is staff checkbox in user admin form.
+* Fix row metadata reactivity bug.
+* Prevent Posthog page view of sensitive pages.
+
+### Refactors
+* [Builder] Improve how Element placeholder text is displayed in Editor, Preview, and Published views. [#2916](https://gitlab.com/baserow/baserow/-/issues/2916)
+* [Builder] Create, update and delete workflow actions will now appear in the audit log.
+* Properly build the download link for the DownloadLink frontend component.
+
+### Breaking API changes
+* Deprecate Postgresql v12.
+
+
 ## Released 1.28.0
 
 ### New features

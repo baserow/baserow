@@ -4,6 +4,7 @@ from baserow.core.exceptions import FeatureDisabledException
 
 FF_DASHBOARDS = "dashboards"
 FF_ENABLE_ALL = "*"
+FF_FILTER_DISPATCH_DATA_USING_ONLY = "filter_dispatch_data_using_only"
 
 
 def feature_flag_is_enabled(feature_flag: str, raise_if_disabled=False) -> bool:

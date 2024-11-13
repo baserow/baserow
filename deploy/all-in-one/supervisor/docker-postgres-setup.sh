@@ -105,7 +105,7 @@ _main() {
         if [ $EXIT_STATUS = 0 ]; then
           rm -rf "${PGAUTOUPGRADE_DIR}"
           echo
-          echo 'You can now run the official `baserow/baserow:1.28.0` image to start Baserow.'
+          echo 'You can now run the official `baserow/baserow:1.29.0` image to start Baserow.'
           echo
           # We want to stop the execution here, so return an error code even if the upgrade was successful.
           exit 1
@@ -180,7 +180,7 @@ _main() {
         if [ "$PGDATA_VERSION" != "$POSTGRES_VERSION" ]; then
           echo
           echo "Your PostgreSQL data directory was initialized with version $PGDATA_VERSION, but this image is running version $POSTGRES_VERSION."
-          echo "Please look into official Baserow documentation at https://baserow.io/docs/installation%2Finstall-with-docker#upgrading-postgresql-database-from-a-previous-version for more information on how to upgrade your database using a different Baserow image ('baserow/baserow-pgautoupgrade:1.28.0') or how to run Baserow using legacy PostgreSQL 11 image ('baserow/baserow-pg11:1.28.0')."
+          echo "Please look into official Baserow documentation at https://baserow.io/docs/installation%2Finstall-with-docker#upgrading-postgresql-database-from-a-previous-version for more information on how to upgrade your database using a different Baserow image ('baserow/baserow-pgautoupgrade:1.29.0') or how to run Baserow using legacy PostgreSQL 11 image ('baserow/baserow-pg11:1.29.0')."
           echo
           exit 1
         fi
