@@ -73,10 +73,12 @@ def phone_number_field_factory(data_fixture, table, user):
 def uuid_field_factory(data_fixture, table, user):
     return data_fixture.create_uuid_field(name="target", user=user, table=table)
 
+
 def single_select_field_factory(data_fixture, table, user):
     return data_fixture.create_single_select_field(
         name="target", user=user, table=table
     )
+
 
 def single_select_field_value_factory(data_fixture, target_field, value=None):
     return (
@@ -1682,6 +1684,7 @@ def test_has_value_length_is_lower_than_uuid_field_types(data_fixture):
         ).all()
     ]
     assert len(ids) == 4
+
 
 @pytest.mark.parametrize(
     "filter_type_name,test_value,expected_rows",

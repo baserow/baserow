@@ -215,7 +215,6 @@ class JSONArrayContainsValueLengthLowerThanExpr(BaserowFilterExpression):
     # fmt: on
 
 
-
 class JSONArrayAllAreExpr(BaserowFilterExpression):
     # fmt: off
     template = (
