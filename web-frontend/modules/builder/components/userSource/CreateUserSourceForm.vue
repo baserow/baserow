@@ -2,14 +2,14 @@
   <form @submit.prevent="submit">
     <FormGroup
       :label="$t('createUserSourceForm.userSourceType')"
-      :error-message="getError('type')"
+      :error="v$.type.$error"
       required
       small-label
       class="margin-bottom-2"
       size="large"
     >
       <Dropdown
-        v-model="v$.values.type.$model"
+        v-model="v$.type.$model"
         :show-search="false"
         class="user-source-settings__user-source-type"
         size="large"
@@ -22,30 +22,51 @@
           :image="userSourceType.integrationType.image"
         />
       </Dropdown>
+
+      <template #error>
+        <span v-if="v$.type.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
+      </template>
     </FormGroup>
     <FormGroup
       :label="$t('createUserSourceForm.userSourceIntegration')"
-      :error-message="getError('integration_id')"
+      :error="v$.integration_id.$error"
       required
       small-label
       class="margin-bottom-2"
     >
       <IntegrationDropdown
-        v-model="v$.values.integration_id.$model"
+        v-model="v$.integration_id.$model"
         :application="builder"
         :integrations="integrations"
         :integration-type="currentUserSourceType?.integrationType"
         size="large"
       />
+
+      <template #error>
+        <span v-if="v$.integration_id.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
+      </template>
     </FormGroup>
 
     <FormGroup
-      :error-message="getError('name')"
+      :error="v$.name.$error"
       :label="$t('createUserSourceForm.userSourceName')"
       required
       small-label
     >
-      <FormInput v-model="v$.values.name.$model" size="large" />
+      <FormInput v-model="v$.name.$model" size="large" />
+
+      <template #error>
+        <span v-if="v$.name.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
+        <span v-else-if="v$.name.maxLength.$invalid">
+          {{ $t('error.maxLength', { max: 255 }) }}
+        </span>
+      </template>
     </FormGroup>
 
     <input type="submit" hidden />
@@ -53,6 +74,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import { required, maxLength } from '@vuelidate/validators'
@@ -74,7 +97,8 @@ export default {
   },
   data() {
     return {
-      values: { type: null, name: '', integration_id: null },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -85,11 +109,10 @@ export default {
       return Object.values(this.$registry.getOrderedList('userSource'))
     },
     currentUserSourceType() {
-      if (!this.values.type) {
-        return null
-      } else {
-        return this.$registry.get('userSource', this.values.type)
-      }
+      if (this.v$?.type.$model)
+        return this.$registry.get('userSource', this.v$.type.$model)
+
+      return null
     },
     userSourceNames() {
       return this.userSources.map(({ name }) => name)
@@ -97,32 +120,20 @@ export default {
   },
   watch: {
     currentUserSourceType(newValue) {
-      this.values.name = getNextAvailableNameInSequence(
+      this.v$.name.$model = getNextAvailableNameInSequence(
         newValue.name,
         this.userSourceNames
       )
     },
   },
-  methods: {
-    getError(fieldName) {
-      if (!this.v$.values[fieldName].$dirty) {
-        return ''
-      }
-      const fieldState = this.v$.values[fieldName]
-      if (!fieldState.required) {
-        return this.$t('error.requiredField')
-      }
-      if (fieldName === 'name' && !fieldState.maxLength) {
-        return this.$t('error.maxLength', { max: 255 })
-      }
-      return ''
-    },
-  },
-  validations: {
-    values: {
-      type: {
-        required,
-      },
+  created() {
+    const values = reactive({
+      integration_id: null,
+      name: null,
+      type: null,
+    })
+
+    const rules = computed(() => ({
       integration_id: {
         required,
       },
@@ -130,7 +141,13 @@ export default {
         required,
         maxLength: maxLength(255),
       },
-    },
+      type: {
+        required,
+      },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
 }
 </script>

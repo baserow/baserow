@@ -1,6 +1,5 @@
 import { mapActions, mapGetters } from 'vuex'
 import _ from 'lodash'
-
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
@@ -40,10 +39,9 @@ export default {
           this.element,
           this.workspace.id
         ) ||
-        !this.$refs.panelForm?.isFormValid(true)
-      ) {
+        !(await this.$refs.panelForm?.isFormValid(true))
+      )
         return
-      }
 
       const differences = Object.fromEntries(
         Object.entries(newValues).filter(

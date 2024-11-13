@@ -11,10 +11,10 @@
           class="margin-bottom-2"
           :label="$t('typographyThemeConfigBlock.fontFamily')"
         >
-          <FontFamilySelector v-model="values.body_font_family" />
+          <FontFamilySelector v-model="v$.body_font_family.$model" />
           <template #after-input>
             <ResetButton
-              v-model="values.body_font_family"
+              v-model="v$.body_font_family.$model"
               :default-value="theme?.body_font_family"
             />
           </template>
@@ -26,10 +26,12 @@
           class="margin-bottom-2"
           :label="$t('typographyThemeConfigBlock.textAlignment')"
         >
-          <HorizontalAlignmentsSelector v-model="values.body_text_alignment" />
+          <HorizontalAlignmentsSelector
+            v-model="v$.body_text_alignment.$model"
+          />
           <template #after-input>
             <ResetButton
-              v-model="values.body_text_alignment"
+              v-model="v$.body_text_alignment.$model"
               :default-value="theme?.body_text_alignment"
             />
           </template>
@@ -40,7 +42,7 @@
           class="margin-bottom-2"
           :label="$t('typographyThemeConfigBlock.size')"
           :error-message="
-            v$.values[`body_font_size`].$invalid
+            v$[`body_font_size`].$invalid
               ? $t('error.minMaxValueField', {
                   min: fontSizeMin,
                   max: bodyFontSizeMax,
@@ -49,13 +51,13 @@
           "
         >
           <PixelValueSelector
-            v-model="values.body_font_size"
+            v-model="v$.body_font_size.$model"
             class="typography-theme-config-block__input-number"
-            @blur="v$.values[`body_font_size`].$touch()"
+            @blur="v$[`body_font_size`].$touch"
           />
           <template #after-input>
             <ResetButton
-              v-model="values.body_font_size"
+              v-model="v$.body_font_size.$model"
               :default-value="theme?.body_font_size"
             />
           </template>
@@ -67,14 +69,14 @@
           :label="$t('typographyThemeConfigBlock.color')"
         >
           <ColorInput
-            v-model="values['body_text_color']"
+            v-model="v$['body_text_color'].$value"
             :color-variables="colorVariables"
             :default-value="theme ? theme['body_text_color'] : null"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.body_text_color"
+              v-model="v$.body_text_color.$model"
               :default-value="theme?.body_text_color"
             />
           </template>
@@ -101,11 +103,11 @@
             :label="$t('typographyThemeConfigBlock.fontFamily')"
           >
             <FontFamilySelector
-              v-model="values[`heading_${level}_font_family`]"
+              v-model="v$[`heading_${level}_font_family`].$model"
             />
             <template #after-input>
               <ResetButton
-                v-model="values[`heading_${level}_font_family`]"
+                v-model="v$[`heading_${level}_font_family`].$model"
                 :default-value="theme?.[`heading_${level}_font_family`]"
               />
             </template>
@@ -117,11 +119,11 @@
             :label="$t('typographyThemeConfigBlock.textAlignment')"
           >
             <HorizontalAlignmentsSelector
-              v-model="values[`heading_${level}_text_alignment`]"
+              v-model="v$[`heading_${level}_text_alignment`].$model"
             />
             <template #after-input>
               <ResetButton
-                v-model="values[`heading_${level}_text_alignment`]"
+                v-model="v$[`heading_${level}_text_alignment`].$model"
                 :default-value="theme?.[`heading_${level}_text_alignment`]"
               />
             </template>
@@ -131,25 +133,33 @@
             small-label
             class="margin-bottom-2"
             :label="$t('typographyThemeConfigBlock.size')"
-            :error-message="
-              v$.values[`heading_${level}_font_size`].$invalid
-                ? $t('error.minMaxValueField', {
-                    min: fontSizeMin,
-                    max: fontSizeMax,
-                  })
-                : ''
-            "
+            :error="v$[`heading_${level}_font_size`].$error"
           >
             <PixelValueSelector
-              v-model="values[`heading_${level}_font_size`]"
+              v-model="v$[`heading_${level}_font_size`].$model"
               class="typography-theme-config-block__input-number"
-              @blur="v$.values[`heading_${level}_font_size`].$touch()"
+              @blur="v$[`heading_${level}_font_size`].$touch()"
             />
             <template #after-input>
               <ResetButton
-                v-model="values[`heading_${level}_font_size`]"
+                v-model="v$[`heading_${level}_font_size`].$model"
                 :default-value="theme?.[`heading_${level}_font_size`]"
               />
+            </template>
+            <template #error>
+              <span
+                v-if="
+                  v$[`heading_${level}_font_size`].minValue.$invalid ||
+                  v$[`heading_${level}_font_size`].maxValue.$invalid
+                "
+              >
+                {{
+                  $t('error.minMaxValueField', {
+                    min: fontSizeMin,
+                    max: fontSizeMax,
+                  })
+                }}
+              </span>
             </template>
           </FormGroup>
           <FormGroup
@@ -159,7 +169,7 @@
             :label="$t('typographyThemeConfigBlock.color')"
           >
             <ColorInput
-              v-model="values[`heading_${level}_text_color`]"
+              v-model="v$[`heading_${level}_text_color`].$model"
               :color-variables="colorVariables"
               :default-value="
                 theme ? theme[`heading_${level}_text_color`] : null
@@ -168,7 +178,7 @@
             />
             <template #after-input>
               <ResetButton
-                v-model="values[`heading_${level}_text_color`]"
+                v-model="v$[`heading_${level}_text_color`].$model"
                 :default-value="theme?.[`heading_${level}_text_color`]"
               />
             </template>
@@ -188,6 +198,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required, integer, minValue, maxValue } from '@vuelidate/validators'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
@@ -214,6 +226,7 @@ export default {
   data() {
     return {
       values: {},
+      v$: null,
     }
   },
   computed: {
@@ -240,13 +253,37 @@ export default {
       return bodyFontSizeMax
     },
   },
-  methods: {
-    isAllowedKey(key) {
-      return key.startsWith('heading_') || key.startsWith('body_')
-    },
-  },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      body_font_size: 0,
+      body_text_color: '',
+      body_font_family: '',
+      body_text_alignment: '',
+      ...headings.reduce((o, i) => {
+        o[`heading_${i}_font_size`] = 0
+        o[`heading_${i}_text_color`] = ''
+        o[`heading_${i}_font_family`] = ''
+        o[`heading_${i}_text_alignment`] = ''
+        return o
+      }, {}),
+    })
+
+    const rules = computed(() => ({
+      body_font_size: {
+        required,
+        integer,
+        minValue: minValue(fontSizeMin),
+        maxValue: maxValue(bodyFontSizeMax),
+      },
+      body_text_color: {
+        required,
+      },
+      body_font_family: {
+        required,
+      },
+      body_text_alignment: {
+        required,
+      },
       ...headings.reduce((o, i) => {
         o[`heading_${i}_font_size`] = {
           required,
@@ -254,14 +291,25 @@ export default {
           minValue: minValue(fontSizeMin),
           maxValue: maxValue(fontSizeMax),
         }
+        o[`heading_${i}_text_color`] = {
+          required,
+        }
+        o[`heading_${i}_font_family`] = {
+          required,
+        }
+        o[`heading_${i}_text_alignment`] = {
+          required,
+        }
         return o
       }, {}),
-      body_font_size: {
-        required,
-        integer,
-        minValue: minValue(fontSizeMin),
-        maxValue: maxValue(bodyFontSizeMax),
-      },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
+  methods: {
+    isAllowedKey(key) {
+      return key.startsWith('heading_') || key.startsWith('body_')
     },
   },
 }

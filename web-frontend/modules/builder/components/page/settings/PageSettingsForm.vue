@@ -4,20 +4,20 @@
       <div class="col col-6">
         <PageSettingsNameFormElement
           ref="name"
-          v-model="values.name"
+          v-model="v$.name.$model"
           :disabled="!hasPermission"
           :has-errors="fieldHasErrors('name')"
-          :validation-state="v$.values.name"
+          :validation-state="v$.name"
           :is-creation="isCreation"
-          @blur="v$.values.name.$touch()"
+          @blur="v$.name.$touch"
         />
       </div>
       <div class="col col-6">
         <PageSettingsPathFormElement
-          v-model="values.path"
+          v-model="v$.path.$model"
           :disabled="!hasPermission"
           :has-errors="fieldHasErrors('path')"
-          :validation-state="v$.values.path"
+          :validation-state="v$.path"
           @blur="onPathBlur"
         />
       </div>
@@ -26,7 +26,7 @@
       <div class="col col-6">
         <PageSettingsPathParamsFormElement
           :disabled="!hasPermission"
-          :path-params="values.path_params"
+          :path-params="v$.path_params"
           @update="onPathParamUpdate"
         />
       </div>
@@ -37,8 +37,9 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { maxLength, required } from '@vuelidate/validators'
-
 import form from '@baserow/modules/core/mixins/form'
 import PageSettingsNameFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsNameFormElement'
 import PageSettingsPathFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsPathFormElement'
@@ -72,11 +73,8 @@ export default {
   },
   data() {
     return {
-      values: {
-        name: '',
-        path: '',
-        path_params: [],
-      },
+      v$: null,
+      values: null,
       hasPathBeenEdited: false,
     }
   },
@@ -115,7 +113,8 @@ export default {
         .map((page) => page.path)
     },
     currentPathParams() {
-      return getPathParams(this.values.path)
+      if (this.v$?.path?.$model) return getPathParams(this.values.path)
+      return []
     },
   },
   watch: {
@@ -197,9 +196,31 @@ export default {
     },
   },
   created() {
-    if (this.isCreation) {
-      this.values.name = this.defaultName
-    }
+    const values = reactive({
+      name: '',
+      path: '',
+      path_params: [],
+    })
+
+    const rules = computed(() => ({
+      name: {
+        required,
+        isUnique: this.isNameUnique,
+        maxLength: maxLength(255),
+      },
+      path: {
+        required,
+        isUnique: this.isPathUnique,
+        maxLength: maxLength(255),
+        startingSlash: this.pathStartsWithSlash,
+        validPathCharacters: this.pathHasValidCharacters,
+        uniquePathParams: this.arePathParamsUnique,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+
+    if (this.isCreation) this.values.name = this.defaultName
   },
   mounted() {
     if (this.isCreation) {
@@ -211,7 +232,7 @@ export default {
       return path.replace(PATH_PARAM_REGEX, ILLEGAL_PATH_SAMPLE_CHARACTER)
     },
     onPathBlur() {
-      this.v$.values.path.$touch()
+      this.v$.path.$touch()
       this.hasPathBeenEdited = true
     },
     onPathParamUpdate(paramTypeName, paramType) {
@@ -244,25 +265,6 @@ export default {
       const pathParams = getPathParams(path)
       return new Set(pathParams).size === pathParams.length
     },
-  },
-  validations() {
-    return {
-      values: {
-        name: {
-          required,
-          isUnique: this.isNameUnique,
-          maxLength: maxLength(255),
-        },
-        path: {
-          required,
-          isUnique: this.isPathUnique,
-          maxLength: maxLength(255),
-          startingSlash: this.pathStartsWithSlash,
-          validPathCharacters: this.pathHasValidCharacters,
-          uniquePathParams: this.arePathParamsUnique,
-        },
-      },
-    }
   },
 }
 </script>

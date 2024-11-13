@@ -32,16 +32,20 @@
           :label="$t('dataSourceForm.integrationLabel')"
           small-label
           required
-          :error-message="integrationError"
+          :error="v$.integration_id.$error"
         >
           <IntegrationDropdown
-            v-model="values.integration_id"
+            v-model="v$.integration_id.$model"
             class="data-source-form__integration-dropdown"
             :application="builder"
             :integrations="integrations"
-            :disabled="!values.type"
+            :disabled="!v$.type.$model"
             :integration-type="serviceType?.integrationType"
           />
+
+          <template #error>
+            {{ integrationError }}
+          </template>
         </FormGroup>
         <FormGroup
           :label="$t('dataSourceForm.nameLabel')"
@@ -50,10 +54,10 @@
           :error-message="nameError"
         >
           <FormInput
-            v-model="values.name"
+            v-model="v$.name.$model"
             class="data-source-form__name-input"
             :placeholder="$t('dataSourceForm.namePlaceholder')"
-            @blur="v$.values.name.$touch()"
+            @blur="v$.name.$touch"
           />
         </FormGroup>
       </div>
@@ -73,6 +77,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import form from '@baserow/modules/core/mixins/form'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
@@ -114,7 +120,8 @@ export default {
   data() {
     return {
       allowedValues: ['name', 'integration_id', 'type'],
-      values: { name: '', integration_id: null, type: null },
+      v$: null,
+      values: null,
     }
   },
   computed: {
@@ -179,53 +186,61 @@ export default {
         ])
     },
     nameError() {
-      if (!this.v$.values.name.$dirty) {
+      if (!this.v$.name.$invalid) {
         return ''
       }
-      return !this.v$.values.name.required
+      return this.v$.name.required.$invalid
         ? this.$t('error.requiredField')
-        : !this.v$.values.name.maxLength
+        : this.v$.name.maxLength.$invalid
         ? this.$t('error.maxLength', { max: 255 })
-        : !this.v$.values.name.unique
+        : this.v$.name.unique.$invalid
         ? this.$t('dataSourceForm.errorUniqueName')
         : ''
     },
     typeError() {
-      if (!this.v$.values.type.$dirty) {
+      if (!this.v$.type.$invalid) {
         return ''
       }
-      return !this.v$.values.type.required ? this.$t('error.requiredField') : ''
-    },
-    integrationError() {
-      if (!this.v$.values.integration_id.$dirty) {
-        return ''
-      }
-      return !this.v$.values.integration_id.required
+      return this.v$.type.required.$invalid
         ? this.$t('error.requiredField')
         : ''
     },
+    integrationError() {
+      if (!this.v$.integration_id.$invalid) {
+        return ''
+      }
+      return this.v$.integration_id.required.$invalid
+        ? this.$t('error.requiredField')
+        : ''
+    },
+  },
+  created() {
+    const values = reactive({
+      name: '',
+      integration_id: null,
+      type: null,
+    })
+
+    const rules = computed(() => ({
+      name: {
+        required,
+        maxLength: maxLength(255),
+        unique: this.mustHaveUniqueName,
+      },
+      integration_id: {
+        required,
+      },
+      type: {
+        required,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     mustHaveUniqueName(param) {
       return !this.existingNames.includes(param.trim())
     },
-  },
-  validations() {
-    return {
-      values: {
-        name: {
-          required,
-          maxLength: maxLength(255),
-          unique: this.mustHaveUniqueName,
-        },
-        integration_id: {
-          required,
-        },
-        type: {
-          required,
-        },
-      },
-    }
   },
 }
 </script>

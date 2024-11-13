@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
     <CustomStyle
-      v-model="values.styles"
+      v-model="v$.styles.$model"
       style-key="input"
       :config-block-types="['input']"
       :theme="builder.theme"
@@ -13,7 +13,7 @@
       small-label
     >
       <InjectedFormulaInput
-        v-model="values.label"
+        v-model="v$.label.$model"
         :placeholder="$t('generalForm.labelPlaceholder')"
       />
     </FormGroup>
@@ -24,7 +24,7 @@
       small-label
     >
       <InjectedFormulaInput
-        v-model="values.default_value"
+        v-model="v$.default_value.$model"
         :placeholder="$t('generalForm.valuePlaceholder')"
       />
     </FormGroup>
@@ -35,7 +35,7 @@
       small-label
     >
       <InjectedFormulaInput
-        v-model="values.placeholder"
+        v-model="v$.placeholder.$model"
         :placeholder="$t('generalForm.placeholderPlaceholder')"
       />
     </FormGroup>
@@ -45,7 +45,7 @@
       required
       class="margin-bottom-2"
     >
-      <Checkbox v-model="values.required"></Checkbox>
+      <Checkbox v-model="v$.required.$model"></Checkbox>
     </FormGroup>
 
     <FormGroup
@@ -54,7 +54,7 @@
       required
       class="margin-bottom-2"
     >
-      <Dropdown v-model="values.validation_type" :show-search="true">
+      <Dropdown v-model="v$.validation_type.$model" :show-search="true">
         <DropdownItem
           v-for="validationType in validationTypes"
           :key="validationType.name"
@@ -72,33 +72,38 @@
       required
       class="margin-bottom-2"
     >
-      <Checkbox v-model="values.is_multiline"></Checkbox>
+      <Checkbox v-model="v$.is_multiline.$model"></Checkbox>
     </FormGroup>
 
     <FormGroup
-      v-if="values.is_multiline"
+      v-if="v$.is_multiline.$model"
       small-label
       required
       class="margin-bottom-2"
-      :error-message="
-        v$.values.rows.$dirty && !v$.values.rows.required
-          ? $t('error.requiredField')
-          : !v$.values.rows.integer
-          ? $t('error.integerField')
-          : !v$.values.rows.minValue
-          ? $t('error.minValueField', { min: 1 })
-          : !v$.values.rows.maxValue
-          ? $t('error.maxValueField', { max: 100 })
-          : ''
-      "
+      :error="v$.rows.$error"
     >
       <FormInput
-        v-model="values.rows"
+        v-model="v$.rows.$model"
         type="number"
         :label="$t('inputTextElementForm.rowsTitle')"
         :placeholder="$t('inputTextElementForm.rowsPlaceholder')"
         :to-value="(value) => parseInt(value)"
       ></FormInput>
+
+      <template #error>
+        <span v-if="v$.rows.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
+        <span v-else-if="v$.rows.integer.$invalid">
+          {{ $t('error.integerField') }}
+        </span>
+        <span v-else-if="v$.rows.minValue.$invalid">
+          {{ $t('error.minValueField', { min: 1 }) }}
+        </span>
+        <span v-else-if="v$.rows.maxValue.$invalid">
+          {{ $t('error.maxValueField', { max: 100 }) }}
+        </span>
+      </template>
     </FormGroup>
 
     <FormGroup
@@ -128,6 +133,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
@@ -140,16 +147,8 @@ export default {
   mixins: [formElementForm],
   data() {
     return {
-      values: {
-        label: '',
-        default_value: '',
-        required: false,
-        validation_type: 'any',
-        placeholder: '',
-        is_multiline: false,
-        rows: 3,
-        type: 'text',
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -191,24 +190,45 @@ export default {
       ]
     },
   },
+  created() {
+    const values = reactive({
+      label: '',
+      default_value: '',
+      required: false,
+      validation_type: 'any',
+      placeholder: '',
+      is_multiline: false,
+      rows: 3,
+      type: 'text',
+      styles: {},
+    })
+
+    const rules = computed(() => ({
+      rows: {
+        required,
+        integer,
+        minValue: minValue(1),
+        maxValue: maxValue(100),
+      },
+      label: {},
+      default_value: {},
+      required: {},
+      validation_type: {},
+      placeholder: {},
+      is_multiline: {},
+      type: {},
+      styles: {},
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
   methods: {
     emitChange(newValues) {
       if (this.isFormValid()) {
         form.methods.emitChange.bind(this)(newValues)
       }
     },
-  },
-  validations() {
-    return {
-      values: {
-        rows: {
-          required,
-          integer,
-          minValue: minValue(1),
-          maxValue: maxValue(100),
-        },
-      },
-    }
   },
 }
 </script>

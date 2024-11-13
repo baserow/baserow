@@ -1,23 +1,22 @@
 <template>
   <form ref="form" @submit.prevent="submit">
-    <FormGroup
-      required
-      class="margin-bottom-2"
-      :error-message="
-        v$.values.name.$dirty && !v$.values.name.required
-          ? $t('error.requiredField')
-          : !v$.values.name.maxLength
-          ? $t('error.maxLength', { max: 255 })
-          : ''
-      "
-    >
+    <FormGroup required class="margin-bottom-2" :error="v$.name.$error">
       <FormInput
-        v-model="values.name"
+        v-model="v$.name.$model"
         required
         :label="$t('integrationEditForm.name')"
         :placeholder="$t('integrationEditForm.namePlaceholder')"
-        @blur="v$.values.name.$touch()"
+        @blur="v$.name.$touch"
       />
+
+      <template #error>
+        <span v-if="v$.name.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
+        <span v-if="v$.name.maxLength.$invalid">
+          {{ $t('error.maxLength', { max: 255 }) }}
+        </span>
+      </template>
     </FormGroup>
 
     <component
@@ -29,6 +28,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import { required, maxLength } from '@vuelidate/validators'
 
@@ -45,17 +46,21 @@ export default {
     },
   },
   data() {
-    return { values: { name: '' }, allowedValues: ['name'] }
+    return { v$: null, values: null, allowedValues: ['name'] }
   },
-  validations() {
-    return {
-      values: {
-        name: {
-          required,
-          maxLength: maxLength(255),
-        },
+  created() {
+    const values = reactive({
+      name: '',
+    })
+
+    const rules = computed(() => ({
+      name: {
+        required,
+        maxLength: maxLength(255),
       },
-    }
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
 }
 </script>

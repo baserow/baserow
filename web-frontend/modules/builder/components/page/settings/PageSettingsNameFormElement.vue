@@ -18,13 +18,13 @@
     </FormInput>
 
     <template #error>
-      <span v-if="validationState.$dirty && !validationState.required">
+      <span v-if="validationState.required.$invalid">
         {{ $t('error.requiredField') }}
       </span>
-      <span v-if="validationState.$dirty && !validationState.maxLength">
+      <span v-else-if="validationState.maxLength.$invalid">
         {{ $t('error.maxLength', { max: 255 }) }}
       </span>
-      <span v-if="validationState.$dirty && !validationState.isUnique">
+      <span v-else-if="validationState.isUnique.$invalid">
         {{ $t('pageErrors.errorNameNotUnique') }}
       </span>
     </template>

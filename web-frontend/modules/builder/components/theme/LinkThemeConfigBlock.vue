@@ -9,10 +9,10 @@
           class="margin-bottom-2"
           :label="$t('linkThemeConfigBlock.fontFamily')"
         >
-          <FontFamilySelector v-model="values.link_font_family" />
+          <FontFamilySelector v-model="v$.link_font_family.$model" />
           <template #after-input>
             <ResetButton
-              v-model="values.link_font_family"
+              v-model="v$.link_font_family.$model"
               :default-value="theme?.link_font_family"
             />
           </template>
@@ -25,10 +25,12 @@
           class="margin-bottom-2"
           :label="$t('linkThemeConfigBlock.alignment')"
         >
-          <HorizontalAlignmentsSelector v-model="values.link_text_alignment" />
+          <HorizontalAlignmentsSelector
+            v-model="v$.link_text_alignment.$model"
+          />
           <template #after-input>
             <ResetButton
-              v-model="values.link_text_alignment"
+              v-model="v$.link_text_alignment.$model"
               :default-value="theme?.link_text_alignment"
             />
           </template>
@@ -45,14 +47,14 @@
           :label="$t('linkThemeConfigBlock.color')"
         >
           <ColorInput
-            v-model="values.link_text_color"
+            v-model="v$.link_text_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.link_text_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.link_text_color"
+              v-model="v$.link_text_color.$model"
               :default-value="theme?.link_text_color"
             />
           </template>
@@ -72,14 +74,14 @@
           :label="$t('linkThemeConfigBlock.color')"
         >
           <ColorInput
-            v-model="values.link_hover_text_color"
+            v-model="v$.link_hover_text_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.link_hover_text_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.link_hover_text_color"
+              v-model="v$.link_hover_text_color.$model"
               :default-value="theme?.link_hover_text_color"
             />
           </template>
@@ -95,6 +97,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
@@ -112,8 +116,44 @@ export default {
   mixins: [themeConfigBlock],
   data() {
     return {
-      values: {},
+      v$: null,
+      values: null,
     }
+  },
+  created() {
+    const values = reactive({
+      primary_color: this.theme?.primary_color,
+      secondary_color: this.theme?.secondary_color,
+      border_color: this.theme?.border_color,
+      main_success_color: this.theme?.main_success_color,
+      main_warning_color: this.theme?.main_warning_color,
+      main_error_color: this.theme?.main_error_color,
+      text_color: this.theme?.text_color,
+      hover_text_color: this.theme?.hover_text_color,
+      font_family: this.theme?.font_family,
+      link_text_color: this.theme?.link_text_color,
+      link_text_alignment: this.theme?.link_text_alignment,
+      link_hover_text_color: this.theme?.link_hover_text_color,
+      link_font_family: this.theme?.link_font_family,
+    })
+
+    const rules = computed(() => ({
+      primary_color: {},
+      secondary_color: {},
+      border_color: {},
+      main_success_color: {},
+      main_warning_color: {},
+      main_error_color: {},
+      text_color: {},
+      hover_text_color: {},
+      font_family: {},
+      link_text_color: {},
+      link_text_alignment: {},
+      link_hover_text_color: {},
+      link_font_family: {},
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     isAllowedKey(key) {

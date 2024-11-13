@@ -32,10 +32,10 @@ export default {
   },
   watch: {
     values: {
-      deep: true,
       handler(newValues) {
         this.emitChange(newValues)
       },
+      deep: true,
     },
   },
   methods: {
@@ -141,20 +141,21 @@ export default {
      * `deep` parameter allow to deeply search the form elements and not staying at the
      * first level of children.
      */
-    isFormValid(deep = false) {
+    async isFormValid(deep = false) {
       // Some forms might not do any validation themselves. If they don't, then they
       // are by definition valid if their children are valid.
-      const thisFormInvalid = 'v$' in this && this.v$.$invalid
-      return !thisFormInvalid && this.areChildFormsValid()
+      if ('v$' in this) {
+        const isFormValid = await this.v$.$validate()
+        return isFormValid && (await this.areChildFormsValid())
+      }
+      return true
     },
     /**
      * Returns true if all the child form components are valid.
      */
-    areChildFormsValid(deep = false) {
+    async areChildFormsValid(deep = false) {
       for (const child of this.getChildForms(deep)) {
-        if ('isFormValid' in child && !child.isFormValid()) {
-          return false
-        }
+        if ('isFormValid' in child) return await child.isFormValid()
       }
       return true
     },
@@ -211,7 +212,6 @@ export default {
       }
       return childHandledIt
     },
-
     emitChange(newValues) {
       this.$emit('values-changed', newValues)
     },

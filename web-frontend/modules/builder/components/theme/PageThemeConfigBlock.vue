@@ -8,7 +8,7 @@
         :label="$t('pageThemeConfigBlock.backgroundColor')"
       >
         <ColorInput
-          v-model="values.page_background_color"
+          v-model="v$.page_background_color.$model"
           small
           :allow-opacity="false"
           :color-variables="colorVariables"
@@ -20,17 +20,17 @@
         class="margin-bottom-2"
         :label="$t('pageThemeConfigBlock.backgroundImage')"
       >
-        <ImageInput v-model="values.page_background_file" />
+        <ImageInput v-model="v$.page_background_file.$model" />
       </FormGroup>
       <FormGroup
-        v-if="values.page_background_file"
+        v-if="v$.page_background_file.$model"
         horizontal-narrow
         small-label
         class="margin-bottom-2"
         :label="$t('pageThemeConfigBlock.backgroundMode')"
       >
         <RadioGroup
-          v-model="values.page_background_mode"
+          v-model="v$.page_background_mode.$model"
           type="button"
           :options="backgroundModes"
         />
@@ -40,6 +40,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import { BACKGROUND_MODES } from '@baserow/modules/builder/enums'
@@ -50,7 +52,8 @@ export default {
   mixins: [themeConfigBlock],
   data() {
     return {
-      values: {},
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -70,6 +73,21 @@ export default {
         },
       ]
     },
+  },
+  created() {
+    const values = reactive({
+      page_background_color: this.theme?.page_background_color,
+      page_background_file: this.theme?.page_background_file,
+      page_background_mode: this.theme?.page_background_mode,
+    })
+
+    const rules = computed(() => ({
+      page_background_color: {},
+      page_background_file: {},
+      page_background_mode: {},
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     isAllowedKey(key) {

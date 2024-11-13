@@ -1,7 +1,6 @@
 import _ from 'lodash'
 import form from '@baserow/modules/core/mixins/form'
 import { themeToColorVariables } from '@baserow/modules/builder/utils/theme'
-
 const borderNames = ['top', 'bottom', 'left', 'right']
 
 const borderStyleNames = borderNames.map((pos) => `style_border_${pos}`)

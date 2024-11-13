@@ -3,30 +3,45 @@
     <FormRow>
       <FormGroup
         :label="$t('updateUserSourceForm.nameFieldLabel')"
+        :error="v$.name.$error"
         required
         small-label
-        :error-message="getError('name')"
       >
         <FormInput
-          v-model="v$.values.name.$model"
+          v-model="v$.name.$model"
           size="large"
           class="update-user-source-form__name-input"
           :placeholder="$t('updateUserSourceForm.nameFieldPlaceholder')"
         />
+
+        <template #error>
+          <span v-if="v$.name.required.$invalid">
+            {{ $t('error.requiredField') }}
+          </span>
+          <span v-else-if="v$.name.maxLength.$invalid">
+            {{ $t('error.maxLength', { max: 255 }) }}
+          </span>
+        </template>
       </FormGroup>
       <FormGroup
         :label="$t('updateUserSourceForm.integrationFieldLabel')"
-        :error-message="getError('integration_id')"
+        :error="v$.integration_id.$error"
         required
         small-label
       >
         <IntegrationDropdown
-          v-model="v$.values.integration_id.$model"
+          v-model="v$.integration_id.$model"
           :application="builder"
           :integrations="integrations"
           :integration-type="userSourceType.integrationType"
           size="large"
         />
+
+        <template #error>
+          <span v-if="v$.integration_id.required.$invalid">
+            {{ $t('error.requiredField') }}
+          </span>
+        </template>
       </FormGroup>
     </FormRow>
 
@@ -79,6 +94,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import { required, maxLength } from '@vuelidate/validators'
@@ -104,21 +121,18 @@ export default {
   },
   data() {
     return {
-      values: {
-        integration_id: null,
-        name: '',
-        auth_providers: [],
-      },
+      v$: null,
+      values: null,
       fullValues: this.getFormValues(),
     }
   },
   computed: {
     integration() {
-      if (!this.values.integration_id) {
+      if (!this.v$.integration_id.$model) {
         return null
       }
       return this.integrations.find(
-        ({ id }) => id === this.values.integration_id
+        ({ id }) => id === this.v$.integration_id.$model
       )
     },
     appAuthProviderTypes() {
@@ -136,6 +150,24 @@ export default {
         })
       )
     },
+  },
+  created() {
+    const values = reactive({
+      integration_id: null,
+      name: null,
+    })
+    const rules = computed(() => ({
+      integration_id: {
+        required,
+      },
+      name: {
+        required,
+        maxLength: maxLength(255),
+      },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     // Override the default getChildFormValues to exclude the provider forms from
@@ -181,30 +213,6 @@ export default {
     },
     emitChange() {
       this.fullValues = this.getFormValues()
-    },
-    getError(fieldName) {
-      if (!this.v$.values[fieldName].$dirty) {
-        return ''
-      }
-      const fieldState = this.v$.values[fieldName]
-      if (!fieldState.required) {
-        return this.$t('error.requiredField')
-      }
-      if (fieldName === 'name' && !fieldState.maxLength) {
-        return this.$t('error.maxLength', { max: 255 })
-      }
-      return ''
-    },
-  },
-  validations: {
-    values: {
-      integration_id: {
-        required,
-      },
-      name: {
-        required,
-        maxLength: maxLength(255),
-      },
     },
   },
 }

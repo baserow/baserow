@@ -9,11 +9,11 @@
           :label="$t('imageThemeConfigBlock.alignment')"
           class="margin-bottom-2"
         >
-          <HorizontalAlignmentsSelector v-model="values.image_alignment" />
+          <HorizontalAlignmentsSelector v-model="v$.image_alignment.$model" />
 
           <template #after-input>
             <ResetButton
-              v-model="values.image_alignment"
+              v-model="v$.image_alignment.$model"
               :default-value="theme?.image_alignment"
             />
           </template>
@@ -24,21 +24,10 @@
           small-label
           required
           class="margin-bottom-2"
-          :error-message="
-            v$.values.image_max_width.$dirty &&
-            !v$.values.image_max_width.integer
-              ? $t('error.integerField')
-              : !v$.values.image_max_width.minValue
-              ? $t('error.minValueField', { min: 0 })
-              : !v$.values.image_max_width.maxValue
-              ? $t('error.maxValueField', { max: 100 })
-              : !v$.values.image_max_width.required
-              ? $t('error.requiredField')
-              : ''
-          "
+          :error="v$.image_max_width.$error"
         >
           <FormInput
-            v-model="values.image_max_width"
+            v-model="v$.image_max_width.$model"
             type="number"
             :min="0"
             :max="100"
@@ -53,9 +42,24 @@
 
           <template #after-input>
             <ResetButton
-              v-model="values.image_max_width"
+              v-model="v$.image_max_width.$model"
               :default-value="theme?.image_max_width"
             />
+          </template>
+
+          <template #error>
+            <span v-if="v$.image_max_width.integer.$invalid">
+              {{ $t('error.integerField') }}
+            </span>
+            <span v-else-if="v$.image_max_width.minValue.$invalid">
+              {{ $t('error.minValueField', { min: 0 }) }}
+            </span>
+            <span v-else-if="v$.image_max_width.maxValue.$invalid">
+              {{ $t('error.maxValueField', { max: 100 }) }}
+            </span>
+            <span v-else-if="v$.image_max_width.required.$invalid">
+              {{ $t('error.requiredField') }}
+            </span>
           </template>
         </FormGroup>
         <FormGroup
@@ -64,16 +68,7 @@
           required
           :label="$t('imageThemeConfigBlock.maxHeightLabel')"
           class="margin-bottom-2"
-          :error-message="
-            v$.values.image_max_height.$dirty &&
-            !v$.values.image_max_height.integer
-              ? $t('error.integerField')
-              : !v$.values.image_max_height.minValue
-              ? $t('error.minValueField', { min: 5 })
-              : !v$.values.image_max_height.maxValue
-              ? $t('error.maxValueField', { max: 3000 })
-              : ''
-          "
+          :error="v$.image_max_height.$error"
         >
           <FormInput
             v-model="imageMaxHeight"
@@ -91,6 +86,18 @@
               :default-value="theme?.image_max_height"
             />
           </template>
+
+          <template #error>
+            <span v-if="v$.image_max_height.integer.$invalid">
+              {{ $t('error.integerField') }}
+            </span>
+            <span v-else-if="v$.image_max_height.minValue.$invalid">
+              {{ $t('error.minValueField', { min: 5 }) }}
+            </span>
+            <span v-else-if="v$.image_max_height.maxValue.$invalid">
+              {{ $t('error.maxValueField', { max: 3000 }) }}
+            </span>
+          </template>
         </FormGroup>
         <FormGroup
           horizontal-narrow
@@ -100,7 +107,7 @@
           :label="$t('imageThemeConfigBlock.imageConstraintsLabel')"
         >
           <Dropdown
-            v-model="values.image_constraint"
+            v-model="v$.image_constraint"
             fixed-items
             :show-search="true"
             class="flex-grow-1"
@@ -135,6 +142,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
@@ -152,7 +161,8 @@ export default {
   mixins: [themeConfigBlock],
   data() {
     return {
-      values: {},
+      v$: null,
+      values: null,
       allowedValues: [
         'image_alignment',
         'image_max_width',
@@ -169,15 +179,15 @@ export default {
       set(newValue) {
         // If the `image_max_height` is emptied, and the
         // constraint is 'cover', then reset back to 'contain'.
-        if (!newValue && this.values.image_constraint === 'cover') {
-          this.values.image_constraint = 'contain'
+        if (!newValue && this.v$.image_constraint.$model === 'cover') {
+          this.v$.image_constraint.$model = 'contain'
         }
         // If the `image_max_height` is set, and the
         // constraint is 'contain', then reset back to 'cover'.
-        if (newValue && this.values.image_constraint === 'contain') {
-          this.values.image_constraint = 'cover'
+        if (newValue && this.v$.image_constraint.$model === 'contain') {
+          this.v$.image_constraint.$model = 'cover'
         }
-        this.values.image_max_height = newValue
+        this.v$.image_max_height.$model = newValue
       },
     },
     imageMaxHeightForReset: {
@@ -195,13 +205,13 @@ export default {
       set(value) {
         if (value === 'contain') {
           // Reset the height as we can't have a max height with contain
-          this.values.image_max_height = null
+          this.v$.image_max_height.$model = null
         }
         if (value === 'cover') {
           // Set the height to what is defined in theme
-          this.values.image_max_height = this.theme.image_max_height
+          this.v$.image_max_height.$model = this.theme.image_max_height
         }
-        this.values.image_constraint = value
+        this.v$.image_constraint.$model = value
       },
     },
     IMAGE_SOURCE_TYPES() {
@@ -224,22 +234,15 @@ export default {
       ]
     },
   },
-  methods: {
-    constraintDisabled(name) {
-      if (name === 'cover') {
-        return !this.values.image_max_height
-      } else if (name === 'contain') {
-        return !!(
-          this.values.image_max_height && this.values.image_max_height > 0
-        )
-      }
-    },
-    isAllowedKey(key) {
-      return key.startsWith('image_')
-    },
-  },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      image_alignment: this.theme?.image_alignment,
+      image_max_width: this.theme?.image_max_width,
+      image_max_height: this.theme?.image_max_height,
+      image_constraint: this.theme?.image_constraint,
+    })
+
+    const rules = computed(() => ({
       image_max_width: {
         required,
         integer,
@@ -251,6 +254,24 @@ export default {
         minValue: minValue(5),
         maxValue: maxValue(3000),
       },
+      image_constraint: {},
+      image_alignment: {},
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
+  methods: {
+    constraintDisabled(name) {
+      if (name === 'cover') {
+        return !this.v$.image_max_height.$model
+      } else if (name === 'contain') {
+        return !!(
+          this.v$.image_max_height.$model && this.v$.image_max_height.$model > 0
+        )
+      }
+    },
+    isAllowedKey(key) {
+      return key.startsWith('image_')
     },
   },
 }
