@@ -34,6 +34,9 @@ from baserow.contrib.database.fields.filter_support.base import (
 from baserow.contrib.database.fields.filter_support.exceptions import (
     FilterNotSupportedException,
 )
+from baserow.contrib.database.fields.filter_support.single_select import (
+    SingleSelectFormulaTypeFilterSupport,
+)
 from baserow.contrib.database.fields.mixins import get_date_time_format
 from baserow.contrib.database.fields.utils.duration import (
     D_H_M_S,
@@ -1347,8 +1350,32 @@ class BaserowFormulaArrayType(
     def can_represent_files(self, field):
         return self.sub_type.can_represent_files(field)
 
+    def can_represent_select_options(self, field) -> bool:
+        return self.sub_type.can_represent_select_options(field)
 
-class BaserowFormulaSingleSelectType(BaserowJSONBObjectBaseType):
+    @classmethod
+    def get_serializer_field_overrides(cls):
+        from baserow.contrib.database.api.fields.serializers import (
+            SelectOptionSerializer,
+        )
+        from baserow.contrib.database.api.formula.serializers import (
+            BaserowFormulaSelectOptionsSerializer,
+        )
+
+        return {
+            "select_options": BaserowFormulaSelectOptionsSerializer(
+                child=SelectOptionSerializer(),
+                required=False,
+                allow_null=True,
+                read_only=True,
+            )
+        }
+
+
+class BaserowFormulaSingleSelectType(
+    SingleSelectFormulaTypeFilterSupport,
+    BaserowJSONBObjectBaseType,
+):
     type = "single_select"
     baserow_field_type = "single_select"
     can_order_by = True
@@ -1361,6 +1388,10 @@ class BaserowFormulaSingleSelectType(BaserowJSONBObjectBaseType):
             type(self),
             BaserowFormulaTextType,
         ]
+
+    @property
+    def can_represent_select_options(self) -> bool:
+        return True
 
     @property
     def limit_comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:

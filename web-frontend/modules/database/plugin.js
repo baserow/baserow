@@ -106,6 +106,8 @@ import {
   HasNotValueContainsWordViewFilterType,
   HasValueLengthIsLowerThanViewFilterType,
   HasAllValuesEqualViewFilterType,
+  HasAnySelectOptionEqualViewFilterType,
+  HasNoneSelectOptionEqualViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
 import {
   CSVImporterType,
@@ -490,7 +492,16 @@ export default (context) => {
   )
   app.$registry.register(
     'viewFilter',
+
     new HasAllValuesEqualViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasAnySelectOptionEqualViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNoneSelectOptionEqualViewFilterType(context)
   )
   app.$registry.register('viewFilter', new ContainsViewFilterType(context))
   app.$registry.register('viewFilter', new ContainsNotViewFilterType(context))

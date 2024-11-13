@@ -3,6 +3,8 @@ import ViewFilterTypeNumber from '@baserow/modules/database/components/view/View
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 import { ViewFilterType } from '@baserow/modules/database/viewFilters'
 import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
+import ViewFilterTypeSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeSelectOptions'
+import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
 
 export class HasEmptyValueViewFilterType extends ViewFilterType {
   static getType() {
@@ -19,6 +21,7 @@ export class HasEmptyValueViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
     ]
   }
 
@@ -42,6 +45,7 @@ export class HasNotEmptyValueViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
     ]
   }
 
@@ -87,7 +91,8 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
         FormulaFieldType.arrayOf('text'),
         FormulaFieldType.arrayOf('char'),
         FormulaFieldType.arrayOf('url'),
-        FormulaFieldType.arrayOf('boolean')
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('single_select')
       ),
     ]
   }
@@ -130,7 +135,8 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
         FormulaFieldType.arrayOf('text'),
         FormulaFieldType.arrayOf('char'),
         FormulaFieldType.arrayOf('url'),
-        FormulaFieldType.arrayOf('boolean')
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('single_select')
       ),
     ]
   }
@@ -155,6 +161,7 @@ export class HasValueContainsViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
     ]
   }
 
@@ -182,6 +189,7 @@ export class HasNotValueContainsViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
     ]
   }
 
@@ -209,6 +217,7 @@ export class HasValueContainsWordViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
     ]
   }
 
@@ -236,6 +245,7 @@ export class HasNotValueContainsWordViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
     ]
   }
 
@@ -300,5 +310,51 @@ export class HasAllValuesEqualViewFilterType extends ViewFilterType {
   matches(cellValue, filterValue, field, fieldType) {
     filterValue = fieldType.parseInputValue(field, filterValue)
     return fieldType.hasAllValuesEqualFilter(cellValue, filterValue, field)
+  }
+}
+
+export class HasAnySelectOptionEqualViewFilterType extends ViewFilterType {
+  static getType() {
+    return 'has_any_select_option_equal'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasAnySelectOptionEqual')
+  }
+
+  getInputComponent(field) {
+    return ViewFilterTypeMultipleSelectOptions
+  }
+
+  getCompatibleFieldTypes() {
+    return [FormulaFieldType.compatibleWithFormulaTypes('array(single_select)')]
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
+  }
+}
+
+export class HasNoneSelectOptionEqualViewFilterType extends ViewFilterType {
+  static getType() {
+    return 'has_none_select_option_equal'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNoneSelectOptionEqual')
+  }
+
+  getInputComponent(field) {
+    return ViewFilterTypeMultipleSelectOptions
+  }
+
+  getCompatibleFieldTypes() {
+    return [FormulaFieldType.compatibleWithFormulaTypes('array(single_select)')]
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
   }
 }

@@ -898,8 +898,23 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         id_mapping: Dict[str, Any] = {}
         next_application_order_value = Application.get_last_order(workspace)
 
-        for applications in manifest["applications"].values():
-            for application_manifest in applications["items"]:
+        # Sort the serialized applications so that we import:
+        # Database first
+        # Applications second
+        # Everything else after that.
+        def application_priority_sort(application_to_sort):
+            return application_type_registry.get(
+                application_to_sort
+            ).import_application_priority
+
+        prioritized_applications = sorted(
+            manifest["applications"].keys(), key=application_priority_sort, reverse=True
+        )
+
+        for application_type in prioritized_applications:
+            for application_manifest in manifest["applications"][application_type][
+                "items"
+            ]:
                 imported_application = self.import_application(
                     workspace,
                     id_mapping,

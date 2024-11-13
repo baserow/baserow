@@ -1107,6 +1107,12 @@ BASEROW_IMPORT_EXPORT_RESOURCE_REMOVAL_AFTER_DAYS = int(
     os.getenv("BASEROW_IMPORT_EXPORT_RESOURCE_REMOVAL_AFTER_DAYS", 5)
 )
 
+# The maximum number of rows that will be exported when exporting a table.
+# If `0` then all rows will be exported.
+BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT = int(
+    os.getenv("BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT", 0)
+)
+
 PERMISSION_MANAGERS = [
     "view_ownership",
     "core",

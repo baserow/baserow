@@ -16,6 +16,7 @@ from baserow.contrib.database.formula import BaserowFormulaTextType
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaBooleanType,
     BaserowFormulaCharType,
+    BaserowFormulaSingleSelectType,
     BaserowFormulaURLType,
 )
 
@@ -35,13 +36,13 @@ class HasEmptyValueViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaTextType.type),
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
+            FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
         ),
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        field_type = field_type_registry.get_by_model(field)
         try:
-            field_type = field_type_registry.get_by_model(field)
-
             if not isinstance(field_type, HasValueEmptyFilterSupport):
                 raise FilterNotSupportedException(field_type)
 
@@ -69,12 +70,13 @@ class HasValueEqualViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
+            FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
         ),
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        field_type = field_type_registry.get_by_model(field)
         try:
-            field_type = field_type_registry.get_by_model(field)
             if not isinstance(field_type, HasValueFilterSupport):
                 raise FilterNotSupportedException(field_type)
             return field_type.get_in_array_is_query(
@@ -102,12 +104,13 @@ class HasValueContainsViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaTextType.type),
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
+            FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
         ),
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        field_type = field_type_registry.get_by_model(field)
         try:
-            field_type = field_type_registry.get_by_model(field)
             if not isinstance(field_type, HasValueContainsFilterSupport):
                 raise FilterNotSupportedException(field_type)
 
@@ -136,13 +139,13 @@ class HasValueContainsWordViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaTextType.type),
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
+            FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
         ),
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        field_type = field_type_registry.get_by_model(field)
         try:
-            field_type = field_type_registry.get_by_model(field)
-
             if not isinstance(field_type, HasValueContainsWordFilterSupport):
                 raise FilterNotSupportedException(field_type)
 
@@ -175,9 +178,8 @@ class HasValueLengthIsLowerThanViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        field_type = field_type_registry.get_by_model(field)
         try:
-            field_type = field_type_registry.get_by_model(field)
-
             if not isinstance(field_type, HasValueLengthIsLowerThanFilterSupport):
                 raise FilterNotSupportedException(field_type)
 
@@ -210,3 +212,31 @@ class HasAllValuesEqualViewFilterType(ViewFilterType):
             )
         except FilterNotSupportedException:
             return self.default_filter_on_exception()
+
+
+class HasAnySelectOptionEqualViewFilterType(HasValueEqualViewFilterType):
+    """
+    This filter can be used to verify if any of the select options in an array
+    are equal to the option IDs provided.
+    """
+
+    type = "has_any_select_option_equal"
+    compatible_field_types = [
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+        ),
+    ]
+
+    def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        return super().get_filter(field_name, value.split(","), model_field, field)
+
+
+class HasNoneSelectOptionEqualViewFilterType(
+    NotViewFilterTypeMixin, HasAnySelectOptionEqualViewFilterType
+):
+    """
+    This filter can be used to verify if none of the select options in an array are
+    equal to the option IDs provided
+    """
+
+    type = "has_none_select_option_equal"

@@ -198,6 +198,8 @@
     "hasValueContainsWord": "has value contains word",
     "hasNotValueContainsWord": "doesn't have value contains word",
     "hasValueLengthIsLowerThan": "has value length is lower than",
+    "hasAnySelectOptionEqual": "has any select option equal",
+    "hasNoneSelectOptionEqual": "doesn't have select option equal",
     "contains": "contains",
     "containsNot": "doesn't contain",
     "containsWord": "contains word",

@@ -5,6 +5,7 @@ from functools import partial
 from typing import Any, Dict, List, Optional, Set, Tuple
 from zipfile import ZipFile
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.core.management.color import no_style
@@ -122,9 +123,10 @@ class DatabaseApplicationType(ApplicationType):
                 )
 
             serialized_rows = []
+            row_count_limit = settings.BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT
             if not import_export_config.only_structure:
                 model = table.get_model(fields=fields, add_dependencies=False)
-                row_queryset = model.objects.all()
+                row_queryset = model.objects.all()[: row_count_limit or None]
                 if table.created_by_column_added:
                     row_queryset = row_queryset.select_related("created_by")
                 if table.last_modified_by_column_added:

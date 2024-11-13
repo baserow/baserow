@@ -1,6 +1,8 @@
 import json
 import zipfile
 
+from django.test.utils import override_settings
+
 import pytest
 
 from baserow.contrib.database.rows.handler import RowHandler
@@ -268,3 +270,60 @@ def test_exported_files_checksum(
 
         calculated_checksum = handler.compute_checksum(file_path, storage)
         assert database_file_checksum == calculated_checksum
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+@override_settings(BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT=1)
+def test_export_with_rows_limit(
+    data_fixture,
+    api_client,
+    tmpdir,
+    settings,
+    use_tmp_media_root,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="text_field", order=0)
+
+    row_handler = RowHandler()
+    row_handler.create_row(
+        user=user,
+        table=table,
+        values={
+            text_field.id: "row #1",
+        },
+    )
+    row_handler.create_row(
+        user=user,
+        table=table,
+        values={
+            text_field.id: "row #2",
+        },
+    )
+
+    resource = ImportExportHandler().export_workspace_applications(
+        user=user,
+        applications=[table.database],
+        import_export_config=ImportExportConfig(
+            include_permission_data=False,
+            reduce_disk_space_usage=True,
+            only_structure=False,
+        ),
+    )
+
+    file_path = tmpdir.join(
+        settings.EXPORT_FILES_DIRECTORY, resource.get_archive_name()
+    )
+    assert file_path.isfile()
+
+    with zipfile.ZipFile(file_path, "r") as zip_ref:
+        with zip_ref.open(MANIFEST_NAME) as json_file:
+            json_data = json.load(json_file)
+            database_export = json_data["applications"]["database"]["items"][0]
+
+            db_export_path = database_export["files"]["data"]["file"]
+            with zip_ref.open(db_export_path) as db_data_file:
+                db_data = json.loads(db_data_file.read())
+
+            assert len(db_data["tables"][0]["rows"]) == 1

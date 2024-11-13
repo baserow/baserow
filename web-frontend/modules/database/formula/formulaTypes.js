@@ -53,6 +53,10 @@ import {
   hasValueContainsFilterMixin,
   hasValueContainsWordFilterMixin,
   hasValueLengthIsLowerThanFilterMixin,
+  hasSelectOptionIdEqualMixin,
+  hasSelectOptionValueContainsFilterMixin,
+  hasSelectOptionValueContainsWordFilterMixin,
+  formulaArrayFilterMixin,
 } from '@baserow/modules/database/arrayFilterMixins'
 import _ from 'lodash'
 import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/ViewFilterTypeBoolean.vue'
@@ -60,6 +64,7 @@ import {
   genericHasAllValuesEqualFilter,
   genericHasValueContainsFilter,
 } from '@baserow/modules/database/utils/fieldFilters'
+import ViewFilterTypeSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeSelectOptions.vue'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
   getIconClass() {
@@ -561,11 +566,7 @@ export class BaserowFormulaInvalidType extends BaserowFormulaTypeDefinition {
 }
 
 export class BaserowFormulaArrayType extends mix(
-  hasEmptyValueFilterMixin,
-  hasValueEqualFilterMixin,
-  hasValueContainsFilterMixin,
-  hasValueContainsWordFilterMixin,
-  hasValueLengthIsLowerThanFilterMixin,
+  formulaArrayFilterMixin,
   BaserowFormulaTypeDefinition
 ) {
   static getType() {
@@ -740,8 +741,9 @@ export class BaserowFormulaArrayType extends mix(
   }
 
   getHasValueLengthIsLowerThanFilterFunction(field) {
-    const subType = this.getSubtype(field)
-    return subType.getHasValueLengthIsLowerThanFilterFunction(field)
+    return this.getSubtype(field)?.getHasValueLengthIsLowerThanFilterFunction(
+      field
+    )
   }
 
   getHasAllValuesEqualFilterFunction(field) {
@@ -864,7 +866,13 @@ export class BaserowFormulaFileType extends BaserowFormulaTypeDefinition {
   }
 }
 
-export class BaserowFormulaSingleSelectType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaSingleSelectType extends mix(
+  hasEmptyValueFilterMixin,
+  hasSelectOptionIdEqualMixin,
+  hasSelectOptionValueContainsFilterMixin,
+  hasSelectOptionValueContainsWordFilterMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'single_select'
   }
@@ -883,6 +891,10 @@ export class BaserowFormulaSingleSelectType extends BaserowFormulaTypeDefinition
 
   getFunctionalFieldArrayComponent() {
     return FunctionalFormulaSingleSelectArrayItem
+  }
+
+  getFilterInputComponent(field, filterType) {
+    return ViewFilterTypeSelectOptions
   }
 
   getSortOrder() {
@@ -1006,7 +1018,14 @@ export class BaserowFormulaLinkType extends BaserowFormulaTypeDefinition {
   }
 }
 
-export class BaserowFormulaURLType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaURLType extends mix(
+  hasEmptyValueFilterMixin,
+  hasValueEqualFilterMixin,
+  hasValueContainsFilterMixin,
+  hasValueContainsWordFilterMixin,
+  hasValueLengthIsLowerThanFilterMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'url'
   }

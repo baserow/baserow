@@ -4890,6 +4890,9 @@ class FormulaFieldType(FormulaArrayFilterSupport, ReadOnlyFieldType):
     def can_represent_files(self, field):
         return self.to_baserow_formula_type(field.specific).can_represent_files
 
+    def can_represent_select_options(self, field):
+        return self.to_baserow_formula_type(field.specific).can_represent_select_options
+
     def get_permission_error_when_user_changes_field_to_depend_on_forbidden_field(
         self, user: AbstractUser, changed_field: Field, forbidden_field: Field
     ) -> Exception:
@@ -5268,14 +5271,24 @@ class LookupFieldType(FormulaFieldType):
         "target_field_id",
         "target_field_name",
     ]
-    serializer_field_names = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + [
+    request_serializer_field_names = (
+        BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES
+        + [
+            "through_field_id",
+            "through_field_name",
+            "target_field_id",
+            "target_field_name",
+            "formula_type",
+        ]
+    )
+    serializer_field_names = BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES + [
         "through_field_id",
         "through_field_name",
         "target_field_id",
         "target_field_name",
         "formula_type",
     ]
-    serializer_field_overrides = {
+    request_serializer_field_overrides = {
         "through_field_name": serializers.CharField(
             required=False,
             allow_blank=True,
@@ -5310,14 +5323,6 @@ class LookupFieldType(FormulaFieldType):
         "nullable": serializers.BooleanField(required=False, read_only=True),
         "error": serializers.CharField(required=False, read_only=True),
     }
-
-    @property
-    def request_serializer_field_names(self):
-        return self.serializer_field_names
-
-    @property
-    def request_serializer_field_overrides(self):
-        return self.serializer_field_overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
