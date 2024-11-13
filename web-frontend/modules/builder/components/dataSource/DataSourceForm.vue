@@ -187,9 +187,9 @@ export default {
       }
       return this.v$.name.required.$invalid
         ? this.$t('error.requiredField')
-        : this.v$.values.maxLength.$invalid
+        : this.v$.name.maxLength.$invalid
         ? this.$t('error.maxLength', { max: 255 })
-        : this.v$.values.unique.$invalid
+        : this.v$.name.unique.$invalid
         ? this.$t('dataSourceForm.errorUniqueName')
         : ''
     },
@@ -202,7 +202,7 @@ export default {
         : ''
     },
     integrationError() {
-      if (!this.v$.integration_id.$dirty) {
+      if (!this.v$.integration_id.$invalid) {
         return ''
       }
       return !this.v$.integration_id.required
