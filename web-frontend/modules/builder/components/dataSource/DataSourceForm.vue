@@ -53,7 +53,7 @@
             v-model="v$.name.$model"
             class="data-source-form__name-input"
             :placeholder="$t('dataSourceForm.namePlaceholder')"
-            @blur="v$.name.$touch()"
+            @blur="v$.name.$touch"
           />
         </FormGroup>
       </div>
@@ -116,7 +116,6 @@ export default {
   data() {
     return {
       allowedValues: ['name', 'integration_id', 'type'],
-      // values: { name: '', integration_id: null, type: null },
       v$: null,
       values: null,
     }
@@ -183,22 +182,24 @@ export default {
         ])
     },
     nameError() {
-      if (!this.v$.name.$dirty) {
+      if (!this.v$.name.$invalid) {
         return ''
       }
-      return !this.v$.name.required.$invalid
+      return this.v$.name.required.$invalid
         ? this.$t('error.requiredField')
-        : !this.v$.values.maxLength.$invalid
+        : this.v$.values.maxLength.$invalid
         ? this.$t('error.maxLength', { max: 255 })
-        : !this.v$.values.unique.$invalid
+        : this.v$.values.unique.$invalid
         ? this.$t('dataSourceForm.errorUniqueName')
         : ''
     },
     typeError() {
-      if (!this.v$.type.$dirty) {
+      if (!this.v$.type.$invalid) {
         return ''
       }
-      return !this.v$.type.required ? this.$t('error.requiredField') : ''
+      return this.v$.type.required.$invalid
+        ? this.$t('error.requiredField')
+        : ''
     },
     integrationError() {
       if (!this.v$.integration_id.$dirty) {
