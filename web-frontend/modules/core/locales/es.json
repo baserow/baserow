@@ -129,7 +129,9 @@
         "leaveWorkspace": "Salir del área de trabajo",
         "deleteWorkspace": "Eliminar espacio de trabajo",
         "auditLog": "Registro de auditoría",
-        "settings": "Ajustes"
+        "settings": "Ajustes",
+        "exportWorkspace": "Exportar datos",
+        "importWorkspace": "Importar datos"
     },
     "createWorkspaceModal": {
         "createNew": "Crear grupo nuevo",
@@ -195,7 +197,9 @@
         "fromTemplate": "De la plantilla",
         "fromTemplateDesc": "Empieza rápidamente con una de nuestras plantillas recomendadas",
         "table": "Tabla",
-        "tableDesc": "Crea un nuevo espacio para gestionar los datos en tu base de datos."
+        "tableDesc": "Crea un nuevo espacio para gestionar los datos en tu base de datos.",
+        "importWorkspace": "Importar datos",
+        "importWorkspaceDesc": "Añadir datos existentes de una instancia Baserow."
     },
     "applicationForm": {
         "nameLabel": "Nombre",
@@ -327,7 +331,9 @@
         "emailVerificationRecommended": "Recomendado",
         "emailVerification": "Verificación de correo electrónico",
         "baserowVersion": "Versión de Baserow",
-        "baserowVersionDescription": "El número de versión de esta instancia."
+        "baserowVersionDescription": "El número de versión de esta instancia.",
+        "settingsVerifyImportSignature": "Verificar la firma de importación",
+        "settingsVerifyImportSignatureDescription": "Cuando está activada, la firma de los datos importados se verifica para garantizar que los datos no han sido manipulados."
     },
     "copyingNotification": {
         "title": "Copiando...",
@@ -474,7 +480,9 @@
         "yearsAgo": "Hace 0 años | Hace 1 año | Hace {n} años",
         "minutesAgo": "Hace 0 minutos | Hace 1 minuto | Hace {n} minutos",
         "hoursAgo": "Hace 0 horas | Hace 1 hora | Hace {n} horas",
-        "secondsAgo": "Ahora mismo | Hace 1 segundo | Hace {n} segundos"
+        "secondsAgo": "Ahora mismo | Hace 1 segundo | Hace {n} segundos",
+        "lessThanMinuteAgo": "Hace menos de un minuto",
+        "justNow": "ahora mismo"
     },
     "InstallTemplateJobType": {
         "installing": "Instalando",
@@ -731,14 +739,26 @@
         "ollamaHostDescription": "Proporciona el nombre del host a tu servidor [Ollama] (https://ollama.com/). Esto normalmente se ejecuta localmente en tu propio dispositivo.",
         "ollamaModelsLabel": "Modelos activados",
         "openaiApiKeyDescription": "Proporciona una clave de API de OpenAI si deseas activar la integración. [Instrucciones para obtener una clave de API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
-        "ollamaModelsDescription": "Proporciona una lista de [modelos instalados de Ollama] separados por comas (https://ollama.com/library). Ten en cuenta que el modelo debe ser descargado e instalado antes de que pueda ser utilizado. (por ejemplo, `llama2,mistral`)"
+        "ollamaModelsDescription": "Proporciona una lista de [modelos instalados de Ollama] separados por comas (https://ollama.com/library). Ten en cuenta que el modelo debe ser descargado e instalado antes de que pueda ser utilizado. (por ejemplo, `llama2,mistral`)",
+        "anthropicApiKeyLabel": "Clave API",
+        "mistralModelsLabel": "Modelos habilitados",
+        "mistralApiKeyDescription": "Proporciona una clave API de Mistral si deseas habilitar la integración. [Instrucciones para obtener una clave API](https://docs.mistral.ai/getting-started/quickstart/).",
+        "anthropic": "Anthropic",
+        "anthropicModelsLabel": "Modelos habilitados",
+        "anthropicApiKeyDescription": "Proporciona una clave API de Anthropic si deseas activar la integración. [Instrucciones para obtener una clave API](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicModelsDescription": "Proporciona una lista de [modelos de Anthropic] separados por comas (https://docs.anthropic.com/en/docs/about-claude/models) que puedan utilizarse en Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "mistral": "Mistral",
+        "mistralApiKeyLabel": "Clave API",
+        "mistralModelsDescription": "Proporciona una lista de [modelos Mistral] separados por comas (https://docs.mistral.ai/getting-started/models/models_overview/) que pueden utilizarse en Baserow. (por ejemplo, `mistral-large-latest,mistral-small-latest`)"
     },
     "generativeAIWorkspaceSettings": {
         "title": "Configuración de la IA generativa",
         "description": "Estos ajustes pueden utilizarse para establecer opcionalmente la configuración de la IA generativa en el nivel del espacio de trabajo. Funciones como el campo de IA pueden estar desactivadas porque carecen de una clave API para uno de los modelos compatibles. Proporcionando los ajustes aquí, puedes habilitar esas características. Si dejas un valor en blanco, se restablecerá la configuración global de la instancia. Ten en cuenta que todos los usuarios del espacio de trabajo compartirán esta configuración.",
         "changedTitle": "Configuración actualizada correctamente",
         "changedDescription": "Los ajustes se han actualizado y ahora se utilizarán en este espacio de trabajo.",
-        "submitButton": "Actualizar ajustes"
+        "submitButton": "Actualizar ajustes",
+        "hideSettings": "Ocultar ajustes",
+        "openSettings": "Abrir ajustes"
     },
     "workspaceSettingsModal": {
         "title": "Ajustes del espacio de trabajo"
@@ -800,7 +820,9 @@
     "selectAIModelForm": {
         "AIType": "Tipo de IA",
         "AIModel": "Modelo de IA",
-        "fileField": "Campo de archivo"
+        "fileField": "Campo de archivo",
+        "temperatureLabel": "Temperatura",
+        "temperatureDescription": "La temperatura de un LLM, un parámetro establecido entre 0 y {max}, ajusta la aleatoriedad de la respuesta: los valores más bajos producen respuestas centradas, mientras que los valores más altos aumentan la creatividad."
     },
     "inviteStep": {
         "title": "Invitar a colaboradores",
@@ -829,5 +851,46 @@
     },
     "dataExplorerNode": {
         "showMore": "Mostrar más repeticiones"
+    },
+    "exportWorkspaceModal": {
+        "title": "Exportar",
+        "export": "Exportar datos",
+        "importingState": "Importación de",
+        "created": "creado",
+        "exportSettings": "Configuración de exportación",
+        "description": "Sus datos se exportarán como un archivo ZIP, que puede importarse a otra instancia de Baserow.",
+        "reset": "Iniciar nuevo",
+        "download": "Descargar",
+        "cancel": "Cancelar",
+        "noExports": "Aún no hay exportaciones para este espacio de trabajo."
+    },
+    "exportWorkspaceForm": {
+        "exportSettingsLabel": "Configuración de exportación",
+        "onlyStructureLabel": "Exportar sólo la estructura",
+        "onlyStructureDescription": "Si se activa, sólo se exportará la estructura de las aplicaciones. No se incluirán los datos."
+    },
+    "importWorkspaceModal": {
+        "title": "Importar datos de Baserow",
+        "description": "Puedes importar los datos de un Baserow existente cargando el archivo .zip desde otra instancia de Baserow.",
+        "import": "Importar datos",
+        "upload": "Cargar",
+        "done": "Listo",
+        "deselectAll": "Deseleccionar todo",
+        "selectAll": "Seleccionar todo",
+        "applications": "Aplicaciones",
+        "successTitle": "Importados con éxito los datos Baserow",
+        "successMessage": "{count} aplicaciones importadas",
+        "signatureVerificationNote": "No es posible importar un archivo zip de una fuente no fiable.",
+        "invalidResourceTitle": "Recurso inválido",
+        "cancel": "Cancelar",
+        "close": "Cerrar",
+        "uploading": "Cargando...",
+        "retry": "Reintentar",
+        "databases": "Bases de datos",
+        "chooseFile": "Elegir archivo",
+        "selectApplications": "Seleccionar datos para importar",
+        "invalidResourceMessage": "El archivo proporcionado no es una exportación Baserow válida.",
+        "untrustedPublicKeyTitle": "Firma no fiable",
+        "untrustedPublicKeyMessage": "El archivo proporcionado está firmado con una clave pública no fiable. Pida a su administrador que añada la clave pública a la lista de claves de confianza o desactive la verificación de firma para poder importar este archivo."
     }
 }

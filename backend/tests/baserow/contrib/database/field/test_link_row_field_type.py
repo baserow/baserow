@@ -16,6 +16,7 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.dependencies.exceptions import (
     SelfReferenceFieldDependencyError,
 )
@@ -2232,3 +2233,51 @@ def test_clear_link_row_limit_selection_view_when_view_is_deleted(
             },
         ]
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.field_link_row
+def test_dont_export_deleted_relations(data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+
+    table_b_model = table_b.get_model()
+    row_b1 = table_b_model.objects.create()
+    row_b2 = table_b_model.objects.create()
+
+    table_a_model = table_a.get_model()
+    (row_a1,) = RowHandler().force_create_rows(
+        user,
+        table_a,
+        [{link_field.db_column: [row_b1.id, row_b2.id]}],
+        model=table_a_model,
+    )
+
+    assert getattr(row_a1, link_field.db_column).count() == 2
+    serialized = DatabaseApplicationType().export_serialized(
+        table_a.database, ImportExportConfig(include_permission_data=False)
+    )
+
+    def get_serialized_table_a(serialized):
+        for st in serialized["tables"]:
+            if st["id"] == table_a.id:
+                return st
+
+    serialized_table_a = get_serialized_table_a(serialized)
+    assert serialized_table_a["rows"][0][link_field.db_column] == unordered(
+        [
+            row_b1.id,
+            row_b2.id,
+        ]
+    )
+
+    RowHandler().delete_row(user, table_b, row_b1)
+
+    # the relation has not been deleted from the database yet, but the related row is
+    # marked as trashed so it shouldn't be exported
+    assert getattr(row_a1, link_field.db_column).count() == 2
+    serialized = DatabaseApplicationType().export_serialized(
+        table_a.database, ImportExportConfig(include_permission_data=False)
+    )
+    serialized_table_a = get_serialized_table_a(serialized)
+    assert serialized_table_a["rows"][0][link_field.db_column] == [row_b2.id]

@@ -213,7 +213,8 @@
         "filter": "Filtr",
         "exampleValue": "Przykładowa wartość",
         "example": "Pełny przykład",
-        "field": "pole {name}"
+        "field": "pole {name}",
+        "deprecated": "przestarzały"
     },
     "fieldTextSubForm": {
         "placeholder": "Tekst domyślny"
@@ -242,7 +243,9 @@
     "fieldLinkRowSubForm": {
         "noTable": "Potrzebujesz co najmniej jednej innej tabeli w tej samej bazie danych, aby połączyć się z nią.",
         "selectTableLabel": "Wybierz tabelę, do której chcesz utworzyć link",
-        "hasRelatedFieldLabel": "Utwórz powiązane pole w podlinkowanej tabeli"
+        "hasRelatedFieldLabel": "Utwórz powiązane pole w podlinkowanej tabeli",
+        "limitToView": "Ogranicz wybór do widoku",
+        "limitToViewDescription": "Należy pamiętać, że jest to tylko wizualne. Nadal możliwe jest tworzenie relacji poza widokiem za pośrednictwem powiązanej tabeli lub interfejsu API."
     },
     "fieldSelectOptions": {
         "add": "Dodaj opcję"
@@ -258,13 +261,16 @@
         "editField": "Edytuj pole",
         "deleteField": "Usuń pole",
         "hideField": "Ukryj pole",
-        "showField": "Pokaż pole"
+        "showField": "Pokaż pole",
+        "changePrimaryField": "Zmień pole podstawowe"
     },
     "fieldForm": {
         "name": "Nazwa",
         "fieldAlreadyExists": "Pole o tej nazwie już istnieje.",
         "nameNotAllowed": "Ta nazwa pola nie jest dozwolona.",
-        "nameTooLong": "Ta nazwa pola jest zbyt długa."
+        "nameTooLong": "Ta nazwa pola jest zbyt długa.",
+        "description": "Opis",
+        "addDescription": "Dodaj opis"
     },
     "fieldLookupSubForm": {
         "noTable": "Aby utworzyć pole odnośnika, potrzebujesz co najmniej jednego pola wiersza linku.",

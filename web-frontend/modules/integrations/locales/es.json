@@ -54,8 +54,9 @@
         "localBaserowWarning": "Autorizar su cuenta les otorga a todos los que tienen permisos de edición en la aplicación acceso completo a los datos a los que usted tiene acceso. Es posible crear un segundo usuario, otorgarle los permisos correctos y usarlo."
     },
     "serviceType": {
-        "localBaserowGetRow": "Obtener {singleRow}",
-        "localBaserowListRows": "Listado {multipleRows}"
+        "localBaserowGetRow": "Obtener una sola fila",
+        "localBaserowListRows": "Enumerar varias filas",
+        "localBaserowAggregateRows": "Resumir campo"
     },
     "userSourceType": {
         "localBaserow": "Autenticación de la tabla de Baserow"
@@ -72,5 +73,13 @@
     "integrationsCommon": {
         "singleRow": "una sola fila",
         "multipleRows": "varias filas"
+    },
+    "localBaserowAggregateRowsForm": {
+        "searchTabTitle": "Buscar",
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Añadir",
+        "noTableChosenForFiltering": "Seleccione una tabla para comenzar a utilizar filtros de fuente de datos.",
+        "filterTabTitle": "Filtros",
+        "searchFieldPlaceHolder": "Introduzca un término de búsqueda..."
     }
 }

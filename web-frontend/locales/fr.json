@@ -10,7 +10,10 @@
         "table": "Table",
         "all": "Tous",
         "billable": "Facturable",
-        "beta": "Bêta"
+        "beta": "Bêta",
+        "disabled": "Désactivé·e",
+        "enabled": "Activé·e",
+        "summarize": "Résumer"
     },
     "action": {
         "upload": "Envoyer",
@@ -60,7 +63,11 @@
         "databases": "Bases de données",
         "databaseDesc": "Créer une collection organisée de données structurées.",
         "builderDesc": "Créez facilement des sites web, des applications web et des portails sans code.",
-        "builders": "Applications"
+        "builders": "Applications",
+        "dashboardDesc": "Visualisez vos données et vos indicateurs à l'aide de diagrammes, de tableaux ou de graphiques.",
+        "dashboard": "Tableau de bord",
+        "dashboards": "Tableaux de bord",
+        "dashboardDefaultName": "Tableau de bord sans titre"
     },
     "settingType": {
         "account": "Informations personnelles",
@@ -90,7 +97,9 @@
         "invalidNumber": "Le champ doit être un nombre.",
         "email": "La valeur doit être un email.",
         "invalidURL": "Veuillez saisir une URL valide.",
-        "alreadyInUse": "Ce nom de champ est déjà utilisé."
+        "alreadyInUse": "Ce nom de champ est déjà utilisé.",
+        "decimalField": "Le champ doit être une valeur décimal.",
+        "invalidCharacters": "Ce champ contient des caractères invalides."
     },
     "permission": {
         "admin": "Admin",

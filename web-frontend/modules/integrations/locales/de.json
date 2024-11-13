@@ -46,8 +46,8 @@
         "localBaserowWarning": "Wenn Sie Ihr Konto autorisieren, hat jeder, der Bearbeitungsrechte für die Anwendung hat, vollen Zugriff auf die Daten, auf die auch Sie Zugriff haben. Es ist möglich, einen zweiten Benutzer zu erstellen, ihm die notwendigen Berechtigungen zu geben und stattdessen diesen zu verwenden."
     },
     "serviceType": {
-        "localBaserowGetRow": "Eine Zeile abfragen",
-        "localBaserowListRows": "Zeilen auflisten"
+        "localBaserowGetRow": "Einzelne Zeile abfragen",
+        "localBaserowListRows": "{multipleRows} auflisten"
     },
     "userSourceType": {
         "localBaserow": "Baserow-Tabellen-Authentifizierung"
@@ -68,5 +68,9 @@
         "localBaserowSummary": "Lokales Baserow - {name}, {username}",
         "localBaserowNoUser": "Lokales Baserow - Nicht konfiguriert",
         "localBaserowWarning": "Wenn Sie Ihr Konto autorisieren, hat jeder mit Bearbeitungsrechten für die Anwendung auch vollen Zugriff auf die Daten, auf welche Sie Zugriff haben. Es ist möglich einen zweiten Benutzer zu erstellen, diesem die passenden Berechtigungen zu geben und stattdessen diesen zu verwenden."
+    },
+    "integrationsCommon": {
+        "singleRow": "Einzelne Zeile",
+        "multipleRows": "Mehrere Zeilen"
     }
 }

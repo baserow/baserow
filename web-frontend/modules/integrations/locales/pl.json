@@ -33,7 +33,7 @@
     },
     "serviceType": {
         "localBaserowGetRow": "Pobierz {singleRow}",
-        "localBaserowListRows": "Pobierz {multipleRows}"
+        "localBaserowListRows": "Lista {multipleRows}"
     },
     "userSourceType": {
         "localBaserow": "Uwierzytelnianie tabeli bazowej Baserow"

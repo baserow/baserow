@@ -129,7 +129,9 @@
         "leaveWorkspace": "Verlaat werkruimte",
         "deleteWorkspace": "werkruimte verwijderen",
         "auditLog": "Audit log",
-        "settings": "Instellingen"
+        "settings": "Instellingen",
+        "importWorkspace": "Data importeren",
+        "exportWorkspace": "Data exporteren"
     },
     "createWorkspaceModal": {
         "createNew": "Nieuwe werkruimte aanmaken",
@@ -195,7 +197,9 @@
         "fromTemplate": "Van sjabloon",
         "table": "Tabel",
         "tableDesc": "Maak een nieuwe plaats om gegevens in je database te beheren.",
-        "fromTemplateDesc": "Begin snel met een van onze aanbevolen templates"
+        "fromTemplateDesc": "Begin snel met een van onze aanbevolen templates",
+        "importWorkspace": "Data importeren",
+        "importWorkspaceDesc": "Bestaande gegevens van een Baserow instantie toevoegen."
     },
     "applicationForm": {
         "nameLabel": "Naam",
@@ -327,7 +331,9 @@
         "emailVerificationRecommended": "Aanbevolen",
         "emailVerificationEnforced": "Afgedwongen",
         "baserowVersionDescription": "Het versienummer van deze instantie.",
-        "baserowVersion": "Baserow versie"
+        "baserowVersion": "Baserow versie",
+        "settingsVerifyImportSignatureDescription": "Indien ingeschakeld, wordt de handtekening van de geïmporteerde gegevens geverifieerd om er zeker van te zijn dat er niet met de gegevens geknoeid is.",
+        "settingsVerifyImportSignature": "Verifieer import handtekening"
     },
     "copyingNotification": {
         "title": "Kopiëren...",
@@ -474,7 +480,9 @@
         "monthsAgo": "0 maanden geleden | 1 maand geleden | {n} maanden geleden",
         "secondsAgo": "Zojuist | 1 seconde geleden | {n} seconden geleden",
         "minutesAgo": "0 minuten geleden | 1 minuut geleden | {n} minuten geleden",
-        "hoursAgo": "0 uur geleden | 1 uur geleden | {n} uur geleden"
+        "hoursAgo": "0 uur geleden | 1 uur geleden | {n} uur geleden",
+        "lessThanMinuteAgo": "minder dan een minuut geleden",
+        "justNow": "zojuist"
     },
     "duplicateApplicationJobType": {
         "duplicatedTitle": "Applicatie gedupliceerd",
@@ -734,14 +742,26 @@
         "openaiApiKeyDescription": "Geef een OpenAI API-sleutel op als je de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
         "ollamaHostDescription": "Geef de hostnaam van je [Ollama](https://ollama.com/) server. Deze draait meestal lokaal op je eigen apparaat.",
         "ollama": "Ollama",
-        "ollamaModelsDescription": "Geef een lijst met door komma gescheiden [Ollama geïnstalleerde modellen] (https://ollama.com/library). Het model moet worden gedownload en geïnstalleerd voordat het kan worden gebruikt. (bijvoorbeeld `llama2,mistral`)"
+        "ollamaModelsDescription": "Geef een lijst met door komma gescheiden [Ollama geïnstalleerde modellen] (https://ollama.com/library). Het model moet worden gedownload en geïnstalleerd voordat het kan worden gebruikt. (bijvoorbeeld `llama2,mistral`)",
+        "mistral": "Mistral",
+        "mistralModelsLabel": "Ingeschakelde modellen",
+        "anthropic": "Anthropic",
+        "anthropicApiKeyLabel": "API-sleutel",
+        "anthropicApiKeyDescription": "Geef een Anthropic API-sleutel op als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicModelsLabel": "Ingeschakelde modellen",
+        "anthropicModelsDescription": "Geef een lijst van door komma's gescheiden [Anthropic modellen] (https://docs.anthropic.com/en/docs/about-claude/models) die kunnen worden gebruikt in Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "mistralApiKeyLabel": "API-sleutel",
+        "mistralModelsDescription": "Geef een lijst met door komma's gescheiden [Mistral modellen] (https://docs.mistral.ai/getting-started/models/models_overview/) die kunnen worden gebruikt in Baserow. (bijv. `mistral-large-latest,mistral-small-latest`)",
+        "mistralApiKeyDescription": "Geef een Mistral API-sleutel als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.mistral.ai/getting-started/quickstart/)."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Generatieve AI-instellingen",
         "submitButton": "Instellingen bijwerken",
         "description": "Deze instellingen kunnen worden gebruikt om optioneel generatieve AI-configuratie in te stellen op werkruimte-niveau. Functies zoals het AI-veld kunnen worden uitgeschakeld omdat ze geen API-sleutel hebben voor een van de ondersteunde modellen. Door de instellingen hier op te geven, kun je die functies inschakelen. Als je een waarde leeg laat, wordt deze standaard teruggezet naar de globale instance-instellingen. Let op dat iedereen in de werkruimte deze instellingen deelt.",
         "changedTitle": "Instellingen correct bijgewerkt",
-        "changedDescription": "De instellingen zijn bijgewerkt en worden nu gebruikt in deze werkruimte."
+        "changedDescription": "De instellingen zijn bijgewerkt en worden nu gebruikt in deze werkruimte.",
+        "openSettings": "Instellingen openen",
+        "hideSettings": "Instellingen verbergen"
     },
     "workspaceSettingsModal": {
         "title": "Werkruimte-instellingen"
@@ -749,7 +769,9 @@
     "selectAIModelForm": {
         "AIModel": "AI-model",
         "AIType": "AI-type",
-        "fileField": "Bestandsveld"
+        "fileField": "Bestandsveld",
+        "temperatureLabel": "Temperatuur",
+        "temperatureDescription": "De temperatuur van een LLM, een parameter die ingesteld kan worden tussen 0 en {max}, past de willekeurigheid van reacties aan - lagere waarden leveren gerichte antwoorden op, terwijl hogere waarden de creativiteit verhogen."
     },
     "onboarding": {
         "title": "Onboarding",
@@ -829,5 +851,46 @@
     },
     "dataExplorerNode": {
         "showMore": "Meer herhalingen tonen"
+    },
+    "exportWorkspaceModal": {
+        "exportSettings": "Export instellingen",
+        "reset": "Begin opnieuw",
+        "created": "gemaakt",
+        "cancel": "Annuleren",
+        "title": "Exporteren",
+        "description": "Je gegevens worden geëxporteerd als een ZIP-bestand, dat je kunt importeren in een andere Baserow-instantie.",
+        "export": "Data exporteren",
+        "download": "Downloaden",
+        "importingState": "Importeren",
+        "noExports": "Nog geen exports voor deze werkruimte."
+    },
+    "exportWorkspaceForm": {
+        "exportSettingsLabel": "Export instellingen",
+        "onlyStructureDescription": "Als ingeschakeld, wordt alleen de structuur van de applicaties geëxporteerd. De data wordt niet meegenomen.",
+        "onlyStructureLabel": "Alleen structuur exporteren"
+    },
+    "importWorkspaceModal": {
+        "title": "Baserow data importeren",
+        "description": "Je kunt bestaand Baserow data importeren door het .zip-bestand van een andere Baserow instantie te uploaden.",
+        "upload": "Uploaden",
+        "cancel": "Annuleren",
+        "chooseFile": "Kies bestand",
+        "selectApplications": "Selecteer data om te importeren",
+        "deselectAll": "Deselecteer alles",
+        "selectAll": "Selecteer alles",
+        "databases": "Databases",
+        "applications": "Applicaties",
+        "successTitle": "De Baserow data is succesvol geïmporteerd",
+        "successMessage": "{count} applicaties geïmporteerd",
+        "signatureVerificationNote": "Het is niet mogelijk om een zipbestand van een onbetrouwbare bron te importeren.",
+        "import": "Data importeren",
+        "uploading": "uploaden...",
+        "done": "Klaar",
+        "close": "Sluit",
+        "retry": "Opnieuw proberen",
+        "invalidResourceTitle": "Ongeldige bron",
+        "invalidResourceMessage": "Het geleverde bestand is geen geldige Baserow export.",
+        "untrustedPublicKeyTitle": "Onbetrouwbare handtekening",
+        "untrustedPublicKeyMessage": "Het geleverde bestand is ondertekend met een onbetrouwbare openbare sleutel. Vraag je beheerder om de openbare sleutel toe te voegen aan de lijst van vertrouwde sleutels of de handtekeningverificatie uit te schakelen om dit bestand te kunnen importeren."
     }
 }

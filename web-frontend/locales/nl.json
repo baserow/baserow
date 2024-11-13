@@ -10,7 +10,10 @@
         "link": "Link",
         "billable": "Factureerbaar",
         "all": "Alle",
-        "beta": "Beta"
+        "beta": "Beta",
+        "disabled": "Uitgeschakeld",
+        "summarize": "Samenvatten",
+        "enabled": "Ingeschakeld"
     },
     "action": {
         "upload": "Uploaden",
@@ -60,7 +63,11 @@
         "databaseDesc": "Maak een georganiseerde verzameling van gestructureerde gegevens.",
         "databases": "Databases",
         "builders": "Applicaties",
-        "builderDesc": "Bouw eenvoudig websites, webapps en portals zonder code."
+        "builderDesc": "Bouw eenvoudig websites, webapps en portals zonder code.",
+        "dashboard": "Dashboard",
+        "dashboards": "Dashboards",
+        "dashboardDefaultName": "Dashboard zonder titel",
+        "dashboardDesc": "Visualiseer je data en statistieken met grafieken, tabellen of diagrammen."
     },
     "settingType": {
         "account": "Account",
@@ -90,7 +97,9 @@
         "invalidNumber": "Het veld moet een getal zijn.",
         "email": "Het veld moet een e-mail zijn.",
         "invalidURL": "Voer een geldige URL in.",
-        "alreadyInUse": "Deze veldnaam is al in gebruik."
+        "alreadyInUse": "Deze veldnaam is al in gebruik.",
+        "invalidCharacters": "Dit veld bevat ongeldige tekens.",
+        "decimalField": "Het veld moet een decimaal zijn."
     },
     "permission": {
         "admin": "Beheerder",

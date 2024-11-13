@@ -290,7 +290,13 @@
             "rowUpdated": "Kiedy wiersz jest aktualizowany",
             "rowsUpdated": "Wiersze są aktualizowane",
             "rowDeleted": "Gdy wiersz jest usuwany",
-            "rowsDeleted": "Wiersze są usuwane"
+            "rowsDeleted": "Wiersze są usuwane",
+            "fieldCreated": "Pole jest tworzone",
+            "fieldUpdated": "Pole jest aktualizowane",
+            "fieldDeleted": "Pole jest usuwane",
+            "viewCreated": "Widok jest tworzony",
+            "viewUpdated": "Widok jest aktualizowany",
+            "viewDeleted": "Widok został usunięty"
         },
         "form": {
             "invalidURLTitle": "Nieprawidłowy URL.",
@@ -379,7 +385,9 @@
         "fieldIsAlreadyPrimaryDescription": "Wybrane nowe pole podstawowe jest już polem podstawowym.",
         "generateAIPromptTitle": "Błąd zapytania",
         "incompatiblePrimaryFieldTypeTitle": "Pole nie jest kompatybilne",
-        "incompatiblePrimaryFieldTypeDescription": "Wybrane pole nie może być polem podstawowym, ponieważ jest niekompatybilne."
+        "incompatiblePrimaryFieldTypeDescription": "Wybrane pole nie może być polem podstawowym, ponieważ jest niekompatybilne.",
+        "cannotCreateRowsInTableTitle": "Nie można utworzyć wierszy",
+        "cannotCreateRowsInTableDescription": "Nie jest możliwe tworzenie wierszy w tej tabeli."
     },
     "importerType": {
         "csv": "Importuj plik CSV",

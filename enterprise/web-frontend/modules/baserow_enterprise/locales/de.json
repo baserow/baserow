@@ -266,7 +266,8 @@
         "rbac": "Rollenbasierte Zugangskontrolle",
         "coBranding": "Co-Branding Logo-Ersatz",
         "auditLogs": "Audit-Logs",
-        "support": "Direkte Unterstützung"
+        "support": "Direkte Unterstützung",
+        "dataSync": "Datensynchronisation"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Direkte Unterstützung"
@@ -293,7 +294,9 @@
         "noFields": "Keine Felder",
         "nameFieldLabel": "Wählen Sie das Namensfeld aus",
         "description": "Jede Zeile in der Tabelle ist ein Benutzerkonto. Bitte wählen Sie die passenden Felder in der Tabelle aus. Das Feld E-Mail wird zur Identifizierung verwendet.",
-        "nameFieldPlaceholder": "Wählen Sie ein Feld aus..."
+        "nameFieldPlaceholder": "Wählen Sie ein Feld aus...",
+        "roleFieldLabel": "Wählen Sie ein Rollen-Feld aus",
+        "roleFieldPlaceholder": "Wählen Sie ein Feld aus..."
     },
     "auditLogSidebarWorkspace": {
         "title": "Audit-Log",
@@ -321,5 +324,27 @@
     },
     "appAuthProviderType": {
         "localBaserowPassword": "E-Mailadresse / Passwort"
+    },
+    "authFormElementForm": {
+        "userSource": "Benutzerquelle",
+        "loginButtonLabel": "Label des Login-Buttons",
+        "loginButtonLabelPlaceholder": "Geben Sie das Label ein..."
+    },
+    "authFormElement": {
+        "email": "E-Mailadresse",
+        "selectOrConfigureUserSourceFirst": "Wählen Sie eine Benutzerquelle, um dieses Anmeldeelement zu verwenden.",
+        "password": "Passwort",
+        "passwordPlaceholder": "Geben Sie Ihr Passwort ein...",
+        "emailPlaceholder": "Geben Sie Ihre E-Mailadresse ein..."
+    },
+    "localBaserowTableDataSync": {
+        "workspace": "Arbeitsbereich",
+        "database": "Datenbank",
+        "name": "ID der Quell-Tabelle",
+        "authorizing": "Sie autorisieren Ihr Konto, die Daten aus der Quelltabelle auszuwählen.",
+        "table": "Tabelle"
+    },
+    "enterpriseDataSyncType": {
+        "localBaserowTable": "Baserow-Tabelle synchronisieren"
     }
 }

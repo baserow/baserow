@@ -48,7 +48,9 @@
             "description": "Dieser Webhook empfängt keine Informationen über alle geänderten Zeilen auf einmal. Bitte konvertieren Sie ihn in den Ereignistyp \"Batch\". Dadurch wird die JSON-Nutzlast in ein Format geändert, das mehrere Zeilen enthält.",
             "title": "Veralteter Ereignistyp",
             "convert": "Konvertieren"
-        }
+        },
+        "triggerWhenFieldsHaveChanged": "Löse aus, wenn Felder verändert wurden",
+        "helpTriggerWhenFieldsHaveChanged": "Wird nur ausgelöst, wenn sich der Zellwert der gewählten Felder verändert."
     },
     "webhook": {
         "details": "Details",
@@ -63,11 +65,14 @@
     },
     "sidebar": {
         "viewAPI": "API-Dokumente anzeigen",
-        "createTable": "Erstellen einer Tabelle"
+        "createTable": "Neue Tabelle"
     },
     "sidebarItem": {
         "exportTable": "Exportieren der Tabelle",
-        "webhooks": "Webhooks"
+        "webhooks": "Webhooks",
+        "lastSynced": "Zuletzt synchronisiert",
+        "notSynced": "nicht sychnronisiert",
+        "sync": "Tabelle synchronisieren"
     },
     "apiToken": {
         "create": "erstellen",
@@ -137,7 +142,7 @@
         "description": "Um Zeilen in der Tabelle *{name}* aufzulisten, muss eine `GET`-Anfrage an den Endpunkt *{name}* gestellt werden. Die Antwort ist paginiert und standardmäßig wird die erste Seite zurückgegeben. Die richtige Seite kann durch Angabe der Abfrageparameter \"page\" und \"size\" abgerufen werden.",
         "page": "Legt fest, welche Seite von Zeilen zurückgegeben werden soll.",
         "size": "Legt fest, wie viele Zeilen pro Seite zurückgegeben werden sollen.",
-        "userFieldNames": "Wenn für den GET-Parameter \"user_field_names\" ein beliebiger Wert angegeben wird, sind die von diesem Endpunkt zurückgegebenen Feldnamen die tatsächlichen Namen der Felder.\n\n Wenn der GET-Parameter \"user_field_names\" nicht angegeben wird, lauten alle zurückgegebenen Feldnamen \"field_\", gefolgt von der ID des Feldes. Zum Beispiel bezieht sich \"field_1\" auf das Feld mit der ID \"1\".\n\n Wenn `user_field_names` gesetzt ist, ändert sich außerdem das Verhalten der anderen GET-Parameter `order_by`, `include` und `exclude`. Sie erwarten stattdessen kommagetrennte Listen mit den tatsächlichen Feldnamen.",
+        "userFieldNames": "Wenn der GET-Parameter \"user_field_names\" vorhanden ist und dessen Inhalt einem dieser Werte entspricht (`y`, `yes`, `true`, `t`, `on`, `1`, oder eine leere Zeichenfolge), sind die von diesem Endpunkt zurückgegebenen Feldnamen die tatsächlichen Namen der Felder.\n\nWenn der GET-Parameter \"user_field_names\" nicht angegeben wird oder nicht einem der oben angegebenen Werte entspricht, lauten alle zurückgegebenen Feldnamen \"field_\", gefolgt von der ID des Feldes. Zum Beispiel bezieht sich \"field_1\" auf das Feld mit der ID \"1\".\n\n Wenn `user_field_names` gesetzt ist, ändert sich außerdem das Verhalten der anderen GET-Parameter `order_by`, `include` und `exclude`. Sie erwarten stattdessen kommagetrennte Listen mit den tatsächlichen Feldnamen.",
         "search": "Wenn angegeben, werden nur Zeilen mit Daten zurückgegeben, die der Suchanfrage entsprechen.",
         "orderBy": "Optional können die Zeilen nach durch Komma getrennten Feldern geordnet werden. Standardmäßig oder wenn einem Feld ein '+' vorangestellt wird, ist es aufsteigend (A-Z) geordnet, aber durch Voranstellen eines '-' kann es absteigend (Z-A) geordnet werden.\n #### Mit`user_field_names`:\n\n `order_by`sollte eine durch ein Komma getrennte Liste der Feldnamen sein, nach denen geordnet werden soll. Wenn Sie beispielsweise den folgenden GET-Parameter angeben: `order_by=My Field,-My Field 2`, werden die Zeilen nach dem Feld mit der Bezeichnung `My Field`in aufsteigender Reihenfolge geordnet. Wenn einige Felder denselben Wert haben, wird diese Teilmenge nach dem Feld `My Field 2` in absteigender Reihenfolge geordnet.\n\n Stellen Sie sicher, dass Feldern, deren Namen mit einem `+` oder `-` beginnen, ausdrücklich ein weiteres `+` oder `-` vorangestellt wird. Z.B.`+-Name`.\n\n\n Feldnamen, die Kommas enthalten, müssen in Anführungszeichen eingeschlossen werden: `\"Name ,\"`. Wenn Feldnamen Anführungszeichen enthalten, müssen sie mit dem Zeichen `\\` geschützt werden. Beispiel: `Name `.\n\n#### Ohne `user_field_names`:\n\n `order_by` sollte eine durch das Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, nach dem geordnet werden soll. Wenn Sie zum Beispiel den folgenden GET-Parameter angeben: `order_by=field_1,-field_2`, werden die Zeilen nach `field_1` in aufsteigender Reihenfolge geordnet. Wenn einige Felder denselben Wert haben, wird diese Teilmenge nach `field_2` in absteigender Reihenfolge geordnet.",
         "filter": "Die Zeilen können optional mit denselben Ansichtsfiltern gefiltert werden, die auch für die Ansichten verfügbar sind. Es können mehrere Filter angewandt werden, wenn sie das gleiche Format haben. Die Variablen `field` und `filter` geben an, wie bzw. wo der Filter angewendet werden soll.\n\n#### Mit `user_field_names`:\n\nWenn Sie zum Beispiel optional den folgenden GET-Parameter angeben: `filter__Name__equal=test`, werden nur Zeilen zurückgegeben, in denen der Wert von `Name` gleich 'test' ist. Diese Methode ist abwärtskompatibel und prüft gegen `field_id`, wenn sie am Namen fehlschlägt.\n\n#### Ohne `user_field_names`:\n\nWenn Sie zum Beispiel optional den folgenden GET-Parameter angeben: `filter__field_1__equal=test`, werden nur Zeilen zurückgegeben, bei denen der Wert von `field_1` gleich 'test' ist.\n\nBitte beachten Sie, dass dieser Parameter ignoriert wird, wenn der Parameter filters angegeben wird. ",
@@ -147,7 +152,8 @@
         "exclude": "Alle Felder werden standardmäßig in die Antwort aufgenommen. Sie können eine Untergruppe von Feldern auswählen, die ausgeschlossen werden sollen, indem Sie den Abfrageparameter exclude angeben.\n\n #### Mit \"user_field_names\":\n\n`exclude` sollte eine durch das Komma getrennte Liste von Feldern sein, die von den Ergebnissen ausgeschlossen werden sollen. Wenn Sie zum Beispiel den folgenden GET-Parameter angeben: `exclude=My Field,-My Field 2` dann werden diese Felder ausgeschlossen.\n\n Der Name des Feldes, das die Felder enthält, muss mit einem Hinweis versehen sein: \"name,\". Wenn der Feldname Schrägstriche enthält, müssen diese ebenfalls mit dem Zeichen \"name\" geschützt werden. Ex : `name\\\"`.\n\n #### Ohne `user_field_names`:\n\n `exclude` sollte eine durch das Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, das von den Ergebnissen ausgeschlossen werden soll. Zum Beispiel: Wenn Sie den folgenden GET-Parameter `exclude=field_1,field_2` angeben, werden die Felder mit der id `1` und id `2` ausgeschlossen.",
         "viewId": "Standardmäßig werden keine Filter und Sortierungen außerhalb der in den Abfrageparametern definierten angewendet. Sie können die Filter und Sortierungen einer Ansicht hinzufügen, indem Sie deren `id` im GET-Parameter `view_id` angeben. Wenn Sie z. B. den folgenden GET-Parameter angeben: \"view_id=1\", werden die in der Ansicht mit der ID \"1\" definierten Filter und Sortierungen angewandt. Sie können die `view_id` im Kontextmenü einer beliebigen Ansicht finden. Es ist die Zahl in Klammern hinter dem Namen der Ansicht. \n\n #### Mit `filter__{field}__{filter}` \n\n Es werden sowohl der im Abfrageparameter angegebene Filter als auch die in der Ansicht definierten Filter angewendet.\n\n #### Mit `order_by` \n\n Wenn `order_by` angegeben wird, wird die in der Ansicht definierte Sortierung ignoriert.",
         "filtersBuilder": "Öffnet den Filter-Parameter-Builder",
-        "filters": "Die Zeilen können optional mit denselben Ansichtsfiltern gefiltert werden, die auch für die Ansichten verfügbar sind. Dieser Parameter akzeptiert eine serialisierte JSON-Zeichenkette, die den Filterbaum enthält, der auf diese Ansicht anzuwenden ist. Der Filterbaum ist eine verschachtelte Struktur, die die anzuwendenden Filter enthält. \n\n#### Mit `user_field_names`:\n\nEin Beispiel für einen gültigen Filterbaum ist der Folgende: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"}]}`.\n\n#### Ohne `user_field_names`:\n\nWenn Sie zum Beispiel optional den folgenden GET-Parameter angeben: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": 1, \"type\": \"equal\", \"value\": \"test\"}]}`\n\nBitte beachten Sie, dass bei Angabe dieses Parameters alle anderen `filter__{field}__{filter}` ignoriert werden, ebenso wie der Parameter \"filter_type\"."
+        "filters": "Die Zeilen können optional mit denselben Ansichtsfiltern gefiltert werden, die auch für die Ansichten verfügbar sind. Dieser Parameter akzeptiert eine serialisierte JSON-Zeichenkette, die den Filterbaum enthält, der auf diese Ansicht anzuwenden ist. Der Filterbaum ist eine verschachtelte Struktur, die die anzuwendenden Filter enthält. \n\n#### Mit `user_field_names`:\n\nEin Beispiel für einen gültigen Filterbaum ist der Folgende: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"}]}`.\n\n#### Ohne `user_field_names`:\n\nWenn Sie zum Beispiel optional den folgenden GET-Parameter angeben: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": 1, \"type\": \"equal\", \"value\": \"test\"}]}`\n\nBitte beachten Sie, dass bei Angabe dieses Parameters alle anderen `filter__{field}__{filter}` ignoriert werden, ebenso wie der Parameter \"filter_type\".",
+        "join": "Ermöglicht die Abfrage von Feldwerten aus einer Zieltabelle über vorhandene Verknüpfungszeilenfelder. Der Parametername muss der Name eines bestehenden Link-Zeilenfeldes sein, gefolgt von __join. Der Wert sollte eine Liste von Feldnamen sein, für die zusätzliche Werte abgefragt werden sollen. Sie können ein oder mehrere Zielfelder angeben. Es ist nicht möglich, den Wert eines Link-Zeilenfeldes in der Zieltabelle zu suchen.\n\n #### Mit `user_field_names`:\n\n `join` sollte eine durch Komma getrennte Liste von Feldnamen sein, die in die Ergebnisse aufgenommen werden sollen. Zum Beispiel: Wenn Sie den folgenden GET-Parameter `LinkRowField__join=MyField,MyField2` angeben, werden die Werte von `MyField` und `My Field2` in der durch `LinkRowField` verknüpften Tabelle in die Antwort aufgenommen.\n\n#### Ohne `user_field_names`:\n\n `join` sollte eine durch Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, das in die Ergebnisse aufgenommen werden soll. Zum Beispiel: Wenn Sie den folgenden GET-Parameter angeben: `field_1__join=field_2,field_3`, werden die Werte von `field_2` und `field_3` in der mit `field_1` verknüpften Tabelle in die Antwort aufgenommen."
     },
     "apiDocsIntro": {
         "intro": "Die Datenbank {name} bietet eine einfache Möglichkeit, die Daten in ein beliebiges externes System zu integrieren. Die API folgt der REST-Semantik, verwendet JSON zur Kodierung von Objekten und stützt sich auf Standard-HTTP-Codes sowie maschinen- und menschenlesbare Fehler zur Signalisierung von Operationsergebnissen.",
@@ -225,7 +231,9 @@
     "fieldLinkRowSubForm": {
         "noTable": "Sie benötigen mindestens eine weitere Tabelle in derselben Datenbank, auf die Sie verweisen können.",
         "selectTableLabel": "Wählen Sie eine Tabelle für die Verknüpfung",
-        "hasRelatedFieldLabel": "Verknüpftes Feld in verknüpfter Tabelle erstellen"
+        "hasRelatedFieldLabel": "Verknüpftes Feld in verknüpfter Tabelle erstellen",
+        "limitToView": "Auswahl auf Ansicht beschränken",
+        "limitToViewDescription": "Beachten Sie, dass dies nur visuell ist. Es ist immer noch möglich, Beziehungen außerhalb der Ansicht über die Bezugstabelle oder API herzustellen."
     },
     "fieldSelectOptions": {
         "add": "Eine Option hinzufügen"
@@ -241,7 +249,8 @@
         "editField": "Feld bearbeiten",
         "deleteField": "Feld löschen",
         "hideField": "Feld ausblenden",
-        "showField": "Feld anzeigen"
+        "showField": "Feld anzeigen",
+        "changePrimaryField": "Primäres Feld ändern"
     },
     "fieldForm": {
         "name": "Name",
@@ -903,5 +912,26 @@
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Umstellung auf mehrstufigen Datumsfilter",
         "migrateButtonTooltip": "Neuer Filter verfügbar. Zum Aktualisieren anklicken. Er funktioniert genauso."
+    },
+    "createTableModal": {
+        "title": "Neue Tabelle anlegen",
+        "defaultName": "Tabelle",
+        "importLabel": "Möchten Sie bestehende Daten importieren?",
+        "newTable": "Starten Sie mit einer neuen Tabelle"
+    },
+    "createTable": {
+        "showTable": "Tabelle anzeigen",
+        "addButton": "Tabelle hinzufügen",
+        "uploading": "Lade hoch...",
+        "preparing": "Bereite Daten vor...",
+        "importError": "Beim Import der Datei ist etwas schiefgelaufen",
+        "stateRowCreation": "Importiere...",
+        "statePreValidation": "Prüfe Daten...",
+        "stateCreateTable": "Erstelle Tabelle..."
+    },
+    "importErrorReport": {
+        "reportTitleSuccess": "Import war erfolgreich, allerdings...",
+        "reportMessage": "Die folgenden Zeilenindizes konnten nicht importiert werden:",
+        "reportTitleFailure": "Fehlgeschlagene Zeilen"
     }
 }

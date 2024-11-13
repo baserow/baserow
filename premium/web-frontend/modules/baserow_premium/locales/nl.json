@@ -292,7 +292,8 @@
         "publicLogoRemoval": "Publiek logo verwijderen",
         "personalViews": "Persoonlijke weergave",
         "calendarView": "Kalenderweergave",
-        "aiFeatures": "AI veld"
+        "aiFeatures": "AI veld",
+        "timelineView": "Tijdlijn weergave"
     },
     "premiumModal": {
         "title": "Upgrade om de {name} te gebruiken",
@@ -375,7 +376,10 @@
         "premiumFeature": "Het AI-veld is een premium functie",
         "emptyFileField": "Geen",
         "fileFieldHelp": "Het eerste compatibele bestand in het veld wordt gebruikt als de kennisbasis voor de prompt. Het bestand moet een tekstbestand zijn met een ondersteunde bestandsextensie zoals .txt, .md, .pdf, .docx.",
-        "promptPlaceholder": "Wat is Baserow?"
+        "promptPlaceholder": "Wat is Baserow?",
+        "outputType": "Uitkomst type",
+        "outputTypeTooltip": "Selecteer de gewenste uitkomst format om de LLM te begeleiden bij het genereren van reacties die overeenkomen met de gewenste opties.",
+        "outputTypeChangedWarning": "Wist de gegenereerde celwaarden."
     },
     "rowEditFieldAI": {
         "generate": "Genereren",
@@ -438,5 +442,11 @@
         "day": "Dag",
         "week": "Week",
         "month": "Maand"
+    },
+    "aiOutputType": {
+        "choice": "Keuze",
+        "text": "Tekst",
+        "textDescription": "Genereert vrije tekst op basis van de prompt.",
+        "choiceDescription": "Kiest slechts één van de veldopties."
     }
 }

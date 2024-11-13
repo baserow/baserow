@@ -110,7 +110,9 @@
         "message": "Klik op een van de elementen om meer details te zien"
     },
     "headingElement": {
-        "noValue": "Geen titel..."
+        "noValue": "Geen titel...",
+        "emptyValue": "Lege titel...",
+        "missingValue": "Ontbrekende titel..."
     },
     "headingElementForm": {
         "levelTitle": "Niveau",
@@ -120,7 +122,9 @@
         "textPlaceholder": "Tekst invoeren..."
     },
     "textElement": {
-        "noValue": "Lege paragraaf..."
+        "noValue": "Lege paragraaf...",
+        "emptyValue": "Lege tekst...",
+        "missingValue": "Ontbrekende tekst..."
     },
     "textElementForm": {
         "textTitle": "Tekst",
@@ -193,7 +197,9 @@
         "subDomainName": "Subdomein"
     },
     "linkElement": {
-        "noValue": "Naamloos..."
+        "noValue": "Naamloos...",
+        "missingValue": "Ontbrekende linktekst...",
+        "emptyValue": "Lege linktekst..."
     },
     "linkElementForm": {
         "text": "Tekst",
@@ -249,15 +255,24 @@
         "errorUniqueName": "Data bron naam moet uniek zijn.",
         "selectTypeFirst": "Selecteer eerst de dienst",
         "servicePlaceholder": "Selecteer een dienst",
-        "namePlaceholder": "Bron naam"
+        "namePlaceholder": "Bron naam",
+        "actionLabel": "Actie",
+        "nameLabel": "Naam",
+        "integrationLabel": "Integratie"
     },
     "dataSourceContext": {
         "addDataSource": "Nieuwe gegevensbron toevoegen",
         "noDataSourceTitle": "Je hebt nog geen data toegevoegd",
-        "noDataSourceMessage": "Data kan worden gebruikt om gegevens op te halen uit interne of externe bronnen en deze op de pagina weer te geven."
+        "noDataSourceMessage": "Data kan worden gebruikt om gegevens op te halen uit interne of externe bronnen en deze op de pagina weer te geven.",
+        "sharedDataSourceTitle": "Gedeeld tussen pagina's",
+        "pageDataSourceTitle": "Voor deze pagina",
+        "sharedDataSourceDescription": "Toegankelijk op elke pagina en wordt eenmalig opgehaald bij de eerste keer dat de pagina wordt geladen.",
+        "pageDataSourceDescription": "Wordt opgehaald wanneer de gebruiker naar deze pagina navigeert."
     },
     "imageElement": {
-        "emptyState": "Geen alt-tekst gedefinieerd..."
+        "emptyState": "Geen alt-tekst gedefinieerd...",
+        "emptyValue": "Lege alt-tekst...",
+        "missingValue": "Ontbrekende alt-tekst..."
     },
     "elementForms": {
         "textInputPlaceholder": "Voer tekst in...",
@@ -467,7 +482,9 @@
         "addAction": "actie toevoegen"
     },
     "buttonElement": {
-        "noValue": "Naamloos..."
+        "noValue": "Naamloos...",
+        "missingValue": "Ontbrekende knop tekst...",
+        "emptyValue": "Lege knop tekst..."
     },
     "formDataProviderType": {
         "nodeMissing": "Ontbrekend"
@@ -549,7 +566,9 @@
         "embedLabel": "Insluiten",
         "embedPlaceholder": "Ruwe HTML-inhoud die moet worden ingesloten",
         "heightLabel": "Hoogte (px)",
-        "heightPlaceholder": "Hoogte in pixels"
+        "heightPlaceholder": "Hoogte in pixels",
+        "missingValue": "IFrame bron ontbreekt...",
+        "emptyValue": "Lege IFrame bron..."
     },
     "dropdownOptionSelector": {
         "label": "Opties",
@@ -588,7 +607,8 @@
         "member": "{prefix} lid"
     },
     "formContainerElement": {
-        "submitDeactivatedText": "Vul alle verplichte velden in om te verzenden"
+        "submitDeactivatedText": "Vul alle verplichte velden in om te verzenden",
+        "defaultSubmitButtonLabel": "Verstuur"
     },
     "visibilityForm": {
         "allVisitors": "Alle bezoekers",
@@ -652,7 +672,8 @@
         "showMore": "Meer tonen",
         "missingDataSourceTooltip": "Kies een gegevensbron om te beginnen met het toevoegen van elementen.",
         "empty": "Er zijn geen items gevonden.",
-        "missingSchemaPropertyTooltip": "Kies een eigenschap om te beginnen met het toevoegen van elementen."
+        "missingSchemaPropertyTooltip": "Kies een eigenschap om te beginnen met het toevoegen van elementen.",
+        "emptyState": "Geen rijen gevonden."
     },
     "tagsFieldForm": {
         "fieldValuesLabel": "Waarden",
@@ -829,7 +850,8 @@
     },
     "collectionElementForm": {
         "noSchemaPropertyMessage": "Kies een eigenschap in de gegevensbron om te gebruiken als de lijstgegevens van je element.",
-        "noDataSourceMessage": "Kies een gegevensbron met meerdere rijen om alle resultaten weer te geven, of een gegevensbron met één rij om een eigenschap in deze rij te kiezen."
+        "noDataSourceMessage": "Kies een gegevensbron met meerdere rijen om alle resultaten weer te geven, of een gegevensbron met één rij om een eigenschap in deze rij te kiezen.",
+        "propertyOptionLabel": "Acties van gebruikers"
     },
     "imageFieldForm": {
         "fieldAltHelp": "Wordt gebruikt door schermlezers en weergegeven als de afbeelding niet kan worden geladen",
@@ -844,7 +866,9 @@
     },
     "dataSourceDropdown": {
         "noDataSources": "Geen gegevensbronnen beschikbaar",
-        "label": "Gegevensbron"
+        "label": "Gegevensbron",
+        "shared": "gedeeld",
+        "pageOnly": "deze pagina"
     },
     "recordSelectorElementForm": {
         "selectRecordsFrom": "Records selecteren uit",
@@ -856,5 +880,30 @@
         "noDataSourceMessage": "Kies een gegevensbron met meerdere rijen om alle resultaten te vermelden.",
         "itemsPerPagePlaceholder": "Waarde invoeren...",
         "multipleLabel": "Meerdere waarden toestaan"
+    },
+    "dataSourceItemContext": {
+        "unshareBetweenPages": "Stop delen met andere pagina's",
+        "shareBetweenPages": "Delen tussen pagina's"
+    },
+    "dataSourceCreateEditModal": {
+        "sharedWarning": "Deze gegevensbron wordt gedeeld, dus je wijzigingen kunnen invloed hebben op meerdere pagina's.",
+        "editTitle": "Gegevensbron bewerken",
+        "createTitle": "Gegevensbron maken"
+    },
+    "propertyOptionForm": {
+        "searchHeading": "Zoeken",
+        "filterHeading": "Filter",
+        "sortHeading": "Sorteren",
+        "fieldHeading": "Veld",
+        "noPropertiesAvailable": "Geen velden beschikbaar.",
+        "optionUnavailable": "Niet beschikbaar",
+        "formDescription": "Kies op welke eigenschappen in de gegevensbron van dit element externe gebruikers kunnen filteren, sorteren en zoeken."
+    },
+    "dataSourceItem": {
+        "notConfigured": "Niet geconfigureerd"
+    },
+    "recordSelectorElement": {
+        "emptyAdhocState": "Geen rijen gevonden die overeenkomen met '{query}'.",
+        "emptyState": "Geen rijen gevonden."
     }
 }

@@ -3,6 +3,7 @@ from unittest.mock import ANY, call, patch
 from django.db import transaction
 
 import pytest
+from pytest_unordered import unordered
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.rows.handler import RowHandler
@@ -1456,7 +1457,7 @@ def test_given_row_visible_in_public_view_when_updated_to_still_be_visible_event
                         }
                     ],
                     "metadata": {},
-                    "updated_field_ids": [visible_field.id, hidden_field.id],
+                    "updated_field_ids": unordered([visible_field.id, hidden_field.id]),
                 },
                 None,
                 None,
@@ -1583,7 +1584,7 @@ def test_batch_update_rows_visible_in_public_view_still_be_visible_event_sent(
                         },
                     ],
                     "metadata": {},
-                    "updated_field_ids": [visible_field.id, hidden_field.id],
+                    "updated_field_ids": unordered([visible_field.id, hidden_field.id]),
                 },
                 None,
                 None,

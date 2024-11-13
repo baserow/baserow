@@ -7,7 +7,8 @@
         "free": "Kostenlos",
         "comingSoon": "In Kürze verfügbar...",
         "billable": "Abrechenbar",
-        "all": "Alle"
+        "all": "Alle",
+        "beta": "Beta"
     },
     "action": {
         "upload": "Hochladen",
@@ -15,7 +16,7 @@
         "backToLogin": "Zurück zum Login",
         "signUp": "Registrieren",
         "signIn": "Anmelden",
-        "createNew": "Neu erstellen",
+        "createNew": "Neu hinzufügen",
         "create": "Erstellen",
         "edit": "Bearbeiten",
         "change": "Ändern",
@@ -38,7 +39,8 @@
         "copyToClipboard": "In die Zwischenablage kopieren",
         "reset": "Zurücksetzen",
         "set": "Festlegen",
-        "logout": "Abmelden"
+        "logout": "Abmelden",
+        "backToHome": "Zurück zur Startseite"
     },
     "adminType": {
         "settings": "Einstellungen",
@@ -52,7 +54,11 @@
         "builder": "Anwendung",
         "cantSelectPageDescription": "Der Application Builder konnte nicht ausgewählt werden, weil er keine Seiten hat. Verwenden Sie die Seitenleiste, um eine zu erstellen.",
         "builderDefaultName": "Unbenannte Anwendung",
-        "cantSelectPageTitle": "Die Anwendung konnte nicht ausgewählt werden."
+        "cantSelectPageTitle": "Die Anwendung konnte nicht ausgewählt werden.",
+        "databases": "Datenbanken",
+        "databaseDesc": "Erstellen Sie eine geordnete Sammlung strukturierter Daten.",
+        "builders": "Anwendungen",
+        "builderDesc": "Erstellen Sie Websites, Webanwendungen und Portale ganz einfach ohne Code."
     },
     "settingType": {
         "account": "Konto",
@@ -80,7 +86,9 @@
         "maxValueField": "Das Feld muss größer oder gleich als {max} sein.",
         "minMaxValueField": "Der Feldwert muss zwischen {min} und {max} liegen.",
         "invalidNumber": "Das Feld muss eine Zahl sein.",
-        "email": "Das Feld muss eine E-Mailadresse sein."
+        "email": "Das Feld muss eine E-Mailadresse sein.",
+        "invalidURL": "Bitte geben Sie eine gültige URL ein.",
+        "alreadyInUse": "Dieser Feldname wird bereits verwendet."
     },
     "permission": {
         "admin": "Administration",
@@ -238,7 +246,16 @@
         "isBefore": "ist vor",
         "nrYearsFromNow": "Jahre ab jetzt",
         "exactDate": "exaktes Datum",
-        "lowerThanOrEqual": "kleiner als oder gleich"
+        "lowerThanOrEqual": "kleiner als oder gleich",
+        "hasEmptyValue": "hat einen leeren Wert",
+        "hasNotEmptyValue": "hat keinen leeren Wert",
+        "hasNotValueContainsWord": "enthält kein Wort als Wert",
+        "hasValueLengthIsLowerThan": "der Wert hat eine Zeichenlänge, die geringer ist als",
+        "hasValueEqual": "hat den gleichen Wert",
+        "hasNotValueEqual": "hat nicht den gleichen Wert",
+        "hasValueContains": "enthält einen Wert",
+        "hasNotValueContains": "enthält keinen Wert",
+        "hasValueContainsWord": "enthält ein Wort als Wert"
     },
     "viewType": {
         "grid": "Gitternetz",
@@ -276,7 +293,13 @@
             "rowDeleted": "Wenn eine Zeile gelöscht wurde",
             "rowsCreated": "Zeilen werden erstellt",
             "rowsUpdated": "Zeilen werden aktualisiert",
-            "rowsDeleted": "Zeilen werden gelöscht"
+            "rowsDeleted": "Zeilen werden gelöscht",
+            "fieldCreated": "Feld wird erstellt",
+            "fieldUpdated": "Feld wird aktualisiert",
+            "viewUpdated": "Ansicht wird aktualisiert",
+            "fieldDeleted": "Feld wird gelöscht",
+            "viewCreated": "Ansicht wird erstellt",
+            "viewDeleted": "Ansicht wird gelöscht"
         },
         "form": {
             "invalidURLTitle": "Ungültige URL.",

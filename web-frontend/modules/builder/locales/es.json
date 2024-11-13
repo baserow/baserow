@@ -80,7 +80,9 @@
         "buttonColor": "Color del botón"
     },
     "textElement": {
-        "noValue": "Párrafo vacío..."
+        "noValue": "Párrafo vacío...",
+        "missingValue": "Falta texto...",
+        "emptyValue": "Texto vacío..."
     },
     "linkFieldForm": {
         "fieldLinkNamePlaceholder": "Introducir valor...",
@@ -113,7 +115,10 @@
         "servicePlaceholder": "Selecciona un servicio",
         "namePlaceholder": "Nombre de la fuente",
         "errorUniqueName": "El nombre de la fuente de datos debe ser único.",
-        "integrationPlaceholder": "Selecciona una integración"
+        "integrationPlaceholder": "Selecciona una integración",
+        "nameLabel": "Nombre",
+        "actionLabel": "Acción",
+        "integrationLabel": "Integración"
     },
     "elementType": {
         "table": "Tabla",
@@ -303,7 +308,9 @@
         "text": "Los ajustes DNS del dominio ya han sido configurados y comprobados. Funciona sin realizar ningún cambio adicional."
     },
     "imageElement": {
-        "emptyState": "No hay texto alternativo definido..."
+        "emptyState": "No hay texto alternativo definido...",
+        "missingValue": "Falta texto alternativo...",
+        "emptyValue": "Texto alternativo vacío..."
     },
     "columnElementForm": {
         "columnGapPlaceholder": "Introducir espacio entre columnas...",
@@ -326,7 +333,11 @@
     "dataSourceContext": {
         "addDataSource": "Añadir nueva fuente de datos",
         "noDataSourceMessage": "Las fuentes de datos pueden utilizarse para obtener datos de fuentes internas o externas y mostrarlos en la página.",
-        "noDataSourceTitle": "Esta página no tiene fuentes de datos."
+        "noDataSourceTitle": "Aún no has añadido una fuente de datos.",
+        "sharedDataSourceTitle": "Compartido entre páginas",
+        "pageDataSourceTitle": "Para esta página",
+        "sharedDataSourceDescription": "Accesible en todas las páginas y se obtiene una vez en la primera carga de la página.",
+        "pageDataSourceDescription": "Se obtiene cuando el usuario navega a esta página."
     },
     "pageSettingsTypes": {
         "pageName": "Página"
@@ -428,7 +439,9 @@
         "label": "Elemento"
     },
     "buttonElement": {
-        "noValue": "Sin nombre..."
+        "noValue": "Sin nombre...",
+        "missingValue": "Falta el texto del botón...",
+        "emptyValue": "Texto del botón vacío..."
     },
     "formDataProviderType": {
         "nodeMissing": "Falta"
@@ -463,7 +476,9 @@
         "none": "Ninguno"
     },
     "linkElement": {
-        "noValue": "Sin nombre..."
+        "noValue": "Sin nombre...",
+        "missingValue": "Falta el texto del enlace...",
+        "emptyValue": "Texto del enlace vacío..."
     },
     "pagePreview": {
         "emptyMessage": "Haz clic para crear el primer elemento"
@@ -478,7 +493,9 @@
         "preview": "Previsualizar"
     },
     "headingElement": {
-        "noValue": "Sin título..."
+        "noValue": "Sin título...",
+        "emptyValue": "Título vacío...",
+        "missingValue": "Falta el título..."
     },
     "formContainerElementForm": {
         "submitButtonLabel": "Botón de envío",
@@ -530,7 +547,9 @@
         "embedLabel": "Incrustar",
         "embedPlaceholder": "Contenido HTML en bruto para incrustar",
         "heightLabel": "Altura (en px)",
-        "heightPlaceholder": "Altura en píxeles"
+        "heightPlaceholder": "Altura en píxeles",
+        "missingValue": "Falta la fuente IFrame...",
+        "emptyValue": "Fuente IFrame vacía..."
     },
     "linkNavigationSelection": {
         "navigateTo": "Navegar a",
@@ -570,7 +589,8 @@
         "member": "{prefix} miembro"
     },
     "formContainerElement": {
-        "submitDeactivatedText": "Rellena todos los campos obligatorios para enviar"
+        "submitDeactivatedText": "Rellena todos los campos obligatorios para enviar",
+        "defaultSubmitButtonLabel": "Enviar"
     },
     "visibilityForm": {
         "allVisitors": "Todos los visitantes",
@@ -607,7 +627,8 @@
         "empty": "No se ha encontrado ningún artículo.",
         "missingDataSourceTooltip": "Elige una fuente de datos para empezar a añadir elementos.",
         "showMore": "Ver más",
-        "missingSchemaPropertyTooltip": "Elige una propiedad para comenzar a agregar elementos."
+        "missingSchemaPropertyTooltip": "Elige una propiedad para comenzar a agregar elementos.",
+        "emptyState": "No se han encontrado registros."
     },
     "repeatElementForm": {
         "dataSource": "Fuente de datos",
@@ -811,7 +832,8 @@
     },
     "collectionElementForm": {
         "noSchemaPropertyMessage": "Elige una propiedad de origen de datos para usarla como el origen de los datos para tu elemento.",
-        "noDataSourceMessage": "Elige una fuente de datos con varias filas para enumerar todos los resultados, o un origen para los datos de una sola fila para elegir una propiedad dentro de esta fila."
+        "noDataSourceMessage": "Elige una fuente de datos con varias filas para enumerar todos los resultados, o un origen para los datos de una sola fila para elegir una propiedad dentro de esta fila.",
+        "propertyOptionLabel": "Acciones del usuario"
     },
     "imageFieldForm": {
         "fieldAltLabel": "Texto alternativo",
@@ -826,7 +848,9 @@
     },
     "dataSourceDropdown": {
         "label": "Origen de los datos",
-        "noDataSources": "Sin origen para los datos disponibles"
+        "noDataSources": "Sin origen para los datos disponibles",
+        "shared": "compartido",
+        "pageOnly": "esta página"
     },
     "recordSelectorElementForm": {
         "selectRecordsFrom": "Seleccionar registros de",
@@ -838,5 +862,30 @@
         "multipleLabel": "Permitir varios valores",
         "record": "Registro {id}",
         "itemsPerPage": "Artículos por página"
+    },
+    "dataSourceCreateEditModal": {
+        "editTitle": "Editar fuente de datos",
+        "createTitle": "Crear fuente de datos",
+        "sharedWarning": "Esta fuente de datos se comparte, por lo que los cambios pueden afectar a varias páginas."
+    },
+    "dataSourceItem": {
+        "notConfigured": "No configurado"
+    },
+    "dataSourceItemContext": {
+        "shareBetweenPages": "Compartir entre páginas",
+        "unshareBetweenPages": "Descompartir de otras páginas"
+    },
+    "propertyOptionForm": {
+        "sortHeading": "Ordenar",
+        "searchHeading": "Búsqueda",
+        "formDescription": "Elige qué propiedades de la fuente de datos de este elemento pueden filtrar, ordenar y buscar los usuarios externos.",
+        "fieldHeading": "Campo",
+        "filterHeading": "Filtro",
+        "optionUnavailable": "No disponible",
+        "noPropertiesAvailable": "No hay campos disponibles."
+    },
+    "recordSelectorElement": {
+        "emptyState": "No se han encontrado registros.",
+        "emptyAdhocState": "No se han encontrado registros que coincidan con '{query}'."
     }
 }

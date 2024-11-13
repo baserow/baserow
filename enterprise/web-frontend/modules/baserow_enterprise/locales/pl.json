@@ -273,7 +273,8 @@
         "rbac": "Kontrola dostępu oparta na rolach",
         "auditLogs": "Dzienniki inspekcji",
         "coBranding": "Wymiana logo w ramach co-brandingu",
-        "support": "Wsparcie bezpośrednie"
+        "support": "Wsparcie bezpośrednie",
+        "dataSync": "Synchronizacja danych"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Bezpośrednie wsparcie"
@@ -335,5 +336,15 @@
         "viewPricing": "Zobacz cennik",
         "premium": "Premium",
         "enterprise": "Wersja Enterprise"
+    },
+    "enterpriseDataSyncType": {
+        "localBaserowTable": "Synchronizacja tabeli Baserow"
+    },
+    "localBaserowTableDataSync": {
+        "workspace": "Obszar roboczy",
+        "name": "Identyfikator tabeli źródłowej",
+        "database": "Baza danych",
+        "authorizing": "Autoryzujesz swoje konto do wybierania danych z tabeli źródłowej.",
+        "table": "Tabela"
     }
 }

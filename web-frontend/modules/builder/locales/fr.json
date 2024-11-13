@@ -110,7 +110,9 @@
         "message": "Cliquez sur l'un des éléments pour obtenir plus de détails"
     },
     "headingElement": {
-        "noValue": "Aucun titre..."
+        "noValue": "Aucun titre...",
+        "emptyValue": "Titre vide...",
+        "missingValue": "Titre manquant..."
     },
     "headingElementForm": {
         "levelTitle": "Niveau",
@@ -120,7 +122,9 @@
         "textError": "La valeur est invalide."
     },
     "textElement": {
-        "noValue": "texte vide..."
+        "noValue": "texte vide...",
+        "missingValue": "Texte manquant...",
+        "emptyValue": "Texte vide..."
     },
     "textElementForm": {
         "textTitle": "Texte",
@@ -163,7 +167,9 @@
         "invalidFormula": "La formule est invalide"
     },
     "imageElement": {
-        "emptyState": "Aucun texte alternatif défini..."
+        "emptyState": "Aucun texte alternatif défini...",
+        "missingValue": "Texte alternatif manquant...",
+        "emptyValue": "Texte alternitf vide..."
     },
     "imageElementForm": {
         "fileLabel": "Image",
@@ -212,7 +218,9 @@
         "subDomainName": "Sous-domaine"
     },
     "linkElement": {
-        "noValue": "Sans nom..."
+        "noValue": "Sans nom...",
+        "missingValue": "Texte du lien manquant...",
+        "emptyValue": "Texte du lien vide..."
     },
     "linkElementForm": {
         "text": "Texte",
@@ -268,12 +276,19 @@
         "selectTypeFirst": "Sélectionnez d'abord le service",
         "servicePlaceholder": "Sélectionnez un service",
         "errorUniqueName": "Le nom de la source de données doit être unique.",
-        "integrationPlaceholder": "Sélectionnez une intégration"
+        "integrationPlaceholder": "Sélectionnez une intégration",
+        "actionLabel": "Action",
+        "integrationLabel": "Intégration",
+        "nameLabel": "Nom"
     },
     "dataSourceContext": {
         "addDataSource": "Ajouter une source de données",
         "noDataSourceMessage": "Les source de données peuvent être utilisées pour récupérer des données à partir de sources internes ou externes et les afficher sur la page.",
-        "noDataSourceTitle": "Vous n’avez pas encore ajouté de source de données."
+        "noDataSourceTitle": "Vous n’avez pas encore ajouté de source de données.",
+        "pageDataSourceTitle": "Pour cette page",
+        "sharedDataSourceTitle": "Partagée entre les pages",
+        "sharedDataSourceDescription": "Accessible sur toutes les pages et récupérée une fois lors du premier chargement de la page.",
+        "pageDataSourceDescription": "Récupérée lorsque l'utilisateur navigue vers cette page."
     },
     "pageSettingsTypes": {
         "pageName": "Page"
@@ -405,7 +420,9 @@
         "addAction": "ajouter une action"
     },
     "buttonElement": {
-        "noValue": "Sans nom..."
+        "noValue": "Sans nom...",
+        "missingValue": "Texte du bouton manquant...",
+        "emptyValue": "Texte du bouton vide..."
     },
     "tableElement": {
         "empty": "Aucun résultat n'a été trouvée.",
@@ -539,7 +556,9 @@
         "embedLabel": "Embarquer",
         "embedPlaceholder": "Contenu HTML brut à intégrer",
         "heightLabel": "Hauteur (px)",
-        "heightPlaceholder": "Hauteur en pixels"
+        "heightPlaceholder": "Hauteur en pixels",
+        "emptyValue": "Source vide...",
+        "missingValue": "Source manquante..."
     },
     "linkNavigationSelection": {
         "paramPlaceholder": "Saisir une valeur...",
@@ -590,7 +609,8 @@
         "userSource": "Source d'utilisateur"
     },
     "formContainerElement": {
-        "submitDeactivatedText": "Veuillez remplir tous les champs requis pour soumettre le formulaire"
+        "submitDeactivatedText": "Veuillez remplir tous les champs requis pour soumettre le formulaire",
+        "defaultSubmitButtonLabel": "Valider"
     },
     "visibilityForm": {
         "allVisitors": "Tous les visiteurs",
@@ -631,7 +651,8 @@
         "showMore": "Afficher plus",
         "empty": "Aucun résultat n'a été trouvée.",
         "missingDataSourceTooltip": "Choisissez une source de données pour commencer à ajouter des éléments.",
-        "missingSchemaPropertyTooltip": "Choisissez une propriété pour commencer à ajouter des éléments."
+        "missingSchemaPropertyTooltip": "Choisissez une propriété pour commencer à ajouter des éléments.",
+        "emptyState": "Aucun enregistrement n'a été trouvé."
     },
     "repeatElementForm": {
         "dataSource": "Source de données",
@@ -831,7 +852,8 @@
     },
     "collectionElementForm": {
         "noDataSourceMessage": "Choisissez une source de données retournant plusieurs lignes pour lister tous les résultats, ou une source de données retournant une seule ligne pour choisir une propriété à l'intérieur de cette ligne.",
-        "noSchemaPropertyMessage": "Choisissez une propriété de la source de données à utiliser comme source de données pour votre élément."
+        "noSchemaPropertyMessage": "Choisissez une propriété de la source de données à utiliser comme source de données pour votre élément.",
+        "propertyOptionLabel": "Actions possibles"
     },
     "imageFieldForm": {
         "fieldSrcLabel": "Source de l'image",
@@ -842,7 +864,9 @@
     },
     "dataSourceDropdown": {
         "noDataSources": "Aucune source de données disponible",
-        "label": "Source des données"
+        "label": "Source des données",
+        "shared": "partagée",
+        "pageOnly": "cette page"
     },
     "serviceSchemaPropertySelector": {
         "label": "Propriété",
@@ -858,5 +882,30 @@
         "itemsPerPage": "Éléments par page",
         "itemsPerPagePlaceholder": "Saisir une valeur...",
         "multipleLabel": "Autoriser plusieurs valeurs"
+    },
+    "dataSourceItemContext": {
+        "shareBetweenPages": "Partager entre les pages",
+        "unshareBetweenPages": "Arréter le partage"
+    },
+    "dataSourceCreateEditModal": {
+        "editTitle": "Modifier la source de données",
+        "createTitle": "Créer une source de données",
+        "sharedWarning": "Cette source de données est partagée, de sorte que vos modifications peuvent affecter plusieurs pages."
+    },
+    "propertyOptionForm": {
+        "fieldHeading": "Colonne",
+        "filterHeading": "Filtre",
+        "sortHeading": "Trier",
+        "searchHeading": "Chercher",
+        "optionUnavailable": "Non disponible",
+        "noPropertiesAvailable": "Aucun champ disponible.",
+        "formDescription": "Choisissez les propriétés de la source de données que les utilisateurs externes peuvent filtrer, trier et rechercher."
+    },
+    "dataSourceItem": {
+        "notConfigured": "Non configurée"
+    },
+    "recordSelectorElement": {
+        "emptyAdhocState": "Aucun enregistrement correspondant à '{query}' n'a été trouvé.",
+        "emptyState": "Aucun enregistrement n'a été trouvé."
     }
 }

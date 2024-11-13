@@ -5,8 +5,9 @@
         "localBaserowWarning": "Associer votre compte donne à tous ceux qui peuvent modifier l'application un accès complet aux données auxquelles vous avez accès. Il est possible de créer un deuxième utilisateur, donner les bonnes autorisations et utiliser celui-ci."
     },
     "serviceType": {
-        "localBaserowGetRow": "Obtenir {singleRow}",
-        "localBaserowListRows": "Lister {multipleRows}"
+        "localBaserowGetRow": "Obtenir une ligne",
+        "localBaserowListRows": "Lister plusieurs lignes",
+        "localBaserowAggregateRows": "Résumer une colonne"
     },
     "localBaserowForm": {
         "user": "Utilisateur",
@@ -72,5 +73,13 @@
     "integrationsCommon": {
         "singleRow": "Une ligne",
         "multipleRows": "plusieurs lignes"
+    },
+    "localBaserowAggregateRowsForm": {
+        "searchTabTitle": "Chercher",
+        "aggregationTypeLabel": "Aggrégation",
+        "searchFieldPlaceHolder": "Saisissez un terme de recherche...",
+        "filterTabTitle": "Filtres",
+        "aggregationFieldLabel": "Colonne",
+        "noTableChosenForFiltering": "Sélectionnez une table pour commencer à filtrer les lignes de la source de données."
     }
 }

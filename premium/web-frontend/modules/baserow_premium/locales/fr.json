@@ -297,7 +297,8 @@
         "publicLogoRemoval": "Suppression du logo public",
         "personalViews": "Vues privées",
         "calendarView": "Vue Calendrier",
-        "aiFeatures": "Champ IA"
+        "aiFeatures": "Champ IA",
+        "timelineView": "Vue chronologique"
     },
     "formViewModePreviewSurvey": {
         "deactivated": "Les sondage sont disponibles dans la version premium.",
@@ -376,7 +377,10 @@
         "premiumFeature": "Le champ IA est une fonctionnalité premium",
         "emptyFileField": "Aucun(e)",
         "fileFieldHelp": "Le premier fichier compatible dans le champ sera utilisé comme base de connaissances pour l'invite. Le fichier doit être un fichier texte avec une extension supportée comme .txt, .md, .pdf, .docx.",
-        "promptPlaceholder": "Qu'est-ce que Baserow ?"
+        "promptPlaceholder": "Qu'est-ce que Baserow ?",
+        "outputTypeChangedWarning": "Efface les valeurs des cellules générées.",
+        "outputTypeTooltip": "Sélectionnez le format de sortie souhaité pour aider le LLM à générer des réponses correspondant aux options désirées.",
+        "outputType": "Format du résultat"
     },
     "rowEditFieldAI": {
         "createRowBefore": "La valeur du champ IA peut être générée après la création de la ligne.",
@@ -429,5 +433,20 @@
     },
     "timelineGridRow": {
         "days": "0 | 1 jour | {count} jours"
+    },
+    "timelineTimescaleContext": {
+        "hour": "Heure",
+        "day": "Jour",
+        "week": "Semaine",
+        "month": "Mois",
+        "quarter": "Trimestre",
+        "year": "Année",
+        "disabledTooltip": "Cette option n'est disponible que pour les champs de date dont l'option `Inclure l'heure` est activée."
+    },
+    "aiOutputType": {
+        "text": "Texte",
+        "textDescription": "Génère un texte libre basé sur le prompt.",
+        "choice": "Choix",
+        "choiceDescription": "Ne choisit qu'une seule des options du champ."
     }
 }

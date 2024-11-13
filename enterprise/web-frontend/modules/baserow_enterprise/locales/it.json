@@ -103,7 +103,9 @@
         "providerIsVerified": "Il provider è stato verificato",
         "domain": "Dominio",
         "domainAlreadyExists": "Un provider SAML per questo dominio esiste giá",
-        "acsUrl": "Single Sign On URL"
+        "acsUrl": "Single Sign On URL",
+        "samlResponseSettings": "Attributi risposta SAML",
+        "defaultAttrs": "Default"
     },
     "createSettingsAuthProviderModal": {
         "title": "Aggiungi un nuovo {type}"

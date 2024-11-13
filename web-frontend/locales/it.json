@@ -10,7 +10,10 @@
         "link": "Collegamento",
         "all": "Tutti",
         "billable": "Fatturabile",
-        "beta": "Beta"
+        "beta": "Beta",
+        "summarize": "Aggrega",
+        "enabled": "Abilitato",
+        "disabled": "Disabilitato"
     },
     "action": {
         "upload": "Carica",
@@ -60,7 +63,11 @@
         "databases": "Database",
         "databaseDesc": "Crea una collezione di dati strutturati.",
         "builders": "Applicazioni",
-        "builderDesc": "Crea facilmente siti web, applicazioni e portali senza codice."
+        "builderDesc": "Crea facilmente siti web, applicazioni e portali senza codice.",
+        "dashboards": "Dashboards",
+        "dashboardDefaultName": "Dashboard senza titolo",
+        "dashboardDesc": "Visualizza i tuoi dati e le tue metriche con grafici e tabelle.",
+        "dashboard": "Dashboard"
     },
     "settingType": {
         "account": "Account",
@@ -90,7 +97,9 @@
         "invalidNumber": "Il campo deve essere numerico.",
         "email": "Il campo deve essere di tipo email.",
         "invalidURL": "Inserisci un URL valido.",
-        "alreadyInUse": "Questo campo è già in uso"
+        "alreadyInUse": "Questo campo è già in uso",
+        "invalidCharacters": "Questo campo contiene caratteri non validi.",
+        "decimalField": "Il campo deve essere un decimale."
     },
     "permission": {
         "admin": "Admin",

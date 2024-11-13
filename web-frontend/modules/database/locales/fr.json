@@ -1005,7 +1005,9 @@
         "reportMessage": "Les index de ligne suivants n'ont pas pu être importés :"
     },
     "dataSyncType": {
-        "icalCalendar": "Synchronisation du flux iCal"
+        "icalCalendar": "Synchronisation du flux iCal",
+        "postgresql": "Synchroniser une table PostgreSQL",
+        "syncError": "Erreur de synchronisation"
     },
     "createDataSync": {
         "next": "Suivant",
@@ -1031,5 +1033,16 @@
     "iCalCalendarDataSync": {
         "name": "URL iCal",
         "description": "Le calendrier iCal se synchronise automatiquement avec les entrées du fichier de calendrier de l'URL. Elle ne prend en charge que le type de fichier ICS (Internet Calendar and Scheduling)."
+    },
+    "postgreSQLDataSync": {
+        "host": "Hôte",
+        "schema": "Schéma",
+        "table": "Table",
+        "sslMode": "Mode SSL",
+        "description": "Synchronise une table PostgreSQL avec une table Baserow en fonction des informations fournies ci-dessous. Notez que lorsque la synchronisation démarre, elle sélectionne toutes les lignes de la table fournie. Même si Baserow n'accède à la table qu'en lecture, nous recommandons fortement de limiter l'utilisateur configué à une lecture seule.",
+        "database": "Base de données",
+        "port": "Port",
+        "username": "Identifiant",
+        "password": "Mot de passe"
     }
 }

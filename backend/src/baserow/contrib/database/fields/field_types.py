@@ -2961,7 +2961,9 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
             through_model_fields = through_model._meta.get_fields()
             current_field_name = through_model_fields[1].name
             relation_field_name = through_model_fields[2].name
-            for relation in through_model.objects.all():
+            for relation in through_model.objects.filter(
+                Q(**{f"{relation_field_name}__trashed": False})
+            ):
                 cache[cache_entry][
                     getattr(relation, f"{current_field_name}_id")
                 ].append(getattr(relation, f"{relation_field_name}_id"))

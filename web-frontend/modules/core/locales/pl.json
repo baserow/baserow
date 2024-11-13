@@ -464,7 +464,9 @@
         "stateFinished": "Gotowe",
         "stateFailed": "Nie udało się",
         "errorJobAlreadyRunningTitle": "Już działa",
-        "errorJobAlreadyRunningDescription": "Kolejne zadanie importu jest już uruchomione. Musisz poczekać, aż ono się skończy, zanim zaczniesz kolejne."
+        "errorJobAlreadyRunningDescription": "Kolejne zadanie importu jest już uruchomione. Musisz poczekać, aż ono się skończy, zanim zaczniesz kolejne.",
+        "errorJobCannotBeCancelledTitle": "Nie można anulować",
+        "errorJobCannotBeCancelledDescription": "Nie można anulować zadania, ponieważ zostało ono już ukończone.\nUsuń pierwszą Migawkę z poniższej listy, aby ją usunąć."
     },
     "datetime": {
         "daysAgo": "0 dni temu | 1 dzień temu | {n} dni temu",
