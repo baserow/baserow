@@ -60,7 +60,6 @@ from baserow.contrib.database.formula.types.formula_type import (
     BaserowFormulaValidType,
     UnTyped,
 )
-from baserow.core.formula.validator import ensure_boolean
 from baserow.core.storage import get_default_storage
 from baserow.core.utils import list_to_comma_separated_string
 
@@ -470,14 +469,23 @@ class BaserowFormulaBooleanType(
     ):
         return expr
 
+    def _get_prep_value(self, value):
+        from baserow.contrib.database.fields.registries import field_type_registry
+
+        baserow_field_type = field_type_registry.get(self.baserow_field_type)
+        # boolean field type doesn't expect instance value
+        field_instance = baserow_field_type.get_model_field(None)
+
+        try:
+            # get_prep_value can return None
+            return field_instance.get_prep_value(value) or False
+        except ValidationError:
+            return False
+
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        try:
-            value = ensure_boolean(value.strip())
-        except ValidationError:
-            value = False
-
+        value = self._get_prep_value(value)
         return get_array_json_filter_expression(
             JSONArrayContainsValueExpr, field_name, value
         )
@@ -495,10 +503,7 @@ class BaserowFormulaBooleanType(
     def get_has_all_values_equal_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
-        try:
-            value = "true" if ensure_boolean(value.strip()) else "false"
-        except ValidationError:
-            value = "false"
+        value = self._get_prep_value(value)
         return super().get_has_all_values_equal_query(
             field_name, value, model_field, field
         )

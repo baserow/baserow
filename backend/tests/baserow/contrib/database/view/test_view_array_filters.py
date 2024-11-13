@@ -1671,7 +1671,32 @@ def test_has_value_length_is_lower_than_uuid_field_types(data_fixture):
         ),
         (
             "has_all_values_equal",
+            "False",
+            [BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_all_values_equal",
+            "True",
+            [BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_all_values_equal",
+            "f",
+            [BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_all_values_equal",
+            "t",
+            [BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_all_values_equal",
             "",
+            [BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_all_values_equal",
+            "invalid",
             [BooleanLookupRow.ALL_FALSE],
         ),
     ],
@@ -1700,7 +1725,32 @@ def test_has_all_values_equal_filter_boolean_lookup_field_type(
         ),
         (
             "has_value_equal",
+            "f",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_value_equal",
+            "t",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_value_equal",
+            "False",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_value_equal",
+            "True",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_value_equal",
             "",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_value_equal",
+            "invalid",
             [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
         ),
     ],
@@ -1729,7 +1779,32 @@ def test_has_value_equal_filter_boolean_lookup_field_type(
         ),
         (
             "has_not_value_equal",
+            "f",
+            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "t",
+            [BooleanLookupRow.ALL_FALSE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "False",
+            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "True",
+            [BooleanLookupRow.ALL_FALSE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
             "",
+            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "invalid",
             [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
         ),
     ],

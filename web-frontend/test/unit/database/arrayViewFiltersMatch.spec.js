@@ -469,15 +469,15 @@ describe('Boolean-based array view filters', () => {
       expected: true,
     },
     {
-      cellValue: [{ value: 'true' }, { value: 'true' }, { value: false }],
+      cellValue: [{ value: true }, { value: false }],
       expected: false,
     },
     {
-      cellValue: [{ value: '' }],
+      cellValue: [{ value: false }],
       expected: false,
     },
     {
-      cellValue: [{ value: 'C' }],
+      cellValue: [{ value: true }],
       expected: false,
     },
   ]
@@ -526,16 +526,6 @@ describe('Boolean-based array view filters', () => {
       expected: true,
     },
     {
-      cellValue: [{ value: 'XYZ' }],
-      filterValue: '1',
-      expected: false,
-    },
-    {
-      cellValue: [{ value: 'XYZ' }],
-      filterValue: '0',
-      expected: false,
-    },
-    {
       cellValue: [{ value: false }],
       filterValue: '1',
       expected: false,
@@ -553,26 +543,6 @@ describe('Boolean-based array view filters', () => {
     {
       cellValue: [{ value: false }, { value: false }],
       filterValue: '1',
-      expected: false,
-    },
-    {
-      cellValue: [{ value: '' }],
-      filterValue: '1',
-      expected: false,
-    },
-    {
-      cellValue: [{ value: '' }],
-      filterValue: '0',
-      expected: false,
-    },
-    {
-      cellValue: [{ value: 'XYZ' }],
-      filterValue: '1',
-      expected: false,
-    },
-    {
-      cellValue: [{ value: 'XYZ' }],
-      filterValue: '0',
       expected: false,
     },
   ]
@@ -621,16 +591,6 @@ describe('Boolean-based array view filters', () => {
       expected: false,
     },
     {
-      cellValue: [{ value: 'XYZ' }],
-      filterValue: '1',
-      expected: true,
-    },
-    {
-      cellValue: [{ value: 'XYZ' }],
-      filterValue: '0',
-      expected: true,
-    },
-    {
       cellValue: [{ value: false }],
       filterValue: '1',
       expected: true,
@@ -648,16 +608,6 @@ describe('Boolean-based array view filters', () => {
     {
       cellValue: [{ value: false }, { value: false }],
       filterValue: '1',
-      expected: true,
-    },
-    {
-      cellValue: [{ value: '' }],
-      filterValue: '1',
-      expected: true,
-    },
-    {
-      cellValue: [{ value: '' }],
-      filterValue: '0',
       expected: true,
     },
   ]
@@ -709,16 +659,6 @@ describe('Boolean-based array view filters', () => {
       expected: true,
     },
     {
-      cellValue: [{ value: 'XYZ' }],
-      filterValue: '1',
-      expected: false,
-    },
-    {
-      cellValue: [{ value: 'XYZ' }],
-      filterValue: '0',
-      expected: false,
-    },
-    {
       cellValue: [{ value: false }],
       filterValue: '1',
       expected: false,
@@ -727,16 +667,6 @@ describe('Boolean-based array view filters', () => {
       cellValue: [{ value: false }],
       filterValue: '0',
       expected: true,
-    },
-    {
-      cellValue: [{ value: '' }],
-      filterValue: '1',
-      expected: false,
-    },
-    {
-      cellValue: [{ value: '' }],
-      filterValue: '0',
-      expected: false,
     },
   ]
 
