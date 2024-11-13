@@ -140,6 +140,10 @@ export const formulaArrayFilterMixin = {
     const subType = this.getSubType(field)
     return subType.hasNotValueEqualFilter(cellValue, filterValue, field)
   },
+
+  getHasAllValuesEqualFilterFunction(field) {
+    return this.getSubType(field)?.getHasAllValuesEqualFilterFunction(field)
+  },
 }
 
 export const hasSelectOptionIdEqualMixin = Object.assign(

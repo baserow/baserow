@@ -384,6 +384,12 @@ export class BaserowFormulaBooleanType extends BaserowFormulaTypeDefinition {
     }
   }
 
+  getHasValueEqualFilterFunction(field) {
+    return this.app.$registry
+      .get('field', this.getFieldType())
+      .getHasValueEqualFilterFunction(field)
+  }
+
   parseInputValue(field, filterValue) {
     if (filterValue === '') {
       return false
@@ -573,16 +579,12 @@ export class BaserowFormulaArrayType extends mix(
     return 'array'
   }
 
-  getSubtype(field) {
-    return this.app.$registry.get('formula_type', field.array_formula_type)
-  }
-
   getFieldType(field) {
     return 'text'
   }
 
   parseInputValue(field, value) {
-    return this.getSubtype(field)?.parseInputValue(field, value)
+    return this.getSubType(field)?.parseInputValue(field, value)
   }
 
   getIconClass() {
@@ -595,7 +597,7 @@ export class BaserowFormulaArrayType extends mix(
 
   getRowEditFieldComponent(field) {
     const arrayOverride =
-      this.getSubtype(field)?.getRowEditArrayFieldComponent()
+      this.getSubType(field)?.getRowEditArrayFieldComponent()
     if (arrayOverride) {
       return arrayOverride
     } else {
@@ -604,7 +606,7 @@ export class BaserowFormulaArrayType extends mix(
   }
 
   getFilterInputComponent(field, filterType) {
-    return this.getSubtype(field)?.getFilterInputComponent(field, filterType)
+    return this.getSubType(field)?.getFilterInputComponent(field, filterType)
   }
 
   getFunctionalGridViewFieldComponent() {
@@ -620,7 +622,7 @@ export class BaserowFormulaArrayType extends mix(
   }
 
   prepareValueForCopy(field, value) {
-    const subType = this.getSubtype(field)
+    const subType = this.getSubType(field)
     return value
       .map((v) => {
         return subType.prepareValueForCopy(
@@ -633,7 +635,7 @@ export class BaserowFormulaArrayType extends mix(
 
   getDocsResponseExample(field) {
     if (field.array_formula_type != null) {
-      const subType = this.getSubtype(field)
+      const subType = this.getSubType(field)
       const value = this.app.$registry
         .get('formula_type', field.array_formula_type)
         .getDocsResponseExample(field)
@@ -652,17 +654,17 @@ export class BaserowFormulaArrayType extends mix(
   }
 
   getCanSortInView(field) {
-    const subType = this.getSubtype(field)
+    const subType = this.getSubType(field)
     return subType.canBeSortedWhenInArray(field)
   }
 
   canRepresentFiles(field) {
-    const subType = this.getSubtype(field)
+    const subType = this.getSubType(field)
     return subType.canRepresentFiles(field)
   }
 
   getSort(name, order, field) {
-    const subType = this.getSubtype(field)
+    const subType = this.getSubType(field)
 
     const innerSortFunction = subType.getSort(name, order, field)
 
@@ -721,7 +723,7 @@ export class BaserowFormulaArrayType extends mix(
   }
 
   toHumanReadableString(field, value) {
-    const subType = this.getSubtype(field)
+    const subType = this.getSubType(field)
     return value
       .map((v) => {
         return subType.toHumanReadableString(
@@ -734,32 +736,6 @@ export class BaserowFormulaArrayType extends mix(
 
   canGroupByInView() {
     return false
-  }
-
-  getHasValueContainsWordFilterFunction(field) {
-    return this.getSubtype(field)?.getHasValueContainsWordFilterFunction(field)
-  }
-
-  getHasValueLengthIsLowerThanFilterFunction(field) {
-    return this.getSubtype(field)?.getHasValueLengthIsLowerThanFilterFunction(
-      field
-    )
-  }
-
-  getHasAllValuesEqualFilterFunction(field) {
-    return this.getSubtype(field)?.getHasAllValuesEqualFilterFunction(field)
-  }
-
-  getHasEmptyValueFilterFunction(field) {
-    return this.getSubtype(field)?.getHasEmptyValueFilterFunction(field)
-  }
-
-  getHasValueEqualFilterFunction(field) {
-    return this.getSubtype(field)?.getHasValueEqualFilterFunction(field)
-  }
-
-  getHasValueContainsFilterFunction(field) {
-    return this.getSubtype(field)?.getHasValueContainsFilterFunction(field)
   }
 }
 
