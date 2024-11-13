@@ -6,7 +6,7 @@
       small-label
       :label="$t('columnElementForm.columnAmountTitle')"
     >
-      <Dropdown v-model="values.column_amount" :show-search="false">
+      <Dropdown v-model="v$.column_amount.$model" :show-search="false">
         <DropdownItem
           v-for="columnAmount in columnAmounts"
           :key="columnAmount.value"
@@ -23,15 +23,31 @@
       small-label
       required
       :label="$t('columnElementForm.columnGapTitle')"
-      :error-message="errorMessage"
+      :error="v$.column_gap.$error"
     >
       <FormInput
-        v-model="values.column_gap"
+        v-model="v$.column_gap.$model"
         :label="$t('columnElementForm.columnGapTitle')"
         :placeholder="$t('columnElementForm.columnGapPlaceholder')"
         type="number"
-        @blur="v$.values.column_gap.$touch()"
+        :error="v$.column_gap.$error"
+        @blur="v$.column_gap.$touch"
       />
+
+      <template #error>
+        <span v-if="v$.column_gap.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
+        <span v-else-if="v$.column_gap.integer.$invalid">
+          {{ $t('error.integerField') }}
+        </span>
+        <span v-else-if="v$.column_gap.minValue.$invalid">
+          {{ $t('error.minValueField', { min: 0 }) }}
+        </span>
+        <span v-else-if="v$.column_gap.maxValue.$invalid">
+          {{ $t('error.maxValueField', { max: 2000 }) }}
+        </span>
+      </template>
     </FormGroup>
 
     <FormGroup
@@ -45,6 +61,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import { VERTICAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 import { required, integer, minValue, maxValue } from '@vuelidate/validators'
@@ -59,11 +77,8 @@ export default {
   mixins: [elementForm],
   data() {
     return {
-      values: {
-        column_amount: 1,
-        column_gap: 30,
-        alignment: VERTICAL_ALIGNMENTS.TOP,
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -76,34 +91,35 @@ export default {
         value: columnAmount + 1,
       }))
     },
-    errorMessage() {
-      return this.v$.values.column_gap.$dirty &&
-        !this.v$.values.column_gap.required
-        ? this.$t('error.requiredField')
-        : !this.v$.values.column_gap.integer
-        ? this.$t('error.integerField')
-        : !this.v$.values.column_gap.minValue
-        ? this.$t('error.minValueField', { min: 0 })
-        : !this.v$.values.column_gap.maxValue
-        ? this.$t('error.maxValueField', { max: 2000 })
-        : ''
-    },
   },
-  methods: {
-    emitChange(newValues) {
-      if (this.isFormValid()) {
-        form.methods.emitChange.bind(this)(newValues)
-      }
-    },
-  },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      column_amount: 1,
+      column_gap: 30,
+      alignment: VERTICAL_ALIGNMENTS.TOP,
+    })
+
+    const rules = computed(() => ({
       column_gap: {
         required,
         integer,
         minValue: minValue(0),
         maxValue: maxValue(2000),
       },
+      column_amount: {
+        integer,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
+
+  methods: {
+    async emitChange(newValues) {
+      const formValid = await this.v$.$validate()
+      if (formValid) {
+        form.methods.emitChange.bind(this)(newValues)
+      }
     },
   },
 }
