@@ -290,6 +290,13 @@ export default {
         this.handleError(error)
       }
     },
+
+    getCustomHumanReadableJobState(jobState) {
+      if (jobState.startsWith('importing')) {
+        return this.$t('importWorkspaceModal.importingState')
+      }
+      return ''
+    },
   },
 }
 </script>

@@ -404,6 +404,7 @@ class ApplicationType(
         import_export_config: ImportExportConfig,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ):
         """
         Exports the application to a serialized dict that can be imported by the
@@ -418,6 +419,8 @@ class ApplicationType(
         :type storage: Storage or None
         :param import_export_config: provides configuration options for the
             import/export process to customize how it works.
+        :param progress_builder: If provided will be used to build a child progress bar
+            and report on this methods progress to the parent of the progress_builder.
         :return: The exported and serialized application.
         :rtype: dict
         """

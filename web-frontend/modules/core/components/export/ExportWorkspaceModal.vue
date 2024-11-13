@@ -182,8 +182,16 @@ export default {
     },
 
     getCustomHumanReadableJobState(jobState) {
-      if (jobState.startsWith('importing')) {
-        return this.$t('exportWorkspaceModal.importingState')
+      if (jobState === 'exporting') {
+        return this.$t('exportWorkspaceModal.exportingState')
+      }
+      if (jobState.startsWith('exporting-table')) {
+        return this.$t('exportWorkspaceModal.exportingTableState', {
+          table: jobState.replace(/^exporting-table-/, ''),
+        })
+      }
+      if (jobState === 'create-archive"') {
+        return this.$t('exportWorkspaceModal.exportingCreateArchiveState')
       }
       return ''
     },

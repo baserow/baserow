@@ -141,6 +141,7 @@ class BuilderApplicationType(ApplicationType):
         import_export_config: ImportExportConfig,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> BuilderDict:
         """
         Exports the builder application type to a serialized format that can later
@@ -215,6 +216,9 @@ class BuilderApplicationType(ApplicationType):
                 storage=storage,
                 cache=self.cache,
             )
+
+        progress = ChildProgressBuilder.build(progress_builder, child_total=1)
+        progress.increment()
 
         return BuilderDict(
             pages=serialized_pages,
