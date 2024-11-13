@@ -9,8 +9,13 @@ import {
   HasEmptyValueViewFilterType,
   HasNotEmptyValueViewFilterType,
   HasValueLengthIsLowerThanViewFilterType,
+  HasAllValuesEqualViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
+import {
+  EmptyViewFilterType,
+  NotEmptyViewFilterType,
+} from '@baserow/modules/database/viewFilters'
 
 describe('Text-based array view filters', () => {
   let testApp = null
@@ -746,6 +751,250 @@ describe('Text-based array view filters', () => {
           expect(result).toBe(!testValues.expected)
         }
       )
+    }
+  )
+})
+
+describe('Boolean-based array view filters', () => {
+  let testApp = null
+  let fieldType = null
+
+  const fieldDefinition = {
+    type: 'lookup',
+    formula_type: 'array',
+    array_formula_type: 'boolean',
+  }
+
+  beforeAll(() => {
+    testApp = new TestApp()
+    fieldType = new FormulaFieldType({
+      app: testApp._app,
+    })
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const isEmptyBoolValueCases = [
+    {
+      cellValue: [],
+      expected: true,
+    },
+    {
+      cellValue: [{ value: true }, { value: false }],
+      expected: false,
+    },
+    {
+      cellValue: [{ value: false }],
+      expected: false,
+    },
+    {
+      cellValue: [{ value: true }],
+      expected: false,
+    },
+  ]
+
+  test.each(isEmptyBoolValueCases)('isEmptyBoolValueCases %j', (testValues) => {
+    const result = new NotEmptyViewFilterType({
+      app: testApp._app,
+    }).matches(testValues.cellValue, null, fieldDefinition, fieldType)
+    expect(result).toBe(!testValues.expected)
+  })
+
+  test.each(isEmptyBoolValueCases)(
+    'isNotEmptyBoolValueCases %j',
+    (testValues) => {
+      const result = new EmptyViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected)
+    }
+  )
+
+  const hasAnyValueBoolCases = [
+    {
+      cellValue: [],
+      filterValue: '1',
+      expected: false,
+    },
+    {
+      cellValue: [],
+      filterValue: '0',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: true }, { value: true }, { value: false }],
+      filterValue: '1',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: true }, { value: true }, { value: false }],
+      filterValue: '0',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: false }],
+      filterValue: '1',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: false }],
+      filterValue: '0',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: false }, { value: false }],
+      filterValue: '0',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: false }, { value: false }],
+      filterValue: '1',
+      expected: false,
+    },
+  ]
+
+  test.each(hasAnyValueBoolCases)('hasAnyValueBoolCases %j', (testValues) => {
+    const result = new HasValueEqualViewFilterType({
+      app: testApp._app,
+    }).matches(
+      testValues.cellValue,
+      testValues.filterValue,
+      fieldDefinition,
+      fieldType
+    )
+    expect(result).toBe(testValues.expected)
+  })
+
+  const hasNotValueBoolCases = [
+    {
+      cellValue: [],
+      filterValue: '1',
+      expected: true,
+    },
+    {
+      cellValue: [],
+      filterValue: '0',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: true }, { value: true }, { value: false }],
+      filterValue: '1',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: true }, { value: true }, { value: false }],
+      filterValue: '0',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: true }, { value: true }, { value: true }],
+      filterValue: '0',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: true }, { value: true }, { value: true }],
+      filterValue: '1',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: false }],
+      filterValue: '1',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: false }],
+      filterValue: '0',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: false }, { value: false }],
+      filterValue: '0',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: false }, { value: false }],
+      filterValue: '1',
+      expected: true,
+    },
+  ]
+
+  test.each(hasNotValueBoolCases)(
+    'hasNotValueEqualBoolCases %j',
+    (testValues) => {
+      const result = new HasNotValueEqualViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected)
+    }
+  )
+
+  const hasAllValueBooleanCases = [
+    {
+      cellValue: [],
+      filterValue: '1',
+      expected: false,
+    },
+    {
+      cellValue: [],
+      filterValue: '0',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: true }, { value: true }, { value: false }],
+      filterValue: '1',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: true }, { value: true }, { value: false }],
+      filterValue: '0',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: true }, { value: true }, { value: true }],
+      filterValue: '0',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: true }, { value: true }, { value: true }],
+      filterValue: '1',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: false }],
+      filterValue: '1',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: false }],
+      filterValue: '0',
+      expected: true,
+    },
+  ]
+
+  test.each(hasAllValueBooleanCases)(
+    'hasAllValueBooleanCases %j',
+    (testValues) => {
+      const result = new HasAllValuesEqualViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected)
     }
   )
 })

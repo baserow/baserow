@@ -2,8 +2,22 @@ import ViewFilterTypeText from '@baserow/modules/database/components/view/ViewFi
 import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber'
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 import { ViewFilterType } from '@baserow/modules/database/viewFilters'
-import ViewFilterTypeSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeSelectOptions'
+import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
+import _ from 'lodash'
+
+/**
+ * This function normalizes boolean values that may be used internally in the filter
+ * to values that can be transferred to the backend.
+ * @param value
+ * @returns {string|*}
+ */
+const normalizeBooleanForFilters = (value) => {
+  if (!_.isBoolean(value)) {
+    return value
+  }
+  return value ? '1' : '0'
+}
 
 export class HasEmptyValueViewFilterType extends ViewFilterType {
   static getType() {
@@ -63,24 +77,37 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasValueEqual')
   }
 
+  getDefaultValue(field) {
+    // has_value_equal filter by default sends an empty string. For consistency
+    // a default value should be in pair with a default value from the input component.
+    return this.prepareValue('', field)
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.parseInputValue(field, filterValue)
+    return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
+  }
+
+  prepareValue(value, field) {
+    const fieldType = this.app.$registry.get('field', field.type)
+    return normalizeBooleanForFilters(fieldType.parseInputValue(field, value))
+  }
+
   getInputComponent(field) {
-    const mapping = {
-      single_select: ViewFilterTypeSelectOptions,
-    }
-    return mapping[field.array_formula_type] || ViewFilterTypeText
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
   }
 
   getCompatibleFieldTypes() {
     return [
-      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('single_select')
+      ),
     ]
-  }
-
-  matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
   }
 }
 
@@ -94,24 +121,37 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasNotValueEqual')
   }
 
+  matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.parseInputValue(field, filterValue)
+    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
+  }
+
+  getDefaultValue(field) {
+    // has_not_value_equal filter by default sends an empty string. For consistency
+    // a default value should be in pair with a default value from the input component.
+    return this.prepareValue('', field)
+  }
+
+  prepareValue(value, field) {
+    const fieldType = this.app.$registry.get('field', field.type)
+    return normalizeBooleanForFilters(fieldType.parseInputValue(field, value))
+  }
+
   getInputComponent(field) {
-    const mapping = {
-      single_select: ViewFilterTypeSelectOptions,
-    }
-    return mapping[field.array_formula_type] || ViewFilterTypeText
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
   }
 
   getCompatibleFieldTypes() {
     return [
-      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('single_select')
+      ),
     ]
-  }
-
-  matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
   }
 }
 
@@ -258,6 +298,31 @@ export class HasValueLengthIsLowerThanViewFilterType extends ViewFilterType {
       cellValue,
       filterValue
     )
+  }
+}
+
+export class HasAllValuesEqualViewFilterType extends ViewFilterType {
+  static getType() {
+    return 'has_all_values_equal'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasAllValuesEqual')
+  }
+
+  getInputComponent(field) {
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
+  }
+
+  getCompatibleFieldTypes() {
+    return [FormulaFieldType.compatibleWithFormulaTypes('array(boolean)')]
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.parseInputValue(field, filterValue)
+    return fieldType.hasAllValuesEqualFilter(cellValue, filterValue, field)
   }
 }
 

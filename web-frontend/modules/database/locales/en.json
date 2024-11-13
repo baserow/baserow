@@ -568,7 +568,8 @@
     "selected": "Selected"
   },
   "viewFilter": {
-    "filter": "Filter | 1 Filter | {count} Filters"
+    "filter": "Filter | 1 Filter | {count} Filters",
+    "hasAllValuesEqual": "has all values equal"
   },
   "viewContext": {
     "exportView": "Export view",

@@ -1553,6 +1553,7 @@ class EmptyViewFilterType(ViewFilterType):
             BaserowFormulaURLType.type,
             BaserowFormulaSingleSelectType.type,
             FormulaFieldType.array_of(BaserowFormulaSingleFileType.type),
+            FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
         ),
     ]
 

@@ -1,4 +1,6 @@
+import typing
 from dataclasses import dataclass
+from enum import Enum
 
 from django.contrib.auth.models import AbstractUser
 
@@ -10,11 +12,15 @@ from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import GridView
 
+if typing.TYPE_CHECKING:
+    from baserow.test_utils.fixtures import Fixtures
+
 
 @dataclass
 class ArrayFiltersSetup:
     user: AbstractUser
     table: Table
+    other_table: Table
     model: GeneratedTableModel
     other_table_model: GeneratedTableModel
     grid_view: GridView
@@ -23,6 +29,25 @@ class ArrayFiltersSetup:
     target_field: Field
     row_handler: RowHandler
     view_handler: ViewHandler
+
+
+class BooleanLookupRow(int, Enum):
+    """
+    Helper enum for boolean lookup field filters tests.
+
+    Test data is fixed, so we want to point expected rows indexes. Using this enum
+    allows to do it in more descriptive way. Each member is an index of a row with
+    a specific data for the test.
+    """
+
+    MIXED = 0
+    ALL_FALSE = 1
+    ALL_TRUE = 2
+    NO_VALUES = 3
+
+
+def boolean_field_factory(data_fixture, table, user):
+    return data_fixture.create_boolean_field(name="target", user=user, table=table)
 
 
 def text_field_factory(data_fixture, table, user):
@@ -55,7 +80,15 @@ def single_select_field_factory(data_fixture, table, user):
     )
 
 
-def setup(data_fixture, target_field_factory):
+def single_select_field_value_factory(data_fixture, target_field, value=None):
+    return (
+        data_fixture.create_select_option(field=target_field, value=value)
+        if value
+        else None
+    )
+
+
+def setup(data_fixture, target_field_factory) -> ArrayFiltersSetup:
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(user=user, database=database)
@@ -80,6 +113,7 @@ def setup(data_fixture, target_field_factory):
     return ArrayFiltersSetup(
         user=user,
         table=table,
+        other_table=other_table,
         other_table_model=other_table_model,
         target_field=target_field,
         row_handler=row_handler,
@@ -91,16 +125,76 @@ def setup(data_fixture, target_field_factory):
     )
 
 
+def boolean_lookup_filter_proc(
+    data_fixture: "Fixtures",
+    filter_type_name: str,
+    test_value: str,
+    expected_rows: list[BooleanLookupRow],
+):
+    """
+    Common boolean lookup field test procedure. Each test operates on a fixed set of
+    data, where each table row contains a lookup field with a predefined set of linked
+    rows.
+    """
+
+    test_setup = setup(data_fixture, boolean_field_factory)
+
+    dict_rows = [{test_setup.target_field.db_column: idx % 2} for idx in range(0, 10)]
+
+    linked_rows = test_setup.row_handler.create_rows(
+        user=test_setup.user, table=test_setup.other_table, rows_values=dict_rows
+    )
+    rows = [
+        # mixed
+        {
+            test_setup.link_row_field.db_column: [
+                linked_rows[0].id,
+                linked_rows[1].id,
+                linked_rows[2].id,
+                linked_rows[3].id,
+                linked_rows[4].id,
+            ]
+        },
+        # all false
+        {
+            test_setup.link_row_field.db_column: [
+                linked_rows[0].id,
+                linked_rows[2].id,
+                linked_rows[4].id,
+            ]
+        },
+        # all true
+        {
+            test_setup.link_row_field.db_column: [
+                linked_rows[1].id,
+                linked_rows[3].id,
+                linked_rows[5].id,
+                linked_rows[7].id,
+            ]
+        },
+        # all none
+        {test_setup.link_row_field.db_column: []},
+    ]
+    r_mixed, r_false, r_true, r_none = test_setup.row_handler.create_rows(
+        user=test_setup.user, table=test_setup.table, rows_values=rows
+    )
+    rows = [r_mixed, r_false, r_true, r_none]
+    selected = [rows[idx] for idx in expected_rows]
+
+    test_setup.view_handler.create_filter(
+        test_setup.user,
+        test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type_name=filter_type_name,
+        value=test_value,
+    )
+    q = test_setup.view_handler.get_queryset(test_setup.grid_view)
+    assert len(q) == len(selected)
+    assert set([r.id for r in q]) == set([r.id for r in selected])
+
+
 def text_field_value_factory(data_fixture, target_field, value=None):
     return value or ""
-
-
-def single_select_field_value_factory(data_fixture, target_field, value=None):
-    return (
-        data_fixture.create_select_option(field=target_field, value=value)
-        if value
-        else None
-    )
 
 
 @pytest.mark.parametrize(
@@ -1590,6 +1684,196 @@ def test_has_value_length_is_lower_than_uuid_field_types(data_fixture):
         ).all()
     ]
     assert len(ids) == 4
+
+
+@pytest.mark.parametrize(
+    "filter_type_name,test_value,expected_rows",
+    [
+        (
+            "has_all_values_equal",
+            "0",
+            [BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_all_values_equal",
+            "1",
+            [BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_all_values_equal",
+            "False",
+            [BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_all_values_equal",
+            "True",
+            [BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_all_values_equal",
+            "f",
+            [BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_all_values_equal",
+            "t",
+            [BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_all_values_equal",
+            "",
+            [BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_all_values_equal",
+            "invalid",
+            [BooleanLookupRow.ALL_FALSE],
+        ),
+    ],
+)
+@pytest.mark.django_db
+def test_has_all_values_equal_filter_boolean_lookup_field_type(
+    data_fixture, filter_type_name, test_value, expected_rows
+):
+    boolean_lookup_filter_proc(
+        data_fixture, filter_type_name, test_value, expected_rows
+    )
+
+
+@pytest.mark.parametrize(
+    "filter_type_name,test_value,expected_rows",
+    [
+        (
+            "has_value_equal",
+            "0",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_value_equal",
+            "1",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_value_equal",
+            "f",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_value_equal",
+            "t",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_value_equal",
+            "False",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_value_equal",
+            "True",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_TRUE],
+        ),
+        (
+            "has_value_equal",
+            "",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+        ),
+        (
+            "has_value_equal",
+            "invalid",
+            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+        ),
+    ],
+)
+@pytest.mark.django_db
+def test_has_value_equal_filter_boolean_lookup_field_type(
+    data_fixture, filter_type_name, test_value, expected_rows
+):
+    boolean_lookup_filter_proc(
+        data_fixture, filter_type_name, test_value, expected_rows
+    )
+
+
+@pytest.mark.parametrize(
+    "filter_type_name,test_value,expected_rows",
+    [
+        (
+            "has_not_value_equal",
+            "0",
+            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "1",
+            [BooleanLookupRow.ALL_FALSE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "f",
+            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "t",
+            [BooleanLookupRow.ALL_FALSE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "False",
+            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "True",
+            [BooleanLookupRow.ALL_FALSE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "",
+            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+        ),
+        (
+            "has_not_value_equal",
+            "invalid",
+            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+        ),
+    ],
+)
+@pytest.mark.django_db
+def test_has_not_value_equal_filter_boolean_lookup_field_type(
+    data_fixture, filter_type_name, test_value, expected_rows
+):
+    boolean_lookup_filter_proc(
+        data_fixture, filter_type_name, test_value, expected_rows
+    )
+
+
+@pytest.mark.parametrize(
+    "filter_type_name,test_value,expected_rows",
+    [
+        (
+            "not_empty",
+            "",
+            [
+                BooleanLookupRow.MIXED,
+                BooleanLookupRow.ALL_FALSE,
+                BooleanLookupRow.ALL_TRUE,
+            ],
+        ),
+        (
+            "empty",
+            "",
+            [BooleanLookupRow.NO_VALUES],
+        ),
+    ],
+)
+@pytest.mark.django_db
+def test_empty_not_empty_filters_boolean_lookup_field_type(
+    data_fixture, filter_type_name, test_value, expected_rows
+):
+    boolean_lookup_filter_proc(
+        data_fixture, filter_type_name, test_value, expected_rows
+    )
 
 
 @pytest.mark.django_db

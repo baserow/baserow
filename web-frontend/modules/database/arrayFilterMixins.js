@@ -4,6 +4,7 @@ import {
   genericHasValueContainsWordFilter,
   genericHasEmptyValueFilter,
   genericHasValueLengthLowerThanFilter,
+  genericHasAllValuesEqualFilter,
 } from '@baserow/modules/database/utils/fieldFilters'
 
 export const hasEmptyValueFilterMixin = {
@@ -12,6 +13,24 @@ export const hasEmptyValueFilterMixin = {
   },
 }
 
+export const hasAllValuesEqualFilterMixin = {
+  getHasAllValuesEqualFilterFunction(field) {
+    return genericHasAllValuesEqualFilter
+  },
+
+  hasAllValuesEqualFilter(cellValue, filterValue, field) {
+    return (
+      filterValue === '' ||
+      this.getHasAllValuesEqualFilterFunction(field)(cellValue, filterValue)
+    )
+  },
+  hasNotAllValuesEqualFilter(cellValue, filterValue, field) {
+    return (
+      filterValue === '' ||
+      !this.getHasAllValuesEqualFilterFunction(field)(cellValue, filterValue)
+    )
+  },
+}
 export const hasValueEqualFilterMixin = {
   getHasValueEqualFilterFunction(field) {
     return genericHasValueEqualFilter
@@ -120,6 +139,10 @@ export const formulaArrayFilterMixin = {
   hasNotValueEqualFilter(cellValue, filterValue, field) {
     const subType = this.getSubType(field)
     return subType.hasNotValueEqualFilter(cellValue, filterValue, field)
+  },
+
+  getHasAllValuesEqualFilterFunction(field) {
+    return this.getSubType(field)?.getHasAllValuesEqualFilterFunction(field)
   },
 }
 

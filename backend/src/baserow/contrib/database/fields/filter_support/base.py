@@ -5,11 +5,15 @@ from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import BooleanField, F, Q, Value
 
+from loguru import logger
+
 from baserow.contrib.database.fields.field_filters import (
     AnnotatedQ,
     OptionallyAnnotatedQ,
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    BaserowFilterExpression,
+    JSONArrayAllAreExpr,
     JSONArrayContainsValueExpr,
     JSONArrayContainsValueLengthLowerThanExpr,
     JSONArrayContainsValueSimilarToExpr,
@@ -133,7 +137,10 @@ class HasValueLengthIsLowerThanFilterSupport:
         value = value.strip()
         if not value:
             return Q()
-        converted_value = int(value)
+        try:
+            converted_value = int(value)
+        except (TypeError, ValueError):
+            return Q()
         annotation_query = JSONArrayContainsValueLengthLowerThanExpr(
             F(field_name), Value(converted_value), output_field=BooleanField()
         )
@@ -144,3 +151,60 @@ class HasValueLengthIsLowerThanFilterSupport:
             },
             q={f"{field_name}_has_value_length_is_lower_than_{hashed_value}": True},
         )
+
+
+class HasAllValuesEqualFilterSupport:
+    def get_has_all_values_equal_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        """
+        Creates a query expression to filter rows where all values of an array in
+        the specified field are equal to a specific value
+
+        :param field_name: The name of the field
+        :param value: The value that should be present in all array elements
+            in the field
+        :param model_field: Field's schema model instance.
+        :param field: Field's instance.
+        :return: A Q or AnnotatedQ filter given value.
+        """
+
+        try:
+            return get_array_json_filter_expression(
+                JSONArrayAllAreExpr, field_name, value
+            )
+
+        except Exception as err:
+            logger.error(
+                f"Error when creating {self.type} filter expression "
+                f"for {field_name} field with {value} value: {err}"
+            )
+            return self.default_filter_on_exception()
+
+
+def get_array_json_filter_expression(
+    json_expression: typing.Type[BaserowFilterExpression], field_name: str, value: str
+) -> OptionallyAnnotatedQ:
+    """
+    helper to generate annotated query to get filtered json-based array.
+    `json_expression` should be a filter expression class.
+
+    :param json_expression: BaserowFilterExpression to use
+    :param field_name: a name of a field
+    :param value: filter value
+    :param model_field:
+    :param field:
+    :return:
+    """
+
+    annotation_query = json_expression(
+        F(field_name), Value(value), output_field=BooleanField()
+    )
+    lookup_name = (json_expression.__name__).lower()
+    hashed_value = hash(value)
+    return AnnotatedQ(
+        annotation={
+            f"{field_name}_array_expr_{lookup_name}_{hashed_value}": annotation_query
+        },
+        q={f"{field_name}_array_expr_{lookup_name}_{hashed_value}": True},
+    )

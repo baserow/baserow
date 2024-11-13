@@ -105,6 +105,7 @@ import {
   HasValueContainsWordViewFilterType,
   HasNotValueContainsWordViewFilterType,
   HasValueLengthIsLowerThanViewFilterType,
+  HasAllValuesEqualViewFilterType,
   HasAnySelectOptionEqualViewFilterType,
   HasNoneSelectOptionEqualViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
@@ -488,6 +489,11 @@ export default (context) => {
   app.$registry.register(
     'viewFilter',
     new HasValueLengthIsLowerThanViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+
+    new HasAllValuesEqualViewFilterType(context)
   )
   app.$registry.register(
     'viewFilter',

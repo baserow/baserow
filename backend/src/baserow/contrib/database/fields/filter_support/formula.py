@@ -6,6 +6,7 @@ from django.db.models import Q
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 
 from .base import (
+    HasAllValuesEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
@@ -18,6 +19,7 @@ if typing.TYPE_CHECKING:
 
 
 class FormulaArrayFilterSupport(
+    HasAllValuesEqualFilterSupport,
     HasValueFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueContainsFilterSupport,
@@ -83,5 +85,17 @@ class FormulaArrayFilterSupport(
         ) = self.get_field_instance_and_type_from_formula_field(field)
 
         return field_type.get_in_array_length_is_lower_than_query(
+            field_name, value, model_field, field_instance
+        )
+
+    def get_has_all_values_equal_query(
+        self, field_name, value, model_field, field: "FormulaField"
+    ):
+        (
+            field_instance,
+            field_type,
+        ) = self.get_field_instance_and_type_from_formula_field(field)
+
+        return field_type.get_has_all_values_equal_query(
             field_name, value, model_field, field_instance
         )

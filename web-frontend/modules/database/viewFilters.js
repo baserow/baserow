@@ -2743,7 +2743,8 @@ export class EmptyViewFilterType extends ViewFilterType {
         'duration',
         'url',
         'single_select',
-        FormulaFieldType.arrayOf('single_file')
+        FormulaFieldType.arrayOf('single_file'),
+        FormulaFieldType.arrayOf('boolean')
       ),
     ]
   }
@@ -2808,7 +2809,8 @@ export class NotEmptyViewFilterType extends ViewFilterType {
         'duration',
         'url',
         'single_select',
-        FormulaFieldType.arrayOf('single_file')
+        FormulaFieldType.arrayOf('single_file'),
+        FormulaFieldType.arrayOf('boolean')
       ),
     ]
   }

@@ -1,7 +1,7 @@
 import abc
 from typing import TYPE_CHECKING, List, Type, TypeVar
 
-from django.db.models import Expression, F, Value
+from django.db.models import Expression, F, Model, Value
 from django.utils.functional import classproperty
 
 from baserow.contrib.database.fields.expressions import (
@@ -15,6 +15,7 @@ from baserow.contrib.database.formula.types.exceptions import InvalidFormulaType
 T = TypeVar("T", bound="BaserowFormulaType")
 
 if TYPE_CHECKING:
+    from baserow.contrib.database.fields.registries import FieldType
     from baserow.contrib.database.formula.types.formula_types import (
         BaserowFormulaBooleanType,
     )
@@ -345,7 +346,7 @@ class BaserowFormulaType(abc.ABC):
             else:
                 setattr(formula_field, attr, None)
 
-    def get_baserow_field_instance_and_type(self):
+    def get_baserow_field_instance_and_type(self) -> "tuple[Model, FieldType]":
         from baserow.contrib.database.fields.registries import field_type_registry
 
         baserow_field_type = field_type_registry.get(self.baserow_field_type)
