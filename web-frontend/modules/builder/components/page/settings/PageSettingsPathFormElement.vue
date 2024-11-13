@@ -15,24 +15,22 @@
     ></FormInput>
 
     <template #error>
-      <span v-if="validationState.$dirty && !validationState.required">
+      <span v-if="validationState.required.$invalid">
         {{ $t('error.requiredField') }}
       </span>
-      <span v-if="validationState.$dirty && !validationState.isUnique">
+      <span v-else-if="validationState.isUnique.$invalid">
         {{ $t('pageErrors.errorPathNotUnique') }}
       </span>
-      <span v-if="validationState.$dirty && !validationState.maxLength">
+      <span v-else-if="validationState.maxLength.$invalid">
         {{ $t('error.maxLength', { max: 255 }) }}
       </span>
-      <span v-if="validationState.$dirty && !validationState.startingSlash">
+      <span v-else-if="validationState.startingSlash.$invalid">
         {{ $t('pageErrors.errorStartingSlash') }}
       </span>
-      <span
-        v-if="validationState.$dirty && !validationState.validPathCharacters"
-      >
+      <span v-else-if="validationState.validPathCharacters.$invalid">
         {{ $t('pageErrors.errorValidPathCharacters') }}
       </span>
-      <span v-if="validationState.$dirty && !validationState.uniquePathParams">
+      <span v-else-if="validationState.uniquePathParams.$invalid">
         {{ $t('pageErrors.errorUniquePathParams') }}
       </span>
     </template>
