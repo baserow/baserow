@@ -69,9 +69,16 @@ export default {
       const statusCode = e.response?.status
       // password protect forms require authentication
       if (statusCode === 401) {
+        // Combine the path and query parameters to get the full URL
+        const path = route.path
+        const queryParams = route.query
+        const queryString = Object.keys(queryParams).length
+          ? '?' + new URLSearchParams(queryParams).toString()
+          : ''
+        const original = path + queryString
         return redirect({
           name: 'database-public-view-auth',
-          query: { original: route.path },
+          query: { original },
         })
       } else {
         return error({ statusCode: 404, message: 'Form not found.' })
