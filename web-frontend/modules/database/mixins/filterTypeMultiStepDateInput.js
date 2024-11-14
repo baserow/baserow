@@ -2,6 +2,8 @@ import moment from '@baserow/modules/core/moment'
 import {
   splitMultiStepDateValue,
   DATE_FILTER_VALUE_SEPARATOR,
+  getDateMomentFormat,
+  getTimeMomentFormat,
 } from '@baserow/modules/database/utils/date'
 import filterTypeInput from '@baserow/modules/database/mixins/filterTypeInput'
 
@@ -41,6 +43,16 @@ export default {
     getTimezoneAbbr() {
       const timezone = this.getTimezone()
       return timezone ? moment.utc().tz(timezone).format('z') : ''
+    },
+    getDateTimeFormat() {
+      const dateFormat = getDateMomentFormat(this.field.date_format)
+      const timeFormat = getTimeMomentFormat(this.field.date_time_format)
+      return this.field.date_include_time
+        ? `${dateFormat} ${timeFormat}`
+        : dateFormat
+    },
+    getDateTimeISOFormat() {
+      return this.field.date_include_time ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'
     },
     splitCombinedValue(value) {
       const [timezone, filterValue, operatorValue] =
