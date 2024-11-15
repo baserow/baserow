@@ -65,6 +65,7 @@ import {
   genericHasValueContainsFilter,
 } from '@baserow/modules/database/utils/fieldFilters'
 import ViewFilterTypeSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeSelectOptions.vue'
+import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
   getIconClass() {
@@ -455,6 +456,10 @@ export class BaserowFormulaDurationType extends BaserowFormulaTypeDefinition {
 
   getRowEditFieldComponent(field) {
     return RowEditFieldDurationReadOnly
+  }
+
+  getFilterInputComponent(field, filterType) {
+    return ViewFilterTypeDuration
   }
 
   getSortOrder() {

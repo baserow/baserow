@@ -370,8 +370,7 @@ class NumericComparisonViewFilterType(ViewFilterType):
         AutonumberFieldType.type,
         DurationFieldType.type,
         FormulaFieldType.compatible_with_formula_types(
-            BaserowFormulaNumberType.type,
-            BaserowFormulaDurationType.type
+            BaserowFormulaNumberType.type, BaserowFormulaDurationType.type
         ),
     ]
 

@@ -177,12 +177,8 @@ export class EqualViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    const inputComponent = {
-      [RatingFieldType.getType()]: ViewFilterTypeRating,
-      [NumberFieldType.getType()]: ViewFilterTypeNumber,
-      [DurationFieldType.getType()]: ViewFilterTypeDuration,
-    }
-    return inputComponent[field?.type] || ViewFilterTypeText
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.getFilterInputComponent(field, this) || ViewFilterTypeText
   }
 
   getCompatibleFieldTypes() {
@@ -229,12 +225,8 @@ export class NotEqualViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    const inputComponent = {
-      [RatingFieldType.getType()]: ViewFilterTypeRating,
-      [NumberFieldType.getType()]: ViewFilterTypeNumber,
-      [DurationFieldType.getType()]: ViewFilterTypeDuration,
-    }
-    return inputComponent[field?.type] || ViewFilterTypeText
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.getFilterInputComponent(field, this) || ViewFilterTypeText
   }
 
   getCompatibleFieldTypes() {

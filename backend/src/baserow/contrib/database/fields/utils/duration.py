@@ -581,7 +581,7 @@ def prepare_duration_value_for_db(
 
     try:
         return duration_value_to_timedelta(value, duration_format)
-    except ValueError:
+    except ValueError as err:
         raise default_exc(
             f"The value {value} is not a valid duration.",
             code="invalid",
