@@ -121,6 +121,8 @@ services:
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
+    ports:
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:5679:5678"
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
@@ -146,6 +148,8 @@ services:
         UID: $UID
         GID: $GID
     command: "watch-py celery-exportworker"
+    ports:
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:5680:5678"
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend

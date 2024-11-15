@@ -209,7 +209,13 @@ start_celery_worker(){
   if [[ -n "$BASEROW_AMOUNT_OF_WORKERS" ]]; then
     EXTRA_CELERY_ARGS+=(--concurrency "$BASEROW_AMOUNT_OF_WORKERS")
   fi
-  exec celery -A baserow worker "${EXTRA_CELERY_ARGS[@]}" -l INFO "$@"
+  # Add BASEROW_BACKEND_DEBUG=on to enable the debugger in the celery worker.
+  if [[ "${BASEROW_BACKEND_DEBUG:-off}" == "on" ]]; then
+    CELERY_CMD="python -m debugpy --listen 0.0.0.0:5678 /baserow/venv/bin/celery"
+  else
+    CELERY_CMD="celery"
+  fi
+  exec $CELERY_CMD -A baserow worker "${EXTRA_CELERY_ARGS[@]}" -l INFO "$@"
 }
 
 # Lets devs attach to this container running the passed command, press ctrl-c and only
