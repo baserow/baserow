@@ -1,5 +1,17 @@
 # Changelog
 
+## Released 1.29.2
+
+### New features
+* Boolean lookup filters: empty/not empty/none of/any/all [#3103](https://gitlab.com/baserow/baserow/-/issues/3103)
+* Copy cells as rich text table and optionally include header.
+
+### Bug fixes
+* Fix bug by include schema in PostgreSQL data sync.
+* Fix corrupted export being created on s3 like storages [#3197](https://gitlab.com/baserow/baserow/-/issues/3197)
+* [Builder] Fix bug when dispatching a data source with a deleted field
+
+
 ## Released 1.29.1
 
 ### Bug fixes

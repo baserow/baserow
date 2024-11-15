@@ -252,14 +252,15 @@ class PostgreSQLDataSyncType(DataSyncType):
         instance,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Dict]:
-        table_name = instance.postgresql_table
+        schema_name = f"{instance.postgresql_schema}"
+        table_name = f"{instance.postgresql_table}"
         properties = self.get_properties(instance)
         order_names = [p.key for p in properties if p.unique_primary]
         column_names = [p.key for p in properties]
 
         with self._connection(instance) as cursor:
-            count_query = sql.SQL("SELECT count(*) FROM {}").format(
-                sql.Identifier(table_name)
+            count_query = sql.SQL("SELECT count(*) FROM {}.{}").format(
+                sql.Identifier(schema_name), sql.Identifier(table_name)
             )
             cursor.execute(count_query)
             count = cursor.fetchone()[0]
@@ -268,8 +269,9 @@ class PostgreSQLDataSyncType(DataSyncType):
             if limit and count > settings.INITIAL_TABLE_DATA_LIMIT:
                 raise SyncError(f"The table can't contain more than {limit} records.")
 
-            select_query = sql.SQL("SELECT {} FROM {} ORDER BY {}").format(
+            select_query = sql.SQL("SELECT {} FROM {}.{} ORDER BY {}").format(
                 sql.SQL(", ").join(map(sql.Identifier, column_names)),
+                sql.Identifier(schema_name),
                 sql.Identifier(table_name),
                 sql.SQL(", ").join(map(sql.Identifier, order_names)),
             )
