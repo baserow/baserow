@@ -7,6 +7,7 @@ import pytest
 from pytest_unordered import unordered
 
 from baserow.core.handler import CoreHandler
+from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import (
     WORKSPACE_USER_PERMISSION_ADMIN,
     WORKSPACE_USER_PERMISSION_MEMBER,
@@ -473,3 +474,29 @@ def test_user_password_changed(mock_force_disconnect_user, data_fixture):
     mock_force_disconnect_user.delay.assert_called_once()
     args = mock_force_disconnect_user.delay.call_args
     assert args[0][0] == [user.id]
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.signals.broadcast_to_users")
+@patch("baserow.core.jobs.handler.run_async_job")
+@pytest.mark.websockets
+def test_job_started(mock_run_async_job, mock_broadcast_to_users, data_fixture):
+    data_fixture.register_temp_job_types()
+
+    user = data_fixture.create_user()
+    JobHandler().create_and_start_job(user, "tmp_job_type_1")
+
+    mock_broadcast_to_users.delay.assert_called_once()
+    args = mock_broadcast_to_users.delay.call_args
+    assert args[0][0] == [user.id]
+    assert args[0][1] == {
+        "type": "job_started",
+        "job": {
+            "id": 1,
+            "type": "tmp_job_type_1",
+            "progress_percentage": 0,
+            "state": "pending",
+            "human_readable_error": "",
+            "test_field": 42,
+        },
+    }

@@ -16,6 +16,7 @@ from .exceptions import (
 )
 from .models import Job
 from .registries import job_type_registry
+from .signals import job_started
 from .tasks import run_async_job
 from .types import AnyJob
 
@@ -201,6 +202,7 @@ class JobHandler:
             # failure that triggers a sys.exit(1) to be called in gunicorn.
             def call_async_job_safe():
                 try:
+                    job_started.send(self, job=job, user=user)
                     run_async_job.delay(job.id)
                 except BaseException as e:
                     job.refresh_from_db()
