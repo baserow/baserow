@@ -1,3 +1,4 @@
+import typing
 from datetime import timedelta
 
 import pytest
@@ -6,6 +7,9 @@ from tests.baserow.contrib.database.utils import (
     duration_field_factory,
     setup_formula_field,
 )
+
+if typing.TYPE_CHECKING:
+    from baserow.test_utils.fixtures import Fixtures
 
 
 def duration_formula_filter_proc(
@@ -18,6 +22,7 @@ def duration_formula_filter_proc(
     Common duration formula field test procedure. Each test operates on a fixed set of
     data, where each table row contains a formula field with a predefined value.
     """
+
     formula_text = """field('target')"""
     t = setup_formula_field(
         data_fixture,
