@@ -332,8 +332,10 @@
     "defaultName": "Page",
     "nameTitle": "Name",
     "nameSubtitle": "Unique name of the page",
+    "namePlaceholder": "Enter a name...",
     "pathTitle": "Path",
     "pathSubtitle": "A parameter can be added via :parameter",
+    "pathPlaceholder": "Enter a path...",
     "pathParamsTitle": "Path parameters",
     "pathParamsSubtitle": "Are defined by :parameter in the path",
     "pathParamsSubtitleTutorial": "Path parameters can be used to dynamically load data, depending on the provided parameter. Add :parameter to the path to add one."

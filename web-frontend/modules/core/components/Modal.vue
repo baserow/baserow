@@ -37,6 +37,8 @@
           <div class="modal__actions">
             <a
               v-if="closeButton && canClose"
+              role="button"
+              :title="$t('action.close')"
               class="modal__close"
               @click="hide()"
             >

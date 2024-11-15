@@ -1,5 +1,13 @@
 # Changelog
 
+## Released 1.29.1
+
+### Bug fixes
+* Make import workspace applications icon consistent [#3187](https://gitlab.com/baserow/baserow/-/issues/3187)
+* [Builder] Resolved an issue where the API would throw an error if a 'summarize field' data source is saved with a field, but no aggregation.
+* Fix export for S3-like storages.
+
+
 ## Released 1.29.0
 
 ### New features

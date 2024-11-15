@@ -177,7 +177,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         with _create_storage_dir_if_missing_and_open(
             export_media_path, storage
         ) as files_buffer:
-            with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+            with ZipFile(files_buffer, "w", ZIP_DEFLATED, False) as files_zip:
                 with application_type.export_safe_transaction_context(application):
                     exported_application = application_type.export_serialized(
                         application, import_export_config, files_zip, storage
@@ -552,21 +552,23 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         with _create_storage_dir_if_missing_and_open(
             export_path, storage
         ) as files_buffer:
-            with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+            with ZipFile(files_buffer, "w", ZIP_DEFLATED, False) as files_zip:
                 for application in applications:
                     for record in application["files"].values():
                         file_path = record["file"]
                         full_file_path = join(export_tmp_path, file_path)
                         with storage.open(full_file_path, "rb") as tmp_file:
-                            files_zip.write(tmp_file.name, file_path)
+                            # copy data 32MB at a time to avoid memory issues
+                            while data := tmp_file.read(32 * 1024 * 1024):
+                                files_zip.writestr(file_path, data)
 
                 manifest_path = join(export_tmp_path, MANIFEST_NAME)
                 with storage.open(manifest_path, "rb") as tmp_file:
-                    files_zip.write(tmp_file.name, MANIFEST_NAME)
+                    files_zip.writestr(MANIFEST_NAME, tmp_file.read())
 
                 signature_path = join(export_tmp_path, SIGNATURE_NAME)
                 with storage.open(signature_path, "rb") as tmp_file:
-                    files_zip.write(tmp_file.name, SIGNATURE_NAME)
+                    files_zip.writestr(SIGNATURE_NAME, tmp_file.read())
 
     def get_import_storage_path(self, *args) -> str:
         return str(join(settings.IMPORT_FILES_DIRECTORY, *args))

@@ -446,11 +446,11 @@ def test_builder_dispatch_context_public_formula_fields_is_cached(
         ),
     ],
 )
-def test_builder_dispatch_context_get_cache_key(
+def test_builder_dispatch_context_get_used_properties_cache_key(
     is_anonymous, is_editor_user, user_role, expected_cache_key
 ):
     """
-    Test the BuilderDispatchContext::get_cache_key() method.
+    Test the BuilderDispatchContext::get_used_properties_cache_key() method.
     """
 
     mock_request = MagicMock()
@@ -469,6 +469,6 @@ def test_builder_dispatch_context_get_cache_key(
         mock_page,
     )
 
-    cache_key = dispatch_context.get_cache_key()
+    cache_key = dispatch_context.get_used_properties_cache_key()
 
     assert cache_key == expected_cache_key

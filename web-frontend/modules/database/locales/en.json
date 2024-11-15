@@ -626,6 +626,7 @@
     "deleteRow": "Delete row",
     "deleteRows": "Delete rows",
     "copyCells": "Copy cells",
+    "copyCellsWithHeader": "Copy cells with header",
     "generateCellsValues": "Generate values with AI",
     "rowCount": "No rows | 1 row | {count} rows",
     "hiddenRowsInsertedTitle": "Rows added",

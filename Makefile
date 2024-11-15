@@ -38,14 +38,22 @@ help:
 	@echo " make docker-status - show current docker containers"
 	@echo " make docker-clean - remove docker images"
 	@echo " make docker-lint - validate dockerfiles"
+	@echo ""
 	@echo " make docker-backend-shell - start a shell in backend container"
 	@echo " make docker-backend-logs - follow logs in backend container"
 	@echo " make docker-backend-attach - attach to backend container"
+	@echo ""
+	@echo " make docker-frontend-shell - start a shell in frontend container"
+	@echo " make docker-frontend-logs - follow logs in frontend container"
+	@echo " make docker-frontend-attach - attach to frontend container"
 	@echo ""
 	@echo " make docker-allinone-build - build all-in-one dev container"
 	@echo " make docker-allinone-start - start all-in-one dev container"
 	@echo " make docker-allinone-stop - stop all-in-one dev container"
 	@echo ""
+
+
+
 # create .env file with default values if no file exists
 .env:
 	@cat .env.example > .env
@@ -162,6 +170,15 @@ docker-backend-attach:
 
 docker-backend-logs:
 	$(DOCKERC) $(DOCKER_SPLIT_CONF) logs -tf backend
+
+docker-frontend-shell:
+	$(DOCKERC) $(DOCKER_SPLIT_CONF) exec web-frontend bash
+
+docker-frontend-attach:
+	$(DOCKERC) $(DOCKER_SPLIT_CONF) attach web-frontend
+
+docker-frontend-logs:
+	$(DOCKERC) $(DOCKER_SPLIT_CONF) logs -tf web-frontend
 
 clean: SUBCMD=clean
 clean: .subcmd docker-clean

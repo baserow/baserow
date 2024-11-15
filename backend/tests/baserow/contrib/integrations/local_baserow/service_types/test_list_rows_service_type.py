@@ -900,111 +900,6 @@ def test_order_by_is_applied_depending_on_views_sorts(
 
 @pytest.mark.django_db
 @patch("baserow.contrib.integrations.local_baserow.service_types.CoreHandler")
-@pytest.mark.parametrize(
-    "field_name_checks,expect_only_applied",
-    (
-        [
-            (
-                {"all": ["field_42", "field_43"], "external": None, "internal": None},
-                True,
-            ),
-            (
-                {"all": ["field_42", "field_43"], "external": [], "internal": []},
-                True,
-            ),
-            (
-                {
-                    "all": ["field_42", "field_43"],
-                    "external": ["foo"],
-                    "internal": ["bar"],
-                },
-                True,
-            ),
-            (
-                {"all": None, "external": None, "internal": None},
-                False,
-            ),
-            (
-                {"all": None, "external": [], "internal": []},
-                False,
-            ),
-            (
-                {"all": None, "external": ["field_42"], "internal": ["field_43"]},
-                False,
-            ),
-        ]
-    ),
-)
-def test_only_is_applied_to_queryset_if_field_names(
-    mock_core_handler, field_name_checks, expect_only_applied, data_fixture
-):
-    """
-    Test to ensure that the queryset's only() is applied if
-    field_names exists.
-    """
-
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    table, _, _ = data_fixture.build_table(
-        user=user,
-        columns=[
-            ("Name", "text"),
-            ("My Color", "text"),
-        ],
-        rows=[
-            ["BMW", "Blue"],
-            ["Audi", "Orange"],
-        ],
-    )
-    view = data_fixture.create_grid_view(user, table=table)
-    integration = data_fixture.create_local_baserow_integration(
-        application=page.builder, user=user
-    )
-
-    service = data_fixture.create_local_baserow_list_rows_service(
-        integration=integration,
-        view=view,
-        table=table,
-    )
-
-    service_type = LocalBaserowListRowsUserServiceType()
-
-    mock_queryset = MagicMock()
-
-    mock_objects = MagicMock()
-    mock_objects.enhance_by_fields.return_value = mock_queryset
-
-    mock_model = MagicMock()
-    mock_objects = mock_model.objects.all.return_value = mock_objects
-
-    mock_table = MagicMock()
-    mock_table.get_model.return_value = mock_model
-
-    resolved_values = {
-        "table": mock_table,
-    }
-
-    service_type.get_dispatch_search = MagicMock(return_value=None)
-    service_type.get_dispatch_filters = MagicMock(return_value=mock_queryset)
-    service_type.get_dispatch_sorts = MagicMock(return_value=(None, mock_queryset))
-
-    field_names = {"all": {}, "external": {}, "internal": {}}
-    for key, value in field_name_checks.items():
-        field_names[key] = {service.id: value}
-
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
-    service_type.dispatch_data(service, resolved_values, dispatch_context)
-
-    if expect_only_applied:
-        mock_queryset.only.assert_called_once_with(
-            *field_names["all"][service.id],
-        )
-    else:
-        mock_queryset.only.assert_not_called()
-
-
-@pytest.mark.django_db
-@patch("baserow.contrib.integrations.local_baserow.service_types.CoreHandler")
 @override_settings(FEATURE_FLAGS=[])
 def test_only_is_not_applied_when_behind_feature_flag(mock_core_handler, data_fixture):
     """
@@ -1067,6 +962,57 @@ def test_only_is_not_applied_when_behind_feature_flag(mock_core_handler, data_fi
     service_type.dispatch_data(service, resolved_values, dispatch_context)
 
     mock_queryset.only.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_can_dispatch_table_with_deleted_field(data_fixture):
+    """
+    Test that we can dispatch a table when a field has been deleted but still
+    referenced in the dispatch_context public_properties because of the cache for
+    instance.
+    """
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            ["BMW", "Blue"],
+            ["Audi", "Orange"],
+        ],
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+
+    service = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration,
+        table=table,
+        filter_type="OR",
+    )
+
+    field_names = {
+        "all": {
+            service.id: ["id", fields[0].db_column, fields[1].db_column],
+        },
+        "external": {service.id: ["id"]},
+        "internal": {service.id: [fields[0].db_column, fields[1].db_column]},
+    }
+
+    # We delete the field but it should just be ignored.
+    fields[1].delete()
+
+    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+
+    result = service.get_type().dispatch(service, dispatch_context)
+
+    assert (
+        len(result["results"][0].keys()) == 2 + 1
+    )  # We also have the order at that point
 
 
 @pytest.mark.django_db

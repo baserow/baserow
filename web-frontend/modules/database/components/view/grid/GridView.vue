@@ -172,10 +172,19 @@
         <li class="context__menu-item">
           <a
             class="context__menu-item-link"
-            @click=";[copySelection($event), $refs.rowContext.hide()]"
+            @click=";[copySelection($event, false), $refs.rowContext.hide()]"
           >
             <i class="context__menu-item-icon iconoir-copy"></i>
             {{ $t('gridView.copyCells') }}
+          </a>
+        </li>
+        <li class="context__menu-item">
+          <a
+            class="context__menu-item-link"
+            @click=";[copySelection($event, true), $refs.rowContext.hide()]"
+          >
+            <i class="context__menu-item-icon iconoir-copy"></i>
+            {{ $t('gridView.copyCellsWithHeader') }}
           </a>
         </li>
         <li
@@ -1373,7 +1382,7 @@ export default {
      * Prepare and copy the multi-select cells into the clipboard,
      * formatted as TSV
      */
-    async copySelection(event) {
+    async copySelection(event, includeHeader = false) {
       const gridStore = this.storePrefix + 'view/grid'
       if (!this.$store.getters[`${gridStore}/isMultiSelectActive`]) {
         return
@@ -1383,7 +1392,8 @@ export default {
         await this.copySelectionToClipboard(
           this.$store.dispatch(`${gridStore}/getCurrentSelection`, {
             fields: this.allVisibleFields,
-          })
+          }),
+          includeHeader
         )
       } catch (error) {
         notifyIf(error, 'view')

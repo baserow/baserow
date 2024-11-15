@@ -992,9 +992,14 @@ class LocalBaserowListRowsUserServiceType(
         if only_field_names is not None and feature_flag_is_enabled(
             FF_FILTER_DISPATCH_DATA_USING_ONLY
         ):
-            # Ensure that only the public_formula_fields explicitly used
-            # in the page are fetched from the database.
-            queryset = queryset.only(*only_field_names)
+            # May be some fields were deleted in the meantime
+            # Let's check we still have them
+            available_fields = set(
+                [fo["name"] for fo in self.get_table_field_objects(service)] + ["id"]
+            )
+
+            # Ensure that only used fields are fetched from the database.
+            queryset = queryset.only(*available_fields.intersection(only_field_names))
 
         offset, count = dispatch_context.range(service)
 

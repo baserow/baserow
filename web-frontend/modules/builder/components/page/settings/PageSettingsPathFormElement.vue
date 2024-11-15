@@ -9,6 +9,7 @@
     <FormInput
       size="large"
       :value="value"
+      :placeholder="$t('pageForm.pathPlaceholder')"
       :disabled="disabled"
       @input="$emit('input', $event)"
       @blur="$emit('blur')"

@@ -14,7 +14,7 @@ NPMBIN:=npm
 .PHONY: clean clean-all package-build build install deps-install-dev deps-install eslint\
 		stylelint format-scss lint lint-fix lint-javascript\
 		jest test ci-test-javascript update-snapshots\
-		deps deps-upgrade fix
+		deps deps-upgrade fix run-dev
 
 help:
 	@echo "web-frontend makefile. available targets:"
@@ -24,6 +24,7 @@ help:
 	@echo " make lint-fix - run lint/style tools and fix the code"
 	@echo " make test - run tests"
 	@echo " make clean - noop target"
+	@echo " make run-dev - run development server"
 
 clean:
 	@echo 'nothing to clean yet'
@@ -83,5 +84,7 @@ deps:
 deps-upgrade:
 	# noop
 
+run-dev:
+	$(YARNBIN) run dev
 
 

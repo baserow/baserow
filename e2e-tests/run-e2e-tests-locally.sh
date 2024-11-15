@@ -9,4 +9,4 @@ export DEBUG="pw:api"
 yarn install
 yarn playwright install
 ./wait-for-services.sh
-yarn run test-all-browsers
+yarn run test-ci

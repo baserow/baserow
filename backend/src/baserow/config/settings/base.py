@@ -492,7 +492,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.29.0",
+    "VERSION": "1.29.1",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -604,6 +604,13 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
+BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = int(
+    Decimal(os.getenv("BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB", 1024 * 1024)) * 1024 * 1024
+)  # ~1TB by default
+
+BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = int(
+    os.getenv("BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB", 512)
+)
 
 # Allows accessing and setting values on a dictionary like an object. Using this
 # we can pass plugin authors and other functions a `settings` object which can modify
@@ -641,6 +648,9 @@ if sum(ALL_STORAGE_ENABLED_VARS) > 1:
 if AWS_STORAGE_ENABLED:
     BASE_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
     AWS_S3_FILE_OVERWRITE = False
+    # This is needed to write the media file in a single call to `files_zip.writestr`
+    # as described here: https://github.com/kobotoolbox/kobocat/issues/475
+    AWS_S3_FILE_BUFFER_SIZE = BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
     set_settings_from_env_if_present(
         AttrDict(vars()),
         [
@@ -833,13 +843,6 @@ MEDIA_ROOT = os.getenv("MEDIA_ROOT", "/baserow/media")
 # Indicates the directory where the user files and user thumbnails are stored.
 USER_FILES_DIRECTORY = "user_files"
 USER_THUMBNAILS_DIRECTORY = "thumbnails"
-BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = int(
-    Decimal(os.getenv("BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB", 1024 * 1024)) * 1024 * 1024
-)  # ~1TB by default
-
-BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = int(
-    os.getenv("BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB", 512)
-)
 
 EXPORT_FILES_DIRECTORY = "export_files"
 EXPORT_CLEANUP_INTERVAL_MINUTES = 5

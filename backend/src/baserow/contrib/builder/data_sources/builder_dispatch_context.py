@@ -79,7 +79,7 @@ class BuilderDispatchContext(DispatchContext):
 
         return self.element.get_type()  # type: ignore
 
-    def get_cache_key(self) -> Optional[str]:
+    def get_used_properties_cache_key(self) -> Optional[str]:
         """
         Returns a cache key that can be used to key the results of making the
         expensive function call to get_formula_field_names().
@@ -119,7 +119,7 @@ class BuilderDispatchContext(DispatchContext):
         """
 
         if self.only_expose_public_formula_fields:
-            cache_key = self.get_cache_key()
+            cache_key = self.get_used_properties_cache_key()
 
             formula_fields = cache.get(cache_key) if cache_key else None
             if formula_fields is None:

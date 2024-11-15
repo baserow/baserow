@@ -148,11 +148,7 @@ build-e2e-tests-image:
     - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
     - cd e2e-tests
     - docker build -t $E2E_TEST_IMAGE .
-    - docker push $E2E_TEST_IMAGE
-  # Only trigger this job manually to prevent it running every single time a new branch
-  # is made. See https://gitlab.com/gitlab-org/gitlab/-/issues/11427
-  when:
-    manual
+    - docker push $CI_REGISTRY/$PROJECT_PATH_FOR_E2E_TEST_IMAGE/ci/baserow_e2e-tests:latest
   # We can't use the newer rules: syntax due to https://gitlab.com/gitlab-org/gitlab/-/issues/34756
   only:
     changes:
@@ -519,14 +515,14 @@ build-final-web-frontend-image-manual:
 e2e-tests:
   extends:
     - .docker-image-test-stage
-  needs:
-    - job: build-backend-image
-    - job: build-web-frontend-image
-  when:
-    manual
   script:
     - cd e2e-tests
-    - E2E_TEST_YARN_RUN_CMD=test-all-browsers docker compose up --no-build --exit-code-from e2e-tests
+    - E2E_TEST_YARN_RUN_CMD=test-ci docker compose up --no-build --exit-code-from e2e-tests
+  artifacts:
+    paths:
+      # Save the HTML report as an artifact for download or visualization
+      - e2e-tests/playwright-report/
+  allow_failure: true
 
 # ================================== ALL IN ONES ======================================
 # If pipeline not triggered by tag:
