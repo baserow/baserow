@@ -90,3 +90,5 @@ BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE = False
 # Make sure that default storage is used for the tests.
 BASE_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
 STORAGES["default"] = {"BACKEND": BASE_FILE_STORAGE}
+
+BASEROW_LOGIN_ACTION_LOG_LIMIT = RateLimit.from_string("1000/s")
