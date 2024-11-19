@@ -84,6 +84,8 @@ def duration_formula_filter_proc(
         ("equal", str(3 * 3600), ["3h", "3h 1s", "3h -1s"], "h:mm"),
         ("equal", str((3 * 3600) + 2), ["3h", "3h 1s", "3h -1s"], "h:mm"),
         ("equal", "3600s", ["1h", "1h 1s", "1h -1s"], "h:mm"),
+        ("equal", "1:00", ["1h", "1h 1s", "1h -1s"], "h:mm"),  # 1h
+        ("equal", "1:00", ["1h"], "d h mm ss"),  # 1h
         ("equal", "3602s", ["1h", "1h 1s", "1h -1s"], "h:mm"),
         ("equal", "3h", ["3h", "3h 1s", "3h -1s"], "h:mm"),
         ("equal", "1d 20h", [], "d h:mm"),
@@ -145,6 +147,41 @@ def duration_formula_filter_proc(
                 "1m 1s",
             ],
             "d h mm ss",
+        ),
+        (
+            "not_equal",
+            "1:00",  # parsed as 1h
+            [
+                # "1h",
+                "2h",
+                "3h",
+                "4h",
+                "5h",
+                "none",
+                "1h 1s",
+                "1h -1s",
+                "3h 1s",
+                "3h -1s",
+                "59s",
+                "1m 1s",
+            ],
+            "d h mm ss",
+        ),
+        (
+            "not_equal",
+            "1:00",
+            [
+                "2h",
+                "3h",
+                "4h",
+                "5h",
+                "none",
+                "3h 1s",
+                "3h -1s",
+                "59s",
+                "1m 1s",
+            ],
+            "h:mm",
         ),
         (
             "not_equal",
@@ -256,6 +293,14 @@ def test_duration_formula_equal_value_filter(
             "d h mm ss",
         ),
         ("higher_than", str(3600), ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s"], "d h"),
+        ("higher_than", "1:00", ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s"], "d h"),
+        ("higher_than", "1:00", ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s"], "h:mm"),
+        (
+            "higher_than",
+            "1:00",
+            ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s", "1h 1s"],
+            "h:mm:ss",
+        ),
         ("higher_than", str(3 * 3600), ["4h", "5h"], "d h"),
         ("higher_than", str((3 * 3600) + 1801), ["4h", "5h"], "d h"),
         ("higher_than", "invalid", [], "d h"),
@@ -295,6 +340,25 @@ def test_duration_formula_equal_value_filter(
             "1:59:59",
             ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s"],
             "h:mm:ss",
+        ),
+        (
+            "higher_than_or_equal",
+            "1:59",  # parsed as 1h59m
+            [
+                "2h",
+                "3h",
+                "4h",
+                "5h",
+                "3h 1s",
+                "3h -1s",
+            ],
+            "h:mm:ss",
+        ),
+        (
+            "higher_than_or_equal",
+            "1:59",  # parsed as 1h59m
+            ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s"],
+            "d h",
         ),
         ("higher_than_or_equal", "invalid", [], "d h mm ss"),
         (
@@ -361,6 +425,18 @@ def test_duration_formula_higher_than_equal_value_filter(
         ),
         (
             "lower_than_or_equal",
+            "1:01",  # parsed as 1h1s!
+            ["1h", "1h 1s", "1h -1s", "59s", "1m 1s"],
+            "h:mm:ss",
+        ),
+        (
+            "lower_than_or_equal",
+            "1:01",  # parsed as 1h1m!
+            ["1h", "1h 1s", "1h -1s", "59s", "1m 1s"],
+            "d h",
+        ),
+        (
+            "lower_than_or_equal",
             str(3 * 3600),
             ["1h", "2h", "3h", "1h 1s", "1h -1s", "3h 1s", "3h -1s", "59s", "1m 1s"],
             "d h",
@@ -369,6 +445,18 @@ def test_duration_formula_higher_than_equal_value_filter(
             "lower_than_or_equal",
             str((3 * 3600) - 1801),
             ["1h", "2h", "1h -1s", "1h 1s", "59s", "1m 1s"],
+            "d h",
+        ),
+        (
+            "lower_than_or_equal",
+            "0:59",  # parsed as 59s!
+            ["1m 1s", "59s"],
+            "h:mm:ss",
+        ),
+        (
+            "lower_than_or_equal",
+            "0:59",  # parsed as 59s!
+            ["1m 1s", "59s"],
             "d h",
         ),
         ("lower_than_or_equal", "invalid", [], "d h mm ss"),
