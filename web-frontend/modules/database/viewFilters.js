@@ -28,6 +28,8 @@ import {
   RatingFieldType,
   DurationFieldType,
 } from '@baserow/modules/database/fieldTypes'
+import DurationFilterValueParseMixin from '@baserow/modules/database/mixins/DurationFilterValueParseMixin'
+import { mix } from '@baserow/modules/core/mixins'
 
 export class ViewFilterType extends Registerable {
   /**
@@ -2068,7 +2070,10 @@ export class NumericComparisonViewFilterType extends ViewFilterType {
   }
 }
 
-export class HigherThanViewFilterType extends NumericComparisonViewFilterType {
+export class HigherThanViewFilterType extends mix(
+  DurationFilterValueParseMixin,
+  NumericComparisonViewFilterType
+) {
   static getType() {
     return 'higher_than'
   }
@@ -2084,13 +2089,21 @@ export class HigherThanViewFilterType extends NumericComparisonViewFilterType {
     }
 
     const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
+    const fltVal = this._parseDurationValue(field, fieldType, filterValue)
+    console.warn(
+      'gte',
+      { rowVal, fltVal, rowValue, filterValue, field },
+      Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal > fltVal
+    )
 
     return Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal > fltVal
   }
 }
 
-export class HigherThanOrEqualViewFilterType extends NumericComparisonViewFilterType {
+export class HigherThanOrEqualViewFilterType extends mix(
+  DurationFilterValueParseMixin,
+  NumericComparisonViewFilterType
+) {
   static getType() {
     return 'higher_than_or_equal'
   }
@@ -2106,7 +2119,7 @@ export class HigherThanOrEqualViewFilterType extends NumericComparisonViewFilter
     }
 
     const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
+    const fltVal = this._parseDurationValue(field, fieldType, filterValue)
 
     return (
       Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal >= fltVal
@@ -2114,7 +2127,10 @@ export class HigherThanOrEqualViewFilterType extends NumericComparisonViewFilter
   }
 }
 
-export class LowerThanViewFilterType extends NumericComparisonViewFilterType {
+export class LowerThanViewFilterType extends mix(
+  DurationFilterValueParseMixin,
+  NumericComparisonViewFilterType
+) {
   static getType() {
     return 'lower_than'
   }
@@ -2130,13 +2146,16 @@ export class LowerThanViewFilterType extends NumericComparisonViewFilterType {
     }
 
     const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
+    const fltVal = this._parseDurationValue(field, fieldType, filterValue)
 
     return Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal < fltVal
   }
 }
 
-export class LowerThanOrEqualViewFilterType extends NumericComparisonViewFilterType {
+export class LowerThanOrEqualViewFilterType extends mix(
+  DurationFilterValueParseMixin,
+  NumericComparisonViewFilterType
+) {
   static getType() {
     return 'lower_than_or_equal'
   }
@@ -2152,8 +2171,7 @@ export class LowerThanOrEqualViewFilterType extends NumericComparisonViewFilterT
     }
 
     const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
-
+    const fltVal = this._parseDurationValue(field, fieldType, filterValue)
     return (
       Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal <= fltVal
     )

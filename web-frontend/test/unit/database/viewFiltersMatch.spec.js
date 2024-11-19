@@ -1171,7 +1171,7 @@ const numberIsEvenAndWholeCases = [
   },
 ]
 
-const durationHigherThanCases = [
+const durationHigherLowerThanCases = [
   {
     rowValue: null,
     filterValue: '1:01',
@@ -1182,11 +1182,14 @@ const durationHigherThanCases = [
         duration_format: 'h:mm',
       },
     },
-    expected: false,
+    expectedGte: false,
+    expectedGt: false,
+    expectedLte: false,
+    expectedLt: false,
   },
   {
     rowValue: 60,
-    filterValue: '0:01',
+    filterValue: '0:01', // will parse to one minute
     context: {
       field: {
         type: 'formula',
@@ -1194,11 +1197,14 @@ const durationHigherThanCases = [
         duration_format: 'h:mm',
       },
     },
-    expected: false,
+    expectedGte: true,
+    expectedGt: false,
+    expectedLte: true,
+    expectedLt: false,
   },
   {
-    rowValue: 120,
-    filterValue: '0:01',
+    rowValue: 59, // rounded to 1 minute
+    filterValue: '0:01', // will parse to one minute
     context: {
       field: {
         type: 'formula',
@@ -1206,23 +1212,14 @@ const durationHigherThanCases = [
         duration_format: 'h:mm',
       },
     },
-    expected: true,
+    expectedGte: false,
+    expectedGt: true,
+    expectedLte: false,
+    expectedLt: true,
   },
   {
-    rowValue: 61, // will be rounded to 0:01
-    filterValue: 60,
-    context: {
-      field: {
-        type: 'formula',
-        formula_type: 'duration',
-        duration_format: 'h:mm',
-      },
-    },
-    expected: false,
-  },
-  {
-    rowValue: 61,
-    filterValue: 60,
+    rowValue: 60,
+    filterValue: '0:01', // will parse to one second
     context: {
       field: {
         type: 'formula',
@@ -1230,7 +1227,55 @@ const durationHigherThanCases = [
         duration_format: 'h:mm:ss',
       },
     },
-    expected: true,
+    expectedGte: true,
+    expectedGt: true,
+    expectedLte: false,
+    expectedLt: false,
+  },
+  {
+    rowValue: 120,
+    filterValue: '0:01', // one minute
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
+    expectedGte: true,
+    expectedGt: true,
+    expectedLte: false,
+    expectedLt: false,
+  },
+  {
+    rowValue: 61,
+    filterValue: '60',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
+    expectedGte: true,
+    expectedGt: true,
+    expectedLte: true,
+    expectedLt: true,
+  },
+  {
+    rowValue: 61,
+    filterValue: '60',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
+    expectedGte: false,
+    expectedGt: true,
+    expectedLte: false,
+    expectedLt: false,
   },
   {
     rowValue: 864001,
@@ -1242,73 +1287,13 @@ const durationHigherThanCases = [
         duration_format: 'h:mm:ss',
       },
     },
-    expected: true,
-  },
-]
-
-const durationLowerThanCases = [
-  {
-    rowValue: null,
-    filterValue: '1:01',
-    context: {
-      field: {
-        type: 'formula',
-        formula_type: 'duration',
-        duration_format: 'h:mm',
-      },
-    },
-    expected: false,
+    expectedGte: true,
+    expectedGt: true,
+    expectedLte: false,
+    expectedLt: false,
   },
   {
-    rowValue: 20,
-    filterValue: '0:01',
-    context: {
-      field: {
-        type: 'formula',
-        formula_type: 'duration',
-        duration_format: 'h:mm',
-      },
-    },
-    expected: true,
-  },
-  {
-    rowValue: 120,
-    filterValue: '0:01',
-    context: {
-      field: {
-        type: 'formula',
-        formula_type: 'duration',
-        duration_format: 'h:mm',
-      },
-    },
-    expected: false,
-  },
-  {
-    rowValue: 61, // will be rounded to 0:01
-    filterValue: 60,
-    context: {
-      field: {
-        type: 'formula',
-        formula_type: 'duration',
-        duration_format: 'h:mm',
-      },
-    },
-    expected: false,
-  },
-  {
-    rowValue: 59,
-    filterValue: 60,
-    context: {
-      field: {
-        type: 'formula',
-        formula_type: 'duration',
-        duration_format: 'h:mm:ss',
-      },
-    },
-    expected: true,
-  },
-  {
-    rowValue: 86399,
+    rowValue: 863999,
     filterValue: '24:00:00',
     context: {
       field: {
@@ -1317,7 +1302,41 @@ const durationLowerThanCases = [
         duration_format: 'h:mm:ss',
       },
     },
-    expected: true,
+    expectedGte: false,
+    expectedGt: false,
+    expectedLte: true,
+    expectedLt: true,
+  },
+  {
+    rowValue: 863999,
+    filterValue: '24:00:00',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'd h',
+      },
+    },
+    expectedGte: true,
+    expectedGt: false,
+    expectedLte: true,
+    expectedLt: false,
+  },
+
+  {
+    rowValue: 864001,
+    filterValue: '24:00:00',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'd h',
+      },
+    },
+    expectedGte: true,
+    expectedGt: true,
+    expectedLte: false,
+    expectedLt: false,
   },
 ]
 
@@ -2128,8 +2147,8 @@ describe('All Tests', () => {
     }
   )
 
-  test.each(durationHigherThanCases)(
-    'DurationHigherThanFilterType',
+  test.each(durationHigherLowerThanCases)(
+    'DurationHigherThanFilterType %j',
     (values) => {
       const fieldType = new DurationFieldType({
         app: testApp,
@@ -2141,12 +2160,12 @@ describe('All Tests', () => {
         field,
         fieldType
       )
-      expect(result).toBe(values.expected)
+      expect(result).toBe(values.expectedGt)
     }
   )
 
-  test.each(durationHigherThanCases)(
-    'DurationHigherThanFilterType on duration formula field',
+  test.each(durationHigherLowerThanCases)(
+    'DurationHigherThanFilterType on duration formula field %j',
     (values) => {
       const app = testApp.getApp()
       const fieldType = new FormulaFieldType({ app })
@@ -2158,24 +2177,59 @@ describe('All Tests', () => {
         field,
         fieldType
       )
-      expect(result).toBe(values.expected)
+      expect(result).toBe(values.expectedGt)
     }
   )
-  test.each(durationLowerThanCases)('DurationLowerThanFilterType', (values) => {
-    const app = testApp.getApp()
-    const fieldType = new DurationFieldType({ app })
-    const { field } = values.context
-    const result = new LowerThanViewFilterType({ app }).matches(
-      values.rowValue,
-      values.filterValue,
-      field,
-      fieldType
-    )
-    expect(result).toBe(values.expected)
-  })
 
-  test.each(durationLowerThanCases)(
-    'DurationLowerThanFilterType on duration formula field',
+  test.each(durationHigherLowerThanCases)(
+    'DurationHigherOrEqualThanFilterType %j',
+    (values) => {
+      const fieldType = new DurationFieldType({
+        app: testApp,
+      })
+      const { field } = values.context
+      const result = new HigherThanOrEqualViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(values.expectedGte)
+    }
+  )
+
+  test.each(durationHigherLowerThanCases)(
+    'DurationHigherThanOrEqualFilterType on duration formula field %j',
+    (values) => {
+      const app = testApp.getApp()
+      const fieldType = new FormulaFieldType({ app })
+      const { field } = values.context
+      field.formula_type = 'duration'
+      const result = new HigherThanOrEqualViewFilterType({ app }).matches(
+        values.rowValue,
+        values.filterValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expectedGte)
+    }
+  )
+
+  test.each(durationHigherLowerThanCases)(
+    'DurationLowerThanFilterType %j',
+    (values) => {
+      const app = testApp.getApp()
+      const fieldType = new DurationFieldType({ app })
+      const { field } = values.context
+      const result = new LowerThanViewFilterType({ app }).matches(
+        values.rowValue,
+        values.filterValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expectedLt)
+    }
+  )
+
+  test.each(durationHigherLowerThanCases)(
+    'DurationLowerThanFilterType on duration formula field %j',
     (values) => {
       const app = testApp.getApp()
       const fieldType = new FormulaFieldType({ app })
@@ -2187,7 +2241,40 @@ describe('All Tests', () => {
         field,
         fieldType
       )
-      expect(result).toBe(values.expected)
+      expect(result).toBe(values.expectedLt)
+    }
+  )
+
+  test.each(durationHigherLowerThanCases)(
+    'DurationLowerThanOrEqualFilterType %j',
+    (values) => {
+      const app = testApp.getApp()
+      const fieldType = new DurationFieldType({ app })
+      const { field } = values.context
+      const result = new LowerThanOrEqualViewFilterType({ app }).matches(
+        values.rowValue,
+        values.filterValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expectedLte)
+    }
+  )
+
+  test.each(durationHigherLowerThanCases)(
+    'DurationLowerThanOrEqualFilterType on duration formula field %j',
+    (values) => {
+      const app = testApp.getApp()
+      const fieldType = new FormulaFieldType({ app })
+      const { field } = values.context
+      field.formula_type = 'duration'
+      const result = new LowerThanOrEqualViewFilterType({ app }).matches(
+        values.rowValue,
+        values.filterValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expectedLte)
     }
   )
 
@@ -2209,7 +2296,7 @@ describe('All Tests', () => {
   )
 
   test.each(numberValueIsHigherThanCases)(
-    'NumberHigherThanFilterType',
+    'NumberHigherThanFilterType %j',
     (values) => {
       const app = testApp.getApp()
       const result = new HigherThanViewFilterType({ app }).matches(
