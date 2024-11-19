@@ -26,6 +26,7 @@ import {
   DateWithinDaysViewFilterType,
   DateWithinMonthsViewFilterType,
   DateWithinWeeksViewFilterType,
+  EqualViewFilterType,
   FilesLowerThanViewFilterType,
   HasFileTypeViewFilterType,
   HigherThanOrEqualViewFilterType,
@@ -1246,6 +1247,51 @@ const durationLowerThanCases = [
   },
 ]
 
+const durationEqualToValueCases = [
+  {
+    rowValue: null,
+    filterValue: '1:01',
+    context: { field: { duration_format: 'h:mm' } },
+    expected: false,
+  },
+  {
+    rowValue: 20 * 60,
+    filterValue: '0:01',
+    context: { field: { duration_format: 'h:mm' } },
+    expected: false,
+  },
+  {
+    rowValue: 20 * 60,
+    filterValue: '0:20',
+    context: { field: { duration_format: 'h:mm' } },
+    expected: true,
+  },
+  {
+    rowValue: 61, // seconds, will be rounded to 0h 01m
+    filterValue: 60,
+    context: { field: { duration_format: 'h:mm' } },
+    expected: true,
+  },
+  {
+    rowValue: 1234,
+    filterValue: 1234,
+    context: { field: { duration_format: 'h:mm:ss' } },
+    expected: true,
+  },
+  {
+    rowValue: 86399, // won't be rounded to 24h
+    filterValue: '24:00:00',
+    context: { field: { duration_format: 'h:mm:ss' } },
+    expected: false,
+  },
+  {
+    rowValue: 86399, // will be rounded to 24h because of the format
+    filterValue: '24:00:00',
+    context: { field: { duration_format: 'h:mm' } },
+    expected: true,
+  },
+]
+
 const numberValueIsHigherThanCases = [
   {
     rowValue: 2,
@@ -1909,6 +1955,22 @@ describe('All Tests', () => {
     }
   )
 
+  test.each(durationHigherThanCases)(
+    'DurationHigherThanFilterType on duration formula field',
+    (values) => {
+      const app = testApp.getApp()
+      const fieldType = new FormulaFieldType({ app })
+      const { field } = values.context
+      field.formula_type = 'duration'
+      const result = new HigherThanViewFilterType({ app }).matches(
+        values.rowValue,
+        values.filterValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected)
+    }
+  )
   test.each(durationLowerThanCases)('DurationLowerThanFilterType', (values) => {
     const app = testApp.getApp()
     const fieldType = new DurationFieldType({ app })
@@ -1921,6 +1983,40 @@ describe('All Tests', () => {
     )
     expect(result).toBe(values.expected)
   })
+
+  test.each(durationLowerThanCases)(
+    'DurationLowerThanFilterType on duration formula field',
+    (values) => {
+      const app = testApp.getApp()
+      const fieldType = new FormulaFieldType({ app })
+      const { field } = values.context
+      field.formula_type = 'duration'
+      const result = new LowerThanViewFilterType({ app }).matches(
+        values.rowValue,
+        values.filterValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(durationEqualToValueCases)(
+    'durationEqualToValueCases on duration formula field: %j',
+    (values) => {
+      const app = testApp.getApp()
+      const fieldType = new FormulaFieldType({ app })
+      const { field } = values.context
+      field.formula_type = 'duration'
+      const result = new EqualViewFilterType({ app }).matches(
+        values.rowValue,
+        values.filterValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected)
+    }
+  )
 
   test.each(numberValueIsHigherThanCases)(
     'NumberHigherThanFilterType',

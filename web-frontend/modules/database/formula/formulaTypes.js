@@ -477,6 +477,10 @@ export class BaserowFormulaDurationType extends BaserowFormulaTypeDefinition {
   canBeSortedWhenInArray(field) {
     return true
   }
+
+  parseInputValue(field, value) {
+    return super.parseInputValue(field, value)
+  }
 }
 
 // Deprecated, use BaserowFormulaDurationType instead.

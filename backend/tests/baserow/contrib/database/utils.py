@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 from dataclasses import dataclass
+from typing import Callable, Iterable
 
 from django.contrib.auth.models import AbstractUser
 
@@ -77,14 +78,15 @@ class FormulaFieldSetup:
     view_handler: ViewHandler
     formula: str
     formula_type: str
+    extra_fields: dict[str, Field]
 
 
 def boolean_field_factory(data_fixture, table, user):
     return data_fixture.create_boolean_field(name="target", user=user, table=table)
 
 
-def text_field_factory(data_fixture, table, user):
-    return data_fixture.create_text_field(name="target", user=user, table=table)
+def text_field_factory(data_fixture, table, user, name: str | None = None):
+    return data_fixture.create_text_field(name=name or "target", user=user, table=table)
 
 
 def long_text_field_factory(data_fixture, table, user):
@@ -121,9 +123,11 @@ def single_select_field_value_factory(data_fixture, target_field, value=None):
     )
 
 
-def duration_field_factory(data_fixture, table, user, duration_format: str = "d h mm"):
+def duration_field_factory(
+    data_fixture, table, user, duration_format: str = "d h mm", name: str | None = None
+):
     return data_fixture.create_duration_field(
-        name="target", user=user, table=table, duration_format=duration_format
+        name=name or "target", user=user, table=table, duration_format=duration_format
     )
 
 
@@ -177,8 +181,23 @@ def setup_linked_table_and_lookup(
 
 
 def setup_formula_field(
-    data_fixture, formula_text: str, formula_type: str, data_field_factory
+    data_fixture,
+    formula_text: str,
+    formula_type: str,
+    data_field_factory,
+    extra_fields: Iterable[Callable],
 ) -> FormulaFieldSetup:
+    """
+    Create a table with duration formula field.
+
+    :param data_fixture:
+    :param formula_text:
+    :param formula_type:
+    :param data_field_factory:
+    :param extra_fields: iterable with field factory functions.
+    :return:
+    """
+
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(user=user, database=database)
@@ -187,6 +206,11 @@ def setup_formula_field(
     formula_field = data_fixture.create_formula_field(
         table=table, user=user, formula=formula_text, formula_type=formula_type
     )
+
+    extra_fields_map = {}
+    for field_factory in extra_fields:
+        extra_field = field_factory(data_fixture, table=table, user=user)
+        extra_fields_map[extra_field.name] = extra_field
 
     grid_view = data_fixture.create_grid_view(table=table)
     view_handler = ViewHandler()
@@ -204,4 +228,5 @@ def setup_formula_field(
         model=model,
         formula=formula_text,
         formula_type=formula_type,
+        extra_fields=extra_fields_map,
     )
