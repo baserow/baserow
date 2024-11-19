@@ -1212,11 +1212,27 @@ const durationHigherLowerThanCases = [
         duration_format: 'h:mm',
       },
     },
+    expectedGte: true,
+    expectedGt: false,
+    expectedLte: true,
+    expectedLt: false,
+  },
+  {
+    rowValue: 59, // rounded to 1 minute
+    filterValue: '1:00', // will parse to one minute
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
     expectedGte: false,
-    expectedGt: true,
-    expectedLte: false,
+    expectedGt: false,
+    expectedLte: true,
     expectedLt: true,
   },
+
   {
     rowValue: 60,
     filterValue: '0:01', // will parse to one second
@@ -1249,7 +1265,7 @@ const durationHigherLowerThanCases = [
   },
   {
     rowValue: 61,
-    filterValue: '60',
+    filterValue: '60', // 60 minutes due to duration_format
     context: {
       field: {
         type: 'formula',
@@ -1257,8 +1273,8 @@ const durationHigherLowerThanCases = [
         duration_format: 'h:mm',
       },
     },
-    expectedGte: true,
-    expectedGt: true,
+    expectedGte: false,
+    expectedGt: false,
     expectedLte: true,
     expectedLt: true,
   },
@@ -1272,13 +1288,13 @@ const durationHigherLowerThanCases = [
         duration_format: 'h:mm:ss',
       },
     },
-    expectedGte: false,
+    expectedGte: true,
     expectedGt: true,
     expectedLte: false,
     expectedLt: false,
   },
   {
-    rowValue: 864001,
+    rowValue: 86401,
     filterValue: '24:00:00',
     context: {
       field: {
@@ -1293,7 +1309,7 @@ const durationHigherLowerThanCases = [
     expectedLt: false,
   },
   {
-    rowValue: 863999,
+    rowValue: 86399,
     filterValue: '24:00:00',
     context: {
       field: {
@@ -1308,7 +1324,7 @@ const durationHigherLowerThanCases = [
     expectedLt: true,
   },
   {
-    rowValue: 863999,
+    rowValue: 86399, // will be rounded to 24h
     filterValue: '24:00:00',
     context: {
       field: {
@@ -1324,7 +1340,7 @@ const durationHigherLowerThanCases = [
   },
 
   {
-    rowValue: 864001,
+    rowValue: 86401, // will be rounded to 24h
     filterValue: '24:00:00',
     context: {
       field: {
@@ -1334,8 +1350,23 @@ const durationHigherLowerThanCases = [
       },
     },
     expectedGte: true,
-    expectedGt: true,
-    expectedLte: false,
+    expectedGt: false,
+    expectedLte: true,
+    expectedLt: false,
+  },
+  {
+    rowValue: 86400,
+    filterValue: '24:00:00',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'd h',
+      },
+    },
+    expectedGte: true,
+    expectedGt: false,
+    expectedLte: true,
     expectedLt: false,
   },
 ]

@@ -1,3 +1,4 @@
+import _ from 'lodash'
 export default {
   /**
    * Helper to parse duration specific filterValue. A filterValue comes a string
@@ -7,8 +8,12 @@ export default {
    * on field.duration_format value.
    *
    * This method ensures that if a field is of duration type (a duration field or a
-   * duration formula field), it will receive field context with a correct duration
-   * format to ensure that filterValue will be understood as a number of seconds.
+   * duration formula field), and filterValue is a number, it will receive field
+   * context with a correct duration format to ensure that filterValue will be
+   * understood as a number of seconds.
+   *
+   * If filterValue is not a number, field's duration_format will be used to parse
+   * duration.
    *
    * @param field
    * @param fieldType
@@ -18,8 +23,13 @@ export default {
    */
   _parseDurationValue(field, fieldType, filterValue) {
     if (field.type === 'duration' || field.formula_type === 'duration') {
+      let durationFormat = field.duration_format
+      if (_.isNumber(filterValue)) {
+        durationFormat = 'h:mm:ss'
+      }
+
       return fieldType.parseInputValue(
-        { ...field, duration_format: 'h:mm:ss' },
+        { ...field, duration_format: durationFormat },
         filterValue
       )
     } else {

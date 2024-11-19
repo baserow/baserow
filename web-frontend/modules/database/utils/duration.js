@@ -322,10 +322,19 @@ export const parseDurationValue = (
 
     // the regex is using named groups, so the handler function should too
     if (!_.isEmpty(matchedGroups)) {
+      console.warn('not empty match', { matchedGroups, multiplier, formatFunc })
       return formatFunc(matchedGroups) * multiplier
     }
     // no named groups, so we use positional args
     if (match) {
+      console.warn('not empty match, positional args', {
+        match,
+        multiplier,
+        formatFunc,
+        inputValue,
+        format,
+        ret: formatFunc(...match.slice(1)),
+      })
       return formatFunc(...match.slice(1)) * multiplier
     }
   }
