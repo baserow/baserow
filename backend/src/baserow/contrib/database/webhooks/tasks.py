@@ -2,13 +2,15 @@ from datetime import datetime, timezone
 
 from django.conf import settings
 from django.db import transaction
+from django.db.utils import OperationalError
 
 from baserow.config.celery import app
 
 
 @app.task(
     bind=True,
-    max_retries=settings.BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL,
+    # We don't need a max_retries because that logic is handled inside the task.
+    max_retries=None,
     queue="export",
 )
 def call_webhook(
@@ -41,20 +43,63 @@ def call_webhook(
     from advocate import UnacceptableAddressException
     from requests import RequestException
 
+    from django.core.cache import cache
+
     from .handler import WebhookHandler
     from .models import TableWebhook, TableWebhookCall
 
     with transaction.atomic():
         handler = WebhookHandler()
 
+        disabled_cache_key = f"baserow_disabled_webhook_{webhook_id}"
+        is_disabled = cache.get(disabled_cache_key, False)
+
+        # If the webhook is disabled via the cache, it means the task has been trying
+        # to get a lock on the webhook for too long. To prevent the celery queue from
+        # we don't proceed triggering the webhook.
+        if is_disabled:
+            return
+
         try:
-            webhook = TableWebhook.objects.select_for_update(of=("self",)).get(
-                id=webhook_id
+            webhook = TableWebhook.objects.select_for_update(
+                nowait=True,
+                of=("self", )
+            ).get(
+                id=webhook_id,
+                # If a webhook is not active, then it should not be executed.
+                active=True,
             )
         except TableWebhook.DoesNotExist:
-            # If the webhook has been deleted while executing, we don't want to continue
-            # trying to call the URL because we can't update the state of the webhook.
+            # If the webhook has been deleted or disabled while executing, we don't want
+            # to continue trying to call the URL because we can't update the state of
+            # the webhook.
             return
+        except OperationalError as e:
+            if "could not obtain lock" in e.args[0]:
+                if (
+                    self.request.retries <
+                    settings.BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL
+                ):
+                    # If the Webhook object is locked, it means that another webhook is
+                    # being executed. We only want to allow one webhook trigger to
+                    # run concurrently to keep the workers free. we're going to retry
+                    # the job later with an exponential backoff.
+                    self.retry(countdown=2**self.request.retries)
+                else:
+                    # If the webhook is still locked after
+                    # BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL (default is 8) attempts,
+                    # meaning after 2**8-1=255 seconds, then we can safely say that a
+                    # lot of webhook calls are triggered. This could even be that the
+                    # webhook is stuck in a loop, and because the celery tasks can
+                    # pile up, taking memory, we should try to deactivate the webhook.
+                    cache.set(
+                        disabled_cache_key,
+                        True,
+                        timeout=2**settings.BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL
+                    )
+                return
+            else:
+                raise e
 
         request = None
         response = None
@@ -112,6 +157,13 @@ def call_webhook(
             # we're going to deactivate it because we can reasonable assume that the
             # target doesn't listen anymore. At this point we've tried 8 * 10 times.
             # The user can manually activate it again when it's fixed.
+            webhook.active = False
+            webhook.save()
+
+        # If the webhook was disabled via the cache in the meantime, then we should
+        # mark it as deactivated because we're the one with the lock and this webhook
+        # is supposed to be disabled.
+        if cache.get(disabled_cache_key, False):
             webhook.active = False
             webhook.save()
 
