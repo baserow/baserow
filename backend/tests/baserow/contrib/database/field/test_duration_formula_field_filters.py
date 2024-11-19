@@ -81,7 +81,12 @@ def duration_formula_filter_proc(
 @pytest.mark.parametrize(
     "filter_type_name,test_value,expected_rows,duration_format",
     [
-        ("equal", str(3 * 3600), ["3h", "3h 1s", "3h -1s"], "h:mm"),  # rounding
+        ("equal", str(3 * 3600), ["3h", "3h 1s", "3h -1s"], "h:mm"),
+        ("equal", str((3 * 3600) + 2), ["3h", "3h 1s", "3h -1s"], "h:mm"),
+        ("equal", "3600s", ["1h", "1h 1s", "1h -1s"], "h:mm"),
+        ("equal", "3602s", ["1h", "1h 1s", "1h -1s"], "h:mm"),
+        ("equal", "3h", ["3h", "3h 1s", "3h -1s"], "h:mm"),
+        ("equal", "1d 20h", [], "d h:mm"),
         ("equal", str(3 * 3600), ["3h"], "d h mm ss"),  # exact
         ("equal", str(3 * 1800), [], "d h mm ss"),
         ("equal", "invalid", [], "d h mm ss"),
@@ -112,6 +117,12 @@ def duration_formula_filter_proc(
         ),
         (
             "not_equal",
+            "3h 2s",
+            ["1h", "2h", "4h", "5h", "none", "1h 1s", "1h -1s", "59s", "1m 1s"],
+            "d h",
+        ),
+        (
+            "not_equal",
             str(3 * 3600),
             ["1h", "2h", "4h", "5h", "none", "1h 1s", "1h -1s", "59s", "1m 1s"],
             "d h",
@@ -138,6 +149,8 @@ def duration_formula_filter_proc(
         (
             "not_equal",
             "invalid",
+            # this is a negation of 'equal' with 'invalid' value,
+            # so it will yield all values
             [
                 "1h",
                 "2h",
@@ -179,6 +192,18 @@ def duration_formula_filter_proc(
 def test_duration_formula_equal_value_filter(
     data_fixture, filter_type_name, test_value, expected_rows, duration_format
 ):
+    """
+    Test equal/not equal filters. Note that due to implementation,
+     filter value will be rounded accordingly to duration format set for the field.
+
+    :param data_fixture:
+    :param filter_type_name:
+    :param test_value:
+    :param expected_rows:
+    :param duration_format:
+    :return:
+    """
+
     duration_formula_filter_proc(
         data_fixture, duration_format, filter_type_name, test_value, expected_rows
     )
@@ -205,6 +230,24 @@ def test_duration_formula_equal_value_filter(
                 "3h -1s",
             ],  # 1h 1s will be truncated to 1h, so won't be in the set
             "d h mm",
+        ),
+        (
+            "higher_than",
+            str((2 * 3600) - 2),  # this will be rounded up to 2h precisely
+            [
+                "3h",
+                "4h",
+                "5h",
+                "3h 1s",
+                "3h -1s",
+            ],  # 1h 1s will be truncated to 1h, so won't be in the set
+            "d h mm",
+        ),
+        (
+            "higher_than",
+            "1h 59:59",
+            [],  # treated as invalid as it's not decimal-compatible
+            "h:mm:ss",
         ),
         (
             "higher_than",
@@ -247,6 +290,12 @@ def test_duration_formula_equal_value_filter(
             ["3h", "4h", "5h", "3h 1s", "3h -1s"],
             "d h",
         ),
+        (
+            "higher_than_or_equal",
+            "1:59:59",
+            ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s"],
+            "h:mm:ss",
+        ),
         ("higher_than_or_equal", "invalid", [], "d h mm ss"),
         (
             "higher_than_or_equal",
@@ -282,7 +331,8 @@ def test_duration_formula_higher_than_equal_value_filter(
     "filter_type_name,test_value,expected_rows,duration_format",
     [
         ("lower_than", str(3 * 1800), ["1h", "1h -1s", "1h 1s", "59s", "1m 1s"], "d h"),
-        ("lower_than", str(3599), ["59s", "1m 1s"], "d h"),  # ["1h", "1h -1s", "1h 1s"]
+        # filter value is rounded to 1h, row values also
+        ("lower_than", str(3599), ["59s", "1m 1s"], "d h"),
         (
             "lower_than",
             str(3 * 3600),

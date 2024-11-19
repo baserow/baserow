@@ -208,8 +208,14 @@ export class EqualViewFilterType extends ViewFilterType {
       rowValue = ''
     }
 
-    rowValue = rowValue.toString().toLowerCase().trim()
-    filterValue = filterValue.toString().toLowerCase().trim()
+    if (field.type === 'duration' || field.formula_type === 'duration') {
+      const durationField = new DurationFieldType()
+      rowValue = durationField.parseInputValue(field, rowValue)
+      filterValue = durationField.parseInputValue(field, filterValue)
+    } else {
+      rowValue = rowValue.toString().toLowerCase().trim()
+      filterValue = filterValue.toString().toLowerCase().trim()
+    }
     return filterValue === '' || rowValue === filterValue
   }
 }
@@ -256,8 +262,14 @@ export class NotEqualViewFilterType extends ViewFilterType {
       rowValue = ''
     }
 
-    rowValue = rowValue.toString().toLowerCase().trim()
-    filterValue = filterValue.toString().toLowerCase().trim()
+    if (field.type === 'duration' || field.formula_type === 'duration') {
+      const durationField = new DurationFieldType()
+      rowValue = durationField.parseInputValue(field, rowValue)
+      filterValue = durationField.parseInputValue(field, filterValue)
+    } else {
+      rowValue = rowValue.toString().toLowerCase().trim()
+      filterValue = filterValue.toString().toLowerCase().trim()
+    }
     return filterValue === '' || rowValue !== filterValue
   }
 }
@@ -2073,6 +2085,7 @@ export class HigherThanViewFilterType extends NumericComparisonViewFilterType {
 
     const rowVal = fieldType.parseInputValue(field, rowValue)
     const fltVal = fieldType.parseInputValue(field, filterValue)
+
     return Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal > fltVal
   }
 }
@@ -2094,6 +2107,7 @@ export class HigherThanOrEqualViewFilterType extends NumericComparisonViewFilter
 
     const rowVal = fieldType.parseInputValue(field, rowValue)
     const fltVal = fieldType.parseInputValue(field, filterValue)
+
     return (
       Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal >= fltVal
     )
@@ -2117,6 +2131,7 @@ export class LowerThanViewFilterType extends NumericComparisonViewFilterType {
 
     const rowVal = fieldType.parseInputValue(field, rowValue)
     const fltVal = fieldType.parseInputValue(field, filterValue)
+
     return Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal < fltVal
   }
 }
@@ -2138,6 +2153,7 @@ export class LowerThanOrEqualViewFilterType extends NumericComparisonViewFilterT
 
     const rowVal = fieldType.parseInputValue(field, rowValue)
     const fltVal = fieldType.parseInputValue(field, filterValue)
+
     return (
       Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal <= fltVal
     )

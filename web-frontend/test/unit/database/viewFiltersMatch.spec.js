@@ -26,6 +26,7 @@ import {
   DateWithinDaysViewFilterType,
   DateWithinMonthsViewFilterType,
   DateWithinWeeksViewFilterType,
+  EmptyViewFilterType,
   EqualViewFilterType,
   FilesLowerThanViewFilterType,
   HasFileTypeViewFilterType,
@@ -39,6 +40,7 @@ import {
   LowerThanViewFilterType,
   MultipleSelectHasFilterType,
   MultipleSelectHasNotFilterType,
+  NotEmptyViewFilterType,
   SingleSelectIsAnyOfViewFilterType,
   SingleSelectIsNoneOfViewFilterType,
 } from '@baserow/modules/database/viewFilters'
@@ -1173,37 +1175,73 @@ const durationHigherThanCases = [
   {
     rowValue: null,
     filterValue: '1:01',
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: false,
   },
   {
     rowValue: 60,
     filterValue: '0:01',
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: false,
   },
   {
     rowValue: 120,
     filterValue: '0:01',
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: true,
   },
   {
     rowValue: 61, // will be rounded to 0:01
     filterValue: 60,
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: false,
   },
   {
     rowValue: 61,
     filterValue: 60,
-    context: { field: { duration_format: 'h:mm:ss' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
     expected: true,
   },
   {
     rowValue: 864001,
     filterValue: '24:00:00',
-    context: { field: { duration_format: 'h:mm:ss' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
     expected: true,
   },
 ]
@@ -1212,38 +1250,116 @@ const durationLowerThanCases = [
   {
     rowValue: null,
     filterValue: '1:01',
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: false,
   },
   {
     rowValue: 20,
     filterValue: '0:01',
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: true,
   },
   {
     rowValue: 120,
     filterValue: '0:01',
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: false,
   },
   {
     rowValue: 61, // will be rounded to 0:01
     filterValue: 60,
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: false,
   },
   {
     rowValue: 59,
     filterValue: 60,
-    context: { field: { duration_format: 'h:mm:ss' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
     expected: true,
   },
   {
     rowValue: 86399,
     filterValue: '24:00:00',
-    context: { field: { duration_format: 'h:mm:ss' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
     expected: true,
+  },
+]
+
+const durationEmptyNotEmptyCases = [
+  {
+    rowValue: null,
+    filterValue: '',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
+    emptyExpected: true,
+    notEmptyExpected: false,
+  },
+  {
+    rowValue: '',
+    filterValue: '',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
+    emptyExpected: true,
+    notEmptyExpected: false,
+  },
+  {
+    rowValue: 1234,
+    filterValue: '',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
+    emptyExpected: false,
+    notEmptyExpected: true,
   },
 ]
 
@@ -1251,43 +1367,85 @@ const durationEqualToValueCases = [
   {
     rowValue: null,
     filterValue: '1:01',
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: false,
   },
   {
     rowValue: 20 * 60,
     filterValue: '0:01',
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: false,
   },
   {
     rowValue: 20 * 60,
     filterValue: '0:20',
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: true,
   },
   {
     rowValue: 61, // seconds, will be rounded to 0h 01m
     filterValue: 60,
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: true,
   },
   {
     rowValue: 1234,
     filterValue: 1234,
-    context: { field: { duration_format: 'h:mm:ss' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
     expected: true,
   },
   {
     rowValue: 86399, // won't be rounded to 24h
     filterValue: '24:00:00',
-    context: { field: { duration_format: 'h:mm:ss' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
     expected: false,
   },
   {
     rowValue: 86399, // will be rounded to 24h because of the format
     filterValue: '24:00:00',
-    context: { field: { duration_format: 'h:mm' } },
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
     expected: true,
   },
 ]
@@ -1937,6 +2095,38 @@ describe('All Tests', () => {
       )
     ).toBe(true)
   })
+
+  test.each(durationEmptyNotEmptyCases)(
+    'durationEmptyNotEmptyCases empty test on duration formula field: %j',
+    (values) => {
+      const app = testApp.getApp()
+      const fieldType = new FormulaFieldType({ app })
+      const { field } = values.context
+      const result = new EmptyViewFilterType({ app }).matches(
+        values.rowValue,
+        values.filterValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.emptyExpected)
+    }
+  )
+
+  test.each(durationEmptyNotEmptyCases)(
+    'durationEmptyNotEmptyCases not empty test on duration formula field: %j',
+    (values) => {
+      const app = testApp.getApp()
+      const fieldType = new FormulaFieldType({ app })
+      const { field } = values.context
+      const result = new NotEmptyViewFilterType({ app }).matches(
+        values.rowValue,
+        values.filterValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.notEmptyExpected)
+    }
+  )
 
   test.each(durationHigherThanCases)(
     'DurationHigherThanFilterType',
