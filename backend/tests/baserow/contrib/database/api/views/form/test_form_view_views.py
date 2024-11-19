@@ -229,6 +229,7 @@ def test_create_form_view_with_webhooks(api_client, data_fixture):
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
         assert m.called
+        print("CALL ARGS", m.call_args)
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK

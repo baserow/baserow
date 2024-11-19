@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from unittest.mock import patch
 from urllib.parse import quote
 
 from django.db import connection
@@ -1840,6 +1841,35 @@ def test_create_row(api_client, data_fixture):
     }
 
 
+@pytest.mark.django_db(transaction=True)
+def test_create_row_with_disabled_webhook_events(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.post(
+            f"{url}?send_webhook_events=false",
+            {f"field_{text_field.id}": "Test 1"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        m.assert_not_called()
+
+
 @pytest.mark.django_db
 def test_create_row_with_read_only_field(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
@@ -2290,6 +2320,40 @@ def test_update_row(api_client, data_fixture):
     assert getattr(row_2, f"field_{boolean_field.id}") is False
 
 
+@pytest.mark.django_db(transaction=True)
+def test_update_row_with_disabled_webhook_events(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create()
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.patch(
+            f"{url}?send_webhook_events=false",
+            {f"field_{text_field.id}": "Test 1"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        m.assert_not_called()
+
+
 @pytest.mark.django_db
 def test_update_row_with_read_only_field(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
@@ -2472,6 +2536,40 @@ def test_move_row(api_client, data_fixture):
     )
 
 
+@pytest.mark.django_db(transaction=True)
+def test_move_row_with_disabled_webhook_events(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create()
+    row_2 = model.objects.create()
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    url = reverse(
+        "api:database:rows:move", kwargs={"table_id": table.id, "row_id": row_2.id}
+    )
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.patch(
+            f"{url}?before_id={row_1.id}&send_webhook_events=false",
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        m.assert_not_called()
+
+
 @pytest.mark.django_db
 def test_cannot_delete_row_by_id_with_data_sync(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
@@ -2564,6 +2662,39 @@ def test_delete_row_by_id(api_client, data_fixture):
     response = api_client.delete(url, HTTP_AUTHORIZATION=f"Token {token.key}")
     assert response.status_code == 204
     assert model.objects.count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_delete_row_by_id_with_disabled_webhook_events(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create()
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.delete(
+            f"{url}?send_webhook_events=false",
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_204_NO_CONTENT
+        m.assert_not_called()
 
 
 @pytest.mark.django_db

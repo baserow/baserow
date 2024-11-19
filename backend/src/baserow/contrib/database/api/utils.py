@@ -174,6 +174,20 @@ def extract_user_field_names_from_params(query_params):
     return str_to_bool(value)
 
 
+def extract_send_webhook_events_from_params(query_params) -> bool:
+    """
+    Extracts the send_webhook_events parameter from the query_params and returns
+    boolean value. Defaults to true if not provided or empty.
+    """
+
+    value = query_params.get("send_webhook_events")
+
+    if value is None or value == "":
+        return True
+
+    return str_to_bool(value)
+
+
 @dataclass
 class LinkedTargetField:
     field_id: int

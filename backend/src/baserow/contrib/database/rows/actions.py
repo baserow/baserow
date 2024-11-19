@@ -58,6 +58,7 @@ class CreateRowActionType(UndoableActionType):
         model: Optional[Type[GeneratedTableModel]] = None,
         before_row: Optional[GeneratedTableModel] = None,
         user_field_names: bool = False,
+        send_webhook_events: bool = True,
     ) -> GeneratedTableModel:
         """
         Creates a new row for a given table with the provided values if the user
@@ -76,6 +77,8 @@ class CreateRowActionType(UndoableActionType):
             instance.
         :param user_field_names: Whether or not the values are keyed by the internal
             Baserow field name (field_1,field_2 etc) or by the user field names.
+        :param send_webhook_events: If set the false then the webhooks will not be
+            triggered. Defaults to true.
         :return: The created row instance.
         """
 
@@ -91,6 +94,7 @@ class CreateRowActionType(UndoableActionType):
             model=model,
             before_row=before_row,
             user_field_names=user_field_names,
+            send_webhook_events=send_webhook_events,
         )
 
         workspace = table.database.workspace
@@ -148,6 +152,7 @@ class CreateRowsActionType(UndoableActionType):
         rows_values: List[Dict[str, Any]],
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
+        send_webhook_events: bool = True,
     ) -> List[GeneratedTableModel]:
         """
         Creates rows for a given table with the provided values if the user
@@ -163,6 +168,8 @@ class CreateRowsActionType(UndoableActionType):
             the row with this id.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
+        :param send_webhook_events: If set the false then the webhooks will not be
+            triggered. Defaults to true.
         :return: The created list of rows instances.
         """
 
@@ -177,6 +184,7 @@ class CreateRowsActionType(UndoableActionType):
             rows_values,
             before_row=before_row,
             model=model,
+            send_webhook_events=send_webhook_events,
         )
 
         workspace = table.database.workspace
@@ -327,6 +335,7 @@ class DeleteRowActionType(UndoableActionType):
         table: Table,
         row_id: int,
         model: Optional[Type[GeneratedTableModel]] = None,
+        send_webhook_events: bool = True,
     ):
         """
         Deletes an existing row of the given table and with row_id.
@@ -339,6 +348,8 @@ class DeleteRowActionType(UndoableActionType):
         :param row_id: The id of the row that must be deleted.
         :param model: If the correct model has already been generated, it can be
             provided so that it does not have to be generated for a second time.
+        :param send_webhook_events: If set the false then the webhooks will not be
+            triggered. Defaults to true.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
@@ -347,7 +358,9 @@ class DeleteRowActionType(UndoableActionType):
                 "Can't delete rows because it has a data sync."
             )
 
-        RowHandler().delete_row_by_id(user, table, row_id, model=model)
+        RowHandler().delete_row_by_id(
+            user, table, row_id, model=model, send_webhook_events=send_webhook_events
+        )
 
         database = table.database
         params = cls.Params(table.id, table.name, database.id, database.name, row_id)
@@ -399,6 +412,7 @@ class DeleteRowsActionType(UndoableActionType):
         table: Table,
         row_ids: List[int],
         model: Optional[Type[GeneratedTableModel]] = None,
+        send_webhook_events: bool = True,
     ):
         """
         Deletes rows of the given table with the given row_ids.
@@ -411,6 +425,8 @@ class DeleteRowsActionType(UndoableActionType):
         :param row_ids: The id of the row that must be deleted.
         :param model: If the correct model has already been generated, it can be
             provided so that it does not have to be generated for a second time.
+        :param send_webhook_events: If set the false then the webhooks will not be
+            triggered. Defaults to true.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
@@ -419,7 +435,9 @@ class DeleteRowsActionType(UndoableActionType):
                 "Can't delete rows because it has a data sync."
             )
 
-        trashed_rows_entry = RowHandler().delete_rows(user, table, row_ids, model=model)
+        trashed_rows_entry = RowHandler().delete_rows(
+            user, table, row_ids, model=model, send_webhook_events=send_webhook_events
+        )
 
         workspace = table.database.workspace
         params = cls.Params(
@@ -548,6 +566,7 @@ class MoveRowActionType(UndoableActionType):
         row_id: int,
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
+        send_webhook_events: bool = True,
     ) -> GeneratedTableModelForUpdate:
         """
         Moves the row before another row or to the end if no before row is provided.
@@ -566,6 +585,8 @@ class MoveRowActionType(UndoableActionType):
             instance. Otherwise the row will be moved to the end.
         :param model: If the correct model has already been generated, it can be
             provided so that it does not have to be generated for a second time.
+        :param send_webhook_events: If set the false then the webhooks will not be
+            triggered. Defaults to true.
         """
 
         if model is None:
@@ -577,7 +598,12 @@ class MoveRowActionType(UndoableActionType):
         original_row_order = row.order
 
         updated_row = row_handler.move_row(
-            user, table, row, before_row=before_row, model=model
+            user,
+            table,
+            row,
+            before_row=before_row,
+            model=model,
+            send_webhook_events=send_webhook_events,
         )
 
         rows_displacement = get_rows_displacement(
@@ -762,6 +788,7 @@ class UpdateRowsActionType(UndoableActionType):
         table: Table,
         rows_values: List[Dict[str, Any]],
         model: Optional[Type[GeneratedTableModel]] = None,
+        send_webhook_events: bool = True,
     ) -> List[GeneratedTableModelForUpdate]:
         """
         Updates field values in batch based on provided rows with the new values.
@@ -776,6 +803,8 @@ class UpdateRowsActionType(UndoableActionType):
             field ids plus the id of the row.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
+        :param send_webhook_events: If set the false then the webhooks will not be
+            triggered. Defaults to true.
         :return: The updated rows.
         """
 
@@ -786,6 +815,7 @@ class UpdateRowsActionType(UndoableActionType):
             table,
             rows_values,
             model=model,
+            send_webhook_events=send_webhook_events,
         )
         updated_rows = result.updated_rows
 
