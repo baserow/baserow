@@ -22,6 +22,7 @@ from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.app_auth_providers.handler import AppAuthProviderHandler
+from baserow.core.formula.validator import ensure_string
 from baserow.core.handler import CoreHandler
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
@@ -473,8 +474,8 @@ class LocalBaserowUserSourceType(UserSourceType):
             field = getattr(user, user_source.role_field.db_column) or ""
             if user_source.role_field.get_type().can_have_select_options:
                 return field.value.strip() if field else ""
-            else:
-                return field.strip()
+
+            return ensure_string(field).strip()
 
         return self.get_default_user_role(user_source)
 
@@ -551,7 +552,7 @@ class LocalBaserowUserSourceType(UserSourceType):
             .values_list(role_field_column, flat=True)
             .order_by(role_field_column)
         ):
-            roles.append(role.strip())
+            roles.append(ensure_string(role).strip())
 
         return roles
 

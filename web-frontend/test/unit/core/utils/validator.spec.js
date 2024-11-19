@@ -32,6 +32,7 @@ describe('ensureString', () => {
     expect(ensureString(undefined)).toBe('')
     expect(ensureString('')).toBe('')
     expect(ensureString([])).toBe('')
+    expect(ensureString({})).toBe('')
   })
 
   it('should convert the value to a string if it is truthy', () => {
@@ -40,8 +41,14 @@ describe('ensureString', () => {
     expect(ensureString(0)).toBe('0')
     expect(ensureString(false)).toBe('false')
     expect(ensureString([1, 2, 3])).toBe('1,2,3')
-    expect(ensureString([[], [[], [5, 7], 6]])).toBe('5,7,6')
-    expect(ensureString({ key: 'value' })).toBe('[object Object]')
+    expect(ensureString({ key: 'value' })).toBe('{"key":"value"}')
+    expect(ensureString(['foo', ['bar']])).toBe('foo,bar')
+    expect(ensureString(['foo', { bar: 'baz' }, 'a', ['b']])).toBe(
+      'foo,{"bar":"baz"},a,b'
+    )
+    expect(ensureString({ foo: ['a', 'b'], baz: { d: ['e', 'f'] } })).toBe(
+      '{"foo":["a","b"],"baz":{"d":["e","f"]}}'
+    )
   })
 })
 

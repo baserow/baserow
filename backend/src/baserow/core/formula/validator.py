@@ -1,3 +1,4 @@
+import json
 from typing import Any, List
 
 from django.core.exceptions import ValidationError
@@ -6,7 +7,6 @@ from baserow.contrib.database.fields.constants import (
     BASEROW_BOOLEAN_FIELD_FALSE_VALUES,
     BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
 )
-from baserow.core.utils import flatten
 
 
 def ensure_boolean(value: Any) -> bool:
@@ -55,12 +55,17 @@ def ensure_string(value: Any, allow_empty: bool = True) -> str:
     :raises ValueError: If not allow_empty and the `value` is empty.
     """
 
-    if value is None or value == "" or value == []:
+    if value is None or value == "" or value == [] or value == {}:
         if not allow_empty:
             raise ValidationError("A valid String is required.")
         return ""
+
     if isinstance(value, list):
-        return ",".join(flatten(value))
+        results = [ensure_string(item) for item in value if item]
+        return ",".join(results)
+    elif isinstance(value, dict):
+        return json.dumps(value)
+
     return str(value)
 
 

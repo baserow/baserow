@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fix a bug where setting the User Role field to a Formula field could raise an error.",
+    "issue_number": 3190,
+    "bullet_points": [],
+    "created_at": "2024-11-14"
+}

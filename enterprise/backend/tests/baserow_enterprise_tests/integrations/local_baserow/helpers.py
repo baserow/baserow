@@ -6,7 +6,7 @@ from baserow_enterprise.integrations.local_baserow.models import (
 )
 
 
-def populate_local_baserow_test_data(data_fixture, role_name=""):
+def populate_local_baserow_test_data(data_fixture, role_name="", extra_fields=None):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
@@ -20,23 +20,48 @@ def populate_local_baserow_test_data(data_fixture, role_name=""):
         application=published_builder, user=user
     )
 
+    columns = [
+        ("Email", "text"),
+        ("Name", "text"),
+        ("Password", "text"),
+        ("Role", "text"),
+    ]
+    extra_args = []
+    if extra_fields is not None:
+        for item in extra_fields:
+            columns.append((item["name"], item["field_type"]))
+        extra_args = [i["value"] for i in extra_fields]
+
     table, fields, rows = data_fixture.build_table(
         user=user,
-        columns=[
-            ("Email", "text"),
-            ("Name", "text"),
-            ("Password", "text"),
-            ("Role", "text"),
-        ],
+        columns=columns,
         rows=[
-            ["test@baserow.io", "Test", make_password("super not secret"), role_name],
-            ["test2@baserow.io", "Test2", make_password("super not secret"), role_name],
-            ["test3@baserow.io", "Test3", make_password("super not secret"), role_name],
-            ["test4@baserow.io", "Test4", None, role_name],
+            [
+                "test@baserow.io",
+                "Test",
+                make_password("super not secret"),
+                role_name,
+                *extra_args,
+            ],
+            [
+                "test2@baserow.io",
+                "Test2",
+                make_password("super not secret"),
+                role_name,
+                *extra_args,
+            ],
+            [
+                "test3@baserow.io",
+                "Test3",
+                make_password("super not secret"),
+                role_name,
+                *extra_args,
+            ],
+            ["test4@baserow.io", "Test4", None, role_name, *extra_args],
         ],
     )
 
-    email_field, name_field, password_field, role_field = fields
+    email_field, name_field, password_field, role_field, *other_fields = fields
 
     local_baserow_user_source_type = user_source_type_registry.get("local_baserow")
 
@@ -61,4 +86,7 @@ def populate_local_baserow_test_data(data_fixture, role_name=""):
         "auth_provider": app_auth_provider,
         "domain": domain,
         "user_table": table,
+        "user": user,
+        "rows": rows,
+        "fields": fields,
     }

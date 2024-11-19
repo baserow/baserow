@@ -23,10 +23,12 @@ from baserow.contrib.database.fields.models import (
     PasswordField,
     PhoneNumberField,
     RatingField,
+    SelectOption,
     SingleSelectField,
     TextField,
     URLField,
 )
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.app_auth_providers.models import AppAuthProvider
@@ -1933,6 +1935,115 @@ def test_get_roles_returns_expected_roles(
     roles = LocalBaserowUserSourceType().get_roles(user_source)
 
     assert sorted(roles) == sorted(expected_roles)
+
+
+@pytest.mark.django_db
+def test_get_user_role_returns_role_from_formula_field_date_field(data_fixture):
+    """
+    Ensure the get_user_role() method returns a specific user role when
+    the Role Field is of type FormulaField that points to a Date field.
+    """
+
+    role_name = "foo_role"
+    extra_fields = [
+        {
+            "name": "foo_custom_field",
+            "field_type": "date",
+            "value": "2024-11-14",
+        }
+    ]
+    data = populate_local_baserow_test_data(
+        data_fixture, role_name=role_name, extra_fields=extra_fields
+    )
+
+    user_source = data["user_source"]
+    table = data["user_table"]
+    user = data["user"]
+
+    field_handler = FieldHandler()
+    formula_field = field_handler.create_field(
+        user=user,
+        table=table,
+        type_name="formula",
+        name="role_field",
+        formula="field('foo_custom_field')",
+    )
+
+    user_source.role_field = formula_field
+    user_source.save()
+
+    UserModel = data["user_table"].get_model()
+    user = UserModel.objects.first()
+
+    user_role = LocalBaserowUserSourceType().get_user_role(
+        user,
+        user_source,
+    )
+
+    assert user_role == "2024-11-14"
+
+
+@pytest.mark.django_db
+def test_get_user_role_returns_role_from_formula_multiple_select_field(data_fixture):
+    """
+    Ensure the get_user_role() method returns a specific user role when
+    the Role Field is of type FormulaField that points to a Multiple select field.
+    """
+
+    role_name = "foo_role"
+    extra_fields = [
+        {
+            "name": "foo_custom_field",
+            "field_type": "multiple_select",
+            "value": {},
+        }
+    ]
+    data = populate_local_baserow_test_data(
+        data_fixture, role_name=role_name, extra_fields=extra_fields
+    )
+
+    user_source = data["user_source"]
+    table = data["user_table"]
+    user = data["user"]
+
+    multiple_select_field = data["fields"][-1]
+
+    option = SelectOption.objects.create(
+        field=multiple_select_field,
+        order=1,
+        value="Sea",
+        color="green",
+    )
+
+    for row in data["rows"]:
+        RowHandler().update_row(
+            user,
+            table,
+            row,
+            values={f"field_{multiple_select_field.id}": ["Sea"]},
+        )
+
+    field_handler = FieldHandler()
+    formula_field = field_handler.create_field(
+        user=user,
+        table=table,
+        type_name="formula",
+        name="role_field",
+        formula="field('foo_custom_field')",
+    )
+
+    user_source.role_field = formula_field
+    user_source.save()
+
+    UserModel = data["user_table"].get_model()
+    user = UserModel.objects.first()
+
+    user_role = LocalBaserowUserSourceType().get_user_role(
+        user,
+        user_source,
+    )
+
+    assert user_role == f'{{"id": {option.id}, "color": "green", "value": "Sea"}}'
 
 
 @pytest.mark.django_db

@@ -1,3 +1,5 @@
+import _ from 'lodash'
+
 import { trueValues, falseValues } from '@baserow/modules/core/utils/constants'
 
 /**
@@ -46,7 +48,8 @@ export const ensureString = (value, { allowEmpty = true } = {}) => {
     value === null ||
     value === undefined ||
     value === '' ||
-    (Array.isArray(value) && !value.length)
+    (Array.isArray(value) && !value.length) ||
+    (typeof value === 'object' && _.isEmpty(value))
   ) {
     if (!allowEmpty) {
       throw new Error('A valid String is required.')
@@ -54,7 +57,11 @@ export const ensureString = (value, { allowEmpty = true } = {}) => {
     return ''
   }
   if (Array.isArray(value)) {
-    return value.flat(Infinity).join(',')
+    // convert item into a string recursively
+    const results = value.map((item) => ensureString(item))
+    return results.join(',')
+  } else if (typeof value === 'object') {
+    return JSON.stringify(value)
   }
   return `${value}`
 }
