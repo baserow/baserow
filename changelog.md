@@ -9,6 +9,7 @@
 ### Bug fixes
 * Fix bug by include schema in PostgreSQL data sync.
 * Fix corrupted export being created on s3 like storages [#3197](https://gitlab.com/baserow/baserow/-/issues/3197)
+*  Fix import/export support for larger files on s3-like storages [#3202](https://gitlab.com/baserow/baserow/-/issues/3202)
 * [Builder] Fix bug when dispatching a data source with a deleted field
 
 

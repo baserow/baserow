@@ -86,3 +86,7 @@ FEATURE_FLAGS = "*"
 
 # We must allow this because we're connecting to the same database in the tests.
 BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE = False
+
+# Make sure that default storage is used for the tests.
+BASE_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+STORAGES["default"] = {"BACKEND": BASE_FILE_STORAGE}

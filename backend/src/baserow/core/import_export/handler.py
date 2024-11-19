@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from io import IOBase
 from os.path import join
 from typing import Any, Dict, List, Optional, Tuple
-from zipfile import ZIP_DEFLATED, ZipFile
+from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -16,6 +16,7 @@ from django.core.exceptions import SuspiciousOperation
 from django.core.files.base import ContentFile
 from django.core.files.storage import Storage
 from django.db.models import Exists, OuterRef, QuerySet
+from django.utils.encoding import force_bytes
 
 import jsonschema
 from cryptography.exceptions import InvalidSignature
@@ -55,6 +56,7 @@ from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
     InvalidFileStreamError,
 )
+from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import ChildProgressBuilder, Progress, grouper, stream_size
 from baserow.version import VERSION
 
@@ -96,22 +98,55 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         )
         return workspace
 
-    def compute_checksum(self, file_path: str, storage: Storage):
+    def compute_checksums(self, files_zip: ZipFile, storage: Storage) -> Dict[str, str]:
         """
-        Computes the SHA-256 checksum of a file.
+        Computes the SHA-256 checksum for each file in the provided zip file.
+        * for files that are stored in UserFile model, the checksum is retrieved from
+            file name as that file name contains checksum
+        * for json data files, the checksum is also stored on file name
+        * for all other files, the checksum is computed from the file content
 
-        :param file_path: The path to the file for which the checksum is computed.
+        :param files_zip: The zip file containing the files to compute checksums for.
+        :param storage: The storage instance used to read the file.
+        :return: A dictionary where the keys are file names and the values are their
+            corresponding SHA-256 checksums.
+        """
+
+        checksums = {}
+        user_file_handler = UserFileHandler()
+        for file_name in files_zip.namelist():
+            try:
+                # FIXME: This is a temporary fix to avoid recalculating the checksum for
+                # user files
+                checksums[file_name] = user_file_handler.user_file_sha256(file_name)
+            except ValueError:
+                file_path = user_file_handler.user_file_path(user_file_name=file_name)
+                if storage.exists(file_path):
+                    checksums[file_name] = self.compute_checksum_from_file(
+                        file_path, storage
+                    )
+                else:
+                    # If file does not exist on storage, and it's name doesn't match
+                    # UserFile name pattern, we can't calculate checksum
+                    checksums[file_name] = ""
+        return checksums
+
+    def compute_checksum_from_file(self, full_path: str, storage: Storage) -> str:
+        """
+        Computes the SHA-256 checksum for a file stored in the given storage.
+
+        This method reads the file in chunks and computes its SHA-256 checksum.
+
+        :param full_path: The full path to the file in the storage.
         :param storage: The storage instance used to read the file.
         :return: The computed SHA-256 checksum as a hexadecimal string.
         """
 
-        sha256_hash = hashlib.sha256()
-
-        with storage.open(file_path, "rb") as f:
+        computed_checksum = hashlib.sha256()
+        with storage.open(full_path, "rb") as f:
             for chunk in iter(lambda: f.read(4096 * 1024), b""):
-                sha256_hash.update(chunk)
-
-        return sha256_hash.hexdigest()
+                computed_checksum.update(chunk)
+        return computed_checksum.hexdigest()
 
     def mark_resource_invalid(self, resource: ImportExportResource):
         """
@@ -150,7 +185,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
     def export_application(
         self,
         app: Application,
-        export_tmp_path: str,
+        files_zip: ZipFile,
         import_export_config: ImportExportConfig,
         storage: Storage,
         progress: Progress,
@@ -158,7 +193,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         """
         Exports a single application (structure, content and assets) to a zip file.
         :param app: Application instance that will be exported
-        :param export_tmp_path: Temporary path where the export files will be stored.
+        :param files_zip: The ZipFile instance where the exported files will be stored.
         :param import_export_config: provides configuration options for the
             import/export process to customize how it works.
         :param storage: The storage where the export will be stored.
@@ -170,44 +205,28 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         application_type = application_type_registry.get_by_model(application)
 
         app_id = uuid.uuid4().hex
-        base_app_path = f"{application_type.type}/{app_id}"
-        base_media_path = f"{base_app_path}_media.zip"
-        export_media_path = join(export_tmp_path, base_media_path)
+        base_app_path = f"{application_type.type}__{app_id}"
 
-        with _create_storage_dir_if_missing_and_open(
-            export_media_path, storage
-        ) as files_buffer:
-            with ZipFile(files_buffer, "w", ZIP_DEFLATED, False) as files_zip:
-                with application_type.export_safe_transaction_context(application):
-                    exported_application = application_type.export_serialized(
-                        application, import_export_config, files_zip, storage
-                    )
+        with application_type.export_safe_transaction_context(application):
+            exported_application = application_type.export_serialized(
+                application, import_export_config, files_zip, storage
+            )
 
-        base_data_path = f"{base_app_path}_data.json"
-        export_data_path = join(export_tmp_path, base_data_path)
-        with storage.open(export_data_path, "w") as json_file:
-            json.dump(exported_application, json_file, indent=INDENT)
+        data_file_content = json.dumps(exported_application, indent=INDENT)
+        sha256 = hashlib.sha256(force_bytes(data_file_content)).hexdigest()
+        base_schema_path = f"{base_app_path}_{sha256}.json"
+        files_zip.writestr(
+            base_schema_path, data_file_content, compress_type=ZIP_DEFLATED
+        )
 
         application_data = {
             "id": application.id,
             "type": application_type.type,
             "name": application.name,
-            "uuid": uuid.uuid4().hex,
+            "uuid": app_id,
             "total_files": 1,
-            "files": {
-                "data": {
-                    "file": base_data_path,
-                    "checksum": self.compute_checksum(export_data_path, storage),
-                },
-            },
+            "files": {"schema": base_schema_path},
         }
-
-        if not import_export_config.only_structure:
-            application_data["files"]["media"] = {
-                "file": base_media_path,
-                "checksum": self.compute_checksum(export_media_path, storage),
-            }
-            application_data["total_files"] += 1
 
         # TODO: Pass the progress instance to the export_serialized method of the
         # application type and handle a more granular progress tracking there.
@@ -217,7 +236,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
     def export_multiple_applications(
         self,
         applications: List[Application],
-        export_tmp_path: str,
+        files_zip: ZipFile,
         import_export_config: ImportExportConfig,
         storage: Storage,
         progress: Progress,
@@ -226,7 +245,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         Exports multiple applications (structure, content, and assets) to a zip file.
 
         :param applications: List of Application instances to be exported.
-        :param export_tmp_path: Temporary path where the export files will be stored.
+        :param files_zip: The ZipFile instance where the exported files will be stored.
         :param import_export_config: Configuration options for the import/export
             process.
         :param storage: The storage instance where the export will be stored.
@@ -238,7 +257,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         for app in applications:
             exported_application = self.export_application(
-                app, export_tmp_path, import_export_config, storage, progress
+                app, files_zip, import_export_config, storage, progress
             )
             exported_applications.append(exported_application)
         return exported_applications
@@ -262,10 +281,10 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
     def create_manifest(
         self,
         exported_applications: List[Dict],
-        export_tmp_path: str,
+        files_zip: ZipFile,
         import_export_config: ImportExportConfig,
         storage: Storage,
-    ):
+    ) -> Dict[str, Any]:
         """
         Creates a manifest file for the exported applications.
 
@@ -275,19 +294,21 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         :param exported_applications: A list of dictionaries representing the exported
             applications.
-        :param export_tmp_path: Temporary path where the export files will be stored.
+        :param files_zip: The ZipFile instance where the manifest will be stored.
         :param import_export_config: provides configuration options for the
             import/export process to customize how it works.
-        :param storage: The storage instance to use for file operations.
+        :param storage: The storage instance used to read the file.
+        :return manifest_data: A dictionary containing the manifest data.
         """
 
-        export_path = join(export_tmp_path, MANIFEST_NAME)
+        checksums = self.compute_checksums(files_zip, storage)
         manifest_data = {
             "version": EXPORT_FORMAT_VERSION,
             "baserow_version": VERSION,
-            "total_files": 2,
+            "total_files": len(checksums) + 2,
             "configuration": {"only_structure": import_export_config.only_structure},
             "applications": {},
+            "checksums": checksums,
         }
 
         for application in exported_applications:
@@ -295,14 +316,13 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                 application["type"],
                 {"version": EXPORT_FORMAT_VERSION, "configuration": {}, "items": []},
             )["items"].append(application)
-            manifest_data["total_files"] += application["total_files"]
 
-        with _create_storage_dir_if_missing_and_open(
-            export_path, storage
-        ) as file_handler:
-            file_handler.write(json.dumps(manifest_data, indent=INDENT).encode("utf-8"))
-
-        self.sign_manifest(manifest_data, export_tmp_path, storage)
+        files_zip.writestr(
+            MANIFEST_NAME,
+            json.dumps(manifest_data, indent=INDENT),
+            compress_type=ZIP_DEFLATED,
+        )
+        return manifest_data
 
     def _get_keys(
         self, trusted_source: ImportExportTrustedSource
@@ -366,9 +386,11 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         try:
-            trusted_source = ImportExportTrustedSource.objects.filter(
-                private_key__isnull=False
-            ).get()
+            trusted_source = (
+                ImportExportTrustedSource.objects.filter(private_key__isnull=False)
+                .exclude(private_key="")
+                .get()
+            )
             private_key, public_key_pem = self._get_keys(trusted_source)
         except ImportExportTrustedSource.DoesNotExist:
             private_key, public_key_pem, private_key_pem = self._create_keys()
@@ -387,11 +409,10 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         return private_key, public_key_pem
 
-    def sign_manifest(
+    def create_manifest_signature(
         self,
         manifest_data: Dict,
-        export_tmp_path: str,
-        storage: Storage,
+        files_zip: ZipFile,
     ):
         """
         Signs the manifest file for the exported applications.
@@ -401,8 +422,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         to a signature file in the specified storage.
 
         :param manifest_data: The manifest data to be signed.
-        :param export_tmp_path: The temporary path where the export files are stored.
-        :param storage: The storage instance to use for file operations.
+        :param files_zip: The buffer where the exported files will be stored.
         """
 
         manifest_bytes = json.dumps(manifest_data, sort_keys=True).encode()
@@ -427,17 +447,14 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             "timestamp": datetime.now().isoformat(),
         }
 
-        export_path = join(export_tmp_path, SIGNATURE_NAME)
-        with _create_storage_dir_if_missing_and_open(
-            export_path, storage
-        ) as file_handler:
-            file_handler.write(
-                json.dumps(signature_data, indent=INDENT).encode("utf-8")
-            )
+        files_zip.writestr(
+            SIGNATURE_NAME,
+            json.dumps(signature_data, indent=INDENT),
+            compress_type=ZIP_DEFLATED,
+        )
 
     def export_workspace_applications(
         self,
-        user: AbstractUser,
         applications: List[Application],
         import_export_config: ImportExportConfig,
         storage: Optional[Storage] = None,
@@ -447,7 +464,6 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         Create zip file with exported applications. If applications param is provided,
         only those applications will be exported.
 
-        :param user: The user performing the export operation.
         :param applications: A list of Application instances that will be exported.
         :param import_export_config: provides configuration options for the
             import/export process to customize how it works.
@@ -462,32 +478,30 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         storage = storage or get_default_storage()
         applications = applications or []
-        export_id = uuid.uuid4().hex
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
-        export_app_progress = progress.create_child(80, len(applications))
+        export_app_progress = progress.create_child(90, len(applications))
 
         export_file_path = self.get_export_storage_path(file_name)
-        export_tmp_path = self.get_export_storage_path(export_id)
 
-        exported_applications = self.export_multiple_applications(
-            applications,
-            export_tmp_path,
-            import_export_config,
-            storage,
-            export_app_progress,
-        )
+        with _create_storage_dir_if_missing_and_open(
+            export_file_path, storage
+        ) as files_buffer:
+            with ZipFile(files_buffer, "w", ZIP_STORED, False) as files_zip:
+                exported_applications = self.export_multiple_applications(
+                    applications,
+                    files_zip,
+                    import_export_config,
+                    storage,
+                    export_app_progress,
+                )
 
-        self.create_manifest(
-            exported_applications, export_tmp_path, import_export_config, storage
-        )
-        self.move_files_to_zip(
-            exported_applications, export_file_path, export_tmp_path, storage
-        )
+                manifest_data = self.create_manifest(
+                    exported_applications, files_zip, import_export_config, storage
+                )
+                self.create_manifest_signature(manifest_data, files_zip)
 
-        progress.increment(by=15)
-        self.clean_storage(export_tmp_path, storage)
-        progress.increment(by=3)
+        progress.increment(by=8)
 
         try:
             with storage.open(export_file_path, "rb") as zip_file_handle:
@@ -528,47 +542,6 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             .select_related("user", "resource")
             .order_by("-updated_on", "-id")[:WORKSPACE_EXPORTS_LIMIT]
         )
-
-    def move_files_to_zip(
-        self,
-        applications: List[Dict],
-        export_path: str,
-        export_tmp_path: str,
-        storage: Storage,
-    ):
-        """
-        Moves exported application files and the manifest file into a zip archive.
-
-        This method creates a zip file at the specified export path and adds the
-        exported application files and the manifest file to it.
-
-        :param applications: A list of dictionaries representing the exported
-            applications.
-        :param export_path: The path where the final zip file will be created.
-        :param export_tmp_path: Temporary path where the export files will be stored.
-        :param storage: The storage instance used to read the files.
-        """
-
-        with _create_storage_dir_if_missing_and_open(
-            export_path, storage
-        ) as files_buffer:
-            with ZipFile(files_buffer, "w", ZIP_DEFLATED, False) as files_zip:
-                for application in applications:
-                    for record in application["files"].values():
-                        file_path = record["file"]
-                        full_file_path = join(export_tmp_path, file_path)
-                        with storage.open(full_file_path, "rb") as tmp_file:
-                            # copy data 32MB at a time to avoid memory issues
-                            while data := tmp_file.read(32 * 1024 * 1024):
-                                files_zip.writestr(file_path, data)
-
-                manifest_path = join(export_tmp_path, MANIFEST_NAME)
-                with storage.open(manifest_path, "rb") as tmp_file:
-                    files_zip.writestr(MANIFEST_NAME, tmp_file.read())
-
-                signature_path = join(export_tmp_path, SIGNATURE_NAME)
-                with storage.open(signature_path, "rb") as tmp_file:
-                    files_zip.writestr(SIGNATURE_NAME, tmp_file.read())
 
     def get_import_storage_path(self, *args) -> str:
         return str(join(settings.IMPORT_FILES_DIRECTORY, *args))
@@ -759,7 +732,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             except InvalidSignature:
                 raise ImportExportResourceInvalidFile("Signature verification failed.")
 
-    def validate_checksum(self, manifest: Dict, import_tmp_dir: str, storage: Storage):
+    def validate_checksums(self, manifest: Dict, import_tmp_dir: str, storage: Storage):
         """
         Validates the checksums of the files extracted from the import zip file.
 
@@ -777,21 +750,18 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         validation_results = {}
 
-        applications = manifest["applications"]
-        for application_types in applications.values():
-            for application_data in application_types["items"]:
-                for file_data in application_data["files"].values():
-                    file_path = file_data["file"]
-                    full_path = join(import_tmp_dir, file_path)
+        checksums = manifest["checksums"]
+        for file_path, checksum in checksums.items():
+            full_path = join(import_tmp_dir, file_path)
 
-                    if not storage.exists(full_path):
-                        raise ImportExportResourceDoesNotExist(
-                            f"The file {file_path} does not exist."
-                        )
+            if not storage.exists(full_path):
+                raise ImportExportResourceDoesNotExist(
+                    f"The file {file_path} does not exist."
+                )
 
-                    computed_checksum = self.compute_checksum(full_path, storage)
-                    is_valid = computed_checksum == file_data["checksum"]
-                    validation_results[file_path] = is_valid
+            computed_checksum = self.compute_checksum_from_file(full_path, storage)
+            is_valid = computed_checksum == checksum
+            validation_results[file_path] = is_valid
 
         if not all(validation_results.values()):
             raise ImportExportResourceInvalidFile("Checksum validation failed")
@@ -803,6 +773,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         application_manifest: Dict,
         import_tmp_path: str,
         import_export_config: ImportExportConfig,
+        zip_file: ZipFile,
         storage: Storage,
         progress: Progress,
     ) -> Application:
@@ -815,15 +786,14 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         :param import_tmp_path: The temporary path where the import files are stored.
         :param import_export_config: Configuration options for the import/export
             process.
+        :param zip_file: The ZipFile instance containing the application to be imported.
         :param storage: The storage instance to use for file operations.
         :param progress: A progress instance that allows tracking of the import
             progress.
         :return: The imported Application instance.
         """
 
-        data_file_path = join(
-            import_tmp_path, application_manifest["files"]["data"]["file"]
-        )
+        data_file_path = join(import_tmp_path, application_manifest["files"]["schema"])
         if not storage.exists(data_file_path):
             raise ImportExportResourceDoesNotExist(
                 f"The file {data_file_path} does not exist."
@@ -832,43 +802,16 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         with storage.open(data_file_path) as data_file:
             application_data = json.load(data_file)
 
-        if import_export_config.only_structure:
-            application_type = application_type_registry.get(
-                application_manifest["type"]
-            )
-            imported_application = application_type.import_serialized(
-                workspace,
-                application_data,
-                import_export_config,
-                id_mapping,
-                None,
-                storage,
-            )
-            progress.increment()
-        else:
-            media_file_path = join(
-                import_tmp_path, application_manifest["files"]["media"]["file"]
-            )
-
-            if not storage.exists(media_file_path):
-                raise ImportExportResourceDoesNotExist(
-                    f"The file {media_file_path} does not exist."
-                )
-
-            with storage.open(media_file_path) as media_file_handle:
-                with ZipFile(media_file_handle, "r") as media_file:
-                    application_type = application_type_registry.get(
-                        application_manifest["type"]
-                    )
-                    imported_application = application_type.import_serialized(
-                        workspace,
-                        application_data,
-                        import_export_config,
-                        id_mapping,
-                        media_file,
-                        storage,
-                    )
-                    progress.increment()
+        application_type = application_type_registry.get(application_manifest["type"])
+        imported_application = application_type.import_serialized(
+            workspace,
+            application_data,
+            import_export_config,
+            id_mapping,
+            zip_file,
+            storage,
+        )
+        progress.increment()
         return imported_application
 
     def import_multiple_applications(
@@ -877,6 +820,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         manifest: Dict,
         import_tmp_path: str,
         import_export_config: ImportExportConfig,
+        zip_file: ZipFile,
         storage: Storage,
         progress: Progress,
     ) -> List[Application]:
@@ -890,6 +834,8 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         :param import_tmp_path: The temporary path where the import files are stored.
         :param import_export_config: Configuration options for the import/export
             process.
+        :param zip_file: The ZipFile instance containing the applications to be
+            imported.
         :param storage: The storage instance to use for file operations.
         :param progress: A progress instance that allows tracking of the import
             progress.
@@ -923,6 +869,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                     application_manifest,
                     import_tmp_path,
                     import_export_config,
+                    zip_file,
                     storage,
                     progress,
                 )
@@ -945,7 +892,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         :param tmp_import_path: The temporary directory where the files will be
             extracted.
-        :param zip_file: The zip file containing the files to be extracted.
+        :param zip_file: The ZipFile instance containing the files to be extracted.
         :param storage: The storage instance used to save the extracted files.
         """
 
@@ -1021,7 +968,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                 self.extract_files_from_zip(import_tmp_path, zip_file, storage)
 
                 try:
-                    self.validate_checksum(manifest_data, import_tmp_path, storage)
+                    self.validate_checksums(manifest_data, import_tmp_path, storage)
                 except Exception as e:  # noqa
                     self.mark_resource_invalid(resource)
                     raise
@@ -1041,6 +988,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                     manifest_data,
                     import_tmp_path,
                     import_export_config,
+                    zip_file,
                     storage,
                     progress,
                 )

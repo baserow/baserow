@@ -9,6 +9,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.import_export.handler import (
     EXPORT_FORMAT_VERSION,
     MANIFEST_NAME,
+    SIGNATURE_NAME,
     ImportExportHandler,
 )
 from baserow.core.registries import ImportExportConfig
@@ -44,7 +45,6 @@ def test_exporting_interesting_database(
         data_fixture.save_content_in_user_file(user_file=user_file, storage=storage)
 
     resource = ImportExportHandler().export_workspace_applications(
-        user=user,
         applications=[database],
         import_export_config=cli_import_export_config,
         storage=storage,
@@ -58,12 +58,16 @@ def test_exporting_interesting_database(
 
     with zipfile.ZipFile(file_path, "r") as zip_ref:
         assert MANIFEST_NAME in zip_ref.namelist()
+        assert SIGNATURE_NAME in zip_ref.namelist()
 
         with zip_ref.open(MANIFEST_NAME) as json_file:
             json_data = json.load(json_file)
             assert json_data["version"] == EXPORT_FORMAT_VERSION
             assert json_data["configuration"] == {"only_structure": False}
+            assert json_data["total_files"] == 12
+            assert len(json_data["checksums"].keys()) == 10
             assert len(json_data["applications"]["database"]["items"]) == 1
+
             assert (
                 json_data["applications"]["database"]["version"]
                 == EXPORT_FORMAT_VERSION
@@ -73,10 +77,7 @@ def test_exporting_interesting_database(
             assert exported_database["id"] == database.id
             assert exported_database["type"] == "database"
             assert exported_database["name"] == database_name
-            assert exported_database["files"]["data"]["file"] is not None
-            assert exported_database["files"]["data"]["checksum"] is not None
-            assert exported_database["files"]["media"]["file"] is not None
-            assert exported_database["files"]["media"]["checksum"] is not None
+            assert exported_database["files"]["schema"] is not None
 
 
 @pytest.mark.import_export_workspace
@@ -110,7 +111,6 @@ def test_exporting_workspace_writes_file_to_storage(
     )
 
     resource = ImportExportHandler().export_workspace_applications(
-        user=user,
         applications=[table.database],
         import_export_config=ImportExportConfig(
             include_permission_data=False,
@@ -130,10 +130,9 @@ def test_exporting_workspace_writes_file_to_storage(
             database_export = json_data["applications"]["database"]["items"][0]
 
             assert database_export["name"] == table.database.name
-            assert database_export["total_files"] == 2
-            assert "media" in database_export["files"]
+            assert database_export["total_files"] == 1
 
-            db_export_path = database_export["files"]["data"]["file"]
+            db_export_path = database_export["files"]["schema"]
             with zip_ref.open(db_export_path) as db_data_file:
                 db_data = json.loads(db_data_file.read())
 
@@ -176,7 +175,6 @@ def test_exporting_only_structure_writes_file_to_storage(
     )
 
     resource = ImportExportHandler().export_workspace_applications(
-        user=user,
         applications=[table.database],
         import_export_config=ImportExportConfig(
             include_permission_data=False,
@@ -199,7 +197,7 @@ def test_exporting_only_structure_writes_file_to_storage(
             assert database_export["total_files"] == 1
             assert "media" not in database_export["files"]
 
-            db_export_path = database_export["files"]["data"]["file"]
+            db_export_path = database_export["files"]["schema"]
             with zip_ref.open(db_export_path) as db_data_file:
                 db_data = json.loads(db_data_file.read())
 
@@ -240,7 +238,6 @@ def test_exported_files_checksum(
     )
 
     resource = ImportExportHandler().export_workspace_applications(
-        user=user,
         applications=[table.database],
         import_export_config=ImportExportConfig(
             include_permission_data=False,
@@ -262,13 +259,14 @@ def test_exported_files_checksum(
     with zipfile.ZipFile(file_path, "r") as zip_ref:
         manifest_data = handler.validate_manifest(zip_ref)
         handler.extract_files_from_zip(path, zip_ref, storage)
+        checksums = manifest_data["checksums"]
         db_files = manifest_data["applications"]["database"]["items"][0]["files"]
-        database_file = db_files["data"]["file"]
-        database_file_checksum = db_files["data"]["checksum"]
+        database_file = db_files["schema"]
+        database_file_checksum = checksums[database_file]
 
         file_path = handler.get_import_storage_path(resource.uuid.hex, database_file)
 
-        calculated_checksum = handler.compute_checksum(file_path, storage)
+        calculated_checksum = handler.compute_checksum_from_file(file_path, storage)
         assert database_file_checksum == calculated_checksum
 
 
@@ -303,7 +301,6 @@ def test_export_with_rows_limit(
     )
 
     resource = ImportExportHandler().export_workspace_applications(
-        user=user,
         applications=[table.database],
         import_export_config=ImportExportConfig(
             include_permission_data=False,
@@ -322,7 +319,7 @@ def test_export_with_rows_limit(
             json_data = json.load(json_file)
             database_export = json_data["applications"]["database"]["items"][0]
 
-            db_export_path = database_export["files"]["data"]["file"]
+            db_export_path = database_export["files"]["schema"]
             with zip_ref.open(db_export_path) as db_data_file:
                 db_data = json.loads(db_data_file.read())
 

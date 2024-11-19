@@ -1,6 +1,8 @@
 import hashlib
 import mimetypes
+import os
 import pathlib
+import re
 import secrets
 from io import BytesIO
 from os.path import join
@@ -67,6 +69,22 @@ class UserFileHandler:
             user_file_name = user_file_name.name
 
         return join(settings.USER_FILES_DIRECTORY, user_file_name)
+
+    def user_file_sha256(self, user_file_name: str) -> str:
+        """
+        Extracts the sha256 hash from the user file name.
+
+        :param user_file_name: The user file name
+        :return The sha256 hexdigest.
+        :raises ValueError: If the user file name does not contain a sha256 hash
+        """
+
+        sha256_hexdigest = os.path.splitext(user_file_name)[0].rsplit("_", 1)[-1]
+
+        if not re.fullmatch(r"[a-fA-F0-9]{64}", sha256_hexdigest):
+            raise ValueError("Incorrect user file name format.")
+
+        return sha256_hexdigest
 
     def user_file_thumbnail_path(self, user_file_name, thumbnail_name):
         """
