@@ -2090,11 +2090,6 @@ export class HigherThanViewFilterType extends mix(
 
     const rowVal = fieldType.parseInputValue(field, rowValue)
     const fltVal = this._parseDurationValue(field, fieldType, filterValue)
-    console.warn(
-      'gte',
-      { rowVal, fltVal, rowValue, filterValue, field },
-      Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal > fltVal
-    )
 
     return Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal > fltVal
   }
