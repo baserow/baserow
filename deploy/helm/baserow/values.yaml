@@ -155,6 +155,14 @@ migration:
 ## @param baserow-backend-asgi.readinessProbe.periodSeconds How often (in seconds) to perform the probe.
 ## @param baserow-backend-asgi.readinessProbe.successThreshold Minimum consecutive successes for the probe to be considered successful after having failed.
 ## @param baserow-backend-asgi.readinessProbe.timeoutSeconds Number of seconds after which the probe times out.
+
+## Autoscaling Configuration
+## Automatically adjust the number of replicas based on CPU and memory utilization.
+## @param baserow-backend-asgi.autoscaling.enabled Enable autoscaling
+## @param baserow-backend-asgi.autoscaling.minReplicas Minimum number of replicas
+## @param baserow-backend-asgi.autoscaling.maxReplicas Maximum number of replicas
+## @param baserow-backend-asgi.autoscaling.targetCPUUtilizationPercentage Target CPU utilization percentage for autoscaling
+## @param baserow-backend-asgi.autoscaling.targetMemoryUtilizationPercentage Target memory utilization percentage for autoscaling
 baserow-backend-asgi:
   image:
     repository: backend
@@ -183,6 +191,13 @@ baserow-backend-asgi:
     periodSeconds: 30
     successThreshold: 1
     timeoutSeconds: 5
+
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
 
 ## @section Baserow Backend WSGI Configuration
 ## Configuration for the WSGI server that serves the Baserow backend application.
@@ -214,6 +229,15 @@ baserow-backend-asgi:
 ## @param baserow-backend-wsgi.readinessProbe.periodSeconds How often (in seconds) to perform the probe.
 ## @param baserow-backend-wsgi.readinessProbe.successThreshold Minimum consecutive successes for the probe to be considered successful after having failed.
 ## @param baserow-backend-wsgi.readinessProbe.timeoutSeconds Number of seconds after which the probe times out.
+
+## Autoscaling Configuration
+## Automatically adjust the number of replicas based on CPU and memory utilization.
+## @param baserow-backend-wsgi.autoscaling.enabled Enable autoscaling
+## @param baserow-backend-wsgi.autoscaling.minReplicas Minimum number of replicas
+## @param baserow-backend-wsgi.autoscaling.maxReplicas Maximum number of replicas
+## @param baserow-backend-wsgi.autoscaling.targetCPUUtilizationPercentage Target CPU utilization percentage for autoscaling
+## @param baserow-backend-wsgi.autoscaling.targetMemoryUtilizationPercentage Target memory utilization percentage for autoscaling
+
 baserow-backend-wsgi:
   image:
     repository: backend
@@ -245,6 +269,12 @@ baserow-backend-wsgi:
     successThreshold: 1
     timeoutSeconds: 5
 
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
 ## @section Baserow Web Frontend Configuration
 ## Configuration for the Web Frontend server that serves the Baserow backend application.
 ## This section includes the Docker image repository and arguments for running the Web Frontend server,
@@ -289,6 +319,15 @@ baserow-backend-wsgi:
 ## @param baserow-frontend.mountConfiguration.backend If enabled, all the backend service configurations and secrets will be mounted.
 ## @param baserow-frontend.mountConfiguration.frontend If enabled, all the frontend service configurations and secrets will be mounted.
 ## @param baserow-frontend.service.targetPort The port the Web Frontend server listens on.
+
+## Autoscaling Configuration
+## Automatically adjust the number of replicas based on CPU and memory utilization.
+## @param baserow-frontend.autoscaling.enabled Enable autoscaling
+## @param baserow-frontend.autoscaling.minReplicas Minimum number of replicas
+## @param baserow-frontend.autoscaling.maxReplicas Maximum number of replicas
+## @param baserow-frontend.autoscaling.targetCPUUtilizationPercentage Target CPU utilization percentage for autoscaling
+## @param baserow-frontend.autoscaling.targetMemoryUtilizationPercentage Target memory utilization percentage for autoscaling
+
 baserow-frontend:
   image:
     repository: web-frontend
@@ -322,17 +361,26 @@ baserow-frontend:
     successThreshold: 1
     timeoutSeconds: 5
 
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
 ## @section Baserow Celery beat Configuration
 ## Configuration for the Celery beat workers that process background tasks for the Baserow application.
 ## This section includes the Docker image repository and arguments for running the Celery beat workers,
 ## @param baserow-celery-beat-worker.image.repository Docker image repository for the Celery beat worker.
 ## @param baserow-celery-beat-worker.args Arguments passed to the Celery beat worker.
+## @param baserow-celery-beat-worker.replicaCount Number of replicas for the Celery beat worker.
 ## @param baserow-celery-beat-worker.service.create Set to false to disable creating a service for the Celery beat worker.
 baserow-celery-beat-worker:
   image:
     repository: backend
   args:
     - celery-beat
+  replicaCount: 1
   service:
     create: false
 
@@ -341,12 +389,14 @@ baserow-celery-beat-worker:
 ## This section includes the Docker image repository and arguments for running the Celery export worker,
 ## @param baserow-celery-export-worker.image.repository Docker image repository for the Celery export worker.
 ## @param baserow-celery-export-worker.args Arguments passed to the Celery export worker.
+## @param baserow-celery-export-worker.replicaCount Number of replicas for the Celery export worker.
 ## @param baserow-celery-export-worker.service.create Set to false to disable creating a service for the Celery beat worker.
 baserow-celery-export-worker:
   image:
     repository: backend
   args:
     - celery-exportworker
+  replicaCount: 1
   service:
     create: false
 
@@ -355,6 +405,7 @@ baserow-celery-export-worker:
 ## This section includes the Docker image repository and arguments for running the Celery worker,
 ## @param baserow-celery-worker.image.repository Docker image repository for the Celery worker.
 ## @param baserow-celery-worker.args Arguments passed to the Celery worker.
+## @param baserow-celery-worker.replicaCount Number of replicas for the Celery worker.
 ## @param baserow-celery-worker.service.create Set to false to disable creating a service for the Celery beat worker.
 ## Liveness Probe Configuration
 ## Ensures the Celery worker is alive and can handle requests. If the liveness probe fails, Kubernetes restarts the container.
@@ -378,6 +429,7 @@ baserow-celery-worker:
     repository: backend
   args:
     - celery-worker
+  replicaCount: 1
   service:
     create: false
   livenessProbe:
@@ -409,12 +461,14 @@ baserow-celery-worker:
 ## @param baserow-celery-flower.enabled Set to true to enable the Celery Flower monitoring tool.
 ## @param baserow-celery-flower.image.repository Docker image repository for the Celery Flower monitoring tool.
 ## @param baserow-celery-flower.args Arguments passed to the Celery Flower monitoring tool.
+## @param baserow-celery-flower.replicaCount Number of replicas for the Celery Flower monitoring tool.
 baserow-celery-flower:
   enabled: false
   image:
     repository: backend
   args:
     - celery-flower
+  replicaCount: 1
 
 ## @section Ingress Configuration
 ## Configuration for the Ingress resource
