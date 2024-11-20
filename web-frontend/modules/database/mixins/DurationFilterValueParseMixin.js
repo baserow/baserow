@@ -1,14 +1,20 @@
 import _ from 'lodash'
 export default {
   /**
-   * Helper to parse duration specific filterValue. A filterValue comes a string
-   * containing a number of seconds, thus duration field needs to parse it to a correct
-   * number of seconds, but a string with a number may mean a different thing. It can
-   * be a number of seconds, a number of minutes or a number of hours depending
-   * on field.duration_format value.
+   * Helper method to parse duration-specific filterValue. A filterValue comes as a
+   * string. In case of duration-related fields, duration value may come in various
+   * forms, as those fields support different formatting styles.
+   *
+   * Duration value may be unit-aware or "naive". Unit-aware values are easier to parse
+   * because they already tell which unit should be used, for example `1d 2h 3m 4s`.
+   * "Naive" values don't have unit information by themselves. Parsing those values
+   * relies on a duration format picked for a given field. "Naive" values are usually
+   * numbers or values in `12:34` notation. If duration format picked contains seconds,
+   * usually those values are interpreted with a second as a lowest unit. In other
+   * cases, a number may be interpreted as a number of minutes or hours.
    *
    * This method ensures that if a field is of duration type (a duration field or a
-   * duration formula field), and filterValue is a number, it will receive field
+   * duration formula field), and filterValue is "naive", it will receive field
    * context with a correct duration format to ensure that filterValue will be
    * understood as a number of seconds.
    *
