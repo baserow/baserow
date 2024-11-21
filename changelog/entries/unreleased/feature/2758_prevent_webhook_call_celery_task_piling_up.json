@@ -1,0 +1,7 @@
+{
+  "type": "feature",
+  "message": "Prevents webhook call tasks piling up if many webhooks are triggered.",
+  "issue_number": 2758,
+  "bullet_points": [],
+  "created_at": "2024-11-19"
+}
