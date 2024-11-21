@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="auth__wrapper">
     <div class="auth__logo">
       <nuxt-link :to="{ name: 'index' }">
         <Logo />

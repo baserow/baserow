@@ -130,6 +130,7 @@
 
 .button__label {
   @extend %ellipsis;
+  @include flex-align-items;
 
   .button.button--loading & {
     visibility: hidden;

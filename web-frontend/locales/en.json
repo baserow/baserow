@@ -11,7 +11,9 @@
     "beta": "Beta",
     "summarize": "Summarize",
     "enabled": "Enabled",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "or": "or",
+    "and": "and"
   },
   "action": {
     "close": "Close",
@@ -20,6 +22,7 @@
     "backToLogin": "Back to login",
     "backToHome": "Back to home",
     "signUp": "Sign up",
+    "getStarted": "Get started",
     "signIn": "Sign in",
     "login": "Login",
     "logout": "Logout",

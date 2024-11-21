@@ -33,8 +33,10 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
               class="control__label control__label--small"
             >
               <span>
-                exportTableForm.viewLabel 
+                exportTableForm.viewLabel
               </span>
+               
+              <!---->
                
               <!---->
                
@@ -183,8 +185,10 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
               class="control__label control__label--small"
             >
               <span>
-                exporterTypeChoices.formatLabel 
+                exporterTypeChoices.formatLabel
               </span>
+               
+              <!---->
                
               <!---->
                
@@ -253,8 +257,10 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                 class="control__label control__label--small"
               >
                 <span>
-                  tableCSVExporter.columnSeparatorLabel 
+                  tableCSVExporter.columnSeparatorLabel
                 </span>
+                 
+                <!---->
                  
                 <!---->
                  
@@ -529,8 +535,10 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                 class="control__label control__label--small"
               >
                 <span>
-                  tableCSVExporter.encodingLabel 
+                  tableCSVExporter.encodingLabel
                 </span>
+                 
+                <!---->
                  
                 <!---->
                  
@@ -1646,8 +1654,10 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                 class="control__label control__label--small"
               >
                 <span>
-                  tableCSVExporter.firstRowIsHeaderLabel 
+                  tableCSVExporter.firstRowIsHeaderLabel
                 </span>
+                 
+                <!---->
                  
                 <!---->
                  
@@ -1813,8 +1823,10 @@ exports[`Preview exportTableModal Modal with view 1`] = `
               class="control__label control__label--small"
             >
               <span>
-                exportTableForm.viewLabel 
+                exportTableForm.viewLabel
               </span>
+               
+              <!---->
                
               <!---->
                
@@ -1965,8 +1977,10 @@ exports[`Preview exportTableModal Modal with view 1`] = `
               class="control__label control__label--small"
             >
               <span>
-                exporterTypeChoices.formatLabel 
+                exporterTypeChoices.formatLabel
               </span>
+               
+              <!---->
                
               <!---->
                
@@ -2035,8 +2049,10 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                 class="control__label control__label--small"
               >
                 <span>
-                  tableCSVExporter.columnSeparatorLabel 
+                  tableCSVExporter.columnSeparatorLabel
                 </span>
+                 
+                <!---->
                  
                 <!---->
                  
@@ -2311,8 +2327,10 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                 class="control__label control__label--small"
               >
                 <span>
-                  tableCSVExporter.encodingLabel 
+                  tableCSVExporter.encodingLabel
                 </span>
+                 
+                <!---->
                  
                 <!---->
                  
@@ -3428,8 +3446,10 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                 class="control__label control__label--small"
               >
                 <span>
-                  tableCSVExporter.firstRowIsHeaderLabel 
+                  tableCSVExporter.firstRowIsHeaderLabel
                 </span>
+                 
+                <!---->
                  
                 <!---->
                  

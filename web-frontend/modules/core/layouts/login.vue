@@ -1,7 +1,7 @@
 <template>
   <div>
     <Toasts></Toasts>
-    <div class="auth__page">
+    <div class="auth__container">
       <nuxt />
     </div>
   </div>

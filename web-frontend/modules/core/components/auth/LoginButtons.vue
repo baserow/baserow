@@ -3,18 +3,15 @@
     class="auth-provider-buttons"
     :class="{
       'auth-provider-buttons--small': showSmallLoginButtons,
-      'auth-provider-buttons--border-bottom':
-        loginButtons.length > 0 && showBorder === 'bottom',
-      'auth-provider-buttons--border-top':
-        loginButtons.length > 0 && showBorder === 'top',
       'auth-provider-buttons__no-buttons': loginButtons.length === 0,
       'auth-provider-buttons__no-buttons--hide':
         loginButtons.length === 0 && hideIfNoButtons === true,
     }"
   >
-    <div v-for="loginButton in loginButtons" :key="loginButton.redirect_url">
+    <template v-for="loginButton in loginButtons">
       <component
         :is="getLoginButtonComponent(loginButton)"
+        :key="loginButton.redirect_url"
         :redirect-url="addOriginalParamToUrl(loginButton.redirect_url)"
         :name="loginButton.name"
         :icon="getLoginButtonIcon(loginButton)"
@@ -22,7 +19,7 @@
         :invitation="invitation"
       >
       </component>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -37,11 +34,6 @@ export default {
       type: String,
       required: false,
       default: null,
-    },
-    showBorder: {
-      type: String,
-      validate: (value) => ['top', 'bottom', 'none'].includes(value),
-      default: 'none',
     },
     hideIfNoButtons: {
       type: Boolean,

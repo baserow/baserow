@@ -431,12 +431,12 @@
     "viewMore": "View more"
   },
   "login": {
-    "title": "Login",
+    "title": "Welcome back",
     "emailPlaceholder": "Enter your email address..",
     "passwordPlaceholder": "Enter your password..",
-    "forgotPassword": "Forgot password?",
-    "signUpText": "Don't have an account?",
-    "signUp": "Sign Up",
+    "forgotPassword": "Forgot?",
+    "signUpText": "New to Baserow?",
+    "signUp": "Sign up",
     "displayPasswordLogin": "Log in using email and password",
     "redirecting": "Redirecting to authentication provider..."
   },
@@ -446,6 +446,7 @@
     "repeatNewPassword": "Repeat new password",
     "submit": "Change password",
     "changed": "Password changed",
+    "message": "You can now login to Baserow using your new password.",
     "errorInvalidLinkTitle": "Invalid link",
     "errorInvalidLinkMessage": "Could not reset the password because the link is invalid.",
     "errorLinkExpiredTitle": "Link expired",
@@ -454,7 +455,7 @@
     "disabledMessage": "It's not possible to reset the password because it has been disabled."
   },
   "signup": {
-    "headTitle": "Create new account",
+    "headTitle": "Create account",
     "title": "Sign up",
     "disabled": "Sign up is disabled",
     "disabledMessage": "It's not possible to create an account because it has been disabled.",
@@ -465,16 +466,21 @@
     "passwordPlaceholder": "Enter your password..",
     "passwordRepeatPlaceholder": "Confirm your password..",
     "loginText": "Already have an account?",
-    "login": "Login"
+    "login": "Login",
+    "agreeTerms": "By creating an account, you agree to the {0} {1} {2}",
+    "terms": "Terms of Service",
+    "privacyPolicy": "Privacy Policy"
   },
   "forgotPassword": {
     "title": "Forgot password",
-    "message": "Please enter your e-mail address in the form. If we find an account then we will send an e-mail with a link to reset your password.",
+    "message": "Enter your email address and we’ll send you a link to reset your password.",
     "submit": "Send link",
-    "confirmation": "If your email address exists in our database, you will receive a password reset link at your email address in a few minutes.",
+    "confirmationTitle": "Check your email",
+    "confirmation": "We sent an email to {email}, which contains a link to reset your Baserow password.",
     "disabled": "Forgot password is disabled",
     "disabledMessage": "It's not possible to reset the password because it has been disabled.",
-    "loginText": "Already have account and password?"
+    "loginText": "Already have account and password?",
+    "goBack": "Go back"
   },
   "settings": {
     "settingsTitle": "Admin settings",

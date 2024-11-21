@@ -83,6 +83,10 @@
   margin-bottom: 16px !important;
 }
 
+.margin-bottom-24 {
+  margin-top: 24px !important;
+}
+
 .margin-bottom-3 {
   margin-bottom: 30px !important;
 }
@@ -229,5 +233,83 @@
 
   100% {
     transform: rotate(720deg);
+  }
+}
+
+/* spacer classes generation */
+
+@each $size in $spacings {
+  .p-#{$size},
+  %p-#{$size} {
+    padding: #{$size}px;
+  }
+
+  .px-#{$size},
+  %px-#{$size} {
+    padding-left: #{$size}px;
+    padding-right: #{$size}px;
+  }
+
+  .py-#{$size},
+  %py-#{$size} {
+    padding-top: #{$size}px;
+    padding-bottom: #{$size}px;
+  }
+
+  .m-#{$size},
+  %m-#{$size} {
+    margin: #{$size}px;
+  }
+
+  .my-#{$size},
+  %my-#{$size} {
+    margin-top: #{$size}px;
+    margin-bottom: #{$size}px;
+  }
+
+  .mx-#{$size},
+  %mx-#{$size} {
+    margin-left: #{$size}px;
+    margin-right: #{$size}px;
+  }
+
+  .pl-#{$size},
+  %pl-#{$size} {
+    padding-left: #{$size}px;
+  }
+
+  .ml-#{$size},
+  %ml-#{$size} {
+    margin-left: #{$size}px;
+  }
+
+  .pr-#{$size},
+  %pr-#{$size} {
+    padding-right: #{$size}px;
+  }
+
+  .mr-#{$size},
+  %mr-#{$size} {
+    margin-right: #{$size}px;
+  }
+
+  .pb-#{$size},
+  %pb-#{$size} {
+    padding-bottom: #{$size}px;
+  }
+
+  .mb-#{$size},
+  %mb-#{$size} {
+    margin-bottom: #{$size}px;
+  }
+
+  .pt-#{$size},
+  %pt-#{$size} {
+    padding-top: #{$size}px;
+  }
+
+  .mt-#{$size},
+  %mt-#{$size} {
+    margin-top: #{$size}px;
   }
 }
