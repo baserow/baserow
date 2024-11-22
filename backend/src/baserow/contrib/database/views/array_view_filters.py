@@ -1,3 +1,8 @@
+import typing
+from typing import Protocol, runtime_checkable
+
+from loguru import logger
+
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.filter_support.base import (
@@ -11,8 +16,11 @@ from baserow.contrib.database.fields.filter_support.base import (
 from baserow.contrib.database.fields.filter_support.exceptions import (
     FilterNotSupportedException,
 )
-from baserow.contrib.database.fields.registries import field_type_registry
-from baserow.contrib.database.formula import BaserowFormulaTextType
+from baserow.contrib.database.fields.registries import FieldType, field_type_registry
+from baserow.contrib.database.formula import (
+    BaserowFormulaNumberType,
+    BaserowFormulaTextType,
+)
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaBooleanType,
     BaserowFormulaCharType,
@@ -37,6 +45,7 @@ class HasEmptyValueViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
         ),
     ]
 
@@ -71,6 +80,7 @@ class HasValueEqualViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
         ),
     ]
 
@@ -105,6 +115,7 @@ class HasValueContainsViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
         ),
     ]
 
@@ -240,3 +251,104 @@ class HasNoneSelectOptionEqualViewFilterType(
     """
 
     type = "has_none_select_option_equal"
+
+
+class CallDelegateMixin:
+    """
+    A mixin that encapsulate calling a delegate method in a ViewFilterType.
+    """
+
+    delegate_method_name: typing.ClassVar[str]
+
+    def get_filter_expression(
+        self, field_name, value, model_field, field
+    ) -> OptionallyAnnotatedQ:
+        field_type = field_type_registry.get_by_model(field)
+        filter_method = self.get_delegate_method(field_type)
+        return filter_method(field_name, value, model_field, field)
+
+    def get_delegate_method(self, field_type: FieldType) -> typing.Callable:
+        return getattr(field_type, self.__class__.delegate_method_name)
+
+
+class ComparisonHasValueFilter(CallDelegateMixin, ViewFilterType):
+    filter_support_class: typing.ClassVar[typing.Type]
+
+    def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        try:
+            return self.get_filter_expression(field_name, value, model_field, field)
+        except FilterNotSupportedException as err:
+            logger.warning(f"Cannot use {self.type} with {model_field} {field_name}")
+            return self.default_filter_on_exception()
+
+
+@runtime_checkable
+class IHasValueHigherThanFilterSupport(Protocol):
+    def get_has_value_higher_filter_query(self, field_name, value, model_field, field):
+        ...
+
+
+@runtime_checkable
+class IHasValueHigherOrEqualThanFilterSupport(Protocol):
+    def get_has_value_higher_or_equal_filter_query(
+        self, field_name, value, model_field, field
+    ):
+        ...
+
+
+@runtime_checkable
+class IHasValueLowerThanFilterSupport(Protocol):
+    def get_has_value_lower_filter_query(self, field_name, value, model_field, field):
+        ...
+
+
+@runtime_checkable
+class IHasValueLowerOrEqualThanFilterSupport(Protocol):
+    def get_has_value_lower_or_equal_filter_query(
+        self, field_name, value, model_field, field
+    ):
+        ...
+
+
+class HasValueHigherThanFilter(ComparisonHasValueFilter):
+    type = "has_value_higher"
+    delegate_method_name = "get_has_value_higher_filter_query"
+    filter_support_class = IHasValueHigherThanFilterSupport
+    compatible_field_types = [
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+        ),
+    ]
+
+
+class HasValueHigherOrEqualThanFilter(ComparisonHasValueFilter):
+    type = "has_value_higher_or_equal"
+    delegate_method_name =  "get_has_value_higher_or_equal_filter_query"
+    filter_support_class = IHasValueHigherThanFilterSupport
+    compatible_field_types = [
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+        ),
+    ]
+
+
+class HasValueLowerThanFilter(ComparisonHasValueFilter):
+    type = "has_value_lower"
+    delegate_method_name = "get_has_value_lower_filter_query"
+    filter_support_class = IHasValueLowerThanFilterSupport
+    compatible_field_types = [
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+        ),
+    ]
+
+
+class HasValueLowerOrEqualThanFilter(ComparisonHasValueFilter):
+    type = "has_value_lower_or_equal"
+    delegate_method_name =  "get_has_value_lower_or_equal_filter_query"
+    filter_support_class = IHasValueLowerThanFilterSupport
+    compatible_field_types = [
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+        ),
+    ]

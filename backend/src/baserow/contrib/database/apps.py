@@ -454,7 +454,11 @@ class DatabaseConfig(AppConfig):
             HasValueContainsViewFilterType,
             HasValueContainsWordViewFilterType,
             HasValueEqualViewFilterType,
+            HasValueHigherOrEqualThanFilter,
+            HasValueHigherThanFilter,
             HasValueLengthIsLowerThanViewFilterType,
+            HasValueLowerOrEqualThanFilter,
+            HasValueLowerThanFilter,
         )
 
         view_filter_type_registry.register(HasValueEqualViewFilterType())
@@ -469,6 +473,10 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(HasNotEmptyValueViewFilterType())
         view_filter_type_registry.register(HasAnySelectOptionEqualViewFilterType())
         view_filter_type_registry.register(HasNoneSelectOptionEqualViewFilterType())
+        view_filter_type_registry.register(HasValueLowerThanFilter())
+        view_filter_type_registry.register(HasValueLowerOrEqualThanFilter())
+        view_filter_type_registry.register(HasValueHigherThanFilter())
+        view_filter_type_registry.register(HasValueHigherOrEqualThanFilter())
 
         from .views.view_aggregations import (
             AverageViewAggregationType,

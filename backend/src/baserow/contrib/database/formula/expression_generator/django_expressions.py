@@ -268,3 +268,59 @@ class JSONArrayContainsSelectOptionValueSimilarToExpr(BaserowFilterExpression):
         """  # nosec B608 %(value)s
     )
     # fmt: on
+
+
+class JSONArrayContainsValueHigherThanNumericExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT 1
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE (filtered_field ->> 'value')::numeric > %(value)s::numeric
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayContainsValueHigherThanOrEqualNumericExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT 1
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE (filtered_field ->> 'value')::numeric >= %(value)s::numeric
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayContainsValueLowerThanNumericExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT 1
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE (filtered_field ->> 'value')::numeric < %(value)s::numeric
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayContainsValueLowerThanOrEqualNumericExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT 1
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE (filtered_field ->> 'value')::numeric =< %(value)s::numeric
+        )
+        """  # nosec B608
+    )
+    # fmt: on

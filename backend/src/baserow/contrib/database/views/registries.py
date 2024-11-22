@@ -977,7 +977,13 @@ class ViewFilterType(Instance):
         from baserow.contrib.database.fields.registries import field_type_registry
 
         field_type = field_type_registry.get_by_model(field.specific_class)
-
+        # print('field_type', field_type, field_type.type, field.specific_class)
+        # print('compatibles', self.compatible_field_types)
+        # for c in self.compatible_field_types:
+        #     if callable(c):
+        #         print(f' callable {c} on {field}: {c(field)}')
+        #     else:
+        #         print(f' item: {c} in {field_type.type}: {c == field_type.type} ')
         return any(
             callable(t) and t(field) or t == field_type.type
             for t in self.compatible_field_types

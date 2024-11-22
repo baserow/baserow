@@ -4432,8 +4432,10 @@ class FormulaFieldType(FormulaArrayFilterSupport, ReadOnlyFieldType):
             from baserow.contrib.database.fields.registries import field_type_registry
 
             field_type = field_type_registry.get_by_model(field.specific_class)
+            print(f' check compatible: {field.specific_class} -> {field_type}\n with formula types: {compatible_formula_types}')
             if isinstance(field_type, FormulaFieldType):
                 formula_type = field.specific.cached_formula_type
+                print(f'formula type: {formula_type}')
                 return formula_type.check_if_compatible_with(compatible_formula_types)
             else:
                 return False

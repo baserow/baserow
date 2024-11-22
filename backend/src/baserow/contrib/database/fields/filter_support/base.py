@@ -1,5 +1,6 @@
 import re
 import typing
+from typing import Protocol, runtime_checkable
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models
@@ -15,7 +16,11 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
     BaserowFilterExpression,
     JSONArrayAllAreExpr,
     JSONArrayContainsValueExpr,
+    JSONArrayContainsValueHigherThanNumericExpr,
+    JSONArrayContainsValueHigherThanOrEqualNumericExpr,
     JSONArrayContainsValueLengthLowerThanExpr,
+    JSONArrayContainsValueLowerThanNumericExpr,
+    JSONArrayContainsValueLowerThanOrEqualNumericExpr,
     JSONArrayContainsValueSimilarToExpr,
 )
 
@@ -180,6 +185,40 @@ class HasAllValuesEqualFilterSupport:
                 f"for {field_name} field with {value} value: {err}"
             )
             return self.default_filter_on_exception()
+
+
+@runtime_checkable
+class IHasValueHigherThanFilterSupport(Protocol):
+    def get_has_value_higher_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        ...
+
+
+@runtime_checkable
+class IHasValueHigherOrEqualThanFilterSupport(Protocol):
+    def get_has_value_higher_or_equal_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        ...
+
+
+@runtime_checkable
+class IHasValueLowerThanFilterSupport(Protocol):
+    def get_has_value_lower_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        ...
+
+
+@runtime_checkable
+class IHasValueLowerOrEqualThanFilterSupport(Protocol):
+    def get_has_value_lower_or_equal_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        ...
+
+
 
 
 def get_array_json_filter_expression(
