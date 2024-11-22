@@ -1,13 +1,10 @@
 <template>
-  <div>
-    <div class="box__head">
-      <h2 class="box__head-title">{{ $t('publicViewAuthLogin.title') }}</h2>
-    </div>
+  <div class="auth__wrapper">
+    <h2 class="auth__head-title">{{ $t('publicViewAuthLogin.title') }}</h2>
     <div>
       <Error :error="error"></Error>
       <form @submit.prevent="authorizeView">
         <FormGroup
-          :label="$t('publicViewAuthLogin.description')"
           small-label
           required
           :helper-text="$t('publicViewAuthLogin.description')"
