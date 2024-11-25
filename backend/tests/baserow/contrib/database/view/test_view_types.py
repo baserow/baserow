@@ -23,6 +23,7 @@ from baserow.contrib.database.views.view_ownership_types import (
     CollaborativeViewOwnershipType,
 )
 from baserow.core.models import WorkspaceUser
+from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.test_utils.helpers import ReplayValues, is_dict_subset
 
@@ -503,7 +504,7 @@ def test_import_export_form_view_with_grouped_conditions(data_fixture, tmpdir):
         user=user, field_option=field_option_text
     )
     condition_group_2 = data_fixture.create_form_view_field_options_condition_group(
-        user=user, field_option=field_option_text
+        user=user, field_option=field_option_text, filter_type=FILTER_TYPE_OR
     )
     condition_group_3 = data_fixture.create_form_view_field_options_condition_group(
         user=user, field_option=field_option_bool
@@ -591,6 +592,18 @@ def test_import_export_form_view_with_grouped_conditions(data_fixture, tmpdir):
     assert serialized["field_options"][0]["enabled"] == field_option_text.enabled
     assert serialized["field_options"][0]["required"] == field_option_text.required
     assert serialized["field_options"][0]["condition_type"] == FILTER_TYPE_AND
+    assert serialized["field_options"][0]["condition_groups"] == [
+        {
+            "filter_type": "AND",
+            "id": condition_group.id,
+            "parent_group": None,
+        },
+        {
+            "filter_type": "OR",
+            "id": condition_group_2.id,
+            "parent_group": None,
+        },
+    ]
     assert serialized["field_options"][0]["conditions"] == [
         {
             "id": condition.id,
@@ -697,6 +710,109 @@ def test_import_export_form_view_with_grouped_conditions(data_fixture, tmpdir):
         for cond in imported_field_option_conditions:
             r_groups.record(cond.group)
     assert r_groups.stored == recorded_groups_created
+
+
+@pytest.mark.django_db
+def test_import_export_form_view_with_conditions_in_groups(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
+
+    table = data_fixture.create_database_table(user=user)
+    form_view = data_fixture.create_form_view(table=table)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+
+    field_1_option = data_fixture.create_form_view_field_option(
+        form_view,
+        field_1,
+        required=True,
+        enabled=True,
+        name="Field ",
+        order=1,
+    )
+    field_2_option = data_fixture.create_form_view_field_option(
+        form_view,
+        field_2,
+        required=True,
+        enabled=True,
+        name="Field 2",
+        condition_type=FILTER_TYPE_AND,
+        order=2,
+    )
+    field_3_option = data_fixture.create_form_view_field_option(
+        form_view,
+        field_3,
+        required=True,
+        enabled=True,
+        name="Field 3",
+        condition_type=FILTER_TYPE_OR,
+        order=3,
+    )
+
+    field_2_condition_group = (
+        data_fixture.create_form_view_field_options_condition_group(
+            user=user, field_option=field_2_option, filter_type=FILTER_TYPE_AND
+        )
+    )
+    field_3_condition_group = (
+        data_fixture.create_form_view_field_options_condition_group(
+            user=user, field_option=field_3_option, filter_type=FILTER_TYPE_OR
+        )
+    )
+
+    field_2_condition = data_fixture.create_form_view_field_options_condition(
+        field_option=field_2_option, field=field_2, group=None
+    )
+    field_3_condition = data_fixture.create_form_view_field_options_condition(
+        field_option=field_3_option, field=field_3, group_id=field_3_condition_group.id
+    )
+
+    database_type = application_type_registry.get("database")
+    config = ImportExportConfig(include_permission_data=True)
+    serialized = database_type.export_serialized(table.database, config)
+
+    imported_workspace = data_fixture.create_workspace(user=user)
+
+    id_mapping = {}
+    imported_database = database_type.import_serialized(
+        imported_workspace,
+        serialized,
+        config,
+        id_mapping,
+        None,
+        None,
+    )
+
+    imported_table = imported_database.table_set.all().first()
+    imported_view = imported_table.view_set.all().first().specific
+    imported_field_options = list(imported_view.active_field_options)
+
+    imported_field_1_condition_groups = imported_field_options[0].condition_groups.all()
+    imported_field_2_condition_groups = imported_field_options[1].condition_groups.all()
+    imported_field_3_condition_groups = imported_field_options[2].condition_groups.all()
+
+    assert len(imported_field_1_condition_groups) == 0
+    assert len(imported_field_2_condition_groups) == 1
+    assert len(imported_field_3_condition_groups) == 1
+
+    assert imported_field_2_condition_groups[0].filter_type == FILTER_TYPE_AND
+    assert imported_field_3_condition_groups[0].filter_type == FILTER_TYPE_OR
+
+    imported_field_1_conditions = imported_field_options[0].conditions.all()
+    imported_field_2_conditions = imported_field_options[1].conditions.all()
+    imported_field_3_conditions = imported_field_options[2].conditions.all()
+
+    assert len(imported_field_1_conditions) == 0
+    assert len(imported_field_2_conditions) == 1
+    assert len(imported_field_3_conditions) == 1
+
+    assert imported_field_2_conditions[0].group_id is None
+    assert (
+        imported_field_3_conditions[0].group_id
+        == imported_field_3_condition_groups[0].id
+    )
 
 
 @pytest.mark.django_db
