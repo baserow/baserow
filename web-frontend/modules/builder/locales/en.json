@@ -247,6 +247,9 @@
     "titleOverview": "User sources",
     "addUserSource": "Add user source"
   },
+  "themeSettings": {
+    "titleOverview": "Theme"
+  },
   "generalSettings": {
     "titleOverview": "General",
     "labelForm": "Favicon",
