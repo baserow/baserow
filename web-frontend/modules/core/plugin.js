@@ -79,6 +79,7 @@ import de from '@baserow/modules/core/locales/de.json'
 import es from '@baserow/modules/core/locales/es.json'
 import it from '@baserow/modules/core/locales/it.json'
 import pl from '@baserow/modules/core/locales/pl.json'
+import ko from '@baserow/modules/core/locales/ko.json'
 import { DefaultErrorPageType } from '@baserow/modules/core/errorPageTypes'
 import {
   RuntimeAdd,
@@ -108,6 +109,7 @@ export default (context, inject) => {
     i18n.mergeLocaleMessage('es', es)
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
+    i18n.mergeLocaleMessage('ko', ko)
   }
 
   const registry = new Registry()

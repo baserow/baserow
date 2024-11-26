@@ -314,6 +314,7 @@ import de from '@baserow/modules/database/locales/de.json'
 import es from '@baserow/modules/database/locales/es.json'
 import it from '@baserow/modules/database/locales/it.json'
 import pl from '@baserow/modules/database/locales/pl.json'
+import ko from '@baserow/modules/database/locales/ko.json'
 import {
   DatabaseScratchTrackCampaignFieldsOnboardingType,
   DatabaseScratchTrackCustomFieldsOnboardingType,
@@ -335,6 +336,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('es', es)
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
+    i18n.mergeLocaleMessage('ko', ko)
   }
 
   store.registerModule('table', tableStore)
