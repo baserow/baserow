@@ -1,5 +1,23 @@
 # Changelog
 
+## Released 1.29.3
+
+### New features
+* Prevents webhook call tasks piling up if many webhooks are triggered. [#2758](https://gitlab.com/baserow/baserow/-/issues/2758)
+* Prevent triggering webhook if query param is provided on row create update or delete endpoints [#3085](https://gitlab.com/baserow/baserow/-/issues/3085)
+* limit logging sign in actions [#3206](https://gitlab.com/baserow/baserow/-/issues/3206)
+
+### Bug fixes
+* Fix a bug where setting the User Role field to a Formula field could raise an error. [#3190](https://gitlab.com/baserow/baserow/-/issues/3190)
+* Fix for prefill values are lost for password protected forms [#3194](https://gitlab.com/baserow/baserow/-/issues/3194)
+* Fix form view conditions groups export import [#3232](https://gitlab.com/baserow/baserow/-/issues/3232)
+* Fix password protected shared view login page
+* Remove login view vertical scrollbar on Safari iOS
+
+### Refactors
+* Redesigned auth views [#1918](https://gitlab.com/baserow/baserow/-/issues/1918)
+
+
 ## Released 1.29.2
 
 ### New features

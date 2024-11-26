@@ -1049,6 +1049,14 @@ class FormViewType(ViewType):
                         }
                         for condition in field_option.conditions.all()
                     ],
+                    "condition_groups": [
+                        {
+                            "id": condition_group.id,
+                            "parent_group": condition_group.parent_group_id,
+                            "filter_type": condition_group.filter_type,
+                        }
+                        for condition_group in field_option.condition_groups.all()
+                    ],
                     "field_component": field_option.field_component,
                 }
             )
@@ -1092,39 +1100,54 @@ class FormViewType(ViewType):
         if form_view is not None:
             if "database_form_view_field_options" not in id_mapping:
                 id_mapping["database_form_view_field_options"] = {}
+                id_mapping["database_form_view_condition_groups"] = {}
 
             condition_objects = []
-            condition_groups = {}
             for field_option in field_options:
                 field_option_copy = field_option.copy()
                 field_option_id = field_option_copy.pop("id")
                 field_option_conditions = field_option_copy.pop("conditions", [])
+                field_option_condition_groups = field_option_copy.pop(
+                    "condition_groups", []
+                )
                 field_option_copy["field_id"] = id_mapping["database_fields"][
                     field_option["field_id"]
                 ]
                 field_option_object = FormViewFieldOptions.objects.create(
                     form_view=form_view, **field_option_copy
                 )
+                for condition_group in field_option_condition_groups:
+                    condition_group_copy = condition_group.copy()
+                    condition_group_id = condition_group_copy.pop("id")
+                    if condition_group_copy["parent_group"]:
+                        condition_group_copy["parent_group_id"] = id_mapping[
+                            "database_form_view_condition_groups"
+                        ][condition_group_copy.pop("parent_group")]
+                    condition_group_object = (
+                        FormViewFieldOptionsConditionGroup.objects.create(
+                            field_option=field_option_object, **condition_group_copy
+                        )
+                    )
+                    id_mapping["database_form_view_condition_groups"][
+                        condition_group_id
+                    ] = condition_group_object.id
                 for condition in field_option_conditions:
                     value = view_filter_type_registry.get(
                         condition["type"]
                     ).set_import_serialized_value(condition["value"], id_mapping)
-                    group = None
-                    if "group" in condition and not (
-                        group := condition_groups.get(condition["group"])
-                    ):
-                        group = FormViewFieldOptionsConditionGroup.objects.create(
-                            field_option=field_option_object
-                        )
-                        condition_groups[condition["group"]] = group
-
+                    mapped_group_id = None
+                    group = condition.get("group", None)
+                    if group:
+                        mapped_group_id = id_mapping[
+                            "database_form_view_condition_groups"
+                        ][group]
                     condition_objects.append(
                         FormViewFieldOptionsCondition(
                             field_option=field_option_object,
                             field_id=id_mapping["database_fields"][condition["field"]],
                             type=condition["type"],
                             value=value,
-                            group=group,
+                            group_id=mapped_group_id,
                         )
                     )
                 id_mapping["database_form_view_field_options"][

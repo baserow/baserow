@@ -55,7 +55,7 @@
       </div>
       <div>
         <ul class="auth__action-links">
-          <li class="auth__action-link" v-if="passwordLoginEnabled">
+          <li v-if="passwordLoginEnabled" class="auth__action-link">
             {{ $t('loginWithSaml.loginText') }}
             <nuxt-link :to="{ name: 'login' }">
               {{ $t('action.login') }}
