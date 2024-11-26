@@ -154,3 +154,34 @@ export const LINK_VARIANTS = {
   LINK: 'link',
   BUTTON: 'button',
 }
+
+export const DATE_FORMATS = {
+  EU: {
+    format: 'DD/MM/YYYY',
+    name: 'common.dateFormatEU',
+    example: '25/04/2024',
+  },
+  US: {
+    format: 'MM/DD/YYYY',
+    name: 'common.dateFormatUS',
+    example: '04/25/2024',
+  },
+  ISO: {
+    format: 'YYYY-MM-DD',
+    name: 'common.dateFormatISO',
+    example: '2024-04-25',
+  },
+}
+
+export const TIME_FORMATS = {
+  24: {
+    format: 'HH:mm',
+    name: 'common.timeFormat24Hour',
+    example: '23:00',
+  },
+  12: {
+    format: 'hh:mm A',
+    name: 'common.timeFormat12Hour',
+    example: '11:00 PM',
+  },
+}

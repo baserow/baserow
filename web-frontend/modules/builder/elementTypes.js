@@ -20,8 +20,10 @@ import {
 } from '@baserow/modules/core/utils/validator'
 import {
   CHOICE_OPTION_TYPES,
+  DATE_FORMATS,
   ELEMENT_EVENTS,
   PLACEMENTS,
+  TIME_FORMATS,
   IMAGE_SOURCE_TYPES,
   IFRAME_SOURCE_TYPES,
 } from '@baserow/modules/builder/enums'
@@ -48,6 +50,9 @@ import RecordSelectorElement from '@baserow/modules/builder/components/elements/
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import { isNumeric, isValidEmail } from '@baserow/modules/core/utils/string'
 import RecordSelectorElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RecordSelectorElementForm.vue'
+import DateTimePickerElement from '@baserow/modules/builder/components/elements/components/DateTimePickerElement.vue'
+import DateTimePickerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm.vue'
+import { FormattedDate, FormattedDateTime } from '@baserow/modules/builder/date'
 
 export class ElementType extends Registerable {
   get name() {
@@ -1992,5 +1997,81 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
         },
       }
     }
+  }
+}
+
+export class DateTimePickerElementType extends FormElementType {
+  static getType() {
+    return 'datetime_picker'
+  }
+
+  get name() {
+    return this.$t('elementType.dateTimePicker')
+  }
+
+  get description() {
+    return this.$t('elementType.dateTimePickerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-calendar'
+  }
+
+  get component() {
+    return DateTimePickerElement
+  }
+
+  get generalFormComponent() {
+    return DateTimePickerElementForm
+  }
+
+  formDataType(element) {
+    return element.include_time ? 'datetime' : 'date'
+  }
+
+  /**
+   * Parse a date and time string value based on the element settings.
+   * It uses element's `date_format` and `time_format` properties to parse the
+   * date. It will only parse the time if `include_time` is on.
+   *
+   * @param element {Object} - The element that contains the formatting options.
+   * @param value {string} - The date and time string to be parsed.
+   * @returns {FormattedDate|FormattedDateTime} - The date or datetimme object.
+   */
+  parseElementDateTime(element, value) {
+    const FormattedDateOrDateTimeClass = element.include_time
+      ? FormattedDateTime
+      : FormattedDate
+
+    // Try to parse the date/datetime initially as an ISO string
+    let parsedValue = new FormattedDateOrDateTimeClass(value)
+
+    // If the previous fails, try again with the element current format
+    if (!parsedValue.isValid()) {
+      const dateFormat = DATE_FORMATS[element.date_format].format
+      const timeFormat = TIME_FORMATS[element.time_format].format
+      const format = element.include_time
+        ? `${dateFormat} ${timeFormat}`
+        : dateFormat
+      parsedValue = new FormattedDateOrDateTimeClass(value, format)
+    }
+    return parsedValue
+  }
+
+  getInitialFormDataValue(element, applicationContext) {
+    const resolvedDefaultValue = this.resolveFormula(element.default_value, {
+      element,
+      ...applicationContext,
+    })
+    return resolvedDefaultValue
+      ? this.parseElementDateTime(element, resolvedDefaultValue)
+      : null
+  }
+
+  isValid(element, value) {
+    if (!value) {
+      return !element.required
+    }
+    return this.parseElementDateTime(element, value).isValid()
   }
 }

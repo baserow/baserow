@@ -24,6 +24,7 @@ from baserow.contrib.builder.elements.element_types import (
     CheckboxElementType,
     ChoiceElementType,
     ColumnElementType,
+    DateTimePickerElementType,
     FormContainerElementType,
     HeadingElementType,
     IFrameElementType,
@@ -45,6 +46,7 @@ from baserow.contrib.builder.elements.models import (
     ChoiceElement,
     ChoiceElementOption,
     CollectionField,
+    DateTimePickerElement,
     Element,
     FormContainerElement,
     HeadingElement,
@@ -1520,3 +1522,33 @@ def test_repeat_element_import_export(data_fixture):
 
     assert imported_root_repeat.data_source_id == imported_data_source.id
     assert imported_nested_repeat.schema_property == imported_field.db_column
+
+
+@pytest.mark.parametrize(
+    "required,date_format,include_time,time_format,value,expected",
+    [
+        (False, "ISO", False, "24", None, "None"),
+        (True, "ISO", False, "24", None, FormDataProviderChunkInvalidException),
+        (True, "ISO", False, "24", "2024-04-25T00:00:00.000Z", "2024-04-25"),
+        (True, "ISO", True, "24", "2024-04-25T14:30:00.000Z", "2024-04-25 14:30"),
+        (True, "EU", False, "24", "2024-04-25T00:00:00.000Z", "25/04/2024"),
+        (True, "US", False, "24", "2024-04-25T00:00:00.000Z", "04/25/2024"),
+        (True, "EU", True, "12", "2024-04-25T14:30:00.000Z", "25/04/2024 02:30 PM"),
+        (True, "US", True, "12", "2024-04-25T14:30:00.000Z", "04/25/2024 02:30 PM"),
+    ],
+)
+def test_datetime_picker_element_is_valid(
+    required, date_format, include_time, time_format, value, expected
+):
+    element_type = DateTimePickerElementType()
+    element = DateTimePickerElement(
+        required=required,
+        date_format=date_format,
+        include_time=include_time,
+        time_format=time_format,
+    )
+    if expected is FormDataProviderChunkInvalidException:
+        with pytest.raises(FormDataProviderChunkInvalidException):
+            element_type.is_valid(element, value, {})
+    else:
+        assert str(element_type.is_valid(element, value, {})) == expected

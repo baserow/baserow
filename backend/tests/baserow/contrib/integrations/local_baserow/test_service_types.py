@@ -208,6 +208,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["date_us"]: {
             "title": "date_us",
@@ -218,6 +219,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date",
         },
         field_db_column_by_name["datetime_eu"]: {
             "title": "datetime_eu",
@@ -228,6 +230,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["date_eu"]: {
             "title": "date_eu",
@@ -238,6 +241,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date",
         },
         field_db_column_by_name["datetime_eu_tzone_visible"]: {
             "title": "datetime_eu_tzone_visible",
@@ -248,6 +252,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["datetime_eu_tzone_hidden"]: {
             "title": "datetime_eu_tzone_hidden",
@@ -258,6 +263,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_datetime_us"]: {
             "title": "last_modified_datetime_us",
@@ -268,6 +274,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_date_us"]: {
             "title": "last_modified_date_us",
@@ -278,6 +285,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_datetime_eu"]: {
             "title": "last_modified_datetime_eu",
@@ -288,6 +296,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_date_eu"]: {
             "title": "last_modified_date_eu",
@@ -298,6 +307,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_datetime_eu_tzone"]: {
             "title": "last_modified_datetime_eu_tzone",
@@ -308,6 +318,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_datetime_us"]: {
             "title": "created_on_datetime_us",
@@ -318,6 +329,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_date_us"]: {
             "title": "created_on_date_us",
@@ -328,6 +340,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_datetime_eu"]: {
             "title": "created_on_datetime_eu",
@@ -338,6 +351,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_date_eu"]: {
             "title": "created_on_date_eu",
@@ -348,6 +362,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_datetime_eu_tzone"]: {
             "title": "created_on_datetime_eu_tzone",
@@ -358,6 +373,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_by"]: {
             "default": None,
@@ -492,7 +508,11 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                     "is_image": {"title": "is_image", "type": "boolean"},
                     "image_width": {"title": "image_width", "type": "number"},
                     "image_height": {"title": "image_height", "type": "number"},
-                    "uploaded_at": {"title": "uploaded_at", "type": "string"},
+                    "uploaded_at": {
+                        "title": "uploaded_at",
+                        "type": "string",
+                        "format": "date-time",
+                    },
                 },
             },
         },
@@ -615,6 +635,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "formula",
             "metadata": {},
             "type": "string",
+            "format": "date",
         },
         field_db_column_by_name["formula_singleselect"]: {
             "title": "formula_singleselect",

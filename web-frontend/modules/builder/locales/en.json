@@ -1,4 +1,13 @@
 {
+  "common": {
+    "dateFormatTitle": "Date format",
+    "dateFormatEU": "European",
+    "dateFormatUS": "US",
+    "dateFormatISO": "ISO",
+    "timeFormatTitle": "Time format",
+    "timeFormat24Hour": "24 hour",
+    "timeFormat12Hour": "12 hour"
+  },
   "dataProviderType": {
     "dataSource": "Data records",
     "dataSourceContext": "Available options",
@@ -99,7 +108,9 @@
     "repeat": "Repeat",
     "repeatDescription": "A repeatable set of elements",
     "recordSelector": "Record selector",
-    "recordSelectorDescription": "A related record selector"
+    "recordSelectorDescription": "A related record selector",
+    "dateTimePicker": "Date time picker",
+    "dateTimePickerDescription": "A date and time input field"
   },
   "addElementButton": {
     "label": "Element"
@@ -189,6 +200,10 @@
     "inputTypeTextLabel": "Text",
     "inputTypePasswordLabel": "Password",
     "passwordTypeWarning": "Passwords are sensitive data. Please be careful how you handle and store passwords in your application."
+  },
+  "dateTimePickerElementForm": {
+    "includeTime": "Include time",
+    "invalidDateError": "Invalid date. Please make sure the input date matches the given format."
   },
   "imageElementForm": {
     "fileLabel": "Image",

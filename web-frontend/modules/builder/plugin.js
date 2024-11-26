@@ -38,6 +38,7 @@ import {
   FormContainerElementType,
   ChoiceElementType,
   CheckboxElementType,
+  DateTimePickerElementType,
   IFrameElementType,
   RepeatElementType,
   RecordSelectorElementType,
@@ -207,6 +208,7 @@ export default (context) => {
   app.$registry.register('element', new InputTextElementType(context))
   app.$registry.register('element', new ChoiceElementType(context))
   app.$registry.register('element', new CheckboxElementType(context))
+  app.$registry.register('element', new DateTimePickerElementType(context))
   app.$registry.register('element', new RecordSelectorElementType(context))
   app.$registry.register('element', new RepeatElementType(context))
 
