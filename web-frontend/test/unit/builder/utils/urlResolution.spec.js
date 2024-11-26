@@ -96,4 +96,23 @@ describe('resolveElementUrl tests', () => {
     )
     expect(result).toEqual('/builder/123/preview/contact/')
   })
+  test('Should ', () => {
+    const element = {
+      navigation_type: 'page',
+      navigate_to_page_id: 1,
+      page_parameters: [{ name: 'id', value: '"10"' }],
+    }
+    const builder = {
+      id: 123,
+      pages: [{ id: 1, path: '/products/', path_params: [] }],
+    }
+    const result = resolveElementUrl(
+      element,
+      builder,
+      builder.pages,
+      resolveFormula,
+      'preview'
+    )
+    expect(result).toEqual('/builder/123/preview/products/')
+  })
 })
