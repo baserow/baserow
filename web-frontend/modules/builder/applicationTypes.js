@@ -77,9 +77,10 @@ export class BuilderApplicationType extends ApplicationType {
 
   delete(application) {
     const { store, router } = this.app
-    const pageSelected = store.getters['page/getAllPages'](application).some(
-      (page) => page._.selected
-    )
+    const pageSelected = store.getters['page/getVisiblePages'](
+      application
+    ).some((page) => page._.selected)
+
     if (pageSelected) {
       router.push({ name: 'dashboard' })
     }
@@ -141,6 +142,14 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   prepareForStoreUpdate(application, data) {
+    if (Object.prototype.hasOwnProperty.call(data, 'pages')) {
+      delete data.pages
+    }
+
+    if (Object.prototype.hasOwnProperty.call(data, 'theme')) {
+      delete data.theme
+    }
+
     return data
   }
 

@@ -7,6 +7,8 @@ from django.db import transaction
 from django.db.transaction import Atomic
 from django.urls import include, path
 
+from rest_framework import serializers
+
 from baserow.contrib.builder.builder_beta_init_application import (
     BuilderApplicationTypeInitApplication,
 )
@@ -46,9 +48,10 @@ class BuilderApplicationType(ApplicationType):
         "pages",
         "theme",
         "favicon_file",
+        "login_page_id",
     ]
-    allowed_fields = ["favicon_file"]
-    request_serializer_field_names = ["favicon_file"]
+    allowed_fields = ["favicon_file", "login_page_id"]
+    request_serializer_field_names = ["favicon_file", "login_page_id"]
     serializer_mixins = [lazy_get_instance_serializer_class]
 
     # Builder applications are imported second.
@@ -66,6 +69,9 @@ class BuilderApplicationType(ApplicationType):
                 default=None,
                 help_text="The favicon image file",
                 validators=[image_file_validation],
+            ),
+            "login_page_id": serializers.IntegerField(
+                allow_null=True, required=False, default=None
             ),
         }
 
@@ -195,6 +201,7 @@ class BuilderApplicationType(ApplicationType):
             theme=serialized_theme,
             user_sources=serialized_user_sources,
             favicon_file=serialized_favicon_file,
+            login_page=builder.login_page,
             **serialized_builder,
         )
 
@@ -379,6 +386,11 @@ class BuilderApplicationType(ApplicationType):
                 storage,
             ):
                 builder.favicon_file = favicon_file
+                builder.save()
+
+        if login_page := serialized_values.pop("login_page", None):
+            if login_page_id := id_mapping["builder_pages"].get(login_page.id, None):
+                builder.login_page_id = login_page_id
                 builder.save()
 
         ThemeHandler().import_theme(builder, serialized_theme, id_mapping)

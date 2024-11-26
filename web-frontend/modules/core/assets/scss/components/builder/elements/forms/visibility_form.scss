@@ -22,3 +22,12 @@
   display: flex;
   margin-bottom: 5px;
 }
+
+.visibility-form__visibility-all {
+  display: flex;
+  justify-content: start;
+}
+
+.visibility-form__visibility-logged-in {
+  min-width: 200px;
+}

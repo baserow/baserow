@@ -27,6 +27,15 @@ class Page(
     OrderableMixin,
     models.Model,
 ):
+    class VISIBILITY_TYPES(models.TextChoices):
+        ALL = "all"
+        LOGGED_IN = "logged-in"
+
+    class ROLE_TYPES(models.TextChoices):
+        ALLOW_ALL = "allow_all"
+        ALLOW_ALL_EXCEPT = "allow_all_except"
+        DISALLOW_ALL_EXCEPT = "disallow_all_except"
+
     builder = models.ForeignKey("builder.Builder", on_delete=models.CASCADE)
     order = models.PositiveIntegerField()
     name = models.CharField(max_length=255)
@@ -39,6 +48,29 @@ class Page(
     # We should have only one shared page per builder. Shared page can't be create
     # directly. They are created on demand when a shared element is created.
     shared = models.BooleanField(default=False, db_default=False)
+
+    visibility = models.CharField(
+        choices=VISIBILITY_TYPES.choices,
+        max_length=20,
+        db_index=True,
+        default=VISIBILITY_TYPES.ALL,
+        db_default=VISIBILITY_TYPES.ALL,
+        help_text="Controls the page's visibility. When set to 'logged-in', the builder's login_page must also be set.",
+    )
+
+    role_type = models.CharField(
+        choices=ROLE_TYPES.choices,
+        max_length=19,
+        db_index=True,
+        default=ROLE_TYPES.ALLOW_ALL,
+        db_default=ROLE_TYPES.ALLOW_ALL,
+        help_text="Role type is used in conjunction with roles to control access to this page.",
+    )
+    roles = models.JSONField(
+        default=list,
+        db_default=[],
+        help_text="List of user roles that are associated with this page. Used in conjunction with role_type.",
+    )
 
     class Meta:
         ordering = (

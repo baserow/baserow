@@ -194,6 +194,9 @@ def test_builder_application_export(data_fixture):
                 "path": shared_page.path,
                 "path_params": shared_page.path_params,
                 "shared": True,
+                "visibility": Page.VISIBILITY_TYPES.ALL.value,
+                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+                "roles": [],
                 "workflow_actions": [],
                 "data_sources": [
                     {
@@ -222,6 +225,9 @@ def test_builder_application_export(data_fixture):
                 "path": page1.path,
                 "path_params": page1.path_params,
                 "shared": False,
+                "visibility": Page.VISIBILITY_TYPES.ALL.value,
+                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+                "roles": [],
                 "workflow_actions": [
                     {
                         "id": workflow_action_1.id,
@@ -398,6 +404,9 @@ def test_builder_application_export(data_fixture):
                 "order": page2.order,
                 "path": page2.path,
                 "path_params": page2.path_params,
+                "visibility": Page.VISIBILITY_TYPES.ALL.value,
+                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+                "roles": [],
                 "shared": False,
                 "workflow_actions": [],
                 "data_sources": [
@@ -661,6 +670,7 @@ def test_builder_application_export(data_fixture):
         "order": builder.order,
         "type": "builder",
         "favicon_file": None,
+        "login_page": None,
     }
 
     assert serialized == reference
@@ -674,6 +684,9 @@ IMPORT_REFERENCE = {
             "order": 1,
             "path": "/test",
             "path_params": {},
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
             "workflow_actions": [
                 {
                     "id": 123,
@@ -855,6 +868,9 @@ IMPORT_REFERENCE = {
             "path_params": {},
             "workflow_actions": [],
             "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
             "elements": [
                 {
                     "id": 997,
@@ -1063,6 +1079,9 @@ IMPORT_REFERENCE_COMPLEX = {
             "path": "/test2",
             "path_params": {},
             "workflow_actions": [],
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
             "elements": [
                 {
                     "id": 997,
@@ -1220,6 +1239,48 @@ def test_builder_application_imports_favicon_file(data_fixture, tmpdir):
     )
 
     assert builder.favicon_file == user_file
+
+
+@pytest.mark.django_db
+def test_builder_application_does_not_import_login_page(data_fixture):
+    """
+    Ensure the importer doesn't attempt to import the login_page if it
+    doesn't exist in the serialized values.
+    """
+
+    user = data_fixture.create_user(email="test@baserow.io")
+    workspace = data_fixture.create_workspace(user=user)
+
+    config = ImportExportConfig(include_permission_data=True)
+    serialized_values = IMPORT_REFERENCE.copy()
+    serialized_values.pop("login_page", None)
+
+    builder = BuilderApplicationType().import_serialized(
+        workspace, serialized_values, config, {}
+    )
+
+    assert builder.login_page is None
+
+
+@pytest.mark.django_db
+def test_builder_application_imports_login_page(data_fixture):
+    """Ensure the login_page is imported and saved to the builder."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="foo_login_page")
+    builder.login_page = page
+    builder.save()
+
+    config = ImportExportConfig(include_permission_data=True)
+    serialized = BuilderApplicationType().export_serialized(builder, config)
+
+    new_builder = BuilderApplicationType().import_serialized(
+        workspace, serialized, config, {}
+    )
+
+    assert new_builder.login_page.name == "foo_login_page"
 
 
 @pytest.mark.django_db

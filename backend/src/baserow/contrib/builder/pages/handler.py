@@ -434,6 +434,9 @@ class PageHandler:
             elements=serialized_elements,
             data_sources=serialized_data_sources,
             workflow_actions=serialized_workflow_actions,
+            visibility=page.visibility,
+            role_type=page.role_type,
+            roles=page.roles,
         )
 
     def _ops_count_for_import_page(
@@ -593,6 +596,9 @@ class PageHandler:
                 path=serialized_page["path"],
                 path_params=serialized_page["path_params"],
                 shared=False,
+                visibility=serialized_page["visibility"],
+                role_type=serialized_page["role_type"],
+                roles=serialized_page["roles"],
             )
 
         id_mapping["builder_pages"][serialized_page["id"]] = page_instance.id

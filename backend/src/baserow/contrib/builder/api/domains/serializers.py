@@ -156,7 +156,16 @@ class PublicPageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Page
-        fields = ("id", "name", "path", "path_params", "shared")
+        fields = (
+            "id",
+            "name",
+            "path",
+            "path_params",
+            "shared",
+            "visibility",
+            "role_type",
+            "roles",
+        )
         extra_kwargs = {
             "id": {"read_only": True},
             "builder_id": {"read_only": True},
@@ -237,6 +246,10 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
         "the favicon settings."
     )
 
+    login_page_id = serializers.IntegerField(
+        help_text=Builder._meta.get_field("login_page").help_text
+    )
+
     class Meta:
         model = Builder
         fields = (
@@ -247,6 +260,7 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
             "theme",
             "user_sources",
             "favicon_file",
+            "login_page_id",
         )
 
     @extend_schema_field(PublicPageSerializer(many=True))

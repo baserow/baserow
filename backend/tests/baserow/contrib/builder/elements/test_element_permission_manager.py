@@ -7,6 +7,7 @@ from baserow.contrib.builder.elements.operations import ListElementsPageOperatio
 from baserow.contrib.builder.elements.permission_manager import (
     ElementVisibilityPermissionManager,
 )
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
@@ -590,25 +591,25 @@ def test_queryset_only_includes_elements_allowed_by_role(
     )
 
     # Create a workflow action connected to the element that requires the role
-    workflow_action_logged_in = (
-        data_fixture.create_local_baserow_create_row_workflow_action(
-            page=public_page, element=element
-        )
+    data_fixture.create_local_baserow_create_row_workflow_action(
+        page=public_page, element=element
     )
 
     perm_manager = ElementVisibilityPermissionManager()
 
-    for operation_type in [
-        ListBuilderWorkflowActionsPageOperationType.type,
+    elements = perm_manager.filter_queryset(
+        public_user_source_user,
         ListElementsPageOperationType.type,
-    ]:
-        elements = perm_manager.filter_queryset(
-            public_user_source_user,
-            ListElementsPageOperationType.type,
-            Element.objects.all(),
-        )
+        Element.objects.all(),
+    )
+    assert len(elements) == element_count
 
-        assert len(elements) == element_count
+    actions = perm_manager.filter_queryset(
+        public_user_source_user,
+        ListBuilderWorkflowActionsPageOperationType.type,
+        BuilderWorkflowAction.objects.all(),
+    )
+    assert len(actions) == element_count
 
 
 @pytest.mark.django_db
@@ -970,3 +971,167 @@ def test_auth_user_can_view_element_returns_true(
     result = perm_manager.auth_user_can_view_element(user_source_user, element)
 
     assert result is True
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "page_visibility,page_role_type,page_roles,element_visibility,element_role_type,element_roles,user_role,expected_count",
+    [
+        # Both Page and Element visibility is permissive, so the Element
+        # is returned.
+        (
+            Page.VISIBILITY_TYPES.ALL,
+            Page.ROLE_TYPES.ALLOW_ALL,
+            [],
+            Element.VISIBILITY_TYPES.ALL,
+            Element.ROLE_TYPES.ALLOW_ALL,
+            [],
+            "",
+            1,
+        ),
+        (
+            Page.VISIBILITY_TYPES.ALL,
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            Element.VISIBILITY_TYPES.LOGGED_IN,
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            "foo_role",
+            1,
+        ),
+        # Page allows visibility but Element does not, thus the Element
+        # shouldn't be returned.
+        (
+            Page.VISIBILITY_TYPES.ALL,
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            Element.VISIBILITY_TYPES.LOGGED_IN,
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            "foo_role",
+            0,
+        ),
+        (
+            Page.VISIBILITY_TYPES.ALL,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.VISIBILITY_TYPES.LOGGED_IN,
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            [],
+            "foo_role",
+            0,
+        ),
+        # Page disallows visibility due to role, so despite the Element allowing
+        # access, it shouldn't be returned.
+        (
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.VISIBILITY_TYPES.LOGGED_IN,
+            Element.ROLE_TYPES.ALLOW_ALL,
+            [],
+            "foo_role",
+            0,
+        ),
+        (
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            [],
+            Element.VISIBILITY_TYPES.LOGGED_IN,
+            Element.ROLE_TYPES.ALLOW_ALL,
+            [],
+            "foo_role",
+            0,
+        ),
+        # Page allows visibility and the Element role matches the user role, so
+        # the Element should be returned.
+        (
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.VISIBILITY_TYPES.LOGGED_IN,
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            "foo_role",
+            1,
+        ),
+        (
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            Element.VISIBILITY_TYPES.LOGGED_IN,
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            "foo_role",
+            1,
+        ),
+    ],
+)
+def test_page_visibility_applied_to_workflow_actions_queryset(
+    ab_builder_user_page,
+    data_fixture,
+    page_visibility,
+    page_role_type,
+    page_roles,
+    element_visibility,
+    element_role_type,
+    element_roles,
+    user_role,
+    expected_count,
+):
+    """
+    Test the ElementVisibilityPermissionManager. Ensure that both Elements
+    and Workflow Actions are filtered based on the Page visibility settings.
+    """
+
+    public_user_source, _, public_page = ab_builder_user_page
+
+    builder = public_page.builder
+
+    # Set the login page
+    login_page = data_fixture.create_builder_page(builder=builder)
+    builder.login_page = login_page
+
+    # Ensure the page is hidden
+    public_page.visibility = page_visibility
+    public_page.role_type = page_role_type
+    public_page.roles = page_roles
+    public_page.save()
+
+    public_user_source_user = UserSourceUser(
+        public_user_source,
+        None,
+        1,
+        "foo_username",
+        "foo@bar.com",
+        user_role,
+    )
+
+    # Create an element
+    element = data_fixture.create_builder_button_element(
+        page=public_page,
+        visibility=element_visibility,
+        roles=element_roles,
+        role_type=element_role_type,
+    )
+
+    # Create a workflow action connected to the element that requires the role
+    data_fixture.create_local_baserow_create_row_workflow_action(
+        page=public_page, element=element
+    )
+
+    perm_manager = ElementVisibilityPermissionManager()
+
+    elements = perm_manager.filter_queryset(
+        public_user_source_user,
+        ListElementsPageOperationType.type,
+        Element.objects.all(),
+    )
+    assert len(elements) == expected_count
+
+    actions = perm_manager.filter_queryset(
+        public_user_source_user,
+        ListBuilderWorkflowActionsPageOperationType.type,
+        BuilderWorkflowAction.objects.all(),
+    )
+    assert len(actions) == expected_count

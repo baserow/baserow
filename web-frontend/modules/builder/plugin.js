@@ -66,7 +66,10 @@ import {
   CustomDomainType,
   SubDomainType,
 } from '@baserow/modules/builder/domainTypes'
-import { PagePageSettingsType } from '@baserow/modules/builder/pageSettingsTypes'
+import {
+  PagePageSettingsType,
+  PageVisibilitySettingsType,
+} from '@baserow/modules/builder/pageSettingsTypes'
 import {
   TextPathParamType,
   NumericPathParamType,
@@ -240,6 +243,10 @@ export default (context) => {
   app.$registry.register('domain', new SubDomainType(context))
 
   app.$registry.register('pageSettings', new PagePageSettingsType(context))
+  app.$registry.register(
+    'pageSettings',
+    new PageVisibilitySettingsType(context)
+  )
 
   app.$registry.register('pathParamType', new TextPathParamType(context))
   app.$registry.register('pathParamType', new NumericPathParamType(context))

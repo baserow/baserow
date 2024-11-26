@@ -32,6 +32,14 @@ class Builder(Application):
         related_name="builder_favicon_file",
     )
 
+    login_page = models.OneToOneField(
+        Page,
+        on_delete=models.SET_NULL,
+        help_text="The login page for this application. This is related to the visibility settings of builder pages.",
+        related_name="login_page",
+        null=True,
+    )
+
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         super().save(*args, **kwargs)

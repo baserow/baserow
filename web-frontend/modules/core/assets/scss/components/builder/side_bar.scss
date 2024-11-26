@@ -1,0 +1,4 @@
+/** Only display ellipsis when the user is *not* editing the page name in-place */
+.side-bar-builder__link-text:not([contenteditable='true']) {
+  @extend %ellipsis;
+}

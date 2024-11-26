@@ -2,6 +2,7 @@
   <div>
     <Toasts></Toasts>
     <PageContent
+      v-if="canViewPage"
       :page="page"
       :path="path"
       :params="params"
@@ -18,6 +19,8 @@ import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
+import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
+import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
 
 import {
   getTokenIfEnoughTimeLeft,
@@ -48,6 +51,7 @@ export default {
       applicationContext: this.applicationContext,
     }
   },
+
   async asyncData({
     store,
     params,
@@ -204,6 +208,7 @@ export default {
       mode,
     })
 
+    // TODO: This doesn't appear to be doing anything...
     // And finally select the page to display it
     await store.dispatch('page/selectById', {
       builder,
@@ -239,6 +244,17 @@ export default {
         pageParamsValue: this.params,
         mode: this.mode,
       }
+    },
+    /**
+     * Returns true if the current user is allowed to view this page,
+     * otherwise returns false.
+     */
+    canViewPage() {
+      return userCanViewPage(
+        this.$store.getters['userSourceUser/getUser'](this.builder),
+        this.$store.getters['userSourceUser/isAuthenticated'](this.builder),
+        this.page
+      )
     },
     dispatchContext() {
       return DataProviderType.getAllDataSourceDispatchContext(
@@ -316,11 +332,41 @@ export default {
         }
       },
     },
-    isAuthenticated() {
-      // When the user login or logout, we need to refetch the elements and actions
-      // as they might have changed
+    async isAuthenticated() {
+      // When the user logs in or out, we need to refetch the elements and actions
+      // as they might have changed.
       this.$store.dispatch('element/fetchPublished', { page: this.page })
       this.$store.dispatch('workflowAction/fetchPublished', { page: this.page })
+
+      // If the user is on a hidden page, redirect them to the Login page if possible.
+      await this.maybeRedirectUserToLoginPage()
+    },
+  },
+  async mounted() {
+    await this.maybeRedirectUserToLoginPage()
+  },
+  methods: {
+    /**
+     * If the user does not have access to the current page, redirect them to
+     * the Login page if possible.
+     */
+    async maybeRedirectUserToLoginPage() {
+      if (!this.canViewPage && this.builder.login_page_id) {
+        const loginPage = await this.$store.getters['page/getById'](
+          this.builder,
+          this.builder.login_page_id
+        )
+        const url = prefixInternalResolvedUrl(
+          loginPage.path,
+          this.builder,
+          'page',
+          this.mode
+        )
+
+        if (url !== this.$router.history.current?.fullPath) {
+          this.$router.push(url)
+        }
+      }
     },
   },
 }

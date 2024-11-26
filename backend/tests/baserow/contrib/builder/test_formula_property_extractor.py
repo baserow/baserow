@@ -305,15 +305,19 @@ def test_get_element_property_names_returns_property_names(data_fixture):
         data_source_1.service.id,
         data_source_2.service.id,
     ]
-    assert sorted(list(result["external"][data_source_1.service.id])) == [
-        # Since only the first two fields are used by elements in this page,
-        # we expect to see _only_ those two fields.
-        f"field_{fields[0].id}",
-        f"field_{fields[1].id}",
-    ]
-    assert sorted(list(result["external"][data_source_2.service.id])) == [
-        f"field_{fields[2].id}",
-    ]
+    assert sorted(list(result["external"][data_source_1.service.id])) == sorted(
+        [
+            # Since only the first two fields are used by elements in this page,
+            # we expect to see _only_ those two fields.
+            f"field_{fields[0].id}",
+            f"field_{fields[1].id}",
+        ]
+    )
+    assert sorted(list(result["external"][data_source_2.service.id])) == sorted(
+        [
+            f"field_{fields[2].id}",
+        ]
+    )
 
 
 @pytest.mark.django_db

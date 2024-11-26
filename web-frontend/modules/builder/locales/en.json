@@ -338,10 +338,23 @@
   "pageSettingsTypes": {
     "pageName": "Page"
   },
+  "pageVisibilitySettingsTypes": {
+    "pageName": "Visibility",
+    "logInPageWarningTitle": "The Login Page is not set",
+    "logInPagewarningMessage": "When an anonymous user attempts to access this page, they will be redirected to a login page. Please set the Login Page in the Application's General settings.",
+    "logInPageInfoTitle": "Anonymous users will be redirected",
+    "logInPageInfoMessage": "Anonymous users attempting to access this page will be redirected to the {logInPageName} page."
+  },
   "pageSettings": {
     "title": "Page",
     "pageUpdatedTitle": "Changed",
     "pageUpdatedDescription": "The page settings have been updated."
+  },
+  "pageVisibilitySettings": {
+    "title": "Visibility",
+    "allVisitors": "All visitors",
+    "loggedInVisitors": "Logged-in visitors",
+    "description": "Who can see this page"
   },
   "pageForm": {
     "defaultName": "Page",
@@ -700,6 +713,11 @@
     "nameFieldPlaceholder": "Enter a name...",
     "authTitle": "Authentication",
     "integrationFieldLabel": "Integration"
+  },
+  "builderLoginPageForm": {
+    "pageDropdownLabel": "Login Page",
+    "pageDropdownPlaceholder": "Select a page",
+    "pageDropdownDescription": "Select the Login Page that non-logged in users should be redirected to when they attempt to access a restricted page."
   },
   "formContainerElement": {
     "submitDeactivatedText": "Complete all required fields to submit",

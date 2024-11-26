@@ -28,11 +28,25 @@ class PageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Page
-        fields = ("id", "name", "path", "path_params", "order", "builder_id", "shared")
+        fields = (
+            "id",
+            "name",
+            "path",
+            "path_params",
+            "order",
+            "builder_id",
+            "shared",
+            "visibility",
+            "role_type",
+            "roles",
+        )
         extra_kwargs = {
             "id": {"read_only": True},
             "builder_id": {"read_only": True},
             "shared": {"read_only": True},
+            "visibility": {"read_only": True},
+            "role_type": {"read_only": True},
+            "roles": {"read_only": True},
             "order": {"help_text": "Lowest first."},
         }
 
@@ -50,8 +64,14 @@ class UpdatePageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Page
-        fields = ("name", "path", "path_params")
-        extra_kwargs = {"name": {"required": False}, "path": {"required": False}}
+        fields = ("name", "path", "path_params", "visibility", "role_type", "roles")
+        extra_kwargs = {
+            "name": {"required": False},
+            "path": {"required": False},
+            "visibility": {"required": False},
+            "role_type": {"required": False},
+            "roles": {"required": False},
+        }
 
 
 class OrderPagesSerializer(serializers.Serializer):

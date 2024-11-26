@@ -119,7 +119,9 @@ class PageService:
             context=page,
         )
 
-        allowed_updates = extract_allowed(kwargs, ["name", "path", "path_params"])
+        allowed_updates = extract_allowed(
+            kwargs, ["name", "path", "path_params", "visibility", "role_type", "roles"]
+        )
 
         self.handler.update_page(page, **allowed_updates)
 
