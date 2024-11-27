@@ -1249,7 +1249,7 @@ const durationHigherLowerThanCases = [
     expectedLt: false,
   },
   {
-    rowValue: 120,
+    rowValue: 120, // 2m
     filterValue: '0:01', // one minute
     context: {
       field: {
@@ -1264,8 +1264,8 @@ const durationHigherLowerThanCases = [
     expectedLt: false,
   },
   {
-    rowValue: 61,
-    filterValue: '60', // 60 minutes due to duration_format
+    rowValue: 61, // rounded to one minute
+    filterValue: '60', // one minute
     context: {
       field: {
         type: 'formula',
@@ -1273,14 +1273,14 @@ const durationHigherLowerThanCases = [
         duration_format: 'h:mm',
       },
     },
-    expectedGte: false,
+    expectedGte: true,
     expectedGt: false,
     expectedLte: true,
-    expectedLt: true,
+    expectedLt: false,
   },
   {
     rowValue: 61,
-    filterValue: '60',
+    filterValue: '60', // one minute
     context: {
       field: {
         type: 'formula',
@@ -1309,6 +1309,22 @@ const durationHigherLowerThanCases = [
     expectedLt: false,
   },
   {
+    rowValue: 86401, // 1d 1s
+    filterValue: '86401', // 1d 1s
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
+    expectedGte: true,
+    expectedGt: false,
+    expectedLte: true,
+    expectedLt: false,
+  },
+
+  {
     rowValue: 86399,
     filterValue: '24:00:00',
     context: {
@@ -1322,6 +1338,21 @@ const durationHigherLowerThanCases = [
     expectedGt: false,
     expectedLte: true,
     expectedLt: true,
+  },
+  {
+    rowValue: 86399, // exact
+    filterValue: '86399', // exact
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
+    expectedGte: true,
+    expectedGt: false,
+    expectedLte: true,
+    expectedLt: false,
   },
   {
     rowValue: 86399, // will be rounded to 24h
@@ -1355,8 +1386,38 @@ const durationHigherLowerThanCases = [
     expectedLt: false,
   },
   {
+    rowValue: 86401, // will be rounded to 24h
+    filterValue: '86401', // 24h
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'd h',
+      },
+    },
+    expectedGte: true,
+    expectedGt: false,
+    expectedLte: true,
+    expectedLt: false,
+  },
+  {
     rowValue: 86400,
     filterValue: '24:00:00',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'd h',
+      },
+    },
+    expectedGte: true,
+    expectedGt: false,
+    expectedLte: true,
+    expectedLt: false,
+  },
+  {
+    rowValue: 86400,
+    filterValue: '86399', // 24h
     context: {
       field: {
         type: 'formula',
@@ -1427,8 +1488,8 @@ const durationEqualToValueCases = [
     expected: false,
   },
   {
-    rowValue: 20 * 60,
-    filterValue: '0:01',
+    rowValue: 20 * 60, // 20 min
+    filterValue: '0:01', // 1 min
     context: {
       field: {
         type: 'formula',
@@ -1437,6 +1498,18 @@ const durationEqualToValueCases = [
       },
     },
     expected: false,
+  },
+  {
+    rowValue: 61, // 1 min
+    filterValue: '0:01', // 1 min
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
+    expected: true,
   },
   {
     rowValue: 20 * 60,
@@ -1450,6 +1523,31 @@ const durationEqualToValueCases = [
     },
     expected: true,
   },
+  {
+    rowValue: 20 * 60 - 1, // still 20 minutes
+    filterValue: '0:20',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm',
+      },
+    },
+    expected: true,
+  },
+  {
+    rowValue: 20 * 60 - 1, // 19m59s
+    filterValue: '0:20:00',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
+    expected: false,
+  },
+
   {
     rowValue: 61, // seconds, will be rounded to 0h 01m
     filterValue: 60,
@@ -1475,7 +1573,7 @@ const durationEqualToValueCases = [
     expected: true,
   },
   {
-    rowValue: 86399, // won't be rounded to 24h
+    rowValue: 86399, // 24h -1s
     filterValue: '24:00:00',
     context: {
       field: {
@@ -1486,6 +1584,44 @@ const durationEqualToValueCases = [
     },
     expected: false,
   },
+  {
+    rowValue: 86399, // 24h -1s
+    filterValue: '86400',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
+    expected: false,
+  },
+  {
+    rowValue: 86399, // 24h
+    filterValue: '86400',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'd h',
+      },
+    },
+    expected: true,
+  },
+
+  {
+    rowValue: 86399, // won't be rounded to 24h
+    filterValue: '86399',
+    context: {
+      field: {
+        type: 'formula',
+        formula_type: 'duration',
+        duration_format: 'h:mm:ss',
+      },
+    },
+    expected: true,
+  },
+
   {
     rowValue: 86399, // will be rounded to 24h because of the format
     filterValue: '24:00:00',
@@ -2341,7 +2477,7 @@ describe('All Tests', () => {
   )
 
   test.each(numberValueIsHigherThanOrEqualCases)(
-    'NumberHigherThanOrEqualFilterType',
+    'NumberHigherThanOrEqualFilterType %j',
     (values) => {
       const app = testApp.getApp()
       const result = new HigherThanOrEqualViewFilterType({ app }).matches(
@@ -2355,7 +2491,7 @@ describe('All Tests', () => {
   )
 
   test.each(numberValueIsHigherThanCases)(
-    'FormulaNumberHigherThanFilterType',
+    'FormulaNumberHigherThanFilterType %j',
     (values) => {
       const app = testApp.getApp()
       const result = new HigherThanViewFilterType({ app }).matches(
@@ -2369,7 +2505,7 @@ describe('All Tests', () => {
   )
 
   test.each(numberValueIsLowerThanCases)(
-    'NumberLowerThanFilterType',
+    'NumberLowerThanFilterType %j',
     (values) => {
       const app = testApp.getApp()
       const result = new LowerThanViewFilterType({ app }).matches(
@@ -2383,7 +2519,7 @@ describe('All Tests', () => {
   )
 
   test.each(numberValueIsLowerThanOrEqualCases)(
-    'NumberLowerThanOrEqualFilterType',
+    'NumberLowerThanOrEqualFilterType %j',
     (values) => {
       const app = testApp.getApp()
       const result = new LowerThanOrEqualViewFilterType({ app }).matches(
@@ -2397,7 +2533,7 @@ describe('All Tests', () => {
   )
 
   test.each(numberValueIsLowerThanCases)(
-    'FormulaNumberLowerThanFilterType',
+    'FormulaNumberLowerThanFilterType %j',
     (values) => {
       const app = testApp.getApp()
       const result = new LowerThanViewFilterType({ app }).matches(
@@ -2411,7 +2547,7 @@ describe('All Tests', () => {
   )
 
   test.each(singleSelectValuesInFilterCases)(
-    'SingleSelectIsAnyOfViewFilterType',
+    'SingleSelectIsAnyOfViewFilterType %j',
     (values) => {
       const fieldType = new SingleSelectFieldType()
       const field = {}
@@ -2423,7 +2559,7 @@ describe('All Tests', () => {
   )
 
   test.each(singleSelectValuesInFilterCases)(
-    'SingleSelectIsAnyOfViewFilterType',
+    'SingleSelectIsAnyOfViewFilterType %j',
     (values) => {
       const fieldType = new FormulaFieldType()
       const field = {
@@ -2437,7 +2573,7 @@ describe('All Tests', () => {
   )
 
   test.each(singleSelectValuesInFilterCases)(
-    'SingleSelectIsNoneOfViewFilterType',
+    'SingleSelectIsNoneOfViewFilterType %j',
     (values) => {
       const fieldType = new SingleSelectFieldType()
       const field = {}
@@ -2449,7 +2585,7 @@ describe('All Tests', () => {
   )
 
   test.each(singleSelectValuesInFilterCases)(
-    'SingleSelectIsNoneOfViewFilterType',
+    'SingleSelectIsNoneOfViewFilterType %j',
     (values) => {
       const fieldType = new FormulaFieldType()
       const field = {

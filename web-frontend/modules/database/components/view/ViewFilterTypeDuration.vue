@@ -20,6 +20,13 @@ import durationField from '@baserow/modules/database/mixins/durationField'
 export default {
   name: 'ViewFilterTypeDuration',
   mixins: [filterTypeInput, durationField],
+  watch: {
+    'field.duration_format': {
+      handler() {
+        this.updateFormattedValue(this.field, this.filter.value)
+      },
+    },
+  },
   created() {
     this.updateCopy(this.field, this.filter.value)
     this.updateFormattedValue(this.field, this.filter.value)
