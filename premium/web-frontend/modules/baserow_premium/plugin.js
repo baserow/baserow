@@ -2,6 +2,7 @@ import { PremiumPlugin } from '@baserow_premium/plugins'
 import {
   JSONTableExporter,
   XMLTableExporter,
+  ExcelTableExporterType,
 } from '@baserow_premium/tableExporterTypes'
 import {
   DashboardType,
@@ -109,6 +110,7 @@ export default (context) => {
   app.$registry.register('admin', new LicensesAdminType(context))
   app.$registry.register('exporter', new JSONTableExporter(context))
   app.$registry.register('exporter', new XMLTableExporter(context))
+  app.$registry.register('exporter', new ExcelTableExporterType(context))
   app.$registry.register('field', new AIFieldType(context))
   app.$registry.register('field', new PremiumFormulaFieldType(context))
   app.$registry.register('view', new KanbanViewType(context))

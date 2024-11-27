@@ -14,7 +14,9 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
     <h2
       class="box__title"
     >
-      Export Test Table 1
+      
+    exportTableModal.title
+  
     </h2>
      
     <!---->
@@ -1654,7 +1656,7 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                 class="control__label control__label--small"
               >
                 <span>
-                  tableCSVExporter.firstRowIsHeaderLabel
+                  tableCSVExporter.includeHeader
                 </span>
                  
                 <!---->
@@ -1804,7 +1806,9 @@ exports[`Preview exportTableModal Modal with view 1`] = `
     <h2
       class="box__title"
     >
-      Export Test Table 1
+      
+    exportTableModal.title
+  
     </h2>
      
     <!---->
@@ -3446,7 +3450,7 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                 class="control__label control__label--small"
               >
                 <span>
-                  tableCSVExporter.firstRowIsHeaderLabel
+                  tableCSVExporter.includeHeader
                 </span>
                  
                 <!---->

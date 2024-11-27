@@ -665,6 +665,7 @@
     "externalWarning": "Opening your file via an external service exposes your file to their servers."
   },
   "exportTableModal": {
+    "title": "Export {name}",
     "failedTitle": "Export Failed",
     "failedDescription": "The export failed due to a server error.",
     "cancelledTitle": "Export Cancelled",
@@ -689,7 +690,7 @@
     "recordSeparator": "record separator",
     "unitSeparator": "unit separator",
     "encodingLabel": "Encoding",
-    "firstRowIsHeaderLabel": "First row is header"
+    "includeHeader": "Include field names as header"
   },
   "apiDocsDatabase": {
     "pageTitle": "{name} database API documentation",

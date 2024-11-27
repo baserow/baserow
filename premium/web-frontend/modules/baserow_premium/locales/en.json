@@ -19,7 +19,8 @@
     },
     "exporterType": {
       "json": "Export to JSON",
-      "xml": "Export to XML"
+      "xml": "Export to XML",
+      "excel": "Export to Excel"
     },
     "deactivated": "Available in premium version"
   },
@@ -171,6 +172,9 @@
   },
   "tableXMLExporter": {
     "encoding": "Encoding"
+  },
+  "tableExcelExporter": {
+    "includeHeader": "Include field names as header"
   },
   "kanbanViewStackContext": {
     "createCard": "Create card",

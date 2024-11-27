@@ -37,6 +37,10 @@ export class TableExporterType extends Registerable {
     )
   }
 
+  getFileExtension() {
+    return this.getType()
+  }
+
   /**
    * The supported view types for this exporter.
    */

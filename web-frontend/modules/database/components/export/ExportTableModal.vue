@@ -1,7 +1,9 @@
 <template>
   <Modal @hidden="hidden">
     <div v-if="loadingViews" class="loading-overlay"></div>
-    <h2 class="box__title">Export {{ table.name }}</h2>
+    <h2 class="box__title">
+      {{ $t('exportTableModal.title', { name: table.name }) }}
+    </h2>
     <Error :error="error"></Error>
     <ExportTableForm
       ref="form"

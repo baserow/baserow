@@ -41,7 +41,7 @@ describe('Preview exportTableModal', () => {
     })
     await wrapper.vm.show()
     expect(wrapper.element).toMatchSnapshot()
-    expect(wrapper.html()).toContain(`Export ${table.name}`)
+    expect(wrapper.html()).toContain(`exportTableModal.title`)
     expect(wrapper.find('.select__item.active').html()).toContain(
       'exportEntireTable'
     )
