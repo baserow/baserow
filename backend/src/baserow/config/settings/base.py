@@ -1317,3 +1317,8 @@ BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST = (
     if BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST
     else []
 )
+
+# Default compression level for creating zip files. This setting balances the need to
+# save resources when compressing media files with the need to save space when
+# compressing text files.
+BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL = 5

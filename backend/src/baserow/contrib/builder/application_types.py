@@ -23,6 +23,7 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
+from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.utils import ChildProgressBuilder
@@ -136,7 +137,7 @@ class BuilderApplicationType(ApplicationType):
         self,
         builder: Builder,
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> BuilderDict:
         """

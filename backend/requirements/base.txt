@@ -686,6 +686,8 @@ zipp==3.18.1
     # via
     #   -r base.in
     #   importlib-metadata
+zipstream-ng==1.8.0
+    # via -r base.in
 zope-interface==6.4.post2
     # via twisted
 

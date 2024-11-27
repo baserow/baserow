@@ -15,6 +15,7 @@ from baserow.core.integrations.registries import (
 )
 from baserow.core.models import Application
 from baserow.core.registries import application_type_registry
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
 
 from .types import IntegrationForUpdate
@@ -234,7 +235,7 @@ class IntegrationHandler:
     def export_integration(
         self,
         integration: Integration,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
     ):

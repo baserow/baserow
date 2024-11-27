@@ -37,6 +37,7 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import (
     get_model_reference_field_name,
     split_attrs_and_m2m_fields,
@@ -208,7 +209,7 @@ class ViewType(
         self,
         view: "View",
         cache: Optional[Dict] = None,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Dict[str, Any]:
         """

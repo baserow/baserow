@@ -26,6 +26,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import MirrorDict, extract_allowed
 
 old_element_type_map = {"dropdown": "choice"}
@@ -617,7 +618,7 @@ class ElementHandler:
     def export_element(
         self,
         element: Element,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
     ):

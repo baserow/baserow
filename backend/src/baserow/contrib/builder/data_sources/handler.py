@@ -20,6 +20,7 @@ from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import find_unused_name
 
 from .types import DataSourceForUpdate
@@ -472,7 +473,7 @@ class DataSourceHandler:
     def export_data_source(
         self,
         data_source: DataSource,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
     ) -> DataSourceDict:

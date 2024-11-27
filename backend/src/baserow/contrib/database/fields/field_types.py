@@ -119,9 +119,10 @@ from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
+from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
-from baserow.core.storage import get_default_storage
+from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import list_to_comma_separated_string
@@ -1428,7 +1429,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         row: "GeneratedTableModel",
         field_name: str,
         cache: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Any:
         """
@@ -1633,7 +1634,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
         row: "GeneratedTableModel",
         field_name: str,
         cache: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Any:
         """
@@ -1878,7 +1879,7 @@ class DurationFieldType(FieldType):
         row: "GeneratedTableModel",
         field_name: str,
         cache: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Any:
         duration = self.get_internal_value_from_db(row, field_name)
@@ -3405,7 +3406,7 @@ class FileFieldType(FieldType):
         row: "GeneratedTableModel",
         field_name: str,
         cache: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> List[Dict[str, Any]]:
         file_names = []
@@ -3413,16 +3414,18 @@ class FileFieldType(FieldType):
 
         for file in self.get_internal_value_from_db(row, field_name):
             # Check if the user file object is already in the cache and if not,
-            # it must be fetched and added to to it.
+            # it must be fetched and added to it.
             cache_entry = f"user_file_{file['name']}"
             if cache_entry not in cache:
-                if files_zip is not None and file["name"] not in files_zip.namelist():
-                    # Load the user file from the content and write it to the zip file
-                    # because it might not exist in the environment that it is going
-                    # to be imported in.
+                if files_zip is not None and file["name"] not in [
+                    item["name"] for item in files_zip.info_list()
+                ]:
                     file_path = user_file_handler.user_file_path(file["name"])
-                    with storage.open(file_path, mode="rb") as storage_file:
-                        files_zip.writestr(file["name"], storage_file.read())
+                    # Create chunk generator for the file content and add it to the zip
+                    # stream. That file will be read when zip stream is being
+                    # written to final zip file
+                    chunk_generator = file_chunk_generator(storage, file_path)
+                    files_zip.add(chunk_generator, file["name"])
 
                 # This is just used to avoid writing the same file twice.
                 cache[cache_entry] = True
@@ -5939,7 +5942,7 @@ class UUIDFieldType(ReadOnlyFieldType):
         row: "GeneratedTableModel",
         field_name: str,
         cache: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> None:
         return str(

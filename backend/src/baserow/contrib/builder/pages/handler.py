@@ -34,6 +34,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
 
 
@@ -387,7 +388,7 @@ class PageHandler:
     def export_page(
         self,
         page: Page,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
     ) -> List[PageDict]:
