@@ -162,6 +162,31 @@ def test_create_data_source_bad_request(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_data_source_with_with_name_conflict(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="Blog posts"
+    )
+
+    url = reverse("api:builder:data_source:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "name": data_source.name,
+            "type": "local_baserow_list_rows",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
+        "detail": f"The data source name '{data_source.name}' already exists.",
+    }
+
+
+@pytest.mark.django_db
 def test_create_data_source_permission_denied(
     api_client, data_fixture, stub_check_permissions
 ):
@@ -250,6 +275,36 @@ def test_update_data_source_page(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json()["page_id"] == page2.id
     assert response.json()["name"] == "name"
+
+
+@pytest.mark.django_db
+def test_update_data_source_with_with_name_conflict_is_disallowed_on_same_pages(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="Blog posts"
+    )
+    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="Posts"
+    )
+
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source_2.id}
+    )
+
+    response = api_client.patch(
+        url,
+        {"name": data_source_1.name},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
+        "detail": f"The data source name '{data_source_1.name}' already exists.",
+    }
 
 
 @pytest.mark.django_db

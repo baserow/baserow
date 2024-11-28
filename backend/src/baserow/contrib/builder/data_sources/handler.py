@@ -3,6 +3,7 @@ from zipfile import ZipFile
 
 from django.core.files.storage import Storage
 from django.db.models import Q, QuerySet
+from django.db.utils import DatabaseError, IntegrityError
 
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
@@ -10,6 +11,7 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
     DataSourceImproperlyConfigured,
+    DataSourceNameNotUniqueError,
 )
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.formula_importer import import_formula
@@ -247,7 +249,7 @@ class DataSourceHandler:
         """
         Finds an unused name for a page in a builder.
 
-        :param builder: The builder that the page belongs to.
+        :param page: The page that the data source will belong to.
         :param proposed_name: The name that is proposed to be used.
         :return: A unique name to use.
         """
@@ -291,9 +293,16 @@ class DataSourceHandler:
         else:
             service = None
 
-        data_source = DataSource.objects.create(
-            page=page, order=order, name=name, service=service
-        )
+        try:
+            data_source = DataSource.objects.create(
+                page=page, order=order, name=name, service=service
+            )
+        except IntegrityError as error:
+            # The only unique values are page and name, together.
+            if "unique" in str(error):
+                raise DataSourceNameNotUniqueError(name)
+            raise error
+
         data_source.save()
 
         return data_source
@@ -361,13 +370,20 @@ class DataSourceHandler:
         if name is not None:
             data_source.name = name
 
-        data_source.save()
+        try:
+            data_source.save()
+        except DatabaseError:
+            # If the `name` changes, on a PATCH Django will raise a `DatabaseError`
+            # exception if it's already in use on the page, instead of an
+            # `IntegrityError` like in `create_data_source`.
+            if name is not None:
+                raise DataSourceNameNotUniqueError(name)
 
         return data_source
 
     def delete_data_source(self, data_source: DataSource):
         """
-        Deletes an data_source.
+        Deletes a data_source.
 
         :param data_source: The to-be-deleted data_source.
         """
