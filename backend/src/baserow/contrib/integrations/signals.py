@@ -1,7 +1,7 @@
 from baserow.contrib.integrations.local_baserow.signals import (
-    local_baserow_upsert_row_handle_field_update,
+    handle_local_baserow_field_updated_changes,
 )
 
 __all__ = [
-    "local_baserow_upsert_row_handle_field_update",
+    "handle_local_baserow_field_updated_changes",
 ]

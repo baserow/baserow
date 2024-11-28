@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from baserow.contrib.database.fields.field_types import UUIDFieldType
+from baserow.contrib.database.fields.field_types import TextFieldType, UUIDFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.actions import (
     CreateRowsActionType,
@@ -153,3 +153,28 @@ def test_local_baserow_upsert_row_send_action_done_signal_when_deleting_row(
     args = send_mock.call_args[1]
     assert args["action_type"].type == DeleteRowsActionType.type
     assert args["action_params"]["row_ids"] == [row.id]
+
+
+@pytest.mark.django_db()
+def test_local_baserow_service_filters_delete_when_field_type_changes_to_incompatible_type(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    link_field = data_fixture.create_link_row_field(table=table)
+    number_field = data_fixture.create_number_field(table=table)
+    service = data_fixture.create_local_baserow_list_rows_service(table=table)
+    link_row_filter = data_fixture.create_local_baserow_table_service_filter(
+        service=service, type="link_row_has", field=link_field, value=1, order=0
+    )
+    number_filter = data_fixture.create_local_baserow_table_service_filter(
+        service=service, field=number_field, value=25, order=1
+    )
+    # Converting a `link_row` to a `text` field type will result in an
+    # incompatible filter, so it'll be destroyed.
+    FieldHandler().update_field(user, link_field, TextFieldType.type)
+    assert not service.service_filters.filter(pk=link_row_filter.pk).exists()
+    # However converting a `number` field to a `text` field type will result
+    # in the filter staying compatible, so it's left intact.
+    FieldHandler().update_field(user, number_field, TextFieldType.type)
+    assert service.service_filters.filter(pk=number_filter.pk).exists()

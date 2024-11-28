@@ -717,6 +717,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             field=field,
             old_field=old_field,
             related_fields=updated_fields,
+            field_type_changed=baserow_field_type_changed,
             user=user,
         )
         update_collector.send_additional_field_updated_signals()
