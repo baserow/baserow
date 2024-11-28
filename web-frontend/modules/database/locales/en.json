@@ -318,7 +318,8 @@
     "addField": "Add field"
   },
   "selectRowContent": {
-    "search": "Search rows"
+    "search": "Search rows",
+    "hideFields": "Hide fields"
   },
   "rowEditModal": {
     "addField": "Add field",

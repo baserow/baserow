@@ -41,6 +41,7 @@
       :value="value"
       :multiple="true"
       :new-row-presets="presetsForNewRowInLinkedTable"
+      :persistent-field-options-key="getPersistentFieldOptionsKey(field.id)"
       @selected="addValue(value, $event)"
       @unselected="removeValue({}, value, $event.row.id)"
     ></SelectRowModal>
@@ -58,6 +59,7 @@
 </template>
 
 <script>
+import { getPersistentFieldOptionsKey } from '@baserow/modules/database/utils/field'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import linkRowField from '@baserow/modules/database/mixins/linkRowField'
 import SelectRowModal from '@baserow/modules/database/components/row/SelectRowModal'
@@ -90,6 +92,9 @@ export default {
     },
   },
   methods: {
+    getPersistentFieldOptionsKey(fieldId) {
+      return getPersistentFieldOptionsKey(fieldId)
+    },
     removeValue(...args) {
       linkRowField.methods.removeValue.call(this, ...args)
       this.touch()

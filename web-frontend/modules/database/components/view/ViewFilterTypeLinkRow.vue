@@ -33,6 +33,7 @@
       ref="selectModal"
       :table-id="field.link_row_table_id"
       :view-id="field.link_row_limit_selection_view_id"
+      :persistent-field-options-key="getPersistentFieldOptionsKey(field.id)"
       @selected="setValue"
     ></SelectRowModal>
   </a>
@@ -40,6 +41,7 @@
 
 <script>
 import { isNumeric } from '@baserow/modules/core/utils/string'
+import { getPersistentFieldOptionsKey } from '@baserow/modules/database/utils/field'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import SelectRowModal from '@baserow/modules/database/components/row/SelectRowModal'
 import viewFilter from '@baserow/modules/database/mixins/viewFilter'
@@ -74,6 +76,9 @@ export default {
     this.setName()
   },
   methods: {
+    getPersistentFieldOptionsKey(fieldId) {
+      return getPersistentFieldOptionsKey(fieldId)
+    },
     async setName() {
       const { value, preload_values: { display_name: displayName } = {} } =
         this.filter
