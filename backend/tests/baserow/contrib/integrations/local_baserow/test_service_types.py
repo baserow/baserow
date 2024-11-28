@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -9,6 +10,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowListRowsUserServiceType,
     LocalBaserowServiceType,
     LocalBaserowTableServiceType,
+    LocalBaserowViewServiceType,
 )
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.test_utils.helpers import setup_interesting_test_table
@@ -1107,3 +1109,94 @@ def test_local_baserow_table_service_type_get_context_data_schema(data_fixture):
             },
         },
     }
+
+
+@pytest.mark.django_db
+def test_local_baserow_view_service_type_prepare_values(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table_a = data_fixture.create_database_table(database=database)
+    view_a = data_fixture.create_grid_view(table=table_a)
+    table_b = data_fixture.create_database_table(database=database)
+    view_b = data_fixture.create_grid_view(table=table_b)
+
+    # We're just testing the `ViewServiceType`'s `prepare_values`, we don't
+    # want to test any additional requirements for list rows.
+    service_type = LocalBaserowViewServiceType
+    service_type.model_class = Mock()
+    instance = data_fixture.create_local_baserow_list_rows_service(
+        table=table_a, view=view_a
+    )
+
+    # Providing a `view_id` that does not exist.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values({"view_id": "123"}, user, instance)
+    assert str(exc.value.detail["detail"]) == "The view with ID 123 does not exist."
+
+    # Providing a `table`, no `view_id`, when the instance already
+    # points to a view, will cause the `view` values to be `None`.
+    assert service_type().prepare_values({"table": table_b}, user, instance) == {
+        "table": table_b,
+        "view": None,
+    }
+
+    # Providing a `view_id` and `table_id` when none have previously been set.
+    instance.view_id = None
+    instance.table_id = None
+    instance.save()
+    assert service_type().prepare_values(
+        {"table": table_a, "view_id": view_a.id}, user, instance
+    ) == {
+        "view": view_a.view_ptr,
+        "table": table_a,
+    }
+
+    # Providing a `view_id` when the instance and values don't contain a table.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values({"view_id": view_a.id}, user, instance)
+    assert (
+        str(exc.value.detail["detail"])
+        == "A table ID is required alongside the view ID."
+    )
+
+    # Providing a `view_id` when a `table_id` has previously been set, and the
+    # view belongs to the instance's table.
+    instance.view_id = view_a.id
+    instance.table_id = table_a.id
+    instance.save()
+    assert service_type().prepare_values({"view_id": view_a.id}, user, instance) == {
+        "view": view_a.view_ptr,
+        "table": table_a,
+    }
+
+    # Providing a `view_id` when a `table_id` has previously been set, and the
+    # view doesn't belong to the instance's table.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values({"view_id": view_b.id}, user, instance)
+    assert (
+        str(exc.value.detail[0])
+        == f"The view with ID {view_b.id} is not related to the given table {instance.table_id}."
+    )
+
+    # Providing a `view_id` and `table_id` when none was previously been set,
+    # and the view belongs to the provided table.
+    instance.view_id = None
+    instance.table_id = None
+    instance.save()
+    assert service_type().prepare_values(
+        {"view_id": view_a.id, "table": table_a}, user, instance
+    ) == {
+        "view": view_a.view_ptr,
+        "table": table_a,
+    }
+
+    # Providing a `view_id` and `table_id` when none was previously been set,
+    # and the `view_id` doesn't belong to the provided `table`.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values(
+            {"view_id": view_a.id, "table": table_b}, user, instance
+        )
+    assert (
+        str(exc.value.detail[0])
+        == f"The view with ID {view_a.id} is not related to the given table {table_b.id}."
+    )

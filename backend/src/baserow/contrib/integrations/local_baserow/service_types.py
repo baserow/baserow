@@ -57,7 +57,10 @@ from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
 from baserow.contrib.database.table.service import TableService
-from baserow.contrib.database.views.exceptions import AggregationTypeDoesNotExist
+from baserow.contrib.database.views.exceptions import (
+    AggregationTypeDoesNotExist,
+    ViewDoesNotExist,
+)
 from baserow.contrib.database.views.service import ViewService
 from baserow.contrib.integrations.local_baserow.api.serializers import (
     LocalBaserowTableServiceFieldMappingSerializer,
@@ -700,25 +703,41 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
         if "view_id" in values:
             view_id = values.pop("view_id")
             if view_id is not None:
-                view = ViewService().get_view(user, view_id)
-
-                # Check that the view table_id match the given table
-                if "table" in values and view.table_id != values["table"].id:
+                try:
+                    view = ViewService().get_view(user, view_id)
+                except ViewDoesNotExist:
                     raise DRFValidationError(
-                        detail=f"The view with ID {view_id} is not related to the "
-                        "given table.",
-                        code="invalid_view",
+                        detail={
+                            "detail": f"The view with ID {view_id} does not exist.",
+                            "error": "view_does_not_exist",
+                        },
+                        code="view_does_not_exist",
                     )
 
-                # Check that the view table_id match the existing table
-                elif (
-                    instance
-                    and instance.table_id
-                    and view.table_id != instance.table_id
-                ):
+                # If we're PATCHing with a `table_id` alongside the `view_id`,
+                # validate with that table, otherwise we're PATCHing with just a
+                # `view_id`, so we need to validate against the instance's table.
+                table_to_validate = values.get(
+                    "table", getattr(instance, "table", None)
+                )
+
+                # This isn't possible in the UI, but if a REST API request
+                # sends us a `view_id` without a `table_id` existing on the
+                # instance or in the values, we'll raise a 400.
+                if not table_to_validate:
+                    raise DRFValidationError(
+                        detail={
+                            "detail": "A table ID is required alongside the view ID.",
+                            "error": "required",
+                        },
+                        code="required",
+                    )
+
+                # Check that the view table_id match the given table
+                if view.table_id != table_to_validate.id:
                     raise DRFValidationError(
                         detail=f"The view with ID {view_id} is not related to the "
-                        "given table.",
+                        f"given table {table_to_validate.id}.",
                         code="invalid_view",
                     )
                 else:
