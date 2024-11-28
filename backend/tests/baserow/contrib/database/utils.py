@@ -52,7 +52,7 @@ async def get_message(communicator: WebsocketCommunicator, message_type: str):
 
 
 @dataclass
-class ArrayFiltersSetup:
+class LookupFieldSetup:
     user: AbstractUser
     table: Table
     other_table: Table
@@ -143,7 +143,7 @@ def text_field_value_factory(data_fixture, target_field, value=None):
 
 def setup_linked_table_and_lookup(
     data_fixture, target_field_factory
-) -> ArrayFiltersSetup:
+) -> LookupFieldSetup:
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(user=user, database=database)
@@ -165,7 +165,7 @@ def setup_linked_table_and_lookup(
     row_handler = RowHandler()
     model = table.get_model()
     other_table_model = other_table.get_model()
-    return ArrayFiltersSetup(
+    return LookupFieldSetup(
         user=user,
         table=table,
         other_table=other_table,
