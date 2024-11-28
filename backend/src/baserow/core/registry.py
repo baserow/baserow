@@ -467,6 +467,10 @@ class EasyImportExportMixin(Generic[T], ABC):
     # Describe the properties to serialize
     SerializedDict: Type[TypedDict]
 
+    # List of fields that are potentially sensitive and shouldn't be included
+    # when exporting the application.
+    sensitive_fields: List[str] = []
+
     # The parent property name for the model
     parent_property_name: str
 
@@ -512,6 +516,7 @@ class EasyImportExportMixin(Generic[T], ABC):
     def export_serialized(
         self,
         instance: T,
+        import_export_config: Optional[Any] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
@@ -539,6 +544,11 @@ class EasyImportExportMixin(Generic[T], ABC):
                 for key in self.get_property_names()
             }
         )
+
+        if getattr(import_export_config, "exclude_sensitive_data", False):
+            for field_name in self.sensitive_fields:
+                if field_name in serialized:
+                    serialized[field_name] = None
 
         return serialized
 

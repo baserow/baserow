@@ -50,3 +50,21 @@ def test_can_restore_a_snapshot_for_builder_application(data_fixture):
 
     assert snapshot_restored is not None
     assert Builder.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_can_restore_a_snapshot_with_integration(data_fixture):
+    """Ensure that the integration is correctly restored."""
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user)
+    data_fixture.create_local_baserow_integration(user=user, application=builder)
+
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=builder,
+        snapshot_to_application=builder,
+        user=user,
+    )
+    snapshot_restored = SnapshotHandler().perform_restore(snapshot, Progress(total=100))
+
+    assert snapshot_restored.integrations.all()[0].specific.authorized_user == user

@@ -553,7 +553,7 @@ def test_builder_application_export(data_fixture):
         ],
         "integrations": [
             {
-                "authorized_user": user.username,
+                "authorized_user": None,
                 "id": integration.id,
                 "name": "test",
                 "order": "1.00000000000000000000",

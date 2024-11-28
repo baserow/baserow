@@ -1,5 +1,6 @@
 import os
 import zipfile
+from unittest.mock import call, patch
 
 from django.conf import settings
 
@@ -17,6 +18,7 @@ SOURCES_PATH = os.path.join(
     settings.BASE_DIR, "../../../tests/baserow/api/import_export/sources"
 )
 INTERESTING_DB_EXPORT_PATH = f"{SOURCES_PATH}/interesting_database_export.zip"
+BUILDER_EXPORT_PATH = f"{SOURCES_PATH}/builder_export.zip"
 
 
 @pytest.mark.import_export_workspace
@@ -130,3 +132,62 @@ def test_import_with_unexpected_files(data_fixture, use_tmp_media_root, tmp_path
         )
 
     assert str(err.value) == f"Manifest file is corrupted: Files count doesn't match"
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db()
+@patch("baserow.core.import_export.handler.application_created")
+@patch("baserow.core.import_export.handler.application_imported")
+def test_import_workspace_applications_calls_signals(
+    mock_application_imported,
+    mock_application_created,
+    data_fixture,
+):
+    """
+    Ensure that after a workspace is imported, the created and imported
+    signals are called.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    data_fixture.create_import_export_trusted_source()
+    zip_name = "builder_export.zip"
+
+    resource = data_fixture.create_import_export_resource(
+        created_by=user, original_name=zip_name, is_valid=True
+    )
+
+    with open(f"{SOURCES_PATH}/{zip_name}", "rb") as export_file:
+        content = export_file.read()
+        data_fixture.create_import_export_resource_file(
+            resource=resource, content=content
+        )
+
+    handler = ImportExportHandler()
+    with patch(
+        "baserow.core.import_export.handler.ImportExportHandler.validate_signature"
+    ):
+        results = handler.import_workspace_applications(
+            user=user,
+            workspace=workspace,
+            resource=resource,
+        )
+
+    expected_calls = [
+        call(
+            handler,
+            application=results[0],
+            user=user,
+            type_name="database",
+        ),
+        call(
+            handler,
+            application=results[1],
+            user=user,
+            type_name="builder",
+        ),
+    ]
+
+    mock_application_created.send.assert_has_calls(expected_calls)
+    mock_application_imported.send.assert_has_calls(expected_calls)
