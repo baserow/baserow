@@ -16,6 +16,7 @@ export function populatePage(page) {
     elementMap: {},
     orderedElements: [],
     workflowActions: [],
+    elementTree: [],
     contents: null,
   }
 }
@@ -41,6 +42,10 @@ const mutations = {
   },
   DELETE_ITEM(state, { builder, id }) {
     const index = builder.pages.findIndex((item) => item.id === id)
+    // Clear the elements to void the page and prevent errors
+    builder.pages[index].elements = []
+    builder.pages[index].elementMap = {}
+    builder.pages[index].orderedElements = []
     builder.pages.splice(index, 1)
   },
   SET_SELECTED(state, { builder, page }) {

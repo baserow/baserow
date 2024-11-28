@@ -290,10 +290,13 @@ def test_form_container_element_import_export_formula(data_fixture):
         element_type.type
         for element_type in element_type_registry.get_all()
         if element_type.type != FormContainerElementType.type
+        and not element_type.is_multi_page_element
     ],
 )
 def test_form_container_child_types_allowed(allowed_element_type):
-    assert allowed_element_type in FormContainerElementType().child_types_allowed
+    assert allowed_element_type in [
+        e.type for e in FormContainerElementType().child_types_allowed
+    ]
 
 
 @pytest.mark.django_db
@@ -1347,10 +1350,13 @@ def test_choice_element_integer_option_values(data_fixture):
         element_type.type
         for element_type in element_type_registry.get_all()
         if element_type.type != ColumnElementType.type
+        and not element_type.is_multi_page_element
     ],
 )
 def test_column_container_child_types_allowed(allowed_element_type):
-    assert allowed_element_type in ColumnElementType().child_types_allowed
+    assert allowed_element_type in [
+        e.type for e in ColumnElementType().child_types_allowed
+    ]
 
 
 @pytest.mark.django_db
@@ -1513,7 +1519,7 @@ def test_repeat_element_import_export(data_fixture):
     imported_field = imported_table.field_set.get()
 
     # Pluck out the imported builder records.
-    imported_page = imported_builder.page_set.filter(shared=False).all()[0]
+    imported_page = imported_builder.page_set.all()[0]
     imported_data_source = imported_page.datasource_set.get()
     imported_root_repeat = imported_page.element_set.get(
         parent_element_id=None

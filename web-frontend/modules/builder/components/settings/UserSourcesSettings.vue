@@ -209,7 +209,6 @@ export default {
       try {
         await this.actionUpdateUserSource({
           application: this.builder,
-          page: this.page,
           userSourceId: this.editedUserSource.id,
           values: clone(newValues),
         })

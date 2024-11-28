@@ -3,10 +3,10 @@
     <Toasts></Toasts>
     <PageContent
       v-if="canViewPage"
-      :page="page"
       :path="path"
       :params="params"
       :elements="elements"
+      :shared-elements="sharedElements"
     />
   </div>
 </template>
@@ -45,7 +45,7 @@ export default {
     return {
       workspace: this.workspace,
       builder: this.builder,
-      page: this.page,
+      currentPage: this.currentPage,
       mode: this.mode,
       formulaComponent: ApplicationBuilderFormulaInput,
       applicationContext: this.applicationContext,
@@ -111,6 +111,12 @@ export default {
         store.dispatch('dataSource/fetchPublished', {
           page: sharedPage,
         }),
+        store.dispatch('element/fetchPublished', {
+          page: sharedPage,
+        }),
+        store.dispatch('workflowAction/fetchPublished', {
+          page: sharedPage,
+        }),
       ])
 
       await DataProviderType.initOnceAll(
@@ -170,6 +176,13 @@ export default {
     }
 
     const [pageFound, path, pageParamsValue] = found
+    // Handle 404
+    if (pageFound.shared) {
+      return error({
+        statusCode: 404,
+        message: app.i18n.t('publicPage.pageNotFound'),
+      })
+    }
 
     const page = await store.getters['page/getById'](builder, pageFound.id)
 
@@ -217,7 +230,7 @@ export default {
 
     return {
       builder,
-      page,
+      currentPage: page,
       path,
       params,
       mode,
@@ -226,7 +239,7 @@ export default {
   head() {
     return {
       titleTemplate: '',
-      title: this.page.name,
+      title: this.currentPage.name,
       bodyAttrs: {
         class: 'public-page',
       },
@@ -235,12 +248,11 @@ export default {
   },
   computed: {
     elements() {
-      return this.$store.getters['element/getRootElements'](this.page)
+      return this.$store.getters['element/getRootElements'](this.currentPage)
     },
     applicationContext() {
       return {
         builder: this.builder,
-        page: this.page,
         pageParamsValue: this.params,
         mode: this.mode,
       }
@@ -253,13 +265,13 @@ export default {
       return userCanViewPage(
         this.$store.getters['userSourceUser/getUser'](this.builder),
         this.$store.getters['userSourceUser/isAuthenticated'](this.builder),
-        this.page
+        this.currentPage
       )
     },
     dispatchContext() {
       return DataProviderType.getAllDataSourceDispatchContext(
         this.$registry.getAll('builderDataProvider'),
-        this.applicationContext
+        { ...this.applicationContext, page: this.currentPage }
       )
     },
     // Separate dispatch context for application level data sources
@@ -276,6 +288,9 @@ export default {
       return this.$store.getters['dataSource/getPageDataSources'](
         this.sharedPage
       )
+    },
+    sharedElements() {
+      return this.$store.getters['element/getRootElements'](this.sharedPage)
     },
     isAuthenticated() {
       return this.$store.getters['userSourceUser/isAuthenticated'](this.builder)
@@ -307,7 +322,7 @@ export default {
           this.$store.dispatch(
             'dataSourceContent/debouncedFetchPageDataSourceContent',
             {
-              page: this.page,
+              page: this.currentPage,
               data: newDispatchContext,
               mode: this.mode,
             }
@@ -327,16 +342,27 @@ export default {
             {
               page: this.sharedPage,
               data: newDispatchContext,
+              mode: this.mode,
             }
           )
         }
       },
     },
     async isAuthenticated() {
-      // When the user logs in or out, we need to refetch the elements and actions
-      // as they might have changed.
-      this.$store.dispatch('element/fetchPublished', { page: this.page })
-      this.$store.dispatch('workflowAction/fetchPublished', { page: this.page })
+      // When the user login or logout, we need to refetch the elements and actions
+      // as they might have changed
+      await this.$store.dispatch('element/fetchPublished', {
+        page: this.sharedPage,
+      })
+      await this.$store.dispatch('element/fetchPublished', {
+        page: this.currentPage,
+      })
+      await this.$store.dispatch('workflowAction/fetchPublished', {
+        page: this.currentPage,
+      })
+      await this.$store.dispatch('workflowAction/fetchPublished', {
+        page: this.sharedPage,
+      })
 
       // If the user is on a hidden page, redirect them to the Login page if possible.
       await this.maybeRedirectUserToLoginPage()

@@ -33,6 +33,7 @@ from baserow.contrib.builder.elements.mixins import (
     CollectionElementWithFieldsTypeMixin,
     ContainerElementTypeMixin,
     FormElementTypeMixin,
+    MultiPageElementTypeMixin,
 )
 from baserow.contrib.builder.elements.models import (
     INPUT_TEXT_TYPES,
@@ -43,7 +44,9 @@ from baserow.contrib.builder.elements.models import (
     ColumnElement,
     DateTimePickerElement,
     Element,
+    FooterElement,
     FormContainerElement,
+    HeaderElement,
     HeadingElement,
     IFrameElement,
     ImageElement,
@@ -117,7 +120,7 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
     type = "column"
     model_class = ColumnElement
 
-    class SerializedDict(ElementDict):
+    class SerializedDict(ContainerElementTypeMixin.SerializedDict):
         column_amount: int
         column_gap: int
         alignment: str
@@ -191,8 +194,8 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         """
 
         return [
-            element_type.type
-            for element_type in element_type_registry.get_all()
+            element_type
+            for element_type in super().child_types_allowed
             if element_type.type != self.type
         ]
 
@@ -210,7 +213,7 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
     ]
     simple_formula_fields = ["submit_button_label"]
 
-    class SerializedDict(ElementDict):
+    class SerializedDict(ContainerElementTypeMixin.SerializedDict):
         submit_button_label: BaserowFormula
         reset_initial_values_post_submission: bool
 
@@ -261,8 +264,8 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
         """
 
         return [
-            element_type.type
-            for element_type in element_type_registry.get_all()
+            element_type
+            for element_type in super().child_types_allowed
             if element_type.type != self.type
         ]
 
@@ -857,6 +860,16 @@ class NavigationElementManager:
             "page_parameters": [],
             "target": "blank",
         }
+
+    def validate_place(
+        self,
+        page: Page,
+        parent_element: Optional[Element],
+        place_in_container: str,
+    ):
+        """
+        We need it because it's called in the prepare_value_for_db.
+        """
 
     def prepare_value_for_db(
         self, values: Dict, instance: Optional[LinkElement] = None
@@ -1939,3 +1952,35 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
             "include_time": False,
             "time_format": DATE_TIME_FORMAT_CHOICES[0][0],
         }
+
+
+class MultiPageContainerElementType(
+    ContainerElementTypeMixin, MultiPageElementTypeMixin, ElementType
+):
+    """
+    A base class container element that can be displayed on multiple pages.
+    """
+
+    class SerializedDict(
+        MultiPageElementTypeMixin.SerializedDict,
+        ContainerElementTypeMixin.SerializedDict,
+    ):
+        ...
+
+
+class HeaderElementType(MultiPageContainerElementType):
+    """
+    A container element that can be displayed on multiple pages.
+    """
+
+    type = "header"
+    model_class = HeaderElement
+
+
+class FooterElementType(MultiPageContainerElementType):
+    """
+    A container element that can be displayed on multiple pages.
+    """
+
+    type = "footer"
+    model_class = FooterElement

@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.elements.element_types import (
     ColumnElementType,
@@ -27,8 +28,12 @@ def pytest_generate_tests(metafunc):
 @pytest.mark.django_db
 def test_create_element(data_fixture, element_type):
     page = data_fixture.create_builder_page()
+    shared_page = page.builder.shared_page
 
     pytest_params = element_type.get_pytest_params(data_fixture)
+
+    if element_type.is_multi_page_element:
+        page = shared_page
 
     element = ElementHandler().create_element(element_type, page=page, **pytest_params)
 
@@ -39,6 +44,34 @@ def test_create_element(data_fixture, element_type):
 
     assert element.order == 1
     assert Element.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_create_element_and_shared_page(data_fixture):
+    page = data_fixture.create_builder_page()
+    shared_page = page.builder.shared_page
+
+    regular_element_type = next(
+        filter(lambda t: not t.is_multi_page_element, element_type_registry.get_all())
+    )
+
+    with pytest.raises(DRFValidationError):
+        ElementHandler().create_element(
+            regular_element_type,
+            page=shared_page,
+            **regular_element_type.get_pytest_params(data_fixture),
+        )
+
+    shared_element_type = next(
+        filter(lambda t: t.is_multi_page_element, element_type_registry.get_all())
+    )
+
+    with pytest.raises(DRFValidationError):
+        ElementHandler().create_element(
+            shared_element_type,
+            page=page,
+            **regular_element_type.get_pytest_params(data_fixture),
+        )
 
 
 @pytest.mark.django_db

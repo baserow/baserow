@@ -65,7 +65,7 @@ import { mapActions } from 'vuex'
 export default {
   name: 'AuthFormElement',
   mixins: [element, form, error],
-  inject: ['page', 'builder'],
+  inject: ['elementPage', 'builder'],
   props: {
     /**
      * @type {Object}
@@ -128,7 +128,7 @@ export default {
           if (!found) {
             // If the user_source has been removed we need to update the element
             this.actionForceUpdateElement({
-              page: this.page,
+              page: this.elementPage,
               element: this.element,
               values: { user_source_id: null },
             })

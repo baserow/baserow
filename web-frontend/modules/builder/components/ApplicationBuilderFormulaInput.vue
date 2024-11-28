@@ -19,8 +19,8 @@ export default {
   components: { FormulaInputField },
   mixins: [applicationContext],
   inject: {
-    page: {
-      from: 'page',
+    elementPage: {
+      from: 'elementPage',
     },
     builder: {
       from: 'builder',
@@ -38,10 +38,12 @@ export default {
   },
   computed: {
     dataSourceLoading() {
-      return this.$store.getters['dataSource/getLoading'](this.page)
+      return this.$store.getters['dataSource/getLoading'](this.elementPage)
     },
     dataSourceContentLoading() {
-      return this.$store.getters['dataSourceContent/getLoading'](this.page)
+      return this.$store.getters['dataSourceContent/getLoading'](
+        this.elementPage
+      )
     },
     dataProviders() {
       return this.dataProvidersAllowed.map((dataProviderName) =>

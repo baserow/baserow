@@ -12,7 +12,7 @@ import {
   UserDataProviderType,
 } from '@baserow/modules/builder/dataProviderTypes'
 
-export const PLACEMENTS = {
+export const DIRECTIONS = {
   BEFORE: 'before',
   AFTER: 'after',
   LEFT: 'left',
@@ -83,12 +83,24 @@ export const BACKGROUND_MODES = {
   FIT: 'fit',
 }
 
+export const PAGE_PLACES = {
+  HEADER: 'header',
+  CONTENT: 'content',
+  FOOTER: 'footer',
+}
+
 export const WIDTH_TYPES = {
   SMALL: { value: 'small', name: 'widthTypes.small' },
   MEDIUM: { value: 'medium', name: 'widthTypes.medium' },
   NORMAL: { value: 'normal', name: 'widthTypes.normal' },
   FULL: { value: 'full', name: 'widthTypes.fullBleed' },
   FULL_WIDTH: { value: 'full-width', name: 'widthTypes.fullWidth' },
+}
+
+export const SHARE_TYPES = {
+  ALL: 'all',
+  ONLY: 'only',
+  EXCEPT: 'except',
 }
 
 /**

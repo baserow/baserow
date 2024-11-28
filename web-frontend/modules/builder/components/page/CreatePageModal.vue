@@ -29,7 +29,7 @@ export default {
   mixins: [modal],
   provide() {
     return {
-      page: null,
+      currentPage: null,
       builder: this.builder,
       workspace: this.workspace,
     }

@@ -94,7 +94,7 @@ def test_delete_page(data_fixture):
 @pytest.mark.django_db
 def test_delete_shared_page(data_fixture):
     page = data_fixture.create_builder_page()
-    shared_page = page.builder.page_set.get(shared=True)
+    shared_page = page.builder.shared_page
 
     with pytest.raises(SharedPageIsReadOnly):
         PageHandler().delete_page(shared_page)
@@ -114,7 +114,7 @@ def test_update_page(data_fixture):
 @pytest.mark.django_db
 def test_update_shared_page(data_fixture):
     page = data_fixture.create_builder_page(name="test")
-    shared_page = page.builder.page_set.get(shared=True)
+    shared_page = page.builder.shared_page
 
     with pytest.raises(SharedPageIsReadOnly):
         PageHandler().update_page(shared_page, name="new")
@@ -158,7 +158,7 @@ def test_order_pages(data_fixture):
 @pytest.mark.django_db
 def test_order_pages_page_not_in_builder(data_fixture):
     builder = data_fixture.create_builder_application()
-    shared_page = builder.page_set.get(shared=True)
+    shared_page = builder.shared_page
     page_one = data_fixture.create_builder_page(builder=builder, order=1)
     page_two = data_fixture.create_builder_page(builder=builder, order=2)
 
@@ -189,7 +189,7 @@ def test_duplicate_page(data_fixture):
 @pytest.mark.django_db
 def test_duplicate_shared_page(data_fixture):
     page = data_fixture.create_builder_page()
-    shared_page = page.builder.page_set.get(shared=True)
+    shared_page = page.builder.shared_page
 
     with pytest.raises(SharedPageIsReadOnly):
         PageHandler().duplicate_page(shared_page)

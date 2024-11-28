@@ -901,7 +901,7 @@ def test_get_builder_used_property_names_returns_merged_property_names_integrati
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
-    shared_page = builder.page_set.get(shared=True)
+    shared_page = builder.shared_page
     page = data_fixture.create_builder_page(builder=builder)
     page2 = data_fixture.create_builder_page(builder=builder)
 

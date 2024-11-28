@@ -254,7 +254,9 @@ class DataSourceView(APIView):
         if "page_id" in request.data:
             page = PageHandler().get_page(
                 int(request.data["page_id"]),
-                base_queryset=Page.objects.filter(builder=data_source.page.builder),
+                base_queryset=Page.objects_with_shared.filter(
+                    builder=data_source.page.builder
+                ),
             )
 
         # Do we have a service?

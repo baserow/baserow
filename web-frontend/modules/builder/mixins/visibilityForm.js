@@ -1,5 +1,4 @@
 import UserSourceService from '@baserow/modules/core/services/userSource'
-import elementForm from '@baserow/modules/builder/mixins/elementForm'
 
 import {
   DEFAULT_USER_ROLE_PREFIX,
@@ -12,7 +11,7 @@ import {
 } from '@baserow/modules/builder/constants'
 
 export default {
-  mixins: [elementForm],
+  inject: ['builder'],
   data() {
     return {
       allRoles: [],

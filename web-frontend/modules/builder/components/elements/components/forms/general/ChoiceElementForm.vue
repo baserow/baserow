@@ -228,7 +228,7 @@ export default {
     CHOICE_OPTION_TYPES: () => CHOICE_OPTION_TYPES,
     element() {
       return this.$store.getters['element/getElementById'](
-        this.page,
+        this.elementPage,
         this.values.id
       )
     },

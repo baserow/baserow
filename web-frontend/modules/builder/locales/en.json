@@ -76,6 +76,7 @@
   },
   "elementsContext": {
     "searchPlaceholder": "Search elements",
+    "noPageElements": "No elements found for this page",
     "noElements": "No elements found"
   },
   "elementType": {
@@ -110,7 +111,18 @@
     "recordSelector": "Record selector",
     "recordSelectorDescription": "A related record selector",
     "dateTimePicker": "Date time picker",
-    "dateTimePickerDescription": "A date and time input field"
+    "dateTimePickerDescription": "A date and time input field",
+    "header": "Multi-page header",
+    "headerDescription": "A container shared across pages",
+    "footer": "Multi-page footer",
+    "footerDescription": "A container shared across pages",
+    "notAllowedUnlessTop": "This element is allowed only at the top of the page",
+    "notAllowedUnlessBottom": "This element is allowed only at the bottom of the page",
+    "notAllowedUnlessHeader": "This element is allowed only inside the page header",
+    "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
+    "notAllowedInsideContainer": "This element is not allowed inside a container",
+    "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
+    "notAllowedLocation": "This element is not allowed at this location"
   },
   "addElementButton": {
     "label": "Element"
@@ -118,7 +130,7 @@
   "addElementModal": {
     "title": "Add new element",
     "searchPlaceholder": "Search elements",
-    "disabledElementTooltip": "Unavailable inside this element"
+    "elementInProgress": "Adding element..."
   },
   "elementMenu": {
     "moveUp": "Move up",
@@ -142,7 +154,9 @@
     "message": "Click on one of the elements to see more details"
   },
   "pagePreview": {
-    "emptyMessage": "Click to create first element"
+    "emptyMessage": "Click to create an element",
+    "header": "HEADER",
+    "footer": "FOOTER"
   },
   "elementForms": {
     "textInputPlaceholder": "Enter text...",
@@ -374,6 +388,9 @@
   "pathParamTypes": {
     "textName": "Text",
     "numericName": "Numeric"
+  },
+  "pageEditor": {
+    "pageNotFound": "Page not found"
   },
   "publicPage": {
     "siteNotFound": "Site not found",
@@ -842,7 +859,20 @@
   "dataSourceDropdown": {
     "label": "Data source",
     "noDataSources": "No data sources available",
+    "noSharedDataSources": "No shared data sources available",
     "shared": "shared",
     "pageOnly": "this page"
+  },
+  "multiPageContainerElementForm": {
+    "pagePosition": "Position",
+    "behaviour": "Behaviour",
+    "display": "Display",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all"
+  },
+  "pageShareType": {
+    "all": "On all pages",
+    "only": "Only on selected pages",
+    "except": "Exclude selected pages"
   }
 }

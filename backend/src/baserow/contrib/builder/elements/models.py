@@ -906,3 +906,38 @@ class DateTimePickerElement(FormElement):
         max_length=32,
         help_text="24 (14:00) or 12 (02:30) PM",
     )
+
+
+class MultiPageElement(Element):
+    """
+    A container element that can contain other elements and be can shared across
+    multiple pages.
+    """
+
+    class SHARE_TYPE(models.TextChoices):
+        ALL = "all"
+        ONLY = "only"
+        EXCEPT = "except"
+
+    share_type = models.CharField(
+        choices=SHARE_TYPE.choices,
+        max_length=10,
+        default=SHARE_TYPE.ALL,
+    )
+
+    pages = models.ManyToManyField("builder.Page", blank=True)
+
+    class Meta:
+        abstract = True
+
+
+class HeaderElement(MultiPageElement, ContainerElement):
+    """
+    A multi-page container element positioned at the top of the page.
+    """
+
+
+class FooterElement(MultiPageElement, ContainerElement):
+    """
+    A multi-page container element positioned at the bottom of the page.
+    """

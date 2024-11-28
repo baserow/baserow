@@ -61,7 +61,16 @@ export default {
   components: { DataSourceForm },
 
   mixins: [modal, error],
-  inject: ['builder', 'page'],
+  provide() {
+    // I know, it's not the page of the element but it's injected into the
+    // ApplicationBuilderFormulaInput for data source loading states,
+    // and we need the right page which can be in fact the data source page in this
+    // case, so it works.
+    // May be we could change the name of the elementPage but it would be only for
+    // this exception.
+    return { elementPage: this.dataSourcePage }
+  },
+  inject: ['builder', 'currentPage'],
   props: {
     dataSourceId: { type: Number, required: false, default: null },
   },
@@ -74,7 +83,9 @@ export default {
   },
   computed: {
     dataSources() {
-      return this.$store.getters['dataSource/getPageDataSources'](this.page)
+      return this.$store.getters['dataSource/getPageDataSources'](
+        this.currentPage
+      )
     },
     sharedPage() {
       return this.$store.getters['page/getSharedPage'](this.builder)
@@ -108,7 +119,7 @@ export default {
     // edited. Sometimes it's the shared page.
     dataSourcePage() {
       if (!this.dataSource) {
-        return this.page
+        return this.currentPage
       }
       return this.$store.getters['page/getById'](
         this.builder,
@@ -116,7 +127,11 @@ export default {
       )
     },
     elements() {
-      return this.$store.getters['element/getElementsOrdered'](this.page)
+      // This is used when we want to dispatch the data source update
+      return [
+        ...this.$store.getters['element/getElementsOrdered'](this.currentPage),
+        ...this.$store.getters['element/getElementsOrdered'](this.sharedPage),
+      ]
     },
   },
   methods: {
@@ -145,7 +160,7 @@ export default {
       try {
         if (this.create) {
           const createdDataSource = await this.actionCreateDataSource({
-            page: this.page,
+            page: this.currentPage,
             values,
           })
           this.actualDataSourceId = createdDataSource.id

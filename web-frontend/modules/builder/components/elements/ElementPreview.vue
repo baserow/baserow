@@ -20,38 +20,37 @@
       v-show="isSelected"
       v-if="canCreate"
       class="element-preview__insert element-preview__insert--top"
-      @click="showAddElementModal(PLACEMENTS.BEFORE)"
+      @click="showAddElementModal(DIRECTIONS.BEFORE)"
     />
     <ElementMenu
       v-if="isSelected && canUpdate"
-      :placements="placements"
-      :placements-disabled="placementsDisabled"
+      :directions="directions"
+      :allowed-directions="allowedMoveDirections"
       :is-duplicating="isDuplicating"
       :has-parent="!!parentElement"
       @delete="deleteElement"
-      @move="$emit('move', $event)"
+      @move="onMove"
       @duplicate="duplicateElement"
       @select-parent="selectParentElement()"
     />
-
     <PageElement
       :element="element"
       :mode="mode"
       class="element--read-only"
       :application-context-additions="applicationContextAdditions"
+      v-on="$listeners"
     />
 
     <InsertElementButton
       v-show="isSelected"
       v-if="canCreate"
       class="element-preview__insert element-preview__insert--bottom"
-      @click="showAddElementModal(PLACEMENTS.AFTER)"
+      @click="showAddElementModal(DIRECTIONS.AFTER)"
     />
     <AddElementModal
       v-if="canCreate"
       ref="addElementModal"
-      :element-types-allowed="elementTypesAllowed"
-      :page="page"
+      :page="elementPage"
     />
 
     <i
@@ -65,7 +64,7 @@
 import ElementMenu from '@baserow/modules/builder/components/elements/ElementMenu'
 import InsertElementButton from '@baserow/modules/builder/components/elements/InsertElementButton'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
-import { PLACEMENTS } from '@baserow/modules/builder/enums'
+import { DIRECTIONS } from '@baserow/modules/builder/enums'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions, mapGetters } from 'vuex'
@@ -85,23 +84,13 @@ export default {
     InsertElementButton,
     PageElement,
   },
-  inject: ['workspace', 'builder', 'page', 'mode'],
+  inject: ['workspace', 'builder', 'mode', 'currentPage'],
   props: {
     element: {
       type: Object,
       required: true,
     },
-    isLastElement: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
     isFirstElement: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    isRootElement: {
       type: Boolean,
       required: false,
       default: false,
@@ -124,7 +113,23 @@ export default {
       getClosestSiblingElement: 'element/getClosestSiblingElement',
       loggedUser: 'userSourceUser/getUser',
     }),
+    elementPage() {
+      // We use the page from the element itself
+      return this.$store.getters['page/getById'](
+        this.builder,
+        this.element.page_id
+      )
+    },
     isVisible() {
+      if (
+        !this.elementType.isVisible({
+          element: this.element,
+          currentPage: this.currentPage,
+        })
+      ) {
+        return false
+      }
+
       const isAuthenticated = this.$store.getters[
         'userSourceUser/isAuthenticated'
       ](this.builder)
@@ -151,13 +156,13 @@ export default {
         return true
       }
     },
-    PLACEMENTS: () => PLACEMENTS,
-    placements() {
+    DIRECTIONS: () => DIRECTIONS,
+    directions() {
       return [
-        PLACEMENTS.BEFORE,
-        PLACEMENTS.AFTER,
-        PLACEMENTS.LEFT,
-        PLACEMENTS.RIGHT,
+        DIRECTIONS.BEFORE,
+        DIRECTIONS.AFTER,
+        DIRECTIONS.LEFT,
+        DIRECTIONS.RIGHT,
       ]
     },
     parentOfElementSelected() {
@@ -165,24 +170,34 @@ export default {
         return null
       }
       return this.$store.getters['element/getElementById'](
-        this.page,
+        this.elementPage,
         this.elementSelected.parent_element_id
       )
     },
-    placementsDisabled() {
-      const elementType = this.$registry.get('element', this.element.type)
-      return elementType.getPlacementsDisabled(this.page, this.element)
+    elementsAround() {
+      return this.elementType.getElementsAround({
+        builder: this.builder,
+        page: this.currentPage,
+        withSharedPage: true,
+        element: this.element,
+      })
     },
-    elementTypesAllowed() {
-      return (
-        this.parentElementType?.childElementTypes(this.page, this.element) ||
-        null
-      )
+    nextPlaces() {
+      return this.elementType.getNextPlaces({
+        builder: this.builder,
+        page: this.elementPage,
+        element: this.element,
+      })
+    },
+    allowedMoveDirections() {
+      return Object.entries(this.nextPlaces)
+        .filter(([, nextPlace]) => !!nextPlace)
+        .map(([direction]) => direction)
     },
     canCreate() {
       return this.$hasPermission(
         'builder.page.create_element',
-        this.page,
+        this.currentPage,
         this.workspace.id
       )
     },
@@ -200,7 +215,7 @@ export default {
       if (!this.elementSelected) {
         return []
       }
-      return this.elementAncestors(this.page, this.elementSelected).map(
+      return this.elementAncestors(this.elementPage, this.elementSelected).map(
         ({ id }) => id
       )
     },
@@ -215,7 +230,7 @@ export default {
         return null
       }
       return this.$store.getters['element/getElementById'](
-        this.page,
+        this.elementPage,
         this.element.parent_element_id
       )
     },
@@ -224,15 +239,9 @@ export default {
         ? this.$registry.get('element', this.parentElement?.type)
         : null
     },
-    nextElement() {
-      return this.$store.getters['element/getNextElement'](
-        this.page,
-        this.element
-      )
-    },
     inError() {
       return this.elementType.isInError({
-        page: this.page,
+        page: this.elementPage,
         element: this.element,
         builder: this.builder,
       })
@@ -284,6 +293,9 @@ export default {
       actionDeleteElement: 'element/delete',
       actionSelectElement: 'element/select',
     }),
+    onMove(direction) {
+      this.$emit('move', { element: this.element, direction })
+    },
     onSelect($event) {
       // Here we check that the event has been emitted for this particular element
       // If we found an intermediate DOM element with the class `element-preview`,
@@ -300,23 +312,32 @@ export default {
         this.actionSelectElement({ element: this.element })
       }
     },
-    showAddElementModal(placement) {
+    showAddElementModal(direction) {
+      const rootElement = this.$store.getters['element/getAncestors'](
+        this.elementPage,
+        this.element,
+        { includeSelf: true }
+      )[0]
+      const rootElementType = this.$registry.get('element', rootElement.type)
+      const pagePlace = rootElementType.getPagePlace()
+
       this.$refs.addElementModal.show({
         placeInContainer: this.element.place_in_container,
         parentElementId: this.element.parent_element_id,
-        beforeId: this.getBeforeId(placement),
+        beforeId: this.getBeforeId(direction),
+        pagePlace,
       })
     },
-    getBeforeId(placement) {
-      return placement === PLACEMENTS.BEFORE
+    getBeforeId(direction) {
+      return direction === DIRECTIONS.BEFORE
         ? this.element.id
-        : this.nextElement?.id || null
+        : this.elementsAround[DIRECTIONS.AFTER]?.id || null
     },
     async duplicateElement() {
       this.isDuplicating = true
       try {
         await this.actionDuplicateElement({
-          page: this.page,
+          page: this.elementPage,
           elementId: this.element.id,
         })
       } catch (error) {
@@ -326,12 +347,15 @@ export default {
     },
     async deleteElement() {
       try {
-        const siblingElementToSelect = this.getClosestSiblingElement(
-          this.page,
-          this.elementSelected
-        )
+        const siblingElementToSelect =
+          this.elementsAround[DIRECTIONS.AFTER] ||
+          this.elementsAround[DIRECTIONS.BEFORE] ||
+          this.elementsAround[DIRECTIONS.LEFT] ||
+          this.elementsAround[DIRECTIONS.RIGHT] ||
+          this.parentOfElementSelected
+
         await this.actionDeleteElement({
-          page: this.page,
+          page: this.elementPage,
           elementId: this.element.id,
         })
         if (siblingElementToSelect?.id) {

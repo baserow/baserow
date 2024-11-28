@@ -43,6 +43,8 @@ import {
   IFrameElementType,
   RepeatElementType,
   RecordSelectorElementType,
+  HeaderElementType,
+  FooterElementType,
 } from '@baserow/modules/builder/elementTypes'
 import {
   DesktopDeviceType,
@@ -209,6 +211,8 @@ export default (context) => {
   app.$registry.register('element', new ButtonElementType(context))
   app.$registry.register('element', new TableElementType(context))
   app.$registry.register('element', new ColumnElementType(context))
+  app.$registry.register('element', new HeaderElementType(context))
+  app.$registry.register('element', new FooterElementType(context))
   app.$registry.register('element', new FormContainerElementType(context))
   app.$registry.register('element', new InputTextElementType(context))
   app.$registry.register('element', new ChoiceElementType(context))

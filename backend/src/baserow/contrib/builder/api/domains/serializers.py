@@ -24,6 +24,7 @@ from baserow.contrib.builder.domains.registries import domain_type_registry
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.models import UserSource
@@ -112,6 +113,7 @@ class PublicElementSerializer(serializers.ModelSerializer):
             "page_id",
             "type",
             "order",
+            "page_id",
             "parent_element_id",
             "place_in_container",
             "visibility",
@@ -272,7 +274,7 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
         :return: A list of serialized pages that belong to this instance.
         """
 
-        pages = instance.page_set.all()
+        pages = PageHandler().get_pages(instance)
 
         return PublicPageSerializer(pages, many=True).data
 

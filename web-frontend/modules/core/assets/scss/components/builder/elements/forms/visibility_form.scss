@@ -3,24 +3,19 @@
   margin-top: 10px;
 }
 
-.visibility-form__role-links {
-  margin-top: 10px;
-  font-size: 12px;
+.visibility-form__role-list {
+  display: block;
+  margin: 16px 0;
 }
 
-.visibility-form__role-links-deselect-all {
-  margin-left: 10px;
-}
-
-.visibility-form__role-checkbox-container {
-  display: inline-block;
-  margin-top: 10px;
-  margin-left: 2px;
-}
-
-.visibility-form__role-checkbox-div {
+.visibility-form__role-checkbox {
   display: flex;
-  margin-bottom: 5px;
+  margin-bottom: 12px;
+}
+
+.visibility-form__actions {
+  display: flex;
+  gap: 15px;
 }
 
 .visibility-form__visibility-all {

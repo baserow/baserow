@@ -1,7 +1,7 @@
 <template>
   <div
     :key="elementType.name"
-    v-tooltip="disallowedTypeForAncestry ? disabledElementMessage : null"
+    v-tooltip="disabled ? disabledMessage : null"
     class="add-element-card"
     :class="{ 'add-element-card--disabled': disabled }"
     v-on="$listeners"
@@ -30,30 +30,20 @@ export default {
       type: Object,
       required: true,
     },
-    parentType: {
-      type: Object,
-      required: false,
-      default: null,
-    },
     loading: {
       type: Boolean,
       required: false,
       default: false,
     },
-    disallowedTypeForAncestry: {
-      type: Boolean,
+    disabledMessage: {
+      type: String,
       required: false,
-      default: false,
+      default: '',
     },
     disabled: {
       type: Boolean,
       required: false,
       default: false,
-    },
-  },
-  computed: {
-    disabledElementMessage() {
-      return this.$t('addElementModal.disabledElementTooltip')
     },
   },
 }

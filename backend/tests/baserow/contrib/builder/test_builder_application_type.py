@@ -60,11 +60,11 @@ def test_builder_application_type_init_application(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
 
-    assert Page.objects.count() == 1  # The shared page must exists
+    assert Page.objects.count() == 0
 
     BuilderApplicationType().init_application(user, builder)
 
-    assert Page.objects.count() == 3  # With demo data
+    assert Page.objects.count() == 2  # With demo data
 
 
 @pytest.mark.django_db
@@ -119,7 +119,7 @@ def test_builder_application_export(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
 
-    shared_page = builder.page_set.get(shared=True)
+    shared_page = builder.shared_page
     page1 = data_fixture.create_builder_page(builder=builder)
     page2 = data_fixture.create_builder_page(builder=builder)
 
@@ -1002,8 +1002,11 @@ def test_builder_application_import(data_fixture):
     )
 
     assert builder.id != serialized_values["id"]
-    assert builder.page_set.exclude(shared=True).count() == 2
-    assert builder.page_set.filter(shared=True).count() == 1
+    assert builder.page_set.count() == 2
+    # ensure we have the shared page even if it's not in the reference
+    assert (
+        builder.page_set(manager="objects_with_shared").filter(shared=True).count() == 1
+    )
 
     assert builder.integrations.count() == 1
     first_integration = builder.integrations.first().specific
@@ -1011,7 +1014,7 @@ def test_builder_application_import(data_fixture):
 
     assert builder.user_sources.count() == 1
 
-    [page1, page2] = builder.page_set.exclude(shared=True)
+    [page1, page2] = builder.page_set.all()
 
     assert page1.element_set.count() == 6
     assert page2.element_set.count() == 1
@@ -1371,7 +1374,7 @@ def test_builder_application_imports_correct_default_roles(data_fixture):
         workspace, serialized_values, config, {}
     )
 
-    new_element = builder.page_set.exclude(shared=True)[0].element_set.all()[0]
+    new_element = builder.page_set.first().element_set.all()[0]
     new_user_source = builder.user_sources.all()[0]
 
     # Ensure the "old" Default User Role doesn't exist
@@ -1455,7 +1458,7 @@ def test_ensure_new_element_roles_are_sanitized_during_import_for_default_roles(
     expected_roles = _expected_roles
 
     # Ensure new element has roles updated
-    new_element = builder.page_set.exclude(shared=True)[0].element_set.all()[0]
+    new_element = builder.page_set.all()[0].element_set.all()[0]
     for index, role in enumerate(new_element.roles):
         # Default Role's User Source should have changed for new elements
         if role.startswith(prefix):
@@ -1532,5 +1535,5 @@ def test_ensure_new_element_roles_are_sanitized_during_import_for_roles(
             workspace, serialized, config, {}
         )
 
-    new_element = builder.page_set.exclude(shared=True)[0].element_set.all()[0]
+    new_element = builder.page_set.all()[0].element_set.all()[0]
     assert new_element.roles == expected_roles

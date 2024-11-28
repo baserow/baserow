@@ -1620,7 +1620,7 @@ def test_dispatch_data_sources_with_formula_using_datasource_calling_a_shared_da
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
-    shared_page = builder.page_set.first()
+    shared_page = builder.shared_page
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
     data_source2 = data_fixture.create_builder_local_baserow_get_row_data_source(
@@ -1686,7 +1686,7 @@ def test_dispatch_only_shared_data_sources(data_fixture, api_client):
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
-    shared_page = builder.page_set.first()
+    shared_page = builder.shared_page
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
     shared_data_source = data_fixture.create_builder_local_baserow_get_row_data_source(

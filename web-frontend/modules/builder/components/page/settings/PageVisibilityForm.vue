@@ -76,7 +76,7 @@
                     allowAllRolesExceptSelected ||
                     disallowAllRolesExceptSelected
                   "
-                  class="visibility-form__role-checkbox-container"
+                  class="visibility-form__role-list"
                 >
                   <template v-if="loadingRoles">
                     <div class="loading margin-bottom-1"></div>
@@ -85,7 +85,7 @@
                     <div
                       v-for="roleName in allRoles"
                       :key="roleName"
-                      class="visibility-form__role-checkbox-div"
+                      class="visibility-form__role-checkbox"
                     >
                       <Checkbox
                         :checked="isChecked(roleName)"
@@ -95,14 +95,11 @@
                       </Checkbox>
                     </div>
 
-                    <div class="visibility-form__role-links">
+                    <div class="visibility-form__actions">
                       <a @click.prevent="selectAllRoles">
                         {{ $t('visibilityForm.rolesSelectAll') }}
                       </a>
-                      <a
-                        class="visibility-form__role-links-deselect-all"
-                        @click.prevent="deselectAllRoles"
-                      >
+                      <a @click.prevent="deselectAllRoles">
                         {{ $t('visibilityForm.rolesDeselectAll') }}
                       </a>
                     </div>
@@ -120,12 +117,13 @@
 <script>
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import visibilityForm from '@baserow/modules/builder/mixins/visibilityForm'
+import form from '@baserow/modules/core/mixins/form'
 
 import { VISIBILITY_LOGGED_IN } from '@baserow/modules/builder/constants'
 
 export default {
   name: 'PageVisibilityForm',
-  mixins: [visibilityForm],
+  mixins: [form, visibilityForm],
   data() {
     return {
       values: {

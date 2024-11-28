@@ -1,15 +1,15 @@
 <template>
-  <li :key="element.id" class="elements-list__item">
-    <a
-      class="elements-list__item-link"
-      :class="{
-        'elements-list__item-link--selected': element.id === elementSelectedId,
-      }"
-      @click="$emit('select', element)"
-    >
-      <span class="elements-list__item-name">
-        <i :class="`${elementType.iconClass} elements-list__item-icon`"></i>
-        <span class="elements-list__item-name-text">{{
+  <li
+    :key="element.id"
+    class="elements-list-item"
+    :class="{
+      'elements-list-item--selected': element.id === elementSelectedId,
+    }"
+  >
+    <a class="elements-list-item__link" @click="$emit('select', element)">
+      <span class="elements-list-item__name">
+        <i :class="`${elementType.iconClass} elements-list-item__icon`"></i>
+        <span class="elements-list-item__name-text">{{
           elementType.getDisplayName(element, applicationContext)
         }}</span>
       </span>
@@ -33,7 +33,7 @@ export default {
     ElementsList: () =>
       import('@baserow/modules/builder/components/elements/ElementsList'),
   },
-  inject: ['builder', 'page', 'mode'],
+  inject: ['builder', 'mode'],
   props: {
     element: {
       type: Object,
@@ -55,8 +55,18 @@ export default {
     elementType() {
       return this.$registry.get('element', this.element.type)
     },
+    elementPage() {
+      // We use the page from the element itself
+      return this.$store.getters['page/getById'](
+        this.builder,
+        this.element.page_id
+      )
+    },
     children() {
-      return this.$store.getters['element/getChildren'](this.page, this.element)
+      return this.$store.getters['element/getChildren'](
+        this.elementPage,
+        this.element
+      )
     },
     /**
      * Responsible for returning elements to display in `ElementsList`.
@@ -76,7 +86,7 @@ export default {
     applicationContext() {
       return {
         builder: this.builder,
-        page: this.page,
+        page: this.elementPage,
         mode: this.mode,
         element: this.element,
       }

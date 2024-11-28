@@ -167,7 +167,12 @@ class BuilderApplicationType(ApplicationType):
             for us in UserSourceHandler().get_user_sources(builder)
         ]
 
-        pages = builder.page_set.all().prefetch_related("element_set", "datasource_set")
+        pages = PageHandler().get_pages(
+            builder,
+            base_queryset=Page.objects_with_shared.prefetch_related(
+                "element_set", "datasource_set"
+            ),
+        )
 
         serialized_pages = [
             PageHandler().export_page(

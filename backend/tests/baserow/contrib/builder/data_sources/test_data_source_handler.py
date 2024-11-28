@@ -94,7 +94,7 @@ def test_get_data_sources(data_fixture, specific):
 @pytest.mark.django_db
 def test_get_data_sources_with_shared(data_fixture):
     page = data_fixture.create_builder_page()
-    shared_page = page.builder.page_set.get(shared=True)
+    shared_page = page.builder.shared_page
     data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
         page=page
     )

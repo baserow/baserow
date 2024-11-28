@@ -20,6 +20,16 @@ if typing.TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
 
 
+class PageWithoutSharedManager(models.Manager):
+    """
+    Manager for the Page model.
+    Excludes by default the shared page.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(shared=False)
+
+
 class Page(
     HierarchicalModelMixin,
     TrashableModelMixin,
@@ -35,6 +45,9 @@ class Page(
         ALLOW_ALL = "allow_all"
         ALLOW_ALL_EXCEPT = "allow_all_except"
         DISALLOW_ALL_EXCEPT = "disallow_all_except"
+
+    objects = PageWithoutSharedManager()
+    objects_with_shared = models.Manager()
 
     builder = models.ForeignKey("builder.Builder", on_delete=models.CASCADE)
     order = models.PositiveIntegerField()

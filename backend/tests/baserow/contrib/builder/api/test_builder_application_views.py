@@ -174,7 +174,7 @@ def test_get_builder_application(api_client, data_fixture):
         "login_page_id": None,
         "pages": [
             {
-                "id": application.page_set.get(shared=True).id,
+                "id": application.shared_page.id,
                 "builder_id": application.id,
                 "order": 1,
                 "name": "__shared__",
@@ -233,7 +233,7 @@ def test_list_builder_applications(api_client, data_fixture):
             "login_page_id": None,
             "pages": [
                 {
-                    "id": application.page_set.get(shared=True).id,
+                    "id": application.shared_page.id,
                     "builder_id": application.id,
                     "order": 1,
                     "name": "__shared__",

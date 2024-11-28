@@ -4,7 +4,7 @@
 
     <div>
       <PageVisibilityForm
-        :default-values="page"
+        :default-values="currentPage"
         @values-changed="updatePageVisibility"
       />
     </div>
@@ -20,7 +20,7 @@ export default {
   name: 'PageVisibilitySettings',
   components: { PageVisibilityForm },
   mixins: [error],
-  inject: ['builder', 'page', 'workspace'],
+  inject: ['builder', 'currentPage', 'workspace'],
   data() {
     return {}
   },
@@ -31,7 +31,7 @@ export default {
       try {
         await this.actionUpdatePage({
           builder: this.builder,
-          page: this.page,
+          page: this.currentPage,
           values,
         })
       } catch (error) {

@@ -22,7 +22,7 @@
             v-if="mode === 'editing'"
             :element="childCurrent"
             :application-context-additions="applicationContextAdditions"
-            @move="move(childCurrent, $event)"
+            @move="$emit('move', $event)"
           ></ElementPreview>
           <PageElement
             v-else
@@ -35,21 +35,21 @@
       <AddElementZone
         v-else-if="
           mode === 'editing' &&
-          $hasPermission('builder.page.create_element', page, workspace.id)
+          $hasPermission(
+            'builder.page.create_element',
+            elementPage,
+            workspace.id
+          )
         "
+        :page="elementPage"
         @add-element="showAddElementModal(columnIndex)"
       />
     </div>
-    <AddElementModal
-      ref="addElementModal"
-      :page="page"
-      :element-types-allowed="elementType.childElementTypes(page, element)"
-    />
+    <AddElementModal ref="addElementModal" :page="elementPage" />
   </div>
 </template>
 
 <script>
-import { mapActions } from 'vuex'
 import _ from 'lodash'
 
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
@@ -58,7 +58,6 @@ import containerElement from '@baserow/modules/builder/mixins/containerElement'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import { VERTICAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 
 export default {
@@ -136,25 +135,11 @@ export default {
     this.dimensions.targetElement = this.$el.parentElement
   },
   methods: {
-    ...mapActions({
-      actionMoveElement: 'element/moveElement',
-    }),
     showAddElementModal(columnIndex) {
       this.$refs.addElementModal.show({
         placeInContainer: `${columnIndex}`,
         parentElementId: this.element.id,
       })
-    },
-    async move(element, placement) {
-      try {
-        await this.actionMoveElement({
-          page: this.page,
-          element,
-          placement,
-        })
-      } catch (error) {
-        notifyIf(error)
-      }
     },
   },
 }

@@ -129,9 +129,12 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
 
     del response_json["theme"]  # We are not testing the theme response here.
 
-    assert builder_to.page_set.filter(shared=True).count() == 1
+    assert (
+        builder_to.page_set(manager="objects_with_shared").filter(shared=True).count()
+        == 1
+    )
 
-    shared_page = builder_to.page_set.get(shared=True)
+    shared_page = builder_to.shared_page
 
     assert response_json == {
         "favicon_file": UserFileSerializer(builder_to.favicon_file).data,
@@ -255,9 +258,12 @@ def test_get_public_builder_by_id(api_client, data_fixture):
 
     del response_json["theme"]  # We are not testing the theme response here.
 
-    assert page.builder.page_set.filter(shared=True).count() == 1
+    assert (
+        page.builder.page_set(manager="objects_with_shared").filter(shared=True).count()
+        == 1
+    )
 
-    shared_page = page.builder.page_set.get(shared=True)
+    shared_page = page.builder.shared_page
 
     assert response_json == {
         "favicon_file": UserFileSerializer(page.builder.favicon_file).data,

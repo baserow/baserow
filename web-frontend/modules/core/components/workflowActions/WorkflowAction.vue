@@ -39,7 +39,7 @@ export default {
   name: 'WorkflowAction',
   components: { WorkflowActionSelector },
   mixins: [applicationContext],
-  inject: ['page', 'builder', 'mode'],
+  inject: ['builder', 'elementPage', 'mode'],
   props: {
     availableWorkflowActionTypes: {
       type: Array,
@@ -85,7 +85,7 @@ export default {
 
       try {
         await this.actionUpdateWorkflowAction({
-          page: this.page,
+          page: this.elementPage,
           workflowAction: this.workflowAction,
           values,
         })

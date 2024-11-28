@@ -37,8 +37,7 @@ class PageService:
         :return: The model instance of the Page
         """
 
-        base_queryset = Page.objects.select_related("builder", "builder__workspace")
-        page = self.handler.get_page(page_id, base_queryset=base_queryset)
+        page = self.handler.get_page(page_id)
 
         CoreHandler().check_permissions(
             user,
@@ -148,7 +147,8 @@ class PageService:
             context=builder,
         )
 
-        all_pages = Page.objects.filter(builder_id=builder.id, shared=False)
+        all_pages = self.handler.get_pages(builder, base_queryset=Page.objects)
+
         user_pages = CoreHandler().filter_queryset(
             user,
             OrderPagesBuilderOperationType.type,
