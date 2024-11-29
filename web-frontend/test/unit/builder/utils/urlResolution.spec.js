@@ -96,7 +96,7 @@ describe('resolveElementUrl tests', () => {
     )
     expect(result).toEqual('/builder/123/preview/contact/')
   })
-  test('Should ', () => {
+  test('Should ignore unused query params', () => {
     const element = {
       navigation_type: 'page',
       navigate_to_page_id: 1,
