@@ -186,6 +186,7 @@ def setup_formula_field(
     formula_type: str,
     data_field_factory,
     extra_fields: Iterable[Callable],
+    formula_extra_kwargs: dict | None = None,
 ) -> FormulaFieldSetup:
     """
     Create a table with duration formula field.
@@ -195,6 +196,8 @@ def setup_formula_field(
     :param formula_type:
     :param data_field_factory:
     :param extra_fields: iterable with field factory functions.
+    :param formula_extra_kwargs: optional dict with additional keyword args for
+        formula field creation
     :return:
     """
 
@@ -204,7 +207,11 @@ def setup_formula_field(
     data_source_field = data_field_factory(data_fixture, table, user)
 
     formula_field = data_fixture.create_formula_field(
-        table=table, user=user, formula=formula_text, formula_type=formula_type
+        table=table,
+        user=user,
+        formula=formula_text,
+        formula_type=formula_type,
+        **{k: v for k, v in (formula_extra_kwargs or {}).items()},
     )
 
     extra_fields_map = {}

@@ -184,6 +184,14 @@ export class ViewFilterType extends Registerable {
   }
 }
 
+/**
+ * Base class for field-type specific filtering details.
+ *
+ * In some cases we want to have per field-type handling of certain aspects of
+ * a filter: input component selection and value parsing logic.
+ *
+ * This is a base class defining common interface for such customizations
+ */
 class SpecificFieldViewFilterHandler {
   getInputComponent() {
     return null
@@ -198,20 +206,28 @@ class SpecificFieldViewFilterHandler {
   }
 }
 
+/**
+ * Handle duration-specific filtering aspects:
+ *
+ * * input component should understand duration formats
+ * * values should be parsed to duration value (a number of seconds).
+ *
+ *
+ * Parsing is especially important because duration parsing result depends on duration
+ * format picked. Filter value is passed as a string, and in case of duration, backend
+ * will send a number of seconds. This, however, may be parsed as a number of minutes
+ * or hours if a duration format picked uses minutes or hours as a lowest unit (i.e.
+ * `d h m` or `d h` format).
+ *
+ * In case of parsing, this class ensures that a number string is passed as a Number
+ * type to be consistent with backend's behavior.
+ *
+ */
 class DurationFieldViewFilterType extends SpecificFieldViewFilterHandler {
   getInputComponent() {
     return ViewFilterTypeDuration
   }
 
-  /**
-   * When parsing duration value from a string, it may contain a plain number.
-   * Certain filter comparisons expect the value to be in seconds
-   *
-   * @param value
-   * @param durationFormat
-   * @returns {*|null}
-   * @private
-   */
   _parseDuration(value, field, fieldType) {
     if ((value === null ? '' : value).toString().trim() === '') {
       return null
@@ -222,19 +238,14 @@ class DurationFieldViewFilterType extends SpecificFieldViewFilterHandler {
       value = parsedValue
     }
     return fieldType.parseInputValue(field, value)
-    // return parseDurationValue(value, durationFormat)
   }
 
-  //
   parseRowValue(value, field, fieldType) {
     return this._parseDuration(value, field, fieldType)
-    // return fieldType.parseInputValue(field, value)
   }
 
   parseFilterValue(value, field, fieldType) {
     return this._parseDuration(value, field, fieldType)
-    // return fieldType.parseInputValue(field, value)
-    // return this._parseDuration(value, field.duration_format)
   }
 }
 
