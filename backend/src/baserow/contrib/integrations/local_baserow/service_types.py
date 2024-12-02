@@ -43,6 +43,7 @@ from baserow.contrib.database.fields.registries import (
     field_aggregation_registry,
     field_type_registry,
 )
+from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.actions import (
     CreateRowsActionType,
     DeleteRowsActionType,
@@ -257,6 +258,30 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         resolved_values["table"] = table
 
         return resolved_values
+
+    def import_property_name(
+        self, property_name: Union[str, int], id_mapping: Dict[str, Any]
+    ) -> Optional[str]:
+        """
+        Responsible for taking a Local Baserow property name (`Field.db_column`),
+        using the ID mapping, amd extracting its mapped ID in a new workspace. If the
+        field ID isn't present in the mapping, then the field was never serialized as
+        it was deleted.
+
+        :param property_name: The property name we want to import.
+        :param id_mapping: The ID mapping dictionary.
+        :return: The new property name, or None if the field was deleted.
+        """
+
+        if (
+            property_name
+            and "database_fields" in id_mapping
+            and property_name.startswith("field_")
+        ):
+            field_id = get_field_id_from_field_key(property_name)
+            new_field_id = id_mapping["database_fields"].get(field_id)
+            return f"field_{new_field_id}" if new_field_id else None
+        return property_name
 
     def deserialize_property(
         self,
@@ -516,7 +541,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
     def get_table_model(
         self, service: LocalBaserowTableService
-    ) -> "GeneratedTableModel":
+    ) -> Optional["GeneratedTableModel"]:
         """
         Returns the model for the table associated with the given service.
         """
@@ -543,7 +568,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return model.get_field_objects()
 
-    def get_context_data(self, service: ServiceSubClass) -> Dict[str, Any]:
+    def get_context_data(self, service: ServiceSubClass) -> Optional[Dict[str, Any]]:
         table = service.table
         if not table:
             return None
@@ -847,14 +872,12 @@ class LocalBaserowListRowsUserServiceType(
         if not str(field_dbname).startswith("field_"):
             return path
 
-        original_field_id = int(field_dbname[6:])
-
-        # Here if the mapping is not found, let's keep the current field Id.
-        field_id = id_mapping.get("database_fields", {}).get(
-            original_field_id, original_field_id
+        # Apply the mapping in case it is present for this field
+        imported_field_dbname = (
+            self.import_property_name(field_dbname, id_mapping) or field_dbname
         )
 
-        return [row, f"field_{field_id}", *rest]
+        return [row, imported_field_dbname, *rest]
 
     def import_context_path(
         self, path: List[str], id_mapping: Dict[int, int], **kwargs
@@ -875,15 +898,10 @@ class LocalBaserowListRowsUserServiceType(
         if field_dbname == "id":
             return path
 
-        # Strip the `field_` prefix and extract its numeric ID
-        original_field_id = int(field_dbname[6:])
-
         # Apply the mapping in case it is present for this field
-        field_id = id_mapping.get("database_fields", {}).get(
-            original_field_id, original_field_id
-        )
+        field_id = self.import_property_name(field_dbname, id_mapping)
 
-        return [f"field_{field_id}", *rest]
+        return [field_id, *rest]
 
     def extract_properties(self, path: List[str], **kwargs) -> List[str]:
         """
@@ -1339,7 +1357,7 @@ class LocalBaserowAggregateRowsUserServiceType(
             return self.deserialize_filters(value, id_mapping)
 
         if prop_name == "field_id":
-            return id_mapping.get("database_fields", {}).get(value, value)
+            return self.import_property_name(value, id_mapping)
 
         return super().deserialize_property(
             prop_name,
@@ -1536,14 +1554,12 @@ class LocalBaserowGetRowUserServiceType(
         if not str(field_dbname).startswith("field_"):
             return path
 
-        original_field_id = int(field_dbname[6:])
-
-        # Here if the mapping is not found, let's keep the current field Id.
-        field_id = id_mapping.get("database_fields", {}).get(
-            original_field_id, original_field_id
+        # Import the mapped field from the ID mapping.
+        imported_field_dbname = (
+            self.import_property_name(field_dbname, id_mapping) or field_dbname
         )
 
-        return [f"field_{field_id}", *rest]
+        return [imported_field_dbname, *rest]
 
     def import_context_path(
         self, path: List[str], id_mapping: Dict[int, int], **kwargs
@@ -2138,14 +2154,12 @@ class LocalBaserowUpsertRowServiceType(
         if field_dbname == "id":
             return path
 
-        original_field_id = int(field_dbname[6:])
-
-        # Here if the mapping is not found, let's keep the current field Id.
-        field_id = id_mapping.get("database_fields", {}).get(
-            original_field_id, original_field_id
+        # Import the mapped field from the ID mapping.
+        imported_field_dbname = (
+            self.import_property_name(field_dbname, id_mapping) or field_dbname
         )
 
-        return [f"field_{field_id}", *rest]
+        return [imported_field_dbname, *rest]
 
     def import_context_path(
         self, path: List[str], id_mapping: Dict[int, int], **kwargs

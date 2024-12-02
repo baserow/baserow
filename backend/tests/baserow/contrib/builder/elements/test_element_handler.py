@@ -624,6 +624,16 @@ def test_get_ancestors(data_fixture, django_assert_num_queries):
     assert len(ancestors) == 2
     assert ancestors == [parent, grandparent]
 
+    # Second call is cached, no queries are made.
+    # Add a predicate to only return ancestors with a column_amount of 1.
+    with django_assert_num_queries(0):
+        ancestors = ElementHandler().get_ancestors(
+            child.id, page, predicate=lambda el: el.column_amount == 1
+        )
+
+    assert len(ancestors) == 1
+    assert ancestors == [grandparent]
+
 
 @pytest.mark.django_db
 def test_get_first_ancestor_of_type(data_fixture, django_assert_num_queries):

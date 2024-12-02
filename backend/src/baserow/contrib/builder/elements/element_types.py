@@ -366,45 +366,6 @@ class RepeatElementType(
             ),
         }
 
-    def deserialize_property(
-        self,
-        prop_name: str,
-        value: Any,
-        id_mapping: Dict[str, Any],
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
-    ):
-        """
-        Responsible for deserializing a property value. If the property is a schema
-        property and the id_mapping contains a mapping for the field id, the field id
-        will be replaced with the new field id.
-
-        :param prop_name: the name of the property being transformed.
-        :param value: the value of this property.
-        :param id_mapping: the id mapping dict.
-        :return: the deserialized version for this property.
-        """
-
-        if value and prop_name == "schema_property" and "database_fields" in id_mapping:
-            field_id = int(value.split("field_")[-1])
-            new_field_id = id_mapping["database_fields"][field_id]
-            return f"field_{new_field_id}"
-
-        return super().deserialize_property(
-            prop_name,
-            value,
-            id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
-        )
-
-    def import_context_addition(self, instance):
-        return {"data_source_id": instance.data_source_id}
-
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "data_source_id": None,
@@ -588,9 +549,6 @@ class RecordSelectorElementType(
         )
         updated_models.add(instance)
         return updated_models
-
-    def import_context_addition(self, instance):
-        return {"data_source_id": instance.data_source_id}
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {

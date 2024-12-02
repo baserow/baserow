@@ -291,6 +291,17 @@ class ServiceType(
     def extract_properties(self, path: List[str], **kwargs) -> List[str]:
         return []
 
+    def import_property_name(
+        self, property_name: str, id_mapping: Dict[str, Any]
+    ) -> Optional[str]:
+        """
+        Allows to hook into the property name import resolution.
+
+        If not implemented, returns the property name as it is.
+        """
+
+        return property_name
+
 
 ServiceTypeSubClass = TypeVar("ServiceTypeSubClass", bound=ServiceType)
 

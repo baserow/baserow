@@ -1,5 +1,16 @@
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -118,7 +129,13 @@ class ElementHandler:
 
         return element
 
-    def get_ancestors(self, element_id: int, page: Page) -> List[Element]:
+    def get_ancestors(
+        self,
+        element_id: int,
+        page: Page,
+        use_element_cache: bool = True,
+        predicate: Optional[Callable[[Element], bool]] = None,
+    ) -> List[Element]:
         """
         Returns a list of all the ancestors of the given element. The ancestry
         results are cached in the dispatch context to avoid multiple queries in
@@ -126,17 +143,22 @@ class ElementHandler:
 
         :param element_id: The ID of the element.
         :param page: The page that holds the elements.
+        :param use_element_cache: Whether to use the cached elements on the page or not.
+        :param predicate: An optional predicate to filter the ancestors.
         :return: A list of the ancestors of the given element.
         """
 
-        elements = self.get_elements(page)
+        elements = self.get_elements(page, use_cache=use_element_cache)
         grouped_elements = {element.id: element for element in elements}
         element = grouped_elements[element_id]
 
         ancestry = []
         while element.parent_element_id is not None:
             element = grouped_elements[element.parent_element_id]
-            ancestry.append(element)
+            if predicate is None or (
+                isinstance(predicate, Callable) and predicate(element)
+            ):
+                ancestry.append(element)
 
         return ancestry
 

@@ -42,9 +42,9 @@ from baserow.contrib.builder.elements.types import (
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
-from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.core.formula.types import BaserowFormula
 from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import merge_dicts_no_duplicates
 
 
@@ -361,22 +361,6 @@ class CollectionElementTypeMixin:
         if prop_name == "data_source_id" and value:
             return id_mapping["builder_data_sources"][value]
 
-        if prop_name == "property_options" and "database_fields" in id_mapping:
-            property_options = []
-            for po in value:
-                field_id = get_field_id_from_field_key(po["schema_property"])
-                if field_id is None:
-                    # If we can't translate the `schema_property` into a Field ID, then
-                    # it's not a `Field` db_column value. For example this can happen
-                    # if someone chooses to have a `id` property option.
-                    property_options.append(po)
-                    continue
-                new_field_id = id_mapping["database_fields"][field_id]
-                property_options.append(
-                    {**po, "schema_property": f"field_{new_field_id}"}
-                )
-            return property_options
-
         return super().deserialize_property(
             prop_name,
             value,
@@ -389,16 +373,33 @@ class CollectionElementTypeMixin:
 
     def import_context_addition(self, instance: CollectionElement) -> Dict[str, int]:
         """
-        Given a collection element, adds the data_source_id to the import context.
+        Given a collection element, adds the `data_source_id` and `schema_property`
+        to the import context.
 
         The data_source_id is not store in some formulas (current_record ones) so
         we need the generate this import context for all formulas of this element.
         """
 
-        if instance.data_source_id:
-            results = {"data_source_id": instance.data_source_id}
-        else:
-            results = {}
+        # If `instance` isn't a `CollectionElement`, it'll be because we just tried
+        # to get the `import_context_addition` of a collection element, but it's a
+        # child of a container. If that happens, just return a blank dict.
+        instance = instance.specific
+        if not isinstance(instance, CollectionElement):
+            return {}
+
+        # Fetch the parent element's import context, as we need to ensure
+        # that if `instance` doesn't have a `data_source_id`, we can fall back
+        # to the parent element's `data_source_id` instead.
+        parent_results = (
+            self.import_context_addition(instance.parent_element)
+            if instance.parent_element_id
+            else {}
+        )
+
+        results = {
+            "data_source_id": instance.data_source_id
+            or parent_results.get("data_source_id")
+        }
 
         if instance.schema_property is not None:
             results["schema_property"] = instance.schema_property
@@ -426,7 +427,7 @@ class CollectionElementTypeMixin:
         :return: The created instance.
         """
 
-        property_options = serialized_values.pop("property_options", [])
+        property_options_values = serialized_values.pop("property_options", [])
 
         instance = super().create_instance_from_serialized(
             serialized_values,
@@ -437,14 +438,51 @@ class CollectionElementTypeMixin:
             **kwargs,
         )
 
-        # Create property options
-        options = [
-            CollectionElementPropertyOptions(**po, element=instance)
-            for po in property_options
-        ]
-        CollectionElementPropertyOptions.objects.bulk_create(options)
+        service = None
+        import_context = ElementHandler().get_import_context_addition(instance.id)
+        if import_context["data_source_id"]:
+            data_source = DataSourceHandler().get_data_source(
+                import_context["data_source_id"]
+            )
+            service = data_source.service.specific
 
-        instance.property_options.add(*options)
+        # If we have a data source set, we'll find out what its service type is, and
+        # use it to map the `schema_property` and `property_options` value `field_id`
+        # to the new ID.
+        service_type = service_type_registry.get_by_model(service) if service else None
+
+        if service_type:
+            # Use the service type to convert the `schema_property`
+            # value if it's present in the ID mapping.
+            if instance.schema_property:
+                imported_schema_property = service_type.import_property_name(
+                    instance.schema_property, id_mapping
+                )
+                if instance.schema_property != imported_schema_property:
+                    instance.schema_property = imported_schema_property
+                    instance.save(update_fields=["schema_property"])
+
+            # Use the service type to convert the `property_options` list's
+            # `schema_property` value if they're present in the ID mapping.
+            property_options = []
+            for po in property_options_values:
+                imported_field_dbname = service_type.import_property_name(
+                    po["schema_property"], id_mapping
+                )
+                # Trashed fields won't be included in the deserialized
+                # property options, we'll skip it altogether.
+                if imported_field_dbname is not None:
+                    property_options.append(
+                        {**po, "schema_property": imported_field_dbname}
+                    )
+
+            # Create property options
+            options = [
+                CollectionElementPropertyOptions(**po, element=instance)
+                for po in property_options
+            ]
+            CollectionElementPropertyOptions.objects.bulk_create(options)
+            instance.property_options.add(*options)
 
         return instance
 
