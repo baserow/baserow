@@ -117,6 +117,8 @@ def duration_formula_filter_proc(
             "h:mm",
             timedelta(hours=3),
         ),
+        ("equal", "3h", ["3h"], "h:mm", timedelta(hours=3)),
+        ("equal", str(3 * 3600), ["3h"], "d h mm ss", timedelta(hours=3)),
         (
             "equal",
             str((3 * 3600) + 2),
@@ -126,8 +128,10 @@ def duration_formula_filter_proc(
         ),  # rounded to 3h
         ("equal", "3600s", ["1h"], "h:mm", timedelta(hours=1)),
         ("equal", "1:00", ["1h"], "h:mm", timedelta(hours=1)),  # 1h
-        ("equal", "0:59", ["59s"], "d h mm ss", timedelta(seconds=59)),  # 1m
-        ("equal", "3602s", ["1h"], "h:mm", timedelta(hours=1)),  # rounded to 1h
+        ("equal", "1:00", [], "h:mm:ss", timedelta(minutes=1)),  # 1m
+        ("equal", "0:59", ["1h"], "d h", timedelta(hours=1)),  # 1h
+        ("equal", "0:59", ["59s"], "d h mm ss", timedelta(seconds=59)),  # 59s
+        ("equal", "3601s", ["1h"], "h:mm", timedelta(hours=1)),  # rounded to 1h
         (
             "equal",
             "3601s",
@@ -135,10 +139,10 @@ def duration_formula_filter_proc(
             "h:mm:ss",
             timedelta(hours=1, seconds=1),
         ),  # exact 1h 1s
-        ("equal", "3h", ["3h"], "h:mm", timedelta(hours=3)),
         ("equal", "1d 20h", [], "d h:mm", timedelta(days=1, hours=20)),
-        ("equal", str(3 * 3600), ["3h"], "d h mm ss", timedelta(hours=3)),  # exact
         ("equal", str(3 * 1800), [], "d h mm ss", timedelta(hours=1, minutes=30)),
+        # 1.5h rounded to 2h
+        ("equal", str(3 * 1800), ["2h"], "d h", timedelta(hours=2)),
         ("equal", "invalid", [], "d h mm ss", None),
         (
             "equal",
@@ -182,6 +186,7 @@ def duration_formula_filter_proc(
         (
             "not_equal",
             "3h 2s",
+            # equals 3h due to rounding
             [
                 "1h",
                 "2h",
@@ -239,6 +244,25 @@ def duration_formula_filter_proc(
         ),
         (
             "not_equal",
+            str(3 * 1800),  # 2h due to rounding
+            [
+                "1h",
+                "3h",
+                "4h",
+                "5h",
+                "none",
+                "1h 1s",
+                "1h -1s",
+                "3h 1s",
+                "3h -1s",
+                "59s",
+                "1m 1s",
+            ],
+            "d h",
+            timedelta(hours=2),
+        ),
+        (
+            "not_equal",
             "1:00",  # parsed as 1m
             [
                 "1h",
@@ -259,7 +283,7 @@ def duration_formula_filter_proc(
         ),
         (
             "not_equal",
-            "1:00",
+            "1:00",  # parsed as 1h
             [
                 "2h",
                 "3h",
@@ -279,8 +303,6 @@ def duration_formula_filter_proc(
         (
             "not_equal",
             "invalid",
-            # this is a negation of 'equal' with 'invalid' value,
-            # so it will yield all values
             [
                 "1h",
                 "2h",
@@ -360,6 +382,13 @@ def test_duration_formula_equal_value_filter(
             ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s"],
             "d h mm ss",
             timedelta(hours=1, minutes=30),
+        ),
+        (
+            "higher_than",
+            str(3 * 1800),
+            ["3h", "4h", "5h", "3h 1s", "3h -1s"],
+            "d h",
+            timedelta(hours=2),
         ),
         (
             "higher_than",
@@ -457,6 +486,13 @@ def test_duration_formula_equal_value_filter(
             timedelta(hours=3),
         ),
         ("higher_than", str((3 * 3600) + 1801), ["5h"], "d h", timedelta(hours=4)),
+        (
+            "higher_than",
+            str((3 * 3600) + 1801),
+            ["4h", "5h"],
+            "h:mm:ss",
+            timedelta(hours=3, minutes=30, seconds=1),
+        ),
         ("higher_than", "invalid", [], "d h", None),
         (
             "higher_than",
@@ -487,10 +523,24 @@ def test_duration_formula_equal_value_filter(
         ),
         (
             "higher_than_or_equal",
-            str(3 * 3600),
+            str(3 * 1800),
+            ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s"],
+            "h:mm:ss",
+            timedelta(hours=1, minutes=30),
+        ),
+        (
+            "higher_than_or_equal",
+            str((3 * 3600) + 1),
             ["3h", "4h", "5h", "3h 1s"],
             "d h",
             timedelta(hours=3),
+        ),
+        (
+            "higher_than_or_equal",
+            str((3 * 3600) + 1),
+            ["4h", "5h", "3h 1s"],
+            "h:mm:ss",
+            timedelta(hours=3, seconds=1),
         ),
         (
             "higher_than_or_equal",
@@ -498,6 +548,13 @@ def test_duration_formula_equal_value_filter(
             ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s"],
             "h:mm:ss",
             timedelta(hours=1, minutes=59, seconds=59),
+        ),
+        (
+            "higher_than_or_equal",
+            "1:59:59",  # 1h59m59s
+            ["2h", "3h", "4h", "5h", "3h 1s", "3h -1s"],
+            "d h",
+            timedelta(hours=2),
         ),
         (
             "higher_than_or_equal",
