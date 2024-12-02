@@ -383,10 +383,15 @@
     "pathSubtitle": "A parameter can be added via :parameter",
     "pathPlaceholder": "Enter a path...",
     "pathParamsTitle": "Path parameters",
+    "queryParamsTitle": "Query parameters",
     "pathParamsSubtitle": "Are defined by :parameter in the path",
     "pathParamsSubtitleTutorial": "Path parameters can be used to dynamically load data, depending on the provided parameter. Add :parameter to the path to add one."
   },
   "pathParamTypes": {
+    "textName": "Text",
+    "numericName": "Numeric"
+  },
+    "queryParamTypes": {
     "textName": "Text",
     "numericName": "Numeric"
   },

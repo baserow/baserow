@@ -30,7 +30,13 @@
           @update="onPathParamUpdate"
         />
       </div>
-      <div class="col col-6"></div>
+      <div class="col col-6">
+        <PageSettingsQueryParamsFormElement
+          :disabled="!hasPermission"
+          :query-params="values.query_params"
+          @update="onQueryParamUpdate"
+        />
+      </div>
     </div>
     <slot></slot>
   </form>
@@ -43,6 +49,7 @@ import form from '@baserow/modules/core/mixins/form'
 import PageSettingsNameFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsNameFormElement'
 import PageSettingsPathFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsPathFormElement'
 import PageSettingsPathParamsFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsPathParamsFormElement'
+import PageSettingsQueryParamsFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsQueryParamsFormElement'
 import {
   getPathParams,
   PATH_PARAM_REGEX,
@@ -58,6 +65,7 @@ export default {
   name: 'PageSettingsForm',
   components: {
     PageSettingsPathParamsFormElement,
+    PageSettingsQueryParamsFormElement,
     PageSettingsPathFormElement,
     PageSettingsNameFormElement,
   },
@@ -81,6 +89,7 @@ export default {
         name: '',
         path: '',
         path_params: [],
+        query_params: [],
       },
       hasPathBeenEdited: false,
     }
@@ -223,6 +232,13 @@ export default {
       this.values.path_params.forEach((pathParam) => {
         if (pathParam.name === paramTypeName) {
           pathParam.type = paramType
+        }
+      })
+    },
+    onQueryParamUpdate(queryTypeName, paramType) {
+      this.values.query_params.forEach((queryParam) => {
+        if (queryParam.name === queryTypeName) {
+          queryParam.type = paramType
         }
       })
     },

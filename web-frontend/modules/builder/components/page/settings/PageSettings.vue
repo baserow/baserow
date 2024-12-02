@@ -43,7 +43,7 @@ export default {
   },
   methods: {
     ...mapActions({ actionUpdatePage: 'page/update' }),
-    async updatePage({ name, path, path_params: pathPrams }) {
+    async updatePage({ name, path, path_params: pathPrams, query_params: queryParams }) {
       this.success = false
       this.loading = true
       this.hideError()
@@ -55,6 +55,7 @@ export default {
             name,
             path,
             path_params: pathPrams,
+            query_params: queryParams,
           },
         })
         await Promise.all(

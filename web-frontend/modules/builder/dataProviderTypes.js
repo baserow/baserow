@@ -288,11 +288,13 @@ export class PageParameterDataProviderType extends DataProviderType {
 
   async init(applicationContext) {
     const { page, mode, pageParamsValue } = applicationContext
+    console.log(page)
+    const pageParams = [...page.path_params]//, ...page.query_params]
 
     if (mode === 'editing') {
       // Generate fake values for the parameters
       await Promise.all(
-        page.path_params.map(({ name, type }) =>
+        pageParams.map(({ name, type }) =>
           this.app.store.dispatch('pageParameter/setParameter', {
             page,
             name,
@@ -303,7 +305,7 @@ export class PageParameterDataProviderType extends DataProviderType {
     } else {
       // Read parameters value from the application context
       await Promise.all(
-        page.path_params.map(({ name, type }) =>
+        pageParams.map(({ name, type }) =>
           this.app.store.dispatch('pageParameter/setParameter', {
             page,
             name,

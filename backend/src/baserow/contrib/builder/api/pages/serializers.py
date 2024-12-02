@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from baserow.contrib.builder.pages.constants import PAGE_PATH_PARAM_TYPE_CHOICES
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.pages.validators import path_param_name_validation
+from baserow.contrib.builder.pages.validators import path_param_name_validation, query_param_name_validation
 
 
 class PathParamSerializer(serializers.Serializer):
@@ -17,6 +17,18 @@ class PathParamSerializer(serializers.Serializer):
     )
 
 
+class QueryParamSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        required=True,
+        validators=[query_param_name_validation],
+        help_text="The name of the parameter.",
+        max_length=255,
+    )
+    # TODO: Add own type for query params
+    type = serializers.ChoiceField(
+        choices=PAGE_PATH_PARAM_TYPE_CHOICES, help_text="The type of the parameter."
+    )
+
 class PageSerializer(serializers.ModelSerializer):
     """
     👉 Mind to update the
@@ -25,6 +37,7 @@ class PageSerializer(serializers.ModelSerializer):
     """
 
     path_params = PathParamSerializer(many=True, required=False)
+    query_params = QueryParamSerializer(many=True, required=False)
 
     class Meta:
         model = Page
@@ -39,6 +52,7 @@ class PageSerializer(serializers.ModelSerializer):
             "visibility",
             "role_type",
             "roles",
+            "query_params",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -56,7 +70,7 @@ class CreatePageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Page
-        fields = ("name", "path", "path_params")
+        fields = ("name", "path", "path_params", "query_params")
 
 
 class UpdatePageSerializer(serializers.ModelSerializer):
@@ -64,7 +78,7 @@ class UpdatePageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Page
-        fields = ("name", "path", "path_params", "visibility", "role_type", "roles")
+        fields = ("name", "path", "path_params", "visibility", "role_type", "roles", "query_params")
         extra_kwargs = {
             "name": {"required": False},
             "path": {"required": False},

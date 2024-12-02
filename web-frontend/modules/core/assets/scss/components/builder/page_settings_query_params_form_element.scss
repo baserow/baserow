@@ -1,4 +1,4 @@
-.page-settings-query-params {
+.page-settings-path-params {
   display: flex;
   align-items: center;
   width: 100%;
@@ -8,13 +8,13 @@
   }
 }
 
-.page-settings-query-params__name {
+.page-settings-path-params__name {
   @extend %ellipsis;
 
   flex: 0 0 50%;
 }
 
-.page-settings-query-params__dropdown {
+.page-settings-path-params__dropdown {
   flex: 0 0 45%;
   margin-left: 5%;
 }

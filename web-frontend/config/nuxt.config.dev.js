@@ -3,6 +3,7 @@ import StyleLintPlugin from 'stylelint-webpack-plugin'
 import base from './nuxt.config.base.js'
 
 export default Object.assign(base(), {
+  ssr: false,
   vue: {
     config: {
       productionTip: false,
@@ -25,6 +26,6 @@ export default Object.assign(base(), {
         syntax: 'scss',
       }),
     ],
-    transpile: ['axios'],
+    transpile: ['axios', 'markdown-it', 'entities'],
   },
 })
