@@ -96,7 +96,7 @@ describe('resolveElementUrl tests', () => {
     )
     expect(result).toEqual('/builder/123/preview/contact/')
   })
-  test('Should ignore unused query params', () => {
+  test('Should return resolvedContext and ignore element page params when destination page params are removed', () => {
     const element = {
       navigation_type: 'page',
       navigate_to_page_id: 1,
@@ -104,7 +104,7 @@ describe('resolveElementUrl tests', () => {
     }
     const builder = {
       id: 123,
-      pages: [{ id: 1, path: '/products/', path_params: [] }],
+      pages: [{ id: 1, path: '/products/', path_params: [] }], // Page parameters have been removed
     }
     const result = resolveElementUrl(
       element,
