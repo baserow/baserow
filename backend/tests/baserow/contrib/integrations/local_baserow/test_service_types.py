@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -9,6 +10,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowListRowsUserServiceType,
     LocalBaserowServiceType,
     LocalBaserowTableServiceType,
+    LocalBaserowViewServiceType,
 )
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.test_utils.helpers import setup_interesting_test_table
@@ -208,6 +210,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["date_us"]: {
             "title": "date_us",
@@ -218,6 +221,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date",
         },
         field_db_column_by_name["datetime_eu"]: {
             "title": "datetime_eu",
@@ -228,6 +232,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["date_eu"]: {
             "title": "date_eu",
@@ -238,6 +243,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date",
         },
         field_db_column_by_name["datetime_eu_tzone_visible"]: {
             "title": "datetime_eu_tzone_visible",
@@ -248,6 +254,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["datetime_eu_tzone_hidden"]: {
             "title": "datetime_eu_tzone_hidden",
@@ -258,6 +265,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_datetime_us"]: {
             "title": "last_modified_datetime_us",
@@ -268,6 +276,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_date_us"]: {
             "title": "last_modified_date_us",
@@ -278,6 +287,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_datetime_eu"]: {
             "title": "last_modified_datetime_eu",
@@ -288,6 +298,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_date_eu"]: {
             "title": "last_modified_date_eu",
@@ -298,6 +309,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_datetime_eu_tzone"]: {
             "title": "last_modified_datetime_eu_tzone",
@@ -308,6 +320,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_datetime_us"]: {
             "title": "created_on_datetime_us",
@@ -318,6 +331,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_date_us"]: {
             "title": "created_on_date_us",
@@ -328,6 +342,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_datetime_eu"]: {
             "title": "created_on_datetime_eu",
@@ -338,6 +353,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_date_eu"]: {
             "title": "created_on_date_eu",
@@ -348,6 +364,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_datetime_eu_tzone"]: {
             "title": "created_on_datetime_eu_tzone",
@@ -358,6 +375,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_by"]: {
             "default": None,
@@ -492,7 +510,11 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                     "is_image": {"title": "is_image", "type": "boolean"},
                     "image_width": {"title": "image_width", "type": "number"},
                     "image_height": {"title": "image_height", "type": "number"},
-                    "uploaded_at": {"title": "uploaded_at", "type": "string"},
+                    "uploaded_at": {
+                        "title": "uploaded_at",
+                        "type": "string",
+                        "format": "date-time",
+                    },
                 },
             },
         },
@@ -615,6 +637,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "original_type": "formula",
             "metadata": {},
             "type": "string",
+            "format": "date",
         },
         field_db_column_by_name["formula_singleselect"]: {
             "title": "formula_singleselect",
@@ -1086,3 +1109,94 @@ def test_local_baserow_table_service_type_get_context_data_schema(data_fixture):
             },
         },
     }
+
+
+@pytest.mark.django_db
+def test_local_baserow_view_service_type_prepare_values(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table_a = data_fixture.create_database_table(database=database)
+    view_a = data_fixture.create_grid_view(table=table_a)
+    table_b = data_fixture.create_database_table(database=database)
+    view_b = data_fixture.create_grid_view(table=table_b)
+
+    # We're just testing the `ViewServiceType`'s `prepare_values`, we don't
+    # want to test any additional requirements for list rows.
+    service_type = LocalBaserowViewServiceType
+    service_type.model_class = Mock()
+    instance = data_fixture.create_local_baserow_list_rows_service(
+        table=table_a, view=view_a
+    )
+
+    # Providing a `view_id` that does not exist.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values({"view_id": "123"}, user, instance)
+    assert str(exc.value.detail["detail"]) == "The view with ID 123 does not exist."
+
+    # Providing a `table`, no `view_id`, when the instance already
+    # points to a view, will cause the `view` values to be `None`.
+    assert service_type().prepare_values({"table": table_b}, user, instance) == {
+        "table": table_b,
+        "view": None,
+    }
+
+    # Providing a `view_id` and `table_id` when none have previously been set.
+    instance.view_id = None
+    instance.table_id = None
+    instance.save()
+    assert service_type().prepare_values(
+        {"table": table_a, "view_id": view_a.id}, user, instance
+    ) == {
+        "view": view_a.view_ptr,
+        "table": table_a,
+    }
+
+    # Providing a `view_id` when the instance and values don't contain a table.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values({"view_id": view_a.id}, user, instance)
+    assert (
+        str(exc.value.detail["detail"])
+        == "A table ID is required alongside the view ID."
+    )
+
+    # Providing a `view_id` when a `table_id` has previously been set, and the
+    # view belongs to the instance's table.
+    instance.view_id = view_a.id
+    instance.table_id = table_a.id
+    instance.save()
+    assert service_type().prepare_values({"view_id": view_a.id}, user, instance) == {
+        "view": view_a.view_ptr,
+        "table": table_a,
+    }
+
+    # Providing a `view_id` when a `table_id` has previously been set, and the
+    # view doesn't belong to the instance's table.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values({"view_id": view_b.id}, user, instance)
+    assert (
+        str(exc.value.detail[0])
+        == f"The view with ID {view_b.id} is not related to the given table {instance.table_id}."
+    )
+
+    # Providing a `view_id` and `table_id` when none was previously been set,
+    # and the view belongs to the provided table.
+    instance.view_id = None
+    instance.table_id = None
+    instance.save()
+    assert service_type().prepare_values(
+        {"view_id": view_a.id, "table": table_a}, user, instance
+    ) == {
+        "view": view_a.view_ptr,
+        "table": table_a,
+    }
+
+    # Providing a `view_id` and `table_id` when none was previously been set,
+    # and the `view_id` doesn't belong to the provided `table`.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values(
+            {"view_id": view_a.id, "table": table_b}, user, instance
+        )
+    assert (
+        str(exc.value.detail[0])
+        == f"The view with ID {view_a.id} is not related to the given table {table_b.id}."
+    )

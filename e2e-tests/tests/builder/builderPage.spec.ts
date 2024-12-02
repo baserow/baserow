@@ -58,7 +58,7 @@ test.describe("Builder page test suite", () => {
   });
 
   test("Can create an element from empty page", async ({ page }) => {
-    await page.getByText("Click to create first element").click();
+    await page.getByText("Click to create an element").click();
     await page.getByText("Heading", { exact: true }).click();
 
     await expect(

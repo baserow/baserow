@@ -1,5 +1,6 @@
 import json
 import uuid
+from copy import deepcopy
 from io import BytesIO
 from unittest.mock import patch
 
@@ -60,11 +61,11 @@ def test_builder_application_type_init_application(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
 
-    assert Page.objects.count() == 1  # The shared page must exists
+    assert Page.objects.count() == 0
 
     BuilderApplicationType().init_application(user, builder)
 
-    assert Page.objects.count() == 3  # With demo data
+    assert Page.objects.count() == 2  # With demo data
 
 
 @pytest.mark.django_db
@@ -119,9 +120,12 @@ def test_builder_application_export(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
 
-    shared_page = builder.page_set.get(shared=True)
+    shared_page = builder.shared_page
     page1 = data_fixture.create_builder_page(builder=builder)
     page2 = data_fixture.create_builder_page(builder=builder)
+
+    builder.login_page = page2
+    builder.save()
 
     element1 = data_fixture.create_builder_heading_element(
         page=page1, level=2, value="foo"
@@ -185,6 +189,149 @@ def test_builder_application_export(data_fixture):
     # To make sure a really JSON file can be imported
     serialized = json.loads(json.dumps(serialized))
 
+    page_2_serialized = {
+        "id": page2.id,
+        "name": page2.name,
+        "order": page2.order,
+        "path": page2.path,
+        "path_params": page2.path_params,
+        "visibility": Page.VISIBILITY_TYPES.ALL.value,
+        "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+        "roles": [],
+        "shared": False,
+        "workflow_actions": [],
+        "data_sources": [
+            {
+                "id": datasource2.id,
+                "name": "source 2",
+                "order": "1.00000000000000000000",
+                "service": {
+                    "id": datasource2.service.id,
+                    "integration_id": integration.id,
+                    "filter_type": "AND",
+                    "filters": [],
+                    "row_id": "",
+                    "view_id": None,
+                    "table_id": None,
+                    "search_query": "",
+                    "type": "local_baserow_get_row",
+                },
+            },
+            {
+                "id": datasource3.id,
+                "name": "source 3",
+                "order": "2.00000000000000000000",
+                "service": {
+                    "id": datasource3.service.id,
+                    "integration_id": integration.id,
+                    "filters": [],
+                    "sortings": [],
+                    "view_id": None,
+                    "table_id": None,
+                    "search_query": "",
+                    "filter_type": "AND",
+                    "type": "local_baserow_list_rows",
+                },
+            },
+        ],
+        "elements": [
+            {
+                "id": element3.id,
+                "type": "heading",
+                "order": str(element3.order),
+                "parent_element_id": None,
+                "place_in_container": None,
+                "visibility": "all",
+                "styles": {},
+                "style_border_top_color": "border",
+                "style_border_top_size": 0,
+                "style_padding_top": 10,
+                "style_margin_top": 0,
+                "style_border_bottom_color": "border",
+                "style_border_bottom_size": 0,
+                "style_padding_bottom": 10,
+                "style_margin_bottom": 0,
+                "style_border_left_color": "border",
+                "style_border_left_size": 0,
+                "style_padding_left": 20,
+                "style_margin_left": 0,
+                "style_border_right_color": "border",
+                "style_border_right_size": 0,
+                "style_padding_right": 20,
+                "style_margin_right": 0,
+                "style_background": "none",
+                "style_background_color": "#ffffffff",
+                "style_background_file_id": None,
+                "style_background_mode": "fill",
+                "style_width": "normal",
+                "value": element3.value,
+                "level": element3.level,
+                "roles": [],
+                "role_type": "allow_all",
+            },
+            {
+                "id": element4.id,
+                "type": "table",
+                "schema_property": None,
+                "button_load_more_label": "",
+                "order": str(element4.order),
+                "roles": [],
+                "role_type": "allow_all",
+                "orientation": {
+                    "smartphone": "horizontal",
+                    "tablet": "horizontal",
+                    "desktop": "horizontal",
+                },
+                "parent_element_id": None,
+                "place_in_container": None,
+                "visibility": "all",
+                "styles": {},
+                "style_border_top_color": "border",
+                "style_border_top_size": 0,
+                "style_padding_top": 10,
+                "style_margin_top": 0,
+                "style_border_bottom_color": "border",
+                "style_border_bottom_size": 0,
+                "style_padding_bottom": 10,
+                "style_margin_bottom": 0,
+                "style_border_left_color": "border",
+                "style_border_left_size": 0,
+                "style_padding_left": 20,
+                "style_margin_left": 0,
+                "style_border_right_color": "border",
+                "style_border_right_size": 0,
+                "style_padding_right": 20,
+                "style_margin_right": 0,
+                "style_background": "none",
+                "style_background_color": "#ffffffff",
+                "style_background_file_id": None,
+                "style_background_mode": "fill",
+                "style_width": "normal",
+                "items_per_page": 42,
+                "data_source_id": element4.data_source.id,
+                "fields": [
+                    {
+                        "name": f.name,
+                        "type": f.type,
+                        "config": f.config,
+                        "uid": str(f.uid),
+                        "styles": {},
+                    }
+                    for f in element4.fields.all()
+                ],
+                "property_options": [
+                    {
+                        "schema_property": po.schema_property,
+                        "filterable": po.filterable,
+                        "sortable": po.sortable,
+                        "searchable": po.searchable,
+                    }
+                    for po in element4.property_options.all()
+                ],
+            },
+        ],
+    }
+
     reference = {
         "pages": [
             {
@@ -194,6 +341,9 @@ def test_builder_application_export(data_fixture):
                 "path": shared_page.path,
                 "path_params": shared_page.path_params,
                 "shared": True,
+                "visibility": Page.VISIBILITY_TYPES.ALL.value,
+                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+                "roles": [],
                 "workflow_actions": [],
                 "data_sources": [
                     {
@@ -222,6 +372,9 @@ def test_builder_application_export(data_fixture):
                 "path": page1.path,
                 "path_params": page1.path_params,
                 "shared": False,
+                "visibility": Page.VISIBILITY_TYPES.ALL.value,
+                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+                "roles": [],
                 "workflow_actions": [
                     {
                         "id": workflow_action_1.id,
@@ -392,145 +545,7 @@ def test_builder_application_export(data_fixture):
                     },
                 ],
             },
-            {
-                "id": page2.id,
-                "name": page2.name,
-                "order": page2.order,
-                "path": page2.path,
-                "path_params": page2.path_params,
-                "shared": False,
-                "workflow_actions": [],
-                "data_sources": [
-                    {
-                        "id": datasource2.id,
-                        "name": "source 2",
-                        "order": "1.00000000000000000000",
-                        "service": {
-                            "id": datasource2.service.id,
-                            "integration_id": integration.id,
-                            "filter_type": "AND",
-                            "filters": [],
-                            "row_id": "",
-                            "view_id": None,
-                            "table_id": None,
-                            "search_query": "",
-                            "type": "local_baserow_get_row",
-                        },
-                    },
-                    {
-                        "id": datasource3.id,
-                        "name": "source 3",
-                        "order": "2.00000000000000000000",
-                        "service": {
-                            "id": datasource3.service.id,
-                            "integration_id": integration.id,
-                            "filters": [],
-                            "sortings": [],
-                            "view_id": None,
-                            "table_id": None,
-                            "search_query": "",
-                            "filter_type": "AND",
-                            "type": "local_baserow_list_rows",
-                        },
-                    },
-                ],
-                "elements": [
-                    {
-                        "id": element3.id,
-                        "type": "heading",
-                        "order": str(element3.order),
-                        "parent_element_id": None,
-                        "place_in_container": None,
-                        "visibility": "all",
-                        "styles": {},
-                        "style_border_top_color": "border",
-                        "style_border_top_size": 0,
-                        "style_padding_top": 10,
-                        "style_margin_top": 0,
-                        "style_border_bottom_color": "border",
-                        "style_border_bottom_size": 0,
-                        "style_padding_bottom": 10,
-                        "style_margin_bottom": 0,
-                        "style_border_left_color": "border",
-                        "style_border_left_size": 0,
-                        "style_padding_left": 20,
-                        "style_margin_left": 0,
-                        "style_border_right_color": "border",
-                        "style_border_right_size": 0,
-                        "style_padding_right": 20,
-                        "style_margin_right": 0,
-                        "style_background": "none",
-                        "style_background_color": "#ffffffff",
-                        "style_background_file_id": None,
-                        "style_background_mode": "fill",
-                        "style_width": "normal",
-                        "value": element3.value,
-                        "level": element3.level,
-                        "roles": [],
-                        "role_type": "allow_all",
-                    },
-                    {
-                        "id": element4.id,
-                        "type": "table",
-                        "schema_property": None,
-                        "button_load_more_label": "",
-                        "order": str(element4.order),
-                        "roles": [],
-                        "role_type": "allow_all",
-                        "orientation": {
-                            "smartphone": "horizontal",
-                            "tablet": "horizontal",
-                            "desktop": "horizontal",
-                        },
-                        "parent_element_id": None,
-                        "place_in_container": None,
-                        "visibility": "all",
-                        "styles": {},
-                        "style_border_top_color": "border",
-                        "style_border_top_size": 0,
-                        "style_padding_top": 10,
-                        "style_margin_top": 0,
-                        "style_border_bottom_color": "border",
-                        "style_border_bottom_size": 0,
-                        "style_padding_bottom": 10,
-                        "style_margin_bottom": 0,
-                        "style_border_left_color": "border",
-                        "style_border_left_size": 0,
-                        "style_padding_left": 20,
-                        "style_margin_left": 0,
-                        "style_border_right_color": "border",
-                        "style_border_right_size": 0,
-                        "style_padding_right": 20,
-                        "style_margin_right": 0,
-                        "style_background": "none",
-                        "style_background_color": "#ffffffff",
-                        "style_background_file_id": None,
-                        "style_background_mode": "fill",
-                        "style_width": "normal",
-                        "items_per_page": 42,
-                        "data_source_id": element4.data_source.id,
-                        "fields": [
-                            {
-                                "name": f.name,
-                                "type": f.type,
-                                "config": f.config,
-                                "uid": str(f.uid),
-                                "styles": {},
-                            }
-                            for f in element4.fields.all()
-                        ],
-                        "property_options": [
-                            {
-                                "schema_property": po.schema_property,
-                                "filterable": po.filterable,
-                                "sortable": po.sortable,
-                                "searchable": po.searchable,
-                            }
-                            for po in element4.property_options.all()
-                        ],
-                    },
-                ],
-            },
+            page_2_serialized,
         ],
         "integrations": [
             {
@@ -661,10 +676,75 @@ def test_builder_application_export(data_fixture):
         "order": builder.order,
         "type": "builder",
         "favicon_file": None,
+        "login_page": page_2_serialized,
     }
 
     assert serialized == reference
 
+
+PAGE_2_IMPORT_REFERENCE = {
+    "id": 998,
+    "name": "Megan Clark",
+    "order": 2,
+    "path": "/test2",
+    "path_params": {},
+    "workflow_actions": [],
+    "shared": False,
+    "visibility": Page.VISIBILITY_TYPES.ALL.value,
+    "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+    "roles": [],
+    "elements": [
+        {
+            "id": 997,
+            "type": "heading",
+            "parent_element_id": None,
+            "place_in_container": None,
+            "style_background": "none",
+            "style_background_color": "#ffffffff",
+            "style_border_bottom_color": "border",
+            "style_border_bottom_size": 0,
+            "style_border_top_color": "border",
+            "style_border_top_size": 0,
+            "style_width": "normal",
+            "order": 1,
+            "value": "",
+            "level": 1,
+            "roles": [],
+            "role_type": "allow_all",
+        }
+    ],
+    "data_sources": [
+        {
+            "id": 1,
+            "name": "source 2",
+            "order": "1.00000000000000000000",
+            "service": {
+                "id": 1,
+                "integration_id": 42,
+                "row_id": "",
+                "view_id": None,
+                "table_id": None,
+                "search_query": "",
+                "filter_type": "AND",
+                "type": "local_baserow_get_row",
+            },
+        },
+        {
+            "id": 3,
+            "name": "source 3",
+            "order": "2.00000000000000000000",
+            "service": {
+                "id": 2,
+                "integration_id": 42,
+                "view_id": None,
+                "table_id": None,
+                "search_query": "",
+                "filter_type": "AND",
+                "type": "local_baserow_list_rows",
+            },
+        },
+    ],
+}
 
 IMPORT_REFERENCE = {
     "pages": [
@@ -674,6 +754,9 @@ IMPORT_REFERENCE = {
             "order": 1,
             "path": "/test",
             "path_params": {},
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
             "workflow_actions": [
                 {
                     "id": 123,
@@ -847,66 +930,7 @@ IMPORT_REFERENCE = {
                 },
             ],
         },
-        {
-            "id": 998,
-            "name": "Megan Clark",
-            "order": 2,
-            "path": "/test2",
-            "path_params": {},
-            "workflow_actions": [],
-            "shared": False,
-            "elements": [
-                {
-                    "id": 997,
-                    "type": "heading",
-                    "parent_element_id": None,
-                    "place_in_container": None,
-                    "style_background": "none",
-                    "style_background_color": "#ffffffff",
-                    "style_border_bottom_color": "border",
-                    "style_border_bottom_size": 0,
-                    "style_border_top_color": "border",
-                    "style_border_top_size": 0,
-                    "style_width": "normal",
-                    "order": 1,
-                    "value": "",
-                    "level": 1,
-                    "roles": [],
-                    "role_type": "allow_all",
-                }
-            ],
-            "data_sources": [
-                {
-                    "id": 1,
-                    "name": "source 2",
-                    "order": "1.00000000000000000000",
-                    "service": {
-                        "id": 1,
-                        "integration_id": 42,
-                        "row_id": "",
-                        "view_id": None,
-                        "table_id": None,
-                        "search_query": "",
-                        "filter_type": "AND",
-                        "type": "local_baserow_get_row",
-                    },
-                },
-                {
-                    "id": 3,
-                    "name": "source 3",
-                    "order": "2.00000000000000000000",
-                    "service": {
-                        "id": 2,
-                        "integration_id": 42,
-                        "view_id": None,
-                        "table_id": None,
-                        "search_query": "",
-                        "filter_type": "AND",
-                        "type": "local_baserow_list_rows",
-                    },
-                },
-            ],
-        },
+        PAGE_2_IMPORT_REFERENCE,
     ],
     "integrations": [
         {
@@ -971,6 +995,7 @@ IMPORT_REFERENCE = {
     "name": "Holly Sherman",
     "order": 0,
     "type": "builder",
+    "login_page": PAGE_2_IMPORT_REFERENCE,
 }
 
 
@@ -986,8 +1011,11 @@ def test_builder_application_import(data_fixture):
     )
 
     assert builder.id != serialized_values["id"]
-    assert builder.page_set.exclude(shared=True).count() == 2
-    assert builder.page_set.filter(shared=True).count() == 1
+    assert builder.page_set.count() == 2
+    # ensure we have the shared page even if it's not in the reference
+    assert (
+        builder.page_set(manager="objects_with_shared").filter(shared=True).count() == 1
+    )
 
     assert builder.integrations.count() == 1
     first_integration = builder.integrations.first().specific
@@ -995,13 +1023,15 @@ def test_builder_application_import(data_fixture):
 
     assert builder.user_sources.count() == 1
 
-    [page1, page2] = builder.page_set.exclude(shared=True)
+    [page1, page2] = builder.page_set.all()
 
     assert page1.element_set.count() == 6
     assert page2.element_set.count() == 1
 
     assert page1.datasource_set.count() == 2
     assert page2.datasource_set.count() == 2
+
+    assert builder.login_page == page2
 
     first_data_source = page2.datasource_set.first()
     assert first_data_source.name == "source 2"
@@ -1063,6 +1093,9 @@ IMPORT_REFERENCE_COMPLEX = {
             "path": "/test2",
             "path_params": {},
             "workflow_actions": [],
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
             "elements": [
                 {
                     "id": 997,
@@ -1169,6 +1202,41 @@ def test_builder_application_import_with_complex_elements(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "page_property,value",
+    [
+        ("visibility", Page.VISIBILITY_TYPES.ALL),
+        ("role_type", Page.ROLE_TYPES.ALLOW_ALL),
+        ("roles", []),
+    ],
+)
+def test_builder_application_imports_page_with_default_visibility(
+    data_fixture, page_property, value
+):
+    """
+    Ensure that the importer sets default values for Page Visibility when the
+    Page Visiblity related values are missing in the exported data.
+    """
+
+    user = data_fixture.create_user(email="test@baserow.io")
+    workspace = data_fixture.create_workspace(user=user)
+
+    config = ImportExportConfig(include_permission_data=True)
+    serialized_values = deepcopy(IMPORT_REFERENCE)
+
+    first_page = serialized_values["pages"][0]
+    del first_page[page_property]
+
+    builder = BuilderApplicationType().import_serialized(
+        workspace, serialized_values, config, {}
+    )
+
+    page = builder.page_set.first()
+
+    assert getattr(page, page_property) == value
+
+
+@pytest.mark.django_db
 def test_builder_application_doesnt_import_favicon_file(data_fixture):
     """
     Ensure the importer doesn't attempt to import the favicon_file if it
@@ -1220,6 +1288,48 @@ def test_builder_application_imports_favicon_file(data_fixture, tmpdir):
     )
 
     assert builder.favicon_file == user_file
+
+
+@pytest.mark.django_db
+def test_builder_application_does_not_import_login_page(data_fixture):
+    """
+    Ensure the importer doesn't attempt to import the login_page if it
+    doesn't exist in the serialized values.
+    """
+
+    user = data_fixture.create_user(email="test@baserow.io")
+    workspace = data_fixture.create_workspace(user=user)
+
+    config = ImportExportConfig(include_permission_data=True)
+    serialized_values = IMPORT_REFERENCE.copy()
+    serialized_values.pop("login_page", None)
+
+    builder = BuilderApplicationType().import_serialized(
+        workspace, serialized_values, config, {}
+    )
+
+    assert builder.login_page is None
+
+
+@pytest.mark.django_db
+def test_builder_application_imports_login_page(data_fixture):
+    """Ensure the login_page is imported and saved to the builder."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="foo_login_page")
+    builder.login_page = page
+    builder.save()
+
+    config = ImportExportConfig(include_permission_data=True)
+    serialized = BuilderApplicationType().export_serialized(builder, config)
+
+    new_builder = BuilderApplicationType().import_serialized(
+        workspace, serialized, config, {}
+    )
+
+    assert new_builder.login_page.name == "foo_login_page"
 
 
 @pytest.mark.django_db
@@ -1310,7 +1420,7 @@ def test_builder_application_imports_correct_default_roles(data_fixture):
         workspace, serialized_values, config, {}
     )
 
-    new_element = builder.page_set.exclude(shared=True)[0].element_set.all()[0]
+    new_element = builder.page_set.first().element_set.all()[0]
     new_user_source = builder.user_sources.all()[0]
 
     # Ensure the "old" Default User Role doesn't exist
@@ -1394,7 +1504,7 @@ def test_ensure_new_element_roles_are_sanitized_during_import_for_default_roles(
     expected_roles = _expected_roles
 
     # Ensure new element has roles updated
-    new_element = builder.page_set.exclude(shared=True)[0].element_set.all()[0]
+    new_element = builder.page_set.all()[0].element_set.all()[0]
     for index, role in enumerate(new_element.roles):
         # Default Role's User Source should have changed for new elements
         if role.startswith(prefix):
@@ -1471,5 +1581,5 @@ def test_ensure_new_element_roles_are_sanitized_during_import_for_roles(
             workspace, serialized, config, {}
         )
 
-    new_element = builder.page_set.exclude(shared=True)[0].element_set.all()[0]
+    new_element = builder.page_set.all()[0].element_set.all()[0]
     assert new_element.roles == expected_roles

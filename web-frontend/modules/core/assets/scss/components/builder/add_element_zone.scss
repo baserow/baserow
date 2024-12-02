@@ -1,30 +1,41 @@
-.add-element-zone__icon {
-  border: solid 1px $color-neutral-400;
-  border-radius: 100%;
-  padding: 8px;
-}
-
 .add-element-zone {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 70px;
-  border: dashed 2px $color-neutral-400;
-  cursor: pointer;
+  width: calc(100% - 4px);
+  height: 120px;
+  border: 1px dashed $color-neutral-200;
+  background-color: $color-neutral-10;
+  margin: 2px; // To make sure we have enough space to see the border
 
   @include rounded($rounded-md);
 
   &:hover {
-    color: $color-primary-500;
-    border-color: $color-primary-500;
+    border: 1px solid $color-primary-500;
+    background-color: $palette-blue-50;
+    border-color: $palette-blue-300;
+  }
+}
 
-    .add-element-zone__icon {
-      border-color: $color-primary-500;
-    }
+.add-element-zone__button {
+  padding: 10px; // Add more space around to make the click easier
+}
 
-    .add-element-zone__button--disabled {
-      cursor: not-allowed;
-    }
+.add-element-zone__icon {
+  font-size: 16px;
+  border: solid 1px $color-neutral-400;
+  border-radius: 100%;
+  padding: 8px;
+  line-height: 1em;
+  cursor: pointer;
+
+  @include elevation($elevation-low);
+
+  .add-element-zone:hover & {
+    color: $color-primary-600;
+  }
+
+  .add-element-zone.add-element-zone--disabled & {
+    cursor: not-allowed;
   }
 }

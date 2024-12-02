@@ -75,7 +75,9 @@ export default {
       }
       if (this.target === 'self' && this.url.startsWith('/')) {
         event.preventDefault()
-        this.$router.push(this.url)
+        if (this.$route.path !== this.url) {
+          this.$router.push(this.url)
+        }
       }
     },
   },

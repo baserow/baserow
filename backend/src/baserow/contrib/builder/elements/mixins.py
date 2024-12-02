@@ -40,6 +40,7 @@ from baserow.contrib.builder.elements.types import (
     ElementSubClass,
 )
 from baserow.contrib.builder.formula_importer import import_formula
+from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.core.formula.types import BaserowFormula
@@ -59,10 +60,14 @@ class ContainerElementTypeMixin:
         """
         Lets you define which children types can be placed inside the container.
 
-        :return: All the allowed children types
+        By default, multi-page elements are not allowed inside any container.
         """
 
-        return [element_type.type for element_type in element_type_registry.get_all()]
+        return [
+            element_type
+            for element_type in element_type_registry.get_all()
+            if not element_type.is_multi_page_element
+        ]
 
     def get_new_place_in_container(
         self, container_element: ContainerElement, places_removed: List[str]
@@ -127,6 +132,8 @@ class ContainerElementTypeMixin:
         :param instance: The instance of the container element
         :raises DRFValidationError: If the place in container is invalid
         """
+
+        return True
 
 
 class CollectionElementTypeMixin:
@@ -738,3 +745,119 @@ class FormElementTypeMixin:
             )
 
         return value
+
+
+class MultiPageElementTypeMixin:
+    is_multi_page_element = True
+
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + [
+            "share_type",
+            "pages",
+        ]
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + [
+            "share_type",
+        ]
+
+    class SerializedDict(ElementDict):
+        share_type: str
+        pages: List[int]
+
+    def after_create(self, instance, values):
+        """
+        Add the pages
+        """
+
+        from baserow.contrib.builder.pages.models import Page
+
+        super().after_create(instance, values)
+
+        if "pages" in values:
+            pages = PageHandler().get_pages(
+                instance.page.builder,
+                base_queryset=Page.objects.filter(
+                    id__in=[p.id for p in values["pages"]]
+                ),
+            )
+            instance.pages.add(*pages)
+
+    def after_update(self, instance: Any, values: Dict, changes: Dict[str, Tuple]):
+        """
+        Updates the pages.
+        """
+
+        from baserow.contrib.builder.pages.models import Page
+
+        super().after_update(instance, values, changes)
+
+        if "pages" in values:
+            pages = PageHandler().get_pages(
+                instance.page.builder,
+                base_queryset=Page.objects.filter(
+                    id__in=[p.id for p in values["pages"]]
+                ),
+            )
+            instance.pages.clear()
+            instance.pages.add(*pages)
+
+    def serialize_property(
+        self,
+        element: "MultiPageElementTypeMixin",
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """
+        You can customize the behavior of the serialization of a property with this
+        hook.
+        """
+
+        if prop_name == "pages":
+            return [page.id for page in element.pages.all()]
+
+        return super().serialize_property(
+            element,
+            prop_name,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values: Dict[str, Any],
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """Deals with the fields"""
+
+        pages = serialized_values.pop("pages", [])
+
+        instance = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        pages = [id_mapping["builder_pages"][page_id] for page_id in pages]
+
+        if pages:
+            instance.pages.add(*pages)
+
+        return instance
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {"share_type": "all"}

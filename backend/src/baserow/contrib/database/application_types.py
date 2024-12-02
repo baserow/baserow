@@ -31,6 +31,7 @@ from baserow.core.registries import (
     ImportExportConfig,
     serialization_processor_registry,
 )
+from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder, grouper
 
@@ -93,7 +94,7 @@ class DatabaseApplicationType(ApplicationType):
         self,
         tables: List[Table],
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -179,7 +180,7 @@ class DatabaseApplicationType(ApplicationType):
         self,
         database: Database,
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Dict[str, Any]:
         """

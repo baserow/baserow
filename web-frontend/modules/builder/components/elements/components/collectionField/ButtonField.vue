@@ -31,7 +31,7 @@ export default {
       )
       const workflowActions = this.$store.getters[
         'workflowAction/getElementWorkflowActions'
-      ](this.page, this.element.id)
+      ](this.elementPage, this.element.id)
       return workflowActions
         .filter((wa) => wa.event === this.eventName)
         .some((workflowAction) =>

@@ -1,151 +1,25 @@
 .elements-list {
-  @extend %context;
-
-  max-width: 360px;
-  display: flex;
-  flex-direction: column;
-}
-
-.elements-list__search-input {
-  display: block;
-  width: 100%;
-  border: none;
-  padding: 0 12px 0 0;
-
-  @include rounded($rounded);
-  @include fixed-height(36px, 12px);
-
-  &::placeholder {
-    color: $palette-neutral-700;
-  }
-}
-
-.elements-list__items {
   position: relative;
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 4px 0;
+  padding-bottom: 4px;
   min-height: 0;
-  max-height: (4 * 36px) + 20px; // we show max 4 items
-  // note that the value is `scroll` and not `auto` because it depends on the
-  // v-auto-overflow-scroll directive.
-  overflow-y: scroll;
+  border-bottom: 1px solid $palette-neutral-200;
 
-  &::before,
-  &::after {
-    content: '';
-    display: block;
-    height: 4px;
-    width: 100%;
-  }
-
-  // This class can be set if the max-height is managed by a container element.
-  &.elements-list__items--no-max-height {
-    max-height: none;
-  }
-
-  ul {
-    list-style: none;
-    margin: 0 0 0 20px;
+  .elements-list & {
+    margin: 4px 0 4px 18px;
     padding: 0;
-  }
-}
-
-.elements-list__item-label {
-  color: $color-neutral-600;
-  margin: 10px 0 10px 10px;
-  font-size: 14px;
-}
-
-.elements-list__item {
-  position: relative;
-  margin: 0 0 4px 3px;
-  user-select: none;
-
-  @include rounded($rounded);
-
-  &:last-child {
-    margin-bottom: 0;
+    border-bottom: none;
+    border-left: 1px solid $palette-neutral-100;
   }
 
-  &.elements-list__item--loading::before {
-    content: ' ';
-
-    @include loading(14px);
-    @include absolute(9px, 9px, auto, auto);
+  .elements-context__elements &:last-child {
+    border-bottom: none;
   }
 
-  &.active:not(.elements-list__item--loading) {
-    background-color: rgba($palette-neutral-1300, 0.04);
+  &--empty {
+    padding: 32px 0;
+    text-align: center;
   }
-
-  &.disabled {
-    background-color: transparent;
-    cursor: not-allowed;
-
-    &:hover {
-      background-color: transparent;
-    }
-  }
-}
-
-.elements-list__item-link {
-  display: block;
-  color: $palette-neutral-1300;
-  padding: 8px 32px 8px 10px;
-
-  &--selected {
-    background-color: $palette-neutral-100;
-  }
-
-  &:hover {
-    text-decoration: none;
-    background-color: $palette-neutral-100;
-  }
-
-  .elements-list__item.disabled & {
-    color: $palette-neutral-700;
-
-    &:hover {
-      cursor: inherit;
-    }
-  }
-}
-
-.elements-list__item-name {
-  display: flex;
-  align-items: center;
-  font-weight: 500;
-  line-height: 15px;
-  gap: 6px;
-
-  @extend %ellipsis;
-
-  .elements-list__item-link:active & {
-    color: $palette-neutral-900;
-  }
-}
-
-.elements-list__item-name-text {
-  @extend %ellipsis;
-}
-
-.elements-list__item-icon {
-  font-size: 16px;
-
-  .elements-list__item.disabled &,
-  .elements-list__item-link:active & {
-    color: $palette-neutral-900;
-  }
-}
-
-.elements-list__footer {
-  flex: 0 0;
-  border-top: 1px solid $palette-neutral-200;
-  padding: 4px 4px 0;
-}
-
-.elements-list__footer-create {
-  display: flex;
-  flex-wrap: wrap;
 }

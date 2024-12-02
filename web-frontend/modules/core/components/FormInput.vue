@@ -36,7 +36,7 @@
         :placeholder="placeholder"
         :required="required"
         :autocomplete="autocomplete"
-        @blur="$emit('blur', $event)"
+        @blur="onBlur($event)"
         @click="$emit('click', $event)"
         @focus="$emit('focus', $event)"
         @keyup="$emit('keyup', $event)"
@@ -99,6 +99,11 @@ export default {
       type: Function,
       required: false,
       default: (value) => value,
+    },
+    defaultValueWhenEmpty: {
+      type: [Number, String],
+      required: false,
+      default: null,
     },
     fromValue: {
       type: Function,
@@ -190,6 +195,38 @@ export default {
     },
     blur() {
       this.$refs.input.blur()
+    },
+    /**
+     * This method handles user input when the value is otherwise disallowed
+     * by the `type` prop.
+     *
+     * The `type` prop restricts what is allowed into the input field. E.g.
+     * when the `type` is Number, the user might input a minus character, which
+     * needs to be handled.
+     *
+     * For better UX, when the user deletes the input's value it is replaced
+     * with a default value when possible. This is better than displaying an
+     * empty value and a validation error.
+     */
+    onBlur(event) {
+      const value = this.$refs.input.value
+
+      // If value is empty (e.g. user deleted the input)
+      if (!value) {
+        if (this.defaultValueWhenEmpty !== null) {
+          this.$emit('input', this.defaultValueWhenEmpty)
+
+          // Ensures the input's value is updated.
+          this.$refs.input.value = this.defaultValueWhenEmpty
+        } else {
+          // If the default value is not available, then leave the value empty
+          this.$emit('input', this.toValue(value))
+        }
+      } else {
+        // Emit the valid value
+        this.$emit('input', this.toValue(value))
+      }
+      this.$emit('blur', event)
     },
   },
 }

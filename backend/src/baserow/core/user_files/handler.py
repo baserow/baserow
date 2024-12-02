@@ -22,7 +22,11 @@ from PIL import Image, ImageOps
 from requests.exceptions import RequestException
 
 from baserow.core.models import UserFile
-from baserow.core.storage import OverwritingStorageHandler, get_default_storage
+from baserow.core.storage import (
+    ExportZipFile,
+    OverwritingStorageHandler,
+    get_default_storage,
+)
 from baserow.core.utils import random_string, sha256_hash, stream_size, truncate_middle
 
 from .exceptions import (
@@ -383,7 +387,7 @@ class UserFileHandler:
     def export_user_file(
         self,
         user_file: Optional[UserFile],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Dict[str, Any] = None,
     ) -> Optional[Dict[str, str]]:

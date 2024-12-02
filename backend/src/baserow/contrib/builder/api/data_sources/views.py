@@ -28,6 +28,7 @@ from baserow.contrib.builder.api.data_sources.errors import (
     ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
     ERROR_DATA_SOURCE_DOES_NOT_EXIST,
     ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+    ERROR_DATA_SOURCE_NAME_NOT_UNIQUE,
     ERROR_DATA_SOURCE_NOT_IN_SAME_PAGE,
     ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
 )
@@ -48,6 +49,7 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
     DataSourceImproperlyConfigured,
+    DataSourceNameNotUniqueError,
     DataSourceNotInSamePage,
     DataSourceRefinementForbidden,
 )
@@ -160,6 +162,7 @@ class DataSourcesView(APIView):
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
             DataSourceNotInSamePage: ERROR_DATA_SOURCE_NOT_IN_SAME_PAGE,
+            DataSourceNameNotUniqueError: ERROR_DATA_SOURCE_NAME_NOT_UNIQUE,
             InvalidServiceTypeDispatchSource: ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
         }
     )
@@ -235,6 +238,7 @@ class DataSourceView(APIView):
     @map_exceptions(
         {
             DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
+            DataSourceNameNotUniqueError: ERROR_DATA_SOURCE_NAME_NOT_UNIQUE,
             InvalidServiceTypeDispatchSource: ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
         }
     )
@@ -254,7 +258,9 @@ class DataSourceView(APIView):
         if "page_id" in request.data:
             page = PageHandler().get_page(
                 int(request.data["page_id"]),
-                base_queryset=Page.objects.filter(builder=data_source.page.builder),
+                base_queryset=Page.objects_with_shared.filter(
+                    builder=data_source.page.builder
+                ),
             )
 
         # Do we have a service?

@@ -11,6 +11,7 @@ from baserow.contrib.builder.elements.models import (
     LinkElement,
 )
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.utils import MirrorDict
@@ -43,6 +44,9 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
         "order": 8,
         "path": "/page",
         "path_params": [],
+        "visibility": Page.VISIBILITY_TYPES.ALL.value,
+        "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+        "roles": [],
         "elements": [
             {
                 "id": 23,

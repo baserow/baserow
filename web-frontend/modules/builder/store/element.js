@@ -3,6 +3,7 @@ import BigNumber from 'bignumber.js'
 import ElementService from '@baserow/modules/builder/services/element'
 import PublicBuilderService from '@baserow/modules/builder/services/publishedBuilder'
 import { calculateTempOrder } from '@baserow/modules/core/utils/order'
+import { uuid } from '@baserow/modules/core/utils/string'
 
 const populateElement = (element, registry) => {
   const elementType = registry.get('element', element.type)
@@ -13,6 +14,11 @@ const populateElement = (element, registry) => {
     reset: 0,
     shouldBeFocused: false,
     elementNamespacePath: null,
+    // This uid ensure that when we refresh the elements from the server when we
+    // authenticate that it didn't reuse some of the store values
+    // It breaks collection element reload after authentication for instance
+    // This uid is used as key in the PageElement component
+    uid: uuid(),
     ...elementType.getPopulateStoreProperties(),
   }
 
@@ -202,20 +208,22 @@ const actions = {
       page,
       elementType: elementTypeName,
       beforeId = null,
-      configuration = null,
+      values = null,
       forceCreate = true,
     }
   ) {
     const elementType = this.$registry.get('element', elementTypeName)
+    const updatedValues = elementType.getDefaultValues(page, values)
     const { data: element } = await ElementService(this.$client).create(
       page.id,
       elementTypeName,
       beforeId,
-      elementType.getDefaultValues(page, configuration)
+      updatedValues
     )
 
     if (forceCreate) {
       await dispatch('forceCreate', { page, element })
+
       await dispatch('select', { element })
     }
 
@@ -386,7 +394,11 @@ const actions = {
         dispatch('forceUpdate', {
           page,
           element: elementUpdated,
-          values: { ...elementUpdated },
+          values: {
+            order: elementUpdated.order,
+            place_in_container: elementUpdated.place_in_container,
+            parent_element_id: elementUpdated.parent_element_id,
+          },
         })
       } catch (error) {
         // Restore previous order and place_in_container properties
@@ -436,14 +448,6 @@ const actions = {
       elementType.onElementEvent(event, { element, ...rest })
     })
   },
-  async moveElement({ dispatch, getters }, { page, element, placement }) {
-    const elementType = this.$registry.get('element', element.type)
-    await elementType.moveElement(page, element, placement)
-  },
-  async selectNextElement({ dispatch, getters }, { page, element, placement }) {
-    const elementType = this.$registry.get('element', element.type)
-    await elementType.selectNextElement(page, element, placement)
-  },
   _setElementNamespacePath({ commit, dispatch, getters }, { page, element }) {
     const elementType = this.$registry.get('element', element.type)
     const elementNamespacePath = elementType.getElementNamespacePath(
@@ -467,6 +471,15 @@ const getters = {
   getElementById: (state, getters) => (page, id) => {
     if (id && Object.prototype.hasOwnProperty.call(page.elementMap, `${id}`)) {
       return page.elementMap[`${id}`]
+    }
+    return null
+  },
+  getElementByIdInPages: (state, getters) => (pages, id) => {
+    for (const page of pages) {
+      const found = getters.getElementById(page, id)
+      if (found) {
+        return found
+      }
     }
     return null
   },

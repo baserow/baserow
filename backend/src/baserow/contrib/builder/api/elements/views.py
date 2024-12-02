@@ -133,6 +133,7 @@ class ElementsView(APIView):
     @map_exceptions(
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
+            ElementNotInSamePage: ERROR_ELEMENT_NOT_IN_SAME_PAGE,
         }
     )
     @validate_body_custom_fields(

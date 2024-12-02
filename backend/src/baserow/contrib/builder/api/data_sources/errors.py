@@ -36,3 +36,9 @@ ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN = (
     HTTP_400_BAD_REQUEST,
     "Data source filter, search and/or sort fields error: {e}",
 )
+
+ERROR_DATA_SOURCE_NAME_NOT_UNIQUE = (
+    "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
+    HTTP_400_BAD_REQUEST,
+    "The data source name '{e}' already exists.",
+)

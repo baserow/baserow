@@ -20,7 +20,7 @@
 
 <script>
 export default {
-  inject: ['builder', 'page'],
+  inject: ['builder', 'currentPage'],
   props: {
     element: {
       type: Object,
@@ -33,7 +33,7 @@ export default {
     },
     dataSource() {
       return this.$store.getters['dataSource/getPagesDataSourceById'](
-        [this.page, this.sharedPage],
+        [this.currentPage, this.sharedPage],
         this.element.data_source_id
       )
     },

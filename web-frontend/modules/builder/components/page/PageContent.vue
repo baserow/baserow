@@ -1,7 +1,25 @@
 <template>
   <ThemeProvider class="page">
     <PageElement
+      v-for="element in headerElements"
+      :key="element.id"
+      :element="element"
+      :mode="mode"
+      :application-context-additions="{
+        recordIndexPath: [],
+      }"
+    />
+    <PageElement
       v-for="element in elements"
+      :key="element.id"
+      :element="element"
+      :mode="mode"
+      :application-context-additions="{
+        recordIndexPath: [],
+      }"
+    />
+    <PageElement
+      v-for="element in footerElements"
       :key="element.id"
       :element="element"
       :mode="mode"
@@ -17,16 +35,13 @@ import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import _ from 'lodash'
+import { PAGE_PLACES } from '@baserow/modules/builder/enums'
 
 export default {
   components: { ThemeProvider, PageElement },
   mixins: [dimensionMixin],
   inject: ['builder', 'mode'],
   props: {
-    page: {
-      type: Object,
-      required: true,
-    },
     path: {
       type: String,
       required: true,
@@ -38,6 +53,26 @@ export default {
     elements: {
       type: Array,
       required: true,
+    },
+    sharedElements: {
+      type: Array,
+      required: true,
+    },
+  },
+  computed: {
+    headerElements() {
+      return this.sharedElements.filter(
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace() ===
+          PAGE_PLACES.HEADER
+      )
+    },
+    footerElements() {
+      return this.sharedElements.filter(
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace() ===
+          PAGE_PLACES.FOOTER
+      )
     },
   },
   watch: {

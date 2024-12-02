@@ -3,6 +3,11 @@ from typing import BinaryIO
 
 from django.core.files.storage import Storage, default_storage
 
+# This import is necessary to handle the creation of zip files in a standardized way
+# across the application. The ZipStream library is used to manage zip file streams
+# efficiently, and we alias it as ExportZipFile for clarity and consistency.
+from zipstream import ZipStream as ExportZipFile  # noqa
+
 
 def get_default_storage() -> Storage:
     """

@@ -7,6 +7,7 @@ from django.utils.dateparse import parse_date, parse_datetime
 
 import pytest
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
+from openpyxl import load_workbook
 
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.contrib.database.rows.handler import RowHandler
@@ -633,6 +634,302 @@ def run_export_job_with_mock_storage(
     handler = ExportHandler()
     job = handler.create_pending_export_job(user, table, grid_view, options)
     handler.run_export_job(job)
-    actual = stub_file.getvalue().decode(options["export_charset"])
+    actual = stub_file.getvalue()
+    if options["export_charset"]:
+        actual = actual.decode(options["export_charset"])
     close()
     return job, actual
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow.core.storage.get_default_storage")
+def test_cannot_export_excel_without_premium_license_for_group(
+    get_storage_mock, premium_data_fixture, alternative_per_workspace_license_service
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    # Setting the group id to `0` will make sure that the user doesn't have
+    # premium access to the group.
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    alternative_per_workspace_license_service.restrict_user_premium_to(user, [0])
+    with pytest.raises(FeaturesNotAvailableError):
+        run_export_over_interesting_test_table(
+            premium_data_fixture, storage_mock, {"exporter_type": "excel"}, user=user
+        )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_every_interesting_different_field_to_excel(
+    get_storage_mock, premium_data_fixture
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+
+    contents = run_export_over_interesting_test_table(
+        premium_data_fixture,
+        storage_mock,
+        {
+            "exporter_type": "excel",
+            "export_charset": None,
+            "excel_include_header": True,
+        },
+        user_kwargs={"has_active_premium_license": True, "email": "user@example.com"},
+    )
+
+    excel_file = BytesIO(contents)
+    workbook = load_workbook(excel_file)
+    worksheet = workbook.active
+
+    # Define the expected headers and first two rows of data
+    expected_headers = [
+        "id",
+        "text",
+        "long_text",
+        "url",
+        "email",
+        "negative_int",
+        "positive_int",
+        "negative_decimal",
+        "positive_decimal",
+        "rating",
+        "boolean",
+        "datetime_us",
+        "date_us",
+        "datetime_eu",
+        "date_eu",
+        "datetime_eu_tzone_visible",
+        "datetime_eu_tzone_hidden",
+        "last_modified_datetime_us",
+        "last_modified_date_us",
+        "last_modified_datetime_eu",
+        "last_modified_date_eu",
+        "last_modified_datetime_eu_tzone",
+        "created_on_datetime_us",
+        "created_on_date_us",
+        "created_on_datetime_eu",
+        "created_on_date_eu",
+        "created_on_datetime_eu_tzone",
+        "last_modified_by",
+        "created_by",
+        "duration_hm",
+        "duration_hms",
+        "duration_hms_s",
+        "duration_hms_ss",
+        "duration_hms_sss",
+        "duration_dh",
+        "duration_dhm",
+        "duration_dhms",
+        "link_row",
+        "self_link_row",
+        "link_row_without_related",
+        "decimal_link_row",
+        "file_link_row",
+        "file",
+        "single_select",
+        "multiple_select",
+        "multiple_collaborators",
+        "phone_number",
+        "formula_text",
+        "formula_int",
+        "formula_bool",
+        "formula_decimal",
+        "formula_dateinterval",
+        "formula_date",
+        "formula_singleselect",
+        "formula_email",
+        "formula_link_with_label",
+        "formula_link_url_only",
+        "formula_multipleselect",
+        "count",
+        "rollup",
+        "duration_rollup_sum",
+        "duration_rollup_avg",
+        "lookup",
+        "uuid",
+        "autonumber",
+        "password",
+        "ai",
+        "ai_choice",
+    ]
+
+    expected_first_row = [
+        "1",
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        "0",
+        "False",
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        "01/02/2021 12:00",
+        "01/02/2021",
+        "02/01/2021 12:00",
+        "02/01/2021",
+        "02/01/2021 13:00",
+        "01/02/2021 12:00",
+        "01/02/2021",
+        "02/01/2021 12:00",
+        "02/01/2021",
+        "02/01/2021 13:00",
+        "user@example.com",
+        "user@example.com",
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        "test FORMULA",
+        "1",
+        "True",
+        "33.3333333333",
+        "1d 0:00",
+        "2020-01-01",
+        None,
+        None,
+        "label (https://google.com)",
+        "https://google.com",
+        None,
+        "0",
+        "0.000",
+        "0:00",
+        "0:00",
+        None,
+        "00000000-0000-4000-8000-000000000001",
+        "1",
+        None,
+        None,
+        None,
+    ]
+
+    expected_second_row = [
+        "2",
+        "text",
+        "long_text",
+        "https://www.google.com",
+        "test@example.com",
+        "-1",
+        "1",
+        "-1.2",
+        "1.2",
+        "3",
+        "True",
+        "02/01/2020 01:23",
+        "02/01/2020",
+        "01/02/2020 01:23",
+        "01/02/2020",
+        "01/02/2020 02:23",
+        "01/02/2020 02:23",
+        "01/02/2021 12:00",
+        "01/02/2021",
+        "02/01/2021 12:00",
+        "02/01/2021",
+        "02/01/2021 13:00",
+        "01/02/2021 12:00",
+        "01/02/2021",
+        "02/01/2021 12:00",
+        "02/01/2021",
+        "02/01/2021 13:00",
+        "user@example.com",
+        "user@example.com",
+        "1:01",
+        "1:01:06",
+        "1:01:06.6",
+        "1:01:06.66",
+        "1:01:06.666",
+        "1d 1h",
+        "1d 1:01",
+        "1d 1:01:06",
+        "linked_row_1,linked_row_2,",
+        "unnamed row 1",
+        "linked_row_1,linked_row_2",
+        "1.234,-123.456,unnamed row 3",
+        "name.txt (http://localhost:8000/media/user_files/test_hash.txt),unnamed row 2",
+        "a.txt (http://localhost:8000/media/user_files/hashed_name.txt),b.txt (http://localhost:8000/media/user_files/other_name.txt)",
+        "A",
+        "D,C,E",
+        "user2@example.com,user3@example.com",
+        "+4412345678",
+        "test FORMULA",
+        "1",
+        "True",
+        "33.3333333333",
+        "1d 0:00",
+        "2020-01-01",
+        "A",
+        "test@example.com",
+        "label (https://google.com)",
+        "https://google.com",
+        "C,D,E",
+        "3",
+        "-122.222",
+        "0:04",
+        "0:02",
+        "linked_row_1,linked_row_2,",
+        "00000000-0000-4000-8000-000000000002",
+        "2",
+        "True",
+        "I'm an AI.",
+        "Object",
+    ]
+
+    # Verify headers
+    actual_headers = [cell.value for cell in worksheet[1]]
+    assert actual_headers == expected_headers
+
+    # Verify first row
+    actual_first_row = [cell.value for cell in worksheet[2]]
+    assert actual_first_row == expected_first_row
+
+    # Verify second row
+    actual_second_row = [cell.value for cell in worksheet[3]]
+    assert actual_second_row == expected_second_row
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_every_interesting_different_field_to_excel_without_header(
+    get_storage_mock, premium_data_fixture
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+
+    contents = run_export_over_interesting_test_table(
+        premium_data_fixture,
+        storage_mock,
+        {"exporter_type": "excel", "export_charset": None},
+        user_kwargs={"has_active_premium_license": True, "email": "user@example.com"},
+    )
+
+    excel_file = BytesIO(contents)
+    workbook = load_workbook(excel_file)
+    worksheet = workbook.active
+
+    # Verify headers
+    actual_headers = [cell.value for cell in worksheet[1]]
+    assert actual_headers[0] == "1"

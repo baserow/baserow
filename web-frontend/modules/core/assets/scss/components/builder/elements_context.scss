@@ -1,3 +1,33 @@
 .elements-context {
   width: 300px;
+  padding-right: 4px;
+}
+
+.elements-context__footer {
+  flex: 0 0;
+  border-top: 1px solid $palette-neutral-200;
+  padding: 4px 4px 0;
+}
+
+.elements-context__footer-create {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.elements-context__search-input {
+  display: block;
+  width: 100%;
+  border: none;
+  padding: 0 12px 0 0;
+
+  @include rounded($rounded);
+  @include fixed-height(36px, 12px);
+
+  &::placeholder {
+    color: $palette-neutral-700;
+  }
+}
+
+.elements-context__elements {
+  overflow: auto;
 }

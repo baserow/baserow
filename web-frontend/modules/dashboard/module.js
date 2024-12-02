@@ -8,6 +8,7 @@ import de from './locales/de.json'
 import es from './locales/es.json'
 import it from './locales/it.json'
 import pl from './locales/pl.json'
+import ko from './locales/ko.json'
 
 export default function DashboardModule(options) {
   this.addPlugin({ src: path.resolve(__dirname, 'middleware.js') })
@@ -30,5 +31,6 @@ export default function DashboardModule(options) {
     additionalMessages.push({ es })
     additionalMessages.push({ it })
     additionalMessages.push({ pl })
+    additionalMessages.push({ ko })
   })
 }

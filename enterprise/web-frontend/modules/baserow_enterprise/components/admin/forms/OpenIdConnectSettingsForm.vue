@@ -96,6 +96,13 @@
         </span>
       </template>
     </FormGroup>
+    <FormGroup
+      small-label
+      :label="$t('oauthSettingsForm.callbackUrl')"
+      required
+    >
+      <code>{{ callbackUrl }}</code>
+    </FormGroup>
     <slot></slot>
   </form>
 </template>

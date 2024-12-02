@@ -1,9 +1,12 @@
 <template>
-  <div class="add-element-zone" @click="!disabled && $emit('add-element')">
+  <div
+    class="add-element-zone"
+    :class="{ 'add-element-zone--disabled': disabled }"
+  >
     <div
       v-tooltip="disabled ? tooltip : null"
-      class="add-element-zone__content"
-      :class="{ 'add-element-zone__button--disabled': disabled }"
+      class="add-element-zone__button"
+      @click="!disabled && $emit('add-element')"
     >
       <i class="iconoir-plus add-element-zone__icon"></i>
     </div>

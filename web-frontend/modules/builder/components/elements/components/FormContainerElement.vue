@@ -4,14 +4,13 @@
       v-if="
         mode === 'editing' &&
         children.length === 0 &&
-        $hasPermission('builder.page.create_element', page, workspace.id)
+        $hasPermission('builder.page.create_element', currentPage, workspace.id)
       "
     >
       <AddElementZone @add-element="showAddElementModal"></AddElementZone>
       <AddElementModal
         ref="addElementModal"
-        :page="page"
-        :element-types-allowed="elementType.childElementTypes(page, element)"
+        :page="elementPage"
       ></AddElementModal>
     </div>
     <div v-else>
@@ -20,7 +19,7 @@
           v-if="mode === 'editing'"
           :key="child.id"
           :element="child"
-          @move="moveElement(child, $event)"
+          @move="$emit('move', $event)"
         />
         <PageElement
           v-else
@@ -42,15 +41,12 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex'
-
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone.vue'
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal.vue'
 import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview.vue'
 import PageElement from '@baserow/modules/builder/components/page/PageElement.vue'
 import { ensureString } from '@baserow/modules/core/utils/validator'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'FormContainerElement',
@@ -64,7 +60,6 @@ export default {
   props: {
     /**
      * @type {Object}
-     * @property button_color - The submit button's color.
      * @property submit_button_label - The label of the submit button
      * @property reset_initial_values_post_submission - Whether to reset the form
      *  elements to their initial value or not, following a successful submission.
@@ -83,7 +78,7 @@ export default {
     },
     getFormElementDescendants() {
       const descendants = this.$store.getters['element/getDescendants'](
-        this.page,
+        this.elementPage,
         this.element
       )
       return descendants
@@ -107,7 +102,7 @@ export default {
             recordIndexPath
           )
           return this.$store.getters['formData/getElementInvalid'](
-            this.page,
+            this.elementPage,
             uniqueElementId
           )
         }
@@ -115,9 +110,6 @@ export default {
     },
   },
   methods: {
-    ...mapActions({
-      actionMoveElement: 'element/moveElement',
-    }),
     /*
      * Responsible for marking all form element descendents in this form container
      * as touched, or not touched, depending on what we're achieving in validation.
@@ -131,7 +123,7 @@ export default {
             recordIndexPath
           )
           this.$store.dispatch('formData/setElementTouched', {
-            page: this.page,
+            page: this.elementPage,
             wasTouched,
             uniqueElementId,
           })
@@ -169,7 +161,7 @@ export default {
               ),
             }
             this.$store.dispatch('formData/setFormData', {
-              page: this.page,
+              page: this.elementPage,
               payload,
               uniqueElementId,
             })
@@ -196,17 +188,6 @@ export default {
         placeInContainer: null,
         parentElementId: this.element.id,
       })
-    },
-    async moveElement(element, placement) {
-      try {
-        await this.actionMoveElement({
-          page: this.page,
-          element,
-          placement,
-        })
-      } catch (error) {
-        notifyIf(error)
-      }
     },
   },
 }

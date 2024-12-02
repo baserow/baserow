@@ -359,7 +359,7 @@ def test_update_page_page_does_not_exist(api_client, data_fixture):
 def test_update_shared_page(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)
-    shared_page = builder.page_set.get(shared=True)
+    shared_page = builder.shared_page
 
     url = reverse("api:builder:pages:item", kwargs={"page_id": shared_page.id})
     response = api_client.patch(
@@ -610,7 +610,7 @@ def test_order_pages_page_not_in_builder(api_client, data_fixture):
 def test_order_pages_shared_page(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)
-    shared_page = builder.page_set.get(shared=True)
+    shared_page = builder.shared_page
     page_one = data_fixture.create_builder_page(builder=builder, order=1)
 
     url = reverse(
@@ -698,7 +698,7 @@ def test_delete_page_page_not_exist(api_client, data_fixture):
 def test_delete_shared_page(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)
-    shared_page = builder.page_set.get(shared=True)
+    shared_page = builder.shared_page
 
     url = reverse("api:builder:pages:item", kwargs={"page_id": shared_page.id})
     response = api_client.delete(

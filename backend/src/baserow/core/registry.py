@@ -34,6 +34,7 @@ from baserow.api.utils import (
     get_serializer_class,
     map_exceptions,
 )
+from baserow.core.storage import ExportZipFile
 
 from .exceptions import InstanceTypeAlreadyRegistered, InstanceTypeDoesNotExist
 
@@ -399,7 +400,7 @@ class EasyImportExportMixin(Generic[T], ABC):
         self,
         instance: T,
         prop_name: str,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
     ) -> Any:
@@ -430,7 +431,7 @@ class EasyImportExportMixin(Generic[T], ABC):
     def export_serialized(
         self,
         instance: T,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
     ) -> Dict[str, Any]:

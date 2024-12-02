@@ -14,6 +14,7 @@ from rest_framework.serializers import Serializer
 from baserow.contrib.database.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.core.auth_provider.registries import AuthenticationProviderTypeRegistry
 from baserow.core.exceptions import SubjectTypeNotExist
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder
 
 from .exceptions import (
@@ -394,7 +395,7 @@ class ApplicationType(
         self,
         application: "Application",
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
         """

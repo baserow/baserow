@@ -17,18 +17,24 @@
         :icon-tooltip="$t('dataSourceDropdown.shared')"
       >
       </DropdownItem>
-      <DropdownItem
-        v-for="dataSource in pageDataSources"
-        :key="dataSource.id"
-        :name="getDataSourceLabel(dataSource)"
-        :value="dataSource.id"
-        icon="iconoir-empty-page"
-        :icon-tooltip="$t('dataSourceDropdown.pageOnly')"
-      >
-      </DropdownItem>
+      <template v-if="localDataSources">
+        <DropdownItem
+          v-for="dataSource in localDataSources"
+          :key="dataSource.id"
+          :name="getDataSourceLabel(dataSource)"
+          :value="dataSource.id"
+          icon="iconoir-empty-page"
+          :icon-tooltip="$t('dataSourceDropdown.pageOnly')"
+        >
+        </DropdownItem
+      ></template>
       <template #emptyState>
-        <slot name="emptyState"
-          >{{ $t('dataSourceDropdown.noDataSources') }}
+        <slot name="emptyState">
+          {{
+            isOnSharedPage
+              ? $t('dataSourceDropdown.noSharedDataSources')
+              : $t('dataSourceDropdown.noDataSources')
+          }}
         </slot>
       </template>
     </Dropdown>
@@ -44,30 +50,24 @@ export default {
       required: false,
       default: null,
     },
-    dataSources: {
+    sharedDataSources: {
       type: Array,
       required: true,
+    },
+    localDataSources: {
+      type: Array,
+      required: false,
+      default: null,
     },
     small: {
       type: Boolean,
       required: false,
       default: false,
     },
-    page: {
-      type: Object,
-      required: true,
-    },
   },
   computed: {
-    pageDataSources() {
-      return this.dataSources.filter(
-        ({ page_id: pageId }) => pageId === this.page.id
-      )
-    },
-    sharedDataSources() {
-      return this.dataSources.filter(
-        ({ page_id: pageId }) => pageId !== this.page.id
-      )
+    isOnSharedPage() {
+      return this.localDataSources === null
     },
   },
   methods: {

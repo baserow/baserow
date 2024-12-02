@@ -19,15 +19,25 @@
           class="simple-grid__field simple-grid__field--first"
         ></div>
         <div
-          v-for="field in fixedFields"
+          v-for="field in orderedFixedFields"
           :key="field.id"
           class="simple-grid__field"
+          :style="{ width: Math.max(getFieldWidth(field), 150) + 'px' }"
         >
-          <i
-            class="simple-grid__field-icon"
-            :class="fieldTypes[field.type].iconClass"
-          ></i>
-          {{ field.name }}
+          <div class="simple-grid__field-description">
+            <i
+              class="simple-grid__field-icon"
+              :class="fieldTypes[field.type].iconClass"
+            ></i>
+            {{ field.name }}
+          </div>
+          <HorizontalResize
+            class="simple-grid__field-width"
+            :width="getFieldWidth(field)"
+            :min="100"
+            @move="moveFieldWidth(field, $event)"
+            @update="updateFieldWidth(field, $event)"
+          ></HorizontalResize>
         </div>
       </div>
       <div class="simple-grid__body">
@@ -63,9 +73,10 @@
             </div>
           </div>
           <div
-            v-for="field in fixedFields"
+            v-for="field in orderedFixedFields"
             :key="field.id"
             class="simple-grid__cell"
+            :style="{ width: Math.max(getFieldWidth(field), 150) + 'px' }"
           >
             <SimpleGridField :field="field" :row="row" />
           </div>
@@ -101,15 +112,25 @@
         <div class="simple-grid__right">
           <div class="simple-grid__head">
             <div
-              v-for="field in fields"
+              v-for="field in visibleOrderedFields"
               :key="field.id"
               class="simple-grid__field"
+              :style="{ width: getFieldWidth(field) + 'px' }"
             >
-              <i
-                class="simple-grid__field-icon"
-                :class="fieldTypes[field.type].iconClass"
-              ></i>
-              {{ field.name }}
+              <div class="simple-grid__field-description">
+                <i
+                  class="simple-grid__field-icon"
+                  :class="fieldTypes[field.type].iconClass"
+                ></i>
+                {{ field.name }}
+              </div>
+              <HorizontalResize
+                class="simple-grid__field-width"
+                :width="getFieldWidth(field)"
+                :min="100"
+                @move="moveFieldWidth(field, $event)"
+                @update="updateFieldWidth(field, $event)"
+              ></HorizontalResize>
             </div>
           </div>
           <div class="simple-grid__body">
@@ -130,15 +151,16 @@
               @mouseleave="currentHoveredRow = null"
             >
               <div
-                v-for="field in fields"
+                v-for="field in visibleOrderedFields"
                 :key="field.id"
                 class="simple-grid__cell"
+                :style="{ width: getFieldWidth(field) + 'px' }"
               >
                 <SimpleGridField :field="field" :row="row" />
               </div>
             </div>
             <div
-              v-if="canAddRow"
+              v-if="canAddRow && visibleOrderedFields.length > 0"
               class="simple-grid__row"
               :class="{
                 'simple-grid__row--hover': showHoveredRow && addRowHover,
@@ -159,11 +181,17 @@
 </template>
 
 <script>
-import SimpleGridField from './SimpleGridField'
 import _ from 'lodash'
+import {
+  filterVisibleFieldsFunction,
+  sortFieldsByOrderAndIdFunction,
+} from '@baserow/modules/database/utils/view'
+import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
+import SimpleGridField from '@baserow/modules/database/components/view/grid/SimpleGridField'
+
 export default {
   name: 'SimpleGrid',
-  components: { SimpleGridField },
+  components: { HorizontalResize, SimpleGridField },
   props: {
     rows: {
       type: Array,
@@ -177,6 +205,11 @@ export default {
     fields: {
       type: Array,
       required: true,
+    },
+    fieldOptions: {
+      type: Object,
+      required: false,
+      default: () => {},
     },
     selectedRows: {
       type: Array,
@@ -218,13 +251,31 @@ export default {
       required: false,
       default: false,
     },
+    resizeFields: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
-    return { addRowHover: false, currentHoveredRow: null }
+    return {
+      addRowHover: false,
+      currentHoveredRow: null,
+      fieldWidthOverride: {},
+    }
   },
   computed: {
     fieldTypes() {
       return this.$registry.getAll('field')
+    },
+    orderedFixedFields() {
+      const fixedFields = this.fixedFields.slice()
+      return fixedFields.sort(sortFieldsByOrderAndIdFunction(this.fieldOptions))
+    },
+    visibleOrderedFields() {
+      return this.fields
+        .filter(filterVisibleFieldsFunction(this.fieldOptions))
+        .sort(sortFieldsByOrderAndIdFunction(this.fieldOptions))
     },
   },
   mounted() {
@@ -294,6 +345,21 @@ export default {
       if (next) {
         this.currentHoveredRow = next.id
       }
+    },
+    getFieldWidth(field) {
+      return (
+        this.fieldWidthOverride[field.id] ||
+        this.fieldOptions[field.id]?.width ||
+        150
+      )
+    },
+    moveFieldWidth(field, width) {
+      // Temporarily set the field width override for the visual resize animation.
+      this.$set(this.fieldWidthOverride, field.id, width)
+    },
+    updateFieldWidth(field, { width, oldWidth }) {
+      this.fieldWidthOverride = {}
+      this.$emit('update-field-width', { field, width, oldWidth })
     },
   },
 }

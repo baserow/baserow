@@ -10,8 +10,8 @@
       <DataSourceDropdown
         v-model="values.data_source_id"
         small
-        :data-sources="dataSources"
-        :page="page"
+        :shared-data-sources="sharedDataSources"
+        :local-data-sources="localDataSources"
       >
         <template #chooseValueState>
           {{ $t('collectionElementForm.noDataSourceMessage') }}
@@ -150,7 +150,6 @@
 <script>
 import _ from 'lodash'
 import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
-import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import { mapActions, mapGetters } from 'vuex'
@@ -170,7 +169,7 @@ export default {
     InjectedFormulaInput,
     ServiceSchemaPropertySelector,
   },
-  mixins: [elementForm, collectionElementForm],
+  mixins: [collectionElementForm],
   inject: ['applicationContext'],
   data() {
     return {

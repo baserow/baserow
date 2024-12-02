@@ -16,13 +16,8 @@ import { DATA_PROVIDERS_ALLOWED_ELEMENTS } from '@baserow/modules/builder/enums'
 export default {
   name: 'GeneralSidePanel',
   mixins: [elementSidePanel],
-  inject: ['applicationContext'],
   provide() {
     return {
-      applicationContext: {
-        ...this.applicationContext,
-        element: this.element,
-      },
       dataProvidersAllowed: DATA_PROVIDERS_ALLOWED_ELEMENTS,
     }
   },

@@ -56,6 +56,9 @@ class PageDict(TypedDict):
     elements: List[ElementDict]
     data_sources: List[DataSourceDict]
     workflow_actions: List[WorkflowAction]
+    visibility: Optional[str]
+    role_type: Optional[str]
+    roles: Optional[List[str]]
 
 
 class BuilderDict(TypedDict):
@@ -68,3 +71,4 @@ class BuilderDict(TypedDict):
     user_sources: List[UserSourceDictSubClass]
     theme: object
     favicon_file: Optional[dict]
+    login_page: Optional[PageDict]

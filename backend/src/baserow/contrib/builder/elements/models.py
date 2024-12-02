@@ -7,6 +7,7 @@ from django.db import models
 from django.db.models import SET_NULL, QuerySet
 
 from baserow.contrib.builder.constants import BACKGROUND_IMAGE_MODES, VerticalAlignments
+from baserow.core.constants import DATE_FORMAT_CHOICES, DATE_TIME_FORMAT_CHOICES
 from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
@@ -874,3 +875,69 @@ class RecordSelectorElement(CollectionElement, FormElement):
         blank=True,
         default="",
     )
+
+
+class DateTimePickerElement(FormElement):
+    """
+    An input element of datetime type.
+    """
+
+    label = FormulaField(
+        default="",
+        help_text="The text label for this date time picker",
+    )
+    default_value = FormulaField(
+        default="",
+        help_text="This date time picker input's default value.",
+    )
+    date_format = models.CharField(
+        choices=DATE_FORMAT_CHOICES,
+        default="EU",
+        max_length=32,
+        help_text="EU (25/04/2024), US (04/25/2024) or ISO (2024-04-25)",
+    )
+    include_time = models.BooleanField(
+        default=False,
+        help_text="Whether to include time in the representation of the date",
+    )
+    time_format = models.CharField(
+        choices=DATE_TIME_FORMAT_CHOICES,
+        default="24",
+        max_length=32,
+        help_text="24 (14:00) or 12 (02:30) PM",
+    )
+
+
+class MultiPageElement(Element):
+    """
+    A container element that can contain other elements and be can shared across
+    multiple pages.
+    """
+
+    class SHARE_TYPE(models.TextChoices):
+        ALL = "all"
+        ONLY = "only"
+        EXCEPT = "except"
+
+    share_type = models.CharField(
+        choices=SHARE_TYPE.choices,
+        max_length=10,
+        default=SHARE_TYPE.ALL,
+    )
+
+    pages = models.ManyToManyField("builder.Page", blank=True)
+
+    class Meta:
+        abstract = True
+
+
+class HeaderElement(MultiPageElement, ContainerElement):
+    """
+    A multi-page container element positioned at the top of the page.
+    """
+
+
+class FooterElement(MultiPageElement, ContainerElement):
+    """
+    A multi-page container element positioned at the bottom of the page.
+    """

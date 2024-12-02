@@ -50,6 +50,7 @@
         >
           <PixelValueSelector
             v-model="values.body_font_size"
+            :default-value-when-empty="defaultValuesWhenEmpty[`body_font_size`]"
             class="typography-theme-config-block__input-number"
             @blur="$v.values[`body_font_size`].$touch()"
           />
@@ -142,6 +143,9 @@
           >
             <PixelValueSelector
               v-model="values[`heading_${level}_font_size`]"
+              :default-value-when-empty="
+                defaultValuesWhenEmpty[`heading_${level}_font_size`]
+              "
               class="typography-theme-config-block__input-number"
               @blur="$v.values[`heading_${level}_font_size`].$touch()"
             />
@@ -195,6 +199,7 @@ import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
+import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
 
 const fontSizeMin = 1
 const fontSizeMax = 100
@@ -214,6 +219,15 @@ export default {
   data() {
     return {
       values: {},
+      defaultValuesWhenEmpty: {
+        body_font_size: DEFAULT_FONT_SIZE_PX,
+        heading_1_font_size: 24,
+        heading_2_font_size: 20,
+        heading_3_font_size: 16,
+        heading_4_font_size: 16,
+        heading_5_font_size: 14,
+        heading_6_font_size: 14,
+      },
     }
   },
   computed: {

@@ -717,7 +717,7 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
-    shared_page = builder.page_set.first()
+    shared_page = builder.shared_page
 
     shared_data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
         user=user,

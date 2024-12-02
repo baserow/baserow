@@ -70,6 +70,11 @@
       content: '';
       border: solid 1px $color-primary-500;
       pointer-events: none;
+
+      .page__header &,
+      .page__footer & {
+        border-color: $palette-purple-500;
+      }
     }
   }
 
@@ -96,11 +101,17 @@
   @include absolute(-26px, auto, auto, 5px);
   @include rounded($rounded-3xl);
 
+  font-size: 10px;
   background-color: $palette-blue-500;
   color: $white;
   cursor: default;
-  padding: 3px 6px;
+  padding: 4px 8px;
   z-index: 1;
+
+  .page__header &,
+  .page__footer & {
+    background-color: $palette-purple-500;
+  }
 
   .element-preview--first-element & {
     @include absolute(auto, auto, -26px, 5px);
@@ -154,9 +165,10 @@
     border-bottom-right-radius: 3px;
   }
 
-  &.disabled {
+  &--disabled {
     cursor: inherit;
     color: $color-neutral-400;
+    pointer-events: none;
 
     &:hover {
       background-color: $white;

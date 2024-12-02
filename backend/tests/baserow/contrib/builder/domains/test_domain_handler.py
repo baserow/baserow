@@ -186,10 +186,7 @@ def test_domain_publishing(data_fixture):
     assert domain1.published_to is not None
     assert domain1.published_to.workspace is None
     assert domain1.published_to.page_set.count() == builder.page_set.count()
-    assert (
-        domain1.published_to.page_set.exclude(shared=True).first().element_set.count()
-        == 2
-    )
+    assert domain1.published_to.page_set.first().element_set.count() == 2
 
     assert Builder.objects.count() == 2
 

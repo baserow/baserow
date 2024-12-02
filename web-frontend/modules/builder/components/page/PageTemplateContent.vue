@@ -1,6 +1,6 @@
 <template>
-  <div v-if="page" :key="page.id" class="page-template">
-    <PageHeader :page="page" />
+  <div v-if="currentPage" :key="currentPage.id" class="page-template">
+    <PageHeader />
     <div class="layout__col-2-2 page-editor__content">
       <div :style="{ width: `calc(100% - ${panelWidth}px)` }">
         <PagePreview />
@@ -32,10 +32,13 @@ export default {
     return {
       workspace: this.workspace,
       builder: this.builder,
-      page: this.page,
+      currentPage: this.currentPage,
       mode,
       formulaComponent: ApplicationBuilderFormulaInput,
-      applicationContext: { builder: this.builder, page: this.page, mode },
+      applicationContext: {
+        builder: this.builder,
+        mode,
+      },
     }
   },
   props: {
@@ -47,7 +50,7 @@ export default {
       type: Object,
       required: true,
     },
-    page: {
+    currentPage: {
       type: Object,
       required: true,
     },
@@ -63,7 +66,7 @@ export default {
     applicationContext() {
       return {
         builder: this.builder,
-        page: this.page,
+        page: this.currentPage,
         mode,
       }
     },
@@ -76,7 +79,9 @@ export default {
       )
     },
     dataSources() {
-      return this.$store.getters['dataSource/getPageDataSources'](this.page)
+      return this.$store.getters['dataSource/getPageDataSources'](
+        this.currentPage
+      )
     },
     dispatchContext() {
       return DataProviderType.getAllDataSourceDispatchContext(
@@ -96,7 +101,7 @@ export default {
           this.$store.dispatch(
             'dataSourceContent/debouncedFetchPageDataSourceContent',
             {
-              page: this.page,
+              page: this.currentPage,
               data: newDispatchContext,
               mode: this.mode,
             }

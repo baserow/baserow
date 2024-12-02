@@ -7,6 +7,8 @@ from django.db import transaction
 from django.db.transaction import Atomic
 from django.urls import include, path
 
+from rest_framework import serializers
+
 from baserow.contrib.builder.builder_beta_init_application import (
     BuilderApplicationTypeInitApplication,
 )
@@ -21,6 +23,7 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
+from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.utils import ChildProgressBuilder
@@ -46,9 +49,10 @@ class BuilderApplicationType(ApplicationType):
         "pages",
         "theme",
         "favicon_file",
+        "login_page_id",
     ]
-    allowed_fields = ["favicon_file"]
-    request_serializer_field_names = ["favicon_file"]
+    allowed_fields = ["favicon_file", "login_page_id"]
+    request_serializer_field_names = ["favicon_file", "login_page_id"]
     serializer_mixins = [lazy_get_instance_serializer_class]
 
     # Builder applications are imported second.
@@ -66,6 +70,9 @@ class BuilderApplicationType(ApplicationType):
                 default=None,
                 help_text="The favicon image file",
                 validators=[image_file_validation],
+            ),
+            "login_page_id": serializers.IntegerField(
+                allow_null=True, required=False, default=None
             ),
         }
 
@@ -130,7 +137,7 @@ class BuilderApplicationType(ApplicationType):
         self,
         builder: Builder,
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> BuilderDict:
         """
@@ -160,7 +167,12 @@ class BuilderApplicationType(ApplicationType):
             for us in UserSourceHandler().get_user_sources(builder)
         ]
 
-        pages = builder.page_set.all().prefetch_related("element_set", "datasource_set")
+        pages = PageHandler().get_pages(
+            builder,
+            base_queryset=Page.objects_with_shared.prefetch_related(
+                "element_set", "datasource_set"
+            ),
+        )
 
         serialized_pages = [
             PageHandler().export_page(
@@ -189,12 +201,22 @@ class BuilderApplicationType(ApplicationType):
             storage=storage,
         )
 
+        serialized_login_page = None
+        if builder.login_page:
+            serialized_login_page = PageHandler().export_page(
+                builder.login_page,
+                files_zip=files_zip,
+                storage=storage,
+                cache=self.cache,
+            )
+
         return BuilderDict(
             pages=serialized_pages,
             integrations=serialized_integrations,
             theme=serialized_theme,
             user_sources=serialized_user_sources,
             favicon_file=serialized_favicon_file,
+            login_page=serialized_login_page,
             **serialized_builder,
         )
 
@@ -379,6 +401,13 @@ class BuilderApplicationType(ApplicationType):
                 storage,
             ):
                 builder.favicon_file = favicon_file
+                builder.save()
+
+        if serialized_login_page := serialized_values.pop("login_page", None):
+            if login_page_id := id_mapping["builder_pages"].get(
+                serialized_login_page["id"], None
+            ):
+                builder.login_page_id = login_page_id
                 builder.save()
 
         ThemeHandler().import_theme(builder, serialized_theme, id_mapping)

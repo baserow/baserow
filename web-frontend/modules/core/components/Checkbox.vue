@@ -10,7 +10,7 @@
         viewBox="0 0 9 8"
         fill="none"
       >
-        <g clip-path="url(#clip0_1138_66)">
+        <g :clip-path="`url(#${clipPathId})`">
           <path
             d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
             stroke="white"
@@ -20,7 +20,7 @@
           />
         </g>
         <defs>
-          <clipPath id="clip0_1138_66">
+          <clipPath :id="clipPathId">
             <rect
               width="8"
               height="8"
@@ -55,6 +55,8 @@
 </template>
 
 <script>
+import { uuid } from '@baserow/modules/core/utils/string'
+
 export default {
   name: 'Checkbox',
   model: {
@@ -95,7 +97,20 @@ export default {
       default: false,
     },
   },
+  data() {
+    return {
+      uniqClipId: uuid(),
+    }
+  },
   computed: {
+    /**
+     * The `clip-path` IDs are expected to be unique in the DOM. If we have
+     * multiple checkboxes on the same page, and IDs are re-used, this can
+     * lead the rendering issues where the svg isn't draw properly.
+     */
+    clipPathId() {
+      return `clip${this.uniqClipId}`
+    },
     classNames() {
       return {
         'checkbox--disabled': this.disabled,

@@ -18,6 +18,7 @@ from django.db.models import Count, Prefetch, Q, QuerySet
 from django.utils import translation
 from django.utils.translation import gettext as _
 
+import zipstream
 from itsdangerous import URLSafeSerializer
 from loguru import logger
 from opentelemetry import trace
@@ -1649,18 +1650,24 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         storage = storage or get_default_storage()
+        zip_stream = zipstream.ZipStream(
+            compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+            compress_type=zipstream.ZIP_DEFLATED,
+        )
 
-        with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
-            exported_applications = []
-            applications = workspace.application_set.all()
-            for a in applications:
-                application = a.specific
-                application_type = application_type_registry.get_by_model(application)
-                with application_type.export_safe_transaction_context(application):
-                    exported_application = application_type.export_serialized(
-                        application, import_export_config, files_zip, storage
-                    )
-                exported_applications.append(exported_application)
+        exported_applications = []
+        applications = workspace.application_set.all()
+        for a in applications:
+            application = a.specific
+            application_type = application_type_registry.get_by_model(application)
+            with application_type.export_safe_transaction_context(application):
+                exported_application = application_type.export_serialized(
+                    application, import_export_config, zip_stream, storage
+                )
+            exported_applications.append(exported_application)
+
+        for chunk in zip_stream:
+            files_buffer.write(chunk)
 
         return exported_applications
 

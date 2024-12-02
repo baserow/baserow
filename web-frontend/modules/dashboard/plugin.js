@@ -5,6 +5,7 @@ import de from '@baserow/modules/dashboard/locales/de.json'
 import es from '@baserow/modules/dashboard/locales/es.json'
 import it from '@baserow/modules/dashboard/locales/it.json'
 import pl from '@baserow/modules/dashboard/locales/pl.json'
+import ko from '@baserow/modules/dashboard/locales/ko.json'
 
 import { DashboardApplicationType } from '@baserow/modules/dashboard/applicationTypes'
 import dashboardApplicationStore from '@baserow/modules/dashboard/store/dashboardApplication'
@@ -23,6 +24,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('es', es)
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
+    i18n.mergeLocaleMessage('ko', ko)
   }
 
   store.registerModule('dashboardApplication', dashboardApplicationStore)

@@ -36,8 +36,9 @@ describe('HeadingElement', () => {
       },
       provide: {
         builder,
-        page,
         mode,
+        currentPage: page,
+        elementPage: page,
         applicationContext: { builder, page, mode },
         element,
         workspace,
@@ -46,7 +47,7 @@ describe('HeadingElement', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
-  test('Default HeadingElement component', async () => {
+  test('Default HeadingElement component v2', async () => {
     const builder = { id: 1, theme: { primary_color: '#ccc' } }
     const page = {}
     const workspace = {}
@@ -59,8 +60,9 @@ describe('HeadingElement', () => {
       },
       provide: {
         builder,
-        page,
         mode,
+        currentPage: page,
+        elementPage: page,
         applicationContext: { builder, page, mode },
         element,
         workspace,

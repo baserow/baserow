@@ -14,6 +14,7 @@
   display: inline-flex;
   flex-direction: column;
   height: 100%;
+  padding-right: 30px;
 }
 
 .simple-grid__head {
@@ -22,15 +23,11 @@
 }
 
 .simple-grid__field {
-  @extend %ellipsis;
-
+  position: relative;
   width: 150px;
   background-color: $color-neutral-100;
   border-bottom: 1px solid $color-neutral-200;
   border-right: 1px solid $color-neutral-200;
-  padding: 0 10px;
-
-  @include fixed-height(33px, 13px);
 
   &.simple-grid__field--first {
     width: 40px;
@@ -38,8 +35,40 @@
   }
 }
 
+.simple-grid__field-description {
+  @extend %ellipsis;
+
+  z-index: 1;
+  padding: 0 10px;
+  width: 100%;
+
+  @include fixed-height(33px, 13px);
+}
+
 .simple-grid__field-icon {
   margin-right: 6px;
+}
+
+.simple-grid__field-width {
+  width: 9px;
+  height: 26px;
+  cursor: col-resize;
+  z-index: 2;
+
+  @include absolute(3px, -5px, 3px, auto);
+
+  &::before {
+    content: '';
+
+    @include absolute(0, 2px, 0, 2px);
+
+    border-radius: 2px;
+  }
+
+  &:hover::before,
+  &.dragging::before {
+    background-color: $color-primary-500;
+  }
 }
 
 .simple-grid__body {

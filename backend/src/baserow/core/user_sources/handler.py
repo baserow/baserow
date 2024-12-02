@@ -9,6 +9,7 @@ from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
 from baserow.core.models import Application
 from baserow.core.registries import application_type_registry
+from baserow.core.storage import ExportZipFile
 from baserow.core.user_sources.exceptions import UserSourceDoesNotExist
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import (
@@ -279,7 +280,7 @@ class UserSourceHandler:
     def export_user_source(
         self,
         user_source,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
     ):

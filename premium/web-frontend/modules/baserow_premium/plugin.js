@@ -2,6 +2,7 @@ import { PremiumPlugin } from '@baserow_premium/plugins'
 import {
   JSONTableExporter,
   XMLTableExporter,
+  ExcelTableExporterType,
 } from '@baserow_premium/tableExporterTypes'
 import {
   DashboardType,
@@ -40,6 +41,7 @@ import de from '@baserow_premium/locales/de.json'
 import es from '@baserow_premium/locales/es.json'
 import it from '@baserow_premium/locales/it.json'
 import pl from '@baserow_premium/locales/pl.json'
+import ko from '@baserow_premium/locales/ko.json'
 import { PremiumLicenseType } from '@baserow_premium/licenseTypes'
 import { PersonalViewOwnershipType } from '@baserow_premium/viewOwnershipTypes'
 import { ViewOwnershipPermissionManagerType } from '@baserow_premium/permissionManagerTypes'
@@ -87,6 +89,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('es', es)
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
+    i18n.mergeLocaleMessage('ko', ko)
   }
 
   store.registerModule('row_comments', rowCommentsStore)
@@ -107,6 +110,7 @@ export default (context) => {
   app.$registry.register('admin', new LicensesAdminType(context))
   app.$registry.register('exporter', new JSONTableExporter(context))
   app.$registry.register('exporter', new XMLTableExporter(context))
+  app.$registry.register('exporter', new ExcelTableExporterType(context))
   app.$registry.register('field', new AIFieldType(context))
   app.$registry.register('field', new PremiumFormulaFieldType(context))
   app.$registry.register('view', new KanbanViewType(context))

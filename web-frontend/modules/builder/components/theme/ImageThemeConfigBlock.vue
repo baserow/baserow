@@ -39,6 +39,9 @@
         >
           <FormInput
             v-model="values.image_max_width"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`image_min_width`]
+            "
             type="number"
             :min="0"
             :max="100"
@@ -77,6 +80,9 @@
         >
           <FormInput
             v-model="imageMaxHeight"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`image_min_height`]
+            "
             type="number"
             remove-number-input-controls
             :placeholder="$t('imageThemeConfigBlock.maxHeightPlaceholder')"
@@ -142,6 +148,17 @@ import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/Ho
 import { IMAGE_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { integer, maxValue, minValue, required } from 'vuelidate/lib/validators'
 
+const minMax = {
+  image_width: {
+    min: 0,
+    max: 100,
+  },
+  image_height: {
+    min: 5,
+    max: 3000,
+  },
+}
+
 export default {
   name: 'ImageThemeConfigBlock',
   components: {
@@ -159,6 +176,10 @@ export default {
         'image_max_height',
         'image_constraint',
       ],
+      defaultValuesWhenEmpty: {
+        image_min_width: minMax.image_width.min,
+        image_min_height: minMax.image_height.min,
+      },
     }
   },
   computed: {
@@ -243,13 +264,13 @@ export default {
       image_max_width: {
         required,
         integer,
-        minValue: minValue(0),
-        maxValue: maxValue(100),
+        minValue: minValue(minMax.image_width.min),
+        maxValue: maxValue(minMax.image_width.max),
       },
       image_max_height: {
         integer,
-        minValue: minValue(5),
-        maxValue: maxValue(3000),
+        minValue: minValue(minMax.image_height.min),
+        maxValue: maxValue(minMax.image_height.max),
       },
     },
   },

@@ -2,10 +2,11 @@
   <div>
     <Toasts></Toasts>
     <PageContent
-      :page="page"
+      v-if="canViewPage"
       :path="path"
       :params="params"
       :elements="elements"
+      :shared-elements="sharedElements"
     />
   </div>
 </template>
@@ -18,6 +19,8 @@ import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
+import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
+import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
 
 import {
   getTokenIfEnoughTimeLeft,
@@ -42,12 +45,13 @@ export default {
     return {
       workspace: this.workspace,
       builder: this.builder,
-      page: this.page,
+      currentPage: this.currentPage,
       mode: this.mode,
       formulaComponent: ApplicationBuilderFormulaInput,
       applicationContext: this.applicationContext,
     }
   },
+
   async asyncData({
     store,
     params,
@@ -105,6 +109,12 @@ export default {
       const sharedPage = await store.getters['page/getSharedPage'](builder)
       await Promise.all([
         store.dispatch('dataSource/fetchPublished', {
+          page: sharedPage,
+        }),
+        store.dispatch('element/fetchPublished', {
+          page: sharedPage,
+        }),
+        store.dispatch('workflowAction/fetchPublished', {
           page: sharedPage,
         }),
       ])
@@ -166,6 +176,13 @@ export default {
     }
 
     const [pageFound, path, pageParamsValue] = found
+    // Handle 404
+    if (pageFound.shared) {
+      return error({
+        statusCode: 404,
+        message: app.i18n.t('publicPage.pageNotFound'),
+      })
+    }
 
     const page = await store.getters['page/getById'](builder, pageFound.id)
 
@@ -204,6 +221,7 @@ export default {
       mode,
     })
 
+    // TODO: This doesn't appear to be doing anything...
     // And finally select the page to display it
     await store.dispatch('page/selectById', {
       builder,
@@ -212,7 +230,7 @@ export default {
 
     return {
       builder,
-      page,
+      currentPage: page,
       path,
       params,
       mode,
@@ -221,7 +239,7 @@ export default {
   head() {
     return {
       titleTemplate: '',
-      title: this.page.name,
+      title: this.currentPage.name,
       bodyAttrs: {
         class: 'public-page',
       },
@@ -230,20 +248,30 @@ export default {
   },
   computed: {
     elements() {
-      return this.$store.getters['element/getRootElements'](this.page)
+      return this.$store.getters['element/getRootElements'](this.currentPage)
     },
     applicationContext() {
       return {
         builder: this.builder,
-        page: this.page,
         pageParamsValue: this.params,
         mode: this.mode,
       }
     },
+    /**
+     * Returns true if the current user is allowed to view this page,
+     * otherwise returns false.
+     */
+    canViewPage() {
+      return userCanViewPage(
+        this.$store.getters['userSourceUser/getUser'](this.builder),
+        this.$store.getters['userSourceUser/isAuthenticated'](this.builder),
+        this.currentPage
+      )
+    },
     dispatchContext() {
       return DataProviderType.getAllDataSourceDispatchContext(
         this.$registry.getAll('builderDataProvider'),
-        this.applicationContext
+        { ...this.applicationContext, page: this.currentPage }
       )
     },
     // Separate dispatch context for application level data sources
@@ -260,6 +288,9 @@ export default {
       return this.$store.getters['dataSource/getPageDataSources'](
         this.sharedPage
       )
+    },
+    sharedElements() {
+      return this.$store.getters['element/getRootElements'](this.sharedPage)
     },
     isAuthenticated() {
       return this.$store.getters['userSourceUser/isAuthenticated'](this.builder)
@@ -291,7 +322,7 @@ export default {
           this.$store.dispatch(
             'dataSourceContent/debouncedFetchPageDataSourceContent',
             {
-              page: this.page,
+              page: this.currentPage,
               data: newDispatchContext,
               mode: this.mode,
             }
@@ -311,16 +342,57 @@ export default {
             {
               page: this.sharedPage,
               data: newDispatchContext,
+              mode: this.mode,
             }
           )
         }
       },
     },
-    isAuthenticated() {
+    async isAuthenticated() {
       // When the user login or logout, we need to refetch the elements and actions
       // as they might have changed
-      this.$store.dispatch('element/fetchPublished', { page: this.page })
-      this.$store.dispatch('workflowAction/fetchPublished', { page: this.page })
+      await this.$store.dispatch('element/fetchPublished', {
+        page: this.sharedPage,
+      })
+      await this.$store.dispatch('element/fetchPublished', {
+        page: this.currentPage,
+      })
+      await this.$store.dispatch('workflowAction/fetchPublished', {
+        page: this.currentPage,
+      })
+      await this.$store.dispatch('workflowAction/fetchPublished', {
+        page: this.sharedPage,
+      })
+
+      // If the user is on a hidden page, redirect them to the Login page if possible.
+      await this.maybeRedirectUserToLoginPage()
+    },
+  },
+  async mounted() {
+    await this.maybeRedirectUserToLoginPage()
+  },
+  methods: {
+    /**
+     * If the user does not have access to the current page, redirect them to
+     * the Login page if possible.
+     */
+    async maybeRedirectUserToLoginPage() {
+      if (!this.canViewPage && this.builder.login_page_id) {
+        const loginPage = await this.$store.getters['page/getById'](
+          this.builder,
+          this.builder.login_page_id
+        )
+        const url = prefixInternalResolvedUrl(
+          loginPage.path,
+          this.builder,
+          'page',
+          this.mode
+        )
+
+        if (url !== this.$router.history.current?.fullPath) {
+          this.$router.push(url)
+        }
+      }
     },
   },
 }

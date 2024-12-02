@@ -34,7 +34,7 @@
                       index,
                     ],
                   }"
-                  @move="moveElement(child, $event)"
+                  @move="$emit('move', $event)"
                 />
                 <!-- Other iterations are not editable -->
                 <!-- Override the mode so that any children are in public mode -->
@@ -68,10 +68,7 @@
           ></AddElementZone>
           <AddElementModal
             ref="addElementModal"
-            :page="page"
-            :element-types-allowed="
-              elementType.childElementTypes(page, element)
-            "
+            :page="elementPage"
           ></AddElementModal>
         </template>
       </template>
@@ -92,10 +89,7 @@
           ></AddElementZone>
           <AddElementModal
             ref="addElementModal"
-            :page="page"
-            :element-types-allowed="
-              elementType.childElementTypes(page, element)
-            "
+            :page="elementPage"
           ></AddElementModal>
         </template>
         <!-- We have no contents, but we do have children in edit mode -->
@@ -106,7 +100,7 @@
               v-for="child in children"
               :key="child.id"
               :element="child"
-              @move="moveElement(child, $event)"
+              @move="$emit('move', $event)"
             />
           </template>
         </template>
@@ -127,7 +121,7 @@
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex'
+import { mapGetters } from 'vuex'
 
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
@@ -135,7 +129,6 @@ import collectionElement from '@baserow/modules/builder/mixins/collectionElement
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { RepeatElementType } from '@baserow/modules/builder/elementTypes'
 import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
@@ -173,7 +166,7 @@ export default {
     },
     repeatElementIsNested() {
       return this.elementType.hasAncestorOfType(
-        this.page,
+        this.elementPage,
         this.element,
         RepeatElementType.getType()
       )
@@ -212,25 +205,11 @@ export default {
     },
   },
   methods: {
-    ...mapActions({
-      actionMoveElement: 'element/moveElement',
-    }),
     showAddElementModal() {
       this.$refs.addElementModal.show({
         placeInContainer: null,
         parentElementId: this.element.id,
       })
-    },
-    async moveElement(element, placement) {
-      try {
-        await this.actionMoveElement({
-          page: this.page,
-          element,
-          placement,
-        })
-      } catch (error) {
-        notifyIf(error)
-      }
     },
   },
 }

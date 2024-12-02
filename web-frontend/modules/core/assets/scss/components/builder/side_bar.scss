@@ -1,0 +1,10 @@
+.side-bar-builder__link-text {
+  // Ensure the page name takes up all the available space.
+  flex: 1;
+
+  // Only display ellipsis when the user *isn't* editing the page
+  // name in-place.
+  &:not([contenteditable='true']) {
+    @extend %ellipsis;
+  }
+}

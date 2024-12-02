@@ -20,6 +20,7 @@ import nl from '@baserow_enterprise/locales/nl.json'
 import de from '@baserow_enterprise/locales/de.json'
 import es from '@baserow_enterprise/locales/es.json'
 import it from '@baserow_enterprise/locales/it.json'
+import ko from '@baserow_enterprise/locales/ko.json'
 import {
   EnterpriseWithoutSupportLicenseType,
   EnterpriseLicenseType,
@@ -57,6 +58,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('de', de)
     i18n.mergeLocaleMessage('es', es)
     i18n.mergeLocaleMessage('it', it)
+    i18n.mergeLocaleMessage('ko', ko)
   }
 
   app.$registry.register('plugin', new EnterprisePlugin(context))

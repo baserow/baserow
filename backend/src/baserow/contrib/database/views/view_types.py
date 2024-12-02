@@ -44,6 +44,7 @@ from baserow.contrib.database.fields.models import Field, FileField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.registries import view_aggregation_type_registry
+from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_files.models import UserFile
 
@@ -103,7 +104,7 @@ class GridViewType(ViewType):
         self,
         grid: View,
         cache: Optional[Dict] = None,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
         """
@@ -402,7 +403,7 @@ class GalleryViewType(ViewType):
         self,
         gallery: View,
         cache: Optional[Dict] = None,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
         """
@@ -993,7 +994,7 @@ class FormViewType(ViewType):
         self,
         form: View,
         cache: Optional[Dict] = None,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
         """

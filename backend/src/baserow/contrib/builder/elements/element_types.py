@@ -1,4 +1,5 @@
 import abc
+from datetime import datetime
 from typing import (
     Any,
     Callable,
@@ -25,12 +26,14 @@ from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
+from baserow.contrib.builder.date import FormattedDate, FormattedDateTime
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     CollectionElementTypeMixin,
     CollectionElementWithFieldsTypeMixin,
     ContainerElementTypeMixin,
     FormElementTypeMixin,
+    MultiPageElementTypeMixin,
 )
 from baserow.contrib.builder.elements.models import (
     INPUT_TEXT_TYPES,
@@ -39,8 +42,11 @@ from baserow.contrib.builder.elements.models import (
     ChoiceElement,
     ChoiceElementOption,
     ColumnElement,
+    DateTimePickerElement,
     Element,
+    FooterElement,
     FormContainerElement,
+    HeaderElement,
     HeadingElement,
     IFrameElement,
     ImageElement,
@@ -65,6 +71,12 @@ from baserow.contrib.builder.theme.theme_config_block_types import (
     TableThemeConfigBlockType,
 )
 from baserow.contrib.builder.types import ElementDict
+from baserow.core.constants import (
+    DATE_FORMAT,
+    DATE_FORMAT_CHOICES,
+    DATE_TIME_FORMAT,
+    DATE_TIME_FORMAT_CHOICES,
+)
 from baserow.core.formula import (
     BaserowFormulaSyntaxError,
     get_parse_tree_for_formula,
@@ -108,7 +120,7 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
     type = "column"
     model_class = ColumnElement
 
-    class SerializedDict(ElementDict):
+    class SerializedDict(ContainerElementTypeMixin.SerializedDict):
         column_amount: int
         column_gap: int
         alignment: str
@@ -182,8 +194,8 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         """
 
         return [
-            element_type.type
-            for element_type in element_type_registry.get_all()
+            element_type
+            for element_type in super().child_types_allowed
             if element_type.type != self.type
         ]
 
@@ -201,7 +213,7 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
     ]
     simple_formula_fields = ["submit_button_label"]
 
-    class SerializedDict(ElementDict):
+    class SerializedDict(ContainerElementTypeMixin.SerializedDict):
         submit_button_label: BaserowFormula
         reset_initial_values_post_submission: bool
 
@@ -252,8 +264,8 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
         """
 
         return [
-            element_type.type
-            for element_type in element_type_registry.get_all()
+            element_type
+            for element_type in super().child_types_allowed
             if element_type.type != self.type
         ]
 
@@ -848,6 +860,16 @@ class NavigationElementManager:
             "page_parameters": [],
             "target": "blank",
         }
+
+    def validate_place(
+        self,
+        page: Page,
+        parent_element: Optional[Element],
+        place_in_container: str,
+    ):
+        """
+        We need it because it's called in the prepare_value_for_db.
+        """
 
     def prepare_value_for_db(
         self, values: Dict, instance: Optional[LinkElement] = None
@@ -1806,3 +1828,159 @@ class IFrameElementType(ElementType):
             "embed": "",
             "height": 300,
         }
+
+
+class DateTimePickerElementType(FormElementTypeMixin, ElementType):
+    type = "datetime_picker"
+    model_class = DateTimePickerElement
+    allowed_fields = [
+        "label",
+        "required",
+        "default_value",
+        "date_format",
+        "include_time",
+        "time_format",
+    ]
+    serializer_field_names = [
+        "label",
+        "required",
+        "default_value",
+        "date_format",
+        "include_time",
+        "time_format",
+    ]
+    simple_formula_fields = [
+        "label",
+        "default_value",
+    ]
+
+    class SerializedDict(ElementDict):
+        label: BaserowFormula
+        required: bool
+        default_value: BaserowFormula
+        date_format: str
+        include_time: bool
+        time_format: str
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        overrides = {
+            "label": FormulaSerializerField(
+                help_text=DateTimePickerElement._meta.get_field("label").help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+            "required": serializers.BooleanField(
+                help_text=DateTimePickerElement._meta.get_field("required").help_text,
+                default=False,
+                required=False,
+            ),
+            "default_value": FormulaSerializerField(
+                help_text=DateTimePickerElement._meta.get_field(
+                    "default_value"
+                ).help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+            "date_format": serializers.ChoiceField(
+                help_text=DateTimePickerElement._meta.get_field(
+                    "date_format"
+                ).help_text,
+                choices=DATE_FORMAT_CHOICES,
+                default="EU",
+            ),
+            "include_time": serializers.BooleanField(
+                help_text=DateTimePickerElement._meta.get_field(
+                    "include_time"
+                ).help_text,
+                default=False,
+                required=False,
+            ),
+            "time_format": serializers.ChoiceField(
+                help_text=DateTimePickerElement._meta.get_field(
+                    "time_format"
+                ).help_text,
+                choices=DATE_TIME_FORMAT_CHOICES,
+                default="24",
+            ),
+        }
+        return overrides
+
+    def is_valid(
+        self,
+        element: DateTimePickerElement,
+        value: Any,
+        dispatch_context: DispatchContext,
+    ) -> FormattedDate | FormattedDateTime | None:
+        """
+        Validate the upcoming date value.
+
+        :param element: The datetime picker element.
+        :param value: The datetime value we want to validate.
+        :param dispatch_context: The context this element was dispatched with.
+        :return: The value if it is valid for this element.
+        """
+
+        super().is_valid(element, value, dispatch_context)
+
+        if value:
+            try:
+                value = datetime.fromisoformat(value)
+                date_format = DATE_FORMAT[element.date_format]["format"]
+                time_format = DATE_TIME_FORMAT[element.time_format]["format"]
+                return (
+                    FormattedDateTime(value, f"{date_format} {time_format}")
+                    if element.include_time
+                    else FormattedDate(value, date_format)
+                )
+            except ValueError as exc:
+                msg = f"The value '{value}' is not a valid date."
+                raise FormDataProviderChunkInvalidException(msg, exc)
+
+        return value
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "required": False,
+            "label": "",
+            "default_value": "",
+            "date_format": DATE_FORMAT_CHOICES[0][0],
+            "include_time": False,
+            "time_format": DATE_TIME_FORMAT_CHOICES[0][0],
+        }
+
+
+class MultiPageContainerElementType(
+    ContainerElementTypeMixin, MultiPageElementTypeMixin, ElementType
+):
+    """
+    A base class container element that can be displayed on multiple pages.
+    """
+
+    class SerializedDict(
+        MultiPageElementTypeMixin.SerializedDict,
+        ContainerElementTypeMixin.SerializedDict,
+    ):
+        ...
+
+
+class HeaderElementType(MultiPageContainerElementType):
+    """
+    A container element that can be displayed on multiple pages.
+    """
+
+    type = "header"
+    model_class = HeaderElement
+
+
+class FooterElementType(MultiPageContainerElementType):
+    """
+    A container element that can be displayed on multiple pages.
+    """
+
+    type = "footer"
+    model_class = FooterElement

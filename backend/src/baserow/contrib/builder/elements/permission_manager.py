@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 from django.db.models import Q, QuerySet
 
 from baserow.contrib.builder.elements.operations import ListElementsPageOperationType
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
     ListBuilderWorkflowActionsPageOperationType,
@@ -166,6 +168,27 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         return queryset
 
+    def exclude_elements_with_page_visibility(
+        self,
+        queryset: QuerySet,
+        actor: AbstractUser,
+    ) -> QuerySet:
+        """
+        Update the queryset by excluding all Elements that the user isn't
+        allowed to view, based on the Page visibility settings.
+        """
+
+        if not getattr(actor, "is_authenticated", False):
+            return queryset.exclude(page__visibility=Page.VISIBILITY_TYPES.LOGGED_IN)
+
+        return queryset.exclude(
+            page__role_type=Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            page__roles__contains=actor.role,
+        ).exclude(
+            Q(page__role_type=Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT)
+            & ~Q(page__roles__contains=actor.role),
+        )
+
     def exclude_elements_with_visibility(
         self,
         queryset: QuerySet,
@@ -204,6 +227,7 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
         """Filters out invisible elements and their workflow actions."""
 
         if operation_name == ListElementsPageOperationType.type:
+            queryset = self.exclude_elements_with_page_visibility(queryset, actor)
             if getattr(actor, "is_authenticated", False):
                 queryset = self.exclude_elements_with_visibility(
                     queryset, Element.VISIBILITY_TYPES.NOT_LOGGED
@@ -221,6 +245,8 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
                     queryset, Element.VISIBILITY_TYPES.LOGGED_IN
                 )
         elif operation_name == ListBuilderWorkflowActionsPageOperationType.type:
+            queryset = self.exclude_elements_with_page_visibility(queryset, actor)
+
             prefix = "element__"
             if getattr(actor, "is_authenticated", False):
                 queryset = self.exclude_elements_with_visibility(

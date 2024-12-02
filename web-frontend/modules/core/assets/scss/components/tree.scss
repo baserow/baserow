@@ -197,9 +197,11 @@
   @extend %ellipsis;
 
   color: $palette-neutral-900;
-  display: block;
   font-weight: 500;
   padding: 0 32px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 
   &:hover {
     cursor: pointer;
@@ -210,6 +212,7 @@
     color: $palette-neutral-1200;
   }
 
+  /* stylelint-disable-next-line */
   &--empty::before {
     @extend %empty;
 

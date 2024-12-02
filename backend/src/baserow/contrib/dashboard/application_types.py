@@ -10,6 +10,7 @@ from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import DashboardDict
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -33,7 +34,7 @@ class DashboardApplicationType(ApplicationType):
         self,
         dashboard: Dashboard,
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> DashboardDict:
         """

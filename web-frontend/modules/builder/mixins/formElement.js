@@ -29,7 +29,7 @@ export default {
     },
     formElementData() {
       return this.$store.getters['formData/getElementFormEntry'](
-        this.page,
+        this.elementPage,
         this.uniqueElementId
       )
     },
@@ -38,7 +38,7 @@ export default {
     },
     formElementInvalid() {
       return this.$store.getters['formData/getElementInvalid'](
-        this.page,
+        this.elementPage,
         this.uniqueElementId
       )
     },
@@ -52,7 +52,7 @@ export default {
     },
     formElementTouched() {
       return this.$store.getters['formData/getElementTouched'](
-        this.page,
+        this.elementPage,
         this.uniqueElementId
       )
     },
@@ -62,7 +62,7 @@ export default {
      */
     isDescendantOfFormContainer() {
       return this.$store.getters['element/getAncestors'](
-        this.page,
+        this.elementPage,
         this.element
       ).some(({ type }) => type === FormContainerElementType.getType())
     },
@@ -85,7 +85,7 @@ export default {
     },
     setFormData(value) {
       return this.actionSetFormData({
-        page: this.page,
+        page: this.elementPage,
         uniqueElementId: this.uniqueElementId,
         payload: {
           value,
@@ -106,7 +106,7 @@ export default {
      */
     onFormElementTouch() {
       this.$store.dispatch('formData/setElementTouched', {
-        page: this.page,
+        page: this.elementPage,
         wasTouched: true,
         uniqueElementId: this.uniqueElementId,
       })

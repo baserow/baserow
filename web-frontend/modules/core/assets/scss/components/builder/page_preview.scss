@@ -14,6 +14,22 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+
+  .page__header,
+  .page__content,
+  .page__footer {
+    // page parts are under the page separators...
+    z-index: 0;
+    position: relative;
+  }
+
+  .page__header--element-selected,
+  .page__content--element-selected,
+  .page__footer--element-selected {
+    // ...Except if they contain the selected element
+    z-index: 2;
+    position: relative;
+  }
 }
 
 .page-preview__add {
@@ -65,4 +81,26 @@
 .page-preview__empty {
   max-width: 400px;
   margin: 120px auto;
+}
+
+.page-preview__separator {
+  width: 100%;
+  border-bottom: 1px solid $palette-neutral-200;
+  display: flex;
+  justify-content: center;
+  height: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.page-preview__separator-label {
+  position: absolute;
+  top: -8px;
+  padding: 4px 8px;
+  border-radius: 16px;
+  background: $palette-neutral-50;
+  color: $palette-neutral-700;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 10px;
 }

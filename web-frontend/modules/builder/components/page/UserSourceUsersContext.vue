@@ -79,7 +79,7 @@ import { DEFAULT_USER_ROLE_PREFIX } from '@baserow/modules/builder/constants'
 export default {
   name: 'UserSourceUsersContext',
   mixins: [context],
-  inject: ['page', 'builder'],
+  inject: ['builder'],
   data() {
     return {
       state: null,

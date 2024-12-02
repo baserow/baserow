@@ -2,7 +2,7 @@
   <ul class="header__filter">
     <template v-for="actionType in pageActionTypes">
       <li
-        v-if="actionType.isActive({ page, workspace })"
+        v-if="actionType.isActive({ page: currentPage, workspace })"
         :key="actionType.getType()"
         class="header__filter-item header__filter-item--right"
       >
@@ -14,7 +14,7 @@
               component: $refs[`component_${actionType.type}`][0],
               button: $refs[`button_${actionType.type}`][0],
               builder: builder,
-              page: page,
+              page: currentPage,
             })
           "
         >
@@ -29,7 +29,7 @@
           :is="actionType.component"
           :ref="`component_${actionType.type}`"
           :builder="builder"
-          :page="page"
+          :page="currentPage"
         />
       </li>
     </template>
@@ -39,7 +39,7 @@
 <script>
 export default {
   name: 'PageActions',
-  inject: ['workspace', 'builder', 'page'],
+  inject: ['workspace', 'builder', 'currentPage'],
   computed: {
     pageActionTypes() {
       return Object.values(this.$registry.getOrderedList('pageAction'))
