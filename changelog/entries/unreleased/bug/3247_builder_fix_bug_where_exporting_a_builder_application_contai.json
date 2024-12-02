@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Fix bug where exporting a Builder application containing a file could fail.",
+    "issue_number": 3247,
+    "bullet_points": [],
+    "created_at": "2024-12-02"
+}
