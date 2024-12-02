@@ -388,7 +388,7 @@ class UserFileHandler:
     def export_user_file(
         self,
         user_file: Optional[UserFile],
-        files_zip: Optional[ExportZipFile] = None,
+        files_zip: Optional[ZipFile | ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Dict[str, Any] = None,
     ) -> Optional[Dict[str, str]]:
@@ -410,16 +410,25 @@ class UserFileHandler:
         # Check if the user file object is already in the cache and if not,
         # it must be fetched and added to to it.
         cache_entry = f"user_file_{name}"
-        if cache_entry not in cache:
-            if files_zip is not None and name not in [
-                item["name"] for item in files_zip.info_list()
-            ]:
+
+        if cache_entry not in cache and files_zip is not None:
+            if isinstance(files_zip, ZipFile):
+                filenames = files_zip.namelist()
+            else:
+                filenames = [item["name"] for item in files_zip.info_list()]
+
+            if name not in filenames:
                 # Load the user file from the content and write it to the zip file
                 # because it might not exist in the environment that it is going
                 # to be imported in.
                 file_path = self.user_file_path(name)
-                chunk_generator = file_chunk_generator(storage, file_path)
-                files_zip.add(chunk_generator, name)
+
+                if isinstance(files_zip, ZipFile):
+                    with storage.open(file_path, mode="rb") as storage_file:
+                        files_zip.writestr(name, storage_file.read())
+                else:
+                    chunk_generator = file_chunk_generator(storage, file_path)
+                    files_zip.add(chunk_generator, name)
 
             # Avoid writing the same file twice
             cache[cache_entry] = True
