@@ -20,8 +20,8 @@ import advocate
 from advocate.exceptions import UnacceptableAddressException
 from PIL import Image, ImageOps
 from requests.exceptions import RequestException
-from baserow.core.import_export.utils import file_chunk_generator
 
+from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.models import UserFile
 from baserow.core.storage import (
     ExportZipFile,

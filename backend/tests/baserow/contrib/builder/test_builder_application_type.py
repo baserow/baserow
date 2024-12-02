@@ -4,28 +4,26 @@ from copy import deepcopy
 from io import BytesIO
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core.files.storage import FileSystemStorage
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 
 import pytest
+import zipstream
 from PIL import Image
 
-from baserow.core.storage import ExportZipFile
-import zipstream
-from django.conf import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
-from baserow.contrib.builder.elements.element_types import ImageElementType
-from django.urls import reverse
 from baserow.api.user_files.serializers import UserFileSerializer
-from baserow.contrib.builder.elements.models import ImageElement
-
 from baserow.contrib.builder.application_types import BuilderApplicationType
 from baserow.contrib.builder.builder_beta_init_application import (
     BuilderApplicationTypeInitApplication,
 )
+from baserow.contrib.builder.elements.element_types import ImageElementType
 from baserow.contrib.builder.elements.models import (
     ColumnElement,
     Element,
     HeadingElement,
+    ImageElement,
     LinkElement,
     TableElement,
     TextElement,
@@ -42,6 +40,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_sources.registries import DEFAULT_USER_ROLE_PREFIX
@@ -1595,7 +1594,9 @@ def test_ensure_new_element_roles_are_sanitized_during_import_for_roles(
 
 
 @pytest.mark.django_db
-def test_builder_application_exports_file_with_zip_file(data_fixture, api_client, tmpdir):
+def test_builder_application_exports_file_with_zip_file(
+    data_fixture, api_client, tmpdir
+):
     """
     Test that ensures any uploaded files are exported using a
     zip_file without errors.
@@ -1644,6 +1645,6 @@ def test_builder_application_exports_file_with_zip_file(data_fixture, api_client
     serialized_image = serialized["pages"][1]["elements"][0]
     assert serialized_image["image_source_type"] == "upload"
     assert serialized_image["image_file_id"] == {
-        'name': image_file.name,
-        'original_name': image_file.original_name,
+        "name": image_file.name,
+        "original_name": image_file.original_name,
     }
