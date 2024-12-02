@@ -165,6 +165,9 @@ import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
 import _ from 'lodash'
 import { trueValues } from '@baserow/modules/core/utils/constants'
+import ViewFilterTypeRating from '@baserow/modules/database/components/view/ViewFilterTypeRating.vue'
+import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber.vue'
+import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
 
 export class FieldType extends Registerable {
   /**
@@ -1289,6 +1292,10 @@ export class NumberFieldType extends FieldType {
     return RowHistoryFieldNumber
   }
 
+  getFilterInputComponent(field, filterType) {
+    return ViewFilterTypeNumber
+  }
+
   getSortIndicator() {
     return ['text', '1', '9']
   }
@@ -1496,6 +1503,10 @@ export class RatingFieldType extends FieldType {
 
   getRowHistoryEntryComponent() {
     return RowHistoryFieldText
+  }
+
+  getFilterInputComponent(field, filterType) {
+    return ViewFilterTypeRating
   }
 
   getSortIndicator() {
@@ -2442,6 +2453,10 @@ export class DurationFieldType extends FieldType {
 
   getFunctionalGridViewFieldComponent() {
     return FunctionalGridViewFieldDuration
+  }
+
+  getFilterInputComponent(field, filterType) {
+    return ViewFilterTypeDuration
   }
 
   getCanImport() {

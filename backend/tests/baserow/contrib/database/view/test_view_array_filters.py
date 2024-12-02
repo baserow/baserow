@@ -1,34 +1,24 @@
 import typing
-from dataclasses import dataclass
 from enum import Enum
-
-from django.contrib.auth.models import AbstractUser
 
 import pytest
 
-from baserow.contrib.database.fields.models import Field, LinkRowField, LookupField
-from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.table.models import GeneratedTableModel, Table
-from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.models import GridView
+from tests.baserow.contrib.database.utils import (
+    boolean_field_factory,
+    email_field_factory,
+    long_text_field_factory,
+    phone_number_field_factory,
+    setup_linked_table_and_lookup,
+    single_select_field_factory,
+    single_select_field_value_factory,
+    text_field_factory,
+    text_field_value_factory,
+    url_field_factory,
+    uuid_field_factory,
+)
 
 if typing.TYPE_CHECKING:
     from baserow.test_utils.fixtures import Fixtures
-
-
-@dataclass
-class ArrayFiltersSetup:
-    user: AbstractUser
-    table: Table
-    other_table: Table
-    model: GeneratedTableModel
-    other_table_model: GeneratedTableModel
-    grid_view: GridView
-    link_row_field: LinkRowField
-    lookup_field: LookupField
-    target_field: Field
-    row_handler: RowHandler
-    view_handler: ViewHandler
 
 
 class BooleanLookupRow(int, Enum):
@@ -46,85 +36,6 @@ class BooleanLookupRow(int, Enum):
     NO_VALUES = 3
 
 
-def boolean_field_factory(data_fixture, table, user):
-    return data_fixture.create_boolean_field(name="target", user=user, table=table)
-
-
-def text_field_factory(data_fixture, table, user):
-    return data_fixture.create_text_field(name="target", user=user, table=table)
-
-
-def long_text_field_factory(data_fixture, table, user):
-    return data_fixture.create_long_text_field(name="target", user=user, table=table)
-
-
-def url_field_factory(data_fixture, table, user):
-    return data_fixture.create_url_field(name="target", user=user, table=table)
-
-
-def email_field_factory(data_fixture, table, user):
-    return data_fixture.create_email_field(name="target", user=user, table=table)
-
-
-def phone_number_field_factory(data_fixture, table, user):
-    return data_fixture.create_phone_number_field(name="target", user=user, table=table)
-
-
-def uuid_field_factory(data_fixture, table, user):
-    return data_fixture.create_uuid_field(name="target", user=user, table=table)
-
-
-def single_select_field_factory(data_fixture, table, user):
-    return data_fixture.create_single_select_field(
-        name="target", user=user, table=table
-    )
-
-
-def single_select_field_value_factory(data_fixture, target_field, value=None):
-    return (
-        data_fixture.create_select_option(field=target_field, value=value)
-        if value
-        else None
-    )
-
-
-def setup(data_fixture, target_field_factory) -> ArrayFiltersSetup:
-    user = data_fixture.create_user()
-    database = data_fixture.create_database_application(user=user)
-    table = data_fixture.create_database_table(user=user, database=database)
-    other_table = data_fixture.create_database_table(user=user, database=database)
-    target_field = target_field_factory(data_fixture, other_table, user)
-    link_row_field = data_fixture.create_link_row_field(
-        name="link", table=table, link_row_table=other_table
-    )
-    lookup_field = data_fixture.create_lookup_field(
-        table=table,
-        through_field=link_row_field,
-        target_field=target_field,
-        through_field_name=link_row_field.name,
-        target_field_name=target_field.name,
-        setup_dependencies=False,
-    )
-    grid_view = data_fixture.create_grid_view(table=table)
-    view_handler = ViewHandler()
-    row_handler = RowHandler()
-    model = table.get_model()
-    other_table_model = other_table.get_model()
-    return ArrayFiltersSetup(
-        user=user,
-        table=table,
-        other_table=other_table,
-        other_table_model=other_table_model,
-        target_field=target_field,
-        row_handler=row_handler,
-        grid_view=grid_view,
-        link_row_field=link_row_field,
-        lookup_field=lookup_field,
-        view_handler=view_handler,
-        model=model,
-    )
-
-
 def boolean_lookup_filter_proc(
     data_fixture: "Fixtures",
     filter_type_name: str,
@@ -137,7 +48,7 @@ def boolean_lookup_filter_proc(
     rows.
     """
 
-    test_setup = setup(data_fixture, boolean_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, boolean_field_factory)
 
     dict_rows = [{test_setup.target_field.db_column: idx % 2} for idx in range(0, 10)]
 
@@ -193,10 +104,6 @@ def boolean_lookup_filter_proc(
     assert set([r.id for r in q]) == set([r.id for r in selected])
 
 
-def text_field_value_factory(data_fixture, target_field, value=None):
-    return value or ""
-
-
 @pytest.mark.parametrize(
     "target_field_factory,target_field_value_factory",
     [
@@ -212,7 +119,7 @@ def text_field_value_factory(data_fixture, target_field, value=None):
 def test_has_empty_value_filter_text_field_types(
     data_fixture, target_field_factory, target_field_value_factory
 ):
-    test_setup = setup(data_fixture, target_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
 
     row_A_value = target_field_value_factory(data_fixture, test_setup.target_field, "A")
     row_B_value = target_field_value_factory(data_fixture, test_setup.target_field, "B")
@@ -266,7 +173,7 @@ def test_has_empty_value_filter_text_field_types(
 
 @pytest.mark.django_db
 def test_has_empty_value_filter_uuid_field_types(data_fixture):
-    test_setup = setup(data_fixture, uuid_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, uuid_field_factory)
 
     other_row_1 = test_setup.other_table_model.objects.create()
     other_row_2 = test_setup.other_table_model.objects.create()
@@ -322,7 +229,7 @@ def test_has_empty_value_filter_uuid_field_types(data_fixture):
 def test_has_not_empty_value_filter_text_field_types(
     data_fixture, target_field_factory, target_field_value_factory
 ):
-    test_setup = setup(data_fixture, target_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
 
     row_A_value = target_field_value_factory(data_fixture, test_setup.target_field, "A")
     row_B_value = target_field_value_factory(data_fixture, test_setup.target_field, "B")
@@ -377,7 +284,7 @@ def test_has_not_empty_value_filter_text_field_types(
 
 @pytest.mark.django_db
 def test_has_not_empty_value_filter_uuid_field_types(data_fixture):
-    test_setup = setup(data_fixture, uuid_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, uuid_field_factory)
 
     other_row_1 = test_setup.other_table_model.objects.create()
     other_row_2 = test_setup.other_table_model.objects.create()
@@ -430,7 +337,7 @@ def test_has_not_empty_value_filter_uuid_field_types(data_fixture):
 )
 @pytest.mark.django_db
 def test_has_value_equal_filter_text_field_types(data_fixture, target_field_factory):
-    test_setup = setup(data_fixture, target_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
 
     other_row_A = test_setup.other_table_model.objects.create(
         **{f"field_{test_setup.target_field.id}": "A"}
@@ -514,7 +421,7 @@ def test_has_value_equal_filter_text_field_types(data_fixture, target_field_fact
 
 @pytest.mark.django_db
 def test_has_value_equal_filter_uuid_field_types(data_fixture):
-    test_setup = setup(data_fixture, uuid_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, uuid_field_factory)
 
     other_row_A = test_setup.other_table_model.objects.create(
         **{
@@ -615,7 +522,7 @@ def test_has_value_equal_filter_uuid_field_types(data_fixture):
 def test_has_not_value_equal_filter_text_field_types(
     data_fixture, target_field_factory
 ):
-    test_setup = setup(data_fixture, target_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
 
     other_row_A = test_setup.other_table_model.objects.create(
         **{f"field_{test_setup.target_field.id}": "A"}
@@ -693,7 +600,7 @@ def test_has_not_value_equal_filter_text_field_types(
 
 @pytest.mark.django_db
 def test_has_not_value_equal_filter_uuid_field_types(data_fixture):
-    test_setup = setup(data_fixture, uuid_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, uuid_field_factory)
 
     other_row_A = test_setup.other_table_model.objects.create(
         **{
@@ -792,7 +699,7 @@ def test_has_not_value_equal_filter_uuid_field_types(data_fixture):
 )
 @pytest.mark.django_db
 def test_has_value_contains_filter_text_field_types(data_fixture, target_field_factory):
-    test_setup = setup(data_fixture, target_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
 
     other_row_John_Smith = test_setup.other_table_model.objects.create(
         **{f"field_{test_setup.target_field.id}": "John Smith"}
@@ -865,7 +772,7 @@ def test_has_value_contains_filter_text_field_types(data_fixture, target_field_f
 
 @pytest.mark.django_db
 def test_has_value_contains_filter_uuid_field_types(data_fixture):
-    test_setup = setup(data_fixture, uuid_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, uuid_field_factory)
 
     other_row_A = test_setup.other_table_model.objects.create(
         **{
@@ -978,7 +885,7 @@ def test_has_value_contains_filter_uuid_field_types(data_fixture):
 def test_has_not_value_contains_filter_text_field_types(
     data_fixture, target_field_factory
 ):
-    test_setup = setup(data_fixture, target_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
 
     other_row_John_Smith = test_setup.other_table_model.objects.create(
         **{f"field_{test_setup.target_field.id}": "John Smith"}
@@ -1051,7 +958,7 @@ def test_has_not_value_contains_filter_text_field_types(
 
 @pytest.mark.django_db
 def test_has_not_value_contains_filter_uuid_field_types(data_fixture):
-    test_setup = setup(data_fixture, uuid_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, uuid_field_factory)
 
     other_row_A = test_setup.other_table_model.objects.create(
         **{
@@ -1163,7 +1070,7 @@ def test_has_not_value_contains_filter_uuid_field_types(data_fixture):
 def test_has_value_contains_word_filter_text_field_types(
     data_fixture, target_field_factory
 ):
-    test_setup = setup(data_fixture, target_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
 
     other_row_1 = test_setup.other_table_model.objects.create(
         **{f"field_{test_setup.target_field.id}": "This is a sentence."}
@@ -1238,7 +1145,7 @@ def test_has_value_contains_word_filter_text_field_types(
 
 @pytest.mark.django_db
 def test_has_value_contains_word_filter_uuid_field_types(data_fixture):
-    test_setup = setup(data_fixture, uuid_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, uuid_field_factory)
 
     other_row_A = test_setup.other_table_model.objects.create(
         **{
@@ -1349,7 +1256,7 @@ def test_has_value_contains_word_filter_uuid_field_types(data_fixture):
 def test_has_not_value_contains_word_filter_text_field_types(
     data_fixture, target_field_factory
 ):
-    test_setup = setup(data_fixture, target_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
 
     other_row_1 = test_setup.other_table_model.objects.create(
         **{f"field_{test_setup.target_field.id}": "This is a sentence."}
@@ -1424,7 +1331,7 @@ def test_has_not_value_contains_word_filter_text_field_types(
 
 @pytest.mark.django_db
 def test_has_not_value_contains_word_filter_uuid_field_types(data_fixture):
-    test_setup = setup(data_fixture, uuid_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, uuid_field_factory)
 
     other_row_A = test_setup.other_table_model.objects.create(
         **{
@@ -1535,7 +1442,7 @@ def test_has_not_value_contains_word_filter_uuid_field_types(data_fixture):
 def test_has_value_length_is_lower_than_text_field_types(
     data_fixture, target_field_factory
 ):
-    test_setup = setup(data_fixture, target_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
 
     other_row_10a = test_setup.other_table_model.objects.create(
         **{f"field_{test_setup.target_field.id}": "aaaaaaaaaa"}
@@ -1622,7 +1529,7 @@ def test_has_value_length_is_lower_than_text_field_types(
 
 @pytest.mark.django_db
 def test_has_value_length_is_lower_than_uuid_field_types(data_fixture):
-    test_setup = setup(data_fixture, uuid_field_factory)
+    test_setup = setup_linked_table_and_lookup(data_fixture, uuid_field_factory)
     other_row_1 = test_setup.other_table_model.objects.create()
     other_row_2 = test_setup.other_table_model.objects.create()
     row_1 = test_setup.row_handler.create_row(
@@ -1878,7 +1785,9 @@ def test_empty_not_empty_filters_boolean_lookup_field_type(
 
 @pytest.mark.django_db
 def test_has_value_equal_filter_single_select_field(data_fixture):
-    test_setup = setup(data_fixture, single_select_field_factory)
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
 
     opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
     opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
@@ -1946,7 +1855,9 @@ def test_has_value_equal_filter_single_select_field(data_fixture):
 
 @pytest.mark.django_db
 def test_has_not_value_equal_filter_single_select_field(data_fixture):
-    test_setup = setup(data_fixture, single_select_field_factory)
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
 
     opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
     opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
@@ -2013,7 +1924,9 @@ def test_has_not_value_equal_filter_single_select_field(data_fixture):
 
 @pytest.mark.django_db
 def test_has_value_contains_filter_single_select_field(data_fixture):
-    test_setup = setup(data_fixture, single_select_field_factory)
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
 
     opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
     opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="ba")
@@ -2081,7 +1994,9 @@ def test_has_value_contains_filter_single_select_field(data_fixture):
 
 @pytest.mark.django_db
 def test_has_not_value_contains_filter_single_select_field(data_fixture):
-    test_setup = setup(data_fixture, single_select_field_factory)
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
 
     opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
     opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="ba")
@@ -2147,7 +2062,9 @@ def test_has_not_value_contains_filter_single_select_field(data_fixture):
 
 @pytest.mark.django_db
 def test_has_value_contains_word_filter_single_select_field(data_fixture):
-    test_setup = setup(data_fixture, single_select_field_factory)
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
 
     opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
     opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
@@ -2214,7 +2131,9 @@ def test_has_value_contains_word_filter_single_select_field(data_fixture):
 
 @pytest.mark.django_db
 def test_has_not_value_contains_word_filter_single_select_field(data_fixture):
-    test_setup = setup(data_fixture, single_select_field_factory)
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
 
     opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
     opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
@@ -2281,7 +2200,9 @@ def test_has_not_value_contains_word_filter_single_select_field(data_fixture):
 
 @pytest.mark.django_db
 def test_has_any_select_option_equal_filter_single_select_field(data_fixture):
-    test_setup = setup(data_fixture, single_select_field_factory)
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
 
     opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
     opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
@@ -2350,7 +2271,9 @@ def test_has_any_select_option_equal_filter_single_select_field(data_fixture):
 
 @pytest.mark.django_db
 def test_has_none_select_option_equal_filter_single_select_field(data_fixture):
-    test_setup = setup(data_fixture, single_select_field_factory)
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
 
     opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
     opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")

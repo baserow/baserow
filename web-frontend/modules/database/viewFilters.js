@@ -25,8 +25,6 @@ import ViewFilterTypeCollaborators from '@baserow/modules/database/components/vi
 import {
   FormulaFieldType,
   NumberFieldType,
-  RatingFieldType,
-  DurationFieldType,
 } from '@baserow/modules/database/fieldTypes'
 
 export class ViewFilterType extends Registerable {
@@ -131,16 +129,36 @@ export class ViewFilterType extends Registerable {
    * list provided by getCompatibleFieldTypes to calculate this.
    */
   fieldIsCompatible(field) {
-    for (const typeOrFunc of this.getCompatibleFieldTypes()) {
+    const valuesMap = this.getCompatibleFieldTypes().map((type) => [type, true])
+    return this.getCompatibleFieldValue(field, valuesMap, false)
+  }
+
+  /**
+   * Given a field and a map of field types to values, this method will return the
+   * value that is compatible with the field. If no value is found the notFoundValue
+   * will be returned.
+   * This can be used to verify if a field is compatible with a filter type or to
+   * return the correct component for the filter input.
+   *
+   * @param {object} field The field object that should be checked.
+   * @param {object} valuesMap A list of tuple where the key is the field type or a function
+   * that takes a field and returns a boolean and the value is the value that should be
+   * returned if the field is compatible.
+   * @param {any} notFoundValue The value that should be returned if no compatible value
+   * is found.
+   * @returns {any} The value that is compatible with the field or the notFoundValue.
+   */
+  getCompatibleFieldValue(field, valuesMap, notFoundValue = null) {
+    for (const [typeOrFunc, value] of valuesMap) {
       if (typeOrFunc instanceof Function) {
         if (typeOrFunc(field)) {
-          return true
+          return value
         }
       } else if (field.type === typeOrFunc) {
-        return true
+        return value
       }
     }
-    return false
+    return notFoundValue
   }
 
   /**
@@ -166,7 +184,165 @@ export class ViewFilterType extends Registerable {
   }
 }
 
-export class EqualViewFilterType extends ViewFilterType {
+/**
+ * Base class for field-type specific filtering details.
+ *
+ * In some cases we want to have per field-type handling of certain aspects of
+ * a filter: input component selection and value parsing logic.
+ *
+ * This is a base class defining common interface for such customizations
+ */
+class SpecificFieldViewFilterHandler {
+  getInputComponent() {
+    return null
+  }
+
+  parseRowValue(value, field, fieldType) {
+    return value
+  }
+
+  parseFilterValue(value, field, fieldType) {
+    return value
+  }
+}
+
+/**
+ * Handle duration-specific filtering aspects:
+ *
+ * * input component should understand duration formats
+ * * values should be parsed to duration value (a number of seconds).
+ *
+ *
+ * Parsing is especially important because duration parsing result depends on duration
+ * format picked. Filter value is passed as a string, and in case of duration, backend
+ * will send a number of seconds. This, however, may be parsed as a number of minutes
+ * or hours if a duration format picked uses minutes or hours as a lowest unit (i.e.
+ * `d h m` or `d h` format).
+ *
+ * In case of parsing, this class ensures that a number string is passed as a Number
+ * type to be consistent with backend's behavior.
+ *
+ */
+class DurationFieldViewFilterType extends SpecificFieldViewFilterHandler {
+  getInputComponent() {
+    return ViewFilterTypeDuration
+  }
+
+  _parseDuration(value, field, fieldType) {
+    if ((value === null ? '' : value).toString().trim() === '') {
+      return null
+    }
+
+    const parsedValue = Number(value)
+    if (_.isFinite(parsedValue)) {
+      value = parsedValue
+    }
+    return fieldType.parseInputValue(field, value)
+  }
+
+  parseRowValue(value, field, fieldType) {
+    return this._parseDuration(value, field, fieldType)
+  }
+
+  parseFilterValue(value, field, fieldType) {
+    return this._parseDuration(value, field, fieldType)
+  }
+}
+
+class TextLikeFieldViewFilterType extends SpecificFieldViewFilterHandler {
+  getInputComponent() {
+    return ViewFilterTypeText
+  }
+
+  parseRowValue(value, field, fieldType) {
+    return (value === null ? '' : value).toString().toLowerCase().trim()
+  }
+
+  parseFilterValue(value, field, fieldType) {
+    return (value === null ? '' : value).toString().toLowerCase().trim()
+  }
+}
+
+class RatingFieldViewFilterType extends SpecificFieldViewFilterHandler {
+  getInputComponent() {
+    return ViewFilterTypeRating
+  }
+
+  parseRowValue(value, field, fieldType) {
+    if (value === '' || value === null) {
+      return NaN
+    }
+    return Number(value.toString().toLowerCase().trim())
+  }
+
+  parseFilterValue(value, field, fieldType) {
+    if (value === '' || value === null) {
+      return NaN
+    }
+    return Number(value.toString().toLowerCase().trim())
+  }
+}
+
+class NumberFieldViewFilterType extends SpecificFieldViewFilterHandler {
+  getInputComponent() {
+    return ViewFilterTypeNumber
+  }
+
+  parseRowValue(value, field, fieldType) {
+    if (value === '' || value === null) {
+      return NaN
+    }
+    return Number(value.toString().toLowerCase().trim())
+  }
+
+  parseFilterValue(value, field, fieldType) {
+    if (value === '' || value === null) {
+      return NaN
+    }
+    return Number(value.toString().toLowerCase().trim())
+  }
+}
+
+class SpecificFieldFilterType extends ViewFilterType {
+  getSpecificFieldFilterType(field) {
+    const map = [
+      ['duration', new DurationFieldViewFilterType()],
+      [
+        FormulaFieldType.compatibleWithFormulaTypes('duration'),
+        new DurationFieldViewFilterType(),
+      ],
+      ['rating', new RatingFieldViewFilterType()],
+      ['number', new NumberFieldViewFilterType()],
+      [
+        FormulaFieldType.compatibleWithFormulaTypes('number'),
+        new NumberFieldViewFilterType(),
+      ],
+      ['autonumber', new NumberFieldViewFilterType()],
+    ]
+    return this.getCompatibleFieldValue(
+      field,
+      map,
+      new TextLikeFieldViewFilterType()
+    )
+  }
+
+  getMatchesParsedValues(rowValue, filterValue, field, fieldType) {
+    const specificFieldType = this.getSpecificFieldFilterType(field)
+    const parsedRowValue = specificFieldType.parseRowValue(
+      rowValue,
+      field,
+      fieldType
+    )
+    const parsedFilterValue = specificFieldType.parseFilterValue(
+      filterValue,
+      field,
+      fieldType
+    )
+    return { rowVal: parsedRowValue, filterVal: parsedFilterValue }
+  }
+}
+
+export class EqualViewFilterType extends SpecificFieldFilterType {
   static getType() {
     return 'equal'
   }
@@ -177,12 +353,7 @@ export class EqualViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    const inputComponent = {
-      [RatingFieldType.getType()]: ViewFilterTypeRating,
-      [NumberFieldType.getType()]: ViewFilterTypeNumber,
-      [DurationFieldType.getType()]: ViewFilterTypeDuration,
-    }
-    return inputComponent[field?.type] || ViewFilterTypeText
+    return this.getSpecificFieldFilterType(field).getInputComponent()
   }
 
   getCompatibleFieldTypes() {
@@ -201,6 +372,7 @@ export class EqualViewFilterType extends ViewFilterType {
         'text',
         'char',
         'number',
+        'duration',
         'url'
       ),
     ]
@@ -210,14 +382,18 @@ export class EqualViewFilterType extends ViewFilterType {
     if (rowValue === null) {
       rowValue = ''
     }
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
 
-    rowValue = rowValue.toString().toLowerCase().trim()
-    filterValue = filterValue.toString().toLowerCase().trim()
-    return filterValue === '' || rowValue === filterValue
+    return filterVal === '' || rowVal === filterVal
   }
 }
 
-export class NotEqualViewFilterType extends ViewFilterType {
+export class NotEqualViewFilterType extends SpecificFieldFilterType {
   static getType() {
     return 'not_equal'
   }
@@ -228,12 +404,8 @@ export class NotEqualViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    const inputComponent = {
-      [RatingFieldType.getType()]: ViewFilterTypeRating,
-      [NumberFieldType.getType()]: ViewFilterTypeNumber,
-      [DurationFieldType.getType()]: ViewFilterTypeDuration,
-    }
-    return inputComponent[field?.type] || ViewFilterTypeText
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.getFilterInputComponent(field, this) || ViewFilterTypeText
   }
 
   getCompatibleFieldTypes() {
@@ -252,6 +424,7 @@ export class NotEqualViewFilterType extends ViewFilterType {
         'text',
         'char',
         'number',
+        'duration',
         'url'
       ),
     ]
@@ -262,9 +435,13 @@ export class NotEqualViewFilterType extends ViewFilterType {
       rowValue = ''
     }
 
-    rowValue = rowValue.toString().toLowerCase().trim()
-    filterValue = filterValue.toString().toLowerCase().trim()
-    return filterValue === '' || rowValue !== filterValue
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
+    return filterVal === '' || rowVal !== filterVal
   }
 }
 
@@ -2032,17 +2209,29 @@ export class DateEqualsDayOfMonthViewFilterType extends LocalizedDateViewFilterT
 // Base filter type for basic numeric comparisons. It defines common logic for
 // 'lower than', 'lower than or equal', 'higher than' and 'higher than or equal'
 // view filter types.
-export class NumericComparisonViewFilterType extends ViewFilterType {
+export class NumericComparisonViewFilterType extends SpecificFieldFilterType {
   getExample() {
     return '100'
   }
 
   getInputComponent(field) {
-    const inputComponent = {
-      [RatingFieldType.getType()]: ViewFilterTypeRating,
-      [DurationFieldType.getType()]: ViewFilterTypeDuration,
-    }
-    return inputComponent[field?.type] || ViewFilterTypeNumber
+    const inputComponentMap = [
+      ['rating', ViewFilterTypeRating],
+      ['duration', ViewFilterTypeDuration],
+      [
+        FormulaFieldType.compatibleWithFormulaTypes('duration'),
+        ViewFilterTypeDuration,
+      ],
+    ]
+    return this.getCompatibleFieldValue(
+      field,
+      inputComponentMap,
+      ViewFilterTypeNumber
+    )
+  }
+
+  parseInputValue(value, field, fieldType) {
+    return fieldType.parseInputValue(field, value)
   }
 
   getCompatibleFieldTypes() {
@@ -2051,7 +2240,7 @@ export class NumericComparisonViewFilterType extends ViewFilterType {
       'rating',
       'autonumber',
       'duration',
-      FormulaFieldType.compatibleWithFormulaTypes('number'),
+      FormulaFieldType.compatibleWithFormulaTypes('number', 'duration'),
     ]
   }
 
@@ -2076,9 +2265,18 @@ export class HigherThanViewFilterType extends NumericComparisonViewFilterType {
       return true
     }
 
-    const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
-    return Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal > fltVal
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
+
+    return (
+      Number.isFinite(rowVal) &&
+      Number.isFinite(filterVal) &&
+      rowVal > filterVal
+    )
   }
 }
 
@@ -2097,10 +2295,16 @@ export class HigherThanOrEqualViewFilterType extends NumericComparisonViewFilter
       return true
     }
 
-    const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
     return (
-      Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal >= fltVal
+      Number.isFinite(rowVal) &&
+      Number.isFinite(filterVal) &&
+      rowVal >= filterVal
     )
   }
 }
@@ -2119,10 +2323,18 @@ export class LowerThanViewFilterType extends NumericComparisonViewFilterType {
     if (filterValue === '') {
       return true
     }
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
 
-    const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
-    return Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal < fltVal
+    return (
+      Number.isFinite(rowVal) &&
+      Number.isFinite(filterVal) &&
+      rowVal < filterVal
+    )
   }
 }
 
@@ -2141,10 +2353,17 @@ export class LowerThanOrEqualViewFilterType extends NumericComparisonViewFilterT
       return true
     }
 
-    const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
+
     return (
-      Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal <= fltVal
+      Number.isFinite(rowVal) &&
+      Number.isFinite(filterVal) &&
+      rowVal <= filterVal
     )
   }
 }
@@ -2737,6 +2956,7 @@ export class EmptyViewFilterType extends ViewFilterType {
         'boolean',
         'date',
         'number',
+        'duration',
         'url',
         'single_select',
         FormulaFieldType.arrayOf('single_file'),
@@ -2802,6 +3022,7 @@ export class NotEmptyViewFilterType extends ViewFilterType {
         'boolean',
         'date',
         'number',
+        'duration',
         'url',
         'single_select',
         FormulaFieldType.arrayOf('single_file'),

@@ -108,6 +108,7 @@ class EqualViewFilterType(ViewFilterType):
             BaserowFormulaTextType.type,
             BaserowFormulaCharType.type,
             BaserowFormulaNumberType.type,
+            BaserowFormulaDurationType.type,
             BaserowFormulaURLType.type,
         ),
     ]
@@ -369,7 +370,7 @@ class NumericComparisonViewFilterType(ViewFilterType):
         AutonumberFieldType.type,
         DurationFieldType.type,
         FormulaFieldType.compatible_with_formula_types(
-            BaserowFormulaNumberType.type,
+            BaserowFormulaNumberType.type, BaserowFormulaDurationType.type
         ),
     ]
 
