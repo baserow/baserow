@@ -604,6 +604,9 @@ class PageHandler:
             page_instance.path = serialized_page["path"]
             page_instance.path_params = serialized_page["path_params"]
         else:
+            # Note: serialized pages exported before the page visibility feature
+            # will not contain the `visibility`, `role_type` or `roles` keys,
+            # so we use the default values for all three values instead.
             page_instance = Page.objects.create(
                 builder=builder,
                 name=serialized_page["name"],
@@ -611,9 +614,9 @@ class PageHandler:
                 path=serialized_page["path"],
                 path_params=serialized_page["path_params"],
                 shared=False,
-                visibility=serialized_page["visibility"],
-                role_type=serialized_page["role_type"],
-                roles=serialized_page["roles"],
+                visibility=serialized_page.get("visibility", Page.VISIBILITY_TYPES.ALL),
+                role_type=serialized_page.get("role_type", Page.ROLE_TYPES.ALLOW_ALL),
+                roles=serialized_page.get("roles", []),
             )
 
         id_mapping["builder_pages"][serialized_page["id"]] = page_instance.id

@@ -1,5 +1,6 @@
 import json
 import uuid
+from copy import deepcopy
 from io import BytesIO
 from unittest.mock import patch
 
@@ -123,6 +124,9 @@ def test_builder_application_export(data_fixture):
     page1 = data_fixture.create_builder_page(builder=builder)
     page2 = data_fixture.create_builder_page(builder=builder)
 
+    builder.login_page = page2
+    builder.save()
+
     element1 = data_fixture.create_builder_heading_element(
         page=page1, level=2, value="foo"
     )
@@ -184,6 +188,149 @@ def test_builder_application_export(data_fixture):
 
     # To make sure a really JSON file can be imported
     serialized = json.loads(json.dumps(serialized))
+
+    page_2_serialized = {
+        "id": page2.id,
+        "name": page2.name,
+        "order": page2.order,
+        "path": page2.path,
+        "path_params": page2.path_params,
+        "visibility": Page.VISIBILITY_TYPES.ALL.value,
+        "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+        "roles": [],
+        "shared": False,
+        "workflow_actions": [],
+        "data_sources": [
+            {
+                "id": datasource2.id,
+                "name": "source 2",
+                "order": "1.00000000000000000000",
+                "service": {
+                    "id": datasource2.service.id,
+                    "integration_id": integration.id,
+                    "filter_type": "AND",
+                    "filters": [],
+                    "row_id": "",
+                    "view_id": None,
+                    "table_id": None,
+                    "search_query": "",
+                    "type": "local_baserow_get_row",
+                },
+            },
+            {
+                "id": datasource3.id,
+                "name": "source 3",
+                "order": "2.00000000000000000000",
+                "service": {
+                    "id": datasource3.service.id,
+                    "integration_id": integration.id,
+                    "filters": [],
+                    "sortings": [],
+                    "view_id": None,
+                    "table_id": None,
+                    "search_query": "",
+                    "filter_type": "AND",
+                    "type": "local_baserow_list_rows",
+                },
+            },
+        ],
+        "elements": [
+            {
+                "id": element3.id,
+                "type": "heading",
+                "order": str(element3.order),
+                "parent_element_id": None,
+                "place_in_container": None,
+                "visibility": "all",
+                "styles": {},
+                "style_border_top_color": "border",
+                "style_border_top_size": 0,
+                "style_padding_top": 10,
+                "style_margin_top": 0,
+                "style_border_bottom_color": "border",
+                "style_border_bottom_size": 0,
+                "style_padding_bottom": 10,
+                "style_margin_bottom": 0,
+                "style_border_left_color": "border",
+                "style_border_left_size": 0,
+                "style_padding_left": 20,
+                "style_margin_left": 0,
+                "style_border_right_color": "border",
+                "style_border_right_size": 0,
+                "style_padding_right": 20,
+                "style_margin_right": 0,
+                "style_background": "none",
+                "style_background_color": "#ffffffff",
+                "style_background_file_id": None,
+                "style_background_mode": "fill",
+                "style_width": "normal",
+                "value": element3.value,
+                "level": element3.level,
+                "roles": [],
+                "role_type": "allow_all",
+            },
+            {
+                "id": element4.id,
+                "type": "table",
+                "schema_property": None,
+                "button_load_more_label": "",
+                "order": str(element4.order),
+                "roles": [],
+                "role_type": "allow_all",
+                "orientation": {
+                    "smartphone": "horizontal",
+                    "tablet": "horizontal",
+                    "desktop": "horizontal",
+                },
+                "parent_element_id": None,
+                "place_in_container": None,
+                "visibility": "all",
+                "styles": {},
+                "style_border_top_color": "border",
+                "style_border_top_size": 0,
+                "style_padding_top": 10,
+                "style_margin_top": 0,
+                "style_border_bottom_color": "border",
+                "style_border_bottom_size": 0,
+                "style_padding_bottom": 10,
+                "style_margin_bottom": 0,
+                "style_border_left_color": "border",
+                "style_border_left_size": 0,
+                "style_padding_left": 20,
+                "style_margin_left": 0,
+                "style_border_right_color": "border",
+                "style_border_right_size": 0,
+                "style_padding_right": 20,
+                "style_margin_right": 0,
+                "style_background": "none",
+                "style_background_color": "#ffffffff",
+                "style_background_file_id": None,
+                "style_background_mode": "fill",
+                "style_width": "normal",
+                "items_per_page": 42,
+                "data_source_id": element4.data_source.id,
+                "fields": [
+                    {
+                        "name": f.name,
+                        "type": f.type,
+                        "config": f.config,
+                        "uid": str(f.uid),
+                        "styles": {},
+                    }
+                    for f in element4.fields.all()
+                ],
+                "property_options": [
+                    {
+                        "schema_property": po.schema_property,
+                        "filterable": po.filterable,
+                        "sortable": po.sortable,
+                        "searchable": po.searchable,
+                    }
+                    for po in element4.property_options.all()
+                ],
+            },
+        ],
+    }
 
     reference = {
         "pages": [
@@ -398,148 +545,7 @@ def test_builder_application_export(data_fixture):
                     },
                 ],
             },
-            {
-                "id": page2.id,
-                "name": page2.name,
-                "order": page2.order,
-                "path": page2.path,
-                "path_params": page2.path_params,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-                "shared": False,
-                "workflow_actions": [],
-                "data_sources": [
-                    {
-                        "id": datasource2.id,
-                        "name": "source 2",
-                        "order": "1.00000000000000000000",
-                        "service": {
-                            "id": datasource2.service.id,
-                            "integration_id": integration.id,
-                            "filter_type": "AND",
-                            "filters": [],
-                            "row_id": "",
-                            "view_id": None,
-                            "table_id": None,
-                            "search_query": "",
-                            "type": "local_baserow_get_row",
-                        },
-                    },
-                    {
-                        "id": datasource3.id,
-                        "name": "source 3",
-                        "order": "2.00000000000000000000",
-                        "service": {
-                            "id": datasource3.service.id,
-                            "integration_id": integration.id,
-                            "filters": [],
-                            "sortings": [],
-                            "view_id": None,
-                            "table_id": None,
-                            "search_query": "",
-                            "filter_type": "AND",
-                            "type": "local_baserow_list_rows",
-                        },
-                    },
-                ],
-                "elements": [
-                    {
-                        "id": element3.id,
-                        "type": "heading",
-                        "order": str(element3.order),
-                        "parent_element_id": None,
-                        "place_in_container": None,
-                        "visibility": "all",
-                        "styles": {},
-                        "style_border_top_color": "border",
-                        "style_border_top_size": 0,
-                        "style_padding_top": 10,
-                        "style_margin_top": 0,
-                        "style_border_bottom_color": "border",
-                        "style_border_bottom_size": 0,
-                        "style_padding_bottom": 10,
-                        "style_margin_bottom": 0,
-                        "style_border_left_color": "border",
-                        "style_border_left_size": 0,
-                        "style_padding_left": 20,
-                        "style_margin_left": 0,
-                        "style_border_right_color": "border",
-                        "style_border_right_size": 0,
-                        "style_padding_right": 20,
-                        "style_margin_right": 0,
-                        "style_background": "none",
-                        "style_background_color": "#ffffffff",
-                        "style_background_file_id": None,
-                        "style_background_mode": "fill",
-                        "style_width": "normal",
-                        "value": element3.value,
-                        "level": element3.level,
-                        "roles": [],
-                        "role_type": "allow_all",
-                    },
-                    {
-                        "id": element4.id,
-                        "type": "table",
-                        "schema_property": None,
-                        "button_load_more_label": "",
-                        "order": str(element4.order),
-                        "roles": [],
-                        "role_type": "allow_all",
-                        "orientation": {
-                            "smartphone": "horizontal",
-                            "tablet": "horizontal",
-                            "desktop": "horizontal",
-                        },
-                        "parent_element_id": None,
-                        "place_in_container": None,
-                        "visibility": "all",
-                        "styles": {},
-                        "style_border_top_color": "border",
-                        "style_border_top_size": 0,
-                        "style_padding_top": 10,
-                        "style_margin_top": 0,
-                        "style_border_bottom_color": "border",
-                        "style_border_bottom_size": 0,
-                        "style_padding_bottom": 10,
-                        "style_margin_bottom": 0,
-                        "style_border_left_color": "border",
-                        "style_border_left_size": 0,
-                        "style_padding_left": 20,
-                        "style_margin_left": 0,
-                        "style_border_right_color": "border",
-                        "style_border_right_size": 0,
-                        "style_padding_right": 20,
-                        "style_margin_right": 0,
-                        "style_background": "none",
-                        "style_background_color": "#ffffffff",
-                        "style_background_file_id": None,
-                        "style_background_mode": "fill",
-                        "style_width": "normal",
-                        "items_per_page": 42,
-                        "data_source_id": element4.data_source.id,
-                        "fields": [
-                            {
-                                "name": f.name,
-                                "type": f.type,
-                                "config": f.config,
-                                "uid": str(f.uid),
-                                "styles": {},
-                            }
-                            for f in element4.fields.all()
-                        ],
-                        "property_options": [
-                            {
-                                "schema_property": po.schema_property,
-                                "filterable": po.filterable,
-                                "sortable": po.sortable,
-                                "searchable": po.searchable,
-                            }
-                            for po in element4.property_options.all()
-                        ],
-                    },
-                ],
-            },
+            page_2_serialized,
         ],
         "integrations": [
             {
@@ -670,11 +676,75 @@ def test_builder_application_export(data_fixture):
         "order": builder.order,
         "type": "builder",
         "favicon_file": None,
-        "login_page": None,
+        "login_page": page_2_serialized,
     }
 
     assert serialized == reference
 
+
+PAGE_2_IMPORT_REFERENCE = {
+    "id": 998,
+    "name": "Megan Clark",
+    "order": 2,
+    "path": "/test2",
+    "path_params": {},
+    "workflow_actions": [],
+    "shared": False,
+    "visibility": Page.VISIBILITY_TYPES.ALL.value,
+    "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+    "roles": [],
+    "elements": [
+        {
+            "id": 997,
+            "type": "heading",
+            "parent_element_id": None,
+            "place_in_container": None,
+            "style_background": "none",
+            "style_background_color": "#ffffffff",
+            "style_border_bottom_color": "border",
+            "style_border_bottom_size": 0,
+            "style_border_top_color": "border",
+            "style_border_top_size": 0,
+            "style_width": "normal",
+            "order": 1,
+            "value": "",
+            "level": 1,
+            "roles": [],
+            "role_type": "allow_all",
+        }
+    ],
+    "data_sources": [
+        {
+            "id": 1,
+            "name": "source 2",
+            "order": "1.00000000000000000000",
+            "service": {
+                "id": 1,
+                "integration_id": 42,
+                "row_id": "",
+                "view_id": None,
+                "table_id": None,
+                "search_query": "",
+                "filter_type": "AND",
+                "type": "local_baserow_get_row",
+            },
+        },
+        {
+            "id": 3,
+            "name": "source 3",
+            "order": "2.00000000000000000000",
+            "service": {
+                "id": 2,
+                "integration_id": 42,
+                "view_id": None,
+                "table_id": None,
+                "search_query": "",
+                "filter_type": "AND",
+                "type": "local_baserow_list_rows",
+            },
+        },
+    ],
+}
 
 IMPORT_REFERENCE = {
     "pages": [
@@ -860,69 +930,7 @@ IMPORT_REFERENCE = {
                 },
             ],
         },
-        {
-            "id": 998,
-            "name": "Megan Clark",
-            "order": 2,
-            "path": "/test2",
-            "path_params": {},
-            "workflow_actions": [],
-            "shared": False,
-            "visibility": Page.VISIBILITY_TYPES.ALL.value,
-            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-            "roles": [],
-            "elements": [
-                {
-                    "id": 997,
-                    "type": "heading",
-                    "parent_element_id": None,
-                    "place_in_container": None,
-                    "style_background": "none",
-                    "style_background_color": "#ffffffff",
-                    "style_border_bottom_color": "border",
-                    "style_border_bottom_size": 0,
-                    "style_border_top_color": "border",
-                    "style_border_top_size": 0,
-                    "style_width": "normal",
-                    "order": 1,
-                    "value": "",
-                    "level": 1,
-                    "roles": [],
-                    "role_type": "allow_all",
-                }
-            ],
-            "data_sources": [
-                {
-                    "id": 1,
-                    "name": "source 2",
-                    "order": "1.00000000000000000000",
-                    "service": {
-                        "id": 1,
-                        "integration_id": 42,
-                        "row_id": "",
-                        "view_id": None,
-                        "table_id": None,
-                        "search_query": "",
-                        "filter_type": "AND",
-                        "type": "local_baserow_get_row",
-                    },
-                },
-                {
-                    "id": 3,
-                    "name": "source 3",
-                    "order": "2.00000000000000000000",
-                    "service": {
-                        "id": 2,
-                        "integration_id": 42,
-                        "view_id": None,
-                        "table_id": None,
-                        "search_query": "",
-                        "filter_type": "AND",
-                        "type": "local_baserow_list_rows",
-                    },
-                },
-            ],
-        },
+        PAGE_2_IMPORT_REFERENCE,
     ],
     "integrations": [
         {
@@ -987,6 +995,7 @@ IMPORT_REFERENCE = {
     "name": "Holly Sherman",
     "order": 0,
     "type": "builder",
+    "login_page": PAGE_2_IMPORT_REFERENCE,
 }
 
 
@@ -1021,6 +1030,8 @@ def test_builder_application_import(data_fixture):
 
     assert page1.datasource_set.count() == 2
     assert page2.datasource_set.count() == 2
+
+    assert builder.login_page == page2
 
     first_data_source = page2.datasource_set.first()
     assert first_data_source.name == "source 2"
@@ -1188,6 +1199,41 @@ def test_builder_application_import_with_complex_elements(data_fixture):
     builder = BuilderApplicationType().import_serialized(
         workspace, serialized_values, config, {}
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "page_property,value",
+    [
+        ("visibility", Page.VISIBILITY_TYPES.ALL),
+        ("role_type", Page.ROLE_TYPES.ALLOW_ALL),
+        ("roles", []),
+    ],
+)
+def test_builder_application_imports_page_with_default_visibility(
+    data_fixture, page_property, value
+):
+    """
+    Ensure that the importer sets default values for Page Visibility when the
+    Page Visiblity related values are missing in the exported data.
+    """
+
+    user = data_fixture.create_user(email="test@baserow.io")
+    workspace = data_fixture.create_workspace(user=user)
+
+    config = ImportExportConfig(include_permission_data=True)
+    serialized_values = deepcopy(IMPORT_REFERENCE)
+
+    first_page = serialized_values["pages"][0]
+    del first_page[page_property]
+
+    builder = BuilderApplicationType().import_serialized(
+        workspace, serialized_values, config, {}
+    )
+
+    page = builder.page_set.first()
+
+    assert getattr(page, page_property) == value
 
 
 @pytest.mark.django_db

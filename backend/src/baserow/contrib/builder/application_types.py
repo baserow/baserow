@@ -201,13 +201,22 @@ class BuilderApplicationType(ApplicationType):
             storage=storage,
         )
 
+        serialized_login_page = None
+        if builder.login_page:
+            serialized_login_page = PageHandler().export_page(
+                builder.login_page,
+                files_zip=files_zip,
+                storage=storage,
+                cache=self.cache,
+            )
+
         return BuilderDict(
             pages=serialized_pages,
             integrations=serialized_integrations,
             theme=serialized_theme,
             user_sources=serialized_user_sources,
             favicon_file=serialized_favicon_file,
-            login_page=builder.login_page,
+            login_page=serialized_login_page,
             **serialized_builder,
         )
 
@@ -394,8 +403,10 @@ class BuilderApplicationType(ApplicationType):
                 builder.favicon_file = favicon_file
                 builder.save()
 
-        if login_page := serialized_values.pop("login_page", None):
-            if login_page_id := id_mapping["builder_pages"].get(login_page.id, None):
+        if serialized_login_page := serialized_values.pop("login_page", None):
+            if login_page_id := id_mapping["builder_pages"].get(
+                serialized_login_page["id"], None
+            ):
                 builder.login_page_id = login_page_id
                 builder.save()
 
