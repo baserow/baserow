@@ -1339,15 +1339,18 @@ export default {
             }
             continue
           }
-          elementRight += this.getFieldWidth(this.fields[fieldOption[0]])
+
+          const matchedField = this.fields.find(
+            (field) => field.id === fieldOption[0]
+          )
+          elementRight += this.getFieldWidth(matchedField)
           if (fieldOption[0] === fieldId) {
             break
           }
         }
         const rowHeight =
           this.$store.getters[this.storePrefix + 'view/grid/getRowHeight']
-        const elementLeft =
-          elementRight - this.getFieldWidth(this.fields[fieldId])
+        const elementLeft = elementRight - this.getFieldWidth(field)
         const elementBottom =
           -verticalContainer.scrollTop + rowHeight + rowIndex * rowHeight
         const elementTop = elementBottom - rowHeight

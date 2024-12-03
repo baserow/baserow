@@ -34,6 +34,17 @@
     );
   }
 
+  .baserow-table > thead {
+    // Prevent visual artifacts when rendering cells with "empty" borders,
+    // by filling the thead element with the same background color as the
+    // header cells.
+    // See: https://gitlab.com/baserow/baserow/-/issues/3250
+    background-color: var(
+      --table-header-background-color,
+      $palette-neutral-200
+    );
+  }
+
   .baserow-table__empty-message {
     background-color: var(--table-cell-background-color, transparent);
     font-size: var(--body-font-size, 13px);

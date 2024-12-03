@@ -90,10 +90,6 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
-from baserow.core.feature_flags import (
-    FF_FILTER_DISPATCH_DATA_USING_ONLY,
-    feature_flag_is_enabled,
-)
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.handler import CoreHandler
@@ -1026,9 +1022,7 @@ class LocalBaserowListRowsUserServiceType(
             service, table, dispatch_context, model=table_model
         )
 
-        if only_field_names is not None and feature_flag_is_enabled(
-            FF_FILTER_DISPATCH_DATA_USING_ONLY
-        ):
+        if only_field_names is not None:
             # May be some fields were deleted in the meantime
             # Let's check we still have them
             available_fields = set(
