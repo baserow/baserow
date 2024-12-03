@@ -95,6 +95,9 @@ class IntegrationType(
         Hook to trigger any post import logic.
         """
 
+    def after_import(self, user: AbstractUser, instance: Integration):
+        pass
+
     def get_context_data(self, instance: Integration) -> Optional[Dict]:
         """
         Get all the context data for an integration that is required by the editor to
