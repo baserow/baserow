@@ -5,6 +5,7 @@ import sys
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from baserow.core.signals import application_imported
 from baserow.core.handler import CoreHandler
 from baserow.core.management.commands.export_workspace_applications import (
     cli_import_export_config,
@@ -75,6 +76,9 @@ class Command(BaseCommand):
 
             if files_buffer:
                 files_buffer.close()
+        
+            for application in applications:
+                application_imported.send(self, application=application, user=None)
 
             for application in applications:
                 application_imported.send(self, application=application, user=None)
