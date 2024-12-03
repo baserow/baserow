@@ -50,9 +50,13 @@ class SubTypeCallerMixin:
 
 
 class FormulaFieldPrepDbValueMixin:
+    def _is_value_empty(self, value):
+        return value is None or (isinstance(value, str) and value.strip() == '')
+
     def _get_prep_value(self, value: str, instance: typing.Any | None = None):
         from baserow.contrib.database.fields.registries import field_type_registry
-
+        if self._is_value_empty(value):
+            return None
         baserow_field_type = field_type_registry.get(self.baserow_field_type)
         field_instance = baserow_field_type.get_model_field(self)
         try:
@@ -60,7 +64,7 @@ class FormulaFieldPrepDbValueMixin:
             return field_instance.get_prep_value(value) or False
         except ValidationError as err:
             logger.warning(f"Cannot use {value} as {field_instance}: {err}")
-            return None
+            raise FilterNotSupportedException(f'invalid numeric value {value}: {err}')
 
 
 class FormulaArrayEqualFilterSupport(
@@ -189,8 +193,6 @@ class FormulaNumberFilterSupport(
     def get_in_array_empty_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        if not value.strip():
-            return Q()
         return get_array_json_filter_expression(
             JSONArrayHasEmptyValueExpr, field_name, value
         )

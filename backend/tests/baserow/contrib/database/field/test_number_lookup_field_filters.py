@@ -107,6 +107,7 @@ def number_lookup_filter_proc(
     )
 
     q = t.view_handler.get_queryset(t.grid_view)
+    print(f'filter {filter_type_name} with value: {(test_value,)}')
     print(f"expected: {expected_rows}")
     print(f"filtered: {[getattr(item, row_name) for item in q]}")
     for item in q:
@@ -114,7 +115,8 @@ def number_lookup_filter_proc(
     assert len(q) == len(expected_rows)
     assert set([getattr(r, row_name) for r in q]) == set(expected_rows)
 
-
+ALL_ROW_NAMES = ['above 100', 'exact 100', 'between 100 and 10', 'between 10 and 0', 'zero', 'below zero', 'nineninenine', 'onetwothree',
+                     'no_refs', 'refs_with_empty', '100_with_empty']
 # filters to test:
 #  has empty value
 #  doesn't have empty value
@@ -149,6 +151,7 @@ def number_lookup_filter_proc(
                 "nineninenine",
                 "onetwothree",
                 "no_refs",  # this is due to inversion of has_empty_value
+                #"refs_with_empty", "100_with_empty"
             ],
         ),
     ],
@@ -161,13 +164,13 @@ def test_has_empty_value(data_fixture, filter_type_name, test_value, expected_ro
 
 
 @pytest.mark.parametrize(
-    "filter_type_name,test_value,expected_rows,number_",
+    "filter_type_name,test_value,expected_rows",
     [
-        ("has_value_equal", "", [... "all"],5),
-        ("has_value_equal", "invalid", [... "all"], 5),
-        ("has_value_equal", "", [... "all"]),
+        ("has_value_equal", "", ALL_ROW_NAMES),
+        ("has_value_equal", "invalid", []),
+        ("has_value_equal", "100000000000000000000000000000000000000000000000000000000000000000000000",[]),
         (
-            "has_not_empty_value",
+            "has_value_equal",
             "",
             [
                 "above 100",
