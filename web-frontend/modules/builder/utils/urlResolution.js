@@ -4,7 +4,6 @@ import {
   PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS,
 } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
-import _ from 'lodash'
 
 /**
  * Responsible for generating the data necessary to resolve an application builder
