@@ -41,17 +41,16 @@ export default function resolveElementUrl(
       )
 
       const toPath = compile(page.path, { encode: encodeURIComponent })
-      // If the page does not use any parameter ignore element path parameters
-      const pageParams = _.isEmpty(page.path_params)
-        ? {}
-        : Object.fromEntries(
-            element.page_parameters.map(({ name, value }) => [
-              name,
-              PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS[paramTypeMap[name]](
-                resolveFormula(value)
-              ),
-            ])
-          )
+      const pageParams = Object.fromEntries(
+        element.page_parameters
+          .filter(({ name }) => name in paramTypeMap)
+          .map(({ name, value }) => [
+            name,
+            PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS[paramTypeMap[name]](
+              resolveFormula(value)
+            ),
+          ])
+      )
       resolvedUrl = toPath(pageParams)
     }
   } else {
