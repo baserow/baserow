@@ -19,6 +19,7 @@ from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
 
 from .types import IntegrationForUpdate
+from baserow.core.registries import ImportExportConfig
 
 
 class IntegrationHandler:
