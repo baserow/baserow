@@ -3,10 +3,12 @@ from io import BytesIO
 from unittest.mock import patch
 from zipfile import ZIP_DEFLATED, ZipFile
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 
 import pytest
+import zipstream
 
 from baserow.contrib.database.fields.field_filters import (
     FILTER_TYPE_AND,
@@ -24,6 +26,7 @@ from baserow.contrib.database.views.view_ownership_types import (
 )
 from baserow.core.models import WorkspaceUser
 from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.test_utils.helpers import ReplayValues, is_dict_subset
 
@@ -338,10 +341,17 @@ def test_import_export_form_view(data_fixture, tmpdir):
     files_buffer = BytesIO()
     form_view_type = view_type_registry.get("form")
 
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
-        serialized = form_view_type.export_serialized(
-            form_view, None, files_zip=files_zip, storage=storage
-        )
+    zip_file = ExportZipFile(
+        compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+        compress_type=zipstream.ZIP_DEFLATED,
+    )
+
+    serialized = form_view_type.export_serialized(
+        form_view, None, files_zip=zip_file, storage=storage
+    )
+
+    for chunk in zip_file:
+        files_buffer.write(chunk)
 
     assert serialized["id"] == form_view.id
     assert serialized["type"] == "form"
@@ -556,10 +566,17 @@ def test_import_export_form_view_with_grouped_conditions(data_fixture, tmpdir):
     files_buffer = BytesIO()
     form_view_type = view_type_registry.get("form")
 
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
-        serialized = form_view_type.export_serialized(
-            form_view, None, files_zip=files_zip, storage=storage
-        )
+    zip_file = ExportZipFile(
+        compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+        compress_type=zipstream.ZIP_DEFLATED,
+    )
+
+    serialized = form_view_type.export_serialized(
+        form_view, None, files_zip=zip_file, storage=storage
+    )
+
+    for chunk in zip_file:
+        files_buffer.write(chunk)
 
     assert serialized["id"] == form_view.id
     assert serialized["type"] == "form"

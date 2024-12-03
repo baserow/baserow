@@ -10,10 +10,12 @@ from django.core.files.storage import FileSystemStorage
 
 import httpretty
 import pytest
+import zipstream
 from freezegun import freeze_time
 from PIL import Image
 
 from baserow.core.models import UserFile
+from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
     FileURLCouldNotBeReached,
@@ -652,16 +654,17 @@ def test_export_user_file_doesnt_add_if_file_exists_in_files_zip(
         user, original_name, image_bytes, storage=storage
     )
 
-    files_buffer = BytesIO()
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
-        files_zip.namelist = MagicMock(return_value=[user_file.name])
-        files_zip.writestr = MagicMock()
-        result = handler.export_user_file(
-            user_file, files_zip=files_zip, storage=storage
-        )
+    zip_file = ExportZipFile(
+        compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+        compress_type=zipstream.ZIP_DEFLATED,
+    )
+    # Pretend the file already exists and verify that add() is not called.
+    zip_file.info_list = MagicMock(return_value=[{"name": user_file.name}])
+    zip_file.add = MagicMock()
+    result = handler.export_user_file(user_file, files_zip=zip_file, storage=storage)
 
     assert result == {"name": user_file.name, "original_name": original_name}
-    files_zip.writestr.assert_not_called()
+    zip_file.add.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -720,13 +723,22 @@ def test_export_user_file_adds_if_files_zip_is_empty_and_not_in_cache(
 
     files_buffer = BytesIO()
     cache = {}
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
-        result = handler.export_user_file(
-            user_file, files_zip=files_zip, storage=storage, cache=cache
-        )
+
+    zip_file = ExportZipFile(
+        compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+        compress_type=zipstream.ZIP_DEFLATED,
+    )
+    result = handler.export_user_file(
+        user_file, files_zip=zip_file, storage=storage, cache=cache
+    )
+
+    for chunk in zip_file:
+        files_buffer.write(chunk)
+
+    file_names_in_zip = [item["name"] for item in zip_file.info_list()]
 
     assert result == {"name": user_file.name, "original_name": original_name}
-    assert user_file.name in files_zip.namelist()
+    assert user_file.name in file_names_in_zip
     assert cache[f"user_file_{user_file.name}"] is True
 
 

@@ -44,6 +44,7 @@ from baserow.contrib.database.fields.models import Field, FileField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.registries import view_aggregation_type_registry
+from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_files.models import UserFile
@@ -1008,11 +1009,12 @@ class FormViewType(ViewType):
                 return None
 
             name = user_file.name
-
-            if files_zip is not None and name not in files_zip.namelist():
+            namelist = [item["name"] for item in files_zip.info_list()]
+            if files_zip is not None and name not in namelist:
                 file_path = UserFileHandler().user_file_path(name)
-                with storage.open(file_path, mode="rb") as storage_file:
-                    files_zip.writestr(name, storage_file.read())
+
+                chunk_generator = file_chunk_generator(storage, file_path)
+                files_zip.add(chunk_generator, name)
 
             return {"name": name, "original_name": user_file.original_name}
 

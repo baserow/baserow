@@ -5,11 +5,13 @@ from tempfile import tempdir
 from unittest.mock import Mock
 from zipfile import ZIP_DEFLATED, ZipFile
 
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import FileSystemStorage
 from django.http import HttpRequest
 
 import pytest
+import zipstream
 from rest_framework.exceptions import ValidationError
 
 from baserow.api.exceptions import RequestBodyValidationException
@@ -67,6 +69,7 @@ from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_sources.registries import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.utils import MirrorDict
@@ -856,10 +859,17 @@ def test_image_element_import_export(data_fixture, fake, storage):
         image_url=f"get('data_source.{data_source_1.id}.field_1')",
     )
 
-    with ZipFile(zip_buffer, "a", ZIP_DEFLATED, False) as zip_file:
-        serialized = element_type.export_serialized(
-            element_to_export, files_zip=zip_file, storage=storage
-        )
+    zip_file = ExportZipFile(
+        compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+        compress_type=zipstream.ZIP_DEFLATED,
+    )
+
+    serialized = element_type.export_serialized(
+        element_to_export, files_zip=zip_file, storage=storage
+    )
+
+    for chunk in zip_file:
+        zip_buffer.write(chunk)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
