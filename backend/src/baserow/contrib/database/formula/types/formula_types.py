@@ -4,12 +4,13 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, List, Optional, Set, Type, Union
 
-from dateutil import parser
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Expression, F, Func, Q, QuerySet, TextField, Value
 from django.db.models.functions import Cast, Concat
+
+from dateutil import parser
 from rest_framework import serializers
 from rest_framework.fields import Field
 
@@ -25,15 +26,16 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
     get_array_json_filter_expression,
 )
 from baserow.contrib.database.fields.filter_support.formula import (
-    FormulaNumberFilterSupport, FormulaFieldPrepDbValueMixin,
+    FormulaFieldPrepDbValueMixin,
+    FormulaNumberFilterSupport,
 )
 from baserow.contrib.database.fields.filter_support.single_select import (
-    SingleSelectFormulaTypeFilterSupport,
+    SingleSelectFormulaTypeEqualFilterSupport,
 )
 from baserow.contrib.database.fields.mixins import get_date_time_format
 from baserow.contrib.database.fields.utils.duration import (
@@ -54,8 +56,9 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
 )
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.formula.types.exceptions import UnknownFormulaType
-from baserow.contrib.database.formula.types.filter_support import \
-    BaserowFormulaArrayFilterSupportMixin
+from baserow.contrib.database.formula.types.filter_support import (
+    BaserowFormulaArrayEqualFilterSupportMixin,
+)
 from baserow.contrib.database.formula.types.formula_type import (
     BaserowFormulaInvalidType,
     BaserowFormulaType,
@@ -117,7 +120,7 @@ class BaserowFormulaBaseTextType(BaserowFormulaTypeHasEmptyBaserowExpression):
 
 class BaserowFormulaTextType(
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
@@ -441,7 +444,7 @@ class BaserowFormulaNumberType(
 class BaserowFormulaBooleanType(
     FormulaFieldPrepDbValueMixin,
     HasAllValuesEqualFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
     BaserowFormulaTypeHasEmptyBaserowExpression,
     BaserowFormulaValidType,
 ):
@@ -474,7 +477,6 @@ class BaserowFormulaBooleanType(
         self, expr: "BaserowExpression[BaserowFormulaValidType]"
     ):
         return expr
-
 
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
@@ -1028,7 +1030,7 @@ class BaserowFormulaSingleFileType(BaserowJSONBObjectBaseType):
 
 
 class BaserowFormulaArrayType(
-    BaserowFormulaArrayFilterSupportMixin,
+    BaserowFormulaArrayEqualFilterSupportMixin,
     BaserowFormulaValidType,
 ):
     type = "array"
@@ -1315,7 +1317,7 @@ class BaserowFormulaArrayType(
 
 
 class BaserowFormulaSingleSelectType(
-    SingleSelectFormulaTypeFilterSupport,
+    SingleSelectFormulaTypeEqualFilterSupport,
     BaserowJSONBObjectBaseType,
 ):
     type = "single_select"

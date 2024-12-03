@@ -1,16 +1,22 @@
 import typing
 
 from django.db import models
+
 from loguru import logger
 
 from baserow.contrib.database.fields.filter_support.base import (
     HasAllValuesEqualFilterSupport,
-    HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
-    HasValueLengthIsLowerThanFilterSupport, IHasValueHigherThanFilterSupport,
-    IHasValueHigherOrEqualThanFilterSupport, IHasValueLowerOrEqualThanFilterSupport, IHasValueLowerThanFilterSupport
+    HasValueEmptyFilterSupport,
+    HasValueEqualFilterSupport,
+    HasValueLengthIsLowerThanFilterSupport,
+    IHasValueEmptyFilterSupport,
+    IHasValueHigherOrEqualThanFilterSupport,
+    IHasValueHigherThanFilterSupport,
+    IHasValueLowerOrEqualThanFilterSupport,
+    IHasValueLowerThanFilterSupport, IHasValueEqualFilterSupport,
+    IHasValueContainsFilterSupport,
 )
 from baserow.contrib.database.fields.filter_support.exceptions import (
     FilterNotSupportedException,
@@ -18,6 +24,10 @@ from baserow.contrib.database.fields.filter_support.exceptions import (
 
 
 class SubTypeCallerMixin:
+    """
+    A shortcut to call delegate method on a subtype formula type.
+    """
+
     def do_call_subtype_filter_method(
         self,
         field_name,
@@ -35,11 +45,11 @@ class SubTypeCallerMixin:
         )
 
 
-class BaserowFormulaArrayFilterSupportMixin(
+class BaserowFormulaArrayEqualFilterSupportMixin(
     SubTypeCallerMixin,
     HasAllValuesEqualFilterSupport,
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
@@ -50,7 +60,7 @@ class BaserowFormulaArrayFilterSupportMixin(
             value,
             model_field,
             field,
-            HasValueFilterSupport,
+            IHasValueEqualFilterSupport,
             "get_in_array_is_query",
         )
 
@@ -60,7 +70,7 @@ class BaserowFormulaArrayFilterSupportMixin(
             None,
             model_field,
             field,
-            HasValueEmptyFilterSupport,
+            IHasValueEmptyFilterSupport,
             "get_in_array_empty_query",
         )
 
@@ -70,7 +80,7 @@ class BaserowFormulaArrayFilterSupportMixin(
             value,
             model_field,
             field,
-            HasValueContainsFilterSupport,
+            IHasValueContainsFilterSupport,
             "get_in_array_contains_query",
         )
 
@@ -108,7 +118,8 @@ class BaserowFormulaArrayFilterSupportMixin(
             "get_has_all_values_equal_query",
         )
 
-    def get_has_value_higher_filter_query(self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    def get_has_value_higher_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
         return self.do_call_subtype_filter_method(
             field_name,
@@ -119,7 +130,8 @@ class BaserowFormulaArrayFilterSupportMixin(
             "get_has_value_higher_filter_query",
         )
 
-    def get_has_value_higher_or_equal_filter_query(self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    def get_has_value_higher_or_equal_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
         return self.do_call_subtype_filter_method(
             field_name,
@@ -130,9 +142,8 @@ class BaserowFormulaArrayFilterSupportMixin(
             "get_has_value_higher_or_equal_filter_query",
         )
 
-
-
-    def get_has_value_lower_filter_query(self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    def get_has_value_lower_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
         return self.do_call_subtype_filter_method(
             field_name,
@@ -143,7 +154,8 @@ class BaserowFormulaArrayFilterSupportMixin(
             "get_has_value_lower_filter_query",
         )
 
-    def get_has_value_lower_or_equal_filter_query(self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    def get_has_value_lower_or_equal_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
         return self.do_call_subtype_filter_method(
             field_name,
@@ -153,5 +165,3 @@ class BaserowFormulaArrayFilterSupportMixin(
             IHasValueLowerOrEqualThanFilterSupport,
             "get_has_value_lower_or_equal_filter_query",
         )
-
-

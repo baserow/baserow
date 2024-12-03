@@ -151,3 +151,46 @@ export function genericHasValueLengthLowerThanFilter(cellValue, filterValue) {
 
   return false
 }
+
+function doNumberComparison(valA, valB, opfunc) {
+  const parsedValA = parseFloat(valA)
+  const parsedValB = parseFloat(valB)
+
+  if (!_.isNumber(parsedValA) || !_.isNumber(parsedValB)) {
+    return false
+  }
+  return opfunc(parsedValA, parsedValB)
+}
+
+export function genericHasValueHigherThanFilterFunction(
+  cellValue,
+  filterValue
+) {
+  return doNumberComparison(cellValue, filterValue, (cell, filter) => {
+    return cell > filter
+  })
+}
+
+export function genericHasValueHigherOrEqualThanFilterFunction(
+  cellValue,
+  filterValue
+) {
+  return doNumberComparison(cellValue, filterValue, (cell, filter) => {
+    return cell >= filter
+  })
+}
+
+export function genericHasValueLowerThanFilterFunction(cellValue, filterValue) {
+  return doNumberComparison(cellValue, filterValue, (cell, filter) => {
+    return cell < filter
+  })
+}
+
+export function genericHasValueLowerOrEqualThanFilterFunction(
+  cellValue,
+  filterValue
+) {
+  return doNumberComparison(cellValue, filterValue, (cell, filter) => {
+    return cell <= filter
+  })
+}

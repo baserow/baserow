@@ -681,6 +681,13 @@ export class FieldType extends Registerable {
     )
   }
 
+  /**
+   * Returns optionally input component for a field / filter type combination.
+   * This is called by FilterType to get the component. FilterType should provide
+   * a default if FieldType returns null.
+   *
+   * @returns {null}
+   */
   getFilterInputComponent(field, filterType) {
     return null
   }

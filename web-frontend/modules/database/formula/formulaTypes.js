@@ -66,6 +66,7 @@ import {
 } from '@baserow/modules/database/utils/fieldFilters'
 import ViewFilterTypeSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeSelectOptions.vue'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
+import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber.vue'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
   getIconClass() {
@@ -304,7 +305,12 @@ export class BaserowFormulaCharType extends mix(
   }
 }
 
-export class BaserowFormulaNumberType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaNumberType extends mix(
+  hasEmptyValueFilterMixin,
+  hasValueEqualFilterMixin,
+  hasValueContainsFilterMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'number'
   }
@@ -319,6 +325,10 @@ export class BaserowFormulaNumberType extends BaserowFormulaTypeDefinition {
 
   getRowEditFieldComponent(field) {
     return RowEditFieldNumber
+  }
+
+  getFilterInputComponent(field, filterType) {
+    return ViewFilterTypeNumber
   }
 
   getSortOrder() {

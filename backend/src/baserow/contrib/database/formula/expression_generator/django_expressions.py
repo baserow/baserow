@@ -186,6 +186,19 @@ class JSONArrayContainsValueExpr(BaserowFilterExpression):
     )
     # fmt: on
 
+class JSONArrayEqualNumericValueExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT 1
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE (filtered_field ->> 'value')::numeric = %(value)s::numeric
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
 
 class JSONArrayContainsValueSimilarToExpr(BaserowFilterExpression):
     # fmt: off
@@ -223,6 +236,20 @@ class JSONArrayAllAreExpr(BaserowFilterExpression):
             SELECT upper(filtered_field ->> 'value')
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
         ) AND JSONB_ARRAY_LENGTH(%(field_name)s) > 0
+                """  # nosec B608 %(value)s
+    )
+    # fmt: on
+
+
+class JSONArrayHasEmptyValueExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS( SELECT 1
+
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE coalesce(filtered_field ->> 'value', '') = ''
+        )
                 """  # nosec B608 %(value)s
     )
     # fmt: on
@@ -319,7 +346,21 @@ class JSONArrayContainsValueLowerThanOrEqualNumericExpr(BaserowFilterExpression)
         EXISTS(
             SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE (filtered_field ->> 'value')::numeric =< %(value)s::numeric
+            WHERE (filtered_field ->> 'value')::numeric <= %(value)s::numeric
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayContainsValueLowerThanOrEqualNumericExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT 1
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE (filtered_field ->> 'value')::numeric <= %(value)s::numeric
         )
         """  # nosec B608
     )

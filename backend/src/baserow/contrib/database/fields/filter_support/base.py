@@ -28,6 +28,30 @@ if typing.TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
 
 
+@runtime_checkable
+class IHasValueEmptyFilterSupport(Protocol):
+    def get_in_array_empty_query(
+        self, field_name: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        ...
+
+
+@runtime_checkable
+class IHasValueEqualFilterSupport(Protocol):
+    def get_in_array_is_query(
+        self, field_name: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        ...
+
+
+@runtime_checkable
+class IHasValueContainsFilterSupport(Protocol):
+    def get_in_array_contains_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        ...
+
+
 class HasValueEmptyFilterSupport:
     def get_in_array_empty_query(
         self, field_name: str, model_field: models.Field, field: "Field"
@@ -44,7 +68,7 @@ class HasValueEmptyFilterSupport:
         return Q(**{f"{field_name}__contains": Value([{"value": ""}], JSONField())})
 
 
-class HasValueFilterSupport:
+class HasValueEqualFilterSupport:
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
@@ -217,8 +241,6 @@ class IHasValueLowerOrEqualThanFilterSupport(Protocol):
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
         ...
-
-
 
 
 def get_array_json_filter_expression(

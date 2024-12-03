@@ -40,6 +40,7 @@ export class HasEmptyValueViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(number)'),
     ]
   }
 
@@ -64,6 +65,7 @@ export class HasNotEmptyValueViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(number)'),
     ]
   }
 
@@ -110,7 +112,8 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
         FormulaFieldType.arrayOf('char'),
         FormulaFieldType.arrayOf('url'),
         FormulaFieldType.arrayOf('boolean'),
-        FormulaFieldType.arrayOf('single_select')
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('number')
       ),
     ]
   }
@@ -154,7 +157,8 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
         FormulaFieldType.arrayOf('char'),
         FormulaFieldType.arrayOf('url'),
         FormulaFieldType.arrayOf('boolean'),
-        FormulaFieldType.arrayOf('single_select')
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('number')
       ),
     ]
   }
@@ -176,10 +180,13 @@ export class HasValueContainsViewFilterType extends ViewFilterType {
 
   getCompatibleFieldTypes() {
     return [
-      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('number')
+      ),
     ]
   }
 
@@ -204,10 +211,13 @@ export class HasNotValueContainsViewFilterType extends ViewFilterType {
 
   getCompatibleFieldTypes() {
     return [
-      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('number')
+      ),
     ]
   }
 
@@ -400,7 +410,11 @@ export class HasValueHigherThanViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
+    return fieldType.getHasValueHigherThanFilterFunction(
+      cellValue,
+      filterValue,
+      field
+    )
   }
 }
 
@@ -427,7 +441,11 @@ export class HasValueHigherThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
+    return fieldType.getHasValueHigherThanOrEqualFilterFunction(
+      cellValue,
+      filterValue,
+      field
+    )
   }
 }
 
@@ -461,6 +479,122 @@ export class HasValueLowerThanViewFilterType extends ViewFilterType {
 export class HasValueLowerThanOrEqualViewFilterType extends ViewFilterType {
   static getType() {
     return 'has_value_lower_or_equal'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasValueLowerThanOrEqual')
+  }
+
+  getInputComponent(field) {
+    return ViewFilterTypeNumber
+  }
+
+  getCompatibleFieldTypes() {
+    return [
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
+      ),
+    ]
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
+  }
+}
+
+export class HasNotValueHigherThanOrEqualViewFilterType extends ViewFilterType {
+  static getType() {
+    return 'has_not_value_higher_or_equal'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotValueHigherThanOrEqual')
+  }
+
+  getInputComponent(field) {
+    return ViewFilterTypeNumber
+  }
+
+  getCompatibleFieldTypes() {
+    return [
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
+      ),
+    ]
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    return fieldType.getHasValueHigherThanFilterFunction(
+      cellValue,
+      filterValue,
+      field
+    )
+  }
+}
+
+export class HasNotValueHigherThanViewFilterType extends ViewFilterType {
+  static getType() {
+    return 'has_not_value_higher'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotValueHigherThan')
+  }
+
+  getInputComponent(field) {
+    return ViewFilterTypeNumber
+  }
+
+  getCompatibleFieldTypes() {
+    return [
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
+      ),
+    ]
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    return fieldType.getHasValueHigherThanFilterFunction(
+      cellValue,
+      filterValue,
+      field
+    )
+  }
+}
+
+export class HasNotValueLowerThanViewFilterType extends ViewFilterType {
+  static getType() {
+    return 'has_not_value_lower'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasValueLowerThan')
+  }
+
+  getInputComponent(field) {
+    return ViewFilterTypeNumber
+  }
+
+  getCompatibleFieldTypes() {
+    return [
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
+      ),
+    ]
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
+  }
+}
+
+export class HasNotValueLowerThanOrEqualViewFilterType extends ViewFilterType {
+  static getType() {
+    return 'has_not_value_lower_or_equal'
   }
 
   getName() {

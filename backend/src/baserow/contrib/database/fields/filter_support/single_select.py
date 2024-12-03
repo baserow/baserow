@@ -19,16 +19,16 @@ from .base import (
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
 )
 
 if TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
 
 
-class SingleSelectFormulaTypeFilterSupport(
+class SingleSelectFormulaTypeEqualFilterSupport(
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
 ):

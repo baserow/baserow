@@ -5,6 +5,8 @@ import {
   genericHasEmptyValueFilter,
   genericHasValueLengthLowerThanFilter,
   genericHasAllValuesEqualFilter,
+  genericHasValueHigherThanFilterFunction,
+  genericHasValueLowerThanFilterFunction,
 } from '@baserow/modules/database/utils/fieldFilters'
 
 export const hasEmptyValueFilterMixin = {
@@ -24,6 +26,7 @@ export const hasAllValuesEqualFilterMixin = {
       this.getHasAllValuesEqualFilterFunction(field)(cellValue, filterValue)
     )
   },
+
   hasNotAllValuesEqualFilter(cellValue, filterValue, field) {
     return (
       filterValue === '' ||
@@ -91,6 +94,18 @@ export const hasValueLengthIsLowerThanFilterMixin = {
   },
 }
 
+export const hasValueHigherThanFilterMixin = {
+  getHasValueHigherThanFilterFunction(field) {
+    return genericHasValueHigherThanFilterFunction
+  },
+
+  getHasValueLowerThanFilterFunction(field) {
+    return genericHasValueLowerThanFilterFunction
+  },
+
+  getHasValueHigherOrEqualThanFilterFunctioN(field) {},
+}
+
 export const formulaArrayFilterMixin = {
   getSubType(field) {
     return this.app.$registry.get('formula_type', field.array_formula_type)
@@ -143,6 +158,26 @@ export const formulaArrayFilterMixin = {
 
   getHasAllValuesEqualFilterFunction(field) {
     return this.getSubType(field)?.getHasAllValuesEqualFilterFunction(field)
+  },
+  getHasValueHigherThanFilterFunction(cellValue, filterValue, field) {
+    return this.getSubType(field)?.getHasValueHigherThanFilterFunction(
+      cellValue,
+      filterValue,
+      field
+    )
+  },
+  getHasValueHigherThanOrEqualFilterFunction(field) {
+    return this.getSubType(field)?.getHasValueHigherThanOrEqualFilterFunction(
+      field
+    )
+  },
+  getHasValueLowerThanFilterFunction(field) {
+    return this.getSubType(field)?.getHasValueLowerThanFilterFunction(field)
+  },
+  getHasValueLowerThanOrEqualFilterFunction(field) {
+    return this.getSubType(field)?.getHasValueLowerThanOrEqualFilterFunction(
+      field
+    )
   },
 }
 
