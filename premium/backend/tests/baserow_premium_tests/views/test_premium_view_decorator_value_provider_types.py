@@ -65,6 +65,27 @@ def test_import_export_grid_view_w_decorator(data_fixture):
         order=2,
     )
 
+    view_decoration_3 = data_fixture.create_view_decoration(
+        view=grid_view,
+        type="left_border_color",
+        value_provider_type="conditional_color",
+        value_provider_conf={
+            "colors": [
+                {
+                    "filters": [
+                        {
+                            "type": "single_select_equal",
+                            "field": single_select.id,
+                            "group": 1,
+                            "value": f"{option.id},100",
+                        },
+                    ],
+                },
+            ]
+        },
+        order=3,
+    )
+
     id_mapping = {
         "database_fields": {
             field.id: imported_field.id,
@@ -106,7 +127,8 @@ def test_import_export_grid_view_w_decorator(data_fixture):
                     "type": "single_select_equal",
                     "field": imported_single_select.id,
                     "group": 1,
-                    "value": imported_option.id,
+                    # filter value should be a string
+                    "value": str(imported_option.id),
                 },
             ],
             "filter_groups": [{"id": 1}],
@@ -114,6 +136,28 @@ def test_import_export_grid_view_w_decorator(data_fixture):
         {
             "id": AnyStr(),
             "filters": [{"field": imported_field.id, "value": ""}],
+        },
+    ]
+
+    assert view_decoration_3.id != imported_view_decorations[2].id
+    assert view_decoration_3.type == imported_view_decorations[2].type
+    assert (
+        view_decoration_3.value_provider_type
+        == imported_view_decorations[2].value_provider_type
+    )
+
+    # test a list of values with one value id not present in the mapping
+    assert imported_view_decorations[2].value_provider_conf["colors"] == [
+        {
+            "id": AnyStr(),  # a new id is generated for every inserted color
+            "filters": [
+                {
+                    "type": "single_select_equal",
+                    "field": imported_single_select.id,
+                    "group": 1,
+                    "value": f"{imported_option.id},100",
+                },
+            ],
         },
     ]
 

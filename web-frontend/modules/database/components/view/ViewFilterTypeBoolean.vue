@@ -13,7 +13,9 @@ export default {
   mixins: [viewFilter],
   computed: {
     copy() {
-      const value = (this.filter.value || '').toString().toLowerCase().trim()
+      const value = String(this.filter.value ?? '')
+        .toLowerCase()
+        .trim()
       return trueValues.includes(value)
     },
   },
