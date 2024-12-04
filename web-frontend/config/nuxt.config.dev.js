@@ -26,6 +26,6 @@ export default Object.assign(base(), {
         syntax: 'scss',
       }),
     ],
-    transpile: ['axios', 'markdown-it', 'entities'],
+    transpile: ['axios'],
   },
 })

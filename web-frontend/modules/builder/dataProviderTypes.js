@@ -288,8 +288,7 @@ export class PageParameterDataProviderType extends DataProviderType {
 
   async init(applicationContext) {
     const { page, mode, pageParamsValue } = applicationContext
-    console.log(page)
-    const pageParams = [...page.path_params]//, ...page.query_params]
+    const pageParams = [...page.path_params, ...page.query_params]
 
     if (mode === 'editing') {
       // Generate fake values for the parameters
@@ -310,6 +309,10 @@ export class PageParameterDataProviderType extends DataProviderType {
             page,
             name,
             value: PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS[type](
+              // If the (query string) value is not present in the pageParamsValue,
+              // we raise "A valid `type` is required." error.
+              // Not sure how that translates to production.
+              // TODO: Discuss and possibly implement better error handling.
               pageParamsValue[name]
             ),
           })
@@ -340,11 +343,12 @@ export class PageParameterDataProviderType extends DataProviderType {
   getDataSchema(applicationContext) {
     const page = applicationContext.page
     const toJSONType = { text: 'string', numeric: 'number' }
+    const mergedParams = [...page?.path_params || [], ...page?.query_params || []]
 
     return {
       type: 'object',
       properties: Object.fromEntries(
-        (page?.path_params || []).map(({ name, type }) => [
+        mergedParams.map(({ name, type }) => [
           name,
           {
             title: name,

@@ -41,6 +41,7 @@ const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
 
 export default {
   components: { PageContent, Toasts },
+  ssr: false,
   provide() {
     return {
       workspace: this.workspace,
@@ -61,6 +62,7 @@ export default {
     req,
     redirect,
     route,
+    query,
   }) {
     let mode = 'public'
     const builderId = params.builderId ? parseInt(params.builderId, 10) : null
@@ -198,6 +200,9 @@ export default {
         message: app.i18n.t('publicPage.pageNotFound'),
       })
     }
+
+    // Merge the query string values with the page parameters
+    Object.assign(pageParamsValue, query)
 
     const page = await store.getters['page/getById'](builder, pageFound.id)
 

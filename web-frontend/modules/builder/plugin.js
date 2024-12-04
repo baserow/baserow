@@ -134,7 +134,10 @@ import {
   CourierNewFontFamilyType,
   BrushScriptMTFontFamilyType,
 } from '@baserow/modules/builder/fontFamilyTypes'
-import {NumericQueryParamType, TextQueryParamType} from '@baserow/modules/builder/queryParamTypes'
+import {
+  TextQueryParamType,
+  NumericQueryParamType,
+} from '@baserow/modules/builder/queryParamTypes'
 
 export default (context) => {
   const { store, app, isDev } = context

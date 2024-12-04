@@ -102,6 +102,7 @@ class PagesView(APIView):
             data["name"],
             path=data["path"],
             path_params=data.get("path_params", None),
+            query_params=data.get("query_params", None),
         )
 
         serializer = PageSerializer(page)

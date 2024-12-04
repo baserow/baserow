@@ -28,7 +28,7 @@ from baserow.contrib.builder.pages.exceptions import (
     SharedPageIsReadOnly,
 )
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.pages.types import PagePathParams
+from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParam
 from baserow.contrib.builder.types import PageDict
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
@@ -97,6 +97,7 @@ class PageHandler:
         name: str,
         path: str,
         path_params: PagePathParams = None,
+        query_params: PageQueryParam = None,
         shared: bool = False,
     ) -> Page:
         """
@@ -106,6 +107,7 @@ class PageHandler:
         :param name: The name of the page
         :param path: The path of the page
         :param path_params: The params of the path provided
+        :param query_params: The query params of the page provided
         :param shared: If this is the shared page. They should be only one shared page
           per builder application.
         :return: The newly created page instance
@@ -124,6 +126,7 @@ class PageHandler:
                 order=last_order,
                 path=path,
                 path_params=path_params,
+                query_params=query_params,
                 shared=shared,
             )
         except IntegrityError as e:
