@@ -6,12 +6,6 @@ from django.conf import settings
 
 import pytest
 
-SOURCES_PATH = os.path.join(
-    settings.BASE_DIR, "../../../tests/baserow/api/import_export/sources"
-)
-BUILDER_EXPORT_PATH = f"{SOURCES_PATH}/builder_export.zip"
-
-
 from baserow.core.import_export.exceptions import ImportExportResourceInvalidFile
 from baserow.core.import_export.handler import ImportExportHandler
 from baserow.test_utils.zip_helpers import (
