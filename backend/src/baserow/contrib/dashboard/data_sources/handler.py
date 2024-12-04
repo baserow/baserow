@@ -237,7 +237,7 @@ class DashboardDataSourceHandler:
             service_to_update = self.service_handler.get_service_for_update(
                 data_source.service.id
             )
-            self.service_handler.update_service(
+            data_source.service = self.service_handler.update_service(
                 service_type, service_to_update, **kwargs
             )
 
