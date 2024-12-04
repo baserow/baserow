@@ -3,7 +3,7 @@
     <div ref="date">
       <FormInput
         v-model="dateString"
-        :error="v$.copy.$error"
+        :error="v$.copy?.$error"
         :disabled="disabled"
         :placeholder="placeholder"
         @focus="$refs.dateContext.toggle($refs.date, 'bottom', 'left', 0)"
@@ -12,10 +12,10 @@
         @input="
           ;[
             setCopyFromDateString(dateString, 'dateString'),
-            $emit('input', copy),
+            $emit('input', v$.copy.$model),
           ]
         "
-        @keydown.enter="$emit('input', copy)"
+        @keydown.enter="$emit('input', v$.copy.$model)"
       ></FormInput>
     </div>
     <Context
@@ -35,7 +35,7 @@
           @input="
             ;[
               setCopy($event, 'dateObject'),
-              $emit('input', copy),
+              $emit('input', v$.copy.$model),
               $refs.dateContext.hide(),
             ]
           "
@@ -46,6 +46,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import moment from '@baserow/modules/core/moment'
 import {
   getDateMomentFormat,
@@ -75,17 +77,31 @@ export default {
   },
   data() {
     return {
-      copy: '',
       dateString: '',
       dateObject: '',
       datePickerLang: {
         en,
         fr,
       },
+      values: null,
+      v$: null,
     }
   },
-
   created() {
+    const values = reactive({
+      copy: '',
+    })
+
+    const rules = computed(() => ({
+      copy: {
+        date(value) {
+          return value === '' || moment(value).isValid()
+        },
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+
     this.setCopy(this.value)
   },
   mounted() {
@@ -93,20 +109,20 @@ export default {
   },
   methods: {
     clear() {
-      this.copy = ''
+      this.values.copy = ''
       this.dateString = ''
       this.$emit('input', null)
     },
     setCopy(value, sender) {
       if (value === null) {
-        this.copy = ''
+        this.values.copy = ''
         return
       }
 
       const newDate = moment.utc(value)
 
       if (newDate.isValid()) {
-        this.copy = newDate.format('YYYY-MM-DD')
+        this.values.copy = newDate.format('YYYY-MM-DD')
 
         if (sender !== 'dateObject') {
           this.dateObject = newDate.toDate()
@@ -120,7 +136,7 @@ export default {
     },
     setCopyFromDateString(value, sender) {
       if (value === '') {
-        this.copy = ''
+        this.values.copy = ''
         return
       }
 
@@ -130,7 +146,7 @@ export default {
       if (newDate.isValid()) {
         this.setCopy(newDate, sender)
       } else {
-        this.copy = value
+        this.values.copy = value
       }
     },
     getDatePlaceholder(field) {
@@ -138,13 +154,6 @@ export default {
     },
     focus() {
       this.$refs.date.focus()
-    },
-  },
-  validations: {
-    copy: {
-      date(value) {
-        return value === '' || moment(value).isValid()
-      },
     },
   },
 }

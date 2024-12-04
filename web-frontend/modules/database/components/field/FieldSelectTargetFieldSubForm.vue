@@ -13,13 +13,13 @@
       :label="label"
       small-label
       required
-      :error="v$.values.target_field_id.$error"
+      :error="v$.target_field_id.$error"
     >
       <Dropdown
-        v-model="values.target_field_id"
-        :error="v$.values.target_field_id.$error"
+        v-model="v$.target_field_id.$model"
+        :error="v$.target_field_id.$error"
         :fixed-items="true"
-        @hide="v$.values.target_field_id.$touch()"
+        @hide="v$.target_field_id.$touch"
         @input="targetFieldChanged($event)"
       >
         <DropdownItem
@@ -37,6 +37,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
@@ -68,9 +70,8 @@ export default {
   data() {
     return {
       allowedValues: ['target_field_id'],
-      values: {
-        target_field_id: null,
-      },
+      values: null,
+      v$: null,
       loading: false,
       fieldsInThroughTable: [],
     }
@@ -96,6 +97,20 @@ export default {
     throughField(value) {
       this.throughFieldChanged(value)
     },
+  },
+  created() {
+    const values = reactive({
+      target_field_id: null,
+    })
+
+    const rules = computed(() => ({
+      target_field_id: {
+        required,
+      },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     async fetchFields() {
@@ -154,11 +169,6 @@ export default {
       } else {
         this.$emit('input', field)
       }
-    },
-  },
-  validations: {
-    values: {
-      target_field_id: { required },
     },
   },
 }

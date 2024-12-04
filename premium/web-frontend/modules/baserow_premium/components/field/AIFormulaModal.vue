@@ -23,6 +23,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 
 import modal from '@baserow/modules/core/mixins/modal'
@@ -48,9 +50,8 @@ export default {
     return {
       loading: false,
       allowedValues: ['ai_prompt'],
-      values: {
-        ai_prompt: '',
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -63,6 +64,17 @@ export default {
         (models) => models.length > 0
       )
     },
+  },
+  created() {
+    const values = reactive({
+      ai_prompt: '',
+    })
+
+    const rules = computed(() => ({
+      ai_prompt: { required },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     async submit(values) {
@@ -87,11 +99,6 @@ export default {
       } finally {
         this.loading = false
       }
-    },
-  },
-  validations: {
-    values: {
-      ai_prompt: { required },
     },
   },
 }

@@ -7,22 +7,19 @@
     </p>
     <FormGroup
       :label="$t('importFromAirtable.airtableShareLinkTitle')"
-      :error="v$.values.airtableUrl.$error"
+      :error="v$.airtableUrl.$error"
       small-label
       required
       class="margin-bottom-2"
     >
       <FormInput
         v-model="values.airtableUrl"
-        :error="v$.values.airtableUrl.$error"
+        :error="v$.airtableUrl.$error"
         :placeholder="$t('importFromAirtable.airtableShareLinkPaste')"
         size="large"
-        @blur="v$.values.airtableUrl.$touch()"
+        @blur="v$.airtableUrl.$touch"
         @input="
-          $emit(
-            'input',
-            v$.values.airtableUrl.$invalid ? '' : values.airtableUrl
-          )
+          $emit('input', v$.airtableUrl.$invalid ? '' : v$.airtableUrl.$model)
         "
       ></FormInput>
       <template #error>
@@ -35,26 +32,34 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 export default {
   name: 'AirtableImportForm',
   mixins: [form],
   data() {
     return {
-      values: {
-        airtableUrl: '',
-      },
+      values: null,
+      v$: null,
     }
   },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      airtableUrl: '',
+    })
+
+    const rules = computed(() => ({
       airtableUrl: {
         valid(value) {
           const regex = /https:\/\/airtable.com\/[shr|app](.*)$/g
           return !!value.match(regex)
         },
+        $lazy: true,
       },
-    },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
 }
 </script>

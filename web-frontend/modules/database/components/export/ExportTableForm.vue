@@ -9,7 +9,7 @@
           class="margin-bottom-2"
         >
           <ExportTableDropdown
-            v-model="values.view_id"
+            v-model="v$.view_id.$model"
             :views="viewsWithExporterTypes"
             :loading="loading"
             @input="values.exporter_type = firstExporterType"
@@ -17,13 +17,13 @@
         </FormGroup>
 
         <ExporterTypeChoices
-          v-model="values.exporter_type"
+          v-model="v$.exporter_type.$model"
           :exporter-types="exporterTypes"
           :loading="loading"
           :database="database"
           class="margin-bottom-2"
         ></ExporterTypeChoices>
-        <div v-if="v$.values.exporter_type.$error" class="error">
+        <div v-if="v$.exporter_type.$error" class="error">
           {{ $t('exportTableForm.typeError') }}
         </div>
       </div>
@@ -39,6 +39,8 @@
 
 <script>
 import { required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 import form from '@baserow/modules/core/mixins/form'
 import viewTypeHasExporterTypes from '@baserow/modules/database/utils/viewTypeHasExporterTypes'
@@ -82,6 +84,7 @@ export default {
         view_id: this.view === null ? null : this.view.id,
         exporter_type: null,
       },
+      v$: null,
     }
   },
   computed: {
@@ -96,7 +99,7 @@ export default {
     selectedExporter() {
       return (
         this.exporterTypes.find(
-          (exporterType) => exporterType.type === this.values.exporter_type
+          (exporterType) => exporterType.type === this.v$.exporter_type.$model
         ) || null
       )
     },
@@ -116,7 +119,7 @@ export default {
       return this.exporterTypes.length > 0 ? this.exporterTypes[0].type : null
     },
     exporterComponent() {
-      if (!this.values.exporter_type) {
+      if (!this.v$.exporter_type.$model) {
         return null
       }
 
@@ -129,12 +132,17 @@ export default {
     },
   },
   created() {
-    this.values.exporter_type = this.firstExporterType
-  },
-  validations: {
-    values: {
+    const values = reactive({
+      exporter_type: this.firstExporterType,
+      view_id: this.view === null ? null : this.view.id,
+    })
+
+    const rules = computed(() => ({
       exporter_type: { required },
-    },
+      view_id: {},
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
 }
 </script>

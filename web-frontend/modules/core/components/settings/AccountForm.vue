@@ -4,26 +4,26 @@
       small-label
       :label="$t('accountForm.nameLabel')"
       required
-      :error="fieldHasErrors('first_name')"
+      :error="v$.first_name.$error"
       class="margin-bottom-2"
     >
       <FormInput
         ref="first_name"
-        v-model="values.first_name"
+        v-model="v$.first_name.$model"
         size="large"
-        :error="fieldHasErrors('first_name')"
-        @blur="v$.values.first_name.$touch()"
+        :error="v$.first_name.$error"
+        @blur="v$.first_name.$touch"
       ></FormInput>
 
       <template #error>
-        <span v-if="!v$.values.first_name.required">
+        <span v-if="v$.first_name.required.$invalid">
           {{ $t('error.requiredField') }}
         </span>
         <spam v-if="hasMinMaxError">
           {{
             $t('error.minMaxLength', {
-              max: v$.values.first_name.$params.maxLength.max,
-              min: v$.values.first_name.$params.minLength.min,
+              max: v$.first_name.maxLength.$params.max,
+              min: v$.first_name.minLength.$params.min,
             })
           }}
         </spam>
@@ -31,7 +31,7 @@
     </FormGroup>
 
     <FormGroup :label="$t('accountForm.languageLabel')" small-label required>
-      <Dropdown v-model="values.language" :show-search="false" size="large">
+      <Dropdown v-model="v$.language.$model" :show-search="false" size="large">
         <DropdownItem
           v-for="locale in $i18n.locales"
           :key="locale.code"
@@ -46,6 +46,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required, maxLength, minLength } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
@@ -56,28 +58,36 @@ export default {
   data() {
     return {
       allowedValues: ['first_name', 'language'],
-      values: {
-        first_name: '',
-        language: '',
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
     hasMinMaxError() {
       return (
-        !this.v$.values.first_name.maxLength ||
-        !this.v$.values.first_name.minLength
+        this.v$.first_name.maxLength.$invalid ||
+        this.v$.first_name.minLength.$invalid
       )
     },
   },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      first_name: '',
+      language: '',
+    })
+
+    const rules = computed(() => ({
       first_name: {
         required,
         minLength: minLength(2),
         maxLength: maxLength(150),
       },
-    },
+      language: {
+        required,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
 }
 </script>

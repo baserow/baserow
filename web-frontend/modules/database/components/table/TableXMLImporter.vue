@@ -72,6 +72,8 @@
 
 <script>
 import { required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 import form from '@baserow/modules/core/mixins/form'
 import importer from '@baserow/modules/database/mixins/importer'
@@ -84,10 +86,20 @@ export default {
     return {
       filename: '',
       rawData: null,
+      v$: null,
+      values: null,
     }
   },
-  validations: {
-    filename: { required },
+  created() {
+    const values = reactive({
+      filename: '',
+    })
+
+    const rules = computed(() => ({
+      filename: { required },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     /**

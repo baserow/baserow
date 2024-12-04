@@ -9,13 +9,13 @@
       small-label
       :label="$t('fieldSelectThroughFieldSubForm.selectThroughFieldLabel')"
       required
-      :error="v$.values.through_field_id.$error"
+      :error="v$.through_field_id.$error"
     >
       <Dropdown
-        v-model="values.through_field_id"
-        :error="v$.values.through_field_id.$error"
+        v-model="v$.through_field_id.$model"
+        :error="v$.through_field_id.$error"
         :fixed-items="true"
-        @hide="v$.values.through_field_id.$touch()"
+        @hide="v$.through_field_id.$touch"
         @input="throughFieldChanged($event)"
       >
         <DropdownItem
@@ -34,6 +34,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
@@ -56,9 +58,8 @@ export default {
   data() {
     return {
       allowedValues: ['through_field_id'],
-      values: {
-        through_field_id: null,
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -103,12 +104,17 @@ export default {
     },
   },
   created() {
-    this.throughFieldChanged(this.defaultValues.through_field_id)
-  },
-  validations: {
-    values: {
+    const values = reactive({
+      through_field_id: null,
+    })
+
+    const rules = computed(() => ({
       through_field_id: { required },
-    },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+    this.throughFieldChanged(this.defaultValues.through_field_id)
   },
   methods: {
     isFormValid() {

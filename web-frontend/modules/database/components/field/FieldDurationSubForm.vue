@@ -5,10 +5,10 @@
     :label="$t('fieldDurationSubForm.durationFormatLabel')"
   >
     <Dropdown
-      v-model="values.duration_format"
-      :error="v$.values.duration_format.$error"
+      v-model="v$.duration_format.$model"
+      :error="v$.duration_format.$error"
       :fixed-items="true"
-      @hide="v$.values.duration_format.$touch()"
+      @hide="v$.duration_format.$touch"
     >
       <DropdownItem
         v-for="option in durationFormatOptions"
@@ -21,6 +21,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 import { DURATION_FORMATS } from '@baserow/modules/database/utils/duration'
 
@@ -32,11 +34,11 @@ export default {
   mixins: [form, fieldSubForm],
   data() {
     const allowedValues = ['duration_format']
-    const values = { duration_format: DURATION_FORMATS.keys().next().value }
 
     return {
       allowedValues,
-      values,
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -49,10 +51,16 @@ export default {
       )
     },
   },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      duration_format: DURATION_FORMATS.keys().next().value,
+    })
+
+    const rules = computed(() => ({
       duration_format: { required },
-    },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
 }
 </script>

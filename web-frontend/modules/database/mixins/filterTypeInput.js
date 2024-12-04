@@ -1,4 +1,6 @@
 import viewFilter from '@baserow/modules/database/mixins/viewFilter'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 let delayTimeout = null
 
@@ -12,13 +14,14 @@ export default {
   mixins: [viewFilter],
   data() {
     return {
-      copy: null,
+      v$: null,
+      values: null,
     }
   },
   watch: {
     'filter.value'(value) {
       const oldValue = this.copy
-      this.copy = value
+      this.values.copy = value
       clearTimeout(delayTimeout)
       if (oldValue !== value) {
         this.afterValueChanged(value, oldValue)
@@ -26,8 +29,18 @@ export default {
     },
   },
   created() {
-    this.copy = this.filter.value
-    if (this.copy) {
+    const values = reactive({
+      copy: this.filter.value,
+    })
+
+    const rules = computed(() => ({
+      copy: {},
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+
+    if (this.values.copy) {
       this.v$.$touch()
     }
   },
@@ -56,8 +69,5 @@ export default {
         }, 400)
       }
     },
-  },
-  validations: {
-    copy: {},
   },
 }

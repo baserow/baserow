@@ -3,31 +3,30 @@
     <div class="row margin-bottom-2">
       <div class="col col-7">
         <FormGroup
-          :error="fieldHasErrors('name')"
+          :error="v$.name.$error"
           :label="$t('manageTeamForm.nameTitle')"
           small-label
           required
         >
           <FormInput
             ref="name"
-            v-model="values.name"
-            :error="fieldHasErrors('name')"
-            @blur="v$.values.name.$touch()"
+            v-model="v$.name.$model"
+            :error="v$.name.$error"
+            @blur="v$.name.$touch"
           >
           </FormInput>
 
           <template #error>
-            <span
-              v-if="fieldHasErrors('name') && !v$.values.name.required"
-              class="error"
-            >
+            <span v-if="v$.name.required.$invald">
               {{ $t('error.requiredField') }}
             </span>
-            <span v-if="v$.values.name.$dirty && hasMinMaxError" class="error">
+            <span
+              v-if="v$.name.maxLength.$invalid || v$.name.minLength.$invalid"
+            >
               {{
                 $t('error.minMaxLength', {
-                  max: v$.values.name.$params.maxLength.max,
-                  min: v$.values.name.$params.minLength.min,
+                  max: v$.name.maxLength.$params.max,
+                  min: v$.name.minLength.$params.min,
                 })
               }}
             </span>
@@ -45,7 +44,7 @@
           </template>
 
           <Dropdown
-            v-model="values.default_role"
+            v-model="v$.default_role.$model"
             :show-search="false"
             :fixed-items="true"
           >
@@ -140,6 +139,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required, maxLength, minLength } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
@@ -169,11 +170,8 @@ export default {
   },
   data() {
     return {
-      values: {
-        name: '',
-        default_role: 'VIEWER',
-        subjects: [],
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -185,9 +183,6 @@ export default {
     },
     defaultRole() {
       return this.roles.length > 0 ? this.roles[this.roles.length - 1] : null
-    },
-    hasMinMaxError() {
-      return !this.v$.values.name.maxLength || !this.v$.values.name.minLength
     },
     atLeastOneBillableRole() {
       return this.roles.some((role) => role.isBillable)
@@ -204,15 +199,26 @@ export default {
       }
     },
   },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      name: '',
+      default_role: 'VIEWER',
+      subjects: [],
+    })
+
+    const rules = computed(() => ({
       name: {
         required,
         minLength: minLength(2),
         maxLength: maxLength(160),
       },
-    },
+      default_role: { required },
+      subjects: {},
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
+
   mounted() {
     this.$refs.name.focus()
   },

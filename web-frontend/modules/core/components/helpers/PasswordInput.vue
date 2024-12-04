@@ -40,7 +40,7 @@ modules/core/validators.js
       :autocomplete="autocomplete"
       :value="value"
       :placeholder="placeholder"
-      @blur="validationState.$touch()"
+      @blur="validationState.$touch"
       @input="$emit('input', $event)"
     >
     </FormInput>
@@ -62,7 +62,7 @@ modules/core/validators.js
         <i v-if="showErrorIcon" class="iconoir-warning-triangle"></i>
         {{
           $t('error.minLength', {
-            min: validationState.minLength.$params.min,
+            min: validationState.$params.minLength.min,
           })
         }}
       </span>

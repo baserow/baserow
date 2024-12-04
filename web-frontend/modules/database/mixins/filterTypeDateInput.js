@@ -9,7 +9,6 @@ export default {
   mixins: [filterTypeInput],
   data() {
     return {
-      copy: '',
       timezoneValue: null,
     }
   },
@@ -44,7 +43,7 @@ export default {
     },
     setCopy(value) {
       const [timezone, filterValue] = this.splitCombinedValue(value)
-      this.copy = filterValue
+      this.values.copy = filterValue
       this.timezoneValue = timezone
     },
     prepareValue(value, field) {

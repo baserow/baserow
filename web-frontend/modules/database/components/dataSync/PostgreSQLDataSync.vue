@@ -29,7 +29,7 @@
         { name: 'postgresql_table', translationPrefix: 'table', type: 'text' },
       ]"
       :key="field.name"
-      :error="fieldHasErrors(field.name)"
+      :error="v$[field.name].$error"
       required
       small-label
       class="margin-bottom-2"
@@ -38,17 +38,15 @@
         $t(`postgreSQLDataSync.${field.translationPrefix}`)
       }}</template>
       <FormInput
-        v-model="values[field.name]"
+        v-model="v$[field.name].$model"
         size="large"
         :type="field.type"
-        :error="fieldHasErrors(field.name)"
-        @blur="$v.values[field.name].$touch()"
+        :error="v$[field.name].$error"
+        @blur="v$[field.name].$touch"
       >
       </FormInput>
       <template #error>
-        <div
-          v-if="$v.values[field.name].$dirty && !$v.values[field.name].required"
-        >
+        <div v-if="v$[field.name].required.$invalid">
           {{ $t('error.requiredField') }}
         </div>
       </template>
@@ -56,34 +54,24 @@
     <div class="row">
       <div class="col col-5">
         <FormGroup
-          :error="fieldHasErrors('postgresql_port')"
+          :error="v$.postgresql_port.$error"
           required
           small-label
           class="margin-bottom-2"
         >
           <template #label>{{ $t('postgreSQLDataSync.port') }}</template>
           <FormInput
-            v-model="values.postgresql_port"
+            v-model="v$.postgresql_port.$model"
             size="large"
-            :error="fieldHasErrors('postgresql_port')"
-            @blur="$v.values.postgresql_port.$touch()"
+            :error="v$.postgresql_port.$error"
+            @blur="v$.postgresql_port.$touch"
           >
           </FormInput>
           <template #error>
-            <div
-              v-if="
-                $v.values.postgresql_port.$dirty &&
-                !$v.values.postgresql_port.required
-              "
-            >
+            <div v-if="v$.postgresql_port.required.$invalid">
               {{ $t('error.requiredField') }}
             </div>
-            <div
-              v-else-if="
-                $v.values.postgresql_port.$dirty &&
-                !$v.values.postgresql_port.numeric
-              "
-            >
+            <div v-else-if="v$.postgresql_port.numeric.$invalid">
               {{ $t('error.invalidNumber') }}
             </div>
           </template>
@@ -92,7 +80,7 @@
       <div class="col col-7">
         <FormGroup required small-label class="margin-bottom-2">
           <template #label>{{ $t('postgreSQLDataSync.sslMode') }}</template>
-          <Dropdown v-model="values.postgresql_sslmode" size="large">
+          <Dropdown v-model="v$.postgresql_sslmode.$model" size="large">
             <DropdownItem
               v-for="option in sslModeOptions"
               :key="option"
@@ -107,6 +95,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required, numeric } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
@@ -126,16 +116,8 @@ export default {
         'postgresql_table',
         'postgresql_sslmode',
       ],
-      values: {
-        postgresql_host: '',
-        postgresql_username: '',
-        postgresql_password: '',
-        postgresql_port: '5432',
-        postgresql_database: '',
-        postgresql_schema: 'public',
-        postgresql_table: '',
-        postgresql_sslmode: 'prefer',
-      },
+      values: null,
+      v$: null,
       sslModeOptions: [
         'disable',
         'allow',
@@ -146,8 +128,19 @@ export default {
       ],
     }
   },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      postgresql_host: '',
+      postgresql_username: '',
+      postgresql_password: '',
+      postgresql_port: '5432',
+      postgresql_database: '',
+      postgresql_schema: 'public',
+      postgresql_table: '',
+      postgresql_sslmode: 'prefer',
+    })
+
+    const rules = computed(() => ({
       postgresql_host: { required },
       postgresql_username: { required },
       postgresql_password: { required },
@@ -156,7 +149,10 @@ export default {
       postgresql_table: { required },
       postgresql_sslmode: { required },
       postgresql_port: { required, numeric },
-    },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
 }
 </script>

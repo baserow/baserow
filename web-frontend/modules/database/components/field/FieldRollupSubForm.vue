@@ -19,14 +19,14 @@
         required
         small-label
         :label="$t('fieldRollupSubForm.label')"
-        :error="v$.values.rollup_function.$error"
+        :error="v$.rollup_function.$error"
       >
         <Dropdown
           v-model="values.rollup_function"
           max-width
-          :error="v$.values.rollup_function.$error"
+          :error="v$.rollup_function.$error"
           :fixed-items="true"
-          @hide="v$.values.rollup_function.$touch()"
+          @hide="v$.rollup_function.$touch()"
         >
           <DropdownItem
             v-for="f in rollupFunctions"
@@ -55,6 +55,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
@@ -76,9 +78,8 @@ export default {
       selectedThroughField: null,
       selectedTargetField: null,
       allowedValues: ['rollup_function'],
-      values: {
-        rollup_function: null,
-      },
+      values: null,
+      v$: null,
       errorFromServer: null,
     }
   },
@@ -98,10 +99,19 @@ export default {
       )
     },
   },
-  validations: {
-    values: {
-      rollup_function: { required },
-    },
+  created() {
+    const values = reactive({
+      rollup_function: null,
+    })
+
+    const rules = computed(() => ({
+      rollup_function: {
+        required,
+      },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     handleErrorByForm(error) {

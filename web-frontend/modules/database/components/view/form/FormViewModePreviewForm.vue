@@ -131,12 +131,14 @@
     </div>
     <div class="form-view__meta">
       <div class="form-view__body">
-        <FormViewMetaControls
-          :view="view"
-          :database="database"
-          :read-only="readOnly"
-          @updated-form="updateForm($event)"
-        ></FormViewMetaControls>
+        <client-only>
+          <FormViewMetaControls
+            :view="view"
+            :database="database"
+            :read-only="readOnly"
+            @updated-form="updateForm($event)"
+          ></FormViewMetaControls>
+        </client-only>
       </div>
     </div>
   </div>

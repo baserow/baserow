@@ -26,10 +26,5 @@ export default {
       values: {},
     }
   },
-  validations() {
-    return {
-      values: {},
-    }
-  },
 }
 </script>

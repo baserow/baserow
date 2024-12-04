@@ -7,13 +7,13 @@
         :label="$t('uploadViaURLUserFileUpload.urlLabel')"
         small-label
         required
-        :error="v$.values.url.$error"
+        :error="v$.url.$error"
       >
         <FormInput
-          v-model="values.url"
+          v-model="v$.url.$model"
           size="large"
-          :error="v$.values.url.$error"
-          @blur="v$.values.url.$touch()"
+          :error="v$.url.$error"
+          @blur="v$.url.$touch"
         >
         </FormInput>
 
@@ -32,6 +32,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required, url } from '@vuelidate/validators'
 
 import error from '@baserow/modules/core/mixins/error'
@@ -43,10 +45,21 @@ export default {
   data() {
     return {
       loading: false,
-      values: {
-        url: '',
-      },
+      values: null,
+      v$: null,
     }
+  },
+  created() {
+    const values = reactive({
+      url: '',
+    })
+
+    const rules = computed(() => ({
+      url: { required, url },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     async upload(url) {
@@ -66,11 +79,6 @@ export default {
       }
 
       this.loading = false
-    },
-  },
-  validations: {
-    values: {
-      url: { required, url },
     },
   },
 }

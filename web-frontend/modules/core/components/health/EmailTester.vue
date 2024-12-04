@@ -23,25 +23,28 @@
       </Alert>
     </div>
     <form @submit.prevent="submit">
-      <FormGroup
-        required
-        small-label
-        class="margin-bottom-2"
-        :label="$t('emailTester.targetEmailLabel')"
-        :error="fieldHasErrors('targetEmail')"
-      >
-        <FormInput
-          ref="name"
-          v-model="values.targetEmail"
-          :error="fieldHasErrors('targetEmail')"
-          :disabled="loading"
-          @blur="v$.values.targetEmail.$touch()"
-        ></FormInput>
+      <client-only>
+        <FormGroup
+          v-if="v$.targetEmail"
+          required
+          small-label
+          class="margin-bottom-2"
+          :label="$t('emailTester.targetEmailLabel')"
+          :error="v$.targetEmail.$error"
+        >
+          <FormInput
+            ref="name"
+            v-model="v$.targetEmail.$model"
+            :error="v$.targetEmail.$error"
+            :disabled="loading"
+            @blur="v$.targetEmail.$touch"
+          ></FormInput>
 
-        <template #error>
-          {{ $t('emailTester.invalidTargetEmail') }}
-        </template>
-      </FormGroup>
+          <template #error>
+            {{ $t('emailTester.invalidTargetEmail') }}
+          </template>
+        </FormGroup>
+      </client-only>
 
       <Button :loading="loading" :disabled="loading || v$.$invalid">
         {{ $t('emailTester.submit') }}
@@ -51,6 +54,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import error from '@baserow/modules/core/mixins/error'
 import HealthService from '@baserow/modules/core/services/health'
 import form from '@baserow/modules/core/mixins/form'
@@ -63,9 +68,8 @@ export default {
   data() {
     return {
       loading: false,
-      values: {
-        targetEmail: 'test@example.com',
-      },
+      values: null,
+      v$: null,
       testResult: {
         succeeded: null,
         error_type: null,
@@ -79,6 +83,17 @@ export default {
     trimmedFullStack() {
       return this.testResult?.error_stack?.trim()
     },
+  },
+  created() {
+    const values = reactive({
+      targetEmail: 'test@example.com',
+    })
+
+    const rules = computed(() => ({
+      targetEmail: { required, email },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   mounted() {
     if (this.username) {
@@ -102,11 +117,6 @@ export default {
       }
 
       this.loading = false
-    },
-  },
-  validations: {
-    values: {
-      targetEmail: { required, email },
     },
   },
 }

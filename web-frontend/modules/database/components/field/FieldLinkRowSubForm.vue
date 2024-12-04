@@ -5,14 +5,14 @@
       small-label
       :label="$t('fieldLinkRowSubForm.selectTableLabel')"
       required
-      :error="v$.values.link_row_table_id.$error"
+      :error="v$.link_row_table_id.$error"
     >
       <Dropdown
-        v-model="values.link_row_table_id"
-        :error="v$.values.link_row_table_id.$error"
+        v-model="v$.link_row_table_id.$model"
+        :error="v$.link_row_table_id.$error"
         :fixed-items="true"
         :disabled="!isSelectedFieldAccessible"
-        @hide="v$.values.link_row_table_id.$touch()"
+        @hide="v$.link_row_table_id.$touch"
         @input="tableChange"
       >
         <DropdownItem
@@ -27,7 +27,7 @@
     </FormGroup>
     <FormGroup>
       <div
-        v-show="values.link_row_table_id !== table.id"
+        v-show="v$.link_row_table_id.$model !== table.id"
         class="margin-bottom-1"
       >
         <Checkbox v-model="values.has_related_field">{{
@@ -47,7 +47,7 @@
         <div v-if="viewsLoading" class="loading"></div>
         <Dropdown
           v-else
-          v-model="values.link_row_limit_selection_view_id"
+          v-model="v$.link_row_limit_selection_view_id.$model"
           class="margin-top-1"
           :fixed-items="true"
         >
@@ -65,8 +65,9 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
-
 import form from '@baserow/modules/core/mixins/form'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
@@ -83,11 +84,8 @@ export default {
         'has_related_field',
         'link_row_limit_selection_view_id',
       ],
-      values: {
-        link_row_table_id: null,
-        has_related_field: true,
-        link_row_limit_selection_view_id: null,
-      },
+      values: null,
+      v$: null,
       initialLinkRowTableId: null,
       limitToViewToggle: false,
       viewsLoading: false,
@@ -146,14 +144,31 @@ export default {
   },
   watch: {
     'values.link_row_table_id'(newValueType, oldValue) {
-      const table = this.tablesWhereFieldsCanBeCreated.find(
-        (table) => table.id === newValueType
-      )
-      if (newValueType !== oldValue) {
-        this.loadViewsIfNeeded()
+      if (newValueType) {
+        const table = this.tablesWhereFieldsCanBeCreated.find(
+          (table) => table.id === newValueType
+        )
+        if (newValueType !== oldValue) {
+          this.loadViewsIfNeeded()
+        }
+        this.$emit('suggested-field-name', table.name)
       }
-      this.$emit('suggested-field-name', table.name)
     },
+  },
+  created() {
+    const values = reactive({
+      link_row_table_id: null,
+      has_related_field: true,
+      link_row_limit_selection_view_id: null,
+    })
+
+    const rules = computed(() => ({
+      link_row_table_id: { required },
+      has_related_field: {},
+      link_row_limit_selection_view_id: {},
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   mounted() {
     this.initialLinkRowTable = this.values.link_row_table_id
@@ -162,11 +177,7 @@ export default {
       this.defaultValues.link_row_related_field != null
     this.limitToViewToggle = !!this.values.link_row_limit_selection_view_id
   },
-  validations: {
-    values: {
-      link_row_table_id: { required },
-    },
-  },
+
   methods: {
     reset() {
       this.initialLinkRowTable = this.values.link_row_table_id

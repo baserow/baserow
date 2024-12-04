@@ -1,14 +1,14 @@
 <template>
   <form @submit.prevent="submit" @input="$emit('formchange')">
     <div>
-      <Alert v-if="!values.active" type="info-primary">
+      <Alert v-if="!v$.active.$model" type="info-primary">
         <template #title> {{ $t('webhookForm.deactivated.title') }} </template>
         <p>{{ $t('webhookForm.deactivated.content') }}</p>
 
         <template #actions>
           <button
             class="alert__actions-button-text"
-            @click="values.active = true"
+            @click="v$.active.$model = true"
           >
             {{ $t('webhookForm.deactivated.activate') }}
           </button>
@@ -19,14 +19,14 @@
           <FormGroup
             small-label
             :label="$t('webhookForm.inputLabels.name')"
-            :error="fieldHasErrors('name')"
+            :error="v$.name.$error"
             required
             class="margin-bottom-2"
           >
             <FormInput
-              v-model="values.name"
-              :error="fieldHasErrors('name')"
-              @blur="v$.values.name.$touch()"
+              v-model="v$.name.$model"
+              :error="v$.name.$error"
+              @blur="v$.name.$touch"
             ></FormInput>
 
             <template #error>
@@ -41,7 +41,7 @@
             required
             class="margin-bottom-2"
           >
-            <Checkbox v-model="values.use_user_field_names">{{
+            <Checkbox v-model="v$.use_user_field_names.$model">{{
               $t('webhookForm.checkbox.sendUserFieldNames')
             }}</Checkbox>
           </FormGroup>
@@ -53,7 +53,7 @@
             required
             class="margin-bottom-2"
           >
-            <Dropdown v-model="values.request_method">
+            <Dropdown v-model="v$.request_method.$model">
               <DropdownItem name="GET" value="GET"></DropdownItem>
               <DropdownItem name="POST" value="POST"></DropdownItem>
               <DropdownItem name="PATCH" value="PATCH"></DropdownItem>
@@ -67,33 +67,32 @@
             small-label
             :label="$t('webhookForm.inputLabels.url')"
             required
-            :error="fieldHasErrors('url')"
+            :error="v$.url.$error"
             class="margin-bottom-2"
           >
             <FormInput
               v-model="values.url"
               :placeholder="$t('webhookForm.inputLabels.url')"
-              :error="fieldHasErrors('url')"
-              @blur="v$.values.url.$touch()"
+              :error="v$.url.$error"
+              @blur="v$.url.$touch"
             ></FormInput>
 
             <template #error>
-              <div
+              <span
                 v-if="
-                  fieldHasErrors('url') &&
-                  (!v$.values.url.required ||
-                    !v$.values.url.isValidURLWithHttpScheme)
+                  v$.url.required.$invalid ||
+                  v$.url.isValidURLWithHttpScheme.$invalid
                 "
               >
                 {{ $t('webhookForm.errors.urlField') }}
-              </div>
-              <div v-else-if="v$.values.url.$error && !v$.values.url.maxLength">
+              </span>
+              <span v-else-if="v$.url.maxLength.$invalid">
                 {{
                   $t('error.maxLength', {
-                    max: v$.values.url.$params.maxLength.max,
+                    max: v$.url.$params.maxLength.max,
                   })
                 }}
-              </div>
+              </span>
             </template>
           </FormGroup>
         </div>
@@ -106,7 +105,7 @@
         class="margin-bottom-2"
       >
         <RadioGroup
-          v-model="values.include_all_events"
+          v-model="v$.include_all_events.$model"
           :options="eventsRadioOptions"
           vertical-layout
         >
@@ -168,42 +167,30 @@
         small-label
         :label="$t('webhookForm.inputLabels.headers')"
         required
-        :error="v$.headers.$anyError"
         class="margin-bottom-2"
       >
         <div
-          v-for="(header, index) in headers.concat({
-            name: '',
-            value: '',
-          })"
+          v-for="(header, index) in values.headers"
           :key="`header-input-${index}`"
           class="webhook__header"
         >
           <div class="webhook__header-row">
             <FormInput
+              :ref="`headerNameInput${index}`"
               v-model="header.name"
-              :error="!lastHeader(index) && v$.headers.$each[index].name.$error"
+              :error="v$.headers.$each.$response?.$data[index].name.$error"
               class="webhook__header-key"
               :placeholder="$t('webhookForm.inputLabels.name')"
-              @input="lastHeader(index) && addHeader(header.name, header.value)"
-              @blur="
-                !lastHeader(index) && v$.headers.$each[index].name.$touch()
-              "
+              @blur="v$.headers.$touch"
             />
             <FormInput
               v-model="header.value"
               class="webhook__header-value"
-              :error="
-                !lastHeader(index) && v$.headers.$each[index].value.$error
-              "
+              :error="v$.headers.$each.$response?.$data[index].value.$error"
               :placeholder="$t('webhookForm.inputLabels.value')"
-              @input="lastHeader(index) && addHeader(header.name, header.value)"
-              @blur="
-                !lastHeader(index) && v$.headers.$each[index].value.$touch()
-              "
+              @blur="v$.headers.$touch"
             />
             <ButtonIcon
-              v-if="!lastHeader(index)"
               icon="iconoir-bin"
               class="webhook__header-delete"
               @click="removeHeader(index)"
@@ -211,11 +198,10 @@
             </ButtonIcon>
           </div>
         </div>
-        <template #error>
-          <div v-if="v$.headers.$anyError" class="error">
-            {{ $t('webhookForm.errors.invalidHeaders') }}
-          </div>
-        </template>
+
+        <ButtonText tag="a" icon="iconoir-plus" @click="addHeader"
+          >Add header</ButtonText
+        >
       </FormGroup>
 
       <FormGroup
@@ -256,8 +242,9 @@
 </template>
 
 <script>
-import { required, maxLength } from '@vuelidate/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
+import { helpers, required, maxLength } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
@@ -298,17 +285,8 @@ export default {
         'event_config',
         'active',
       ],
-      values: {
-        name: '',
-        active: true,
-        use_user_field_names: true,
-        url: '',
-        request_method: 'POST',
-        include_all_events: true,
-        events: [],
-        event_config: [],
-      },
-      headers: [],
+      values: null,
+      v$: null,
       exampleWebhookEventType: '',
       eventsRadioOptions: [
         { value: true, label: this.$t('webhookForm.radio.allEvents') },
@@ -352,43 +330,64 @@ export default {
     },
   },
   created() {
+    const values = reactive({
+      name: '',
+      active: true,
+      use_user_field_names: true,
+      url: '',
+      request_method: 'POST',
+      include_all_events: true,
+      events: [],
+      event_config: [],
+      headers: [],
+    })
+
+    const rules = computed(() => ({
+      name: { required },
+      active: {},
+      use_user_field_names: {},
+      request_method: {},
+      include_all_events: {},
+      events: {},
+      event_config: {},
+      url: { required, maxLength: maxLength(2000), isValidURLWithHttpScheme },
+      headers: {
+        $each: helpers.forEach({
+          name: {
+            required,
+            valid(value) {
+              const regex = /[^:\\s][^:\\r\\n]*$/
+              return !!value.match(regex)
+            },
+          },
+          value: {
+            required,
+          },
+        }),
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
     const keys = Object.keys(this.webhookEventTypes)
     if (keys.length > 0) {
       this.exampleWebhookEventType = this.webhookEventTypes[keys[0]].type
     }
-
     // If an headers object is provided as default value, we need to populate the
     // internal headers representation that can be edited by this form. When the form
     // is submitted, it will be converted to the correct structure.
+  },
+  mounted() {
     if (this.defaultValues.headers) {
+      this.values.headers = []
       Object.keys(this.defaultValues.headers).forEach((name) => {
-        this.headers.push({
+        this.values.headers.push({
           name,
           value: this.defaultValues.headers[name],
         })
       })
     }
   },
-  validations: {
-    values: {
-      name: { required },
-      url: { required, maxLength: maxLength(2000), isValidURLWithHttpScheme },
-    },
-    headers: {
-      $each: {
-        name: {
-          required,
-          valid(value) {
-            const regex = /[^:\\s][^:\\r\\n]*$/
-            return !!value.match(regex)
-          },
-        },
-        value: {
-          required,
-        },
-      },
-    },
-  },
+
   methods: {
     getEventFields(event) {
       const eventConfig = this.values.event_config.find(
@@ -416,13 +415,15 @@ export default {
     prepareHeaders(headers) {
       const preparedHeaders = {}
       headers.forEach((header) => {
-        preparedHeaders[header.name] = header.value
+        if (header.name !== '' && header.value !== '')
+          preparedHeaders[header.name] = header.value
       })
       return preparedHeaders
     },
     getFormValues() {
       const values = form.methods.getFormValues.call(this)
-      values.headers = this.prepareHeaders(this.headers)
+      values.headers = this.prepareHeaders(this.values.headers)
+
       return values
     },
     openTestModal() {
@@ -439,14 +440,16 @@ export default {
         values
       )
     },
-    addHeader(name, value) {
-      this.headers.push({ name, value })
+    addHeader() {
+      this.values.headers.push({ name: '', value: '' })
+      const index = this.values.headers.length - 1
+
+      this.$nextTick(() => {
+        this.$refs[`headerNameInput${index}`][0].focus()
+      })
     },
     removeHeader(index) {
-      this.headers.splice(index, 1)
-    },
-    lastHeader(index) {
-      return index === this.headers.length
+      this.values.headers.splice(index, 1)
     },
   },
 }

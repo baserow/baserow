@@ -2,16 +2,16 @@
   <div>
     <FormGroup
       small-label
-      :error="v$.values.number_decimal_places.$error"
+      :error="v$.number_decimal_places.$error"
       :label="$t('fieldNumberSubForm.decimalPlacesLabel')"
       :class="{ 'margin-bottom-2': allowSetNumberNegative }"
       required
     >
       <Dropdown
-        v-model="values.number_decimal_places"
-        :error="v$.values.number_decimal_places.$error"
+        v-model="v$.number_decimal_places.$model"
+        :error="v$.number_decimal_places.$error"
         :fixed-items="true"
-        @hide="v$.values.number_decimal_places.$touch()"
+        @hide="v$.number_decimal_places.$touch"
       >
         <DropdownItem name="0 (1)" :value="0"></DropdownItem>
         <DropdownItem name="1 (1.0)" :value="1"></DropdownItem>
@@ -32,7 +32,7 @@
     <FormGroup>
       <Checkbox
         v-if="allowSetNumberNegative"
-        v-model="values.number_negative"
+        v-model="v$.number_negative.$model"
         >{{ $t('fieldNumberSubForm.allowNegative') }}</Checkbox
       >
     </FormGroup>
@@ -40,6 +40,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
@@ -57,22 +59,29 @@ export default {
   },
   data() {
     let allowedValues = ['number_decimal_places']
-    let values = { number_decimal_places: 0 }
 
     if (this.allowSetNumberNegative) {
       allowedValues = [...allowedValues, 'number_negative']
-      values = { ...values, number_negative: false }
     }
 
     return {
       allowedValues,
-      values,
+      values: null,
+      v$: null,
     }
   },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      number_decimal_places: 0,
+      number_negative: false,
+    })
+
+    const rules = computed(() => ({
       number_decimal_places: { required },
-    },
+      number_negative: {},
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
 }
 </script>

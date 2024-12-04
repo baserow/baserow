@@ -1,7 +1,7 @@
 <template>
   <FormInput
     ref="input"
-    v-model="copy"
+    v-model="v$.copy.$model"
     :error="v$?.copy.$error"
     :disabled="disabled"
     @input="delayedUpdate($event)"

@@ -63,14 +63,14 @@
       required
     >
       <FormTextarea
-        v-model="submit_action_message"
+        v-model="v$.submit_action_message.$model"
         class="form-view__meta-message-textarea"
         :placeholder="$t('formViewMetaControls.theMessage')"
         :rows="3"
         :disabled="readOnly"
         @blur="
           $emit('updated-form', {
-            submit_action_message,
+            submit_action_message: v$.submit_action_message.$model,
           })
         "
       />
@@ -80,13 +80,12 @@
       v-if="view.submit_action === 'REDIRECT'"
       small-label
       :error="v$.submit_action_redirect_url.$error"
-      :error-message="redirectURLErrorMessage"
       :label="$t('formViewMetaControls.theURL')"
       :helper-text="$t('formViewMeta.includeRowId')"
       required
     >
       <FormInput
-        v-model="submit_action_redirect_url"
+        v-model="v$.submit_action_redirect_url.$model"
         :placeholder="$t('formViewMetaControls.theURL')"
         :disabled="readOnly"
         :error="v$.submit_action_redirect_url.$error"
@@ -101,11 +100,25 @@
         "
       >
       </FormInput>
+
+      <template #error>
+        <span v-if="v$.submit_action_redirect_url.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
+        <span v-else-if="v$.submit_action_redirect_url.url.$invalid">
+          {{ $t('error.invalidURL') }}
+        </span>
+        <span v-else-if="v$.submit_action_redirect_url.maxLength.$invalid">
+          {{ $t('error.maxLength', { max: redirectUrlMaxLength }) }}
+        </span>
+      </template>
     </FormGroup>
   </div>
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required, url, maxLength } from '@vuelidate/validators'
 
 // Must be kept in sync with
@@ -130,40 +143,37 @@ export default {
   },
   data() {
     return {
-      submit_action_message: '',
-      submit_action_redirect_url: '',
+      values: null,
+      v$: null,
     }
-  },
-  computed: {
-    redirectURLErrorMessage() {
-      return this.v$.submit_action_redirect_url.$dirty &&
-        !this.v$.submit_action_redirect_url.required
-        ? this.$t('error.requiredField')
-        : !this.v$.submit_action_redirect_url.url
-        ? this.$t('error.invalidURL')
-        : !this.v$.submit_action_redirect_url.maxLength
-        ? this.$t('error.maxLength', { max: redirectUrlMaxLength })
-        : ''
-    },
   },
   watch: {
     'view.submit_action_message'(value) {
-      this.submit_action_message = value
+      this.values.submit_action_message = value
     },
     'view.submit_action_redirect_url'(value) {
-      this.submit_action_redirect_url = value
+      this.values.submit_action_redirect_url = value
     },
   },
   created() {
-    this.submit_action_message = this.view.submit_action_message
-    this.submit_action_redirect_url = this.view.submit_action_redirect_url
-  },
-  validations: {
-    submit_action_redirect_url: {
-      required,
-      url,
-      maxLength: maxLength(redirectUrlMaxLength),
-    },
+    const values = reactive({
+      submit_action_message: '',
+      submit_action_redirect_url: '',
+    })
+
+    const rules = computed(() => ({
+      submit_action_message: {},
+      submit_action_redirect_url: {
+        required,
+        url,
+        maxLength: maxLength(redirectUrlMaxLength),
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+    this.values.submit_action_message = this.view.submit_action_message
+    this.values.submit_action_redirect_url =
+      this.view.submit_action_redirect_url
   },
 }
 </script>

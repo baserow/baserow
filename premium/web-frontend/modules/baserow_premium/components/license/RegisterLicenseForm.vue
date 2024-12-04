@@ -4,14 +4,14 @@
       small-label
       required
       :label="$t('registerLicenseForm.licenseKey')"
-      :error="fieldHasErrors('license')"
+      :error="v$.license.$error"
     >
       <FormTextarea
         ref="license"
-        v-model="values.license"
-        :error="fieldHasErrors('license')"
+        v-model="v$.license.$model"
+        :error="v$.license.$error"
         :rows="6"
-        @blur="v$.values.license.$touch()"
+        @blur="v$.license.$touch"
       />
 
       <template #error>
@@ -24,6 +24,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
@@ -33,15 +35,20 @@ export default {
   mixins: [form],
   data() {
     return {
-      values: {
-        license: '',
-      },
+      values: null,
+      v$: null,
     }
   },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      license: '',
+    })
+
+    const rules = computed(() => ({
       license: { required },
-    },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   mounted() {
     this.$refs.license.focus()

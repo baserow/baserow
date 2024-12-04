@@ -35,6 +35,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import moment from '@baserow/modules/core/moment'
 import {
   getDateMomentFormat,
@@ -48,6 +50,9 @@ export default {
   mixins: [filterTypeDateInput],
   data() {
     return {
+      values: null,
+      v$: null,
+      copy: null,
       dateString: '',
       dateObject: '',
       datePickerLang: {
@@ -56,8 +61,26 @@ export default {
       },
     }
   },
+  created() {
+    const values = reactive({
+      dateString: '',
+    })
+
+    const rules = computed(() => ({
+      dateString: {
+        isValidDate(value) {
+          const dateFormat = getDateMomentFormat(this.field.date_format)
+          return value === '' || moment.utc(value, dateFormat).isValid()
+        },
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
   mounted() {
-    this.v$.$touch()
+    this.nextTick(() => {
+      this.v$.$touch()
+    })
   },
   methods: {
     isInputValid() {
@@ -127,15 +150,6 @@ export default {
     },
     focus() {
       this.$refs.date.focus()
-    },
-  },
-  validations: {
-    copy: {},
-    dateString: {
-      isValidDate(value) {
-        const dateFormat = getDateMomentFormat(this.field.date_format)
-        return value === '' || moment.utc(value, dateFormat).isValid()
-      },
     },
   },
 }

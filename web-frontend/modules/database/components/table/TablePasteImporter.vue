@@ -8,7 +8,11 @@
       required
       :helper-text="$t('tablePasteImporter.pasteDescription')"
     >
-      <FormTextarea :rows="10" @input="changed($event)"></FormTextarea>
+      <FormTextarea
+        v-model="v$.content.$model"
+        :rows="10"
+        @input="changed($event)"
+      ></FormTextarea>
 
       <template #error>{{ $t('error.requiredField') }}</template>
     </FormGroup>
@@ -33,6 +37,8 @@
 
 <script>
 import { required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 import form from '@baserow/modules/core/mixins/form'
 import importer from '@baserow/modules/database/mixins/importer'
@@ -42,27 +48,40 @@ export default {
   mixins: [form, importer],
   data() {
     return {
-      content: '',
       firstRowHeader: true,
+      v$: null,
+      values: null,
     }
   },
-  validations: {
-    content: { required },
+  created() {
+    const values = reactive({
+      content: '',
+    })
+
+    const rules = computed(() => ({
+      content: {
+        required,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     changed(content) {
+      console.log('changed', content)
       this.$emit('changed')
+      console.log('changed2', content)
       this.resetImporterState()
-      this.content = content
+      this.values.content = content
       this.reload()
     },
     async reload() {
-      if (this.content === '') {
+      if (this.values.content === '') {
         this.resetImporterState()
         return
       }
       const limit = this.$config.INITIAL_TABLE_DATA_LIMIT
-      const count = this.content.split(/\r\n|\r|\n/).length
+      const count = this.values.content.split(/\r\n|\r|\n/).length
       if (limit !== null && count > limit) {
         this.handleImporterError(
           this.$t('tablePasteImporter.limitError', {
@@ -73,12 +92,13 @@ export default {
       }
       this.state = 'parsing'
       await this.$ensureRender()
-      this.$papa.parse(this.content, {
+      this.$papa.parse(this.values.content, {
         delimiter: '\t',
         complete: (parsedResult) => {
           // If parsed successfully and it is not empty then the initial data can be
           // prepared for creating the table. We store the data stringified because it
           // doesn't need to be reactive.
+
           let data
           let header
           if (this.firstRowHeader) {
@@ -98,6 +118,7 @@ export default {
           this.state = null
           const previewData = this.getPreview(header, data)
           this.$emit('getData', getData)
+
           this.$emit('data', { header, previewData })
         },
         error(error) {

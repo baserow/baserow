@@ -29,17 +29,17 @@ consistent way of creating forms, validation, reusability, and error handling.
             :label="$t('userForm.name')"
             required
             class="margin-bottom-2"
-            :error="fieldHasErrors('name')"
+            :error="v$.name.$error"
         >
             <FormInput
                 ref="name"
-                v-model="values.name"
+                v-model="v$.name.$model"
                 size="large"
-                :error="fieldHasErrors('name')"
-                @blur="$v.values.name.$touch()"
+                :error="v$.name.$error"
+                @blur="$v.name.$touch"
             >
             </FormInput>
-            <template #error>{{ $t('error.requiredField') }}</template>
+            <template #error>{{ $t("error.requiredField") }}</template>
         </FormGroup>
 
         <FormGroup
@@ -47,23 +47,32 @@ consistent way of creating forms, validation, reusability, and error handling.
             :label="$t('userForm.email')"
             required
             class="margin-bottom-2"
-            :error="fieldHasErrors('email')"
+            :error="v$.email.$error"
         >
             <FormInput
                 ref="email"
-                v-model="values.email"
+                v-model="v$.email.$model"
                 size="large"
-                :error="fieldHasErrors('email')"
-                @blur="$v.values.email.$touch()"
+                :error="v$.email.$error"
+                @blur="$v.email.$touch"
             >
             </FormInput>
-            <template #error>{{ $t('error.required') }}</template>
+            <template #error>
+                <span v-if="v$.email.required.$invalid">{{
+                    $t("error.required")
+                }}</span>
+                <span v-if="v$.email.email.$invalid">{{
+                    $t("error.email")
+                }}</span>
+            </template>
         </FormGroup>
     </form>
 </template>
 
 <script>
-import { required } from "@vuelidate/validators";
+import { useVuelidate } from "@vuelidate/core";
+import { reactive, computed } from "vue";
+import { required, email } from "@vuelidate/validators";
 import form from "@baserow/modules/core/mixins/form";
 
 export default {
@@ -72,17 +81,27 @@ export default {
     data() {
         return {
             allowedValues: ["name", "email"],
-            values: {
-                name: "",
-                email: "",
-            },
+            values: null,
+            v$: null,
         };
     },
-    validations: {
-        values: {
-            name: { required },
-            email: { required },
-        },
+    created() {
+        const values = reactive({
+            name: "",
+            email: "",
+        });
+
+        const rules = computed(() => ({
+            name: {
+                required,
+            },
+            email: {
+                required,
+                email,
+            },
+        }));
+        this.v$ = useVuelidate(rules, values, { $lazy: true });
+        this.values = values;
     },
 };
 </script>
@@ -95,7 +114,7 @@ export default {
     <UserForm @submitted="submitted">
         <div class="actions">
             <Button type="primary" :disabled="loading" :loading="loading">
-                {{ $t('action.create') }}</Button
+                {{ $t("action.create") }}</Button
             >
         </div>
     </UserForm>
@@ -138,7 +157,7 @@ easily be reused to edit an existing object as well.
     >
         <div class="actions">
             <Button type="primary" :disabled="loading" :loading="loading">
-                {{ $t('action.update') }}</Button
+                {{ $t("action.update") }}</Button
             >
         </div>
     </UserForm>
@@ -167,22 +186,24 @@ checked in the children as well, and will also submit if all are valid.
             :label="$t('userForm.email')"
             required
             class="margin-bottom-2"
-            :error="fieldHasErrors('email')"
+            :error="v$.email.$error"
         >
             <FormInput
                 ref="email"
-                v-model="values.email"
+                v-model="v$.email.$model"
                 size="large"
-                :error="fieldHasErrors('email')"
-                @blur="$v.values.email.$touch()"
+                :error="v$.email.$error"
+                @blur="$v.email.$touch"
             >
             </FormInput>
-            <template #error>{{ $t('error.required') }}</template>
+            <template #error>{{ $t("error.required") }}</template>
         </FormGroup>
     </form>
 </template>
 
 <script>
+import { useVuelidate } from "@vuelidate/core";
+import { reactive, computed } from "vue";
 import { required } from "@vuelidate/validators";
 import form from "@baserow/modules/core/mixins/form";
 
@@ -192,15 +213,23 @@ export default {
     data() {
         return {
             allowedValues: ["email"],
-            values: {
-                email: "",
-            },
+            values: null,
+            v$: null,
         };
     },
-    validations: {
-        values: {
-            email: { required },
-        },
+    created() {
+        const values = reactive({
+            email: "",
+        });
+
+        const rules = computed(() => ({
+            email: {
+                required,
+                email,
+            },
+        }));
+        this.v$ = useVuelidate(rules, values, { $lazy: true });
+        this.values = values;
     },
 };
 </script>
@@ -214,17 +243,17 @@ export default {
             :label="$t('userForm.name')"
             required
             class="margin-bottom-2"
-            :error="fieldHasErrors('name')"
+            :error="v$.name.$error"
         >
             <FormInput
                 ref="name"
-                v-model="values.name"
+                v-model="v$.name.$model"
                 size="large"
-                :error="fieldHasErrors('name')"
-                @blur="$v.values.name.$touch()"
+                :error="v$.name.$error"
+                @blur="$v.name.$touch"
             >
             </FormInput>
-            <template #error>{{ $t('error.requiredField') }}</template>
+            <template #error>{{ $t("error.requiredField") }}</template>
         </FormGroup>
 
         <EmailForm :default-values="defaultValues"></EmailForm>
@@ -232,6 +261,8 @@ export default {
 </template>
 
 <script>
+import { useVuelidate } from "@vuelidate/core";
+import { reactive, computed } from "vue";
 import { required } from "@vuelidate/validators";
 import form from "@baserow/modules/core/mixins/form";
 
@@ -241,15 +272,21 @@ export default {
     data() {
         return {
             allowedValues: ["name"],
-            values: {
-                name: "",
-            },
+            values: null,
+            v$: null,
         };
     },
-    validations: {
-        values: {
+    created() {
+        const values = reactive({
+            name: "",
+        });
+
+        const rules = computed(() => ({
             name: { required },
-        },
+        }));
+
+        this.v$ = useVuelidate(rules, values, { $lazy: true });
+        this.values = values;
     },
 };
 </script>

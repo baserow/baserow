@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <FormGroup
-      :error="fieldHasErrors('name')"
+      :error="v$.name.$error"
       small-label
       :label="$t('snapshotsModal.createLabel')"
       required
@@ -9,11 +9,11 @@
       <slot name="input">
         <FormInput
           ref="name"
-          v-model="values.name"
+          v-model="v$.name.$model"
           size="large"
           :error="fieldHasErrors('name')"
           class="snapshots-modal__name-input"
-          @blur="v$.values.name.$touch()"
+          @blur="v$.name.$touch"
         />
       </slot>
 
@@ -26,6 +26,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import moment from '@baserow/modules/core/moment'
@@ -45,10 +47,23 @@ export default {
   },
   data() {
     return {
-      values: {
-        name: this.getDefaultName(),
-      },
+      values: null,
+      v$: null,
     }
+  },
+  created() {
+    const values = reactive({
+      name: this.getDefaultName(),
+    })
+
+    const rules = computed(() => ({
+      name: {
+        required,
+        mustHaveUniqueName: this.mustHaveUniqueName,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     getDefaultName() {
@@ -62,16 +77,6 @@ export default {
       const names = this.snapshots.map((snapshot) => snapshot.name)
       return !names.includes(param)
     },
-  },
-  validations() {
-    return {
-      values: {
-        name: {
-          required,
-          mustHaveUniqueName: this.mustHaveUniqueName,
-        },
-      },
-    }
   },
 }
 </script>

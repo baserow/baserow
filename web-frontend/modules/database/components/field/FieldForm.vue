@@ -1,51 +1,42 @@
 <template>
   <div v-auto-overflow-scroll class="context__form context__form--scrollable">
     <form class="context__form-container" @submit.prevent="submit">
-      <FormGroup :error="fieldHasErrors('name')">
+      <FormGroup :error="v$.name.$error">
         <FormInput
           ref="name"
           v-model="values.name"
-          :error="fieldHasErrors('name')"
+          :error="v$.name.$error"
           :placeholder="$t('fieldForm.name')"
-          @blur="v$.values.name.$touch()"
+          @blur="v$.name.$touch"
           @input="isPrefilledWithSuggestedFieldName = false"
           @keydown.enter="handleKeydownEnter($event)"
         ></FormInput>
         <template #error>
-          <span v-if="v$.values.name.$dirty && !v$.values.name.required">
+          <span v-if="v$.name.required.$invalid">
             {{ $t('error.requiredField') }}
           </span>
-          <span
-            v-else-if="
-              v$.values.name.$dirty && !v$.values.name.mustHaveUniqueFieldName
-            "
-          >
+          <span v-else-if="v$.name.mustHaveUniqueFieldName.$invalid">
             {{ $t('fieldForm.fieldAlreadyExists') }}
           </span>
-          <span
-            v-else-if="
-              v$.values.name.$dirty &&
-              !v$.values.name.mustNotClashWithReservedName
-            "
-          >
+          <span v-else-if="v$.name.mustNotClashWithReservedName.$invalid">
             {{ $t('error.nameNotAllowed') }}
           </span>
-          <span v-else-if="v$.values.name.$dirty && !v$.values.name.maxLength">
+          <span v-else-if="v$.name.maxLength.$invalid">
             {{ $t('error.nameTooLong') }}
           </span>
         </template>
       </FormGroup>
 
-      <FormGroup v-if="forcedType === null" :error="v$.values.type.$error">
+      <FormGroup v-if="forcedType === null" :error="v$.type.$error">
         <Dropdown
           ref="fieldTypesDropdown"
-          v-model="values.type"
-          :error="v$.values.type.$error"
+          v-model="v$.type.$model"
+          :error="v$.type.$error"
           :fixed-items="true"
           :disabled="
             defaultValues.immutable_type || defaultValues.immutable_properties
           "
-          @hide="v$.values.type.$touch()"
+          @hide="v$.type.$touch"
         >
           <DropdownItem
             v-for="(fieldType, type) in fieldTypes"
@@ -86,10 +77,10 @@
 
       <template v-if="hasFormComponent && !defaultValues.immutable_properties">
         <component
-          :is="getFormComponent(values.type)"
+          :is="getFormComponent(v$.type.$model)"
           ref="childForm"
           :table="table"
-          :field-type="values.type"
+          :field-type="v$.type.$model"
           :view="view"
           :primary="primary"
           :all-fields-in-table="allFieldsInTable"
@@ -100,7 +91,6 @@
           @suggested-field-name="handleSuggestedFieldName($event)"
         />
       </template>
-
       <FormGroup
         v-if="showDescription"
         :error="fieldHasErrors('description')"
@@ -111,7 +101,7 @@
         <div class="control__elements">
           <FormTextarea
             ref="description"
-            v-model="values.description"
+            v-model="v$.description.$model"
             :min-rows="1"
             :max-rows="16"
             auto-expandable
@@ -128,6 +118,8 @@
 import { mapGetters } from 'vuex'
 import { required, maxLength } from '@vuelidate/validators'
 import FormTextarea from '@baserow/modules/core/components/FormTextarea'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 import form from '@baserow/modules/core/mixins/form'
@@ -173,11 +165,8 @@ export default {
   data() {
     return {
       allowedValues: ['name', 'type', 'description'],
-      values: {
-        name: '',
-        type: this.forcedType || '',
-        description: null,
-      },
+      values: { name: '', type: '' },
+      v$: null,
       isPrefilledWithSuggestedFieldName: false,
       oldValueType: null,
       showDescription: false,
@@ -202,12 +191,12 @@ export default {
     }),
     isNameFieldEmptyOrPrefilled() {
       return (
-        this.values.name === '' ||
-        this.values.name ===
+        this.v$.name.$model === '' ||
+        this.v$.name.$model ===
           this.getNextAvailableFieldName(
             this.fieldTypes[this.oldValueType]?.getName()
           ) ||
-        this.values.name ===
+        this.v$.name.$model ===
           this.getNextAvailableFieldName(
             this.fieldTypes[this.values.type]?.getName()
           ) ||
@@ -230,18 +219,25 @@ export default {
       this.isPrefilledWithSuggestedFieldName = false
     },
   },
-  validations() {
-    return {
-      values: {
-        name: {
-          required,
-          maxLength: maxLength(MAX_FIELD_NAME_LENGTH),
-          mustHaveUniqueFieldName: this.mustHaveUniqueFieldName,
-          mustNotClashWithReservedName: this.mustNotClashWithReservedName,
-        },
-        type: { required },
+  created() {
+    const values = reactive({
+      name: '',
+      type: this.forcedType || '',
+      description: null,
+    })
+
+    const rules = computed(() => ({
+      name: {
+        required,
+        maxLength: maxLength(MAX_FIELD_NAME_LENGTH),
+        mustHaveUniqueFieldName: this.mustHaveUniqueFieldName,
+        mustNotClashWithReservedName: this.mustNotClashWithReservedName,
       },
-    }
+      type: { required },
+      description: {},
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     mustHaveUniqueFieldName(param) {

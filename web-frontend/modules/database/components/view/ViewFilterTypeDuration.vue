@@ -14,13 +14,35 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import filterTypeInput from '@baserow/modules/database/mixins/filterTypeInput'
 import durationField from '@baserow/modules/database/mixins/durationField'
 
 export default {
   name: 'ViewFilterTypeDuration',
   mixins: [filterTypeInput, durationField],
+  data() {
+    return {
+      v$: null,
+      values: null,
+    }
+  },
   created() {
+    const values = reactive({
+      formattedValue: null,
+    })
+
+    const rules = computed(() => ({
+      formattedValue: {
+        isValid(value) {
+          return this.getValidationError(value) === null
+        },
+      },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
     this.updateCopy(this.field, this.filter.value)
     this.updateFormattedValue(this.field, this.filter.value)
   },
@@ -45,14 +67,6 @@ export default {
     getValidationError(value) {
       const fieldType = this.$registry.get('field', this.field.type)
       return fieldType.getValidationError(this.field, value)
-    },
-  },
-  validations: {
-    copy: {},
-    formattedValue: {
-      isValid(value) {
-        return this.getValidationError(value) === null
-      },
     },
   },
 }

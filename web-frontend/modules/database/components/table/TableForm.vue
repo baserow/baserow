@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <FormGroup
-      :error="fieldHasErrors('name')"
+      :error="v$.name.$error"
       required
       small-label
       class="margin-bottom-2"
@@ -11,11 +11,11 @@
       >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.name.$model"
         size="large"
-        :error="fieldHasErrors('name')"
+        :error="v$.name.$error"
         @focus.once="$event.target.select()"
-        @blur="v$.values.name.$touch()"
+        @blur="v$.name.$touch"
       >
       </FormInput>
       <template #error>
@@ -27,6 +27,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
@@ -44,23 +46,25 @@ export default {
   data() {
     return {
       allowedValues: ['name'],
-      values: {
-        name: this.defaultName,
-      },
+      values: null,
+      v$: null,
     }
+  },
+  created() {
+    const values = reactive({
+      name: this.defaultName,
+    })
+
+    const rules = computed(() => ({
+      name: {
+        required,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   mounted() {
     this.$refs.name.focus()
-  },
-  validations: {
-    values: {
-      name: {
-        // No object-shorthand here to access vm properties
-        required: function (value) {
-          return required(value)
-        },
-      },
-    },
   },
 }
 </script>

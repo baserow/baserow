@@ -115,6 +115,8 @@
 
 <script>
 import { required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 import form from '@baserow/modules/core/mixins/form'
 import CharsetDropdown from '@baserow/modules/core/components/helpers/CharsetDropdown'
@@ -134,15 +136,27 @@ export default {
       encoding: 'utf-8',
       rawData: null,
       parsedData: null,
+      v$: null,
+      values: null,
     }
-  },
-  validations: {
-    filename: { required },
   },
   computed: {
     isDisabled() {
       return this.disabled || this.state !== null
     },
+  },
+  created() {
+    const values = reactive({
+      filename: '',
+    })
+
+    const rules = computed(() => ({
+      filename: {
+        required,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     /**

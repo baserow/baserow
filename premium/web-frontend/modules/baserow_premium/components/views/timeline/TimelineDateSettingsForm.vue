@@ -1,79 +1,77 @@
 <template>
   <div>
+    {{ dateFields.length }}
     <form v-if="dateFields.length > 0" @submit.prevent="submit">
       <Error
         class="timeline-date-settings-form__alert"
         :error="incompatibleFieldsError"
       ></Error>
-      <FormElement class="control">
-        <label class="control__label control__label--small">
-          {{ $t('timelineDateSettingsForm.startDateField') }}
-        </label>
-        <div class="control__elements">
-          <Dropdown
-            v-model="values.startDateFieldId"
-            fixed-items
-            :show-search="true"
-            :disabled="readOnly"
-            :placeholder="readOnly ? ' ' : $t('action.makeChoice')"
+
+      {{ v$ }}
+      <FormGroup
+        :label="$t('timelineDateSettingsForm.startDateField')"
+        :error="v$.startDateFieldId?.$error"
+        small-label
+        required
+        class="margin-bottom-2"
+      >
+        <Dropdown
+          v-model="values.startDateFieldId"
+          fixed-items
+          :show-search="true"
+          :disabled="readOnly"
+          :placeholder="readOnly ? ' ' : $t('action.makeChoice')"
+        >
+          <DropdownItem :key="null" name="" :value="null">
+            <div :style="{ height: '15px' }"></div>
+          </DropdownItem>
+          <DropdownItem
+            v-for="dateField in availableStartDateFields"
+            :key="dateField.id"
+            :name="getDateFieldNameAndAttrs(dateField)"
+            :value="dateField.id"
+            :icon="fieldIcon(dateField.type)"
           >
-            <DropdownItem :key="null" name="" :value="null">
-              <div :style="{ height: '15px' }"></div>
-            </DropdownItem>
-            <DropdownItem
-              v-for="dateField in availableStartDateFields"
-              :key="dateField.id"
-              :name="getDateFieldNameAndAttrs(dateField)"
-              :value="dateField.id"
-              :icon="fieldIcon(dateField.type)"
-            >
-            </DropdownItem>
-          </Dropdown>
-          <div
-            v-if="
-              fieldHasErrors('startDateFieldId') &&
-              !v$.values.startDateFieldId.required
-            "
-            class="error"
-          >
+          </DropdownItem>
+        </Dropdown>
+
+        <template #error>
+          <span v-if="v$.startDateFieldId.required.$invalid">
             {{ $t('error.requiredField') }}
-          </div>
-        </div>
-      </FormElement>
-      <FormElement class="control margin-top-2">
-        <label class="control__label control__label--small">
-          {{ $t('timelineDateSettingsForm.endDateField') }}
-        </label>
-        <div class="control__elements">
-          <Dropdown
-            v-model="values.endDateFieldId"
-            fixed-items
-            :show-search="true"
-            :disabled="readOnly"
+          </span>
+        </template>
+      </FormGroup>
+      <FormGroup
+        :label="$t('timelineDateSettingsForm.endDateField')"
+        :error="v$.endDateFieldId?.$error"
+        small-label
+        required
+      >
+        <Dropdown
+          v-model="values.endDateFieldId"
+          fixed-items
+          :show-search="true"
+          :disabled="readOnly"
+        >
+          <DropdownItem :key="null" name="" :value="null">
+            <div :style="{ height: '15px' }"></div>
+          </DropdownItem>
+          <DropdownItem
+            v-for="dateField in availableEndDateFields"
+            :key="dateField.id"
+            :name="getDateFieldNameAndAttrs(dateField)"
+            :value="dateField.id"
+            :icon="fieldIcon(dateField.type)"
           >
-            <DropdownItem :key="null" name="" :value="null">
-              <div :style="{ height: '15px' }"></div>
-            </DropdownItem>
-            <DropdownItem
-              v-for="dateField in availableEndDateFields"
-              :key="dateField.id"
-              :name="getDateFieldNameAndAttrs(dateField)"
-              :value="dateField.id"
-              :icon="fieldIcon(dateField.type)"
-            >
-            </DropdownItem>
-          </Dropdown>
-          <div
-            v-if="
-              fieldHasErrors('endDateFieldId') &&
-              !v$.values.endDateFieldId.required
-            "
-            class="error"
+          </DropdownItem>
+        </Dropdown>
+
+        <template #error>
+          <span v-if="v$.endDateFieldId.required.$invalid">
+            {{ $t('error.requiredField') }}</span
           >
-            {{ $t('error.requiredField') }}
-          </div>
-        </div>
-      </FormElement>
+        </template>
+      </FormGroup>
       <slot></slot>
     </form>
     <p v-else>
@@ -83,6 +81,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import {
@@ -114,6 +114,7 @@ export default {
         startDateFieldId: this.view.start_date_field || null,
         endDateFieldId: this.view.end_date_field || null,
       },
+      v$: null,
       incompatibleFieldsError: {
         visible: false,
         title: this.$t('timelineDateSettingsForm.incompatibleFieldsErrorTitle'),
@@ -122,6 +123,19 @@ export default {
         ),
       },
     }
+  },
+  created() {
+    const values = reactive({
+      startDateFieldId: this.view.start_date_field || null,
+      endDateFieldId: this.view.end_date_field || null,
+    })
+
+    const rules = computed(() => ({
+      startDateFieldId: { required },
+      endDateFieldId: { required },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   computed: {
     dateFields() {
@@ -136,11 +150,11 @@ export default {
       )
     },
     startDateField() {
-      const fieldId = this.values.startDateFieldId
+      const fieldId = this.values?.startDateFieldId
       return getDateField(this.$registry, this.fields, fieldId)
     },
     endDateField() {
-      const fieldId = this.values.endDateFieldId
+      const fieldId = this.values?.endDateFieldId
       return getDateField(this.$registry, this.fields, fieldId)
     },
   },
@@ -214,12 +228,6 @@ export default {
         return
       }
       this.$emit('submitted', this.values)
-    },
-  },
-  validations: {
-    values: {
-      startDateFieldId: { required },
-      endDateFieldId: { required },
     },
   },
 }

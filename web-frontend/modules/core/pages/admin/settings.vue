@@ -189,24 +189,25 @@
             </div>
           </div>
           <div class="admin-settings__control">
-            <FormGroup :error="v$.account_deletion_grace_delay.$error">
-              <FormInput
-                v-model="account_deletion_grace_delay"
+            <client-only>
+              <FormGroup
+                v-if="v$.account_deletion_grace_delay"
                 :error="v$.account_deletion_grace_delay.$error"
-                type="number"
-                size="large"
-                @input="
-                  ;[
-                    v$.account_deletion_grace_delay.$touch(),
-                    updateAccountDeletionGraceDelay($event),
-                  ]
-                "
-              ></FormInput>
+              >
+                <FormInput
+                  v-model="values.account_deletion_grace_delay"
+                  :error="v$.account_deletion_grace_delay.$error"
+                  type="number"
+                  size="large"
+                  @blur="v$.account_deletion_grace_delay.$touch"
+                  @input="handleAccountDeletionGraceDelayInput($event)"
+                ></FormInput>
 
-              <template #error>
-                {{ $t('settings.invalidAccountDeletionGraceDelay') }}
-              </template>
-            </FormGroup>
+                <template #error>
+                  {{ $t('settings.invalidAccountDeletionGraceDelay') }}
+                </template>
+              </FormGroup>
+            </client-only>
           </div>
         </div>
       </div>
@@ -242,6 +243,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { mapGetters } from 'vuex'
 import { required, integer, between } from '@vuelidate/validators'
 
@@ -260,7 +263,10 @@ export default {
   },
   data() {
     return {
-      account_deletion_grace_delay: null,
+      values: {
+        account_deletion_grace_delay: null,
+      },
+      v$: null,
       emailVerificationOptions: [
         {
           label: this.$t('settings.emailVerificationNoVerification'),
@@ -299,7 +305,7 @@ export default {
   },
   watch: {
     'settings.account_deletion_grace_delay'(value) {
-      this.account_deletion_grace_delay = value
+      this.values.account_deletion_grace_delay = value
     },
     account_deletion_grace_delay(value) {
       if (this.dataInitialized) {
@@ -307,8 +313,23 @@ export default {
       }
     },
   },
+  created() {
+    const values = reactive({
+      account_deletion_grace_delay: 30,
+    })
+
+    const rules = computed(() => ({
+      account_deletion_grace_delay: {
+        required,
+        between: between(0, 32000),
+        integer,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
   mounted() {
-    this.account_deletion_grace_delay =
+    this.values.account_deletion_grace_delay =
       this.settings.account_deletion_grace_delay
   },
   methods: {
@@ -331,21 +352,18 @@ export default {
 
       if (
         !this.v$.account_deletion_grace_delay.$error &&
-        existingValue !== parseInt(this.account_deletion_grace_delay)
+        existingValue !== parseInt(this.values.account_deletion_grace_delay)
       ) {
         this.updateSettings({
           account_deletion_grace_delay: parseInt(
-            this.account_deletion_grace_delay
+            this.values.account_deletion_grace_delay
           ),
         })
       }
     },
-  },
-  validations: {
-    account_deletion_grace_delay: {
-      required,
-      between: between(0, 32000),
-      integer: integer(),
+    handleAccountDeletionGraceDelayInput(event) {
+      this.v$.account_deletion_grace_delay.$touch()
+      this.updateAccountDeletionGraceDelay(event)
     },
   },
 }

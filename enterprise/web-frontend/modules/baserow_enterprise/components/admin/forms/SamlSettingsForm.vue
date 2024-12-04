@@ -3,7 +3,7 @@
     <FormGroup
       small-label
       required
-      :error="fieldHasErrors('domain')"
+      :error="v$.domain.$error"
       class="margin-bottom-2"
     >
       <template #label>
@@ -19,28 +19,23 @@
 
       <FormInput
         ref="domain"
-        v-model="values.domain"
+        v-model="v$.domain.$model"
         size="large"
-        :error="fieldHasErrors('domain') || serverErrors.domain"
+        :error="v$.domain.$error || serverErrors.domain"
         :placeholder="$t('samlSettingsForm.domainPlaceholder')"
         @input="serverErrors.domain = null"
-        @blur="v$.values.domain.$touch()"
+        @blur="v$.domain.$touch"
       ></FormInput>
       <template #error>
-        <span v-if="v$.values.domain.$dirty && !v$.values.domain.required">
+        <span v-if="v$.domain.required.$invalid">
           {{ $t('error.requiredField') }}
         </span>
 
-        <span
-          v-else-if="
-            v$.values.domain.$dirty && !v$.values.domain.mustHaveUniqueDomain
-          "
-          class="error"
-        >
+        <span v-else-if="v$.domain.mustHaveUniqueDomain.$invalid">
           {{ $t('samlSettingsForm.domainAlreadyExists') }}
         </span>
 
-        <span v-else-if="serverErrors.domain" class="error">
+        <span v-else-if="serverErrors.domain">
           {{ $t('samlSettingsForm.invalidDomain') }}
         </span>
       </template>
@@ -50,21 +45,21 @@
       small-label
       required
       :label="$t('samlSettingsForm.metadata')"
-      :error="fieldHasErrors('metadata')"
+      :error="v$.metadata.$error"
       class="margin-bottom-2"
     >
       <FormTextarea
         ref="metadata"
-        v-model="values.metadata"
+        v-model="v$.metadata.$model"
         :rows="12"
-        :error="fieldHasErrors('metadata') || serverErrors.metadata"
+        :error="v$.metadata.$error || serverErrors.metadata"
         :placeholder="$t('samlSettingsForm.metadataPlaceholder')"
         @input="serverErrors.metadata = null"
-        @blur="v$.values.metadata.$touch()"
+        @blur="v$.metadata.$touch"
       ></FormTextarea>
 
       <template #error>
-        <span v-if="v$.values.metadata.$dirty && !v$.values.metadata.required">
+        <span v-if="v$.metadata.required.$invalid">
           {{ $t('error.requiredField') }}
         </span>
         <span v-else-if="serverErrors.metadata">
@@ -135,51 +130,75 @@
           <template #helper>
             {{ $t('samlSettingsForm.emailAttrKeyHelper') }}
           </template>
-          <template #error>{{ getFieldErrorMsg('email_attr_key') }}</template>
+          <template #error>
+            <span v-if="v$.email_attr_key.required.$invalid">
+              {{ $t('error.requiredField') }}
+            </span>
+            <span v-else-if="v$.email_attr_key.maxLength.$invalid">
+              {{ $t('error.maxLength', { max: 32 }) }}
+            </span>
+            <span v-else-if="v$.email_attr_key.invalid.$invalid">
+              {{ $t('error.invalidCharacters') }}
+            </span>
+          </template>
         </FormGroup>
 
         <FormGroup
           small-label
           required
-          :error="fieldHasErrors('first_name_attr_key')"
+          :error="v$.first_name_attr_key.$error"
           :label="$t('samlSettingsForm.firstNameAttrKey')"
           class="margin-bottom-2"
         >
           <FormInput
             ref="firstNameAttrKey"
-            v-model="values.first_name_attr_key"
-            :error="fieldHasErrors('first_name_attr_key')"
+            v-model="v$.first_name_attr_key.$model"
+            :error="v$.first_name_attr_key.$error"
             :placeholder="defaultAttrs.first_name_attr_key"
-            @blur="$v.values.first_name_attr_key.$touch()"
+            @blur="v$.first_name_attr_key.$touch"
           ></FormInput>
           <template #helper>
             {{ $t('samlSettingsForm.firstNameAttrKeyHelper') }}
           </template>
-          <template #error>{{
-            getFieldErrorMsg('first_name_attr_key')
-          }}</template>
+
+          <template #error>
+            <span v-if="v$.first_name_attr_key.required.$invalid">
+              {{ $t('error.requiredField') }}
+            </span>
+            <span v-else-if="v$.first_name_attr_key.maxLength.$invalid">
+              {{ $t('error.maxLength', { max: 32 }) }}
+            </span>
+            <span v-else-if="v$.first_name_attr_key.invalid.$invalid">
+              {{ $t('error.invalidCharacters') }}
+            </span>
+          </template>
         </FormGroup>
 
         <FormGroup
           small-label
           required
-          :error="fieldHasErrors('last_name_attr_key')"
+          :error="v$.last_name_attr_key.$error"
           :label="$t('samlSettingsForm.lastNameAttrKey')"
           class="margin-bottom-2"
         >
           <FormInput
             ref="lastNameAttrKey"
-            v-model="values.last_name_attr_key"
-            :error="fieldHasErrors('last_name_attr_key')"
+            v-model="v$.last_name_attr_key.$model"
+            :error="v$.last_name_attr_key.$error"
             :placeholder="defaultAttrs.last_name_attr_key"
-            @blur="$v.values.last_name_attr_key.$touch()"
+            @blur="v$.last_name_attr_key.$touch"
           ></FormInput>
           <template #helper>
             {{ $t('samlSettingsForm.lastNameAttrKeyHelper') }}
           </template>
-          <template #error>{{
-            getFieldErrorMsg('last_name_attr_key')
-          }}</template>
+          <template #error>
+            <span v-if="v$.last_name_attr_key.maxLength.$invalid">
+              {{ $t('error.maxLength', { max: 32 }) }}
+            </span>
+            <span v-else-if="v$.last_name_attr_key.invalid.$invalid">
+              {{ $t('error.invalidCharacters') }}
+            </span>
+          </template>
         </FormGroup>
       </template>
     </Expandable>
@@ -189,13 +208,12 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required, maxLength, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
-const alphanumericDotDashUnderscore = helpers.regex(
-  'alphanumericDotDashUnderscore',
-  /^[a-zA-Z0-9._-]*$/
-)
+const alphanumericDotDashUnderscore = helpers.regex(/^[a-zA-Z0-9._-]*$/)
 
 export default {
   name: 'SamlSettingsForm',
@@ -216,13 +234,9 @@ export default {
     return {
       allowedValues: ['domain', 'metadata'],
       serverErrors: {},
-      values: {
-        domain: '',
-        metadata: '',
-        email_attr_key: '',
-        first_name_attr_key: '',
-        last_name_attr_key: '',
-      },
+      values: null,
+      v$: null,
+      values: null,
     }
   },
   computed: {
@@ -246,6 +260,36 @@ export default {
     type() {
       return this.authProviderType || this.authProvider.type
     },
+  },
+  created() {
+    const values = reactive({
+      domain: '',
+      metadata: '',
+      email_attr_key: '',
+      first_name_attr_key: '',
+      last_name_attr_key: '',
+    })
+
+    const rules = computed(() => ({
+      domain: { required, mustHaveUniqueDomain: this.mustHaveUniqueDomain },
+      metadata: { required },
+      email_attr_key: {
+        required,
+        maxLength: maxLength(32),
+        invalid: alphanumericDotDashUnderscore,
+      },
+      first_name_attr_key: {
+        required,
+        maxLength: maxLength(32),
+        invalid: alphanumericDotDashUnderscore,
+      },
+      last_name_attr_key: {
+        maxLength: maxLength(32),
+        invalid: alphanumericDotDashUnderscore,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     usingDefaultAttrs() {
@@ -272,11 +316,11 @@ export default {
       }
     },
     getFieldErrorMsg(fieldName) {
-      if (!this.$v.values[fieldName].$dirty) {
+      if (!this.v$.values[fieldName].$dirty) {
         return ''
       } else if (!this.$v.values[fieldName].maxLength) {
         return this.$t('error.maxLength', {
-          max: this.$v.values[fieldName].$params.maxLength.max,
+          max: this.v$.values[fieldName].$params.maxLength.max,
         })
       } else if (!this.$v.values[fieldName].invalid) {
         return this.$t('error.invalidCharacters')
@@ -312,28 +356,6 @@ export default {
       }
       return true
     },
-  },
-  validations() {
-    return {
-      values: {
-        domain: { required, mustHaveUniqueDomain: this.mustHaveUniqueDomain },
-        metadata: { required },
-        email_attr_key: {
-          required,
-          maxLength: maxLength(32),
-          invalid: alphanumericDotDashUnderscore,
-        },
-        first_name_attr_key: {
-          required,
-          maxLength: maxLength(32),
-          invalid: alphanumericDotDashUnderscore,
-        },
-        last_name_attr_key: {
-          maxLength: maxLength(32),
-          invalid: alphanumericDotDashUnderscore,
-        },
-      },
-    }
   },
 }
 </script>

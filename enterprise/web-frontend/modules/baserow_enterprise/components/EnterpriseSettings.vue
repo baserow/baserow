@@ -114,6 +114,5 @@ export default {
       this.$refs.userFilesModal.hide()
     },
   },
-  validations: {},
 }
 </script>

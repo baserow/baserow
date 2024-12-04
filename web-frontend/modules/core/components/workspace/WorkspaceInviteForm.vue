@@ -3,12 +3,12 @@
     <h3>{{ $t('workspaceInviteForm.invitationFormTitle') }}</h3>
     <div class="row">
       <div class="col col-7">
-        <FormGroup small-label :error="fieldHasErrors('email')">
+        <FormGroup small-label :error="v$.email.$error">
           <FormInput
             ref="email"
-            v-model="values.email"
-            :error="fieldHasErrors('email')"
-            @blur="v$.values.email.$touch()"
+            v-model="v$.email.$model"
+            :error="v$.email.$error"
+            @blur="v$.email.$touch"
           >
           </FormInput>
 
@@ -18,11 +18,11 @@
         </FormGroup>
       </div>
       <div class="col col-5">
-        <FormGroup>
+        <FormGroup :error="v$.permissions.$error">
           <div class="workspace-invite-form__role-selector">
             <slot name="roleSelectorLabel"></slot>
             <Dropdown
-              v-model="values.permissions"
+              v-model="v$.permissions.$model"
               class="workspace-invite-form__role-selector-dropdown"
               :show-search="false"
               fixed-items
@@ -71,11 +71,11 @@
         </FormGroup>
       </div>
       <div class="col col-12 margin-top-2 margin-bottom-2">
-        <FormGroup :error="fieldHasErrors('message')">
+        <FormGroup :error="v$.message.$error">
           <FormInput
             ref="message"
-            v-model="values.message"
-            :error="fieldHasErrors('message')"
+            v-model="v$.message.$model"
+            :error="v$.message.$error"
             :placeholder="$t('workspaceInviteForm.optionalMessagePlaceholder')"
           ></FormInput>
 
@@ -94,6 +94,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required, email, maxLength } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
@@ -113,10 +115,9 @@ export default {
     return {
       loading: false,
       values: {
-        email: '',
         permissions: '',
-        message: '',
       },
+      v$: null,
     }
   },
   computed: {
@@ -142,6 +143,21 @@ export default {
       immediate: true,
     },
   },
+  created() {
+    const values = reactive({
+      email: '',
+      permissions: '',
+      message: '',
+    })
+
+    const rules = computed(() => ({
+      email: { required, email },
+      message: { maxLength: maxLength(MESSAGE_MAX_LENGTH) },
+      permissions: { required },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
   methods: {
     deactivatedClickModal(role) {
       const allRoles = Object.values(this.$registry.getAll('roles'))
@@ -154,12 +170,6 @@ export default {
       if (role && role.isDeactivated) {
         this.$refs[`deactivatedClickModal-${value}`][0].show()
       }
-    },
-  },
-  validations: {
-    values: {
-      email: { required, email },
-      message: { maxLength: maxLength(MESSAGE_MAX_LENGTH) },
     },
   },
 }

@@ -8,13 +8,13 @@
 
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.name.$model"
         :error="fieldHasErrors('name')"
         type="text"
         size="large"
         :placeholder="$t('applicationForm.namePlaceholder')"
         @focus.once="$event.target.select()"
-        @blur="v$.values.name.$touch()"
+        @blur="v$.name.$touch"
       ></FormInput>
 
       <template #error>
@@ -39,6 +39,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
 
@@ -58,9 +60,8 @@ export default {
   },
   data() {
     return {
-      values: {
-        name: this.defaultName,
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -68,13 +69,21 @@ export default {
       return this.$registry.get('application', 'database')
     },
   },
+  created() {
+    const values = reactive({
+      name: this.defaultName,
+    })
+
+    const rules = computed(() => ({
+      name: {
+        required,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
   mounted() {
     this.$refs.name.focus()
-  },
-  validations: {
-    values: {
-      name: { required },
-    },
   },
 }
 </script>

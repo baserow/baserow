@@ -4,25 +4,25 @@
       small-label
       required
       :label="$t('oauthSettingsForm.providerName')"
-      :error="fieldHasErrors('name')"
+      :error="v$.name.$error"
       class="margin-bottom-2"
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.name.$model"
         size="large"
-        :error="fieldHasErrors('name')"
+        :error="v$.name.$error"
         :placeholder="$t('oauthSettingsForm.providerNamePlaceholder')"
-        @blur="v$.values.name.$touch()"
+        @blur="v$.name.$touch"
       ></FormInput>
 
-      <template v-if="v$.values.name.$dirty && !v$.values.name.required" #error>
-        {{ $t('error.requiredField') }}</template
-      >
+      <template #error v-if="v$.name.required.$invalid">
+        {{ $t('error.requiredField') }}
+      </template>
     </FormGroup>
 
     <FormGroup
-      :error="fieldHasErrors('client_id')"
+      :error="v$.client_id.required.$error"
       small-label
       :label="$t('oauthSettingsForm.clientId')"
       required
@@ -30,17 +30,14 @@
     >
       <FormInput
         ref="client_id"
-        v-model="values.client_id"
+        v-model="v$.client_id.$model"
         size="large"
-        :error="fieldHasErrors('client_id')"
+        :error="v$.client_id.required.$error"
         :placeholder="$t('oauthSettingsForm.clientIdPlaceholder')"
-        @blur="v$.values.client_id.$touch()"
+        @blur="v$.client_id.$touch"
       ></FormInput>
 
-      <template
-        v-if="v$.values.client_id.$dirty && !v$.values.client_id.required"
-        #error
-      >
+      <template #error v-if="v$.client_id.required.$invalid">
         {{ $t('error.requiredField') }}
       </template>
     </FormGroup>
@@ -48,21 +45,21 @@
     <FormGroup
       small-label
       :label="$t('oauthSettingsForm.secret')"
-      :error="fieldHasErrors('secret')"
+      :error="v$.secret.required.$error"
       class="margin-bottom-2"
       required
     >
       <FormInput
         ref="secret"
-        v-model="values.secret"
+        v-model="v$.secret.$model"
         size="large"
-        :error="fieldHasErrors('secret')"
+        :error="v$.secret.$error"
         :placeholder="$t('oauthSettingsForm.secretPlaceholder')"
-        @blur="v$.values.secret.$touch()"
+        @blur="v$.secret.$touch"
       ></FormInput>
 
       <template #error>
-        <span v-if="v$.values.secret.$dirty && !v$.values.secret.required">
+        <span v-if="v$.secret.required.$invalid">
           {{ $t('error.requiredField') }}
         </span>
       </template>
@@ -80,6 +77,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
@@ -101,12 +100,25 @@ export default {
   data() {
     return {
       allowedValues: ['name', 'client_id', 'secret'],
-      values: {
-        name: '',
-        client_id: '',
-        secret: '',
-      },
+      values: null,
+      v$: null,
     }
+  },
+  created() {
+    const values = reactive({
+      name: this.providerName,
+      client_id: this.authProvider.client_id || '',
+      secret: this.authProvider.secret || '',
+    })
+
+    const rules = computed(() => ({
+      name: { required },
+      client_id: { required },
+      secret: { required },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   computed: {
     providerName() {
@@ -141,15 +153,6 @@ export default {
       }
       this.$emit('submit', this.values)
     },
-  },
-  validations() {
-    return {
-      values: {
-        name: { required },
-        client_id: { required },
-        secret: { required },
-      },
-    }
   },
 }
 </script>

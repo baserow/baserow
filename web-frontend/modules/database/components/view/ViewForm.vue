@@ -4,16 +4,16 @@
       small-label
       :label="$t('viewForm.name')"
       required
-      :error="fieldHasErrors('name')"
+      :error="v$.name.$error"
       class="margin-bottom-2"
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.name.$model"
         size="large"
-        :error="fieldHasErrors('name')"
+        :error="v$.name.$error"
         @focus.once="$event.target.select()"
-        @blur="v$.values.name.$touch()"
+        @blur="v$.name.$touch"
       >
       </FormInput>
 
@@ -30,7 +30,7 @@
         class="margin-right-2"
         :view-ownership-type="type"
         :database="database"
-        :selected-type="values.ownershipType"
+        :selected-type="v$.ownershipType.$model"
         @input="(value) => (values.ownershipType = value)"
       >
       </component>
@@ -41,6 +41,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import Radio from '@baserow/modules/core/components/Radio'
@@ -67,9 +69,9 @@ export default {
   data() {
     return {
       values: {
-        name: this.defaultName,
         ownershipType: 'collaborative',
       },
+      v$: null,
     }
   },
   computed: {
@@ -85,6 +87,19 @@ export default {
       return this.sortOwnershipTypes(this.viewOwnershipTypes)
     },
   },
+  created() {
+    const values = reactive({
+      name: this.defaultName,
+      ownershipType: 'collaborative',
+    })
+
+    const rules = computed(() => ({
+      name: { required },
+      ownershipType: { required },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
   mounted() {
     this.$refs.name.focus()
     const firstAndHenceDefaultOwnershipType =
@@ -97,11 +112,6 @@ export default {
       return ownershipTypes
         .slice()
         .sort((a, b) => b.getListViewTypeSort() - a.getListViewTypeSort())
-    },
-  },
-  validations: {
-    values: {
-      name: { required },
     },
   },
 }

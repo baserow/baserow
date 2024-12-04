@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <FormGroup
-      :error="fieldHasErrors('github_issues_owner')"
+      :error="v$.github_issues_owner.$error"
       :label="$t('githubIssuesDataSync.owner')"
       required
       class="margin-bottom-2"
@@ -9,25 +9,20 @@
       small-label
     >
       <FormInput
-        v-model="values.github_issues_owner"
-        :error="fieldHasErrors('github_issues_owner')"
+        v-model="v$.github_issues_owner.$model"
+        :error="v$.github_issues_owner.$error"
         size="large"
-        @blur="v$.values.github_issues_owner.$touch()"
+        @blur="v$.github_issues_owner.$touch"
       />
       <template #error>
-        <span
-          v-if="
-            v$.values.github_issues_owner.$dirty &&
-            !v$.values.github_issues_owner.required
-          "
-        >
+        <span v-if="v$.github_issues_owner.required.$invalid">
           {{ $t('error.requiredField') }}
         </span>
       </template>
     </FormGroup>
 
     <FormGroup
-      :error="fieldHasErrors('github_issues_repo')"
+      :error="v$.github_issues_repo.$error"
       :label="$t('githubIssuesDataSync.repo')"
       required
       class="margin-bottom-2"
@@ -35,43 +30,33 @@
       small-label
     >
       <FormInput
-        v-model="values.github_issues_repo"
-        :error="fieldHasErrors('github_issues_repo')"
+        v-model="v$.github_issues_repo.$model"
+        :error="v$.github_issues_repo.$error"
         size="large"
-        @blur="v$.values.github_issues_repo.$touch()"
+        @blur="v$.github_issues_repo.$touch"
       />
       <template #error>
-        <span
-          v-if="
-            v$.values.github_issues_owner.$dirty &&
-            !v$.values.github_issues_owner.required
-          "
-        >
+        <span v-if="v$.github_issues_owner.required.$invalid">
           {{ $t('error.requiredField') }}
         </span>
       </template>
     </FormGroup>
 
     <FormGroup
-      :error="fieldHasErrors('github_issues_api_token')"
+      :error="v$.github_issues_api_token.$error"
       :label="$t('githubIssuesDataSync.apiToken')"
       required
       :helper-text="$t('githubIssuesDataSync.apiTokenHelper')"
       small-label
     >
       <FormInput
-        v-model="values.github_issues_api_token"
-        :error="fieldHasErrors('github_issues_api_token')"
+        v-model="v$.github_issues_api_token.$model"
+        :error="v$.github_issues_api_token.$error"
         size="large"
-        @blur="v$.values.github_issues_api_token.$touch()"
+        @blur="v$.github_issues_api_token.$touch"
       />
       <template #error>
-        <span
-          v-if="
-            v$.values.github_issues_api_token.$dirty &&
-            !v$.values.github_issues_api_token.required
-          "
-        >
+        <span v-if="v$.github_issues_api_token.required.$invalid">
           {{ $t('error.requiredField') }}
         </span>
       </template>
@@ -80,6 +65,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
@@ -93,19 +80,24 @@ export default {
         'github_issues_repo',
         'github_issues_api_token',
       ],
-      values: {
-        github_issues_owner: '',
-        github_issues_repo: '',
-        github_issues_api_token: '',
-      },
+      values: null,
+      v$: null,
     }
   },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      github_issues_owner: '',
+      github_issues_repo: '',
+      github_issues_api_token: '',
+    })
+
+    const rules = computed(() => ({
       github_issues_owner: { required },
       github_issues_repo: { required },
       github_issues_api_token: { required },
-    },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
 }
 </script>

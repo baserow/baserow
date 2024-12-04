@@ -43,15 +43,15 @@
       </div>
       <div class="col col-4">
         <FormGroup
-          :error="fieldHasErrors('source_table_id')"
+          :error="v$.source_table_id.$error"
           small-label
           :label="$t('localBaserowTableDataSync.table')"
           required
         >
           <Dropdown
-            v-model="values.source_table_id"
-            :error="fieldHasErrors('source_table_id')"
-            @input="v$.values.source_table_id.$touch()"
+            v-model="v$.source_table_id.$model"
+            :error="v$.source_table_id.$error"
+            @input="v$.source_table_id.$touch"
           >
             <DropdownItem
               v-for="table in tables"
@@ -61,12 +61,7 @@
             ></DropdownItem>
           </Dropdown>
           <template #error>
-            <div
-              v-if="
-                v$.values.source_table_id.$dirty &&
-                !v$.values.source_table_id.required
-              "
-            >
+            <div v-if="v$.source_table_id.required">
               {{ $t('error.requiredField') }}
             </div>
           </template>
@@ -77,6 +72,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { mapGetters, mapState } from 'vuex'
 import { required, numeric } from '@vuelidate/validators'
 
@@ -89,9 +86,8 @@ export default {
   data() {
     return {
       allowedValues: ['source_table_id'],
-      values: {
-        source_table_id: '',
-      },
+      values: null,
+      v$: null,
       selectedWorkspaceId:
         this.$store.getters['workspace/getSelected'].id || null,
       selectedDatabaseId: null,
@@ -129,10 +125,17 @@ export default {
       userName: 'auth/getName',
     }),
   },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      source_table_id: '',
+    })
+
+    const rules = computed(() => ({
       source_table_id: { required, numeric },
-    },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     workspaceChanged(value) {

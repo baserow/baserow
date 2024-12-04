@@ -4,15 +4,15 @@
       :label="$t('apiTokenForm.nameLabel')"
       small-label
       required
-      :error="fieldHasErrors('name')"
+      :error="v$.name.$error"
       class="margin-bottom-2"
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.name.$model"
         size="large"
-        :error="fieldHasErrors('name')"
-        @blur="v$.values.name.$touch()"
+        :error="v$.name.$error"
+        @blur="v$.name.$touch"
       >
       </FormInput>
 
@@ -20,16 +20,16 @@
     </FormGroup>
 
     <FormGroup
-      :error="fieldHasErrors('workspace')"
+      :error="v$.workspace.$error"
       small-label
       :label="$t('apiTokenForm.workspaceLabel')"
       required
       class="margin-bottom-2"
     >
       <Dropdown
-        v-model="values.workspace"
+        v-model="v$.workspace.$model"
         class="col-4"
-        @hide="v$.values.workspace.$touch()"
+        @hide="v$.workspace.$touch"
       >
         <DropdownItem
           v-for="workspace in workspaces"
@@ -49,6 +49,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { mapState } from 'vuex'
 import { required } from '@vuelidate/validators'
 
@@ -59,10 +61,8 @@ export default {
   mixins: [form],
   data() {
     return {
-      values: {
-        name: '',
-        workspace: '',
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -70,14 +70,21 @@ export default {
       workspaces: (state) => state.workspace.items,
     }),
   },
-  mounted() {
-    this.$refs.name.focus()
-  },
-  validations: {
-    values: {
+  created() {
+    const values = reactive({
+      name: '',
+      workspace: '',
+    })
+
+    const rules = computed(() => ({
       name: { required },
       workspace: { required },
-    },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
+  mounted() {
+    this.$refs.name.focus()
   },
 }
 </script>

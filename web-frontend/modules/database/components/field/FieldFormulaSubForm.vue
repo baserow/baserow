@@ -19,6 +19,7 @@
       @update-formula="values.formula = $event"
     >
     </FieldFormulaInitialSubForm>
+
     <FormulaAdvancedEditContext
       ref="advancedFormulaEditContext"
       v-model="values.formula"
@@ -26,8 +27,8 @@
       :fields="fieldsUsableInFormula"
       :error="formulaError"
       :database="database"
-      @blur="v$.values.formula.$touch()"
-      @hidden="v$.values.formula.$touch()"
+      @blur="v$.formula.$touch"
+      @hidden="v$.formula.$touch"
     >
     </FormulaAdvancedEditContext>
   </div>
@@ -35,10 +36,10 @@
 
 <script>
 import { required } from '@vuelidate/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FieldFormulaInitialSubForm from '@baserow/modules/database/components/formula/FieldFormulaInitialSubForm'
 import FormulaAdvancedEditContext from '@baserow/modules/database/components/formula/FormulaAdvancedEditContext'
@@ -64,6 +65,7 @@ export default {
       values: {
         formula: '',
       },
+      v$: null,
       fetchedTypeOptions: { error: null },
       mergedTypeOptions: { ...this.defaultValues },
       parsingError: null,
@@ -89,10 +91,10 @@ export default {
       })
     },
     formulaError() {
-      const dirty = this.v$.values.formula.$dirty
-      if (dirty && !this.v$.values.formula.required) {
+      // const dirty = this.v$.values.formula.$dirty
+      if (this.v$.formula.required.$invalid) {
         return 'Please enter a formula'
-      } else if (dirty && !this.v$.values.formula.parseFormula) {
+      } else if (this.v$.formula.parseFormula.$invalid) {
         return (
           `Error in the formula on line ${this.parsingError.line} starting at
         letter ${this.parsingError.character}` +
@@ -119,6 +121,20 @@ export default {
         this.mergedTypeOptions = { ...this.defaultValues, ...newValue }
       },
     },
+  },
+  created() {
+    const values = reactive({
+      formula: '',
+    })
+
+    const rules = computed(() => ({
+      formula: {
+        required,
+        parseFormula: this.parseFormula,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     parseFormula(value) {
@@ -203,16 +219,6 @@ export default {
       }
       this.refreshingFormula = false
     },
-  },
-  validations() {
-    return {
-      values: {
-        formula: {
-          required,
-          parseFormula: this.parseFormula,
-        },
-      },
-    }
   },
 }
 </script>

@@ -2,7 +2,7 @@
   <div class="filters__multi-value">
     <FormInput
       ref="input"
-      v-model="xAgo"
+      v-model="v$.xAgo.$model"
       type="text"
       :error="v$.xAgo.$error"
       :disabled="disabled"
@@ -15,6 +15,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { integer, required } from '@vuelidate/validators'
 import filterTypeDateInput from '@baserow/modules/database/mixins/filterTypeDateInput'
 
@@ -23,8 +25,23 @@ export default {
   mixins: [filterTypeDateInput],
   data() {
     return {
-      xAgo: '',
+      values: null,
+      v$: null,
     }
+  },
+  created() {
+    const values = reactive({
+      copy: null,
+      xAgo: '',
+    })
+
+    const rules = computed(() => ({
+      copy: { required },
+      xAgo: { integer },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     isInputValid() {
@@ -32,12 +49,8 @@ export default {
     },
     setCopy(value, sender) {
       const [, xAgo] = this.splitCombinedValue(value)
-      this.xAgo = xAgo
+      this.values.xAgo = xAgo
     },
-  },
-  validations: {
-    copy: { required },
-    xAgo: { integer },
   },
 }
 </script>

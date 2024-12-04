@@ -3,43 +3,50 @@
     <h2 class="auth__head-title">{{ $t('publicViewAuthLogin.title') }}</h2>
     <div>
       <Error :error="error"></Error>
-      <form @submit.prevent="authorizeView">
-        <FormGroup
-          small-label
-          required
-          :helper-text="$t('publicViewAuthLogin.description')"
-          :error="fieldHasErrors('password')"
-          class="margin-bottom-2"
-        >
-          <FormInput
-            ref="password"
-            v-model="values.password"
-            size="large"
-            :error="fieldHasErrors('password')"
-            type="password"
-          ></FormInput>
-
-          <template #error>
-            {{ $t('error.passwordRequired') }}
-          </template>
-        </FormGroup>
-
-        <div class="public-view-auth__actions">
-          <Button
-            type="primary"
-            size="large"
-            :loading="loading"
-            :disabled="loading || v$.$invalid"
+      <client-only>
+        <form @submit.prevent="authorizeView">
+          <FormGroup
+            v-if="v$.password"
+            small-label
+            required
+            :helper-text="$t('publicViewAuthLogin.description')"
+            :error="v$.password?.$error"
+            class="margin-bottom-2"
           >
-            {{ $t('publicViewAuthLogin.enter') }}
-          </Button>
-        </div>
-      </form>
+            <FormInput
+              ref="password"
+              v-model="v$.password.$model"
+              size="large"
+              :error="v$.password.$error"
+              type="password"
+            ></FormInput>
+
+            <template #error>
+              <span v-if="v$.password.required.$invalid">
+                {{ $t('error.passwordRequired') }}
+              </span>
+            </template>
+          </FormGroup>
+
+          <div class="public-view-auth__actions">
+            <Button
+              type="primary"
+              size="large"
+              :loading="loading"
+              :disabled="loading"
+            >
+              {{ $t('publicViewAuthLogin.enter') }}
+            </Button>
+          </div>
+        </form>
+      </client-only>
     </div>
   </div>
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import { required } from '@vuelidate/validators'
@@ -54,15 +61,26 @@ export default {
     return {
       loading: false,
       allowedValues: ['password'],
-      values: {
-        password: '',
-      },
+      values: null,
+      v$: null,
     }
   },
   head() {
     return {
       title: 'Password protected view',
     }
+  },
+  created() {
+    const values = reactive({
+      password: '',
+    })
+
+    const rules = computed(() => ({
+      password: { required },
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   mounted() {
     this.$nextTick(() => {
@@ -109,11 +127,6 @@ export default {
     ...mapActions({
       setPublicAuthToken: 'page/view/public/setAuthToken',
     }),
-  },
-  validations: {
-    values: {
-      password: { required },
-    },
   },
 }
 </script>

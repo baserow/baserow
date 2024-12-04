@@ -4,14 +4,14 @@
       :label="$t('fieldDateSubForm.dateFormatLabel')"
       small-label
       required
-      :error="v$.values.date_format.$error"
+      :error="v$.date_format.$error"
       class="margin-bottom-2"
     >
       <Dropdown
-        v-model="values.date_format"
-        :error="v$.values.date_format.$error"
+        v-model="v$.date_format.$model"
+        :error="v$.date_format.$error"
         :fixed-items="true"
-        @hide="v$.values.date_format.$touch()"
+        @hide="v$.date_format.$touch"
       >
         <DropdownItem
           :name="$t('fieldDateSubForm.dateFormatEuropean') + ' (20/02/2020)'"
@@ -28,21 +28,21 @@
       </Dropdown>
     </FormGroup>
 
-    <Checkbox v-model="values.date_include_time">{{
+    <Checkbox v-model="v$.date_include_time.$model">{{
       $t('fieldDateSubForm.includeTimeLabel')
     }}</Checkbox>
 
     <FormGroup
-      v-show="values.date_include_time"
+      v-show="v$.date_include_time.$model"
       required
       small-label
       :label="$t('fieldDateSubForm.timeFormatLabel')"
       class="margin-bottom-2 margin-top-1"
     >
       <Dropdown
-        v-model="values.date_time_format"
+        v-model="v$.date_time_format.$model"
         :fixed-items="true"
-        @hide="v$.values.date_time_format.$touch()"
+        @hide="v$.date_time_format.$touch"
       >
         <DropdownItem
           :name="$t('fieldDateSubForm.24Hour') + ' (23:00)'"
@@ -56,21 +56,23 @@
     </FormGroup>
 
     <Checkbox
-      v-show="values.date_include_time"
-      :checked="values.date_force_timezone !== null"
+      v-show="v$.date_include_time.$model"
+      :checked="v$.date_force_timezone.$model !== null"
       @input="toggleForceTimezone()"
       >{{ $t('fieldDateSubForm.forceTimezoneLabel') }}</Checkbox
     >
 
     <FormGroup
-      v-show="values.date_include_time && values.date_force_timezone !== null"
+      v-show="
+        v$.date_include_time.$model && v$.date_force_timezone.$model !== null
+      "
       required
       small-label
       :label="$t('fieldDateSubForm.forceTimezoneValue')"
       class="margin-top-1 margin-bottom-2"
     >
       <PaginatedDropdown
-        :value="values.date_force_timezone"
+        :value="v$.date_force_timezone.$model"
         :fetch-page="fetchTimezonePage"
         :add-empty-item="false"
         :initial-display-name="defaultValues.date_force_timezone"
@@ -85,10 +87,10 @@
       v-show="
         !onCreate &&
         !defaultValues.read_only &&
-        values.date_include_time &&
+        v$.date_include_time.$model &&
         utcOffsetDiff !== 0
       "
-      :checked="values.date_force_timezone_offset !== null"
+      :checked="v$.date_force_timezone_offset.$model !== null"
       @input="toggleForceTimezoneOffset()"
       >{{
         $t(
@@ -99,7 +101,7 @@
         )
       }}</Checkbox
     >
-    <Checkbox v-model="values.date_show_tzinfo" class="margin-top-1">{{
+    <Checkbox v-model="v$.date_show_tzinfo.$model" class="margin-top-1">{{
       $t('fieldDateSubForm.showTimezoneLabel')
     }}</Checkbox>
   </div>
@@ -108,6 +110,8 @@
 <script>
 import moment from '@baserow/modules/core/moment'
 import { required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
@@ -129,14 +133,8 @@ export default {
         'date_force_timezone',
         'date_force_timezone_offset',
       ],
-      values: {
-        date_format: 'EU',
-        date_include_time: false,
-        date_time_format: '24',
-        date_show_tzinfo: false,
-        date_force_timezone: null,
-        date_force_timezone_offset: null,
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -163,23 +161,44 @@ export default {
       // For formula fields date_time_format is nullable, ensure it is set to the
       // default otherwise we will be sending nulls to the server.
       if (newValue == null) {
-        this.values.date_time_format = '24'
+        this.v$.date_time_format.$model = '24'
       }
     },
     'values.date_include_time'(newValue, oldValue) {
       // For formula fields date_include_time is nullable, ensure it is set to the
       // default otherwise we will be sending nulls to the server.
       if (newValue == null) {
-        this.values.date_include_time = false
+        this.values.date_include_time.$model = false
       }
     },
     'values.date_show_tzinfo'(newValue, oldValue) {
       // For formula fields date_show_tzinfo is nullable, ensure it is set to the
       // default otherwise we will be sending nulls to the server.
       if (newValue == null) {
-        this.values.date_show_tzinfo = false
+        this.values.date_show_tzinfo.$model = false
       }
     },
+  },
+  created() {
+    const values = reactive({
+      date_format: 'EU',
+      date_include_time: false,
+      date_time_format: '24',
+      date_show_tzinfo: false,
+      date_force_timezone: null,
+      date_force_timezone_offset: null,
+    })
+
+    const rules = computed(() => ({
+      date_format: { required },
+      date_include_time: {},
+      date_time_format: { required },
+      date_show_tzinfo: { required },
+      date_force_timezone: {},
+      date_force_timezone_offset: {},
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     fetchTimezonePage(page, search) {
@@ -219,15 +238,6 @@ export default {
       } else {
         this.values.date_force_timezone_offset = null
       }
-    },
-  },
-  validations: {
-    values: {
-      date_format: { required },
-      date_time_format: { required },
-      date_show_tzinfo: { required },
-      date_force_timezone: {},
-      date_force_timezone_offset: {},
     },
   },
 }

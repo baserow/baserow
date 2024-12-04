@@ -5,11 +5,11 @@
       <FormGroup
         :label="$t('emailNotifications.label')"
         :help-text="$t('emailNotifications.description')"
-        :error="fieldHasErrors('email_notification_frequency')"
+        :error="v$.email_notification_frequency.$error"
         required
       >
         <RadioGroup
-          v-model="values.email_notification_frequency"
+          v-model="v$.email_notification_frequency.$model"
           :options="emailNotificationOptions"
           vertical-layout
         >
@@ -32,6 +32,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import { mapGetters } from 'vuex'
 import { required } from '@vuelidate/validators'
 import { EMAIL_NOTIFICATIONS_FREQUENCY_OPTIONS } from '@baserow/modules/core/enums'
@@ -46,10 +48,8 @@ export default {
     return {
       loading: false,
       allowedValues: ['email_notification_frequency'],
-      values: {
-        email_notification_frequency:
-          EMAIL_NOTIFICATIONS_FREQUENCY_OPTIONS.INSTANT,
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -87,6 +87,20 @@ export default {
       user: 'auth/getUserObject',
     }),
   },
+  created() {
+    const values = reactive({
+      email_notification_frequency:
+        EMAIL_NOTIFICATIONS_FREQUENCY_OPTIONS.INSTANT,
+    })
+
+    const rules = computed(() => ({
+      email_notification_frequency: {
+        required,
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
   mounted() {
     this.setInitialValue()
   },
@@ -109,13 +123,6 @@ export default {
         this.setInitialValue()
       }
       this.loading = false
-    },
-  },
-  validations: {
-    values: {
-      email_notification_frequency: {
-        required,
-      },
     },
   },
 }

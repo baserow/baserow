@@ -4,10 +4,10 @@
     <Error :error="error"></Error>
     <form @submit.prevent="setPassword">
       <p class="box__description">{{ $t(descriptionText) }}</p>
-      <FormGroup :error="fieldHasErrors('password')">
+      <FormGroup :error="v$.password.$error">
         <PasswordInput
-          v-model="values.password"
-          :validation-state="v$.values.password"
+          v-model="v$.password.$model"
+          :validation-state="v$.password"
           :show-password-icon="true"
           :disabled="loading"
         />
@@ -33,6 +33,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
@@ -53,9 +55,8 @@ export default {
     return {
       loading: false,
       allowedValues: ['password'],
-      values: {
-        password: '',
-      },
+      values: null,
+      v$: null,
     }
   },
   computed: {
@@ -77,6 +78,18 @@ export default {
         ? 'shareViewEnablePasswordModal.changePasswordSave'
         : 'shareViewEnablePasswordModal.newPasswordSave'
     },
+  },
+  created() {
+    const values = reactive({
+      password: '',
+    })
+
+    const rules = computed(() => ({
+      password: passwordValidation,
+    }))
+
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
   },
   methods: {
     clearInput() {
@@ -107,11 +120,6 @@ export default {
       }
 
       this.loading = false
-    },
-  },
-  validations: {
-    values: {
-      password: passwordValidation,
     },
   },
 }

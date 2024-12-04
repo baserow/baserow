@@ -5,8 +5,9 @@
       v-auto-overflow-scroll
       class="select-options select-options--scrollable"
     >
+      {{ v$.value.$response?.$data[2].value.$error }}
       <div
-        v-for="(item, index) in value"
+        v-for="(item, index) in values.value"
         :key="item.id"
         v-sortable="{
           id: item.id,
@@ -27,9 +28,9 @@
         <FormInput
           ref="inputs"
           v-model="item.value"
-          :error="v$.value.$each[index].value.$error"
+          :error="v$.value.$each.$response?.$data[index].value.$error"
           @input="$emit('input', value)"
-          @blur="v$.value.$each[index].value.$touch()"
+          @blur="v$.value.$touch"
         />
         <ButtonIcon
           tag="a"
@@ -49,8 +50,9 @@
 </template>
 
 <script>
-import { required } from '@vuelidate/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
+import { helpers, required } from '@vuelidate/validators'
 import ColorSelectContext from '@baserow/modules/core/components/ColorSelectContext'
 import { randomColor } from '@baserow/modules/core/utils/colors'
 
@@ -67,28 +69,50 @@ export default {
     return {
       colorContextSelected: -1,
       lastSeenId: -1,
+      values: null,
+      v$: null,
     }
   },
   computed: {
     usedColors() {
       const colors = new Set()
-      this.value.forEach((option) => colors.add(option.color))
+      this.values.value.forEach((option) => colors.add(option.color))
       return Array.from(colors)
     },
+  },
+  created() {
+    const values = reactive({
+      value: [],
+    })
+
+    const rules = computed(() => ({
+      value: {
+        $each: helpers.forEach({
+          value: { required },
+        }),
+      },
+    }))
+    this.v$ = useVuelidate(rules, values, { $lazy: true })
+    this.values = values
+  },
+  mounted() {
+    this.$nextTick(() => {
+      this.values.value = this.value
+    })
   },
   methods: {
     remove(index) {
       this.$refs.colorContext.hide()
-      this.value.splice(index, 1)
-      this.$emit('input', this.value)
+      this.values.value.splice(index, 1)
+      this.$emit('input', this.values.value)
     },
     add(optionValue = '') {
-      this.value.push({
+      this.values.value.push({
         value: optionValue,
         color: randomColor(this.usedColors),
         id: this.lastSeenId,
       })
-      this.$emit('input', this.value)
+      this.$emit('input', this.values.value)
       this.lastSeenId -= 1
       this.$nextTick(() => {
         this.$refs.options.scrollTop = this.$refs.options.scrollHeight
@@ -99,7 +123,7 @@ export default {
     },
     openColor(index) {
       this.colorContextSelected = index
-      this.$refs.colorContext.setActive(this.value[index].color)
+      this.$refs.colorContext.setActive(this.values.value[index].color)
       this.$refs.colorContext.toggle(
         this.$refs['color-select-' + index][0],
         'bottom',
@@ -108,7 +132,7 @@ export default {
       )
     },
     updateColor(index, color) {
-      this.value[index].color = color
+      this.values.value[index].color = color
       this.$emit('input', this.value)
     },
     order(newOrder, oldOrder) {
@@ -120,13 +144,6 @@ export default {
             newOrder.findIndex((id) => id === b.id)
         )
       this.$emit('input', sortedValue)
-    },
-  },
-  validations: {
-    value: {
-      $each: {
-        value: { required },
-      },
     },
   },
 }

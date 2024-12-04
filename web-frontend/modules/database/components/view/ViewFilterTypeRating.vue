@@ -3,7 +3,7 @@
     <Rating
       :rating-style="field.style"
       :color="field.color"
-      :value="copy"
+      :value="values.copy"
       :max-value="field.max_value"
       @update="delayedUpdate($event, true)"
     />
@@ -20,7 +20,7 @@ export default {
   mixins: [filterTypeInput],
   created() {
     // Value from server is always a string, we need to parse it.
-    this.copy = parseInt(this.filter.value, 10)
+    this.values.copy = parseInt(this.filter.value, 10)
   },
 }
 </script>
