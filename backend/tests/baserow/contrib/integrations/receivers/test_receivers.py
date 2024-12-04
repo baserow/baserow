@@ -1,4 +1,5 @@
 from unittest.mock import patch
+
 import pytest
 
 from baserow.core.integrations.receivers import execute_integration_post_import_hooks
