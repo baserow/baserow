@@ -113,6 +113,7 @@ class OpenAIGenerativeAIModelType(
     def prompt_with_files(
         self, model, prompt, file_ids: list[FileId], workspace=None, temperature=None
     ):
+        run, thread, assistant = None, None, None
         try:
             client = self.get_client(workspace)
             assistant = client.beta.assistants.create(

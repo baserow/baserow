@@ -1351,7 +1351,7 @@ class LocalBaserowAggregateRowsUserServiceType(
             return self.deserialize_filters(value, id_mapping)
 
         if prop_name == "field_id":
-            return self.import_property_name(value, id_mapping)
+            return id_mapping["database_fields"].get(value)
 
         return super().deserialize_property(
             prop_name,

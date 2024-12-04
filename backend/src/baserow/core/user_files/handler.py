@@ -408,10 +408,14 @@ class UserFileHandler:
         name = user_file.name
 
         # Check if the user file object is already in the cache and if not,
-        # it must be fetched and added to to it.
+        # it must be fetched and added to it.
         cache_entry = f"user_file_{name}"
         if cache_entry not in cache:
-            namelist = [item["name"] for item in files_zip.info_list()]
+            namelist = (
+                [item["name"] for item in files_zip.info_list()]
+                if files_zip is not None
+                else []
+            )
             if files_zip is not None and name not in namelist:
                 # Load the user file from the content and write it to the zip file
                 # because it might not exist in the environment that it is going

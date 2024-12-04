@@ -186,6 +186,9 @@ class BuilderApplicationType(ApplicationType):
 
         serialized_theme = ThemeHandler().export_theme(
             builder,
+            files_zip=files_zip,
+            storage=storage,
+            cache=self.cache,
         )
 
         serialized_favicon_file = UserFileHandler().export_user_file(
@@ -410,7 +413,9 @@ class BuilderApplicationType(ApplicationType):
                 builder.login_page_id = login_page_id
                 builder.save()
 
-        ThemeHandler().import_theme(builder, serialized_theme, id_mapping)
+        ThemeHandler().import_theme(
+            builder, serialized_theme, id_mapping, files_zip, storage
+        )
 
         return builder
 

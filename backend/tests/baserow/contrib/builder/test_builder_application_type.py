@@ -6,30 +6,26 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.urls import reverse
 
 import pytest
 import zipstream
 from PIL import Image
 
-from baserow.api.user_files.serializers import UserFileSerializer
 from baserow.contrib.builder.application_types import BuilderApplicationType
 from baserow.contrib.builder.builder_beta_init_application import (
     BuilderApplicationTypeInitApplication,
 )
-from baserow.contrib.builder.elements.element_types import ImageElementType
 from baserow.contrib.builder.elements.models import (
     ColumnElement,
     Element,
     HeadingElement,
-    ImageElement,
     LinkElement,
     TableElement,
     TextElement,
 )
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.theme.handler import ThemeHandler
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
@@ -1603,32 +1599,21 @@ def test_builder_application_exports_file_with_zip_file(
     """
 
     user, token = data_fixture.create_user_and_token()
-    builder = data_fixture.create_builder_application(user=user)
+    image_file = data_fixture.create_user_file(is_image=True)
+    builder = data_fixture.create_builder_application(
+        user=user, favicon_file=image_file
+    )
     page = data_fixture.create_builder_page(builder=builder)
 
-    # Create a test image file
-    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-    image = Image.new("RGB", (123, 456), color="red")
-    file = SimpleUploadedFile("foo.png", b"")
-    image.save(file, format="PNG")
-    user_file = UserFileHandler().upload_user_file(user, "test", file, storage=storage)
-
-    # Create an ImageElement that uses this uploaded file
-    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
-    response = api_client.post(
-        url,
-        {
-            "type": ImageElementType.type,
-            "image_file": UserFileSerializer(user_file).data,
-            "image_source_type": ImageElement.IMAGE_SOURCE_TYPES.UPLOAD,
-            "alt_text": "test",
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
+    ThemeHandler().update_theme(
+        builder,
+        page_background_file=image_file,
     )
 
-    # Ensure ImageElement is created successfully
-    assert response.status_code == 200
+    data_fixture.create_builder_image_element(
+        page=page,
+        image_file=image_file,
+    )
 
     zip_file = ExportZipFile(
         compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
@@ -1641,10 +1626,13 @@ def test_builder_application_exports_file_with_zip_file(
         builder, ImportExportConfig(include_permission_data=True), files_zip=zip_file
     )
 
-    image_file = page.element_set.all()[0].specific.image_file
-    serialized_image = serialized["pages"][1]["elements"][0]
-    assert serialized_image["image_source_type"] == "upload"
-    assert serialized_image["image_file_id"] == {
+    serialized_file = {
         "name": image_file.name,
         "original_name": image_file.original_name,
     }
+    assert serialized["favicon_file"] == serialized_file
+    assert serialized["theme"]["page_background_file_id"] == serialized_file
+    visible_pages = [page for page in serialized["pages"] if not page["shared"]]
+    serialized_image_element = visible_pages[0]["elements"][0]
+    assert serialized_image_element["image_source_type"] == "upload"
+    assert serialized_image_element["image_file_id"] == serialized_file

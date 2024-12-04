@@ -1009,7 +1009,11 @@ class FormViewType(ViewType):
                 return None
 
             name = user_file.name
-            namelist = [item["name"] for item in files_zip.info_list()]
+            namelist = (
+                [item["name"] for item in files_zip.info_list()]
+                if files_zip is not None
+                else []
+            )
             if files_zip is not None and name not in namelist:
                 file_path = UserFileHandler().user_file_path(name)
 
