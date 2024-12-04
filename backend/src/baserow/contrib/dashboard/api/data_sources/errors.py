@@ -1,0 +1,31 @@
+from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
+
+ERROR_DASHBOARD_DATA_SOURCE_DOES_NOT_EXIST = (
+    "ERROR_DASHBOARD_DATA_SOURCE_DOES_NOT_EXIST",
+    HTTP_404_NOT_FOUND,
+    "The requested data_source does not exist.",
+)
+
+ERROR_DASHBOARD_DATA_SOURCE_IMPROPERLY_CONFIGURED = (
+    "ERROR_DASHBOARD_DATA_SOURCE_IMPROPERLY_CONFIGURED",
+    HTTP_400_BAD_REQUEST,
+    "The data_source configuration is incorrect: {e}",
+)
+
+ERROR_DASHBOARD_DATA_DOES_NOT_EXIST = (
+    "ERROR_DASHBOARD_DATA_DOES_NOT_EXIST",
+    HTTP_404_NOT_FOUND,
+    "The requested data does not exist.",
+)
+
+ERROR_DASHBOARD_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE = (
+    "ERROR_DASHBOARD_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE",
+    HTTP_400_BAD_REQUEST,
+    "A data source cannot be created or updated with this service type.",
+)
+
+ERROR_SERVICE_CONFIGURATION_NOT_ALLOWED = (
+    "ERROR_SERVICE_CONFIGURATION_NOT_ALLOWED",
+    HTTP_400_BAD_REQUEST,
+    "The provided configuration is not allowed.",
+)

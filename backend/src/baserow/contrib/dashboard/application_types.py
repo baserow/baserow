@@ -8,6 +8,8 @@ from django.urls import include, path
 
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import DashboardDict
+from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.storage import ExportZipFile
@@ -19,6 +21,7 @@ class DashboardApplicationType(ApplicationType):
     model_class = Dashboard
     serializer_field_names = ["name", "description"]
     allowed_fields = ["description"]
+    supports_integrations = True
 
     def get_api_urls(self):
         from .api import urls as api_urls
@@ -29,6 +32,13 @@ class DashboardApplicationType(ApplicationType):
 
     def export_safe_transaction_context(self, application: Application) -> Atomic:
         return transaction.atomic()
+
+    def init_application(self, user, application: "Application") -> None:
+        IntegrationHandler().create_integration(
+            integration_type=integration_type_registry.get("local_baserow"),
+            application=application,
+            authorized_user=user,
+        )
 
     def export_serialized(
         self,
