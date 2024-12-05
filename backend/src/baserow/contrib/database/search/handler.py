@@ -535,9 +535,13 @@ class SearchHandler(
         total_updated = 0
         for i in range(0, total_count, settings.TSV_UPDATE_CHUNK_SIZE):
             with transaction.atomic():
-                next_ids = qs.order_by("id").values_list("id", flat=True)[
-                    i : i + settings.TSV_UPDATE_CHUNK_SIZE
-                ]
+                next_ids = (
+                    qs.order_by("id")
+                    .select_for_update(of=("self",), skip_locked=True)
+                    .values_list("id", flat=True)[
+                        i : i + settings.TSV_UPDATE_CHUNK_SIZE
+                    ]
+                )
                 next_chunk = qs.filter(id__in=next_ids).select_for_update(of=("self",))
                 total_updated += next_chunk.update(**update_query)
             progress.increment()
@@ -572,9 +576,11 @@ class SearchHandler(
         total_updated = 0
         while True:
             with transaction.atomic():
-                next_ids = qs.order_by("id").values_list("id", flat=True)[
-                    0 : settings.TSV_UPDATE_CHUNK_SIZE
-                ]
+                next_ids = (
+                    qs.order_by("id")
+                    .select_for_update(of=("self",), skip_locked=True)
+                    .values_list("id", flat=True)[0 : settings.TSV_UPDATE_CHUNK_SIZE]
+                )
                 next_ids = list(next_ids)
                 next_chunk = qs.filter(id__in=next_ids)
                 this_chunk_updated = next_chunk.update(**update_query)
@@ -754,6 +760,38 @@ class SearchHandler(
             update_tsvs_for_changed_rows_only=False,
             updated_fields=updated_fields,
         )
+
+    @classmethod
+    def all_fields_values_changed_or_created(cls, updated_fields: List["Field"]):
+        """
+        Called when field values for a table have been changed or created for an entire
+        field column at once. This is more efficient than calling
+        `entire_field_values_changed_or_created` for each table individually when
+        multiple tables have had field values changed. Please, make sure to
+        select_related the table for the "updated_fields" to avoid N+1 queries.
+
+        :param updated_fields: If only some fields have had values changed then the
+            search vector update can be optimized by providing those here.
+        """
+
+        from baserow.contrib.database.search.tasks import (
+            async_update_multiple_fields_tsvector_columns,
+        )
+        from baserow.contrib.database.tasks import (
+            enqueue_task_on_commit_swallowing_any_exceptions,
+        )
+
+        searchable_updated_fields_ids = [
+            field.id for field in updated_fields if field.table.tsvectors_are_supported
+        ]
+
+        if searchable_updated_fields_ids:
+            enqueue_task_on_commit_swallowing_any_exceptions(
+                lambda: async_update_multiple_fields_tsvector_columns.delay(
+                    field_ids_to_restrict_update_to=searchable_updated_fields_ids,
+                    update_tsvs_for_changed_rows_only=False,
+                )
+            )
 
     @classmethod
     def _trigger_async_tsvector_task_if_needed(
