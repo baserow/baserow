@@ -3936,7 +3936,7 @@ class ViewSubscriptionHandler:
         for _, view_group in itertools.groupby(views, key=lambda f: f.table):
             view_ids = [v.id for v in view_group]
             if view_ids:
-                cls._notify_table_views_updates(view_ids)
+                cls.notify_table_views(view_ids)
 
     @classmethod
     def notify_table_views_updates(
@@ -3955,10 +3955,10 @@ class ViewSubscriptionHandler:
             view__in=views
         ).values_list("view_id", flat=True)
         if view_ids_with_subscribers:
-            cls._notify_table_views_updates(view_ids_with_subscribers, model)
+            cls.notify_table_views(view_ids_with_subscribers, model)
 
     @classmethod
-    def _notify_table_views_updates(
+    def notify_table_views(
         cls, view_ids: list[int], model: GeneratedTableModel | None = None
     ):
         """
