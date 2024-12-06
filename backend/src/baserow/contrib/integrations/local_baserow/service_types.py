@@ -2027,10 +2027,17 @@ class LocalBaserowUpsertRowServiceType(
         :return:
         """
 
+        field_ids = (
+            extract_field_ids_from_list(dispatch_data["public_formula_fields"])
+            if isinstance(dispatch_data["public_formula_fields"], list)
+            else None
+        )
+
         serializer = get_row_serializer_class(
             dispatch_data["baserow_table_model"],
             RowSerializer,
             is_response=True,
+            field_ids=field_ids,
         )
         serialized_row = serializer(dispatch_data["data"]).data
 
@@ -2097,6 +2104,8 @@ class LocalBaserowUpsertRowServiceType(
         """
 
         table = resolved_values["table"]
+        used_field_names = self.get_used_field_names(service, dispatch_context)
+
         integration = service.integration.specific
         row_id: Optional[int] = resolved_values.get("row_id", None)
 
@@ -2174,7 +2183,7 @@ class LocalBaserowUpsertRowServiceType(
                     f"Cannot create rows in table {table.id} because it has a data sync."
                 ) from exc
 
-        return {"data": row, "baserow_table_model": model}
+        return {"data": row, "baserow_table_model": model, "public_formula_fields": used_field_names}
 
     def import_path(self, path, id_mapping):
         """
