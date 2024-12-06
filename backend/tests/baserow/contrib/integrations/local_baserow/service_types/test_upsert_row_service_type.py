@@ -21,6 +21,9 @@ from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.test_utils.helpers import AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
+from unittest.mock import MagicMock, patch
+from baserow.contrib.database.api.rows.serializers import RowSerializer
+
 
 @pytest.mark.django_db
 def test_local_baserow_upsert_row_service_dispatch_data_without_row_id(
@@ -690,3 +693,45 @@ def test_local_baserow_upsert_row_service_type_import_path(data_fixture):
     assert imported_upsert_row_service_type.import_path(
         ["field_1"], {"database_fields": {1: 2}}
     ) == ["field_2"]
+
+
+@pytest.mark.parametrize(
+    "field_names,expected",
+    [
+        (None, None),
+        ([], []),
+        (["field_123"], [123]),
+    ],
+)
+@patch(
+    "baserow.contrib.integrations.local_baserow.service_types.get_row_serializer_class"
+)
+def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names, expected):
+    """
+    Test the LocalBaserowUpsertRowServiceType::dispatch_transform() method.
+
+    Ensure that the field_ids parameter is passed to the serializer class.
+    """
+
+    mock_serializer_instance = MagicMock()
+    mock_serializer_instance.data.return_value = "foo"
+    mock_serializer = MagicMock(return_value=mock_serializer_instance)
+    mock_get_serializer.return_value = mock_serializer
+
+    service_type = LocalBaserowUpsertRowServiceType()
+
+    dispatch_data = {
+        "baserow_table_model": MagicMock(),
+        "data": [],
+    }
+    dispatch_data["public_formula_fields"] = field_names
+
+    results = service_type.dispatch_transform(dispatch_data)
+
+    assert results == mock_serializer_instance.data
+    mock_get_serializer.assert_called_once_with(
+        dispatch_data["baserow_table_model"],
+        RowSerializer,
+        is_response=True,
+        field_ids=expected,
+    )
