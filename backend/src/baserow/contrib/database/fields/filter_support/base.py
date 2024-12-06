@@ -262,7 +262,7 @@ def get_array_json_filter_expression(
         F(field_name), Value(value), output_field=BooleanField()
     )
     lookup_name = (json_expression.__name__).lower()
-    hashed_value = hash(value)
+    hashed_value = hash(f"{field_name}_{lookup_name}__{value}")
     return AnnotatedQ(
         annotation={
             f"{field_name}_array_expr_{lookup_name}_{hashed_value}": annotation_query

@@ -11,12 +11,13 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueEmptyFilterSupport,
     HasValueEqualFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
+    IHasValueContainsFilterSupport,
     IHasValueEmptyFilterSupport,
+    IHasValueEqualFilterSupport,
     IHasValueHigherOrEqualThanFilterSupport,
     IHasValueHigherThanFilterSupport,
     IHasValueLowerOrEqualThanFilterSupport,
-    IHasValueLowerThanFilterSupport, IHasValueEqualFilterSupport,
-    IHasValueContainsFilterSupport,
+    IHasValueLowerThanFilterSupport,
 )
 from baserow.contrib.database.fields.filter_support.exceptions import (
     FilterNotSupportedException,

@@ -13,7 +13,8 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
     JSONArrayContainsValueHigherThanOrEqualNumericExpr,
     JSONArrayContainsValueLowerThanNumericExpr,
     JSONArrayContainsValueLowerThanOrEqualNumericExpr,
-    JSONArrayHasEmptyValueExpr, JSONArrayEqualNumericValueExpr,
+    JSONArrayEqualNumericValueExpr,
+    JSONArrayHasEmptyValueExpr,
 )
 
 from .base import (
@@ -51,20 +52,21 @@ class SubTypeCallerMixin:
 
 class FormulaFieldPrepDbValueMixin:
     def _is_value_empty(self, value):
-        return value is None or (isinstance(value, str) and value.strip() == '')
+        return value is None or (isinstance(value, str) and value.strip() == "")
 
     def _get_prep_value(self, value: str, instance: typing.Any | None = None):
         from baserow.contrib.database.fields.registries import field_type_registry
+
         if self._is_value_empty(value):
             return None
         baserow_field_type = field_type_registry.get(self.baserow_field_type)
         field_instance = baserow_field_type.get_model_field(self)
         try:
             # get_prep_value can return None
-            return field_instance.get_prep_value(value) or False
+            return field_instance.get_prep_value(value)
         except ValidationError as err:
             logger.warning(f"Cannot use {value} as {field_instance}: {err}")
-            raise FilterNotSupportedException(f'invalid numeric value {value}: {err}')
+            raise FilterNotSupportedException(f"invalid numeric value {value}: {err}")
 
 
 class FormulaArrayEqualFilterSupport(
@@ -204,7 +206,7 @@ class FormulaNumberFilterSupport(
         if (numval := self._get_prep_value(value, field)) is None:
             return Q()
         return get_array_json_filter_expression(
-            JSONArrayEqualNumericValueExpr, field_name, numval
+            JSONArrayEqualNumericValueExpr, field_name, value
         )
 
     def get_has_value_higher_filter_query(
@@ -232,7 +234,6 @@ class FormulaNumberFilterSupport(
     ) -> OptionallyAnnotatedQ:
         if (numval := self._get_prep_value(value, field)) is None:
             return Q()
-        logger.info(f'lower than {numval}')
         return get_array_json_filter_expression(
             JSONArrayContainsValueLowerThanNumericExpr, field_name, numval
         )
@@ -244,4 +245,13 @@ class FormulaNumberFilterSupport(
             return Q()
         return get_array_json_filter_expression(
             JSONArrayContainsValueLowerThanOrEqualNumericExpr, field_name, numval
+        )
+
+    def get_in_array_contains_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        if (numval := self._get_prep_value(value, field)) is None:
+            return Q()
+        return get_array_json_filter_expression(
+            JSONArrayContainsValueExpr, field_name, f"%{value}%"
         )

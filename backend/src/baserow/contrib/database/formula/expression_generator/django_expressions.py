@@ -164,7 +164,7 @@ class FileNameContainsExpr(BaserowFilterExpression):
     template = (
         f"""
         EXISTS(
-            SELECT attached_files ->> 'visible_name'
+            SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as attached_files
             WHERE UPPER(attached_files ->> 'visible_name') LIKE UPPER(%(value)s)
         )
@@ -178,13 +178,14 @@ class JSONArrayContainsValueExpr(BaserowFilterExpression):
     template = (
         f"""
         EXISTS(
-            SELECT filtered_field ->> 'value'
+            SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE UPPER(filtered_field ->> 'value') LIKE UPPER(%(value)s::text)
         )
         """  # nosec B608
     )
     # fmt: on
+
 
 class JSONArrayEqualNumericValueExpr(BaserowFilterExpression):
     # fmt: off
@@ -205,7 +206,7 @@ class JSONArrayContainsValueSimilarToExpr(BaserowFilterExpression):
     template = (
         f"""
         EXISTS(
-            SELECT filtered_field ->> 'value'
+            SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE UPPER(filtered_field ->> 'value') SIMILAR TO %(value)s
         )
@@ -219,7 +220,7 @@ class JSONArrayContainsValueLengthLowerThanExpr(BaserowFilterExpression):
     template = (
         f"""
         EXISTS(
-            SELECT filtered_field ->> 'value'
+            SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE LENGTH(filtered_field ->> 'value') < %(value)s
         )
@@ -233,7 +234,7 @@ class JSONArrayAllAreExpr(BaserowFilterExpression):
     template = (
         f"""
         upper(%(value)s::text) =ALL(
-            SELECT upper(filtered_field ->> 'value')
+            SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
         ) AND JSONB_ARRAY_LENGTH(%(field_name)s) > 0
                 """  # nosec B608 %(value)s
@@ -260,7 +261,7 @@ class JSONArrayEqualSelectOptionIdExpr(BaserowFilterExpression):
     template = (
         f"""
         EXISTS(
-            SELECT filtered_field -> 'value' ->> 'id'
+            SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE (filtered_field -> 'value' ->> 'id') LIKE (%(value)s)
         )
@@ -274,7 +275,7 @@ class JSONArrayContainsSelectOptionValueExpr(BaserowFilterExpression):
     template = (
         f"""
         EXISTS(
-            SELECT filtered_field -> 'value' ->> 'value'
+            SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE UPPER(filtered_field -> 'value' ->> 'value') LIKE UPPER(%(value)s)
         )
@@ -288,7 +289,7 @@ class JSONArrayContainsSelectOptionValueSimilarToExpr(BaserowFilterExpression):
     template = (
         r"""
         EXISTS(
-            SELECT filtered_field -> 'value' ->> 'value'
+            SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE filtered_field -> 'value' ->> 'value' ~* ('\y' || %(value)s || '\y')
         )
@@ -333,20 +334,6 @@ class JSONArrayContainsValueLowerThanNumericExpr(BaserowFilterExpression):
             SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE (filtered_field ->> 'value')::numeric < %(value)s::numeric
-        )
-        """  # nosec B608
-    )
-    # fmt: on
-
-
-class JSONArrayContainsValueLowerThanOrEqualNumericExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE (filtered_field ->> 'value')::numeric <= %(value)s::numeric
         )
         """  # nosec B608
     )
