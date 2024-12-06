@@ -1,10 +1,12 @@
 from io import BytesIO
+from unittest.mock import MagicMock, patch
 
 import pytest
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.workflow_actions.models import EventTypes
+from baserow.contrib.database.api.rows.serializers import RowSerializer
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -20,9 +22,6 @@ from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.test_utils.helpers import AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
-
-from unittest.mock import MagicMock, patch
-from baserow.contrib.database.api.rows.serializers import RowSerializer
 
 
 @pytest.mark.django_db
@@ -706,7 +705,9 @@ def test_local_baserow_upsert_row_service_type_import_path(data_fixture):
 @patch(
     "baserow.contrib.integrations.local_baserow.service_types.get_row_serializer_class"
 )
-def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names, expected):
+def test_dispatch_transform_passes_field_ids(
+    mock_get_serializer, field_names, expected
+):
     """
     Test the LocalBaserowUpsertRowServiceType::dispatch_transform() method.
 

@@ -1647,7 +1647,9 @@ def test_previous_action_extract_properties_raises_if_invalid_service_id():
 
 
 @pytest.mark.django_db
-def test_previous_action_extract_properties_returns_service_id_and_field_id(data_fixture):
+def test_previous_action_extract_properties_returns_service_id_and_field_id(
+    data_fixture,
+):
     """
     Test the PreviousActionProviderType::extract_properties() method.
 
