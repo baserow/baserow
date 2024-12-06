@@ -429,6 +429,37 @@ class PreviousActionProviderType(DataProviderType):
 
         return [str(workflow_action_id), *rest]
 
+    def extract_properties(
+        self,
+        path: List[str],
+        **kwargs,
+    ) -> Dict[str, List[str]]:
+        """
+        Given a formula path, validates that the Workflow Action is valid
+        and returns a dict where the key is the Workflow Action's service ID
+        and the value is a list of field names.
+
+        E.g. supposing the original formula string is:
+        'previous_action.456.field_1234', the `path` would be `['456', 'field_5769']`.
+
+        If the workflow action's service ID is 123, the following would be
+        returned: `{123: ['field_1234']}`.
+        """
+
+        if len(path) != 2:
+            return {}
+
+        previous_id, field_name = path
+        
+        try:
+            previous_action = BuilderWorkflowActionHandler().get_workflow_action(
+                previous_id
+            )
+        except WorkflowActionDoesNotExist as exc:
+            raise InvalidBaserowFormula() from exc
+
+        return {previous_action.service.id: [field_name]}
+
 
 class UserDataProviderType(DataProviderType):
     """
