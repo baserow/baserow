@@ -2183,7 +2183,11 @@ class LocalBaserowUpsertRowServiceType(
                     f"Cannot create rows in table {table.id} because it has a data sync."
                 ) from exc
 
-        return {"data": row, "baserow_table_model": model, "public_formula_fields": used_field_names}
+        return {
+            "data": row,
+            "baserow_table_model": model,
+            "public_formula_fields": used_field_names,
+        }
 
     def import_path(self, path, id_mapping):
         """

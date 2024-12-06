@@ -450,7 +450,7 @@ class PreviousActionProviderType(DataProviderType):
             return {}
 
         previous_id, field_name = path
-        
+
         try:
             previous_action = BuilderWorkflowActionHandler().get_workflow_action(
                 previous_id
