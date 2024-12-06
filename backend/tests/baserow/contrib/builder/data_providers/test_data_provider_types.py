@@ -1607,3 +1607,75 @@ def test_data_provider_type_extract_properties_base_method():
     result = FakeDataProviderType().extract_properties([])
 
     assert result == {}
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        [],
+        [""],
+        ["foo"],
+        ["foo", "bar", "baz"],
+    ),
+)
+@pytest.mark.django_db
+def test_previous_action_extract_properties_returns_empty_if_invalid_path_parts(
+    path,
+):
+    """
+    Test the PreviousActionProviderType::extract_properties() method.
+
+    Ensure that an empty dict is returned if the path list doesn't have exactly
+    2 elements.
+    """
+
+    result = PreviousActionProviderType().extract_properties(path)
+    assert result == {}
+
+
+@pytest.mark.django_db
+def test_previous_action_extract_properties_raises_if_invalid_service_id():
+    """
+    Test the PreviousActionProviderType::extract_properties() method.
+
+    Ensure an exception is raised if the Workflow Action ID is invalid.
+    """
+
+    # The service ID of 100 doesn't exist
+    with pytest.raises(InvalidBaserowFormula):
+        PreviousActionProviderType().extract_properties(["100", "field_123"])
+
+
+@pytest.mark.django_db
+def test_previous_action_extract_properties_returns_service_id_and_field_id(data_fixture):
+    """
+    Test the PreviousActionProviderType::extract_properties() method.
+
+    Ensure an exception is raised if the Workflow Action ID is invalid.
+    """
+
+    user = data_fixture.create_user()
+    _, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Fruit", "text"),
+            ("Color", "text"),
+            ("Country", "text"),
+        ],
+        rows=[
+            ["Apple", "Green", "China"],
+            ["Banana", "Yellow", "Ecuador"],
+            ["Cherry", "Red", "Turkey"],
+        ],
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+        element=button_element, page=page
+    )
+    path = [f"{workflow_action.id}", f"field_{fields[0].id}"]
+
+    properties = PreviousActionProviderType().extract_properties(path)
+
+    assert properties == {workflow_action.service.id: [f"field_{fields[0].id}"]}
