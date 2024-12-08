@@ -6,24 +6,18 @@ default:
     - docker info
 
 variables:
-  # When you use the dind service, you must instruct Docker to talk with
-  # the daemon started inside of the service. The daemon is available
-  # with a network connection instead of the default
-  # /var/run/docker.sock socket. Docker 19.03 does this automatically
-  # by setting the DOCKER_HOST in
-  # https://github.com/docker-library/docker/blob/d45051476babc297257df490d22cbd806f1b11e4/19.03/docker-entrypoint.sh#L23-L29
-  #
-  # The 'docker' hostname is the alias of the service container as described at
-  # https://docs.gitlab.com/ee/ci/services/#accessing-the-services.
-  #
-  # Specify to Docker where to create the certificates. Docker
-  # creates them automatically on boot, and creates
-  # `/certs/client` to share between the service and job
-  # container, thanks to volume mount from config.toml
+#  DOCKER_BUILDKIT: 1
+#  DOCKER_HOST: tcp://docker:2376
   DOCKER_TLS_CERTDIR: "/certs"
 
 build:
   stage: build
   script:
+    - |
+      cat <<EOF > Dockerfile
+      FROM alpine:3.18
+      RUN apk add --no-cache bash
+      CMD ["echo", "Hello, World!"]
+      EOF
     - docker build -t my-docker-image .
-    - docker run my-docker-image /script/to/run/tests
+    - docker run --rm my-docker-image
