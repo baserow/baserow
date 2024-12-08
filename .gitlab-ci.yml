@@ -6,8 +6,8 @@ default:
     - docker info
 
 variables:
-#  DOCKER_BUILDKIT: 1
-#  DOCKER_HOST: tcp://docker:2376
+  DOCKER_BUILDKIT: 1
+  DOCKER_HOST: tcp://docker:2376
   DOCKER_TLS_CERTDIR: "/certs"
 
 build:
