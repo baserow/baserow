@@ -4661,12 +4661,12 @@ class FormulaFieldType(FormulaArrayEqualFilterSupport, ReadOnlyFieldType):
                 update_collector.apply_updates_and_get_updated_fields(field_cache)
             )
 
-        all_dependent_fields_grouped_by_depth = (
-            FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
-                fields,
-                field_cache,
-                associated_relations_changed=False,
-            )
+        all_dependent_fields_grouped_by_depth = FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
+            fields,
+            field_cache,
+            associated_relations_changed=False,
+            # We can't provide the `database_id_prefilter` here because the fields
+            # can belong in different databases.
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
             for table_id, dependant_field in dependant_fields_group:

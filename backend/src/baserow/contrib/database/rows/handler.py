@@ -1040,6 +1040,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 updated_field_ids,
                 field_cache,
                 associated_relations_changed=True,
+                database_id_prefilter=table.database_id,
             )
         )
         deleted_m2m_rels_per_link_field = None
@@ -1318,6 +1319,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 field_ids,
                 field_cache,
                 associated_relations_changed=True,
+                database_id_prefilter=table.database_id,
             )
         )
 
@@ -2226,6 +2228,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             updated_field_ids,
             field_cache,
             associated_relations_changed=True,
+            database_id_prefilter=table.database_id,
         ):
             dependant_fields.append(dependant_field)
             dependant_field_type.row_of_dependency_deleted(
@@ -2331,6 +2334,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             updated_field_ids,
             field_cache,
             associated_relations_changed=True,
+            database_id_prefilter=table.database_id,
         ):
             dependant_fields.append(dependant_field)
             dependant_field_type.row_of_dependency_deleted(

@@ -441,6 +441,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 [field.id],
                 field_cache,
                 associated_relations_changed=True,
+                database_id_prefilter=field.table.database_id,
             )
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
@@ -737,6 +738,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 [field.id],
                 field_cache,
                 associated_relations_changed=True,
+                database_id_prefilter=field.table.database_id,
             )
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
@@ -894,6 +896,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 [field.id],
                 field_cache,
                 associated_relations_changed=True,
+                database_id_prefilter=field.table.database_id,
             )
         )
         before_return = before_field_deleted.send(
@@ -1199,6 +1202,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 [field.id],
                 field_cache,
                 associated_relations_changed=True,
+                database_id_prefilter=field.table.database_id,
             )
         )
 

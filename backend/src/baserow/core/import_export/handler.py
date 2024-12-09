@@ -15,6 +15,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import SuspiciousOperation
 from django.core.files.base import ContentFile
 from django.core.files.storage import Storage
+from django.db import transaction
 from django.db.models import Exists, OuterRef, QuerySet
 from django.utils.encoding import force_bytes
 
@@ -55,6 +56,7 @@ from baserow.core.storage import (
     get_default_storage,
 )
 from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
     InvalidFileStreamError,
@@ -822,6 +824,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
     def import_multiple_applications(
         self,
+        user: AbstractUser,
         workspace: Workspace,
         manifest: Dict,
         import_tmp_path: str,
@@ -834,6 +837,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         Imports multiple applications into a workspace from the provided application
         data.
 
+        :param user: The user performing the import operation.
         :param workspace: The workspace into which the applications will be imported.
         :param manifest: A dictionary representing the manifest data of the
             applications.
@@ -869,20 +873,29 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             for application_manifest in manifest["applications"][application_type][
                 "items"
             ]:
-                imported_application = self.import_application(
-                    workspace,
-                    id_mapping,
-                    application_manifest,
-                    import_tmp_path,
-                    import_export_config,
-                    zip_file,
-                    storage,
-                    progress,
-                )
-
-                imported_application.order = next_application_order_value
-                next_application_order_value += 1
-                imported_applications.append(imported_application)
+                try:
+                    with transaction.atomic():
+                        imported_application = self.import_application(
+                            workspace,
+                            id_mapping,
+                            application_manifest,
+                            import_tmp_path,
+                            import_export_config,
+                            zip_file,
+                            storage,
+                            progress,
+                        )
+                except Exception as exc:  # noqa
+                    # Trash the already imported applications so the user won't see
+                    # a partial import, but he will be able to restore them if he
+                    # wants to until they are permanently deleted by the trash task.
+                    for application in imported_applications:
+                        TrashHandler.trash(user, workspace, application, application)
+                    raise exc
+                else:
+                    imported_application.order = next_application_order_value
+                    next_application_order_value += 1
+                    imported_applications.append(imported_application)
 
         Application.objects.bulk_update(imported_applications, ["order"])
         return imported_applications
@@ -990,6 +1003,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                 )
 
                 imported_applications = self.import_multiple_applications(
+                    user,
                     workspace,
                     manifest_data,
                     import_tmp_path,
@@ -1009,8 +1023,6 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                         user=user,
                         type_name=application_type.type,
                     )
-
-                Application.objects.bulk_update(imported_applications, ["order"])
 
         self.clean_storage(import_tmp_path, storage)
         self.clean_storage(import_file_path, storage)

@@ -74,7 +74,11 @@
         :workspaces="workspaces"
       ></SidebarWithoutWorkspace>
     </template>
-    <SidebarFoot></SidebarFoot>
+    <SidebarFoot
+      :collapsed="collapsed"
+      :width="width"
+      @set-col1-width="$emit('set-col1-width', $event)"
+    ></SidebarFoot>
   </div>
 </template>
 
@@ -116,6 +120,11 @@ export default {
       type: Boolean,
       required: false,
       default: () => false,
+    },
+    width: {
+      type: Number,
+      required: false,
+      default: 240,
     },
   },
   data() {
