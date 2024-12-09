@@ -33,8 +33,9 @@
       <div class="col col-6">
         <PageSettingsQueryParamsFormElement
           :disabled="!hasPermission"
-          :query-params="values.query_params"
+          :query-params="localQueryParams"
           @update="onQueryParamUpdate"
+          @add="addQueryParam"
         />
       </div>
     </div>
@@ -91,6 +92,7 @@ export default {
         path_params: [],
         query_params: [],
       },
+      localQueryParams: [],
       hasPathBeenEdited: false,
     }
   },
@@ -209,6 +211,12 @@ export default {
       },
       immediate: true,
     },
+     'values.query_params': {
+    handler(newQueryParams) {
+      this.localQueryParams = [...newQueryParams]
+    },
+    immediate: true
+  }
   },
   created() {
     if (this.isCreation) {
@@ -235,13 +243,15 @@ export default {
         }
       })
     },
-    onQueryParamUpdate(queryTypeName, paramType) {
-      this.values.query_params.forEach((queryParam) => {
-        if (queryParam.name === queryTypeName) {
-          queryParam.type = paramType
-        }
-      })
+    onQueryParamUpdate(updatedQueryParams) {
+      this.localQueryParams = updatedQueryParams
     },
+getFormValues() {
+      return Object.assign({}, this.values, this.getChildFormsValues(), {query_params: this.localQueryParams})
+    },
+addQueryParam(newParam) {
+  this.localQueryParams.push(newParam)
+},
     isNameUnique(name) {
       return !this.pageNames.includes(name) || name === this.page?.name
     },

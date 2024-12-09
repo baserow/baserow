@@ -29,6 +29,28 @@
           {{ pathPart.value }}
         </div>
       </template>
+      <template v-for="(queryParam, index) in queryParams">
+        <span
+          :key="`separator-${queryParam.key}`"
+          class="preview-navigation-bar__query-separator"
+        >
+          {{ index === 0 ? '?' : '&' }}
+        </span>
+        <PreviewNavigationBarQueryParam
+          :key="`param-${queryParam.key}`"
+          :class="`preview-navigation-bar__address-bar-query-parameter-input--${queryParam.type}`"
+          :validation-fn="queryParam.validationFn"
+          :default-value="pageParameters[queryParam.name]"
+          :name="queryParam.name"
+          @change="
+            actionSetParameter({
+              page,
+              name: queryParam.name,
+              value: $event,
+            })
+          "
+        />
+      </template>
     </div>
     <div />
   </div>
@@ -40,9 +62,11 @@ import PreviewNavigationBarInput from '@baserow/modules/builder/components/page/
 import UserSelector from '@baserow/modules/builder/components/page/UserSelector'
 import { mapActions } from 'vuex'
 import { PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS } from '@baserow/modules/builder/enums'
+import PreviewNavigationBarQueryParam
+  from "@baserow/modules/builder/components/page/PreviewNavigationBarQueryParam.vue";
 
 export default {
-  components: { PreviewNavigationBarInput, UserSelector },
+  components: { PreviewNavigationBarInput, UserSelector, PreviewNavigationBarQueryParam },
   props: {
     page: {
       type: Object,
@@ -52,6 +76,13 @@ export default {
   computed: {
     pageParameters() {
       return this.$store.getters['pageParameter/getParameters'](this.page)
+    },
+    queryParams() {
+      return this.page.query_params.map((queryParam, idx) => ({
+        ...queryParam,
+        key: `query-param-${queryParam.name}-${idx}`,
+        validationFn: PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS[queryParam.type],
+      }))
     },
     splitPath() {
       return splitPath(this.page.path).map((pathPart, index) => ({
