@@ -50,7 +50,12 @@ export default {
     }
   },
   methods: {
-    async addPage({ name, path, path_params: pathParams, query_params: queryParams }) {
+    async addPage({
+      name,
+      path,
+      path_params: pathParams,
+      query_params: queryParams,
+    }) {
       this.loading = true
       try {
         const page = await this.$store.dispatch('page/create', {

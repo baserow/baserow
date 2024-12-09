@@ -2,7 +2,10 @@ from rest_framework import serializers
 
 from baserow.contrib.builder.pages.constants import PAGE_PATH_PARAM_TYPE_CHOICES
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.pages.validators import path_param_name_validation, query_param_name_validation
+from baserow.contrib.builder.pages.validators import (
+    path_param_name_validation,
+    query_param_name_validation,
+)
 
 
 class PathParamSerializer(serializers.Serializer):
@@ -28,6 +31,7 @@ class QueryParamSerializer(serializers.Serializer):
     type = serializers.ChoiceField(
         choices=PAGE_PATH_PARAM_TYPE_CHOICES, help_text="The type of the parameter."
     )
+
 
 class PageSerializer(serializers.ModelSerializer):
     """
@@ -69,7 +73,6 @@ class CreatePageSerializer(serializers.ModelSerializer):
     path_params = PathParamSerializer(many=True, required=False)
     query_params = PathParamSerializer(many=True, required=False)
 
-
     class Meta:
         model = Page
         fields = ("name", "path", "path_params", "query_params")
@@ -81,7 +84,15 @@ class UpdatePageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Page
-        fields = ("name", "path", "path_params", "visibility", "role_type", "roles", "query_params")
+        fields = (
+            "name",
+            "path",
+            "path_params",
+            "visibility",
+            "role_type",
+            "roles",
+            "query_params",
+        )
         extra_kwargs = {
             "name": {"required": False},
             "path": {"required": False},

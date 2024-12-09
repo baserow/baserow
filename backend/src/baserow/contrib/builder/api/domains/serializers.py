@@ -10,7 +10,10 @@ from baserow.api.app_auth_providers.serializers import AppAuthProviderSerializer
 from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.api.services.serializers import PublicServiceSerializer
 from baserow.api.user_files.serializers import UserFileField, UserFileSerializer
-from baserow.contrib.builder.api.pages.serializers import PathParamSerializer, QueryParamSerializer
+from baserow.contrib.builder.api.pages.serializers import (
+    PathParamSerializer,
+    QueryParamSerializer,
+)
 from baserow.contrib.builder.api.theme.serializers import (
     CombinedThemeConfigBlocksSerializer,
     serialize_builder_theme,

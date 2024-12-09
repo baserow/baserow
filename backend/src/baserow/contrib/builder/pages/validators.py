@@ -3,7 +3,8 @@ from django.core.validators import URLValidator
 
 from baserow.contrib.builder.pages.constants import (
     PAGE_PATH_PARAM_PREFIX,
-    PATH_PARAM_EXACT_MATCH_REGEX, QUERY_PARAM_EXACT_MATCH_REGEX,
+    PATH_PARAM_EXACT_MATCH_REGEX,
+    QUERY_PARAM_EXACT_MATCH_REGEX,
 )
 
 

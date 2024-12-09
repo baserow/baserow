@@ -90,10 +90,13 @@ export class PreviewPageActionType extends PageActionType {
       page.path_params.map(({ name, value }) => [name, page.parameters[name]])
     )
     const resolvedPagePath = toPath(pageParams)
-    const url = new URL(`/builder/${builderId}/preview${resolvedPagePath}`, window.location.origin)
+    const url = new URL(
+      `/builder/${builderId}/preview${resolvedPagePath}`,
+      window.location.origin
+    )
     if (page.query_params && Array.isArray(page.query_params)) {
       page.query_params.forEach(({ name }) => {
-          url.searchParams.append(name, page.parameters[name])
+        url.searchParams.append(name, page.parameters[name])
       })
     }
     return url.toString()

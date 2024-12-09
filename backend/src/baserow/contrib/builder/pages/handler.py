@@ -115,6 +115,7 @@ class PageHandler:
 
         last_order = Page.get_last_order(builder)
         path_params = path_params or []
+        query_params = query_params or []
 
         self.is_page_path_valid(path, path_params, raises=True)
         self.is_page_path_unique(builder, path, raises=True)

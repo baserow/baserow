@@ -40,7 +40,11 @@
     </template>
     <div>
       <ButtonText icon="iconoir-plus" @click.prevent="addParameter">
-        {{ localQueryParams.length > 0 ? $t('pageForm.addAnotherParameter') : $t('pageForm.addParameter') }}
+        {{
+          localQueryParams.length > 0
+            ? $t('pageForm.addAnotherParameter')
+            : $t('pageForm.addParameter')
+        }}
       </ButtonText>
     </div>
   </FormGroup>
@@ -92,7 +96,7 @@ export default {
       this.localQueryParams[index].type = newType
       this.$emit('update', this.localQueryParams)
     },
-    async addParameter() {
+    addParameter() {
       const newParam = {
         name: `param${this.localQueryParams.length + 1}`,
         type: this.queryParamTypes[0].getType(),

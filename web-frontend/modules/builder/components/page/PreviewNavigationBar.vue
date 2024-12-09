@@ -62,11 +62,14 @@ import PreviewNavigationBarInput from '@baserow/modules/builder/components/page/
 import UserSelector from '@baserow/modules/builder/components/page/UserSelector'
 import { mapActions } from 'vuex'
 import { PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS } from '@baserow/modules/builder/enums'
-import PreviewNavigationBarQueryParam
-  from "@baserow/modules/builder/components/page/PreviewNavigationBarQueryParam.vue";
+import PreviewNavigationBarQueryParam from '@baserow/modules/builder/components/page/PreviewNavigationBarQueryParam.vue'
 
 export default {
-  components: { PreviewNavigationBarInput, UserSelector, PreviewNavigationBarQueryParam },
+  components: {
+    PreviewNavigationBarInput,
+    UserSelector,
+    PreviewNavigationBarQueryParam,
+  },
   props: {
     page: {
       type: Object,

@@ -1,6 +1,6 @@
 from typing import List, Optional, TypedDict
 
-from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParam, PageQueryParams
+from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParams
 from baserow.core.integrations.types import IntegrationDictSubClass
 from baserow.core.services.types import ServiceDictSubClass
 from baserow.core.user_sources.types import UserSourceDictSubClass

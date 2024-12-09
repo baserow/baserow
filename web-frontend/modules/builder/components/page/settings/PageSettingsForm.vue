@@ -211,12 +211,12 @@ export default {
       },
       immediate: true,
     },
-     'values.query_params': {
-    handler(newQueryParams) {
-      this.localQueryParams = [...newQueryParams]
+    'values.query_params': {
+      handler(newQueryParams) {
+        this.localQueryParams = [...newQueryParams]
+      },
+      immediate: true,
     },
-    immediate: true
-  }
   },
   created() {
     if (this.isCreation) {
@@ -246,12 +246,14 @@ export default {
     onQueryParamUpdate(updatedQueryParams) {
       this.localQueryParams = updatedQueryParams
     },
-getFormValues() {
-      return Object.assign({}, this.values, this.getChildFormsValues(), {query_params: this.localQueryParams})
+    getFormValues() {
+      return Object.assign({}, this.values, this.getChildFormsValues(), {
+        query_params: this.localQueryParams,
+      })
     },
-addQueryParam(newParam) {
-  this.localQueryParams.push(newParam)
-},
+    addQueryParam(newParam) {
+      this.localQueryParams.push(newParam)
+    },
     isNameUnique(name) {
       return !this.pageNames.includes(name) || name === this.page?.name
     },

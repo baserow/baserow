@@ -343,7 +343,10 @@ export class PageParameterDataProviderType extends DataProviderType {
   getDataSchema(applicationContext) {
     const page = applicationContext.page
     const toJSONType = { text: 'string', numeric: 'number' }
-    const mergedParams = [...page?.path_params || [], ...page?.query_params || []]
+    const mergedParams = [
+      ...(page?.path_params || []),
+      ...(page?.query_params || []),
+    ]
 
     return {
       type: 'object',
