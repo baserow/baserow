@@ -135,21 +135,6 @@ ALL_ROW_NAMES = [
     "100 with empty",
     "ninieninenine rounded",
 ]
-# filters to test:
-#  has empty value
-#  doesn't have empty value
-#  has value equal
-#  doesn't have value equal
-#  has value contains
-#  doesn't have value contains
-#  has value higher than
-#  doesn't have value higher than
-#  has value higher than or equal
-#  doesn't have value higher than or equal
-#  has value lower than
-#  doesn't have value lower than
-#  has value lower than or equal
-#  doesn't have value lower than or equal
 
 
 @pytest.mark.parametrize(
@@ -379,10 +364,205 @@ def test_number_lookup_field_has_value_higher_than_filter(
             "999.999",
             ["above 100", "nineninenine", "ninieninenine rounded"],
         ),
+        ("has_not_value_higher_or_equal", "", ALL_ROW_NAMES),
+        (
+            "has_not_value_higher_or_equal",
+            "invalid",
+            ALL_ROW_NAMES,
+        ),  # reversed has_value_higher_or_equal
+        (
+            "has_not_value_higher_or_equal",
+            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            ALL_ROW_NAMES,  # reversed has_value_higher_or_equal
+        ),
+        (
+            "has_not_value_higher_or_equal",
+            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            [o for o in ALL_ROW_NAMES if o in {"no refs", "refs with empty"}],
+        ),
+        (
+            "has_not_value_higher_or_equal",
+            "-0.0",
+            ["below zero", "no refs", "refs with empty"],
+        ),
+        (
+            "has_not_value_higher_or_equal",
+            "999.999",
+            [
+                o
+                for o in ALL_ROW_NAMES
+                if o not in {"above 100", "nineninenine", "ninieninenine rounded"}
+            ],
+        ),
     ],
 )
 @pytest.mark.django_db
 def test_number_lookup_field_has_value_higher_equal_than_filter(
+    data_fixture, filter_type_name, test_value, expected_rows
+):
+    return number_lookup_filter_proc(
+        data_fixture, filter_type_name, test_value, expected_rows
+    )
+
+
+@pytest.mark.parametrize(
+    "filter_type_name,test_value,expected_rows",
+    [
+        ("has_value_lower_or_equal", "", ALL_ROW_NAMES),
+        ("has_value_lower_or_equal", "invalid", []),
+        (
+            "has_value_lower_or_equal",
+            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            [o for o in ALL_ROW_NAMES if o not in {"no refs", "refs with empty"}],
+        ),
+        (
+            "has_value_lower_or_equal",
+            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            [],
+        ),
+        (
+            "has_value_lower_or_equal",
+            "-0.0",
+            ["between 10 and 0", "zero", "below zero"],
+        ),
+        (
+            "has_value_lower_or_equal",
+            "999.999",
+            [
+                "above 100",
+                "exact 100",
+                "between 100 and 10",
+                "between 10 and 0",
+                "zero",
+                "below zero",
+                "nineninenine",
+                "onetwothree",
+                "100 with empty",
+            ],
+        ),
+        ("has_not_value_lower_or_equal", "", ALL_ROW_NAMES),
+        (
+            "has_not_value_lower_or_equal",
+            "invalid",
+            ALL_ROW_NAMES,
+        ),  # reversed has_value_lower_or_equal
+        (
+            "has_not_value_lower_or_equal",
+            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            ["no refs", "refs with empty"],  # reversed has_value_lower_or_equal
+        ),
+        (
+            "has_not_value_lower_or_equal",
+            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            ALL_ROW_NAMES,
+        ),
+        (
+            "has_not_value_lower_or_equal",
+            "-0.0",
+            [
+                "above 100",
+                "exact 100",
+                "between 100 and 10",
+                "nineninenine",
+                "onetwothree",
+                "no refs",
+                "refs with empty",
+                "100 with empty",
+                "ninieninenine rounded",
+            ],
+        ),
+        (
+            "has_not_value_lower_or_equal",
+            "999.999",
+            ["no refs", "refs with empty", "ninieninenine rounded"],
+        ),
+    ],
+)
+@pytest.mark.django_db
+def test_number_lookup_field_has_value_lower_equal_than_filter(
+    data_fixture, filter_type_name, test_value, expected_rows
+):
+    return number_lookup_filter_proc(
+        data_fixture, filter_type_name, test_value, expected_rows
+    )
+
+
+@pytest.mark.parametrize(
+    "filter_type_name,test_value,expected_rows",
+    [
+        ("has_value_lower", "", ALL_ROW_NAMES),
+        ("has_value_lower", "invalid", []),
+        (
+            "has_value_lower",
+            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            [o for o in ALL_ROW_NAMES if o not in {"no refs", "refs with empty"}],
+        ),
+        (
+            "has_value_lower",
+            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            [],
+        ),
+        (
+            "has_value_lower",
+            "-0.0",
+            ["below zero"],
+        ),
+        (
+            "has_value_lower",
+            "999.999",
+            [
+                "above 100",
+                "exact 100",
+                "between 100 and 10",
+                "between 10 and 0",
+                "zero",
+                "below zero",
+                "onetwothree",
+                "100 with empty",
+            ],
+        ),
+        ("has_not_value_lower", "", ALL_ROW_NAMES),
+        (
+            "has_not_value_lower",
+            "invalid",
+            ALL_ROW_NAMES,
+        ),  # reversed has_value_lower
+        (
+            "has_not_value_lower",
+            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            ["no refs", "refs with empty"],  # reversed has_value_lower
+        ),
+        (
+            "has_not_value_lower",
+            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            ALL_ROW_NAMES,
+        ),
+        (
+            "has_not_value_lower",
+            "-0.0",
+            [
+                "above 100",
+                "exact 100",
+                "between 100 and 10",
+                "between 10 and 0",
+                "zero",
+                "nineninenine",
+                "onetwothree",
+                "no refs",
+                "refs with empty",
+                "100 with empty",
+                "ninieninenine rounded",
+            ],
+        ),
+        (
+            "has_not_value_lower",
+            "999.999",
+            ["nineninenine", "no refs", "refs with empty", "ninieninenine rounded"],
+        ),
+    ],
+)
+@pytest.mark.django_db
+def test_number_lookup_field_has_value_lower_than_filter(
     data_fixture, filter_type_name, test_value, expected_rows
 ):
     return number_lookup_filter_proc(
