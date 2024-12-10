@@ -1137,6 +1137,29 @@ def test_view_cant_update_show_logo(data_fixture, api_client):
     assert response_data["show_logo"] is True
 
 
+@pytest.mark.django_db
+def test_view_cant_update_allow_public_export(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    view = data_fixture.create_grid_view(
+        user=user, table=table, allow_public_export=False
+    )
+    data = {"allow_public_export": True}
+
+    response = api_client.patch(
+        reverse("api:database:views:item", kwargs={"view_id": view.id}),
+        data,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    view.refresh_from_db()
+    assert view.allow_public_export is False
+
+    response_data = response.json()
+    assert response_data["allow_public_export"] is False
+
+
 @pytest.mark.django_db(transaction=True)
 def test_loading_a_sortable_view_will_create_an_index(
     api_client, data_fixture, enable_singleton_testing

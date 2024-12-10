@@ -169,6 +169,7 @@ class PublicFormViewSerializer(serializers.ModelSerializer):
             "submit_text",
             "fields",
             "show_logo",
+            "allow_public_export",
         )
 
 

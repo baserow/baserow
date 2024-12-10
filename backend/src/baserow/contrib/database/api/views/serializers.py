@@ -402,6 +402,7 @@ class ViewSerializer(serializers.ModelSerializer):
             "filters_disabled",
             "public_view_has_password",
             "show_logo",
+            "allow_public_export",
             "ownership_type",
             "owned_by_id",
         )
