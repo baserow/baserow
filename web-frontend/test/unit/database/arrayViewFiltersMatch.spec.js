@@ -12,8 +12,6 @@ import {
   HasAllValuesEqualViewFilterType,
   HasValueHigherThanViewFilterType,
   HasValueHigherThanOrEqualViewFilterType,
-  HasNotValueLowerThanViewFilterType,
-  HasValueLowerThanOrEqualViewFilterType,
   HasNotValueHigherThanViewFilterType,
   HasNotValueHigherThanOrEqualViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
@@ -1160,19 +1158,28 @@ describe('Number-based array view filters', () => {
       expected: {
         higher: false,
         higherEqual: false,
-        notHigher: false,
-        notHigherEqual: false,
+        notHigher: true,
+        notHigherEqual: true,
       },
     },
-
+    {
+      cellValue: [{ value: null }],
+      filterValue: 10,
+      expected: {
+        higher: false,
+        higherEqual: false,
+        notHigher: true,
+        notHigherEqual: true,
+      },
+    },
     {
       cellValue: [{ value: 123.0 }, { value: null }],
       filterValue: '123',
       expected: {
         higher: false,
         higherEqual: true,
-        notHigher: false,
-        notHigherEqual: true,
+        notHigher: true,
+        notHigherEqual: false,
       },
     },
 
@@ -1182,8 +1189,8 @@ describe('Number-based array view filters', () => {
       expected: {
         higher: false,
         higherEqual: true,
-        notHigher: false,
-        notHigherEqual: true,
+        notHigher: true,
+        notHigherEqual: false,
       },
     },
 
@@ -1213,8 +1220,8 @@ describe('Number-based array view filters', () => {
       expected: {
         higher: true,
         higherEqual: true,
-        notHigher: true,
-        notHigherEqual: true,
+        notHigher: false,
+        notHigherEqual: false,
       },
     },
   ]
@@ -1325,7 +1332,7 @@ describe('Number-based array view filters', () => {
   )
 
   test.each(hasValueHigherThanOrEqualTestCases)(
-    'hasNotValueHigherOrEqualkTestCases %j',
+    'hasNotValueHigherOrEqualTestCases %j',
     (testValues) => {
       const result = new HasNotValueHigherThanOrEqualViewFilterType({
         app: testApp._app,

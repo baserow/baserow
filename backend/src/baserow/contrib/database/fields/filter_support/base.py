@@ -16,11 +16,7 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
     BaserowFilterExpression,
     JSONArrayAllAreExpr,
     JSONArrayContainsValueExpr,
-    JSONArrayContainsValueHigherThanNumericExpr,
-    JSONArrayContainsValueHigherThanOrEqualNumericExpr,
     JSONArrayContainsValueLengthLowerThanExpr,
-    JSONArrayContainsValueLowerThanNumericExpr,
-    JSONArrayContainsValueLowerThanOrEqualNumericExpr,
     JSONArrayContainsValueSimilarToExpr,
 )
 
@@ -52,7 +48,7 @@ class IHasValueContainsFilterSupport(Protocol):
         ...
 
 
-class HasValueEmptyFilterSupport:
+class HasValueEmptyFilterSupport(IHasValueEmptyFilterSupport):
     def get_in_array_empty_query(
         self, field_name: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
@@ -68,7 +64,7 @@ class HasValueEmptyFilterSupport:
         return Q(**{f"{field_name}__contains": Value([{"value": ""}], JSONField())})
 
 
-class HasValueEqualFilterSupport:
+class HasValueEqualFilterSupport(IHasValueEqualFilterSupport):
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
@@ -88,7 +84,7 @@ class HasValueEqualFilterSupport:
         return Q(**{f"{field_name}__contains": Value([{"value": value}], JSONField())})
 
 
-class HasValueContainsFilterSupport:
+class HasValueContainsFilterSupport(IHasValueContainsFilterSupport):
     def get_in_array_contains_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:

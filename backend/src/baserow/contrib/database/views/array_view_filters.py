@@ -1,5 +1,7 @@
 import typing
 
+from django.db.models import Q
+
 from loguru import logger
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
@@ -8,8 +10,6 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasAllValuesEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
-    HasValueEmptyFilterSupport,
-    HasValueEqualFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
     IHasValueEmptyFilterSupport,
     IHasValueEqualFilterSupport,
@@ -286,10 +286,14 @@ class CallDelegateMixin:
 
 class ComparisonHasValueFilter(CallDelegateMixin, ViewFilterType):
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        if value == "" or value is None:
+            return Q()
         try:
             return self.get_filter_expression(field_name, value, model_field, field)
         except FilterNotSupportedException as err:
-            logger.warning(f"Cannot use {self.type} with {model_field} {field_name}")
+            logger.warning(
+                f"Cannot use {self.type} with {model_field} {field_name}: {err}"
+            )
             return self.default_filter_on_exception()
 
 

@@ -29,7 +29,7 @@ from .base import (
 from .exceptions import FilterNotSupportedException
 
 if typing.TYPE_CHECKING:
-    from baserow.contrib.database.fields.models import FormulaField
+    from baserow.contrib.database.fields.models import Field, FormulaField
 
 
 class SubTypeCallerMixin:
@@ -203,7 +203,7 @@ class FormulaNumberFilterSupport(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
         # ensure value is numeric
-        if (numval := self._get_prep_value(value, field)) is None:
+        if self._get_prep_value(value, field) is None:
             return Q()
         return get_array_json_filter_expression(
             JSONArrayEqualNumericValueExpr, field_name, value
@@ -250,7 +250,7 @@ class FormulaNumberFilterSupport(
     def get_in_array_contains_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        if (numval := self._get_prep_value(value, field)) is None:
+        if self._get_prep_value(value, field) is None:
             return Q()
         return get_array_json_filter_expression(
             JSONArrayContainsValueExpr, field_name, f"%{value}%"

@@ -77,23 +77,26 @@ def number_lookup_filter_proc(
     )
 
     # helper to get linked rows by indexes
-    def l(*indexes) -> list[int]:
+    def get_linked_rows(*indexes) -> list[int]:
         return [linked_rows[idx].id for idx in indexes]
 
     rows = [
-        {row_name: "above 100", link_row_name: l(0, 1, 2, 3)},
-        {row_name: "exact 100", link_row_name: l(4)},
-        {row_name: "between 100 and 10", link_row_name: l(4, 5)},
-        {row_name: "between 10 and 0", link_row_name: l(6, 7, 8, 9, 10, 11)},
-        {row_name: "zero", link_row_name: l(11)},
-        {row_name: "below zero", link_row_name: l(12, 13)},
-        {row_name: "nineninenine", link_row_name: l(2)},
-        {row_name: "onetwothree", link_row_name: l(3)},
+        {row_name: "above 100", link_row_name: get_linked_rows(0, 1, 2, 3)},
+        {row_name: "exact 100", link_row_name: get_linked_rows(4)},
+        {row_name: "between 100 and 10", link_row_name: get_linked_rows(4, 5)},
+        {
+            row_name: "between 10 and 0",
+            link_row_name: get_linked_rows(6, 7, 8, 9, 10, 11),
+        },
+        {row_name: "zero", link_row_name: get_linked_rows(11)},
+        {row_name: "below zero", link_row_name: get_linked_rows(12, 13)},
+        {row_name: "nineninenine", link_row_name: get_linked_rows(2)},
+        {row_name: "onetwothree", link_row_name: get_linked_rows(3)},
         # no refs is a tricky one - we don't have is_empty for numeric field
         {row_name: "no refs", link_row_name: []},
-        {row_name: "refs with empty", link_row_name: l(14)},
-        {row_name: "100 with empty", link_row_name: l(4, 14)},
-        {row_name: "ninieninenine rounded", link_row_name: l(15)},
+        {row_name: "refs with empty", link_row_name: get_linked_rows(14)},
+        {row_name: "100 with empty", link_row_name: get_linked_rows(4, 14)},
+        {row_name: "ninieninenine rounded", link_row_name: get_linked_rows(15)},
     ]
 
     t.row_handler.create_rows(user=t.user, table=t.table, rows_values=rows)

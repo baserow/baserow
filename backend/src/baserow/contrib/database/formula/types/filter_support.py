@@ -23,6 +23,10 @@ from baserow.contrib.database.fields.filter_support.exceptions import (
     FilterNotSupportedException,
 )
 
+if typing.TYPE_CHECKING:
+    from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
+    from baserow.contrib.database.fields.models import Field
+
 
 class SubTypeCallerMixin:
     """
