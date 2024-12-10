@@ -276,7 +276,8 @@
     "baserowLogo": {
       "label": "Hide Baserow logo on shared view",
       "premiumModalName": "public logo removal"
-    }
+    },
+    "allowPublicExportLabel": "Allow export on shared view"
   },
   "viewsContext": {
     "personal": "Personal"

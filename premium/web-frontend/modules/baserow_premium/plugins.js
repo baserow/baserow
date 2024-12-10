@@ -1,7 +1,7 @@
 import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import Impersonate from '@baserow_premium/components/sidebar/Impersonate'
 import HighestLicenseTypeBadge from '@baserow_premium/components/sidebar/HighestLicenseTypeBadge'
-import BaserowLogoShareLinkOption from '@baserow_premium/components/views/BaserowLogoShareLinkOption'
+import PremiumViewOptions from '@baserow_premium/components/views/PremiumViewOptions'
 
 export class PremiumPlugin extends BaserowPlugin {
   static getType() {
@@ -17,7 +17,7 @@ export class PremiumPlugin extends BaserowPlugin {
   }
 
   getAdditionalShareLinkOptions() {
-    return [BaserowLogoShareLinkOption]
+    return [PremiumViewOptions]
   }
 
   hasFeature(feature, forSpecificWorkspace) {
