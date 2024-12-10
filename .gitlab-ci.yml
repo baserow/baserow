@@ -1,8 +1,98 @@
+variables:
+  # Visit https://gitlab.com/baserow/baserow/-/pipelines/new select your branch
+  # and click run to be able to run a new pipeline where you can manually control these
+  # variables.
+  TRIGGER_FULL_IMAGE_REBUILD:
+    value: "no"
+    description: "If set to yes then all images will re-pull their base images and rebuild entirely from scratch with no caching."
+  ENABLE_JOB_SKIPPING:
+    value: "false"
+    description: "If set to true then tests and lints will skipped when safe to do so."
+  ENABLE_COVERAGE:
+    value: "true"
+    description: "If set to false then tests will not generate coverage or testing reports used by gitlab to show nicer MRs."
+  ENABLE_RELEASES:
+    value: "false"
+    description: "If true then on master and develop release images will be pushed automatically"
+  BUILD_ALL_IN_ONE:
+    value: "false"
+    description: "If true then regardless of what branch we are on the all in one image will be built."
+  BUILD_ALL_IN_ONE_PG_11:
+    value: "false"
+    description: "If true then regardless of what branch we are on the all in one image with embedded PostgreSQL version 11 (legacy) will be built."
+  BUILD_ALL_IN_ONE_PGAUTOUPGRADE:
+    value: "false"
+    description: "If true then regardless of what branch we are on the image which auto upgrades PostgreSQL data directory from version 11 to 15 will be built."
+  # An image repo which is used for storing and passing images between ci pipeline jobs
+  # and also speeding up ci builds by caching from the latest ci image when building.
+  CI_IMAGE_REPO: $CI_REGISTRY_IMAGE/ci
+  # Any images with tags prefixed with the two variables below will be cleaned up automatically
+  # by our gitlab cleanup job:
+  # (https://gitlab.com/baserow/baserow/-/settings/packages_and_registries).
+  #
+  # ## Note:
+  #   These cleanup tag prefixes are needed as gitlab only supports cleanup by defining
+  #   a regex that matches tags, so we can't do cleanup differently based on image name
+  #   or repo...
+  #
+  # IMPORTANT: UPDATE GITLAB CONTAINER REPO CLEANUP JOB REGEX IF YOU CHANGE THIS
+  CLEANUP_JOB_CI_TAG_PREFIX: ci-latest-
+  # IMPORTANT: UPDATE GITLAB CONTAINER REPO CLEANUP JOB REGEX IF YOU CHANGE THIS
+  TESTED_IMAGE_PREFIX: ci-tested-
+  BACKEND_IMAGE_NAME: backend
+  BACKEND_DEV_IMAGE_NAME: backend_dev
+  WEBFRONTEND_IMAGE_NAME: web-frontend
+  ALLINONE_IMAGE_NAME: baserow
+  ALLINONE_PG_11_IMAGE_NAME: baserow-pg11
+  ALLINONE_PGAUTOUPGRADE_IMAGE_NAME: baserow-pgautoupgrade
+  CLOUDRON_IMAGE_NAME: cloudron
+  HEROKU_IMAGE_NAME: heroku
+  WEBFRONTEND_DEV_IMAGE_NAME: web-frontend_dev
+  BACKEND_CI_DEV_IMAGE: $CI_IMAGE_REPO/$BACKEND_DEV_IMAGE_NAME:$CLEANUP_JOB_CI_TAG_PREFIX$CI_COMMIT_SHORT_SHA
+  WEBFRONTEND_CI_DEV_IMAGE: $CI_IMAGE_REPO/$WEBFRONTEND_DEV_IMAGE_NAME:$CLEANUP_JOB_CI_TAG_PREFIX$CI_COMMIT_SHORT_SHA
+  # Once images are tested they will publish under these names to ensure that any
+  # tag only runs of the pipeline can never publish untested images.
+  TESTED_BACKEND_CI_IMAGE: $CI_IMAGE_REPO/$BACKEND_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
+  TESTED_WEBFRONTEND_CI_IMAGE: $CI_IMAGE_REPO/$WEBFRONTEND_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
+  TESTED_BACKEND_CI_DEV_IMAGE: $CI_IMAGE_REPO/$BACKEND_DEV_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
+  TESTED_WEBFRONTEND_CI_DEV_IMAGE: $CI_IMAGE_REPO/$WEBFRONTEND_DEV_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
+  TESTED_ALLINONE_CI_IMAGE: $CI_IMAGE_REPO/$ALLINONE_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
+  TESTED_ALLINONE_PG_11_CI_IMAGE: $CI_IMAGE_REPO/$ALLINONE_PG_11_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
+  TESTED_ALLINONE_PGAUTOUPGRADE_CI_IMAGE: $CI_IMAGE_REPO/$ALLINONE_PGAUTOUPGRADE_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
+  TESTED_CLOUDRON_CI_IMAGE: $CI_IMAGE_REPO/$CLOUDRON_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
+  TESTED_HEROKU_CI_IMAGE: $CI_IMAGE_REPO/$HEROKU_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
+  # Used to tag the latest images on $DEVELOP_BRANCH_NAME
+  DEVELOP_LATEST_TAG: develop-latest
+  # Names of important branches used to decide when to run certain jobs.
+  MASTER_BRANCH_NAME: master
+  DEVELOP_BRANCH_NAME: develop
+  # The locations of the various dockerfiles to build.
+  BACKEND_DOCKERFILE_PATH: $CI_PROJECT_DIR/backend/Dockerfile
+  WEBFRONTEND_DOCKERFILE_PATH: $CI_PROJECT_DIR/web-frontend/Dockerfile
+  ALLINONE_DOCKERFILE_PATH: $CI_PROJECT_DIR/deploy/all-in-one/Dockerfile
+  ALLINONE_PG_11_DOCKERFILE_PATH: $CI_PROJECT_DIR/deploy/all-in-one/pg11.Dockerfile
+  ALLINONE_PGAUTOUPGRADE_DOCKERFILE_PATH: $CI_PROJECT_DIR/deploy/all-in-one/pgautoupgrade.Dockerfile
+  CLOUDRON_DOCKERFILE_PATH: $CI_PROJECT_DIR/deploy/cloudron/Dockerfile
+  HEROKU_DOCKERFILE_PATH: $CI_PROJECT_DIR/heroku.Dockerfile
+  # By default, forks can use the baserow projects ci util image so they don't have
+  # to run the manual job to build their own. If you want to build and use your own
+  # then set PROJECT_PATH_FOR_CI_UTIL_IMAGE in your gitlab ci settings as a project
+  # level variable to whichever project you want.
+  PROJECT_PATH_FOR_CI_UTIL_IMAGE: baserow/baserow
+  PROJECT_PATH_FOR_E2E_TEST_IMAGE: baserow/baserow
+  PROJECT_PATH_FOR_CI_DIND_IMAGE: baserow/baserow
+  # The image path for the helper CI util image that will be built and pushed to.
+  CI_UTIL_IMAGE: $CI_REGISTRY/$PROJECT_PATH_FOR_CI_UTIL_IMAGE/ci/ci_util_image:latest
+  # The image path for the E2E testing image that will be built and pushed to.
+  E2E_TEST_IMAGE: $CI_REGISTRY/$PROJECT_PATH_FOR_E2E_TEST_IMAGE/ci/baserow_e2e-tests:latest
+  # The image path for the dind CI image that will be built and pushed to.
+  CI_DIND_IMAGE: $CI_REGISTRY/$PROJECT_PATH_FOR_E2E_TEST_IMAGE/ci/ci_dind_image:latest
+
 test:
   image: docker:20.10.18
   stage: build
   services:
-    - name: baserow/baserow
+    - name: $CI_DIND_IMAGE
       alias: docker
   variables:
     DOCKER_BUILDKIT: 1
