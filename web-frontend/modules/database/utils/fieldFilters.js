@@ -31,8 +31,8 @@ export function genericContainsFilter(
   if (humanReadableRowValue == null) {
     return false
   }
-  humanReadableRowValue = humanReadableRowValue.toString().toLowerCase().trim()
-  filterValue = filterValue.toString().toLowerCase().trim()
+  humanReadableRowValue = String(humanReadableRowValue).toLowerCase().trim()
+  filterValue = String(filterValue).toLowerCase().trim()
 
   return humanReadableRowValue.includes(filterValue)
 }
@@ -45,8 +45,8 @@ export function genericContainsWordFilter(
   if (humanReadableRowValue == null) {
     return false
   }
-  humanReadableRowValue = humanReadableRowValue.toString().toLowerCase().trim()
-  filterValue = filterValue.toString().toLowerCase().trim()
+  humanReadableRowValue = String(humanReadableRowValue).toLowerCase().trim()
+  filterValue = String(filterValue).toLowerCase().trim()
   // check using regex to match whole words
   // make sure to escape the filterValue as it may contain regex special characters
   filterValue = filterValue.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&')
@@ -100,10 +100,10 @@ export function genericHasValueContainsFilter(cellValue, filterValue) {
     return false
   }
 
-  filterValue = filterValue.toString().toLowerCase().trim()
+  filterValue = String(filterValue).toLowerCase().trim()
 
   for (let i = 0; i < cellValue.length; i++) {
-    const value = cellValue[i].value.toString().toLowerCase().trim()
+    const value = String(cellValue[i].value).toLowerCase().trim()
 
     if (value.includes(filterValue)) {
       return true
@@ -118,14 +118,14 @@ export function genericHasValueContainsWordFilter(cellValue, filterValue) {
     return false
   }
 
-  filterValue = filterValue.toString().toLowerCase().trim()
+  filterValue = String(filterValue).toLowerCase().trim()
   filterValue = filterValue.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&')
 
   for (let i = 0; i < cellValue.length; i++) {
     if (cellValue[i].value == null) {
       continue
     }
-    const value = cellValue[i].value.toString().toLowerCase().trim()
+    const value = String(cellValue[i].value).toLowerCase().trim()
     if (value.match(new RegExp(`\\b${filterValue}\\b`))) {
       return true
     }
@@ -143,7 +143,7 @@ export function genericHasValueLengthLowerThanFilter(cellValue, filterValue) {
     if (cellValue[i].value == null) {
       continue
     }
-    const valueLength = cellValue[i].value.toString().length
+    const valueLength = String(cellValue[i].value).length
     if (valueLength < filterValue) {
       return true
     }
@@ -152,45 +152,86 @@ export function genericHasValueLengthLowerThanFilter(cellValue, filterValue) {
   return false
 }
 
-function doNumberComparison(valA, valB, opfunc) {
-  const parsedValA = parseFloat(valA)
-  const parsedValB = parseFloat(valB)
-
-  if (!_.isNumber(parsedValA) || !_.isNumber(parsedValB)) {
+function doArrayNumberComparison(valA, valB, opfunc) {
+  if (!(_.isArray(valA) && _.isNumber(Number(valB)))) {
     return false
   }
-  return opfunc(parsedValA, parsedValB)
+  const parsedValA = _.map(_.map(valA, 'value'), Number)
+  const parsedValB = Number(valB)
+
+  const result = _.some(parsedValA, (item) => {
+    try {
+      return opfunc(item, parsedValB)
+    } catch (e) {
+      return false
+    }
+  })
+  console.warn('do number compare', {
+    valA,
+    valB,
+    parsedValA,
+    parsedValB,
+    result,
+  })
+  return result
 }
 
 export function genericHasValueHigherThanFilterFunction(
   cellValue,
   filterValue
 ) {
-  return doNumberComparison(cellValue, filterValue, (cell, filter) => {
+  return doArrayNumberComparison(cellValue, filterValue, (cell, filter) => {
     return cell > filter
   })
 }
 
-export function genericHasValueHigherOrEqualThanFilterFunction(
+export function genericHasValueHigherThanOrEqualFilterFunction(
   cellValue,
   filterValue
 ) {
-  return doNumberComparison(cellValue, filterValue, (cell, filter) => {
+  return doArrayNumberComparison(cellValue, filterValue, (cell, filter) => {
     return cell >= filter
   })
 }
 
 export function genericHasValueLowerThanFilterFunction(cellValue, filterValue) {
-  return doNumberComparison(cellValue, filterValue, (cell, filter) => {
+  return doArrayNumberComparison(cellValue, filterValue, (cell, filter) => {
     return cell < filter
   })
 }
 
-export function genericHasValueLowerOrEqualThanFilterFunction(
+export function genericHasValueLowerThanOrEqualFilterFunction(
   cellValue,
   filterValue
 ) {
-  return doNumberComparison(cellValue, filterValue, (cell, filter) => {
+  return doArrayNumberComparison(cellValue, filterValue, (cell, filter) => {
     return cell <= filter
   })
+}
+
+export function genericHasNotValueHigherThanFilterFunction(
+  cellValue,
+  filterValue
+) {
+  return !genericHasValueHigherThanFilterFunction(cellValue, filterValue)
+}
+export function genericHasNotValueHigherThanOrEqualFilterFunction(
+  cellValue,
+  filterValue
+) {
+  return !genericHasValueHigherThanOrEqualFilterFunction(cellValue, filterValue)
+}
+
+export function genericHasNotValueLowerThanFilterFunction(
+  cellValue,
+  filterValue
+) {
+  return !genericHasValueLowerThanFilterFunction(cellValue, filterValue)
+}
+
+export function genericHasNotValueLowerThanOrEqualFilterFunction(
+  cellValue,
+  filterValue
+) {
+  return !genericHasValueLowerThanOrEqualFilterFunction(cellValue, filterValue)
 }

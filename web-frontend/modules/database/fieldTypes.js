@@ -22,6 +22,7 @@ import {
   hasValueLengthIsLowerThanFilterMixin,
   hasEmptyValueFilterMixin,
   hasAllValuesEqualFilterMixin,
+  formulaFieldArrayFilterMixin,
 } from '@baserow/modules/database/arrayFilterMixins'
 import moment from '@baserow/modules/core/moment'
 import guessFormat from 'moment-guess'
@@ -3537,6 +3538,7 @@ export class FormulaFieldType extends mix(
   hasValueContainsFilterMixin,
   hasValueContainsWordFilterMixin,
   hasValueLengthIsLowerThanFilterMixin,
+  formulaFieldArrayFilterMixin,
   FieldType
 ) {
   static getType() {
