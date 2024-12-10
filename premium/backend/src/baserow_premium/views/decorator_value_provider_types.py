@@ -2,6 +2,7 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple
 from uuid import uuid4
 
 from baserow_premium.license.handler import LicenseHandler
+from loguru import logger
 
 from baserow.contrib.database.fields.field_types import SingleSelectFieldType
 from baserow.contrib.database.views.handler import ViewHandler
@@ -130,32 +131,32 @@ class ConditionalColorValueProviderType(PremiumDecoratorValueProviderType):
 
             for color_filter in color["filters"]:
                 if color_filter["value"]:
-                    new_values = []
-                    # Filter value may be empty (handled above), a single value or a
-                    # list of values (multi-select filter type). If the value is a list
-                    # of values, try to map each value if it resembles an id. If not,
-                    # pass it as-is (almost).
-                    # Note: this is a naive way to handle the mapping. Filter value can
-                    # be a list of verbatim numeric values which should be transcribed
-                    # as-is to a new instance. More elaborate method would require
-                    # recognizing if a specific filter type expects a verbatim value
-                    # or an id.
-                    # Note: a side effect is that in the end, value will be str instance
-                    # regardless of initial value type.
-                    for old_value in str(color_filter["value"]).split(","):
-                        try:
-                            old_value = int(old_value)
-                            new_value = (
-                                id_mapping["database_field_select_options"].get(
-                                    old_value
-                                )
-                                or old_value
-                            )
-                        except (TypeError, ValueError):
-                            new_value = old_value
-                        new_values.append(str(new_value))
+                    try:
+                        filter_type = view_filter_type_registry.get(
+                            color_filter.get("type")
+                        )
 
-                    color_filter["value"] = ",".join(new_values)
+                        # Filter value may be a more complex data (a list of IDs or
+                        # non-ID values), so we let specific filter type to handle
+                        # mapping, as it should understand better data it can handle.
+                        new_values = filter_type.set_import_serialized_value(
+                            color_filter["value"], id_mapping
+                        )
+                        color_filter["value"] = new_values
+                    except (
+                        view_filter_type_registry.does_not_exist_exception_class
+                    ) as err:
+                        logger.warning(
+                            f"Cannot get filter type for a decoration "
+                            f"condition definition: {color_filter}: {err}"
+                        )
+                        color_filter["value"] = ""
+                    except Exception as err:
+                        logger.warning(
+                            f"Cannot import filter value: {color_filter}: {err}"
+                        )
+                        color_filter["value"] = ""
+
                 new_field_id = id_mapping["database_fields"][color_filter["field"]]
                 color_filter["field"] = new_field_id
 

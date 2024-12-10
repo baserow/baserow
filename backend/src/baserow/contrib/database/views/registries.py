@@ -951,6 +951,12 @@ class ViewFilterType(Instance):
         modified. If the value for example points to a field or select option id, it
         can be replaced with the correct value by doing a lookup in the id_mapping.
 
+        There's no guarantee `value` will always be a string. A value can come from
+        database where it's stored as a string or as a JSON structure, in case of
+        decoration filtering criteria, where more complex data structures may be stored.
+        Any subclass that uses complex filter values should be ready to receive not only
+        string values.
+
         :param value: The original exported value.
         :type value: str
         :param id_mapping: The map of exported ids to newly created ids that must be

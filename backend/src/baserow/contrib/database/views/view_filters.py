@@ -1162,8 +1162,26 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         filter_function = self.filter_functions[field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
-    def set_import_serialized_value(self, value, id_mapping):
-        splitted = value.split(",")
+    def set_import_serialized_value(self, value: str, id_mapping: dict) -> str:
+        """
+        This filter class expects the `value` to represent a list of options
+        identifiers.
+
+        If value doesn't represent a list of identifiers, it should return an empty
+        string.
+
+        If a specific option id cannot be mapped using id_mapping dict, it will be
+        omitted from the result.
+
+        :param value:
+        :param id_mapping:
+        :return:
+        """
+
+        try:
+            splitted = value.split(",")
+        except AttributeError:
+            return ""
         new_values = []
         for value in splitted:
             try:
@@ -1171,8 +1189,9 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
             except ValueError:
                 return ""
 
-            new_id = str(id_mapping["database_field_select_options"].get(int_value, ""))
-            new_values.append(new_id)
+            new_id = id_mapping["database_field_select_options"].get(int_value)
+            if new_id is not None:
+                new_values.append(str(new_id))
 
         return ",".join(new_values)
 

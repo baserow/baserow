@@ -74,10 +74,28 @@ def test_import_export_grid_view_w_decorator(data_fixture):
                 {
                     "filters": [
                         {
-                            "type": "single_select_equal",
+                            "type": "single_select_is_any_of",
                             "field": single_select.id,
                             "group": 1,
                             "value": f"{option.id},100",
+                        },
+                        {
+                            "type": "boolean",
+                            "field": single_select.id,
+                            "group": 1,
+                            "value": f"true",
+                        },
+                        {
+                            "type": "invalid_filter",
+                            "field": single_select.id,
+                            "group": 1,
+                            "value": f"foobar",
+                        },
+                        {
+                            "type": "single_select_is_any_of",
+                            "field": single_select.id,
+                            "group": 1,
+                            "value": f"100,{option.id}",
                         },
                     ],
                 },
@@ -152,10 +170,36 @@ def test_import_export_grid_view_w_decorator(data_fixture):
             "id": AnyStr(),  # a new id is generated for every inserted color
             "filters": [
                 {
-                    "type": "single_select_equal",
+                    "type": "single_select_is_any_of",
                     "field": imported_single_select.id,
                     "group": 1,
-                    "value": f"{imported_option.id},100",
+                    # old 100 option will be scrapped, because
+                    # it's not in the mapping
+                    "value": f"{imported_option.id}",
+                },
+                # boolean should not be modified
+                {
+                    "type": "boolean",
+                    "field": imported_single_select.id,
+                    "group": 1,
+                    # old 100 option will be scrapped, because
+                    # it's not in the mapping
+                    "value": "true",
+                },
+                # invalid filter will be an empty string
+                {
+                    "type": "invalid_filter",
+                    "field": imported_single_select.id,
+                    "group": 1,
+                    "value": "",
+                },
+                {
+                    "type": "single_select_is_any_of",
+                    "field": imported_single_select.id,
+                    "group": 1,
+                    # old 100 option will be scrapped, because
+                    # it's not in the mapping
+                    "value": f"{imported_option.id}",
                 },
             ],
         },
