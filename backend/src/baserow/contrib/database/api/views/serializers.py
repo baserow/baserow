@@ -619,6 +619,7 @@ class PublicViewSerializer(serializers.ModelSerializer):
             "public",
             "slug",
             "show_logo",
+            "allow_public_export",
         )
         extra_kwargs = {
             "id": {"read_only": True},

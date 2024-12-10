@@ -2,6 +2,7 @@ import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import Impersonate from '@baserow_premium/components/sidebar/Impersonate'
 import HighestLicenseTypeBadge from '@baserow_premium/components/sidebar/HighestLicenseTypeBadge'
 import PremiumViewOptions from '@baserow_premium/components/views/PremiumViewOptions'
+import PublicViewExport from '@baserow_premium/components/views/PublicViewExport'
 
 export class PremiumPlugin extends BaserowPlugin {
   static getType() {
@@ -18,6 +19,10 @@ export class PremiumPlugin extends BaserowPlugin {
 
   getAdditionalShareLinkOptions() {
     return [PremiumViewOptions]
+  }
+
+  getAdditionalTableHeaderComponents(view, isPublic) {
+    return isPublic ? [PublicViewExport] : []
   }
 
   hasFeature(feature, forSpecificWorkspace) {

@@ -10,7 +10,7 @@
         small
         :value="!view.show_logo"
         :disabled="!hasPremiumFeatures"
-        @input="update('show_logo', $event)"
+        @input="update('show_logo', !$event)"
       >
         <img src="@baserow/modules/core/static/img/baserow-icon.svg" />
         <span>
@@ -35,7 +35,7 @@
     >
       <SwitchInput
         small
-        :value="!view.allow_public_export"
+        :value="view.allow_public_export"
         :disabled="!hasPremiumFeatures"
         @input="update('allow_public_export', $event)"
       >
@@ -91,7 +91,7 @@ export default {
   },
   methods: {
     async update(key, value) {
-      value = !value
+      console.log(value)
       try {
         // We are being optimistic that the request will succeed.
         this.$emit('update-view', { ...this.view, [key]: value })

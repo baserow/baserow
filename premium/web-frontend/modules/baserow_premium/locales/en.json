@@ -338,5 +338,8 @@
     "textDescription": "Generates free text based on the prompt.",
     "choice": "Choice",
     "choiceDescription": "Chooses only one of the field options."
+  },
+  "publicViewExport": {
+    "export": "Export"
   }
 }
