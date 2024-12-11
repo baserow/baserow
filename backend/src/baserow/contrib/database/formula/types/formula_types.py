@@ -482,7 +482,7 @@ class BaserowFormulaBooleanType(
     ) -> OptionallyAnnotatedQ:
         value = self._get_prep_value(value)
         if value is None:
-            value = False
+            return Q()
         return get_array_json_filter_expression(
             JSONArrayContainsValueExpr, field_name, value
         )
@@ -501,6 +501,8 @@ class BaserowFormulaBooleanType(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
         value = self._get_prep_value(value)
+        if value is None:
+            return Q()
         return super().get_has_all_values_equal_query(
             field_name, value, model_field, field
         )

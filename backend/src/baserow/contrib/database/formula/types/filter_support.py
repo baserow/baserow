@@ -28,7 +28,11 @@ if typing.TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
 
 
-class SubTypeCallerMixin:
+# sentinel
+NO_VALUE = object()
+
+
+class ForumlaSubTypeCallerMixin:
     """
     A shortcut to call delegate method on a subtype formula type.
     """
@@ -45,13 +49,14 @@ class SubTypeCallerMixin:
         if not isinstance(self.sub_type, subcls_or_proto):
             logger.warning(f"field {field} is not from {subcls_or_proto} hierarchy")
             raise FilterNotSupportedException()
-        return getattr(self.sub_type, method_name)(
-            field_name, value, model_field, field
-        )
+        method = getattr(self.sub_type, method_name)
+        if value is NO_VALUE:
+            return method(field_name, model_field, field)
+        return method(field_name, value, model_field, field)
 
 
 class BaserowFormulaArrayEqualFilterSupportMixin(
-    SubTypeCallerMixin,
+    ForumlaSubTypeCallerMixin,
     HasAllValuesEqualFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueEqualFilterSupport,
@@ -59,6 +64,11 @@ class BaserowFormulaArrayEqualFilterSupportMixin(
     HasValueContainsWordFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
 ):
+    """
+    This mixin provides filter interface for array formula type, which basically
+    delegates the call to a subtype formula type.
+    """
+
     def get_in_array_is_query(self, field_name, value, model_field, field):
         return self.do_call_subtype_filter_method(
             field_name,
@@ -70,9 +80,10 @@ class BaserowFormulaArrayEqualFilterSupportMixin(
         )
 
     def get_in_array_empty_query(self, field_name, model_field, field):
+        # note: get_in_array_empty_query doesn't expect value
         return self.do_call_subtype_filter_method(
             field_name,
-            None,
+            NO_VALUE,
             model_field,
             field,
             IHasValueEmptyFilterSupport,

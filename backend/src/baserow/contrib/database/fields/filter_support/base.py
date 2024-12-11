@@ -48,7 +48,7 @@ class IHasValueContainsFilterSupport(Protocol):
         ...
 
 
-class HasValueEmptyFilterSupport(IHasValueEmptyFilterSupport):
+class HasValueEmptyFilterSupport:
     def get_in_array_empty_query(
         self, field_name: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
@@ -64,7 +64,7 @@ class HasValueEmptyFilterSupport(IHasValueEmptyFilterSupport):
         return Q(**{f"{field_name}__contains": Value([{"value": ""}], JSONField())})
 
 
-class HasValueEqualFilterSupport(IHasValueEqualFilterSupport):
+class HasValueEqualFilterSupport:
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
@@ -84,7 +84,7 @@ class HasValueEqualFilterSupport(IHasValueEqualFilterSupport):
         return Q(**{f"{field_name}__contains": Value([{"value": value}], JSONField())})
 
 
-class HasValueContainsFilterSupport(IHasValueContainsFilterSupport):
+class HasValueContainsFilterSupport:
     def get_in_array_contains_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:

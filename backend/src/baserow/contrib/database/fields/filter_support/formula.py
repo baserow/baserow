@@ -32,8 +32,8 @@ if typing.TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field, FormulaField
 
 
-class SubTypeCallerMixin:
-    def do_call_subtype_method(
+class FormulaFieldTypeCallerMixin:
+    def do_call_field_type_method(
         self, field_name, value, model_field, field, method_name: str
     ):
         (
@@ -45,9 +45,7 @@ class SubTypeCallerMixin:
             method = getattr(field_type, method_name)
         except AttributeError:
             raise FilterNotSupportedException(method_name)
-        out = method(field_name, value, model_field, field_instance)
-        logger.info(f"Filtering with {method_name}: Calling {method}: {out}")
-        return out
+        return method(field_name, value, model_field, field_instance)
 
 
 class FormulaFieldPrepDbValueMixin:
@@ -55,6 +53,20 @@ class FormulaFieldPrepDbValueMixin:
         return value is None or (isinstance(value, str) and value.strip() == "")
 
     def _get_prep_value(self, value: str, instance: typing.Any | None = None):
+        """
+        Checks if `value` is a correct value for a base field type that is used by the
+        formula field.
+
+        If value is empty, then this method will return `None`.
+
+        if value is not empty, but is invalid for the type,
+        `FilterNotSupportedException` will be raised.
+
+        :param value:
+        :param instance:
+        :return:
+        """
+
         from baserow.contrib.database.fields.registries import field_type_registry
 
         if self._is_value_empty(value):
@@ -70,7 +82,7 @@ class FormulaFieldPrepDbValueMixin:
 
 
 class FormulaArrayEqualFilterSupport(
-    SubTypeCallerMixin,
+    FormulaFieldTypeCallerMixin,
     HasAllValuesEqualFilterSupport,
     HasValueEqualFilterSupport,
     HasValueEmptyFilterSupport,
@@ -78,6 +90,11 @@ class FormulaArrayEqualFilterSupport(
     HasValueContainsWordFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
 ):
+    """
+    A mixin that provides various filters interface to formula field type. Filtering
+    methods will delegate the call to formula type.
+    """
+
     def get_in_array_is_query(
         self,
         field_name: str,
@@ -155,14 +172,14 @@ class FormulaArrayEqualFilterSupport(
     def get_has_value_higher_filter_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        return self.do_call_subtype_method(
+        return self.do_call_field_type_method(
             field_name, value, model_field, field, "get_has_value_higher_filter_query"
         )
 
     def get_has_value_higher_or_equal_filter_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        return self.do_call_subtype_method(
+        return self.do_call_field_type_method(
             field_name,
             value,
             model_field,
@@ -173,14 +190,14 @@ class FormulaArrayEqualFilterSupport(
     def get_has_value_lower_filter_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        return self.do_call_subtype_method(
+        return self.do_call_field_type_method(
             field_name, value, model_field, field, "get_has_value_lower_filter_query"
         )
 
     def get_has_value_lower_or_equal_filter_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        return self.do_call_subtype_method(
+        return self.do_call_field_type_method(
             field_name,
             value,
             model_field,
@@ -192,11 +209,15 @@ class FormulaArrayEqualFilterSupport(
 class FormulaNumberFilterSupport(
     FormulaFieldPrepDbValueMixin, HasValueContainsFilterSupport
 ):
+    """
+    A mixin that provides filters interface for numeric formula type.
+    """
+
     def get_in_array_empty_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+        self, field_name: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
         return get_array_json_filter_expression(
-            JSONArrayHasEmptyValueExpr, field_name, value
+            JSONArrayHasEmptyValueExpr, field_name, None
         )
 
     def get_in_array_is_query(
