@@ -50,7 +50,7 @@ def field_deleted(sender, field, **kwargs):
 
     from baserow.contrib.database.views.handler import ViewIndexingHandler
 
-    ViewIndexingHandler.after_field_changed_or_deleted(field)
+    ViewIndexingHandler.after_fields_changed_or_deleted([field])
 
 
 @receiver([view_sort_created, view_sort_updated, view_sort_deleted])

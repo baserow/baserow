@@ -581,12 +581,12 @@ class ViewType(
             have been updated.
         """
 
-    def after_field_type_change(self, field: "Field") -> None:
+    def after_fields_type_change(self, fields: List["Field"]) -> None:
         """
         This hook is called after the type of a field has changed and gives the
         possibility to check compatibility with view stuff like specific field options.
 
-        :param field: The concerned field.
+        :param fields: The concerned fields.
         """
 
     def after_field_delete(self, field: "Field") -> None:
@@ -1163,12 +1163,12 @@ class DecoratorValueProviderType(CustomFieldsInstanceMixin, Instance):
         :param deleted_field: the deleted field.
         """
 
-    def after_field_type_change(self, field: "Field"):
+    def after_fields_type_change(self, fields: List["Field"]):
         """
         This hook is called after the type of a field has changed and gives the
         possibility to check compatibility or update configuration.
 
-        :param field: The concerned field.
+        :param fields: The concerned fields.
         """
 
     def get_serializer_class(self, *args, **kwargs):
