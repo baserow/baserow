@@ -1,6 +1,5 @@
 from typing import Any, Iterable, cast
 
-from django.db import transaction
 from django.db.models import QuerySet
 
 from baserow.contrib.dashboard.data_sources.dispatch_context import (
