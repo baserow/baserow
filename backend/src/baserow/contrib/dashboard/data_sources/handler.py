@@ -248,13 +248,7 @@ class DashboardDataSourceHandler:
         data_source.save()
 
         if original_service_id != data_source.service.id:
-            # Clean up service that would otherwise not be connected to
-            # any data source
-            transaction.on_commit(
-                lambda: self.service_handler.delete_service(
-                    service_type, data_source.service
-                )
-            )
+            self.service_handler.delete_service(service_type, data_source.service)
 
         return data_source
 
