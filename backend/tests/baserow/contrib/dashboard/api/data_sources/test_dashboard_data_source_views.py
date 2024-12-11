@@ -279,7 +279,7 @@ def test_update_data_source_service_type_doesnt_exist(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_SERVICE_TYPE_DOES_NOT_EXIST"
+    assert response.json()["error"] == "ERROR_SERVICE_INVALID_TYPE"
 
 
 @pytest.mark.django_db
@@ -302,7 +302,7 @@ def test_update_data_source_service_type_none(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_SERVICE_TYPE_DOES_NOT_EXIST"
+    assert response.json()["error"] == "ERROR_SERVICE_INVALID_TYPE"
 
 
 @pytest.mark.django_db

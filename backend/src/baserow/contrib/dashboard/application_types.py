@@ -8,6 +8,9 @@ from django.urls import include, path
 
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import DashboardDict
+from baserow.contrib.integrations.local_baserow.integration_types import (
+    LocalBaserowIntegrationType,
+)
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.models import Application, Workspace
@@ -35,7 +38,9 @@ class DashboardApplicationType(ApplicationType):
 
     def init_application(self, user, application: "Application") -> None:
         IntegrationHandler().create_integration(
-            integration_type=integration_type_registry.get("local_baserow"),
+            integration_type=integration_type_registry.get(
+                LocalBaserowIntegrationType.type
+            ),
             application=application,
             authorized_user=user,
         )

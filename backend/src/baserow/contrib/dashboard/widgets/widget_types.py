@@ -3,6 +3,9 @@ from rest_framework import serializers
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.widgets.models import Widget
+from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowAggregateRowsUserServiceType,
+)
 from baserow.core.services.registries import service_type_registry
 
 from .models import SummaryWidget
@@ -34,7 +37,9 @@ class SummaryWidgetType(WidgetType):
             data_source = DashboardDataSourceHandler().create_data_source(
                 dashboard=values["dashboard"],
                 name=available_name,
-                service_type=service_type_registry.get("local_baserow_aggregate_rows"),
+                service_type=service_type_registry.get(
+                    LocalBaserowAggregateRowsUserServiceType.type
+                ),
             )
             values["data_source"] = data_source
         return values

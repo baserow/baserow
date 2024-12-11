@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions, validate_data_custom_fields
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
-from baserow.api.services.errors import ERROR_SERVICE_TYPE_DOES_NOT_EXIST
+from baserow.api.services.errors import ERROR_SERVICE_INVALID_TYPE
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
     DiscriminatorCustomFieldsMappingSerializer,
@@ -94,10 +94,6 @@ class DashboardDataSourcesView(APIView):
                     DashboardDataSourceSerializer,
                     context={"data_source": data_source},
                 ).data
-                if data_source.service
-                else DashboardDataSourceSerializer(
-                    data_source, context={"data_source": data_source}
-                ).data
             )
             for data_source in data_sources
         ]
@@ -127,7 +123,12 @@ class DashboardDataSourceView(APIView):
                 service_type_registry, DashboardDataSourceSerializer
             ),
             400: get_error_schema(
-                ["ERROR_REQUEST_BODY_VALIDATION", "ERROR_SERVICE_TYPE_DOES_NOT_EXIST"]
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_SERVICE_INVALID_TYPE",
+                    "ERROR_SERVICE_CONFIGURATION_NOT_ALLOWED",
+                    "ERROR_DASHBOARD_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE",
+                ]
             ),
             404: get_error_schema(
                 [
@@ -141,7 +142,7 @@ class DashboardDataSourceView(APIView):
         {
             DashboardDataSourceDoesNotExist: ERROR_DASHBOARD_DATA_SOURCE_DOES_NOT_EXIST,
             InvalidServiceTypeDispatchSource: ERROR_DASHBOARD_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
-            ServiceTypeDoesNotExist: ERROR_SERVICE_TYPE_DOES_NOT_EXIST,
+            ServiceTypeDoesNotExist: ERROR_SERVICE_INVALID_TYPE,
             ServiceConfigurationNotAllowed: ERROR_SERVICE_CONFIGURATION_NOT_ALLOWED,
         }
     )
@@ -158,7 +159,7 @@ class DashboardDataSourceView(APIView):
 
         data_source = DashboardDataSourceHandler().get_data_source(data_source_id)
         original_service_type = service_type_registry.get_by_model(
-            data_source.service.specific
+            data_source.service.specific_class
         )
 
         service_type = (

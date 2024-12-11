@@ -46,7 +46,7 @@ class DashboardDataSourceHandler:
 
         try:
             data_source = queryset.select_related(
-                "dashboard", "dashboard__workspace", "service"
+                "dashboard__workspace", "service"
             ).get(id=data_source_id)
         except DashboardDataSource.DoesNotExist:
             raise DashboardDataSourceDoesNotExist()
@@ -86,7 +86,7 @@ class DashboardDataSourceHandler:
         dashboard: Dashboard,
         base_queryset: QuerySet | None = None,
         return_specific_services: bool = True,
-    ) -> QuerySet[DashboardDataSource] | Iterable[DashboardDataSource]:
+    ) -> Iterable[DashboardDataSource]:
         """
         Gets all the specific data sources of a given dashboard.
 
@@ -188,7 +188,6 @@ class DashboardDataSourceHandler:
         data_source = DashboardDataSource.objects.create(
             dashboard=dashboard, order=order, name=name, service=service
         )
-        data_source.save()
         return data_source
 
     def update_data_source(
@@ -245,6 +244,7 @@ class DashboardDataSourceHandler:
         if name is not None:
             data_source.name = name
 
+        data_source.full_clean()
         data_source.save()
 
         if original_service_id != data_source.service.id:

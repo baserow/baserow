@@ -191,7 +191,7 @@ class DashboardDataSourceService:
         if "integration_id" in kwargs:
             raise ServiceConfigurationNotAllowed()
 
-        service = data_source.service.specific if data_source.service_id else None
+        service = data_source.service.specific
         prepared_values = service_type.prepare_values(kwargs, user, instance=service)
 
         data_source = self.handler.update_data_source(
