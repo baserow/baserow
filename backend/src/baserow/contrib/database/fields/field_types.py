@@ -124,6 +124,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.types import SerializedRowHistoryFieldMetadata
 from baserow.contrib.database.validators import UnicodeRegexValidator
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist, ViewNotInTable
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE, View
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
@@ -2793,7 +2794,6 @@ class LinkRowFieldType(
             isinstance(link_row_limit_selection_view_id, int)
             and link_row_limit_selection_view_id > -1
         ):
-            from baserow.contrib.database.views.handler import ViewHandler
             from baserow.contrib.database.views.registries import view_type_registry
 
             view = ViewHandler().get_view(
@@ -5075,6 +5075,7 @@ class FormulaFieldType(FormulaArrayFilterSupport, ReadOnlyFieldType):
         expr = FormulaHandler.recalculate_formula_and_get_update_expression(
             field, old_field, field_cache
         )
+        update_collector.add_field_to_view_fields_type_changed(field)
         FieldDependencyHandler.rebuild_dependencies(field, field_cache)
         update_collector.add_field_with_pending_update_statement(
             field, expr, via_path_to_starting_table=via_path_to_starting_table
@@ -6333,8 +6334,6 @@ class AutonumberFieldType(ReadOnlyFieldType):
     def _extract_view_from_field_kwargs(self, user, field_kwargs):
         view_id = field_kwargs.get("view_id", None)
         if view_id is not None:
-            from baserow.contrib.database.views.handler import ViewHandler
-
             field_kwargs["view"] = ViewHandler().get_view_as_user(user, view_id)
 
     def before_create(
@@ -6409,8 +6408,6 @@ class AutonumberFieldType(ReadOnlyFieldType):
         :param field: The field to initialize the values for.
         :param view: The view to initialize the values according to.
         """
-
-        from baserow.contrib.database.views.handler import ViewHandler
 
         not_trashed_first = Case(When(Q(trashed=False), then=Value(0)), default=1).asc()
         order_bys = (not_trashed_first, "order", "id")

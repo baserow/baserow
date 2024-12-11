@@ -19,6 +19,7 @@ from baserow.contrib.database.formula.migrations.migrations import (
     FormulaMigrations,
     FormulaMigrationSelector,
 )
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.utils import ChildProgressBuilder, Progress
 
 if typing.TYPE_CHECKING:
@@ -77,6 +78,7 @@ def _recalculate_formula_metadata_dependencies_first_order(
                     force_recreate_column=force_recreate_columns,
                 )
                 model.objects_and_trash.all().update(**{f"{field.db_column}": expr})
+                ViewHandler().fields_type_changed([field])
             except Exception as e:
                 field.mark_as_invalid_and_save(
                     "Failed to recalculate cell values after formula update."

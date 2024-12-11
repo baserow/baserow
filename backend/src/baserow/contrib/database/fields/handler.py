@@ -586,7 +586,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 from_model_field, to_model_field
             )
         ):
-            ViewHandler().field_type_changed(field)
+            ViewHandler().fields_type_changed([field])
         SearchHandler.entire_field_values_changed_or_created(
             field.table, updated_fields=[field]
         )
