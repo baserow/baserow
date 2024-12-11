@@ -44,12 +44,12 @@ class WidgetType(
 
         return values
 
-    def before_delete(self, instance: Widget):
+    def after_delete(self, instance: Widget):
         """
-        This function allows you to hook into the moment when a widget is
-        being deleted.
+        This function allows you to hook into the moment after a widget is
+        deleted.
 
-        :param instance: The instance that is being deleted
+        :param instance: The instance that was deleted.
         """
 
         pass

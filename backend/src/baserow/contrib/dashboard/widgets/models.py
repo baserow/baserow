@@ -97,7 +97,6 @@ class Widget(
 class SummaryWidget(Widget):
     data_source = models.ForeignKey(
         DashboardDataSource,
-        null=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         help_text="Data source for fetching the result to display.",
     )

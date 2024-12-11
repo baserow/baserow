@@ -44,5 +44,5 @@ class SummaryWidgetType(WidgetType):
             values["data_source"] = data_source
         return values
 
-    def before_delete(self, instance: Widget):
+    def after_delete(self, instance: Widget):
         DashboardDataSourceHandler().delete_data_source(instance.data_source)

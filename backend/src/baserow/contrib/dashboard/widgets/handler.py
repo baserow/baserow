@@ -156,5 +156,5 @@ class WidgetHandler:
         """
 
         widget_type = widget_type_registry.get_by_model(widget)
-        widget_type.before_delete(widget)
         widget.delete()
+        widget_type.after_delete(widget)
