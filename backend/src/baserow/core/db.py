@@ -20,7 +20,17 @@ from typing import (
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import DEFAULT_DB_ALIAS, connection, transaction
-from django.db.models import ForeignKey, ManyToManyField, Max, Model, QuerySet
+from django.db.models import (
+    ForeignKey,
+    ManyToManyField,
+    Max,
+    Model,
+    QuerySet,
+    TextField,
+    Value,
+)
+from django.db.models.aggregates import Aggregate
+from django.db.models.expressions import F
 from django.db.models.functions import Collate
 from django.db.models.sql.query import LOOKUP_SEP
 from django.db.transaction import Atomic, get_connection
@@ -794,3 +804,37 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                 row_id_to_field_name_to_target_ids[result[0]][result[1]] = result[2]
 
         return row_id_to_field_name_to_target_ids
+
+
+class RawOrderByStringAgg(Aggregate):
+    function = "STRING_AGG"
+    template = "%(function)s(%(distinct)s%(expressions)s ORDER BY %(order_by)s)"
+    allow_distinct = True
+    output_field = TextField()
+
+    def __init__(self, expression, delimiter, order_by, **extra):
+        self.raw_order_by = order_by
+        delimiter_expr = Value(str(delimiter))
+        super().__init__(expression, delimiter_expr, **extra)
+
+    def as_sql(self, compiler, connection, **extra_context):
+        if self.raw_order_by:
+            table_alias = None
+            # If there is an alias for the order by, then that one must be used,
+            # otherwise there is a risk it's not found.
+            for alias, table_info in compiler.query.alias_map.items():
+                if self.raw_order_by.startswith(table_info.table_name):
+                    table_alias = alias
+                    break
+
+            if table_alias:
+                order_by_sql = self.raw_order_by.replace(
+                    table_info.table_name, f"{table_alias}"
+                )
+            else:
+                order_by_sql = self.raw_order_by
+        else:
+            order_by_sql = ""
+
+        extra_context["order_by"] = order_by_sql
+        return super().as_sql(compiler, connection, **extra_context)

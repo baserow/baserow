@@ -1,0 +1,7 @@
+{
+  "type": "bug",
+  "message": "Fixed multiple select and multiple collaborators field order by insertion order in the backend.",
+  "issue_number": 2162,
+  "bullet_points": [],
+  "created_at": "2024-12-11"
+}

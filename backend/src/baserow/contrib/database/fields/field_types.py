@@ -112,6 +112,7 @@ from baserow.contrib.database.views.exceptions import ViewDoesNotExist, ViewNotI
 from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE, View
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
+    RawOrderByStringAgg,
     collate_expression,
 )
 from baserow.core.expressions import DateTrunc
@@ -4256,7 +4257,15 @@ class MultipleSelectFieldType(
 
         sort_column_name = f"{field_name}_agg_sort"
         query = Coalesce(
-            StringAgg(f"{field_name}__value", ",", output_field=models.TextField()),
+            RawOrderByStringAgg(
+                f"{field_name}__value",
+                delimiter=",",
+                # Order by the through table ID to use the insertion order. This
+                # should match
+                # `MultipleSelectManyToManyDescriptor::related_manager_cls::CustomManager::_apply_rel_ordering`
+                order_by=f'{field.through_table_name}."id"',
+                output_field=models.TextField(),
+            ),
             Value(""),
             output_field=models.TextField(),
         )
@@ -5871,7 +5880,15 @@ class MultipleCollaboratorsFieldType(
 
         sort_column_name = f"{field_name}_agg_sort"
         query = Coalesce(
-            StringAgg(f"{field_name}__first_name", "", output_field=models.TextField()),
+            RawOrderByStringAgg(
+                f"{field_name}__first_name",
+                "",
+                # Order by the through table ID to use the insertion order. This
+                # should match
+                # `MultipleSelectManyToManyDescriptor::related_manager_cls::CustomManager::_apply_rel_ordering`
+                order_by=f'{field.through_table_name}."id"',
+                output_field=models.TextField(),
+            ),
             Value(""),
             output_field=models.TextField(),
         )
