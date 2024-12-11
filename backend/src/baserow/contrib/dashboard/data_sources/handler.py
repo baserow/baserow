@@ -265,6 +265,12 @@ class DashboardDataSourceHandler:
         :param data_source: The to-be-deleted data source.
         """
 
+        if data_source.service:
+            service_type = service_type_registry.get_by_model(
+                data_source.service.specific_class
+            )
+            ServiceHandler().delete_service(service_type, data_source.service)
+
         data_source.delete()
 
     def dispatch_data_source(

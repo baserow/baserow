@@ -314,10 +314,12 @@ def test_delete_data_source(data_fixture):
             name="Name 1"
         )
     )
+    service_id = data_source.service_id
     assert DashboardDataSource.objects.count() == 1
 
     DashboardDataSourceHandler().delete_data_source(data_source)
     assert DashboardDataSource.objects.count() == 0
+    assert Service.objects.filter(id=service_id).count() == 0
 
 
 @pytest.mark.django_db
