@@ -3,7 +3,10 @@ from typing import Iterable, cast
 from django.db.models import QuerySet
 
 from baserow.contrib.dashboard.models import Dashboard
-from baserow.contrib.dashboard.widgets.registries import WidgetType
+from baserow.contrib.dashboard.widgets.registries import (
+    WidgetType,
+    widget_type_registry,
+)
 from baserow.core.db import specific_iterator
 from baserow.core.utils import extract_allowed
 
@@ -152,4 +155,6 @@ class WidgetHandler:
         :param widget: Widget to delete.
         """
 
+        widget_type = widget_type_registry.get_by_model(widget)
+        widget_type.before_delete(widget)
         widget.delete()

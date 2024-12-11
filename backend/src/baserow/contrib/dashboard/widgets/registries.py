@@ -44,6 +44,16 @@ class WidgetType(
 
         return values
 
+    def before_delete(self, instance: Widget):
+        """
+        This function allows you to hook into the moment when a widget is
+        being deleted.
+
+        :param instance: The instance that is being deleted
+        """
+
+        pass
+
 
 class WidgetTypeRegistry(
     Registry[WidgetType],

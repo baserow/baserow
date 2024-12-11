@@ -4,6 +4,7 @@ from django.db.models import QuerySet
 
 import pytest
 
+from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.widgets.exceptions import WidgetDoesNotExist
 from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 from baserow.contrib.dashboard.widgets.models import SummaryWidget, Widget
@@ -218,7 +219,10 @@ def test_update_widget(data_fixture):
 @pytest.mark.django_db
 def test_delete_widget(data_fixture):
     widget = data_fixture.create_summary_widget(title="Title 1")
+    data_source_id = widget.data_source_id
     assert Widget.objects.count() == 1
 
     WidgetHandler().delete_widget(widget)
     assert Widget.objects.count() == 0
+
+    assert DashboardDataSource.objects.filter(id=data_source_id).count() == 0
