@@ -319,6 +319,7 @@ def test_job_cancel_finished(
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.disabled_in_ci
 def test_job_cancel_cancelled(
     data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
 ):

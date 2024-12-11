@@ -27,7 +27,10 @@ import {
 } from '@baserow_enterprise/licenseTypes'
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
 import { LocalBaserowUserSourceType } from '@baserow_enterprise/integrations/userSourceTypes'
-import { LocalBaserowPasswordAppAuthProviderType } from '@baserow_enterprise/integrations/appAuthProviderTypes'
+import {
+  LocalBaserowPasswordAppAuthProviderType,
+  SamlAppAuthProviderType,
+} from '@baserow_enterprise/integrations/appAuthProviderTypes'
 import { AuthFormElementType } from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
@@ -45,6 +48,8 @@ import {
   GitHubIssuesDataSyncType,
   GitLabIssuesDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
+
+import { FF_AB_SSO } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -114,6 +119,13 @@ export default (context) => {
     'appAuthProvider',
     new LocalBaserowPasswordAppAuthProviderType(context)
   )
+
+  if (app.$featureFlagIsEnabled(FF_AB_SSO)) {
+    app.$registry.register(
+      'appAuthProvider',
+      new SamlAppAuthProviderType(context)
+    )
+  }
 
   app.$registry.register('roles', new EnterpriseAdminRoleType(context))
   app.$registry.register('roles', new EnterpriseMemberRoleType(context))

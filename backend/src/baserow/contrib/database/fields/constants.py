@@ -1,3 +1,5 @@
+from enum import Enum
+
 # Please keep in sync with the web-frontend version of this constant found in
 # web-frontend/modules/database/utils/constants.js
 RESERVED_BASEROW_FIELD_NAMES = {"id", "order"}
@@ -28,3 +30,14 @@ BASEROW_BOOLEAN_FIELD_FALSE_VALUES = [
     "unchecked",
     False
 ]
+
+
+class DeleteFieldStrategyEnum(Enum):
+    """
+    This enum value can be passed into the `FieldHandler::delete_field`
+    `delete_strategy` argument.
+    """
+
+    TRASH = "TRASH"  # default value that trashes the field.
+    DELETE_OBJECT = "DELETE_OBJECT"  # just deletes the object in the database.
+    PERMANENTLY_DELETE = "PERMANENTLY_DELETE"  # permanently deletes the object using the trash.

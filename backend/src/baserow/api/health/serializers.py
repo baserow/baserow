@@ -14,6 +14,12 @@ class FullHealthCheckSerializer(serializers.Serializer):
         "health check and the value being "
         "the result.",
     )
+    celery_queue_size = serializers.IntegerField(
+        help_text="The number of enqueued celery tasks."
+    )
+    celery_export_queue_size = serializers.IntegerField(
+        help_text="The number of enqueued celery export worker tasks."
+    )
 
 
 class EmailTesterResponseSerializer(serializers.Serializer):

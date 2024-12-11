@@ -85,28 +85,54 @@ export default {
         firstError.scrollIntoView({ behavior: 'smooth' })
       }
     },
-    touch() {
+    /**
+     * Select all children that match the given predicate.
+     * @param {Function} predicate a function that receive the current child as parameter and
+     *   should return true if the child should be accepted.
+     * @param {Boolean} deep true if you want to deeply search for child
+     * @returns
+     */
+    getChildForms(predicate = (child) => 'isFormValid' in child, deep = false) {
+      const children = []
+
+      const getDeep = (child) => {
+        if (predicate(child)) {
+          children.push(child)
+        }
+        if (deep) {
+          // Search into children of children
+          child.$children.forEach(getDeep)
+        }
+      }
+
+      for (const child of this.$children) {
+        getDeep(child)
+      }
+      return children
+    },
+    touch(deep = false) {
       if ('$v' in this) {
         this.$v.$touch()
       }
 
       // Also touch all the child forms so that all the error messages are going to
       // be displayed.
-      for (const child of this.$children) {
-        if ('isFormValid' in child && '$v' in child) {
-          child.touch()
-        }
+      for (const child of this.getChildForms(
+        (child) => 'touch' in child,
+        deep
+      )) {
+        child.touch(deep)
       }
     },
-    submit() {
+    submit(deep = false) {
       if (this.selectedFieldIsDeactivated) {
         return
       }
 
-      this.touch()
+      this.touch(deep)
 
-      if (this.isFormValid()) {
-        this.$emit('submitted', this.getFormValues())
+      if (this.isFormValid(deep)) {
+        this.$emit('submitted', this.getFormValues(deep))
       } else {
         this.$nextTick(() => this.focusOnFirstError())
       }
@@ -119,21 +145,6 @@ export default {
       return this.$v.values[fieldName]
         ? this.$v.values[fieldName].$error
         : false
-    },
-    getChildForms(deep = false) {
-      const children = []
-      const getDeep = (child) => {
-        if ('isFormValid' in child) {
-          children.push(child)
-        } else if (deep) {
-          child.$children.forEach(getDeep)
-        }
-      }
-
-      for (const child of this.$children) {
-        getDeep(child)
-      }
-      return children
     },
     /**
      * Returns true is everything is valid.
@@ -151,8 +162,11 @@ export default {
      * Returns true if all the child form components are valid.
      */
     areChildFormsValid(deep = false) {
-      for (const child of this.getChildForms(deep)) {
-        if ('isFormValid' in child && !child.isFormValid()) {
+      for (const child of this.getChildForms(
+        (child) => 'isFormValid' in child,
+        deep
+      )) {
+        if (!child.isFormValid(deep)) {
           return false
         }
       }
@@ -162,17 +176,21 @@ export default {
      * A method that can be overridden to do some mutations on the values before
      * calling the submitted event.
      */
-    getFormValues() {
-      return Object.assign({}, this.values, this.getChildFormsValues())
+    getFormValues(deep = false) {
+      return Object.assign({}, this.values, this.getChildFormsValues(deep))
     },
     /**
      * Returns an object containing the values of the child forms.
      */
-    getChildFormsValues() {
+    getChildFormsValues(deep = false) {
+      const children = this.getChildForms(
+        (child) => 'getChildFormsValues' in child,
+        deep
+      )
       return Object.assign(
         {},
-        ...this.$children.map((child) => {
-          return 'getChildFormsValues' in child ? child.getFormValues() : {}
+        ...children.map((child) => {
+          return child.getFormValues(deep)
         })
       )
     },
@@ -196,16 +214,22 @@ export default {
       await this.$nextTick()
 
       // Also reset the child forms after a tick to allow default values to be updated.
-      this.getChildForms(deep).forEach((child) => child.reset())
+      this.getChildForms((child) => 'reset' in child, deep).forEach((child) =>
+        child.reset()
+      )
     },
 
     /**
      * Returns if a child form has indicated it handled the error, false otherwise.
      */
-    handleErrorByForm(error) {
+    handleErrorByForm(error, deep = false) {
       let childHandledIt = false
-      for (const child of this.$children) {
-        if ('handleErrorByForm' in child && child.handleErrorByForm(error)) {
+      const children = this.getChildForms(
+        (child) => 'handleErrorByForm' in child,
+        deep
+      )
+      for (const child of children) {
+        if (child.handleErrorByForm(error)) {
           childHandledIt = true
         }
       }

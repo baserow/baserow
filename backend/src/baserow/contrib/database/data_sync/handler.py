@@ -1,12 +1,14 @@
+from copy import deepcopy
 from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
-from django.db.models import Prefetch
+from django.db.models import Prefetch, QuerySet
 from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
+from baserow.contrib.database.fields.constants import DeleteFieldStrategyEnum
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -15,12 +17,18 @@ from baserow.contrib.database.operations import CreateTableDatabaseTableOperatio
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.table.operations import UpdateDatabaseTableOperationType
 from baserow.contrib.database.table.signals import table_created, table_updated
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.db import specific_queryset
 from baserow.core.handler import CoreHandler
-from baserow.core.utils import ChildProgressBuilder, extract_allowed, remove_duplicates
+from baserow.core.utils import (
+    ChildProgressBuilder,
+    extract_allowed,
+    remove_duplicates,
+    set_allowed_attrs,
+)
 
 from .exceptions import (
     DataSyncDoesNotExist,
@@ -35,7 +43,9 @@ from .registries import data_sync_type_registry
 
 
 class DataSyncHandler:
-    def get_data_sync(self, data_sync_id: int) -> DataSync:
+    def get_data_sync(
+        self, data_sync_id: int, base_queryset: Optional[QuerySet] = None
+    ) -> DataSync:
         """
         Returns the data sync matching the provided ID.
 
@@ -43,9 +53,14 @@ class DataSyncHandler:
         :return: The fetched data sync object.
         """
 
+        if base_queryset is None:
+            base_queryset = DataSync.objects
+
         try:
             return (
-                DataSync.objects.select_related("table")
+                base_queryset.select_related(
+                    "table", "table__database", "table__database__workspace"
+                )
                 .prefetch_related("synced_properties")
                 .get(pk=data_sync_id)
                 .specific
@@ -180,6 +195,61 @@ class DataSyncHandler:
 
         return data_sync_instance
 
+    def update_data_sync_table(
+        self,
+        user: AbstractUser,
+        data_sync: DataSync,
+        synced_properties: List[str],
+        **kwargs: dict,
+    ) -> DataSync:
+        """
+        Updates the synced properties and data sync properties.
+
+        :param user: The user on whose behalf the data sync is updated.
+        :param data_sync: The data sync that must be updated.
+        :param synced_properties: A list of all properties that must be in data sync
+            table. New ones will be created, and removed ones will be deleted.
+        :return: The updated data sync.
+        """
+
+        if not isinstance(data_sync, DataSync):
+            raise ValueError("The table is not an instance of Table")
+
+        CoreHandler().check_permissions(
+            user,
+            UpdateDatabaseTableOperationType.type,
+            workspace=data_sync.table.database.workspace,
+            context=data_sync.table,
+        )
+
+        data_sync = data_sync.specific
+        data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+
+        allowed_fields = [] + data_sync_type.allowed_fields
+        data_sync = set_allowed_attrs(kwargs, allowed_fields, data_sync)
+        data_sync.save()
+
+        data_sync_properties = data_sync_type.get_properties(data_sync)
+        data_sync_property_keys = [p.key for p in data_sync_properties]
+        # Omit properties that are not available anymore to prevent the backend from
+        # failing hard.
+        synced_properties = [
+            p for p in synced_properties if p in data_sync_property_keys
+        ]
+
+        self.set_data_sync_synced_properties(
+            user,
+            data_sync,
+            synced_properties=synced_properties,
+            data_sync_properties=data_sync_properties,
+        )
+
+        table_updated.send(
+            self, table=data_sync.table, user=user, force_table_refresh=False
+        )
+
+        return data_sync
+
     def get_table_sync_lock_key(self, data_sync_id):
         return f"data_sync_{data_sync_id}_syncing_table"
 
@@ -294,6 +364,9 @@ class DataSyncHandler:
         existing_rows_in_table = {
             tuple(row[key_to_field_id[key]] for key in unique_primary_keys): row
             for row in existing_rows_queryset
+            # Unique primaries can't be empty. If they are, then they're left dangling
+            # because the primary was removed. They will be deleted later.
+            if all(row[key_to_field_id[key]] for key in unique_primary_keys)
         }
         progress.increment(by=1)  # makes the total `10`
 
@@ -337,8 +410,13 @@ class DataSyncHandler:
 
         row_ids_to_delete = []
         for existing_id in existing_rows_in_table.keys():
-            if existing_id not in rows_of_data_sync:
+            if existing_id is None or existing_id not in rows_of_data_sync:
                 row_ids_to_delete.append(existing_rows_in_table[existing_id]["id"])
+        # Loop over the dangling rows and delete those because they can't be identified
+        # anymore.
+        for row in existing_rows_queryset:
+            if any(not row[key_to_field_id[key]] for key in unique_primary_keys):
+                row_ids_to_delete.append(row["id"])
         progress.increment(by=1)  # makes the total `70`
 
         if len(rows_to_create) > 0:
@@ -406,6 +484,12 @@ class DataSyncHandler:
         :param data_sync_properties: If the data sync properties have already been
             fetched, they can be provided as argument to avoid fetching them again.
         """
+
+        # Remove the web_socket_id, so that the client receives the real-time messages
+        # when a field is created or deleted. These fields are not exposed to the user
+        # when making the API call, so this informs the user about those changes.
+        user = deepcopy(user)
+        user.web_socket_id = None
 
         # No need to do a permission check because that's handled in the FieldHandler
         # create and delete methods.
@@ -482,6 +566,18 @@ class DataSyncHandler:
 
         handler = FieldHandler()
 
+        for data_sync_property_instance in properties_to_be_removed:
+            field = data_sync_property_instance.field
+            data_sync_property_instance.delete()
+            handler.delete_field(
+                user=user,
+                field=field,
+                allow_deleting_primary=True,
+                delete_strategy=DeleteFieldStrategyEnum.PERMANENTLY_DELETE,
+            )
+
+        has_primary = data_sync.table.field_set.filter(primary=True).exists()
+
         for data_sync_property in properties_to_be_added:
             baserow_field = data_sync_property.to_baserow_field()
             baserow_field_type = field_type_registry.get_by_model(baserow_field)
@@ -491,6 +587,9 @@ class DataSyncHandler:
             field_kwargs[
                 "immutable_properties"
             ] = data_sync_property.immutable_properties
+            if data_sync_property.unique_primary and not has_primary:
+                has_primary = True
+                field_kwargs["primary"] = True
             # It could be that a field with the same name already exists. In that case,
             # we don't want to block the creation of the field, but rather find a name
             # that works.
@@ -537,13 +636,4 @@ class DataSyncHandler:
                     "unique_primary",
                     "metadata",
                 )
-            )
-
-        for data_sync_property_instance in properties_to_be_removed:
-            field = data_sync_property_instance.field
-            data_sync_property_instance.delete()
-            handler.delete_field(
-                user=user,
-                field=field,
-                permanently_delete_field=True,
             )

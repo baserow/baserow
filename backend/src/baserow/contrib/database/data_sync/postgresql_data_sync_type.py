@@ -130,10 +130,21 @@ class PostgreSQLDataSyncType(DataSyncType):
         "postgresql_table",
         "postgresql_sslmode",
     ]
-    serializer_field_names = [
+    request_serializer_field_names = [
         "postgresql_host",
         "postgresql_username",
         "postgresql_password",
+        "postgresql_port",
+        "postgresql_database",
+        "postgresql_schema",
+        "postgresql_table",
+        "postgresql_sslmode",
+    ]
+    # The `postgresql_password` should not be included because it's a secret value that
+    # must only be possible to set and not get.
+    serializer_field_names = [
+        "postgresql_host",
+        "postgresql_username",
         "postgresql_port",
         "postgresql_database",
         "postgresql_schema",

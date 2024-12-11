@@ -109,23 +109,11 @@
 
 <script>
 import { required, url } from 'vuelidate/lib/validators'
-import form from '@baserow/modules/core/mixins/form'
+import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
 
 export default {
   name: 'OpenIdConnectSettingsForm',
-  mixins: [form],
-  props: {
-    authProvider: {
-      type: Object,
-      required: false,
-      default: () => ({}),
-    },
-    serverErrors: {
-      type: Object,
-      required: false,
-      default: () => ({}),
-    },
-  },
+  mixins: [authProviderForm],
   data() {
     return {
       allowedValues: ['name', 'base_url', 'client_id', 'secret'],
@@ -139,42 +127,7 @@ export default {
   },
   computed: {
     callbackUrl() {
-      if (!this.authProvider.id) {
-        const nextProviderId =
-          this.$store.getters['authProviderAdmin/getNextProviderId']
-        return `${this.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${nextProviderId}/`
-      }
-      return `${this.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${this.authProvider.id}/`
-    },
-  },
-  methods: {
-    getDefaultValues() {
-      return {
-        name: this.authProvider.name || '',
-        base_url: this.authProvider.base_url || '',
-        client_id: this.authProvider.client_id || '',
-        secret: this.authProvider.secret || '',
-      }
-    },
-    submit() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
-        return
-      }
-      this.$emit('submit', this.values)
-    },
-    handleServerError(error) {
-      if (error.handler.code === 'ERROR_INVALID_PROVIDER_URL') {
-        this.serverErrors.baseUrl = error.handler.detail
-        return true
-      }
-
-      if (error.handler.code !== 'ERROR_REQUEST_BODY_VALIDATION') return false
-
-      for (const [key, value] of Object.entries(error.handler.detail || {})) {
-        this.serverErrors[key] = value
-      }
-      return true
+      return this.authProviderType.getCallbackUrl(this.authProvider)
     },
   },
   validations() {

@@ -38,6 +38,20 @@
               </div>
             </div>
           </div>
+          <div class="admin-health__check-item">
+            <div class="admin-health__check-item-label">
+              <div class="admin-health__check-item-name">Celery queue size</div>
+            </div>
+            {{ celeryQueueSize }}
+          </div>
+          <div class="admin-health__check-item">
+            <div class="admin-health__check-item-label">
+              <div class="admin-health__check-item-name">
+                Celery export queue size
+              </div>
+            </div>
+            {{ celeryExportQueueSize }}
+          </div>
         </div>
       </div>
       <div class="admin-health__group">
@@ -61,7 +75,11 @@ export default {
   middleware: 'staff',
   async asyncData({ app }) {
     const { data } = await HealthService(app.$client).getAll()
-    return { healthChecks: data.checks }
+    return {
+      healthChecks: data.checks,
+      celeryQueueSize: data.celery_queue_size,
+      celeryExportQueueSize: data.celery_export_queue_size,
+    }
   },
   methods: {
     camelCaseToSpaceSeparated(camelCaseString) {

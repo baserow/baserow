@@ -9,7 +9,7 @@ from .registries import ai_field_output_registry
 
 class AIField(Field):
     ai_generative_ai_type = models.CharField(max_length=32, null=True)
-    ai_generative_ai_model = models.CharField(max_length=32, null=True)
+    ai_generative_ai_model = models.CharField(max_length=128, null=True)
     ai_output_type = models.CharField(
         max_length=32,
         db_default=TextAIFieldOutputType.type,

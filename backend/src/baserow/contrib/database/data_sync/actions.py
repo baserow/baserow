@@ -98,6 +98,68 @@ class CreateDataSyncTableActionType(UndoableActionType):
         )
 
 
+class UpdateDataSyncTableActionType(ActionType):
+    type = "update_data_sync_table"
+    description = ActionTypeDescription(
+        _("Update data sync table"),
+        _('Data sync table "%(table_name)s" (%(table_id)s) updated'),
+        DATABASE_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "database_id",
+        "table_id",
+        "data_sync_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        database_id: int
+        database_name: str
+        table_id: int
+        table_name: str
+        data_sync_id: int
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        data_sync: DataSync,
+        synced_properties: Optional[List[str]] = None,
+        **kwargs: dict,
+    ) -> DataSync:
+        data_sync = data_sync.specific
+
+        if not synced_properties:
+            synced_properties = list(
+                data_sync.synced_properties.all().values_list("key", flat=True)
+            )
+
+        data_sync = DataSyncHandler().update_data_sync_table(
+            user=user,
+            data_sync=data_sync,
+            synced_properties=synced_properties,
+            **kwargs,
+        )
+
+        table = data_sync.table
+        database = table.database
+        workspace = database.workspace
+        params = cls.Params(
+            database.id,
+            database.name,
+            table.id,
+            table.name,
+            data_sync.id,
+        )
+        cls.register_action(user, params, cls.scope(database.id), workspace=workspace)
+
+        return data_sync
+
+    @classmethod
+    def scope(cls, database_id) -> ActionScopeStr:
+        return ApplicationActionScopeType.value(database_id)
+
+
 class SyncDataSyncTableActionType(ActionType):
     type = "sync_data_sync_table"
     description = ActionTypeDescription(

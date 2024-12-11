@@ -15,6 +15,7 @@
           name: 'postgresql_password',
           translationPrefix: 'password',
           type: 'password',
+          protectedEdit: true,
         },
         {
           name: 'postgresql_database',
@@ -32,7 +33,15 @@
       :error="fieldHasErrors(field.name)"
       required
       small-label
+      :protected-edit="update && field.protectedEdit"
       class="margin-bottom-2"
+      @enabled-protected-edit="allowedValues.push(field.name)"
+      @disable-protected-edit="
+        ;[
+          allowedValues.splice(allowedValues.indexOf(field.name), 1),
+          delete values[field.name],
+        ]
+      "
     >
       <template #label>{{
         $t(`postgreSQLDataSync.${field.translationPrefix}`)
@@ -42,6 +51,7 @@
         size="large"
         :type="field.type"
         :error="fieldHasErrors(field.name)"
+        :disabled="disabled"
         @blur="$v.values[field.name].$touch()"
       >
       </FormInput>
@@ -66,6 +76,7 @@
             v-model="values.postgresql_port"
             size="large"
             :error="fieldHasErrors('postgresql_port')"
+            :disabled="disabled"
             @blur="$v.values.postgresql_port.$touch()"
           >
           </FormInput>
@@ -92,7 +103,11 @@
       <div class="col col-7">
         <FormGroup required small-label class="margin-bottom-2">
           <template #label>{{ $t('postgreSQLDataSync.sslMode') }}</template>
-          <Dropdown v-model="values.postgresql_sslmode" size="large">
+          <Dropdown
+            v-model="values.postgresql_sslmode"
+            size="large"
+            :disabled="disabled"
+          >
             <DropdownItem
               v-for="option in sslModeOptions"
               :key="option"
@@ -107,29 +122,43 @@
 </template>
 
 <script>
-import { required, numeric } from 'vuelidate/lib/validators'
+import { required, numeric, requiredIf } from 'vuelidate/lib/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'PostgreSQLDataSync',
   mixins: [form],
+  props: {
+    update: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
   data() {
+    const allowedValues = [
+      'postgresql_host',
+      'postgresql_username',
+      'postgresql_port',
+      'postgresql_database',
+      'postgresql_schema',
+      'postgresql_table',
+      'postgresql_sslmode',
+    ]
+    if (!this.update) {
+      allowedValues.push('postgresql_password')
+    }
     return {
-      allowedValues: [
-        'postgresql_host',
-        'postgresql_username',
-        'postgresql_password',
-        'postgresql_port',
-        'postgresql_database',
-        'postgresql_schema',
-        'postgresql_table',
-        'postgresql_sslmode',
-      ],
+      allowedValues,
       values: {
         postgresql_host: '',
         postgresql_username: '',
-        postgresql_password: '',
         postgresql_port: '5432',
         postgresql_database: '',
         postgresql_schema: 'public',
@@ -146,17 +175,23 @@ export default {
       ],
     }
   },
-  validations: {
-    values: {
-      postgresql_host: { required },
-      postgresql_username: { required },
-      postgresql_password: { required },
-      postgresql_database: { required },
-      postgresql_schema: { required },
-      postgresql_table: { required },
-      postgresql_sslmode: { required },
-      postgresql_port: { required, numeric },
-    },
+  validations() {
+    return {
+      values: {
+        postgresql_host: { required },
+        postgresql_username: { required },
+        postgresql_password: {
+          required: requiredIf(() => {
+            return this.allowedValues.includes('postgresql_password')
+          }),
+        },
+        postgresql_database: { required },
+        postgresql_schema: { required },
+        postgresql_table: { required },
+        postgresql_sslmode: { required },
+        postgresql_port: { required, numeric },
+      },
+    }
   },
 }
 </script>

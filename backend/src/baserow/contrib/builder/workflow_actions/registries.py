@@ -4,11 +4,11 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
-from baserow.contrib.builder.registries import PublicCustomFieldsInstanceMixin
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
     ModelRegistryMixin,
+    PublicCustomFieldsInstanceMixin,
     Registry,
 )
 from baserow.core.workflow_actions.registries import WorkflowActionType
@@ -88,6 +88,7 @@ class BuilderWorkflowActionType(
             cache = {}
 
         element_id = serialized_values["element_id"]
+        import_context = {}
         if element_id:
             imported_element_id = id_mapping["builder_page_elements"][element_id]
             import_context = ElementHandler().get_import_context_addition(

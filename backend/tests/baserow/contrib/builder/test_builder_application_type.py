@@ -1636,3 +1636,21 @@ def test_builder_application_exports_file_with_zip_file(
     serialized_image_element = visible_pages[0]["elements"][0]
     assert serialized_image_element["image_source_type"] == "upload"
     assert serialized_image_element["image_file_id"] == serialized_file
+
+
+@pytest.mark.django_db
+def test_get_default_application_urls(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(workspace=None)
+    domain1 = data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=builder_to, domain_name="mytest.com"
+    )
+
+    assert builder.get_type().get_default_application_urls(builder) == [
+        f"http://localhost:3000/builder/{builder.id}/preview/"
+    ]
+    assert builder_to.get_type().get_default_application_urls(builder_to) == [
+        "http://mytest.com:3000",
+        f"http://localhost:3000/builder/{builder.id}/preview/",
+    ]

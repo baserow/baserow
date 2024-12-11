@@ -5,7 +5,6 @@
       small-label
       horizontal
       horizontal-variable
-      class="margin-top-2"
       required
     >
       <Dropdown
@@ -32,16 +31,16 @@
 </template>
 
 <script>
-import form from '@baserow/modules/core/mixins/form'
+import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
 
 export default {
-  mixins: [form],
+  mixins: [authProviderForm],
   props: {
     integration: {
       type: Object,
       required: true,
     },
-    currentUserSource: {
+    userSource: {
       type: Object,
       required: true,
     },
@@ -55,9 +54,6 @@ export default {
     }
   },
   computed: {
-    authProviderType() {
-      return this.$registry.get('appAuthProvider', 'local_baserow_password')
-    },
     databases() {
       return this.integration.context_data.databases
     },
@@ -65,12 +61,12 @@ export default {
       return this.$registry.getAll('field')
     },
     selectedTable() {
-      if (!this.currentUserSource.table_id) {
+      if (!this.userSource.table_id) {
         return null
       }
       for (const database of this.databases) {
         for (const table of database.tables) {
-          if (table.id === this.currentUserSource.table_id) {
+          if (table.id === this.userSource.table_id) {
             return table
           }
         }
@@ -91,7 +87,7 @@ export default {
     },
   },
   watch: {
-    'currentUserSource.table_id'() {
+    'userSource.table_id'() {
       this.values.password_field_id = null
     },
   },

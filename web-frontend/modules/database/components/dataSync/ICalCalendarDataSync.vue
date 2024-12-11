@@ -13,6 +13,7 @@
         v-model="values.ical_url"
         size="large"
         :error="fieldHasErrors('ical_url')"
+        :disabled="disabled"
         @focus.once="$event.target.select()"
         @blur="$v.values.ical_url.$touch()"
       >
@@ -37,6 +38,18 @@ import form from '@baserow/modules/core/mixins/form'
 export default {
   name: 'ICalCalendarDataSync',
   mixins: [form],
+  props: {
+    update: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
   data() {
     return {
       allowedValues: ['ical_url'],

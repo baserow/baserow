@@ -773,3 +773,48 @@ def test_async_sync_data_sync_table_without_license(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_data_sync(enterprise_data_fixture, api_client):
+    enterprise_data_fixture.enable_enterprise()
+    user, token = enterprise_data_fixture.create_user_and_token()
+    database = enterprise_data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="gitlab_issues",
+        synced_properties=["id"],
+        gitlab_url="https://gitlab.com",
+        gitlab_project_id="1",
+        gitlab_access_token="test",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json == {
+        "id": data_sync.id,
+        "type": "gitlab_issues",
+        "synced_properties": [
+            {
+                "field_id": data_sync.table.field_set.all().first().id,
+                "key": "id",
+                "unique_primary": True,
+            }
+        ],
+        "last_sync": None,
+        "last_error": None,
+        # The `gitlab_access_token` should not be in here.
+        "gitlab_url": "https://gitlab.com",
+        "gitlab_project_id": "1",
+    }

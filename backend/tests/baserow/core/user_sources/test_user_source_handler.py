@@ -520,3 +520,26 @@ def test_get_all_roles_for_application_returns_user_roles(
     user_roles = UserSourceHandler().get_all_roles_for_application(builder)
 
     assert user_roles == expected_roles
+
+
+@pytest.mark.django_db
+def test_update_all_user_source_counts(stub_user_source_registry):
+    # Calling each `update_user_count`.
+    with stub_user_source_registry(update_user_count_return=lambda: 123):
+        UserSourceHandler().update_all_user_source_counts()
+
+    # When an exception raises, by default we won't propagate it.
+    def mock_raise_update_user_count(user_source):
+        raise Exception("An error has occurred.")
+
+    with stub_user_source_registry(
+        update_user_count_return=mock_raise_update_user_count
+    ):
+        UserSourceHandler().update_all_user_source_counts()
+
+    # When an exception raises, we can make it propagate.
+    with stub_user_source_registry(
+        update_user_count_return=mock_raise_update_user_count
+    ), pytest.raises(Exception) as exc:
+        UserSourceHandler().update_all_user_source_counts(raise_on_error=True)
+    assert str(exc.value) == "An error has occurred."

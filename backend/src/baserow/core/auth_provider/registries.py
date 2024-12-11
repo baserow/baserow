@@ -47,13 +47,6 @@ class BaseAuthProviderType(
     default_create_allowed_fields = ["domain", "enabled"]
     default_update_allowed_fields = ["domain", "enabled"]
 
-    @abstractmethod
-    def get_login_options(self, **kwargs) -> Optional[Dict[str, Any]]:
-        """
-        Returns a dictionary containing the login options
-        to populate the login component accordingly.
-        """
-
     def can_create_new_providers(self, **kwargs) -> bool:
         """
         Returns True if it's possible to create an authentication provider of this type.
@@ -248,6 +241,13 @@ class AuthenticationProviderTypeRegistry(
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._default = None
+
+    @abstractmethod
+    def get_login_options(self, **kwargs) -> Optional[Dict[str, Any]]:
+        """
+        Returns a dictionary containing the login options
+        to populate the login component accordingly.
+        """
 
     def get_all_available_login_options(self):
         login_options = {}

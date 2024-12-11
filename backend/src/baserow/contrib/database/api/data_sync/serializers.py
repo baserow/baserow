@@ -47,6 +47,16 @@ class CreateDataSyncSerializer(serializers.ModelSerializer):
         fields = ("synced_properties", "type", "table_name")
 
 
+class UpdateDataSyncSerializer(serializers.ModelSerializer):
+    synced_properties = serializers.ListField(
+        child=serializers.CharField(), required=False
+    )
+
+    class Meta:
+        model = DataSync
+        fields = ("synced_properties",)
+
+
 class ListDataSyncPropertiesRequestSerializer(serializers.ModelSerializer):
     type = serializers.ChoiceField(
         choices=lazy(data_sync_type_registry.get_types, list)(),

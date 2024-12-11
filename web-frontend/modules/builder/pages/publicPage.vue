@@ -24,8 +24,8 @@ import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
 
 import {
   getTokenIfEnoughTimeLeft,
-  setToken,
   userSourceCookieTokenName,
+  setToken,
 } from '@baserow/modules/core/utils/auth'
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
@@ -59,8 +59,8 @@ export default {
     $registry,
     app,
     req,
-    route,
     redirect,
+    route,
   }) {
     let mode = 'public'
     const builderId = params.builderId ? parseInt(params.builderId, 10) : null
@@ -71,6 +71,7 @@ export default {
     }
 
     let builder = store.getters['application/getSelected']
+    let needPostBuilderLoading = false
 
     if (!builder || (builderId && builderId !== builder.id)) {
       try {
@@ -105,7 +106,40 @@ export default {
         })
       }
 
+      needPostBuilderLoading = true
+    }
+    store.dispatch('userSourceUser/setCurrentApplication', {
+      application: builder,
+    })
+
+    if (
+      (!process.server || req) &&
+      !store.getters['userSourceUser/isAuthenticated'](builder)
+    ) {
+      const refreshToken = getTokenIfEnoughTimeLeft(
+        app,
+        userSourceCookieTokenName
+      )
+      if (refreshToken) {
+        try {
+          await store.dispatch('userSourceUser/refreshAuth', {
+            application: builder,
+            token: refreshToken,
+          })
+        } catch (error) {
+          if (error.response?.status === 401) {
+            // We logoff as the token has probably expired or became invalid
+            logOffAndReturnToLogin({ builder, store, redirect })
+          } else {
+            throw error
+          }
+        }
+      }
+    }
+
+    if (needPostBuilderLoading) {
       // Post builder loading task executed once per application
+      // It's executed here to make sure we are authenticated at that point
       const sharedPage = await store.getters['page/getSharedPage'](builder)
       await Promise.all([
         store.dispatch('dataSource/fetchPublished', {
@@ -127,37 +161,18 @@ export default {
         }
       )
     }
-    store.dispatch('userSourceUser/setCurrentApplication', {
-      application: builder,
-    })
 
-    if (
-      (!process.server || req) &&
-      !store.getters['userSourceUser/isAuthenticated'](builder)
-    ) {
-      // token can be in the query string (SSO) or in the cookies (previous session)
-      let refreshToken = route.query.token
-      if (refreshToken) {
-        setToken(app, refreshToken, userSourceCookieTokenName, {
-          sameSite: 'Lax',
-        })
-      } else {
-        refreshToken = getTokenIfEnoughTimeLeft(app, userSourceCookieTokenName)
-      }
-
-      if (refreshToken) {
-        try {
-          await store.dispatch('userSourceUser/refreshAuth', {
-            application: builder,
-            token: refreshToken,
+    // Auth providers can get error code from the URL parameters
+    for (const userSource of builder.user_sources) {
+      for (const authProvider of userSource.auth_providers) {
+        const authError = $registry
+          .get('appAuthProvider', authProvider.type)
+          .handleError(userSource, authProvider, route)
+        if (authError) {
+          return error({
+            statusCode: authError.code,
+            message: authError.message,
           })
-        } catch (error) {
-          if (error.response?.status === 401) {
-            // We logoff as the token has probably expired or became invalid
-            logOffAndReturnToLogin({ builder, store, redirect })
-          } else {
-            throw error
-          }
         }
       }
     }
@@ -348,7 +363,7 @@ export default {
         }
       },
     },
-    async isAuthenticated() {
+    async isAuthenticated(newIsAuthenticated) {
       // When the user login or logout, we need to refetch the elements and actions
       // as they might have changed
       await this.$store.dispatch('element/fetchPublished', {
@@ -364,12 +379,18 @@ export default {
         page: this.sharedPage,
       })
 
-      // If the user is on a hidden page, redirect them to the Login page if possible.
-      await this.maybeRedirectUserToLoginPage()
+      if (newIsAuthenticated) {
+        // If the user has just logged in, we redirect him to the next page.
+        await this.maybeRedirectToNextPage()
+      } else {
+        // If the user is on a hidden page, redirect them to the Login page if possible.
+        await this.maybeRedirectUserToLoginPage()
+      }
     },
   },
   async mounted() {
     await this.maybeRedirectUserToLoginPage()
+    await this.checkProviderAuthentication()
   },
   methods: {
     /**
@@ -389,8 +410,57 @@ export default {
           this.mode
         )
 
-        if (url !== this.$router.history.current?.fullPath) {
-          this.$router.push(url)
+        const currentPath = this.$route.fullPath
+        if (url !== currentPath) {
+          const nextPath = encodeURIComponent(currentPath)
+          this.$router.push({ path: url, query: { next: nextPath } })
+        }
+      }
+    },
+    maybeRedirectToNextPage() {
+      if (this.$route.query.next) {
+        const decodedNext = decodeURIComponent(this.$route.query.next)
+        this.$router.push(decodedNext)
+      }
+    },
+    async checkProviderAuthentication() {
+      // Iterate over all auth providers to check if one can get a refresh token
+      let refreshTokenFromProvider = null
+
+      for (const userSource of this.builder.user_sources) {
+        for (const authProvider of userSource.auth_providers) {
+          refreshTokenFromProvider = this.$registry
+            .get('appAuthProvider', authProvider.type)
+            .getAuthToken(userSource, authProvider, this.$route)
+          if (refreshTokenFromProvider) {
+            break
+          }
+        }
+        if (refreshTokenFromProvider) {
+          break
+        }
+      }
+
+      if (refreshTokenFromProvider) {
+        setToken(this, refreshTokenFromProvider, userSourceCookieTokenName, {
+          sameSite: 'Lax',
+        })
+        try {
+          await this.$store.dispatch('userSourceUser/refreshAuth', {
+            application: this.builder,
+            token: refreshTokenFromProvider,
+          })
+        } catch (error) {
+          if (error.response?.status === 401) {
+            // We logoff as the token has probably expired or became invalid
+            logOffAndReturnToLogin({
+              builder: this.builder,
+              store: this.$store,
+              redirect: (...args) => this.$router.push(...args),
+            })
+          } else {
+            throw error
+          }
         }
       }
     },

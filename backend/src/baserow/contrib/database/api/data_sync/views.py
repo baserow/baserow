@@ -18,19 +18,32 @@ from baserow.api.schemas import (
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
     get_error_schema,
 )
-from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
+from baserow.api.utils import (
+    DiscriminatorCustomFieldsMappingSerializer,
+    validate_data_custom_fields,
+)
 from baserow.contrib.database.api.tables.serializers import TableSerializer
-from baserow.contrib.database.data_sync.actions import CreateDataSyncTableActionType
+from baserow.contrib.database.data_sync.actions import (
+    CreateDataSyncTableActionType,
+    UpdateDataSyncTableActionType,
+)
 from baserow.contrib.database.data_sync.exceptions import (
     DataSyncDoesNotExist,
     PropertyNotFound,
     SyncError,
 )
+from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.job_types import SyncDataSyncTableJobType
+from baserow.contrib.database.data_sync.models import DataSync
+from baserow.contrib.database.data_sync.operations import (
+    GetIncludingPublicValuesOperationType,
+    ListPropertiesOperationType,
+)
 from baserow.contrib.database.data_sync.registries import data_sync_type_registry
 from baserow.contrib.database.handler import DatabaseHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
+from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
@@ -43,8 +56,10 @@ from .errors import (
 )
 from .serializers import (
     CreateDataSyncSerializer,
+    DataSyncSerializer,
     ListDataSyncPropertiesRequestSerializer,
     ListDataSyncPropertySerializer,
+    UpdateDataSyncSerializer,
 )
 
 
@@ -81,6 +96,7 @@ class DataSyncsView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_SYNC_ERROR",
+                    "ERROR_PROPERTY_NOT_FOUND",
                 ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
@@ -118,6 +134,119 @@ class DataSyncsView(APIView):
         return Response(serializer.data)
 
 
+class DataSyncView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="data_sync_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The data sync that must be fetched.",
+            ),
+        ],
+        tags=["Database tables"],
+        operation_id="get_table_data_sync",
+        description=(
+            "Responds with the data sync, including the data sync type specific "
+            "properties, if the user has the right permissions."
+        ),
+        responses={
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                data_sync_type_registry, DataSyncSerializer
+            ),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            404: get_error_schema(["ERROR_DATA_SYNC_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            DataSyncDoesNotExist: ERROR_DATA_SYNC_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    def get(self, request, data_sync_id):
+        """Responds with the data sync if the user belongs to the workspace."""
+
+        data_sync = DataSyncHandler().get_data_sync(data_sync_id)
+
+        CoreHandler().check_permissions(
+            request.user,
+            GetIncludingPublicValuesOperationType.type,
+            workspace=data_sync.table.database.workspace,
+            context=data_sync.table,
+        )
+
+        data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+        serializer = data_sync_type.get_serializer(data_sync, DataSyncSerializer)
+        return Response(serializer.data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="data_sync_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Updates the data sync related to the provided value.",
+            ),
+        ],
+        tags=["Database tables"],
+        operation_id="update_table_data_sync",
+        description=(
+            "Updates the properties of the provided data sync, if the user has the "
+            "right permissions. Note that if the `synced_properties` is not provided, "
+            "the available properties change, then the unavailable ones will "
+            "automatically be removed."
+        ),
+        request=DiscriminatorCustomFieldsMappingSerializer(
+            data_sync_type_registry, UpdateDataSyncSerializer
+        ),
+        responses={
+            200: DataSyncSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_PROPERTY_NOT_FOUND",
+                    "ERROR_SYNC_ERROR",
+                ]
+            ),
+            404: get_error_schema(["ERROR_DATA_SYNC_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            DataSyncDoesNotExist: ERROR_DATA_SYNC_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            PropertyNotFound: ERROR_PROPERTY_NOT_FOUND,
+            SyncError: ERROR_SYNC_ERROR,
+        }
+    )
+    def patch(self, request, data_sync_id):
+        """Updates the data sync if the user belongs to the workspace."""
+
+        data_sync = DataSyncHandler().get_data_sync(
+            data_sync_id, base_queryset=DataSync.objects.select_for_update(of=("self",))
+        )
+        data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+
+        data = validate_data_custom_fields(
+            data_sync_type.type,
+            data_sync_type_registry,
+            request.data,
+            base_serializer_class=UpdateDataSyncSerializer,
+            partial=True,
+            return_validated=True,
+        )
+
+        data_sync = action_type_registry.get_by_type(UpdateDataSyncTableActionType).do(
+            request.user, data_sync, **data
+        )
+
+        return Response(DataSyncSerializer(data_sync).data)
+
+
 class SyncDataSyncTableView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -130,7 +259,6 @@ class SyncDataSyncTableView(APIView):
                 description="Starts a job to sync the data sync table related to the "
                 "provided value.",
             ),
-            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
         tags=["Database tables"],
         operation_id="sync_data_sync_table_async",
@@ -170,12 +298,12 @@ class SyncDataSyncTableView(APIView):
         return Response(serializer.data, status=HTTP_202_ACCEPTED)
 
 
-class DataSyncPropertiesView(APIView):
+class DataSyncTypePropertiesView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         tags=["Database tables"],
-        operation_id="get_database_data_sync_properties",
+        operation_id="get_table_data_sync_type_properties",
         description=(
             "Lists all the properties of the provided data sync type given the request "
             "data. This can be used to choose which properties should be included when "
@@ -226,5 +354,57 @@ class DataSyncPropertiesView(APIView):
         data_sync_instance = model_class(**values)
         data_sync_properties = data_sync_type.get_properties(data_sync_instance)
 
+        serializer = ListDataSyncPropertySerializer(data_sync_properties, many=True)
+        return Response(serializer.data)
+
+
+class DataSyncPropertiesView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="data_sync_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Lists properties related to the provided ID.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Database tables"],
+        operation_id="get_table_data_sync_properties",
+        description="Lists all the available properties of the provided data sync.",
+        responses={
+            200: ListDataSyncPropertySerializer(many=True),
+            400: get_error_schema(["ERROR_SYNC_ERROR"]),
+            404: get_error_schema(["ERROR_DATA_SYNC_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            DataSyncDoesNotExist: ERROR_DATA_SYNC_DOES_NOT_EXIST,
+            SyncError: ERROR_SYNC_ERROR,
+        }
+    )
+    def get(
+        self,
+        request: Request,
+        data_sync_id: int,
+    ):
+        """
+        Lists the properties of the related data sync.
+        """
+
+        data_sync = DataSyncHandler().get_data_sync(data_sync_id)
+
+        CoreHandler().check_permissions(
+            request.user,
+            ListPropertiesOperationType.type,
+            workspace=data_sync.table.database.workspace,
+            context=data_sync.table,
+        )
+
+        data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+        data_sync_properties = data_sync_type.get_properties(data_sync)
         serializer = ListDataSyncPropertySerializer(data_sync_properties, many=True)
         return Response(serializer.data)

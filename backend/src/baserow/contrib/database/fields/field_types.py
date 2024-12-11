@@ -127,7 +127,11 @@ from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import list_to_comma_separated_string
 
-from .constants import BASEROW_BOOLEAN_FIELD_TRUE_VALUES, UPSERT_OPTION_DICT_KEY
+from .constants import (
+    BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
+    UPSERT_OPTION_DICT_KEY,
+    DeleteFieldStrategyEnum,
+)
 from .dependencies.exceptions import (
     CircularFieldDependencyError,
     SelfReferenceFieldDependencyError,
@@ -2734,7 +2738,7 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
                 field=from_field.link_row_related_field,
                 # Prevent the deletion of from_field itself as normally both link row
                 # fields are deleted together.
-                permanently_delete_field=True,
+                delete_strategy=DeleteFieldStrategyEnum.DELETE_OBJECT,
             )
             if to_instance:
                 to_field.link_row_related_field = None

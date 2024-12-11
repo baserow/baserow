@@ -11,6 +11,7 @@
       <FormInput
         v-model="values.github_issues_owner"
         :error="fieldHasErrors('github_issues_owner')"
+        :disabled="disabled"
         size="large"
         @blur="$v.values.github_issues_owner.$touch()"
       />
@@ -37,6 +38,7 @@
       <FormInput
         v-model="values.github_issues_repo"
         :error="fieldHasErrors('github_issues_repo')"
+        :disabled="disabled"
         size="large"
         @blur="$v.values.github_issues_repo.$touch()"
       />
@@ -58,10 +60,22 @@
       required
       :helper-text="$t('githubIssuesDataSync.apiTokenHelper')"
       small-label
+      :protected-edit="update"
+      @enabled-protected-edit="allowedValues.push('github_issues_api_token')"
+      @disable-protected-edit="
+        ;[
+          allowedValues.splice(
+            allowedValues.indexOf('github_issues_api_token'),
+            1
+          ),
+          delete values['github_issues_api_token'],
+        ]
+      "
     >
       <FormInput
         v-model="values.github_issues_api_token"
         :error="fieldHasErrors('github_issues_api_token')"
+        :disabled="disabled"
         size="large"
         @blur="$v.values.github_issues_api_token.$touch()"
       />
@@ -80,32 +94,49 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required, requiredIf } from 'vuelidate/lib/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'GitHubIssuesDataSyncForm',
   mixins: [form],
+  props: {
+    update: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
   data() {
+    const allowedValues = ['github_issues_owner', 'github_issues_repo']
+    if (!this.update) {
+      allowedValues.push('github_issues_api_token')
+    }
     return {
-      allowedValues: [
-        'github_issues_owner',
-        'github_issues_repo',
-        'github_issues_api_token',
-      ],
+      allowedValues: ['github_issues_owner', 'github_issues_repo'],
       values: {
         github_issues_owner: '',
         github_issues_repo: '',
-        github_issues_api_token: '',
       },
     }
   },
-  validations: {
-    values: {
-      github_issues_owner: { required },
-      github_issues_repo: { required },
-      github_issues_api_token: { required },
-    },
+  validations() {
+    return {
+      values: {
+        github_issues_owner: { required },
+        github_issues_repo: { required },
+        github_issues_api_token: {
+          required: requiredIf(() => {
+            return this.allowedValues.includes('github_issues_api_token')
+          }),
+        },
+      },
+    }
   },
 }
 </script>

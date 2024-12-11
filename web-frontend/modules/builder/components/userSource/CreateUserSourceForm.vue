@@ -67,10 +67,6 @@ export default {
       type: Object,
       required: true,
     },
-    integrations: {
-      type: Array,
-      required: true,
-    },
   },
   data() {
     return {
@@ -78,6 +74,9 @@ export default {
     }
   },
   computed: {
+    integrations() {
+      return this.$store.getters['integration/getIntegrations'](this.builder)
+    },
     userSources() {
       return this.$store.getters['userSource/getUserSources'](this.builder)
     },
@@ -116,6 +115,10 @@ export default {
         return this.$t('error.maxLength', { max: 255 })
       }
       return ''
+    },
+
+    handleServerError() {
+      return false
     },
   },
   validations: {

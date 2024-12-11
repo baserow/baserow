@@ -257,7 +257,7 @@
   "userSourceSettings": {
     "titleAddUserSource": "New user source",
     "titleUpdateUserSource": "Edit user source",
-    "noUserSourceMessage": "You have not yet add a user source to this application. You must add a user source if you want users being able to authenticate your application.",
+    "noUserSourceMessage": "You have not yet added a user source to this application. You must add a user source if you want users being able to authenticate your application.",
     "titleOverview": "User sources",
     "addUserSource": "Add user source"
   },
@@ -732,7 +732,8 @@
     "nameFieldLabel": "Name",
     "nameFieldPlaceholder": "Enter a name...",
     "authTitle": "Authentication",
-    "integrationFieldLabel": "Integration"
+    "integrationFieldLabel": "Integration",
+    "addProvider": "Add provider"
   },
   "builderLoginPageForm": {
     "pageDropdownLabel": "Login Page",

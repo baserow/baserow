@@ -150,9 +150,11 @@ class DatabaseConfig(AppConfig):
         from baserow.contrib.database.data_sync.actions import (
             CreateDataSyncTableActionType,
             SyncDataSyncTableActionType,
+            UpdateDataSyncTableActionType,
         )
 
         action_type_registry.register(CreateDataSyncTableActionType())
+        action_type_registry.register(UpdateDataSyncTableActionType())
         action_type_registry.register(SyncDataSyncTableActionType())
 
         from .airtable.registry import airtable_column_type_registry
@@ -684,7 +686,11 @@ class DatabaseConfig(AppConfig):
         )
 
         from .airtable.operations import RunAirtableImportJobOperationType
-        from .data_sync.operations import SyncTableOperationType
+        from .data_sync.operations import (
+            GetIncludingPublicValuesOperationType,
+            ListPropertiesOperationType,
+            SyncTableOperationType,
+        )
         from .export.operations import ExportTableOperationType
         from .fields.operations import (
             CreateFieldOperationType,
@@ -862,6 +868,8 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(DeleteViewFilterGroupOperationType())
         operation_type_registry.register(ReadViewFilterGroupOperationType())
         operation_type_registry.register(SyncTableOperationType())
+        operation_type_registry.register(ListPropertiesOperationType())
+        operation_type_registry.register(GetIncludingPublicValuesOperationType())
 
         from baserow.core.registries import permission_manager_type_registry
 

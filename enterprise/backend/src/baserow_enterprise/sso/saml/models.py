@@ -5,7 +5,7 @@ from django.dispatch import receiver
 from baserow.core.auth_provider.models import AuthProviderModel
 
 
-class SamlAuthProviderModel(AuthProviderModel):
+class SamlAuthProviderModelMixin(models.Model):
     metadata = models.TextField(
         blank=True, help_text="The XML metadata downloaded from the metadata_url."
     )
@@ -45,6 +45,15 @@ class SamlAuthProviderModel(AuthProviderModel):
             "If this is not set, the last name will be taken from the user's profile."
         ),
     )
+
+    class Meta:
+        abstract = True
+
+
+class SamlAuthProviderModel(SamlAuthProviderModelMixin, AuthProviderModel):
+    # Restore ordering
+    class Meta(AuthProviderModel.Meta):
+        ordering = ["domain"]
 
 
 @receiver(pre_save, sender=SamlAuthProviderModel)

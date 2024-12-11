@@ -95,14 +95,17 @@
     "addProvider": "Add provider"
   },
   "authProviderTypes": {
-    "password": "Email and password authentication"
+    "password": "Email and password authentication",
+    "saml": "SSO SAML provider",
+    "ssoSamlProviderName": "SSO SAML: {domain}",
+    "ssoSamlProviderNameUnconfigured": "Unconfigured SSO SAML"
   },
   "editAuthProviderMenuContext": {
     "edit": "Edit",
     "delete": "Delete"
   },
   "samlSettingsForm": {
-    "domain": "Domain",
+    "domain": "SAML Domain",
     "domainPlaceholder": "Insert the company domain name...",
     "invalidDomain": "Invalid domain name",
     "domainAlreadyExists": "A SAML provider for this domain already exists",
@@ -311,11 +314,21 @@
     "roleFieldPlaceholder": "Select a field..."
   },
   "appAuthProviderType": {
-    "localBaserowPassword": "Email/Password"
+    "localBaserowPassword": "Email/Password",
+    "commonSaml": "Saml SSO"
   },
   "localBaserowPasswordAppAuthProviderForm": {
     "passwordFieldLabel": "Select password field",
     "noFields": "No compatible fields"
+  },
+  "commonSamlSettingModal": {
+    "title": "Edit provider",
+    "relayStateTitle": "Default Relay State URL per domain (Click to copy)",
+    "acsTitle": "Single Sign On URL per domain (Click to copy)",
+    "preview": "Preview"
+  },
+  "commonSamlSettingForm": {
+    "authProviderInError": "Please edit this provider to fix the error."
   },
   "enterpriseSettings": {
     "branding": "Branding",
@@ -383,5 +396,11 @@
     "projectIdHelper": "The ID of the project where you want to sync the issues from. Can be found by going to your project page (e.g. https://gitlab.com/baserow/baserow), click on the three dots in the top right corner, and then on 'Copy project ID: 12345678'.",
     "accessToken": "Access token",
     "accessTokenHelper": "Can be generated here https://gitlab.com/-/user_settings/personal_access_tokens by clicking on `Add new token`, select `read_api`."
+  },
+  "samlAuthLink": {
+    "loginWithSaml": "Login with SAML",
+    "placeholderWithSaml": "{login} with SAML",
+    "provideEmail": "Provide your SAML account email",
+    "emailPlaceholder": "Enter your email..."
   }
 }

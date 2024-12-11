@@ -1339,7 +1339,7 @@ class LocalBaserowAggregateRowsUserServiceType(
         **kwargs,
     ):
         """
-        Responsible for deserializing the `filters` property.
+        Responsible for deserializing the `filters` and `field_id` properties.
 
         :param prop_name: the name of the property being transformed.
         :param value: the value of this property.
@@ -1351,7 +1351,7 @@ class LocalBaserowAggregateRowsUserServiceType(
             return self.deserialize_filters(value, id_mapping)
 
         if prop_name == "field_id":
-            return id_mapping["database_fields"].get(value)
+            return id_mapping.get("database_fields", {}).get(value, value)
 
         return super().deserialize_property(
             prop_name,

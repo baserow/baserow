@@ -42,10 +42,26 @@ class UserSourceSerializer(serializers.ModelSerializer):
     """
 
     type = serializers.SerializerMethodField(help_text="The type of the user_source.")
+    user_count = serializers.SerializerMethodField(
+        help_text="The total number of users in the user source."
+    )
+    user_count_updated_at = serializers.SerializerMethodField(
+        help_text="When the last user count took place."
+    )
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
         return user_source_type_registry.get_by_model(instance.specific_class).type
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_user_count(self, instance):
+        user_count = instance.get_type().get_user_count(instance)
+        return user_count.count if user_count else None
+
+    @extend_schema_field(OpenApiTypes.DATETIME)
+    def get_user_count_updated_at(self, instance):
+        user_count = instance.get_type().get_user_count(instance)
+        return user_count.last_updated if user_count else None
 
     auth_providers = ReadPolymorphicAppAuthProviderSerializer(
         required=False,
@@ -64,6 +80,8 @@ class UserSourceSerializer(serializers.ModelSerializer):
             "name",
             "order",
             "auth_providers",
+            "user_count",
+            "user_count_updated_at",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -74,6 +92,8 @@ class UserSourceSerializer(serializers.ModelSerializer):
             "type": {"read_only": True},
             "name": {"read_only": True},
             "order": {"read_only": True, "help_text": "Lowest first."},
+            "user_count": {"read_only": True},
+            "user_count_updated_at": {"read_only": True},
         }
 
 

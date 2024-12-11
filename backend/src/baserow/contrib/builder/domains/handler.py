@@ -85,6 +85,17 @@ class DomainHandler:
 
         return domain.published_to
 
+    def get_domain_for_builder(self, builder: Builder) -> Domain | None:
+        """
+        Returns the domain the builder is published for or None if it's not a published
+        builder.
+        """
+
+        try:
+            return Domain.objects.get(published_to=builder)
+        except Domain.DoesNotExist:
+            return None
+
     def create_domain(
         self, domain_type: DomainType, builder: Builder, **kwargs
     ) -> Domain:

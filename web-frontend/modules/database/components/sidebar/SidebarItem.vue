@@ -105,6 +105,38 @@
         </li>
         <li
           v-if="
+            table.data_sync &&
+            $hasPermission(
+              'database.table.update',
+              table,
+              database.workspace.id
+            ) &&
+            $hasPermission(
+              'database.data_sync.get',
+              table,
+              database.workspace.id
+            )
+          "
+          class="context__menu-item"
+        >
+          <a
+            class="context__menu-item-link"
+            @click="openConfigureDataSyncModal()"
+          >
+            <i class="context__menu-item-icon iconoir-settings"></i>
+            {{ $t('sidebarItem.updateSyncConfig') }}
+            <div v-if="dataSyncDeactivated" class="deactivated-label">
+              <i class="iconoir-lock"></i>
+            </div>
+          </a>
+          <ConfigureDataSyncModal
+            ref="configureDataSyncModal"
+            :database="database"
+            :table="table"
+          ></ConfigureDataSyncModal>
+        </li>
+        <li
+          v-if="
             $hasPermission(
               'database.table.update',
               table,
@@ -173,10 +205,12 @@ import ExportTableModal from '@baserow/modules/database/components/export/Export
 import WebhookModal from '@baserow/modules/database/components/webhook/WebhookModal'
 import SidebarDuplicateTableContextItem from '@baserow/modules/database/components/sidebar/table/SidebarDuplicateTableContextItem'
 import SyncTableModal from '@baserow/modules/database/components/dataSync/SyncTableModal'
+import ConfigureDataSyncModal from '@baserow/modules/database/components/dataSync/ConfigureDataSyncModal.vue'
 
 export default {
   name: 'SidebarItem',
   components: {
+    ConfigureDataSyncModal,
     ExportTableModal,
     WebhookModal,
     SyncTableModal,
@@ -297,6 +331,10 @@ export default {
         this.$refs.context.hide()
         this.$refs.syncModal.show()
       }
+    },
+    openConfigureDataSyncModal() {
+      this.$refs.context.hide()
+      this.$refs.configureDataSyncModal.show()
     },
     enableRename() {
       this.$refs.context.hide()

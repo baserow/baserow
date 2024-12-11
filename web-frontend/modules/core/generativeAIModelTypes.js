@@ -176,3 +176,39 @@ export class OllamaModelType extends GenerativeAIModelType {
     return 1
   }
 }
+
+export class OpenRouterModelType extends GenerativeAIModelType {
+  static getType() {
+    return 'openrouter'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('generativeAIModelType.openRouter')
+  }
+
+  getSettings() {
+    const { i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.openRouterApiKeyLabel'),
+        description: i18n.t(
+          'generativeAIModelType.openRouterApiKeyDescription'
+        ),
+      },
+      {
+        key: 'organization',
+        label: i18n.t('generativeAIModelType.openRouterOrganization'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.openRouterModelsLabel'),
+        i18n.t('generativeAIModelType.openRouterModelsDescription')
+      ),
+    ]
+  }
+
+  getOrder() {
+    return 50
+  }
+}

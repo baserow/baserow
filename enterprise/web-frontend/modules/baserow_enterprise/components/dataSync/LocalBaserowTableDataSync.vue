@@ -15,7 +15,11 @@
           :label="$t('localBaserowTableDataSync.workspace')"
           required
         >
-          <Dropdown :value="selectedWorkspaceId" @input="workspaceChanged">
+          <Dropdown
+            :value="selectedWorkspaceId"
+            :disabled="disabled"
+            @input="workspaceChanged"
+          >
             <DropdownItem
               v-for="workspace in workspaces"
               :key="workspace.id"
@@ -31,7 +35,11 @@
           :label="$t('localBaserowTableDataSync.database')"
           required
         >
-          <Dropdown :value="selectedDatabaseId" @input="databaseChanged">
+          <Dropdown
+            :value="selectedDatabaseId"
+            :disabled="disabled"
+            @input="databaseChanged"
+          >
             <DropdownItem
               v-for="database in databases"
               :key="database.id"
@@ -51,6 +59,7 @@
           <Dropdown
             v-model="values.source_table_id"
             :error="fieldHasErrors('source_table_id')"
+            :disabled="disabled"
             @input="$v.values.source_table_id.$touch()"
           >
             <DropdownItem
@@ -86,6 +95,18 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 export default {
   name: 'LocalBaserowTableDataSync',
   mixins: [form],
+  props: {
+    update: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
   data() {
     return {
       allowedValues: ['source_table_id'],
@@ -128,6 +149,28 @@ export default {
       applications: 'application/getAll',
       userName: 'auth/getName',
     }),
+  },
+  mounted() {
+    // If the source table id is set, the database and workspace ID must be selected
+    // in the dropdown.
+    if (this.values.source_table_id) {
+      const databaseType = DatabaseApplicationType.getType()
+      for (const application of this.$store.getters['application/getAll']) {
+        if (application.type !== databaseType) {
+          continue
+        }
+
+        const foundTable = application.tables.find(
+          ({ id }) => id === this.values.source_table_id
+        )
+
+        if (foundTable) {
+          this.selectedWorkspaceId = application.workspace.id
+          this.selectedDatabaseId = application.id
+          break
+        }
+      }
+    }
   },
   validations: {
     values: {

@@ -2,7 +2,11 @@ from django.urls import include, path
 
 from drf_spectacular.views import SpectacularRedocView
 
-from baserow.core.registries import application_type_registry, plugin_registry
+from baserow.core.registries import (
+    application_type_registry,
+    auth_provider_type_registry,
+    plugin_registry,
+)
 
 from .applications import urls as application_urls
 from .auth_provider import urls as auth_provider_urls
@@ -53,5 +57,6 @@ urlpatterns = (
         ),
     ]
     + application_type_registry.api_urls
+    + auth_provider_type_registry.api_urls
     + plugin_registry.api_urls
 )

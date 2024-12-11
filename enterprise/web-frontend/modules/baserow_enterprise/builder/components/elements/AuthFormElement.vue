@@ -1,64 +1,30 @@
 <template>
-  <form
-    v-if="hasAtLeastOneLoginOption"
-    class="auth-form-element"
-    :style="getStyleOverride('input')"
-    @submit.prevent="onLogin"
-  >
-    <Error :error="error"></Error>
-    <ABFormGroup
-      :label="$t('authFormElement.email')"
-      :error-message="
-        $v.values.email.$dirty
-          ? !$v.values.email.required
-            ? $t('error.requiredField')
-            : !$v.values.email.email
-            ? $t('error.invalidEmail')
-            : ''
-          : ''
-      "
-      :autocomplete="isEditMode ? 'off' : ''"
-      required
-    >
-      <ABInput
-        v-model="values.email"
-        :placeholder="$t('authFormElement.emailPlaceholder')"
-        @blur="$v.values.email.$touch()"
-      />
-    </ABFormGroup>
-    <ABFormGroup
-      :label="$t('authFormElement.password')"
-      :error-message="
-        $v.values.password.$dirty
-          ? !$v.values.password.required
-            ? $t('error.requiredField')
-            : ''
-          : ''
-      "
-      required
-    >
-      <ABInput
-        ref="passwordRef"
-        v-model="values.password"
-        type="password"
-        :placeholder="$t('authFormElement.passwordPlaceholder')"
-        @blur="$v.values.password.$touch()"
-      />
-    </ABFormGroup>
-    <div :style="getStyleOverride('login_button')" class="auth-form__footer">
-      <ABButton :disabled="$v.$error" :loading="loading" size="large">
-        {{ resolvedLoginButtonLabel }}
-      </ABButton>
-    </div>
-  </form>
-  <p v-else>{{ $t('authFormElement.selectOrConfigureUserSourceFirst') }}</p>
+  <div v-if="hasAtLeastOneLoginOption" :style="fullStyle">
+    <template v-for="appAuthType in appAuthProviderTypes">
+      <div
+        v-if="hasAtLeastOneProvider(appAuthType)"
+        :key="appAuthType.type"
+        class="auth-form-element__provider"
+      >
+        <component
+          :is="appAuthType.component"
+          :user-source="selectedUserSource"
+          :auth-providers="appAuthProviderPerTypes[appAuthType.type]"
+          :login-button-label="resolvedLoginButtonLabel"
+          @after-login="afterLogin"
+        />
+      </div>
+    </template>
+  </div>
+  <p v-else>
+    {{ $t('authFormElement.selectOrConfigureUserSourceFirst') }}
+  </p>
 </template>
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import element from '@baserow/modules/builder/mixins/element'
-import { required, email } from 'vuelidate/lib/validators'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { mapActions } from 'vuex'
 
@@ -79,12 +45,15 @@ export default {
     },
   },
   data() {
-    return {
-      loading: false,
-      values: { email: '', password: '' },
-    }
+    return {}
   },
   computed: {
+    fullStyle() {
+      return {
+        ...this.getStyleOverride('input'),
+        ...this.getStyleOverride('login_button'),
+      }
+    },
     selectedUserSource() {
       return this.$store.getters['userSource/getUserSourceById'](
         this.builder,
@@ -97,8 +66,21 @@ export default {
       }
       return this.$registry.get('userSource', this.selectedUserSource.type)
     },
-    isAuthenticated() {
-      return this.$store.getters['userSourceUser/isAuthenticated'](this.builder)
+    authProviders() {
+      return this.selectedUserSource?.auth_providers || []
+    },
+    appAuthProviderTypes() {
+      return this.$registry.getOrderedList('appAuthProvider')
+    },
+    appAuthProviderPerTypes() {
+      return Object.fromEntries(
+        this.appAuthProviderTypes.map((authType) => {
+          return [
+            authType.type,
+            this.authProviders.filter(({ type }) => type === authType.type),
+          ]
+        })
+      )
     },
     loginOptions() {
       if (!this.selectedUserSourceType) {
@@ -141,68 +123,15 @@ export default {
     ...mapActions({
       actionForceUpdateElement: 'element/forceUpdate',
     }),
-    async onLogin(event) {
-      if (this.isAuthenticated) {
-        await this.$store.dispatch('userSourceUser/logoff', {
-          application: this.builder,
-        })
-      }
-
-      this.$v.$touch()
-      if (this.$v.$invalid) {
-        this.focusOnFirstError()
-        return
-      }
-      this.loading = true
-      this.hideError()
-      try {
-        await this.$store.dispatch('userSourceUser/authenticate', {
-          application: this.builder,
-          userSource: this.selectedUserSource,
-          credentials: {
-            email: this.values.email,
-            password: this.values.password,
-          },
-          setCookie: this.mode === 'public',
-        })
-        this.values.password = ''
-        this.values.email = ''
-        this.$v.$reset()
-        this.fireEvent(
-          this.elementType.getEventByName(this.element, 'after_login')
-        )
-      } catch (error) {
-        if (error.handler) {
-          const response = error.handler.response
-          if (response && response.status === 401) {
-            this.values.password = ''
-            this.$v.$reset()
-            this.$v.$touch()
-            this.$refs.passwordRef.focus()
-
-            if (response.data?.error === 'ERROR_INVALID_CREDENTIALS') {
-              this.showError(
-                this.$t('error.incorrectCredentialTitle'),
-                this.$t('error.incorrectCredentialMessage')
-              )
-            }
-          } else {
-            const message = error.handler.getMessage('login')
-            this.showError(message)
-          }
-
-          error.handler.handled()
-        } else {
-          throw error
-        }
-      }
-      this.loading = false
+    hasAtLeastOneProvider(authProviderType) {
+      return (
+        this.appAuthProviderPerTypes[authProviderType.getType()]?.length > 0
+      )
     },
-  },
-  validations: {
-    values: {
-      email: { required, email },
-      password: { required },
+    afterLogin() {
+      this.fireEvent(
+        this.elementType.getEventByName(this.element, 'after_login')
+      )
     },
   },
 }

@@ -6,9 +6,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from baserow.api.app_auth_providers.serializers import (
-    ReadPolymorphicAppAuthProviderSerializer,
-)
+from baserow.api.app_auth_providers.serializers import AppAuthProviderSerializer
 from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.api.services.serializers import PublicServiceSerializer
 from baserow.api.user_files.serializers import UserFileField, UserFileSerializer
@@ -26,6 +24,7 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
+from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import user_source_type_registry
@@ -175,6 +174,16 @@ class PublicPageSerializer(serializers.ModelSerializer):
         }
 
 
+class PublicPolymorphicAppAuthProviderSerializer(PolymorphicSerializer):
+    """
+    Polymorphic serializer for App Auth providers.
+    """
+
+    base_class = AppAuthProviderSerializer
+    registry = app_auth_provider_type_registry
+    extra_params = {"public": True}
+
+
 class BasePublicUserSourceSerializer(serializers.ModelSerializer):
     """
     Basic user source serializer mostly for returned values.
@@ -186,7 +195,7 @@ class BasePublicUserSourceSerializer(serializers.ModelSerializer):
     def get_type(self, instance):
         return user_source_type_registry.get_by_model(instance.specific_class).type
 
-    auth_providers = ReadPolymorphicAppAuthProviderSerializer(
+    auth_providers = PublicPolymorphicAppAuthProviderSerializer(
         required=False,
         many=True,
         help_text="Auth providers related to this user source.",

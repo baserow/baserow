@@ -47,7 +47,8 @@
     "deactivate": "Deactivate",
     "download": "Download",
     "copyToClipboard": "Copy to clipboard",
-    "reset": "Reset"
+    "reset": "Reset",
+    "hide": "Hide"
   },
   "adminType": {
     "settings": "Settings",

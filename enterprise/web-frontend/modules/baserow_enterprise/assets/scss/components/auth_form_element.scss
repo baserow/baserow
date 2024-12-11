@@ -15,3 +15,11 @@
   font-size: var(--label-font-size, 13px);
   padding-top: 0.5em;
 }
+
+.auth-form-element__provider {
+  padding-top: 16px;
+
+  &:first-child {
+    padding-top: 0;
+  }
+}

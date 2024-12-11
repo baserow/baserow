@@ -67,7 +67,8 @@
     "webhooks": "Webhooks",
     "lastSynced": "Last synced",
     "notSynced": "not synced",
-    "sync": "Sync table"
+    "sync": "Sync table",
+    "updateSyncConfig": "Update sync configuration"
   },
   "duplicateTableJobType": {
     "duplicating": "Duplicating",
@@ -1017,5 +1018,19 @@
     "small": "Small",
     "medium": "Medium",
     "large": "Large"
+  },
+  "configureDataSyncModal": {
+    "title": "Data sync",
+    "syncedFields": "Synced fields",
+    "syncSettings": "Sync settings"
+  },
+  "configureDataSyncVisibleFields": {
+    "title": "Change synced fields",
+    "fields": "Synced fields",
+    "syncTable": "Sync when save"
+  },
+  "configureDataSyncSettings": {
+    "title": "Change data sync",
+    "syncTable": "Sync when save"
   }
 }

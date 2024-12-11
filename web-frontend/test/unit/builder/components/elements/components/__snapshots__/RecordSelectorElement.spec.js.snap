@@ -208,6 +208,8 @@ exports[`RecordSelectorElement does not paginate if API returns 400/404 1`] = `
         </div>
       </div>
        
+      <!---->
+       
     </div>
      
     <!---->
@@ -422,6 +424,8 @@ exports[`RecordSelectorElement does not paginate if API returns 400/404 2`] = `
           <!---->
         </div>
       </div>
+       
+      <!---->
        
     </div>
      
@@ -638,6 +642,8 @@ exports[`RecordSelectorElement does not paginate if API returns 400/404 3`] = `
         </div>
       </div>
        
+      <!---->
+       
     </div>
      
     <!---->
@@ -775,6 +781,8 @@ exports[`RecordSelectorElement resolves suffix formulas 1`] = `
         </div>
       </div>
        
+      <!---->
+       
     </div>
      
     <!---->
@@ -911,6 +919,8 @@ exports[`RecordSelectorElement resolves suffix formulas 2`] = `
           <!---->
         </div>
       </div>
+       
+      <!---->
        
     </div>
      

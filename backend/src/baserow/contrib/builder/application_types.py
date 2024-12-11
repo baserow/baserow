@@ -1,6 +1,8 @@
 from typing import Any, Dict, List, Optional
+from urllib.parse import urljoin
 from zipfile import ZipFile
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
@@ -418,6 +420,30 @@ class BuilderApplicationType(ApplicationType):
         )
 
         return builder
+
+    def get_default_application_urls(self, application: Builder) -> list[str]:
+        """
+        Returns the default frontend urls of a builder application.
+        """
+
+        from baserow.contrib.builder.domains.handler import DomainHandler
+
+        domain = DomainHandler().get_domain_for_builder(application)
+
+        if domain is not None:
+            # Let's also return the preview url so that it's easier to test
+            preview_url = urljoin(
+                settings.PUBLIC_WEB_FRONTEND_URL,
+                f"/builder/{domain.builder_id}/preview/",
+            )
+            return [domain.get_public_url(), preview_url]
+
+        preview_url = urljoin(
+            settings.PUBLIC_WEB_FRONTEND_URL,
+            f"/builder/{application.id}/preview/",
+        )
+        # It's an unpublished version let's return to the home preview page
+        return [preview_url]
 
     def enhance_queryset(self, queryset):
         queryset = queryset.prefetch_related("page_set")

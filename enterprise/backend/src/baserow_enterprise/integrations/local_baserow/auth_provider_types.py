@@ -31,6 +31,8 @@ class LocalBaserowPasswordAppAuthProviderType(AppAuthProviderType):
     ]
 
     serializer_field_names = ["password_field_id"]
+    public_serializer_field_names = []
+
     allowed_fields = ["password_field"]
 
     serializer_field_overrides = {
@@ -40,6 +42,7 @@ class LocalBaserowPasswordAppAuthProviderType(AppAuthProviderType):
             help_text="The id of the field to use as password for the user account.",
         ),
     }
+    public_serializer_field_overrides = {}
 
     class SerializedDict(AppAuthProviderTypeDict):
         password_field_id: int
@@ -150,13 +153,6 @@ class LocalBaserowPasswordAppAuthProviderType(AppAuthProviderType):
         ):
             instance.password_field = None
             instance.save()
-
-    def get_login_options(self, **kwargs) -> Dict[str, Any]:
-        """
-        Not implemented yet.
-        """
-
-        return {}
 
     def get_or_create_user_and_sign_in(
         self, auth_provider: AuthProviderModelSubClass, user_info: Dict[str, Any]

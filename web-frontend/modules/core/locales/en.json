@@ -242,7 +242,13 @@
     "ollamaHostLabel": "Host",
     "ollamaHostDescription": "Provide the hostname to your [Ollama](https://ollama.com/) server. This typically runs locally on your own device.",
     "ollamaModelsLabel": "Enabled Models",
-    "ollamaModelsDescription": "Provide a list of comma separated [Ollama installed models](https://ollama.com/library). Note that the model must be downloaded and installed before it can be used. (e.g. `llama2,mistral`)"
+    "ollamaModelsDescription": "Provide a list of comma separated [Ollama installed models](https://ollama.com/library). Note that the model must be downloaded and installed before it can be used. (e.g. `llama2,mistral`)",
+    "openRouter": "OpenRouter",
+    "openRouterApiKeyLabel": "API Key",
+    "openRouterApiKeyDescription": "Provide an OpenRouter API key if you would like to enable the integration. [get an API key](https://openrouter.ai/settings/keys).",
+    "openRouterOrganization": "Organization (optional)",
+    "openRouterModelsLabel": "Enabled Models",
+    "openRouterModelsDescription": "Provide a list of comma separated [OpenRouter models](https://openrouter.ai/models) that can be used in Baserow. (e.g. `openai/gpt-4o,anthropic/claude-3-haiku`)"
   },
   "generativeAIWorkspaceSettings": {
     "title": "Generative AI settings",
@@ -802,5 +808,12 @@
   },
   "dataExplorerNode": {
     "showMore": "Show more repetitions"
+  },
+  "formGroup": {
+    "protectedField": "This field is protected. Click to change.",
+    "cancelProtectedField": "Cancel change"
+  },
+  "userSourceType": {
+    "userCountSummary": "{count} users ({lastUpdated})"
   }
 }

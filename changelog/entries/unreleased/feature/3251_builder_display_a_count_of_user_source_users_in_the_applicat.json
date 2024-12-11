@@ -1,0 +1,7 @@
+{
+    "type": "feature",
+    "message": "[Builder] Display a count of user source users in the application settings panel.",
+    "issue_number": 3251,
+    "bullet_points": [],
+    "created_at": "2024-12-10"
+}

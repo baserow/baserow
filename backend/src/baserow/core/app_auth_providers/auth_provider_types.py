@@ -1,18 +1,20 @@
-from typing import TYPE_CHECKING, Callable, List, Type, Union
+from typing import TYPE_CHECKING, Callable, List, Tuple, Type, Union
 
 from django.contrib.auth.models import AbstractUser
 
 from baserow.core.app_auth_providers.exceptions import IncompatibleUserSourceType
 from baserow.core.app_auth_providers.types import AppAuthProviderTypeDict
 from baserow.core.auth_provider.registries import BaseAuthProviderType
-from baserow.core.auth_provider.types import AuthProviderModelSubClass
-from baserow.core.registry import EasyImportExportMixin
+from baserow.core.auth_provider.types import AuthProviderModelSubClass, UserInfo
+from baserow.core.registry import EasyImportExportMixin, PublicCustomFieldsInstanceMixin
 
 if TYPE_CHECKING:
     from baserow.core.user_sources.types import UserSourceSubClass
 
 
-class AppAuthProviderType(EasyImportExportMixin, BaseAuthProviderType):
+class AppAuthProviderType(
+    EasyImportExportMixin, PublicCustomFieldsInstanceMixin, BaseAuthProviderType
+):
     """
     Authentication provider for application user sources.
     """
@@ -70,3 +72,16 @@ class AppAuthProviderType(EasyImportExportMixin, BaseAuthProviderType):
         :param instance: The auth provider instance related to the user source.
         :param user_source: The user source being updated.
         """
+
+    def get_or_create_user_and_sign_in(
+        self, auth_provider: AuthProviderModelSubClass, user_info: UserInfo
+    ) -> Tuple[AbstractUser, bool]:
+        """
+        Get or create a user for the given UserInfo. Calls the related userSource
+        get_or_create_user.
+        """
+
+        user_source = auth_provider.user_source.specific
+        return user_source.get_type().get_or_create_user(
+            user_source, email=user_info.email, name=user_info.name
+        )

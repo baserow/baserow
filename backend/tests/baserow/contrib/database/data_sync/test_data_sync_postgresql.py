@@ -16,6 +16,7 @@ from baserow.contrib.database.data_sync.models import PostgreSQLDataSync
 from baserow.contrib.database.data_sync.postgresql_data_sync_type import (
     TextPostgreSQLSyncProperty,
 )
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import NumberField
 from baserow.core.db import specific_iterator
 
@@ -203,8 +204,6 @@ def test_sync_postgresql_data_sync(data_fixture, create_postgresql_test_table):
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
-    for f in fields:
-        print(f.name)
     id_field = fields[0]
     text_field = fields[1]
     char_field = fields[2]
@@ -617,3 +616,204 @@ def test_postgresql_data_sync_initial_table_limit(
 
     assert data_sync.last_sync is None
     assert data_sync.last_error == "The table can't contain more than 1 records."
+
+
+@pytest.mark.django_db(transaction=True)
+def test_get_data_sync(data_fixture, api_client, create_postgresql_test_table):
+    default_database = settings.DATABASES["default"]
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert "postgresql_password" not in response_json
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_data_sync_table_changing_primary_key(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            ALTER TABLE {create_postgresql_test_table}
+            RENAME COLUMN id TO new_id;
+        """
+        )
+
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 1
+    assert fields[0].name == "new_id"
+    assert fields[0].primary is True
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_data_sync_table_changing_primary_key_with_different_primary_field(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id", "text_col"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+
+    with transaction.atomic():
+        FieldHandler().change_primary_field(
+            user=user, table=data_sync.table, new_primary_field=fields[1]
+        )
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            ALTER TABLE {create_postgresql_test_table}
+            RENAME COLUMN id TO new_id;
+        """
+        )
+
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+    assert fields[0].name == "text_col"
+    assert fields[0].primary is True
+    assert fields[1].name == "new_id"
+    assert fields[1].primary is False
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_data_sync_table_changing_table_with_different_primary_key(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id", "text_col"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            CREATE TABLE {create_postgresql_test_table}_2 (
+                car_id SERIAL PRIMARY KEY,
+                make VARCHAR(50) NOT NULL,
+                model VARCHAR(50) NOT NULL
+            );
+        """
+        )
+        cursor.execute(
+            f"""
+            INSERT INTO {create_postgresql_test_table}_2
+                (make, model)
+            VALUES
+                ('make 1', 'model 2'),
+                ('make 2', 'model 2'),
+                ('make 3', 'model 3')
+        """
+        )
+
+    with transaction.atomic():
+        data_sync = handler.update_data_sync_table(
+            user=user,
+            data_sync=data_sync,
+            synced_properties=["car_id"],
+            postgresql_table=f"{create_postgresql_test_table}_2",
+        )
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 1
+    assert fields[0].name == "car_id"
+    assert fields[0].primary is True
+
+    model = data_sync.table.get_model()
+    rows = model.objects.all()
+    assert len(rows) == 3
+
+    assert getattr(rows[0], f"field_{fields[0].id}") == Decimal("1")
+    assert getattr(rows[1], f"field_{fields[0].id}") == Decimal("2")
+    assert getattr(rows[2], f"field_{fields[0].id}") == Decimal("3")

@@ -507,6 +507,13 @@ class ApplicationType(
     def enhance_queryset(self, queryset):
         return queryset
 
+    def get_default_application_urls(self, application: "Application") -> list[str]:
+        """
+        Returns the default frontend urls of the application if any.
+        """
+
+        return []
+
 
 ApplicationSubClassInstance = TypeVar(
     "ApplicationSubClassInstance", bound="Application"

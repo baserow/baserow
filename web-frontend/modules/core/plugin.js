@@ -23,6 +23,7 @@ import {
   OllamaModelType,
   AnthropicModelType,
   MistralModelType,
+  OpenRouterModelType,
 } from '@baserow/modules/core/generativeAIModelTypes'
 import {
   UploadFileUserFileUploadType,
@@ -149,6 +150,7 @@ export default (context, inject) => {
   registry.register('generativeAIModel', new AnthropicModelType(context))
   registry.register('generativeAIModel', new MistralModelType(context))
   registry.register('generativeAIModel', new OllamaModelType(context))
+  registry.register('generativeAIModel', new OpenRouterModelType(context))
 
   registry.register('permissionManager', new CorePermissionManagerType(context))
   registry.register(

@@ -1,11 +1,35 @@
+from datetime import timedelta
+
+from django.conf import settings
+
 from baserow.config.celery import app
 from baserow.contrib.database.table.tasks import (
     unsubscribe_subject_from_tables_currently_subscribed_to,
 )
+from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.audit_log.tasks import (
     clean_up_audit_log_entries,
-    setup_periodic_tasks,
+    setup_periodic_audit_log_tasks,
 )
+
+
+@app.task(bind=True, queue="export")
+def count_all_user_source_users(self):
+    """
+    Responsible for periodically looping through all user sources, counting the number
+    of external sources there are per user source type, and caching the results.
+    """
+
+    UserSourceHandler().update_all_user_source_counts()
+
+
+@app.on_after_finalize.connect
+def setup_periodic_enterprise_tasks(sender, **kwargs):
+    every = timedelta(
+        minutes=settings.BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_TASK_INTERVAL_MINUTES
+    )
+
+    sender.add_periodic_task(every, count_all_user_source_users.s())
 
 
 @app.task(bind=True)
@@ -40,4 +64,4 @@ def unsubscribe_subject_from_tables_currently_subscribed_to_task(
     )
 
 
-__all__ = ["clean_up_audit_log_entries", "setup_periodic_tasks"]
+__all__ = ["clean_up_audit_log_entries", "setup_periodic_audit_log_tasks"]

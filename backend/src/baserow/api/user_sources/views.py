@@ -295,7 +295,7 @@ class UserSourceView(APIView):
     )
     def patch(self, request, user_source_id: int):
         """
-        Update an user_source.
+        Update a user_source.
         """
 
         user_source = UserSourceHandler().get_user_source_for_update(user_source_id)

@@ -67,6 +67,8 @@ exports[`ChoiceElement as default 1`] = `
         </div>
       </div>
        
+      <!---->
+       
     </div>
      
     <!---->
@@ -132,6 +134,8 @@ exports[`ChoiceElement as manual checkboxes 1`] = `
           <!---->
         </div>
       </div>
+       
+      <!---->
        
     </div>
      
@@ -254,6 +258,8 @@ exports[`ChoiceElement as manual dropdown 1`] = `
         </div>
       </div>
        
+      <!---->
+       
     </div>
      
     <!---->
@@ -319,6 +325,8 @@ exports[`ChoiceElement as manual radio 1`] = `
           <!---->
         </div>
       </div>
+       
+      <!---->
        
     </div>
      

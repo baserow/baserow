@@ -156,11 +156,18 @@ class JiraIssuesDataSyncType(DataSyncType):
     type = "jira_issues"
     model_class = JiraIssuesDataSync
     allowed_fields = ["jira_url", "jira_project_key", "jira_username", "jira_api_token"]
-    serializer_field_names = [
+    request_serializer_field_names = [
         "jira_url",
         "jira_project_key",
         "jira_username",
         "jira_api_token",
+    ]
+    # The `jira_api_token` should not be included because it's a secret value that must
+    # only be possible to set and not get.
+    serializer_field_names = [
+        "jira_url",
+        "jira_project_key",
+        "jira_username",
     ]
 
     def prepare_sync_job_values(self, instance):
@@ -172,7 +179,8 @@ class JiraIssuesDataSyncType(DataSyncType):
 
     def get_properties(self, instance) -> List[DataSyncProperty]:
         # The `table_id` is not set if when just listing the properties using the
-        # `DataSyncPropertiesView` endpoint, but it will be set when creating the view.
+        # `DataSyncTypePropertiesView` endpoint, but it will be set when creating the
+        # view.
         if instance.table_id:
             LicenseHandler.raise_if_workspace_doesnt_have_feature(
                 DATA_SYNC, instance.table.database.workspace

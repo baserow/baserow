@@ -1,6 +1,7 @@
 <template>
   <div
-    v-if="open"
+    v-if="open || keepContent"
+    v-show="(keepContent && open) || !keepContent"
     ref="modalWrapper"
     class="modal__wrapper"
     @click="outside($event)"
@@ -168,6 +169,14 @@ export default {
       required: false,
     },
     right: {
+      type: Boolean,
+      default: false,
+      required: false,
+    },
+    // This flag allow to keep the modal content in case you want it to be available.
+    // Useful if you have a form inside the modal that is a sub part of the current
+    // form.
+    keepContent: {
       type: Boolean,
       default: false,
       required: false,

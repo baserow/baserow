@@ -2,8 +2,11 @@ from ast import Dict
 from typing import Iterable, List, Optional, Union
 from zipfile import ZipFile
 
+from django.conf import settings
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
+
+from loguru import logger
 
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
@@ -29,7 +32,7 @@ class UserSourceHandler:
         self, user_source_id: int, base_queryset: Optional[QuerySet] = None
     ) -> UserSource:
         """
-        Returns an user_source instance from the database.
+        Returns a user_source instance from the database.
 
         :param user_source_id: The ID of the user_source.
         :param base_queryset: The base queryset use to build the query if provided.
@@ -54,11 +57,11 @@ class UserSourceHandler:
 
     def get_user_source_by_uid(
         self,
-        user_source_uid: int,
+        user_source_uid: str,
         base_queryset: Optional[QuerySet] = None,
     ) -> UserSource:
         """
-        Returns an user_source instance from the database.
+        Returns a user_source instance from the database.
 
         :param user_source_uid: The uid of the user_source.
         :param base_queryset: The base queryset use to build the query if provided.
@@ -85,7 +88,7 @@ class UserSourceHandler:
         self, user_source_id: int, base_queryset: Optional[QuerySet] = None
     ) -> UserSourceForUpdate:
         """
-        Returns an user_source instance from the database that can be safely updated.
+        Returns a user_source instance from the database that can be safely updated.
 
         :param user_source_id: The ID of the user_source.
         :param base_queryset: The base queryset use to build the query if provided.
@@ -212,8 +215,9 @@ class UserSourceHandler:
         Updates and user_source with values. Will also check if the values are allowed
         to be set on the user_source first.
 
+        :param user_source_type: The type of the user_source.
         :param user_source: The user_source that should be updated.
-        :param values: The values that should be set on the user_source.
+        :param kwargs: The values that should be set on the user_source.
         :return: The updated user_source.
         """
 
@@ -232,7 +236,7 @@ class UserSourceHandler:
 
     def delete_user_source(self, user_source: UserSource):
         """
-        Deletes an user_source.
+        Deletes a user_source.
 
         :param user_source: The to-be-deleted user_source.
         """
@@ -316,3 +320,33 @@ class UserSourceHandler:
         id_mapping["user_sources"][serialized_user_source["id"]] = user_source.id
 
         return user_source
+
+    def update_all_user_source_counts(
+        self, user_source_type: Optional[str] = None, raise_on_error: bool = False
+    ):
+        """
+        Responsible for iterating over all registered user source types, and asking the
+        implementation to count the number of external users it points to.
+
+        :param user_source_type: Optionally, a specific user source type to update.
+        :param raise_on_error: Whether to raise an exception when a user source
+            type raises an exception, or to continue with the remaining user sources.
+        :return: None
+        """
+
+        user_source_types = (
+            [user_source_type_registry.get(user_source_type)]
+            if user_source_type
+            else user_source_type_registry.get_all()
+        )
+        for user_source_type in user_source_types:
+            try:
+                user_source_type.update_user_count()
+            except Exception as e:
+                if not settings.TESTS:
+                    logger.exception(
+                        f"Counting {user_source_type.type} external users failed: {e}"
+                    )
+                if raise_on_error:
+                    raise e
+                continue

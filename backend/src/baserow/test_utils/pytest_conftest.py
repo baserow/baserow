@@ -4,6 +4,7 @@ import os
 import sys
 import threading
 from contextlib import contextmanager
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -34,6 +35,7 @@ from baserow.core.permission_manager import CorePermissionManagerType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.trash.trash_types import WorkspaceTrashableItemType
+from baserow.core.user_sources.registries import UserSourceCount
 from baserow.core.utils import get_value_at_path
 
 SKIP_FLAGS = ["disabled-in-ci", "once-per-day-in-ci"]
@@ -229,6 +231,9 @@ def stub_user_source_registry(data_fixture, mutable_user_source_registry, fake):
         get_user_return=None,
         list_users_return=None,
         gen_uid_return=None,
+        get_user_count_return=None,
+        update_user_count_return=None,
+        properties_requiring_user_recount_return=None,
     ):
         """
         Replace first user_source type with the stub class
@@ -241,6 +246,19 @@ def stub_user_source_registry(data_fixture, mutable_user_source_registry, fake):
         class StubbedUserSourceType(UserSourceType):
             type = user_source_type.type
             model_class = user_source_type.model_class
+            properties_requiring_user_recount = properties_requiring_user_recount_return
+
+            def get_user_count(self, user_source, force_recount=False):
+                if get_user_count_return:
+                    if callable(get_user_count_return):
+                        return get_user_count_return(user_source, force_recount)
+                    return UserSourceCount(count=5, last_updated=datetime.now())
+
+            def update_user_count(self, user_source=None):
+                if update_user_count_return:
+                    if callable(update_user_count_return):
+                        return update_user_count_return(user_source)
+                    return None
 
             def gen_uid(self, user_source):
                 if gen_uid_return:
@@ -263,6 +281,9 @@ def stub_user_source_registry(data_fixture, mutable_user_source_registry, fake):
                     if callable(get_user_return):
                         return get_user_return(user_source, **kwargs)
                     return get_user_return
+                return data_fixture.create_user_source_user(user_source=user_source)
+
+            def create_user(self, user_source, email, name):
                 return data_fixture.create_user_source_user(user_source=user_source)
 
             def authenticate(self, user_source, **kwargs):

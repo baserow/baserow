@@ -1,7 +1,15 @@
+import operator
+from collections import defaultdict
+from datetime import datetime, timezone
+from functools import reduce
 from typing import Any, Dict, List, Optional
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.cache import cache
+from django.db.models import Q, QuerySet
 
+from loguru import logger
 from rest_framework import serializers
 
 from baserow.api.exceptions import RequestBodyValidationException
@@ -17,6 +25,7 @@ from baserow.contrib.database.fields.field_types import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import FieldType
+from baserow.contrib.database.rows.actions import CreateRowsActionType
 from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationType
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
@@ -26,9 +35,9 @@ from baserow.core.formula.validator import ensure_string
 from baserow.core.handler import CoreHandler
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
-from baserow.core.user_sources.models import UserSource
-from baserow.core.user_sources.registries import UserSourceType
-from baserow.core.user_sources.types import UserSourceDict, UserSourceSubClass
+from baserow.core.user_sources.handler import UserSourceHandler
+from baserow.core.user_sources.registries import UserSourceCount, UserSourceType
+from baserow.core.user_sources.types import UserSourceDict
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowPasswordAppAuthProvider,
@@ -73,6 +82,15 @@ class LocalBaserowUserSourceType(UserSourceType):
     ]
     allowed_fields = ["table", "email_field", "name_field", "role_field"]
 
+    # A list of fields which the page designer must configure so
+    # that the `LocalBaserowUserSource` is considered "configured".
+    fields_to_configure = [
+        "table_id",
+        "name_field_id",
+        "email_field_id",
+        "integration_id",
+    ]
+
     serializer_field_overrides = {
         "table_id": serializers.IntegerField(
             required=False,
@@ -100,7 +118,7 @@ class LocalBaserowUserSourceType(UserSourceType):
         self,
         values: Dict[str, Any],
         user: AbstractUser,
-        instance: Optional[UserSourceSubClass] = None,
+        instance: Optional[LocalBaserowUserSource] = None,
     ) -> Dict[str, Any]:
         """Load the table instance instead of the ID."""
 
@@ -365,7 +383,13 @@ class LocalBaserowUserSourceType(UserSourceType):
 
         return values
 
-    def after_update(self, user, user_source, values):
+    def after_update(
+        self,
+        user: AbstractUser,
+        user_source: LocalBaserowUserSource,
+        values: Dict[str, Any],
+        trigger_user_count_update: bool = False,
+    ):
         if "auth_provider" not in values and "table" in values:
             # We clear all auth provider when the table changes
             for ap in AppAuthProviderHandler.list_app_auth_providers_for_user_source(
@@ -373,7 +397,9 @@ class LocalBaserowUserSourceType(UserSourceType):
             ):
                 ap.get_type().after_user_source_update(user, ap, user_source)
 
-        return super().after_update(user, user_source, values)
+        return super().after_update(
+            user, user_source, values, trigger_user_count_update
+        )
 
     def deserialize_property(
         self,
@@ -409,7 +435,7 @@ class LocalBaserowUserSourceType(UserSourceType):
             **kwargs,
         )
 
-    def get_user_model(self, user_source):
+    def get_user_model(self, user_source: LocalBaserowUserSource):
         try:
             # Use table handler to exclude trashed table
             table = TableHandler().get_table(user_source.table_id)
@@ -431,28 +457,25 @@ class LocalBaserowUserSourceType(UserSourceType):
 
         return model
 
-    def is_configured(self, user_source):
+    def is_configured(self, user_source: LocalBaserowUserSource) -> bool:
         """
         Returns True if the user source is configured properly. False otherwise.
         """
 
-        return (
-            user_source.email_field_id is not None
-            and user_source.name_field_id is not None
-            and user_source.table_id is not None
-            and user_source.integration_id is not None
+        return not any(
+            [getattr(user_source, field) is None for field in self.fields_to_configure]
         )
 
-    def gen_uid(self, user_source):
+    def gen_uid(self, user_source: LocalBaserowUserSource):
         """
         We want to invalidate user tokens if the table or the email field change.
         """
 
         return (
             f"{user_source.id}"
-            f"_{user_source.table_id if user_source.table_id else '?'}"
-            f"_{user_source.email_field_id if user_source.email_field_id else '?'}"
-            f"_{user_source.role_field_id if user_source.role_field_id else '?'}"
+            f"_{user_source.table_id if user_source.table_id else '0'}"
+            f"_{user_source.email_field_id if user_source.email_field_id else '0'}"
+            f"_{user_source.role_field_id if user_source.role_field_id else '0'}"
         )
 
     def role_type_is_allowed(self, role_field: Optional[FieldType]) -> bool:
@@ -463,7 +486,7 @@ class LocalBaserowUserSourceType(UserSourceType):
 
         return role_field.get_type().type in self.field_types_allowed_as_role
 
-    def get_user_role(self, user, user_source: UserSource) -> str:
+    def get_user_role(self, user, user_source: LocalBaserowUserSource) -> str:
         """
         Return the User Role of the user if the role_field is defined.
 
@@ -479,7 +502,9 @@ class LocalBaserowUserSourceType(UserSourceType):
 
         return self.get_default_user_role(user_source)
 
-    def list_users(self, user_source: UserSource, count: int = 5, search: str = ""):
+    def list_users(
+        self, user_source: LocalBaserowUserSource, count: int = 5, search: str = ""
+    ):
         """
         Returns the users from the table selected with the user source.
         """
@@ -514,7 +539,7 @@ class LocalBaserowUserSourceType(UserSourceType):
             for user in queryset[:count]
         ]
 
-    def get_roles(self, user_source: UserSource) -> List[str]:
+    def get_roles(self, user_source: LocalBaserowUserSource) -> List[str]:
         """
         Given a UserSource, return all valid roles for it.
 
@@ -556,7 +581,7 @@ class LocalBaserowUserSourceType(UserSourceType):
 
         return roles
 
-    def get_user(self, user_source: UserSource, **kwargs):
+    def get_user(self, user_source: LocalBaserowUserSource, **kwargs):
         """
         Returns a user from the selected table.
         """
@@ -596,7 +621,55 @@ class LocalBaserowUserSourceType(UserSourceType):
 
         raise UserNotFound()
 
-    def authenticate(self, user_source: UserSource, **kwargs):
+    def create_user(self, user_source: LocalBaserowUserSource, email, name, role=None):
+        """
+        Creates the user in the configured table.
+        """
+
+        if not self.is_configured(user_source):
+            raise UserSourceImproperlyConfigured()
+
+        try:
+            # Use table handler to exclude trashed table
+            table = TableHandler().get_table(user_source.table_id)
+        except TableDoesNotExist as exc:
+            # As we CASCADE when a table is deleted, the table shouldn't
+            # exist only if it's trashed and not yet deleted.
+            raise UserSourceImproperlyConfigured("The table doesn't exist.") from exc
+
+        integration = user_source.integration.specific
+
+        model = table.get_model()
+
+        values = {
+            user_source.name_field.db_column: name,
+            user_source.email_field.db_column: email,
+        }
+        if role and user_source.role_field_id:
+            values[user_source.role_field.db_column] = role
+
+        try:
+            # Use the action to keep track on what's going on
+            (user,) = CreateRowsActionType.do(
+                user=integration.authorized_user,
+                table=table,
+                rows_values=[values],
+                model=model,
+            )
+        except Exception as e:
+            logger.exception(e)
+            raise ("Error while creating the user") from e
+
+        return UserSourceUser(
+            user_source,
+            user,
+            user.id,
+            getattr(user, user_source.name_field.db_column),
+            getattr(user, user_source.email_field.db_column),
+            self.get_user_role(user, user_source),
+        )
+
+    def authenticate(self, user_source: LocalBaserowUserSource, **kwargs):
         """
         Authenticates using the given credentials. It uses the password auth provider.
         """
@@ -620,3 +693,154 @@ class LocalBaserowUserSourceType(UserSourceType):
             kwargs.get("email", ""),
             kwargs.get("password", ""),
         )
+
+    def _get_cached_user_count(
+        self, user_source: LocalBaserowUserSource
+    ) -> Optional[UserSourceCount]:
+        """
+        Given a `user_source`, return the cached user count if it exists.
+
+        :param user_source: The `LocalBaserowUserSource` instance.
+        :return: A `UserSourceCount` instance if the cached user count exists,
+            otherwise `None`.
+        """
+
+        cached_value = cache.get(
+            self._generate_update_user_count_cache_key(user_source)
+        )
+        if cached_value is not None:
+            user_count, timestamp = cached_value.split("-")
+            return UserSourceCount(
+                count=int(user_count),
+                last_updated=datetime.fromtimestamp(float(timestamp)),
+            )
+        return None
+
+    def _generate_update_user_count_cache_key(
+        self, user_source: LocalBaserowUserSource
+    ) -> str:
+        """
+        Given a `user_source`, generate a cache key for the user count cache entry.
+
+        :param user_source: The `LocalBaserowUserSource` instance.
+        :return: A string representing the cache key.
+        """
+
+        return f"local_baserow_user_source_{user_source.id}_user_count"
+
+    def _generate_update_user_count_cache_value(
+        self, user_count: int, now: datetime = None
+    ) -> str:
+        """
+        Given a `user_count`, generate a cache value for the user count cache entry.
+
+        :param user_count: The user count integer.
+        :param now: The datetime object representing the current time. If not provided,
+            we will use the current datetime.
+        :return: A string representing the cache value.
+        """
+
+        now = now or datetime.now(tz=timezone.utc)
+        return f"{user_count}-{now.timestamp()}"
+
+    def after_user_source_update_requires_user_recount(
+        self,
+        user_source: LocalBaserowUserSource,
+        prepared_values: dict[str, Any],
+    ) -> bool:
+        """
+        By default, the Local Baserow user source type will re-count
+        its users following any change to the user source.
+
+        :param user_source: the user source which is being updated.
+        :param prepared_values: the prepared values which will be
+            used to update the user source.
+        :return: whether a re-count is required.
+        """
+
+        return True
+
+    def update_user_count(
+        self,
+        user_sources: QuerySet[LocalBaserowUserSource] = None,
+    ) -> Optional[UserSourceCount]:
+        """
+        Responsible for updating the cached number of users in this user source type.
+        If `user_sources` are provided, we will only update the user count for those
+        user sources. If no `user_sources` are provided, we will update the user count
+        for all configured `LocalBaserowUserSource`.
+
+        :param user_sources: If a queryset of user sources is provided, we will only
+            update the user count for those user sources, otherwise we'll find all
+            configured user sources and update their user counts.
+        :return: if a `user_source` is provided, a `UserSourceCount is returned,
+            otherwise we will return `None`.
+        """
+
+        # If no `user_sources` are provided, we will query for all "configured"
+        # user sources, i.e. those that have all the required fields set.
+        if not user_sources:
+            field_q = reduce(
+                operator.and_,
+                (~Q(**{field: None}) for field in self.fields_to_configure),
+            )
+            user_sources = self.model_class.objects.filter(field_q)
+
+        # Fetch all the table records in bulk.
+        user_source_table_map = defaultdict(list)
+        for us in user_sources:
+            user_source_table_map[us.table_id].append(us)
+        tables = TableHandler.get_tables().filter(id__in=user_source_table_map.keys())
+
+        user_source_count = None
+        for table in tables:
+            model = table.get_model(field_ids=[])
+            user_count = model.objects.count()
+            user_sources_using_table = user_source_table_map[table.id]
+            for user_source_using_table in user_sources_using_table:
+                now = datetime.now(tz=timezone.utc)
+                cache.set(
+                    self._generate_update_user_count_cache_key(user_source_using_table),
+                    self._generate_update_user_count_cache_value(user_count, now),
+                    timeout=settings.BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_CACHE_TTL_SECONDS,
+                )
+                if user_sources and user_source_using_table in user_sources:
+                    user_source_count = UserSourceCount(
+                        count=user_count,
+                        last_updated=now,
+                    )
+
+        return user_source_count
+
+    def get_user_count(
+        self, user_source: LocalBaserowUserSource, force_recount: bool = False
+    ) -> Optional[UserSourceCount]:
+        """
+        Responsible for retrieving a user source's count. If the user source isn't
+        configured, `None` will be returned. If it's configured, and cached, so long
+        as we're not `force_recount=True`, the cached user count will be returned.
+        If the count isn't cached, or `force_recount=True`, we will count the users,
+        cache the result, and return the count.
+
+        :param user_source: The user source we want a count from.
+        :param force_recount: If True, we will re-count the users and ignore any
+            existing cached count.
+        :return: A `UserSourceCount` instance if the user source is configured,
+            otherwise `None`.
+        """
+
+        # If we're being asked for the user count of a
+        # misconfigured user source, we'll return None.
+        if not self.is_configured(user_source):
+            return None
+
+        cached_user_source_count = self._get_cached_user_count(user_source)
+        if cached_user_source_count and not force_recount:
+            return cached_user_source_count
+
+        queryset = UserSourceHandler().get_user_sources(
+            user_source.application,
+            self.model_class.objects.filter(pk=user_source.pk),
+            specific=True,
+        )
+        return self.update_user_count(queryset)  # type: ignore

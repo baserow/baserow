@@ -17,8 +17,14 @@ class BaseAuthProviderModel(
     Base abstract model for app_providers.
     """
 
-    domain = models.CharField(max_length=255, null=True)
-    enabled = models.BooleanField(default=True)
+    domain = models.CharField(
+        max_length=255,
+        null=True,
+        help_text="The email domain registered with this provider.",
+    )
+    enabled = models.BooleanField(
+        help_text="Whether the provider is enabled or not.", default=True
+    )
 
     class Meta:
         abstract = True

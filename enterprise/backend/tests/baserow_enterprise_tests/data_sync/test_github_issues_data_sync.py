@@ -702,3 +702,48 @@ def test_async_sync_data_sync_table_without_license(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_data_sync(enterprise_data_fixture, api_client):
+    enterprise_data_fixture.enable_enterprise()
+    user, token = enterprise_data_fixture.create_user_and_token()
+    database = enterprise_data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="github_issues",
+        synced_properties=["id"],
+        github_issues_owner="baserow_owner",
+        github_issues_repo="baserow_repo",
+        github_issues_api_token="test",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json == {
+        "id": data_sync.id,
+        "type": "github_issues",
+        "synced_properties": [
+            {
+                "field_id": data_sync.table.field_set.all().first().id,
+                "key": "id",
+                "unique_primary": True,
+            }
+        ],
+        "last_sync": None,
+        "last_error": None,
+        # The `github_issues_api_token` should not be in here.
+        "github_issues_owner": "baserow_owner",
+        "github_issues_repo": "baserow_repo",
+    }

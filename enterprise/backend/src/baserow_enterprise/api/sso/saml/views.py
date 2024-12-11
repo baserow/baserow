@@ -230,7 +230,7 @@ class AdminAuthProvidersLoginUrlView(APIView):
         )
 
         saml_login_url = urljoin(
-            settings.PUBLIC_BACKEND_URL, reverse("api:enterprise:sso:saml:login")
+            settings.PUBLIC_BACKEND_URL, reverse("api:enterprise_sso_saml:login")
         )
         saml_login_url = urlencode_query_params(saml_login_url, query_params)
         return Response({"redirect_url": saml_login_url})

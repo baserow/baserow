@@ -15,6 +15,17 @@ def setup(settings):
         value['engine'] = 'some custom engine'
     """
 
+    settings.BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_TASK_INTERVAL_MINUTES = int(
+        os.getenv("BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_TASK_INTERVAL_MINUTES", "")
+        or 2 * 60
+    )
+
+    settings.BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_CACHE_TTL_SECONDS = int(
+        # Default TTL is 120 minutes: 60 seconds * 120
+        os.getenv("BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_CACHE_TTL_SECONDS")
+        or 7200
+    )
+
     settings.BASEROW_ENTERPRISE_AUDIT_LOG_CLEANUP_INTERVAL_MINUTES = int(
         os.getenv("BASEROW_ENTERPRISE_AUDIT_LOG_CLEANUP_INTERVAL_MINUTES", "")
         or 24 * 60

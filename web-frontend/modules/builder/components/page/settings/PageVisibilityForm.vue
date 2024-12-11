@@ -11,10 +11,7 @@
           <slot name="title">{{
             $t('pageVisibilitySettingsTypes.logInPageWarningTitle')
           }}</slot>
-          <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
-          <p
-            v-html="$t('pageVisibilitySettingsTypes.logInPagewarningMessage')"
-          ></p>
+          <p>{{ $t('pageVisibilitySettingsTypes.logInPagewarningMessage') }}</p>
         </Alert>
         <Alert
           v-else-if="showLoginPageAlert && !showLogInPageWarning"
@@ -23,14 +20,13 @@
           <slot name="title">{{
             $t('pageVisibilitySettingsTypes.logInPageInfoTitle')
           }}</slot>
-          <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
-          <p
-            v-html="
+          <p>
+            {{
               $t('pageVisibilitySettingsTypes.logInPageInfoMessage', {
                 logInPageName: loginPageName,
               })
-            "
-          ></p>
+            }}
+          </p>
         </Alert>
       </div>
       <div class="margin-top-1 visibility-form__visibility-all">

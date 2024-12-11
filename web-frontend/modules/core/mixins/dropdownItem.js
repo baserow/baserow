@@ -11,6 +11,10 @@ export default {
       type: String,
       required: true,
     },
+    alias: {
+      type: String,
+      required: false,
+    },
     icon: {
       type: String,
       required: false,
@@ -85,7 +89,7 @@ export default {
         return true
       }
       const regex = new RegExp('(' + escapeRegExp(query) + ')', 'i')
-      return this.name.match(regex)
+      return this.name.match(regex) || this.alias?.match(regex)
     },
     isActive(value) {
       if (this.multiple.value) {

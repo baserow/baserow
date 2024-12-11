@@ -47,13 +47,28 @@
         <div
           v-for="appAuthType in appAuthProviderTypes"
           :key="appAuthType.type"
+          class="update-user-source-form__auth-provider"
         >
-          <Checkbox
-            :checked="hasAtLeastOneOfThisType(appAuthType)"
-            @input="onSelect(appAuthType)"
-          >
-            {{ appAuthType.name }}
-          </Checkbox>
+          <div class="update-user-source-form__auth-provider-header">
+            <Checkbox
+              :checked="hasAtLeastOneOfThisType(appAuthType)"
+              @input="onSelect(appAuthType)"
+            >
+              {{ appAuthType.name }}
+            </Checkbox>
+
+            <ButtonText
+              v-if="
+                hasAtLeastOneOfThisType(appAuthType) &&
+                appAuthType.canCreateNew(appAuthProviderPerTypes)
+              "
+              icon="iconoir-plus"
+              type="secondary"
+              @click.prevent="addNew(appAuthType)"
+            >
+              {{ $t('updateUserSourceForm.addProvider') }}
+            </ButtonText>
+          </div>
 
           <div
             v-for="appAuthProvider in appAuthProviderPerTypes[appAuthType.type]"
@@ -63,11 +78,16 @@
             <component
               :is="appAuthType.formComponent"
               v-if="hasAtLeastOneOfThisType(appAuthType)"
-              :integration="integration"
-              :current-user-source="fullValues"
-              :default-values="appAuthProvider"
+              :ref="`authProviderForm`"
               excluded-form
+              :integration="integration"
+              :user-source="fullValues"
+              :auth-providers="appAuthProviderPerTypes"
+              :auth-provider="appAuthProvider"
+              :default-values="appAuthProvider"
+              :auth-provider-type="appAuthType"
               @values-changed="updateAuthProvider(appAuthProvider, $event)"
+              @delete="remove(appAuthProvider)"
             />
           </div>
         </div>
@@ -82,7 +102,6 @@
 import form from '@baserow/modules/core/mixins/form'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import { required, maxLength } from 'vuelidate/lib/validators'
-import { uuid } from '@baserow/modules/core/utils/string'
 
 export default {
   components: { IntegrationDropdown },
@@ -97,10 +116,6 @@ export default {
       required: false,
       default: null,
     },
-    integrations: {
-      type: Array,
-      required: true,
-    },
   },
   data() {
     return {
@@ -113,6 +128,9 @@ export default {
     }
   },
   computed: {
+    integrations() {
+      return this.$store.getters['integration/getIntegrations'](this.builder)
+    },
     integration() {
       if (!this.values.integration_id) {
         return null
@@ -140,6 +158,8 @@ export default {
   methods: {
     // Override the default getChildFormValues to exclude the provider forms from
     // final values as they are handled directly by this component
+    // The problem is that the child provider forms are not handled as a sub array
+    // so they override the userSource configuration
     getChildFormsValues() {
       return Object.assign(
         {},
@@ -157,6 +177,14 @@ export default {
     hasAtLeastOneOfThisType(appAuthProviderType) {
       return this.appAuthProviderPerTypes[appAuthProviderType.type]?.length > 0
     },
+    /** Return an integer bigger than any of the current auth_provider id to
+     * keep the right order when we want to map the error coming back from the server.
+     */
+    nextID() {
+      return (
+        Math.max(1, ...this.values.auth_providers.map(({ id }) => id)) + 100
+      )
+    },
     onSelect(appAuthProviderType) {
       if (this.hasAtLeastOneOfThisType(appAuthProviderType)) {
         this.values.auth_providers = this.values.auth_providers.filter(
@@ -165,9 +193,20 @@ export default {
       } else {
         this.values.auth_providers.push({
           type: appAuthProviderType.type,
-          id: uuid(),
+          id: this.nextID(),
         })
       }
+    },
+    addNew(appAuthProviderType) {
+      this.values.auth_providers.push({
+        type: appAuthProviderType.type,
+        id: this.nextID(),
+      })
+    },
+    remove(appAuthProvider) {
+      this.values.auth_providers = this.values.auth_providers.filter(
+        ({ id }) => id !== appAuthProvider.id
+      )
     },
     updateAuthProvider(authProviderToChange, values) {
       this.values.auth_providers = this.values.auth_providers.map(
@@ -181,6 +220,16 @@ export default {
     },
     emitChange() {
       this.fullValues = this.getFormValues()
+    },
+    handleServerError(error) {
+      if (
+        this.$refs.authProviderForm
+          .map((form) => form.handleServerError(error))
+          .some((result) => result)
+      ) {
+        return true
+      }
+      return false
     },
     getError(fieldName) {
       if (!this.$v.values[fieldName].$dirty) {

@@ -17,6 +17,7 @@ from baserow.contrib.database.data_sync.exceptions import (
     SyncDataSyncTableAlreadyRunning,
     SyncError,
 )
+from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import (
     DataSync,
     DataSyncSyncedProperty,
@@ -314,6 +315,214 @@ def test_can_undo_redo_create_data_sync(api_client, data_fixture):
 
     data_sync.table.refresh_from_db()
     assert data_sync.table.trashed is False
+
+
+@pytest.mark.django_db
+def test_update_data_sync_no_permissions(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    user_2, token_2 = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "dtend"],
+        ical_url="https://baserow.io",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.patch(
+        url,
+        {
+            "synced_properties": ["uid", "dtstart", "summary"],
+            "ical_url": "http://localhost/ical.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token_2}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
+def test_update_data_sync_invalid_synced_properties(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "dtend"],
+        ical_url="https://baserow.io",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.patch(
+        url,
+        {
+            "synced_properties": ["TEST"],
+            "ical_url": "http://localhost/ical.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert len(response_json["synced_properties"]) == 1
+    assert response_json["synced_properties"][0]["key"] == "uid"
+
+
+@pytest.mark.django_db
+def test_update_data_sync_not_existing_data_sync(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": 0})
+    response = api_client.patch(
+        url,
+        {
+            "synced_properties": ["TEST"],
+            "ical_url": "http://localhost/ical.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_DATA_SYNC_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_update_data_sync_invalid_kwargs(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "dtend"],
+        ical_url="https://baserow.io",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.patch(
+        url,
+        {
+            "synced_properties": ["TEST"],
+            "ical_url": "TEST",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["ical_url"][0]["code"] == "invalid"
+
+
+@pytest.mark.django_db
+def test_update_data_sync_not_providing_anything(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid"],
+        ical_url="https://baserow.io",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.patch(
+        url,
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json == {
+        "id": data_sync.id,
+        "type": "ical_calendar",
+        "synced_properties": [
+            {
+                "field_id": data_sync.table.field_set.all().first().id,
+                "key": "uid",
+                "unique_primary": True,
+            }
+        ],
+        "last_sync": None,
+        "last_error": None,
+    }
+
+
+@pytest.mark.django_db
+def test_update_data_sync(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "dtend"],
+        ical_url="https://baserow.io",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.patch(
+        url,
+        {
+            "synced_properties": ["uid", "dtstart", "summary"],
+            "ical_url": "http://localhost/ics.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    properties = DataSyncSyncedProperty.objects.filter(data_sync=data_sync).order_by(
+        "id"
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": data_sync.id,
+        "type": "ical_calendar",
+        "synced_properties": [
+            {
+                "field_id": properties[0].field_id,
+                "key": "uid",
+                "unique_primary": True,
+            },
+            {
+                "field_id": properties[1].field_id,
+                "key": "dtstart",
+                "unique_primary": False,
+            },
+            {
+                "field_id": properties[2].field_id,
+                "key": "summary",
+                "unique_primary": False,
+            },
+        ],
+        "last_sync": None,
+        "last_error": None,
+    }
 
 
 @pytest.mark.django_db(transaction=True)
@@ -770,3 +979,248 @@ def test_get_data_sync_properties(data_fixture, api_client):
             "field_type": "text",
         },
     ]
+
+
+@pytest.mark.django_db
+def test_get_data_sync_properties_of_data_sync_unauthorized(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token(
+        email="test_1@test.nl", password="password", first_name="Test1"
+    )
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "ical_calendar",
+            "synced_properties": ["uid", "dtstart", "dtend", "summary"],
+            "ical_url": "https://baserow.io/ical.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data_sync_id = response.json()["data_sync"]["id"]
+
+    url = reverse(
+        "api:database:data_sync:properties_of_data_sync",
+        kwargs={"data_sync_id": data_sync_id},
+    )
+    response = api_client.get(
+        url,
+        format="json",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_get_data_sync_properties_of_data_sync_no_permissions(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token(
+        email="test_1@test.nl", password="password", first_name="Test1"
+    )
+    user_2, token_2 = data_fixture.create_user_and_token(
+        email="test_2@test.nl", password="password", first_name="Test1"
+    )
+    database = data_fixture.create_database_application(user=user_2)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "ical_calendar",
+            "synced_properties": ["uid", "dtstart", "dtend", "summary"],
+            "ical_url": "https://baserow.io/ical.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token_2}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data_sync_id = response.json()["data_sync"]["id"]
+
+    url = reverse(
+        "api:database:data_sync:properties_of_data_sync",
+        kwargs={"data_sync_id": data_sync_id},
+    )
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.json()["error"] == "PERMISSION_DENIED"
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_get_data_sync_properties_of_data_sync_does_not_exist(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token(
+        email="test_1@test.nl", password="password", first_name="Test1"
+    )
+
+    url = reverse(
+        "api:database:data_sync:properties_of_data_sync", kwargs={"data_sync_id": 0}
+    )
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_get_data_sync_properties_of_data_sync(data_fixture, api_client):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "ical_calendar",
+            "synced_properties": ["uid", "dtstart", "dtend", "summary"],
+            "ical_url": "https://baserow.io/ical.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data_sync_id = response.json()["data_sync"]["id"]
+
+    url = reverse(
+        "api:database:data_sync:properties_of_data_sync",
+        kwargs={"data_sync_id": data_sync_id},
+    )
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == [
+        {
+            "unique_primary": True,
+            "key": "uid",
+            "name": "Unique ID",
+            "field_type": "text",
+        },
+        {
+            "unique_primary": False,
+            "key": "dtstart",
+            "name": "Start date",
+            "field_type": "date",
+        },
+        {
+            "unique_primary": False,
+            "key": "dtend",
+            "name": "End date",
+            "field_type": "date",
+        },
+        {
+            "unique_primary": False,
+            "key": "summary",
+            "name": "Summary",
+            "field_type": "text",
+        },
+    ]
+
+
+@pytest.mark.django_db
+def test_get_data_sync_not_found(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": 0})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_DATA_SYNC_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_get_data_sync_no_permission(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token(
+        email="test_1@test.nl", password="password", first_name="Test1"
+    )
+    user_2, token_2 = data_fixture.create_user_and_token(
+        email="test_2@test.nl", password="password", first_name="Test1"
+    )
+    database = data_fixture.create_database_application(user=user_2)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "ical_calendar",
+            "synced_properties": ["uid", "dtstart", "dtend", "summary"],
+            "ical_url": "https://baserow.io/ical.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token_2}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data_sync_id = response.json()["data_sync"]["id"]
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync_id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
+def test_get_data_sync(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid"],
+        ical_url="https://baserow.io",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json == {
+        "id": data_sync.id,
+        "type": "ical_calendar",
+        "synced_properties": [
+            {
+                "field_id": data_sync.table.field_set.all().first().id,
+                "key": "uid",
+                "unique_primary": True,
+            }
+        ],
+        "last_sync": None,
+        "last_error": None,
+        "ical_url": "https://baserow.io",
+    }

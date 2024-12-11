@@ -1,8 +1,10 @@
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar
+from datetime import datetime
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
+from django.db.models import QuerySet
 
 from baserow.core.app_auth_providers.handler import AppAuthProviderHandler
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
@@ -16,11 +18,17 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
+from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 from .models import UserSource
 from .types import UserSourceDictSubClass, UserSourceSubClass
+
+
+class UserSourceCount(NamedTuple):
+    count: Optional[int]
+    last_updated: Optional[datetime]
 
 
 class UserSourceType(
@@ -33,6 +41,9 @@ class UserSourceType(
     SerializedDict: Type[UserSourceDictSubClass]
     parent_property_name = "application"
     id_mapping_name = "user_sources"
+
+    # When any of these properties are updated, the user count will be updated.
+    properties_requiring_user_recount = []
 
     """
     An user_source type define a specific user_source with a given external service.
@@ -89,14 +100,36 @@ class UserSourceType(
                     user, ap_type, user_source, **ap
                 )
 
-    def after_update(self, user, user_source, values):
+    def after_update(
+        self,
+        user: AbstractUser,
+        user_source: UserSource,
+        values: Dict[str, Any],
+        trigger_user_count_update: bool = False,
+    ):
         """
-        Recreate the auth providers.
+        Responsible for re-creating `auth_providers` if they are updated, and also
+        updating the user count if necessary.
+
+        :param user: The user on whose behalf the change is made.
+        :param user_source: The user source that has been updated.
+        :param values: The values that have been updated.
+        :param trigger_user_count_update: If True, the user count will be updated.
         """
 
         if "auth_providers" in values:
             user_source.auth_providers.all().delete()
             self.after_create(user, user_source, values)
+
+        if trigger_user_count_update:
+            from baserow.core.user_sources.handler import UserSourceHandler
+
+            queryset = UserSourceHandler().get_user_sources(
+                user_source.application,
+                self.model_class.objects.filter(pk=user_source.pk),
+                specific=True,
+            )
+            self.update_user_count(queryset)
 
     def serialize_property(
         self,
@@ -233,14 +266,40 @@ class UserSourceType(
         """
 
     @abstractmethod
-    def get_user(self, user_source: UserSource, **kwargs) -> Optional[UserSourceUser]:
+    def create_user(
+        self, user_source: UserSource, email: str, name: str
+    ) -> UserSourceUser:
+        """
+        Create a user for the given user source instance from it's email and name.
+
+        :param user_source: The user source we want to create the user for.
+        :param email: Email of the user to create.
+        :param name: Name of the user to create.
+        :return: A user instance.
+        """
+
+    @abstractmethod
+    def get_user(self, user_source: UserSource, **kwargs) -> UserSourceUser:
         """
         Returns a user given some args.
 
         :param user_source: The user source used to get the user.
         :param kwargs: Keyword arguments to get the user.
+        :raises UserNotFound: When the user can't be found.
         :return: A user instance if any found with the given parameters.
         """
+
+    def get_or_create_user(
+        self, user_source: UserSource, email: str, name: str
+    ) -> Tuple[UserSourceUser, bool]:
+        """
+        Shorthand to create a user if he doesn't exist.
+        """
+
+        try:
+            return self.get_user(user_source, email=email), False
+        except UserNotFound:
+            return self.create_user(user_source, email, name), True
 
     @abstractmethod
     def authenticate(self, user_source: UserSource, **kwargs) -> UserSourceUser:
@@ -249,6 +308,61 @@ class UserSourceType(
 
         :param user_source: The user source used to authenticate the user.
         :param kwargs: The credential used to authenticate the user.
+        """
+
+    def after_user_source_update_requires_user_recount(
+        self,
+        user_source: UserSource,
+        prepared_values: dict[str, Any],
+    ) -> bool:
+        """
+        Detects if any of the properties in the prepared_values require
+        a recount of the user source's user count.
+
+        :param user_source: the user source which is being updated.
+        :param prepared_values: the prepared values which will be
+            used to update the user source.
+        :return: whether a re-count is required.
+        """
+
+        recount_required = False
+        for recount_property in self.properties_requiring_user_recount:
+            if recount_property in prepared_values:
+                current_value = getattr(user_source, recount_property)
+                updated_value = prepared_values[recount_property]
+                if current_value != updated_value:
+                    recount_required = True
+        return recount_required
+
+    @abstractmethod
+    def update_user_count(
+        self,
+        user_sources: QuerySet[UserSource] = None,
+    ) -> Optional[UserSourceCount]:
+        """
+        Responsible for updating the cached number of users in this user source type.
+        If `user_sources` are provided, we will only update the user count for those
+        user sources. If no `user_sources` are provided, we will update the user count
+        for all user sources of this type.
+
+        :param user_sources: If a queryset of user sources is provided, we will only
+            update the user count for those user sources, otherwise we'll find all
+            user sources and update their user counts.
+        :return: if a `user_source` is provided, a `UserSourceCount is returned,
+            otherwise we will return `None`.
+        """
+
+    @abstractmethod
+    def get_user_count(
+        self, user_source, force_recount: bool = False
+    ) -> UserSourceCount:
+        """
+        Responsible for retrieving a user source's count.
+
+        :param user_source: The user source we want a count from.
+        :param force_recount: If True, we will re-count the users and ignore any
+            existing cached count.
+        :return: A `UserSourceCount` instance or `None`.
         """
 
 

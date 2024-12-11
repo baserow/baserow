@@ -276,12 +276,94 @@ class CustomFieldsInstanceMixin:
         return None
 
 
+class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
+    """
+    A mixin for instance with custom fields but some field should remains private
+    when used in some APIs.
+    """
+
+    public_serializer_field_names = None
+    """The field names that must be added to the serializer if it's public."""
+
+    public_request_serializer_field_names = None
+    """
+    The field names that must be added to the public request serializer if different
+    from the `public_serializer_field_names`.
+    """
+
+    request_serializer_field_overrides = None
+    """
+    The fields that must be added to the request serializer if different from the
+    `serializer_field_overrides` property.
+    """
+
+    public_serializer_field_overrides = None
+    """The fields that must be added to the public serializer."""
+
+    public_request_serializer_field_overrides = None
+    """
+    The fields that must be added to the public request serializer if different from the
+    `public_serializer_field_overrides` property.
+    """
+
+    def get_field_overrides(
+        self, request_serializer: bool, extra_params=None, **kwargs
+    ) -> Dict:
+        public = extra_params.get("public", False)
+
+        if public:
+            if (
+                request_serializer is not None
+                and self.public_request_serializer_field_overrides is not None
+            ):
+                return self.public_request_serializer_field_overrides
+            if self.public_serializer_field_overrides is not None:
+                return self.public_serializer_field_overrides
+
+        return super().get_field_overrides(request_serializer, extra_params, **kwargs)
+
+    def get_field_names(
+        self, request_serializer: bool, extra_params=None, **kwargs
+    ) -> List[str]:
+        public = extra_params.get("public", False)
+
+        if public:
+            if (
+                request_serializer is not None
+                and self.public_request_serializer_field_names is not None
+            ):
+                return self.public_request_serializer_field_names
+            if self.public_serializer_field_names is not None:
+                return self.public_serializer_field_names
+
+        return super().get_field_names(request_serializer, extra_params, **kwargs)
+
+    def get_meta_ref_name(
+        self,
+        request_serializer: bool,
+        extra_params=None,
+        **kwargs,
+    ) -> Optional[str]:
+        meta_ref_name = super().get_meta_ref_name(
+            request_serializer, extra_params, **kwargs
+        )
+
+        public = extra_params.get("public", False)
+
+        if public:
+            meta_ref_name = f"Public{meta_ref_name}"
+
+        return meta_ref_name
+
+
 class APIUrlsInstanceMixin:
-    def get_api_urls(self):
+    def get_api_urls(self) -> List:
         """
         If needed custom api related urls to the instance can be added here.
 
         Example:
+
+            from django.urls import include, path
 
             def get_api_urls(self):
                 from . import api_urls
@@ -298,7 +380,6 @@ class APIUrlsInstanceMixin:
             ]
 
         :return: A list containing the urls.
-        :rtype: list
         """
 
         return []

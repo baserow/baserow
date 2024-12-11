@@ -5,7 +5,6 @@
       style-key="input"
       :config-block-types="['input']"
       :theme="builder.theme"
-      :extra-args="{ onlyInput: true }"
     />
     <FormGroup
       small-label

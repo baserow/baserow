@@ -10,8 +10,8 @@
           class="context__menu-item-link"
           @click="$emit('create', authProviderType)"
         >
-          <AuthProviderIcon :icon="getIcon(authProviderType)" />
-          {{ getName(authProviderType) }}
+          <AuthProviderIcon :icon="authProviderType.getIcon()" />
+          {{ authProviderType.getName() }}
         </a>
       </li>
     </ul>
@@ -30,14 +30,6 @@ export default {
     authProviderTypes: {
       type: Array,
       required: true,
-    },
-  },
-  methods: {
-    getIcon(providerType) {
-      return this.$registry.get('authProvider', providerType.type).getIcon()
-    },
-    getName(providerType) {
-      return this.$registry.get('authProvider', providerType.type).getName()
     },
   },
 }
