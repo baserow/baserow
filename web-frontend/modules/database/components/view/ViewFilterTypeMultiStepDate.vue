@@ -48,7 +48,7 @@
           @focus="$refs.dateContext.toggle($refs.date, 'bottom', 'left', 0)"
           @blur="$refs.dateContext.hide()"
           @input="setCopyFromDateString(dateString, 'dateString')"
-          @keydown.enter="delayedUpdate(copy, truel)"
+          @keydown.enter="delayedUpdate(copy, true)"
         />
       </span>
 
@@ -180,8 +180,8 @@ export default {
       }
 
       if (newDate.isValid()) {
-        this.setCopy(newDate.format('YYYY-MM-DD'), sender)
-        this.delayedUpdate(this.copy, true)
+        const dateString = newDate.format('YYYY-MM-DD')
+        this.setValue(dateString, sender)
       } else {
         this.copy = value
       }
