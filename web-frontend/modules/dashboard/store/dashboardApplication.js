@@ -123,7 +123,7 @@ export const actions = {
       commit('UPDATE_DATA', { dataSourceId, values: { _error: true } })
     }
   },
-  async fetchInitial({ commit, dispatch }, dashboardId) {
+  async fetchInitial({ commit, dispatch, app }, dashboardId, forEditing) {
     commit('RESET')
     const { data } = await WidgetService(this.$client).getAllWidgets(
       dashboardId
@@ -132,12 +132,15 @@ export const actions = {
       commit('ADD_WIDGET', widget)
     })
     await dispatch('fetchNewDataSources', dashboardId)
-    const { data: integrationsData } = await IntegrationService(
-      this.$client
-    ).fetchAll(dashboardId)
-    integrationsData.forEach((integration) => {
-      commit('ADD_INTEGRATION', integration)
-    })
+
+    if (forEditing) {
+      const { data: integrationsData } = await IntegrationService(
+        this.$client
+      ).fetchAll(dashboardId)
+      integrationsData.forEach((integration) => {
+        commit('ADD_INTEGRATION', integration)
+      })
+    }
   },
   async fetchNewDataSources({ commit, dispatch, getters }, dashboardId) {
     const { data: dataSourcesData } = await DataSourceService(

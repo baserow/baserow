@@ -19,7 +19,7 @@ export default {
   },
   layout: 'app',
   middleware: 'dashboardLoading',
-  async asyncData({ store, params, error, $registry }) {
+  async asyncData({ app, store, params, error, $registry }) {
     const dashboardId = parseInt(params.dashboardId)
     const data = {}
     try {
@@ -31,7 +31,16 @@ export default {
         'workspace/selectById',
         dashboard.workspace.id
       )
-      await store.dispatch('dashboardApplication/fetchInitial', dashboardId)
+      const fetchDashboardForEditing = app.$hasPermission(
+        'application.update',
+        dashboard,
+        dashboard.workspace.id
+      )
+      await store.dispatch(
+        'dashboardApplication/fetchInitial',
+        dashboard.id,
+        fetchDashboardForEditing
+      )
       data.workspace = workspace
       data.dashboard = dashboard
       await store.dispatch('dashboardApplication/setLoading', false)
