@@ -150,7 +150,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   tabindex="-1"
                 >
                   <li
-                    class="select__item select__item--no-options active"
+                    class="select__item select__item--no-options visible active"
                   >
                     <a
                       class="select__item-link"
@@ -180,7 +180,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -210,7 +210,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -298,7 +298,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   tabindex="-1"
                 >
                   <li
-                    class="select__item select__item--no-options active"
+                    class="select__item select__item--no-options visible active"
                   >
                     <a
                       class="select__item-link"
@@ -328,7 +328,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -358,7 +358,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -388,7 +388,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -418,7 +418,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -448,7 +448,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -478,7 +478,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -508,7 +508,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -538,7 +538,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -659,7 +659,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                 tabindex="-1"
               >
                 <li
-                  class="select__item select__item--no-options active"
+                  class="select__item select__item--no-options visible active"
                 >
                   <a
                     class="select__item-link"
@@ -690,7 +690,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                 </li>
                  
                 <li
-                  class="select__item select__item--no-options"
+                  class="select__item select__item--no-options visible"
                 >
                   <a
                     class="select__item-link"
@@ -783,7 +783,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   tabindex="-1"
                 >
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -813,7 +813,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options active"
+                    class="select__item select__item--no-options visible active"
                   >
                     <a
                       class="select__item-link"
@@ -843,7 +843,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -931,7 +931,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   tabindex="-1"
                 >
                   <li
-                    class="select__item select__item--no-options active"
+                    class="select__item select__item--no-options visible active"
                   >
                     <a
                       class="select__item-link"
@@ -961,7 +961,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -991,7 +991,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1021,7 +1021,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1051,7 +1051,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1081,7 +1081,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1300,7 +1300,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   tabindex="-1"
                 >
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1330,7 +1330,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options active"
+                    class="select__item select__item--no-options visible active"
                   >
                     <a
                       class="select__item-link"
@@ -1360,7 +1360,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1449,7 +1449,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   tabindex="-1"
                 >
                   <li
-                    class="select__item select__item--no-options active hover"
+                    class="select__item select__item--no-options visible active hover"
                   >
                     <a
                       class="select__item-link"
@@ -1479,7 +1479,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1509,7 +1509,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1539,7 +1539,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1569,7 +1569,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1599,7 +1599,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1818,7 +1818,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                   tabindex="-1"
                 >
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1848,7 +1848,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options active"
+                    class="select__item select__item--no-options visible active"
                   >
                     <a
                       class="select__item-link"
@@ -1878,7 +1878,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -1967,7 +1967,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                   tabindex="-1"
                 >
                   <li
-                    class="select__item select__item--no-options active hover"
+                    class="select__item select__item--no-options visible active hover"
                   >
                     <a
                       class="select__item-link"
@@ -1997,7 +1997,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -2027,7 +2027,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -2057,7 +2057,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -2087,7 +2087,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
@@ -2117,7 +2117,7 @@ exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
                     />
                   </li>
                   <li
-                    class="select__item select__item--no-options"
+                    class="select__item select__item--no-options visible"
                   >
                     <a
                       class="select__item-link"
