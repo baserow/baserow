@@ -123,7 +123,7 @@ export const actions = {
       commit('UPDATE_DATA', { dataSourceId, values: { _error: true } })
     }
   },
-  async fetchInitial({ commit, dispatch, app }, dashboardId, forEditing) {
+  async fetchInitial({ commit, dispatch }, dashboardId, forEditing) {
     commit('RESET')
     const { data } = await WidgetService(this.$client).getAllWidgets(
       dashboardId
