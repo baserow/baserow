@@ -84,4 +84,37 @@ test.describe("Builder page test suite", () => {
       page.locator(".element-preview__name").getByText("Heading")
     ).toBeVisible();
   });
+
+
+  test("Can add query parameter to page setting", async ({page}) => {
+    sharedPageTestData = await setupTestTablesAndUser(workspacePage);
+
+    await page.getByText("Page settings").click();
+
+    await page
+      .locator(".modal__wrapper")
+      .getByPlaceholder("Enter a name...")
+      .fill("New page name");
+
+    await page.getByRole('button', {name: 'Add query string parameter'}).click();
+
+    await page
+      .locator(".page-settings-query-params .form-input__wrapper")
+      .getByRole('textbox')
+      .fill("my_param");
+
+    await page.locator(".button").getByText("Save").click();
+    await expect(
+      page.getByText("The page settings have been updated.")
+    ).toBeVisible();
+
+    await page.getByTitle("Close").click();
+    await expect(page.locator(".box__title").getByText("Page")).toBeHidden();
+
+    await expect(
+      page
+        .locator(".preview-navigation-bar")
+        .getByText("my_param =")
+    ).toBeVisible();
+  });
 });
