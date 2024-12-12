@@ -210,7 +210,7 @@ class DashboardDataSourceHandler:
         original_service_type = service_type_registry.get_by_model(
             data_source.service.specific
         )
-        original_service_id = data_source.service.id
+        original_service = data_source.service
         if service_type != original_service_type:
             # If the service type is not the same let's create
             # a new service instead of updating the existing one
@@ -246,8 +246,8 @@ class DashboardDataSourceHandler:
         data_source.full_clean()
         data_source.save()
 
-        if original_service_id != data_source.service.id:
-            self.service_handler.delete_service(service_type, data_source.service)
+        if original_service.id != data_source.service.id:
+            self.service_handler.delete_service(service_type, original_service)
 
         return data_source
 
