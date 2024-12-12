@@ -95,7 +95,7 @@ export default {
     dataSource: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => ({}),
     },
     page: {
       type: Object,

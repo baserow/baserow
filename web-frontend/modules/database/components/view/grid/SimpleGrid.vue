@@ -209,7 +209,7 @@ export default {
     fieldOptions: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => ({}),
     },
     selectedRows: {
       type: Array,

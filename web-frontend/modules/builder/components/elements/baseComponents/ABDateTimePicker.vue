@@ -100,12 +100,12 @@ export default {
     calendarStyle: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => ({}),
     },
     clockStyle: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => ({}),
     },
   },
   data() {
