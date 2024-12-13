@@ -58,6 +58,7 @@ import {
   hasSelectOptionValueContainsFilterMixin,
   hasSelectOptionValueContainsWordFilterMixin,
   formulaArrayFilterMixin,
+  hasValueHigherOrLowerThanFilterMixin,
 } from '@baserow/modules/database/arrayFilterMixins'
 import _ from 'lodash'
 import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/ViewFilterTypeBoolean.vue'
@@ -305,7 +306,14 @@ export class BaserowFormulaCharType extends mix(
   }
 }
 
-export class BaserowFormulaNumberType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaNumberType extends mix(
+  hasEmptyValueFilterMixin,
+  hasValueEqualFilterMixin,
+  hasValueContainsFilterMixin,
+  hasValueHigherOrLowerThanFilterMixin,
+
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'number'
   }

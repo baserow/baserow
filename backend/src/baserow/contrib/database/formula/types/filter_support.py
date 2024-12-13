@@ -1,0 +1,180 @@
+import typing
+
+from django.db import models
+
+from loguru import logger
+
+from baserow.contrib.database.fields.filter_support.base import (
+    HasAllValuesEqualFilterSupport,
+    HasValueContainsFilterSupport,
+    HasValueContainsWordFilterSupport,
+    HasValueEmptyFilterSupport,
+    HasValueEqualFilterSupport,
+    HasValueHigherOrEqualThanFilterSupport,
+    HasValueHigherThanFilterSupport,
+    HasValueLengthIsLowerThanFilterSupport,
+    HasValueLowerOrEqualThanFilterSupport,
+    HasValueLowerThanFilterSupport,
+)
+from baserow.contrib.database.fields.filter_support.exceptions import (
+    FilterNotSupportedException,
+)
+
+if typing.TYPE_CHECKING:
+    from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
+    from baserow.contrib.database.fields.models import Field
+
+
+# sentinel
+NO_VALUE = object()
+
+
+class ForumlaSubTypeCallerMixin:
+    """
+    A shortcut to call delegate method on a subtype formula type.
+    """
+
+    def do_call_subtype_filter_method(
+        self,
+        field_name,
+        value,
+        model_field,
+        field,
+        subcls_or_proto: typing.Type,
+        method_name: str,
+    ):
+        if not isinstance(self.sub_type, subcls_or_proto):
+            logger.warning(f"field {field} is not from {subcls_or_proto} hierarchy")
+            raise FilterNotSupportedException()
+        method = getattr(self.sub_type, method_name)
+        if value is NO_VALUE:
+            return method(field_name, model_field, field)
+        return method(field_name, value, model_field, field)
+
+
+class BaserowFormulaArrayEqualFilterSupportMixin(
+    ForumlaSubTypeCallerMixin,
+    HasAllValuesEqualFilterSupport,
+    HasValueEmptyFilterSupport,
+    HasValueEqualFilterSupport,
+    HasValueContainsFilterSupport,
+    HasValueContainsWordFilterSupport,
+    HasValueLengthIsLowerThanFilterSupport,
+):
+    """
+    This mixin provides filter interface for array formula type, which basically
+    delegates the call to a subtype formula type.
+    """
+
+    def get_in_array_is_query(self, field_name, value, model_field, field):
+        return self.do_call_subtype_filter_method(
+            field_name,
+            value,
+            model_field,
+            field,
+            HasValueEqualFilterSupport,
+            "get_in_array_is_query",
+        )
+
+    def get_in_array_empty_query(self, field_name, model_field, field):
+        # note: get_in_array_empty_query doesn't expect value
+        return self.do_call_subtype_filter_method(
+            field_name,
+            NO_VALUE,
+            model_field,
+            field,
+            HasValueEmptyFilterSupport,
+            "get_in_array_empty_query",
+        )
+
+    def get_in_array_contains_query(self, field_name, value, model_field, field):
+        return self.do_call_subtype_filter_method(
+            field_name,
+            value,
+            model_field,
+            field,
+            HasValueContainsFilterSupport,
+            "get_in_array_contains_query",
+        )
+
+    def get_in_array_contains_word_query(self, field_name, value, model_field, field):
+        return self.do_call_subtype_filter_method(
+            field_name,
+            value,
+            model_field,
+            field,
+            HasValueContainsWordFilterSupport,
+            "get_in_array_contains_word_query",
+        )
+
+    def get_in_array_length_is_lower_than_query(
+        self, field_name, value, model_field, field
+    ):
+        return self.do_call_subtype_filter_method(
+            field_name,
+            value,
+            model_field,
+            field,
+            HasValueLengthIsLowerThanFilterSupport,
+            "get_in_array_length_is_lower_than_query",
+        )
+
+    def get_has_all_values_equal_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        return self.do_call_subtype_filter_method(
+            field_name,
+            value,
+            model_field,
+            field,
+            HasAllValuesEqualFilterSupport,
+            "get_has_all_values_equal_query",
+        )
+
+    def get_has_value_higher_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        return self.do_call_subtype_filter_method(
+            field_name,
+            value,
+            model_field,
+            field,
+            HasValueHigherThanFilterSupport,
+            "get_has_value_higher_filter_query",
+        )
+
+    def get_has_value_higher_or_equal_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        return self.do_call_subtype_filter_method(
+            field_name,
+            value,
+            model_field,
+            field,
+            HasValueHigherOrEqualThanFilterSupport,
+            "get_has_value_higher_or_equal_filter_query",
+        )
+
+    def get_has_value_lower_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        return self.do_call_subtype_filter_method(
+            field_name,
+            value,
+            model_field,
+            field,
+            HasValueLowerThanFilterSupport,
+            "get_has_value_lower_filter_query",
+        )
+
+    def get_has_value_lower_or_equal_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        return self.do_call_subtype_filter_method(
+            field_name,
+            value,
+            model_field,
+            field,
+            HasValueLowerOrEqualThanFilterSupport,
+            "get_has_value_lower_or_equal_filter_query",
+        )

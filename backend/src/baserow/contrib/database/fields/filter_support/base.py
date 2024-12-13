@@ -39,7 +39,7 @@ class HasValueEmptyFilterSupport:
         return Q(**{f"{field_name}__contains": Value([{"value": ""}], JSONField())})
 
 
-class HasValueFilterSupport:
+class HasValueEqualFilterSupport:
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
@@ -182,6 +182,37 @@ class HasAllValuesEqualFilterSupport:
             return self.default_filter_on_exception()
 
 
+# HasValue* classes defined here are used to ensure interface conformance.
+# They don't have any implementation because each subclass will reimplement it anyway,
+# and each implementation will differ greatly from others.
+class HasValueHigherThanFilterSupport:
+    def get_has_value_higher_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        raise NotImplementedError("should be overriden in a subclass")
+
+
+class HasValueHigherOrEqualThanFilterSupport:
+    def get_has_value_higher_or_equal_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        raise NotImplementedError("should be overriden in a subclass")
+
+
+class HasValueLowerThanFilterSupport:
+    def get_has_value_lower_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        raise NotImplementedError("should be overriden in a subclass")
+
+
+class HasValueLowerOrEqualThanFilterSupport:
+    def get_has_value_lower_or_equal_filter_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        raise NotImplementedError("should be overriden in a subclass")
+
+
 def get_array_json_filter_expression(
     json_expression: typing.Type[BaserowFilterExpression], field_name: str, value: str
 ) -> OptionallyAnnotatedQ:
@@ -201,7 +232,7 @@ def get_array_json_filter_expression(
         F(field_name), Value(value), output_field=BooleanField()
     )
     lookup_name = (json_expression.__name__).lower()
-    hashed_value = hash(value)
+    hashed_value = hash(f"{field_name}_{lookup_name}__{value}")
     return AnnotatedQ(
         annotation={
             f"{field_name}_array_expr_{lookup_name}_{hashed_value}": annotation_query

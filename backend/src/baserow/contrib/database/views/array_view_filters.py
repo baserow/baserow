@@ -1,3 +1,9 @@
+import typing
+
+from django.db.models import Q
+
+from loguru import logger
+
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.filter_support.base import (
@@ -5,14 +11,17 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
 )
 from baserow.contrib.database.fields.filter_support.exceptions import (
     FilterNotSupportedException,
 )
-from baserow.contrib.database.fields.registries import field_type_registry
-from baserow.contrib.database.formula import BaserowFormulaTextType
+from baserow.contrib.database.fields.registries import FieldType, field_type_registry
+from baserow.contrib.database.formula import (
+    BaserowFormulaNumberType,
+    BaserowFormulaTextType,
+)
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaBooleanType,
     BaserowFormulaCharType,
@@ -37,6 +46,7 @@ class HasEmptyValueViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
         ),
     ]
 
@@ -71,13 +81,14 @@ class HasValueEqualViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
         ),
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
         field_type = field_type_registry.get_by_model(field)
         try:
-            if not isinstance(field_type, HasValueFilterSupport):
+            if not isinstance(field_type, HasValueEqualFilterSupport):
                 raise FilterNotSupportedException(field_type)
             return field_type.get_in_array_is_query(
                 field_name, value, model_field, field
@@ -105,6 +116,7 @@ class HasValueContainsViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
         ),
     ]
 
@@ -240,3 +252,106 @@ class HasNoneSelectOptionEqualViewFilterType(
     """
 
     type = "has_none_select_option_equal"
+
+
+class CallDelegateMixin:
+    """
+    Encapsulates calling a delegate method in a ViewFilterType.
+
+    ViewFilter may not know details on how a specific field type can be filtered due
+    to field type nuances (field data type may require special handling in the database,
+    a field may be just a facade or an aggregation to other filed types), so in this
+    case it may cede `ViewFilterType.get_filter()` responsibility to a specific field
+    type that is called upon.
+
+    This is done by calling a delegate method on a field type. Method name should be
+    filter-specific, but general logic remains the same.
+    """
+
+    delegate_method_name: typing.ClassVar[str]
+
+    def get_filter_expression(
+        self, field_name, value, model_field, field
+    ) -> OptionallyAnnotatedQ:
+        field_type = field_type_registry.get_by_model(field)
+        filter_method = self.get_delegate_method(field_type)
+        return filter_method(field_name, value, model_field, field)
+
+    def get_delegate_method(self, field_type: FieldType) -> typing.Callable:
+        try:
+            return getattr(field_type, self.__class__.delegate_method_name)
+        except AttributeError:
+            raise FilterNotSupportedException(self.__class__.delegate_method_name)
+
+
+class ComparisonHasValueFilter(CallDelegateMixin, ViewFilterType):
+    def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        if value == "" or value is None:
+            return Q()
+        try:
+            return self.get_filter_expression(field_name, value, model_field, field)
+        except FilterNotSupportedException as err:
+            logger.warning(
+                f"Cannot use {self.type} with {model_field} {field_name}: {err}"
+            )
+            return self.default_filter_on_exception()
+
+
+class HasValueHigherThanFilter(ComparisonHasValueFilter):
+    type = "has_value_higher"
+    delegate_method_name = "get_has_value_higher_filter_query"
+    compatible_field_types = [
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+        ),
+    ]
+
+
+class HasValueHigherOrEqualThanFilter(ComparisonHasValueFilter):
+    type = "has_value_higher_or_equal"
+    delegate_method_name = "get_has_value_higher_or_equal_filter_query"
+    compatible_field_types = [
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+        ),
+    ]
+
+
+class HasValueLowerThanFilter(ComparisonHasValueFilter):
+    type = "has_value_lower"
+    delegate_method_name = "get_has_value_lower_filter_query"
+    compatible_field_types = [
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+        ),
+    ]
+
+
+class HasValueLowerOrEqualThanFilter(ComparisonHasValueFilter):
+    type = "has_value_lower_or_equal"
+    delegate_method_name = "get_has_value_lower_or_equal_filter_query"
+    compatible_field_types = [
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+        ),
+    ]
+
+
+class HasNotValueHigherOrEqualTHanFilterType(
+    NotViewFilterTypeMixin, HasValueHigherOrEqualThanFilter
+):
+    type = "has_not_value_higher_or_equal"
+
+
+class HasNotValueHigherThanFilterType(NotViewFilterTypeMixin, HasValueHigherThanFilter):
+    type = "has_not_value_higher"
+
+
+class HasNotValueLowerOrEqualTHanFilterType(
+    NotViewFilterTypeMixin, HasValueLowerOrEqualThanFilter
+):
+    type = "has_not_value_lower_or_equal"
+
+
+class HasNotValueLowerThanFilterType(NotViewFilterTypeMixin, HasValueLowerThanFilter):
+    type = "has_not_value_lower"

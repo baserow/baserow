@@ -142,13 +142,18 @@ def text_field_value_factory(data_fixture, target_field, value=None):
 
 
 def setup_linked_table_and_lookup(
-    data_fixture, target_field_factory
+    data_fixture,
+    target_field_factory,
+    helper_fields_other_table: Iterable[Callable] = frozenset(),
+    helper_fields_table: Iterable[Callable] = frozenset(),
 ) -> LookupFieldSetup:
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(user=user, database=database)
     other_table = data_fixture.create_database_table(user=user, database=database)
     target_field = target_field_factory(data_fixture, other_table, user)
+    for helper_field_factory in helper_fields_other_table:
+        helper_field_factory(data_fixture, table=other_table, user=user)
     link_row_field = data_fixture.create_link_row_field(
         name="link", table=table, link_row_table=other_table
     )
@@ -160,6 +165,8 @@ def setup_linked_table_and_lookup(
         target_field_name=target_field.name,
         setup_dependencies=False,
     )
+    for helper_field_factory in helper_fields_table:
+        helper_field_factory(data_fixture, table=table, user=user)
     grid_view = data_fixture.create_grid_view(table=table)
     view_handler = ViewHandler()
     row_handler = RowHandler()
