@@ -31,16 +31,15 @@ export default {
         'workspace/selectById',
         dashboard.workspace.id
       )
-      const fetchDashboardForEditing = app.$hasPermission(
+      const forEditing = app.$hasPermission(
         'application.update',
         dashboard,
         dashboard.workspace.id
       )
-      await store.dispatch(
-        'dashboardApplication/fetchInitial',
-        dashboard.id,
-        fetchDashboardForEditing
-      )
+      await store.dispatch('dashboardApplication/fetchInitial', {
+        dashboardId: dashboard.id,
+        forEditing,
+      })
       data.workspace = workspace
       data.dashboard = dashboard
       await store.dispatch('dashboardApplication/setLoading', false)
