@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="header__view-search--wrapper">
     <a
       ref="contextLink"
       class="header__filter-link"

@@ -74,6 +74,7 @@
   &.header__filter--full-width {
     flex: 1 1;
     width: 100%;
+    min-width: 0;
   }
 }
 
@@ -82,9 +83,10 @@
 
   margin-left: 10px;
 
-  &.header__filter-item--right {
-    margin-left: auto;
-    margin-right: 10px;
+  &.header__filter-item--full-width {
+    flex-grow: 1;
+    display: flex;
+    min-width: 0;
   }
 
   &.header__filter-item--no-margin-left {
@@ -216,5 +218,21 @@
     &:last-child {
       margin-right: 0;
     }
+  }
+}
+
+.header__view-search--wrapper {
+  margin-left: auto;
+  margin-right: 10px;
+  flex-direction: row-reverse;
+  display: flex;
+  flex-grow: 1;
+  min-width: 0;
+
+  .header__filter-link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
   }
 }
