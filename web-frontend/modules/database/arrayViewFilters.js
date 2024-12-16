@@ -93,7 +93,10 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
 
   prepareValue(value, field) {
     const fieldType = this.app.$registry.get('field', field.type)
-    return normalizeBooleanForFilters(fieldType.parseInputValue(field, value))
+    const val = normalizeBooleanForFilters(
+      fieldType.parseInputValue(field, value)
+    )
+    return val === null || _.isNan(val) ? '' : val
   }
 
   getInputComponent(field) {
@@ -138,7 +141,11 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
 
   prepareValue(value, field) {
     const fieldType = this.app.$registry.get('field', field.type)
-    return normalizeBooleanForFilters(fieldType.parseInputValue(field, value))
+    const val = normalizeBooleanForFilters(
+      fieldType.parseInputValue(field, value)
+    )
+
+    return val === null || _.isNaN(val) ? '' : val
   }
 
   getInputComponent(field) {
@@ -564,7 +571,7 @@ export class HasNotValueLowerThanViewFilterType extends ViewFilterType {
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('viewFilter.hasValueLowerThan')
+    return i18n.t('viewFilter.hasNotValueLowerThan')
   }
 
   getInputComponent(field) {
@@ -591,7 +598,7 @@ export class HasNotValueLowerThanOrEqualViewFilterType extends ViewFilterType {
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('viewFilter.hasValueLowerThanOrEqual')
+    return i18n.t('viewFilter.hasNotValueLowerThanOrEqual')
   }
 
   getInputComponent(field) {
@@ -607,7 +614,6 @@ export class HasNotValueLowerThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    console.warn('has not value lower than or equal', field, fieldType)
     return fieldType.hasNotValueLowerThanOrEqualFilter(
       cellValue,
       filterValue,

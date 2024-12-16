@@ -12,7 +12,11 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueEqualFilterSupport,
+    HasValueHigherOrEqualThanFilterSupport,
+    HasValueHigherThanFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
+    HasValueLowerOrEqualThanFilterSupport,
+    HasValueLowerThanFilterSupport,
 )
 from baserow.contrib.database.fields.filter_support.exceptions import (
     FilterNotSupportedException,
@@ -260,7 +264,7 @@ class CallDelegateMixin:
 
     ViewFilter may not know details on how a specific field type can be filtered due
     to field type nuances (field data type may require special handling in the database,
-    a field may be just a facade or an aggregation to other filed types), so in this
+    a field may be just a facade or an aggregation to other field types), so in this
     case it may cede `ViewFilterType.get_filter()` responsibility to a specific field
     type that is called upon.
 
@@ -268,7 +272,7 @@ class CallDelegateMixin:
     filter-specific, but general logic remains the same.
     """
 
-    delegate_method_name: typing.ClassVar[str]
+    delegate_method: typing.ClassVar[typing.Callable]
 
     def get_filter_expression(
         self, field_name, value, model_field, field
@@ -278,10 +282,11 @@ class CallDelegateMixin:
         return filter_method(field_name, value, model_field, field)
 
     def get_delegate_method(self, field_type: FieldType) -> typing.Callable:
+        method_name = self.__class__.delegate_method.__name__
         try:
-            return getattr(field_type, self.__class__.delegate_method_name)
+            return getattr(field_type, method_name)
         except AttributeError:
-            raise FilterNotSupportedException(self.__class__.delegate_method_name)
+            raise FilterNotSupportedException(method_name)
 
 
 class ComparisonHasValueFilter(CallDelegateMixin, ViewFilterType):
@@ -299,7 +304,7 @@ class ComparisonHasValueFilter(CallDelegateMixin, ViewFilterType):
 
 class HasValueHigherThanFilter(ComparisonHasValueFilter):
     type = "has_value_higher"
-    delegate_method_name = "get_has_value_higher_filter_query"
+    delegate_method = HasValueHigherThanFilterSupport.get_has_value_higher_filter_query
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaNumberType.type)
@@ -309,7 +314,9 @@ class HasValueHigherThanFilter(ComparisonHasValueFilter):
 
 class HasValueHigherOrEqualThanFilter(ComparisonHasValueFilter):
     type = "has_value_higher_or_equal"
-    delegate_method_name = "get_has_value_higher_or_equal_filter_query"
+    delegate_method = (
+        HasValueHigherOrEqualThanFilterSupport.get_has_value_higher_or_equal_filter_query
+    )
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaNumberType.type)
@@ -319,7 +326,7 @@ class HasValueHigherOrEqualThanFilter(ComparisonHasValueFilter):
 
 class HasValueLowerThanFilter(ComparisonHasValueFilter):
     type = "has_value_lower"
-    delegate_method_name = "get_has_value_lower_filter_query"
+    delegate_method = HasValueLowerThanFilterSupport.get_has_value_lower_filter_query
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaNumberType.type)
@@ -329,7 +336,9 @@ class HasValueLowerThanFilter(ComparisonHasValueFilter):
 
 class HasValueLowerOrEqualThanFilter(ComparisonHasValueFilter):
     type = "has_value_lower_or_equal"
-    delegate_method_name = "get_has_value_lower_or_equal_filter_query"
+    delegate_method = (
+        HasValueLowerOrEqualThanFilterSupport.get_has_value_lower_or_equal_filter_query
+    )
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaNumberType.type)

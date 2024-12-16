@@ -171,7 +171,7 @@ def test_number_lookup_field_has_empty_value_filter(
         # too large, the same as invalid
         (
             "has_value_equal",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             [],
         ),
         (
@@ -185,7 +185,7 @@ def test_number_lookup_field_has_empty_value_filter(
         ("has_not_value_equal", "invalid", ALL_ROW_NAMES),
         (
             "has_not_value_equal",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             ALL_ROW_NAMES,
         ),
         ("has_not_value_equal", "999", ALL_ROW_NAMES),
@@ -213,7 +213,7 @@ def test_number_lookup_field_has_value_equal_filter(
         ("has_value_contains", "invalid", []),
         (
             "has_value_contains",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             [],
         ),
         (
@@ -235,7 +235,7 @@ def test_number_lookup_field_has_value_equal_filter(
         ("has_not_value_contains", "invalid", ALL_ROW_NAMES),
         (
             "has_not_value_contains",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             ALL_ROW_NAMES,
         ),
         (
@@ -269,12 +269,12 @@ def test_number_lookup_field_has_value_contains_filter(
         ("has_value_higher", "invalid", []),
         (
             "has_value_higher",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             [],
         ),
         (
             "has_value_higher",
-            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            "-1" + ("0" * 40),
             [o for o in ALL_ROW_NAMES if o not in {"no refs", "refs with empty"}],
         ),
         (
@@ -330,12 +330,12 @@ def test_number_lookup_field_has_value_higher_than_filter(
         ("has_value_higher_or_equal", "invalid", []),
         (
             "has_value_higher_or_equal",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             [],
         ),
         (
             "has_value_higher_or_equal",
-            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            "-1" + ("0" * 40),
             [o for o in ALL_ROW_NAMES if o not in {"no refs", "refs with empty"}],
         ),
         (
@@ -366,12 +366,12 @@ def test_number_lookup_field_has_value_higher_than_filter(
         ),  # reversed has_value_higher_or_equal
         (
             "has_not_value_higher_or_equal",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             ALL_ROW_NAMES,  # reversed has_value_higher_or_equal
         ),
         (
             "has_not_value_higher_or_equal",
-            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            "-1" + ("0" * 40),
             [o for o in ALL_ROW_NAMES if o in {"no refs", "refs with empty"}],
         ),
         (
@@ -406,12 +406,12 @@ def test_number_lookup_field_has_value_higher_equal_than_filter(
         ("has_value_lower_or_equal", "invalid", []),
         (
             "has_value_lower_or_equal",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             [o for o in ALL_ROW_NAMES if o not in {"no refs", "refs with empty"}],
         ),
         (
             "has_value_lower_or_equal",
-            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            "-1" + ("0" * 40),
             [],
         ),
         (
@@ -442,12 +442,12 @@ def test_number_lookup_field_has_value_higher_equal_than_filter(
         ),  # reversed has_value_lower_or_equal
         (
             "has_not_value_lower_or_equal",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             ["no refs", "refs with empty"],  # reversed has_value_lower_or_equal
         ),
         (
             "has_not_value_lower_or_equal",
-            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            "-1" + ("0" * 40),
             ALL_ROW_NAMES,
         ),
         (
@@ -488,12 +488,12 @@ def test_number_lookup_field_has_value_lower_equal_than_filter(
         ("has_value_lower", "invalid", []),
         (
             "has_value_lower",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             [o for o in ALL_ROW_NAMES if o not in {"no refs", "refs with empty"}],
         ),
         (
             "has_value_lower",
-            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            "-1" + ("0" * 40),
             [],
         ),
         (
@@ -523,12 +523,12 @@ def test_number_lookup_field_has_value_lower_equal_than_filter(
         ),  # reversed has_value_lower
         (
             "has_not_value_lower",
-            "100000000000000000000000000000000000000000000000000000000000000000000000",
+            "1" + ("0" * 40),
             ["no refs", "refs with empty"],  # reversed has_value_lower
         ),
         (
             "has_not_value_lower",
-            "-100000000000000000000000000000000000000000000000000000000000000000000000",
+            "-1" + ("0" * 40),
             ALL_ROW_NAMES,
         ),
         (

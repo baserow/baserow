@@ -148,14 +148,22 @@ class BaserowFilterExpression(Expression):
 
         return c
 
-    def as_sql(self, compiler, connection, template=None):
-        sql_value, params_value = compiler.compile(self.value)
+    def get_template(self, template: str | None = None) -> str:
+        return template or self.template
 
-        template = template or self.template
+    def get_data(self, sql_value) -> dict:
         data = {
             "field_name": f'"{self.field_name.field.column}"',
             "value": sql_value,
         }
+        return data
+
+    def as_sql(self, compiler, connection, template=None):
+        sql_value, params_value = compiler.compile(self.value)
+
+        data = self.get_data(sql_value)
+        template = self.get_template(template)
+
         return template % data, params_value
 
 
@@ -298,57 +306,55 @@ class JSONArrayContainsSelectOptionValueSimilarToExpr(BaserowFilterExpression):
     # fmt: on
 
 
-class JSONArrayContainsValueHigherThanNumericExpr(BaserowFilterExpression):
+class JSONArrayContainsNumericValueWithComparisonExpr(BaserowFilterExpression):
+    """
+    Common base class for json array value comparison expression.
+
+    A sublcass is expected to provide `comparison_op` class attribute, which will be
+    used to render the template.
+    """
+
     # fmt: off
     template = (
+
         f"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE (filtered_field ->> 'value')::numeric > %(value)s::numeric
-        )
-        """  # nosec B608
+            EXISTS(
+                SELECT 1
+                FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+                WHERE (filtered_field ->> 'value')::numeric %(comparison_op)s %(value)s::numeric
+            )
+            """  # nosec B608 %(value)s %(comparison_op)s
     )
     # fmt: on
 
+    # customizes comparison operator in `template`
+    comparison_op: str
 
-class JSONArrayContainsValueHigherThanOrEqualNumericExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE (filtered_field ->> 'value')::numeric >= %(value)s::numeric
-        )
-        """  # nosec B608
-    )
-    # fmt: on
+    def get_data(self, sql_value) -> dict:
+        data = super().get_data(sql_value)
+        data["comparison_op"] = self.comparison_op
+        return data
 
 
-class JSONArrayContainsValueLowerThanNumericExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE (filtered_field ->> 'value')::numeric < %(value)s::numeric
-        )
-        """  # nosec B608
-    )
-    # fmt: on
+class JSONArrayContainsValueHigherThanNumericExpr(
+    JSONArrayContainsNumericValueWithComparisonExpr
+):
+    comparison_op = ">"
 
 
-class JSONArrayContainsValueLowerThanOrEqualNumericExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE (filtered_field ->> 'value')::numeric <= %(value)s::numeric
-        )
-        """  # nosec B608
-    )
-    # fmt: on
+class JSONArrayContainsValueHigherThanOrEqualNumericExpr(
+    JSONArrayContainsNumericValueWithComparisonExpr
+):
+    comparison_op = ">="
+
+
+class JSONArrayContainsValueLowerThanNumericExpr(
+    JSONArrayContainsNumericValueWithComparisonExpr
+):
+    comparison_op = "<"
+
+
+class JSONArrayContainsValueLowerThanOrEqualNumericExpr(
+    JSONArrayContainsNumericValueWithComparisonExpr
+):
+    comparison_op = "<="

@@ -94,7 +94,7 @@ from baserow.contrib.database.api.views.errors import (
 from baserow.contrib.database.db.functions import RandomUUID
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
 from baserow.contrib.database.fields.filter_support.formula import (
-    FormulaArrayEqualFilterSupport,
+    FormulaArrayFilterSupport,
 )
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
@@ -4674,7 +4674,7 @@ class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
         return collate_expression(Value(value))
 
 
-class FormulaFieldType(FormulaArrayEqualFilterSupport, ReadOnlyFieldType):
+class FormulaFieldType(FormulaArrayFilterSupport, ReadOnlyFieldType):
     type = "formula"
     model_class = FormulaField
     _db_column_fields = []

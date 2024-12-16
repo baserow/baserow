@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
 
 
-class SingleSelectFormulaTypeEqualFilterSupport(
+class SingleSelectFormulaTypeFilterSupport(
     HasValueEmptyFilterSupport,
     HasValueEqualFilterSupport,
     HasValueContainsFilterSupport,

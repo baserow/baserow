@@ -47,7 +47,7 @@ from baserow.contrib.database.fields.filter_support.formula import (
     FormulaNumberFilterSupport,
 )
 from baserow.contrib.database.fields.filter_support.single_select import (
-    SingleSelectFormulaTypeEqualFilterSupport,
+    SingleSelectFormulaTypeFilterSupport,
 )
 from baserow.contrib.database.fields.mixins import get_date_time_format
 from baserow.contrib.database.fields.utils.duration import (
@@ -69,7 +69,7 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.formula.types.exceptions import UnknownFormulaType
 from baserow.contrib.database.formula.types.filter_support import (
-    BaserowFormulaArrayEqualFilterSupportMixin,
+    BaserowFormulaArrayFilterSupportMixin,
 )
 from baserow.contrib.database.formula.types.formula_type import (
     BaserowFormulaInvalidType,
@@ -1059,7 +1059,7 @@ class BaserowFormulaSingleFileType(BaserowJSONBObjectBaseType):
 
 
 class BaserowFormulaArrayType(
-    BaserowFormulaArrayEqualFilterSupportMixin,
+    BaserowFormulaArrayFilterSupportMixin,
     BaserowFormulaValidType,
 ):
     type = "array"
@@ -1346,7 +1346,7 @@ class BaserowFormulaArrayType(
 
 
 class BaserowFormulaSingleSelectType(
-    SingleSelectFormulaTypeEqualFilterSupport,
+    SingleSelectFormulaTypeFilterSupport,
     BaserowJSONBObjectBaseType,
 ):
     type = "single_select"
