@@ -288,6 +288,7 @@ import {
   StdDevViewAggregationType,
   VarianceViewAggregationType,
   MedianViewAggregationType,
+  DistributionViewAggregationType,
 } from '@baserow/modules/database/viewAggregationTypes'
 import { FormViewFormModeType } from '@baserow/modules/database/formViewModeTypes'
 import { CollaborativeViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes'
@@ -890,6 +891,10 @@ export default (context) => {
   app.$registry.register(
     'viewAggregation',
     new UniqueCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'viewAggregation',
+    new DistributionViewAggregationType(context)
   )
 
   app.$registry.register('formViewMode', new FormViewFormModeType(context))

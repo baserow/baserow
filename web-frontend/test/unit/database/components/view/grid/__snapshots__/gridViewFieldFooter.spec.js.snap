@@ -125,6 +125,25 @@ exports[`Field footer component Change type 1`] = `
        
       <!---->
     </li>
+    <li
+      class="select__item select__item--no-options"
+    >
+      <a
+        class="select__item-link"
+      >
+        <div
+          class="select__item-name"
+        >
+          <span
+            class="select__item-name-text"
+          >
+            Distribution
+          </span>
+        </div>
+      </a>
+       
+      <!---->
+    </li>
   </ul>
 </div>
 `;

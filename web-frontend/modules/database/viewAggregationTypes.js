@@ -1,5 +1,6 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import GenericViewAggregation from '@baserow/modules/database/components/aggregation/GenericViewAggregation'
+import DistributionAggregation from '@baserow/modules/database/components/aggregation/DistributionAggregation'
 import {
   FormulaFieldType,
   NumberFieldType,
@@ -780,5 +781,101 @@ export class MedianViewAggregationType extends ViewAggregationType {
 
   getComponent() {
     return GenericViewAggregation
+  }
+}
+
+export class DistributionViewAggregationType extends ViewAggregationType {
+  static getType() {
+    return 'distribution'
+  }
+
+  getName() {
+    return 'Distribution'
+  }
+
+  getShortName() {
+    return 'Dist.'
+  }
+
+  getCompatibleFieldTypes() {
+    return [
+      'text',
+      'long_text',
+      'url',
+      'number',
+      'rating',
+      'date',
+      'last_modified',
+      'last_modified_by',
+      'created_on',
+      'created_by',
+      'email',
+      'phone_number',
+      'single_select',
+      'duration',
+      'boolean',
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'text',
+        'char',
+        'date',
+        'number',
+        'boolean'
+      ),
+    ]
+  }
+
+  getComponent() {
+    return DistributionAggregation
+  }
+
+  getValue(value, { rowCount }) {
+    // Value is returned from the server as an array of arrays,
+    // each inner array representing one value of the distribution
+    // and its corresponding count of occurrences. This function
+    // calculates the corresponding percentages for each value and
+    // adds it to each inner array as formatted strings ready for
+    // display. Example:
+    // Input:
+    //   value = [
+    //     ["Blue", 3],
+    //     ["Red", 6]
+    //   ]
+    //   rowCount = 10
+    // Output:
+    //   [
+    //     ["Blue", "(3)", "30%"],
+    //     ["Red", "(6)", "60%"],
+    //     ["Others", "(1)", "10%"]
+    //   ]
+    if (value === null) {
+      return null
+    }
+
+    const { i18n } = this.app
+
+    const results = value.map(([label, count]) => {
+      if (['', null, undefined].includes(label))
+        label = i18n.t('viewAggregationType.emptyCount')
+      const percentage = Math.round((count / rowCount) * 100)
+      return [label, `(${Number(count).toLocaleString()})`, `${percentage}%`]
+    })
+
+    // If the total row count is higher than the sum of distribution counts,
+    // we need to add an "Others" entry to account for them. This can happen
+    // because the server only sends the top ten distributions by count. If
+    // there were more than ten unique values, the rest need to be represented
+    // as a single entry named "Others"
+    const othersCount =
+      rowCount - value.reduce((sum, current) => sum + current[1], 0)
+    if (othersCount > 0) {
+      const percentage = Math.round((othersCount / rowCount) * 100)
+      results.push([
+        'Others',
+        `(${othersCount.toLocaleString()})`,
+        `${percentage}%`,
+      ])
+    }
+
+    return results
   }
 }
