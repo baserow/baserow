@@ -26,7 +26,6 @@ from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
-from baserow.contrib.builder.date import FormattedDate, FormattedDateTime
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     CollectionElementTypeMixin,
@@ -77,6 +76,7 @@ from baserow.core.constants import (
     DATE_TIME_FORMAT,
     DATE_TIME_FORMAT_CHOICES,
 )
+from baserow.core.datetime import FormattedDate, FormattedDateTime
 from baserow.core.formula import (
     BaserowFormulaSyntaxError,
     get_parse_tree_for_formula,

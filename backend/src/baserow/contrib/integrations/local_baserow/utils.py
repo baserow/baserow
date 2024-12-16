@@ -17,11 +17,12 @@ from rest_framework.fields import (
 )
 from rest_framework.serializers import ListSerializer, Serializer
 
-from baserow.contrib.builder.date import FormattedDate, FormattedDateTime
 from baserow.contrib.database.api.fields.serializers import DurationFieldSerializer
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
+    ensure_date,
+    ensure_datetime,
     ensure_integer,
     ensure_string,
 )
@@ -109,16 +110,18 @@ def guess_cast_function_from_response_serializer_field(
 
     json_type = guess_json_type_from_response_serializer_field(serializer_field)
     ensure_map = {
-        "string": ensure_string,
-        "integer": ensure_integer,
-        "boolean": ensure_boolean,
-        "array": ensure_array,
+        "string": {
+            "date": ensure_date,
+            "date-time": ensure_datetime,
+            "default": ensure_string,
+        },
+        "number": {"default": ensure_integer},
+        "boolean": {"default": ensure_boolean},
+        "array": {"default": ensure_array},
     }
-    # Date and datetime are represented as strings in JSON schema with format property
-    # We still need to
-    if json_type == {"type": "string", "format": "date"}:
-        return lambda value: FormattedDate(value).date if value else None
-    elif json_type == {"type": "string", "format": "date-time"}:
-        return lambda value: FormattedDateTime(value).datetime if value else None
-    else:
-        return ensure_map.get(json_type.get("type"))
+    json_type_choice = ensure_map.get(json_type["type"])
+    return (
+        json_type_choice[json_type.get("format") or "default"]
+        if json_type_choice
+        else None
+    )
