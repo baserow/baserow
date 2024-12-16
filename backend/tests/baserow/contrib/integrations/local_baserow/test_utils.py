@@ -25,8 +25,8 @@ from baserow.core.formula.validator import (
     ensure_boolean,
     ensure_date,
     ensure_datetime,
-    ensure_string,
     ensure_integer,
+    ensure_string,
 )
 
 
