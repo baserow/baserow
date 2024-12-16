@@ -4,7 +4,9 @@ from django.db import models
 import pytest
 
 from baserow.contrib.database.fields.models import get_default_field_content_type
+from baserow.contrib.database.views.models import View
 from baserow.core.mixins import PolymorphicContentTypeMixin
+from baserow.core.models import Application
 
 
 @pytest.mark.django_db
@@ -120,3 +122,31 @@ def test_cant_define_model_with_multiple_parents_with_poly_mixin(data_fixture):
 
     with pytest.raises(AttributeError, match="does not support multiple inheritance"):
         SubModel3(name="a")
+
+
+@pytest.mark.django_db
+def test_specific_remembers_select_related(data_fixture, django_assert_num_queries):
+    database = data_fixture.create_database_application()
+
+    application = Application.objects.select_related("workspace").get(pk=database.id)
+
+    with django_assert_num_queries(1):
+        specific_application = application.specific
+        assert specific_application.workspace.id == database.workspace_id
+
+
+@pytest.mark.django_db
+def test_specific_remembers_prefetch_related(data_fixture, django_assert_num_queries):
+    grid_view = data_fixture.create_grid_view()
+    filter_1 = data_fixture.create_view_filter(view=grid_view)
+    filter_2 = data_fixture.create_view_filter(view=grid_view)
+
+    views = list(
+        View.objects.filter(pk=grid_view.id).prefetch_related("viewfilter_set")
+    )
+
+    with django_assert_num_queries(1):
+        specific_view = views[0].specific
+        filters = list(specific_view.viewfilter_set.all())
+        assert filters[0].id == filter_1.id
+        assert filters[1].id == filter_2.id

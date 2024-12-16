@@ -230,7 +230,27 @@ class PolymorphicContentTypeMixin:
         elif isinstance(self, model_class):
             return self
         else:
-            return content_type.get_object_for_this_type(id=self.id)
+            specific_object = content_type.get_object_for_this_type(id=self.id)
+
+            # Move over the original fields cache to the specific object. This makes
+            # sure that any `select_related` objects will be available on the specific
+            # object so that we don't have to execute it a query for it.
+            specific_object._state.fields_cache = self._state.fields_cache
+
+            # If the original object has the `_prefetched_objects_cache` object, it
+            # means that the `prefetch_related` was used and fetched on the base
+            # queryset. By setting it on the specific object, we move that prefetched
+            # data over so that we don't have to execute the same query again.
+            if hasattr(self, "_prefetched_objects_cache"):
+                specific_prefetched_objects_cache = getattr(
+                    specific_object, "_prefetched_objects_cache", {}
+                )
+                specific_object._prefetched_objects_cache = {
+                    **self._prefetched_objects_cache,
+                    **specific_prefetched_objects_cache,
+                }
+
+            return specific_object
 
     @cached_property
     def specific_class(self):

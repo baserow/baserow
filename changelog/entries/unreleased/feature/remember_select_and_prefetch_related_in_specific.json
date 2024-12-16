@@ -1,0 +1,7 @@
+{
+  "type": "feature",
+  "message": "Remembers the already fetched select_related and prefetch_related objects in the `specific` property.",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2024-12-16"
+}
