@@ -19,6 +19,7 @@
   services:
     - name: $CI_DIND_IMAGE
       alias: docker
+      command: ["--experimental"]
   variables:
     DOCKER_BUILDKIT: 1
     DOCKER_HOST: tcp://docker:2376
