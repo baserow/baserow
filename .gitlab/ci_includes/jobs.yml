@@ -114,14 +114,6 @@
       docker buildx create --use --name multi --driver docker-container --platform linux/amd64 multi-context
 
       if [[ -n "$BUILD_ARM" || "$CI_COMMIT_BRANCH" == "$BUILD_ARM_ON_BRANCH" ]]; then
-#        which ssh-agent
-#        eval `ssh-agent -s`
-#        echo "${ARM_BUILDER_SSH_PRIVATE_KEY}" | tr -d '\r' | ssh-add - > /dev/null
-#        mkdir -p ~/.ssh
-#        chmod 700 ~/.ssh
-#        echo "$ARM_BUILDER_SSH_PUBLIC_KEY" >> ~/.ssh/id_rsa.pub
-#        [[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
-
         echo "Building multi-arch images for ARM also."
         docker buildx create --append --name multi --driver docker-container --platform linux/arm64/v8 "$ARM_TARGET"
         DOCKER_BUILD_PLATFORMS=linux/amd64,linux/arm64/v8
