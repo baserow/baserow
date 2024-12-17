@@ -113,6 +113,9 @@
       docker context create multi-context
       docker buildx create --use --name multi --driver docker-container --platform linux/amd64 multi-context
 
+      echo "TEST:"
+      echo $BUILD_ARM_ON_BRANCH
+      echo $CI_COMMIT_BRANCH
       if [[ -n "$BUILD_ARM" || "$CI_COMMIT_BRANCH" == "$BUILD_ARM_ON_BRANCH" ]]; then
         echo "Building multi-arch images for ARM also."
         docker buildx create --append --name multi --driver docker-container --platform linux/arm64/v8 "$ARM_TARGET"
