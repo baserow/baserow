@@ -323,8 +323,8 @@
   },
   "commonSamlSettingModal": {
     "title": "Edit provider",
-    "relayStateTitle": "Default Relay State URL per domain (Click to copy)",
-    "acsTitle": "Single Sign On URL per domain (Click to copy)",
+    "relayStateTitle": "Default Relay State URL (Click to copy)",
+    "acsTitle": "Single Sign On url (Click to copy)",
     "preview": "Preview"
   },
   "commonSamlSettingForm": {

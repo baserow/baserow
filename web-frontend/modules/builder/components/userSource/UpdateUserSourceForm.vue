@@ -80,6 +80,7 @@
               v-if="hasAtLeastOneOfThisType(appAuthType)"
               :ref="`authProviderForm`"
               excluded-form
+              :application="builder"
               :integration="integration"
               :user-source="fullValues"
               :auth-providers="appAuthProviderPerTypes"

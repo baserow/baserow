@@ -1342,10 +1342,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             application = base_queryset.select_related("workspace", "content_type").get(
                 id=application_id
             )
-        except Application.DoesNotExist:
+        except Application.DoesNotExist as e:
             raise ApplicationDoesNotExist(
                 f"The application with id {application_id} does not exist."
-            )
+            ) from e
 
         if TrashHandler.item_has_a_trashed_parent(application):
             raise ApplicationDoesNotExist(
@@ -1353,6 +1353,19 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         return application
+
+    def get_application_for_url(self, url) -> Application | None:
+        """
+        Returns the application instance related to the given URL if any.
+
+        :param url: the url to search the application for.
+        """
+
+        for app_type in application_type_registry.get_all():
+            if found_id := app_type.get_application_id_for_url(url):
+                return self.get_application(found_id)
+
+        return None
 
     def list_applications_in_workspace(
         self, workspace_id: int, base_queryset: Optional[QuerySet] = None

@@ -47,7 +47,6 @@ export default {
   name: 'CommonSamlSettingForm',
   components: { CommonSamlSettingModal },
   mixins: [authProviderForm],
-  inject: ['builder'],
   props: {
     integration: {
       type: Object,

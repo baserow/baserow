@@ -1,0 +1,16 @@
+<md:EntityDescriptor entityID="http://www.okta.com/exklb4lbejjuFPRDG5d7"
+	xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata">
+	<md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+		<md:KeyDescriptor use="signing">
+			<ds:KeyInfo
+				xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+				<ds:X509Data>
+					<ds:X509Certificate>MIIDqDCCApCgAwIBAgIGAZNPHyd2MA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi00NzMwMjYwNTEcMBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTAeFw0yNDExMjExNDI2NDJaFw0zNDExMjExNDI3NDFaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi00NzMwMjYwNTEcMBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANy4NeQ1hVt4OAqnJgHfZmOeCLKF08UY9HzZr6SN+bdqvAZnvYpQsq9BDIRdM8aw7NdEpOKeZRsH45CKDf5Q5Go6UsqbD3ksbxcXAnwqWpHbpws/wBMOLp3sFTd2DlfOTBmqJ3bbpqvfdIKEu1fxEYz9IDpFe0ak/6rSROJ7QpphpiEkRaYI2zwPp6KQINiKbzTQ9qLfQv/GgcQtkcNiT6UNp84POOtc5vQdyXtRY/zh4ZB1fpjsNI/0WGqGeRHb1WzMHTIHq5dkCeFT2GRJQk/dpZ1bdm2VetyBlx5ft2rZ25x21QXjOd/BWJKJjEe9UCc2xhxpfvt1sJBPauwxH3UCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAT67TccrfpF1gfmhuOXZBnZ0e5//kJCsFNm3idqzZobmD5rK90wFHNQ/xLp4QiJvbBpxW2cpXrTqQyf/9s6e52rqi+jE0Nv5fTmv2V4kEBtvZsXGLsryz+OD087mmltO5iYjvDxJJAxpq7w9m17quCRI/RfAnc150MNc3HIPNlljLjXAxl4tYD+THXmiU9zH4+CDkfuAdasxnl6o+MpHT6m2CWhzqEwuJ+dxGA+PAYNSCRyIvg+ERqvH4EL2hi2GMu/68P8xMmVPp6A2bubNN/ksemJRwEFD088TT3eRniSjGdQV+y3kSEqSPHUooWSrzfskoGBYbQHvmZHj1E1Z25A==</ds:X509Certificate>
+				</ds:X509Data>
+			</ds:KeyInfo>
+		</md:KeyDescriptor>
+		<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
+		<md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://dev-47302605.okta.com/app/dev-47302605_appbuilderpublished_1/exklb4lbejjuFPRDG5d7/sso/saml"/>
+		<md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://dev-47302605.okta.com/app/dev-47302605_appbuilderpublished_1/exklb4lbejjuFPRDG5d7/sso/saml"/>
+	</md:IDPSSODescriptor>
+</md:EntityDescriptor>

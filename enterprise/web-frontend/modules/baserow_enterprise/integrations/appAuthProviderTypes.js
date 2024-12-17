@@ -116,6 +116,21 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
     }
   }
 
+  getRelayStateUrls(userSource) {
+    const application = this.app.store.getters['application/get'](
+      userSource.application_id
+    )
+    const applicationType = this.app.$registry.get(
+      'application',
+      application.type
+    )
+    return applicationType.getFrontendUrls()
+  }
+
+  getAcsUrl(userSource) {
+    return `${this.app.$config.PUBLIC_BACKEND_URL}/api/user-source/sso/saml/acs/`
+  }
+
   getOrder() {
     return 20
   }

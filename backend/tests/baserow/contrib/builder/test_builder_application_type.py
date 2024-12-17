@@ -1673,10 +1673,33 @@ def test_get_default_application_urls(data_fixture):
         builder=builder, published_to=builder_to, domain_name="mytest.com"
     )
 
-    assert builder.get_type().get_default_application_urls(builder) == [
+    assert builder.get_type().get_application_urls(builder) == [
         f"http://localhost:3000/builder/{builder.id}/preview/"
     ]
-    assert builder_to.get_type().get_default_application_urls(builder_to) == [
+    assert builder_to.get_type().get_application_urls(builder_to) == [
         "http://mytest.com:3000",
         f"http://localhost:3000/builder/{builder.id}/preview/",
     ]
+
+
+@pytest.mark.django_db
+def test_get_application_id_for_url(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(workspace=None)
+    domain1 = data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=builder_to, domain_name="mytest.com"
+    )
+
+    assert (
+        builder.get_type().get_application_id_for_url(
+            f"http://localhost:3000/builder/{builder.id}/preview/"
+        )
+        == builder.id
+    )
+    assert (
+        builder.get_type().get_application_id_for_url(
+            f"http://mytest.com/something/somethingelse/"
+        )
+        == builder_to.id
+    )

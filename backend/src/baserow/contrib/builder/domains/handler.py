@@ -193,7 +193,7 @@ class DomainHandler:
 
         return full_order
 
-    def publish(self, domain: Domain, progress: Progress):
+    def publish(self, domain: Domain, progress: Progress | None = None):
         """
         Publishes a builder for the given domain object. If the builder was
         already published, the previous version is deleted and a new one is created.
@@ -233,7 +233,8 @@ class DomainHandler:
             for user_source in exported_builder["user_sources"]
         ]
 
-        progress.increment(by=50)
+        if progress:
+            progress.increment(by=50)
 
         id_mapping = {"import_workspace_id": workspace.id}
         duplicate_builder = builder_application_type.import_serialized(
@@ -243,7 +244,9 @@ class DomainHandler:
             id_mapping,
             None,
             default_storage,
-            progress_builder=progress.create_child_builder(represents_progress=50),
+            progress_builder=progress.create_child_builder(represents_progress=50)
+            if progress
+            else None,
         )
         domain.published_to = duplicate_builder
         domain.last_published = datetime.now(tz=timezone.utc)

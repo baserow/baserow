@@ -75,6 +75,19 @@ export class BuilderApplicationType extends ApplicationType {
     return values
   }
 
+  getFrontendUrls(application) {
+    const domains = this.app.store.getters['domain/getDomains']
+
+    return [
+      ...domains.map((domain) => {
+        const url = new URL(this.app.$config.PUBLIC_WEB_FRONTEND_URL)
+        return `${url.protocol}//${domain.domain_name}${
+          url.port ? `:${url.port}` : ''
+        }`
+      }),
+    ]
+  }
+
   delete(application) {
     const { store, router } = this.app
     const pageSelected = store.getters['page/getVisiblePages'](

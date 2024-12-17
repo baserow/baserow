@@ -20,10 +20,24 @@ export class AppAuthProviderType extends BaseAuthProviderType {
     return this.getAdminSettingsFormComponent()
   }
 
+  /**
+   * Return an auth token potentially extracted from the route query params.
+   * @param {*} userSource
+   * @param {*} authProvider
+   * @param {*} route
+   * @returns
+   */
   getAuthToken(userSource, authProvider, route) {
     return null
   }
 
+  /**
+   * Return an error message potentially extracted from query params.
+   * @param {*} userSource
+   * @param {*} authProvider
+   * @param {*} route
+   * @returns
+   */
   handleError(userSource, authProvider, route) {
     return null
   }

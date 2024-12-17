@@ -17,21 +17,15 @@
           >
             <div class="common-saml-setting-modal__url-block">
               <div
-                v-for="conf in config"
-                :key="conf.name"
+                v-for="url in relayStateUrls"
+                :key="url"
                 class="common-saml-setting-modal__url"
                 @click.prevent="
-                  ;[copyToClipboard(conf.relay), $refs.copiedRelay.show()]
+                  ;[copyToClipboard(url), $refs.copiedRelay.show()]
                 "
               >
-                <span class="common-saml-setting-modal__url-domain">
-                  {{ conf.name }}
-                </span>
-                <span
-                  class="common-saml-setting-modal__url-dest"
-                  :title="conf.relay"
-                >
-                  {{ conf.relay }}
+                <span class="common-saml-setting-modal__url-dest" :title="url">
+                  {{ url }}
                 </span>
               </div>
               <Copied ref="copiedRelay"></Copied>
@@ -46,21 +40,16 @@
           >
             <div class="common-saml-setting-modal__url-block">
               <div
-                v-for="conf in config"
-                :key="conf.name"
                 class="common-saml-setting-modal__url"
                 @click.prevent="
-                  ;[copyToClipboard(conf.acs), $refs.copiedACS.show()]
+                  ;[copyToClipboard(acsUrl), $refs.copiedACS.show()]
                 "
               >
-                <span class="common-saml-setting-modal__url-domain">
-                  {{ conf.name }}
-                </span>
                 <span
                   class="common-saml-setting-modal__url-dest"
-                  :title="conf.acs"
+                  :title="acsUrl"
                 >
-                  {{ conf.acs }}
+                  {{ acsUrl }}
                 </span>
               </div>
               <Copied ref="copiedACS"></Copied>
@@ -82,14 +71,12 @@ import SamlSettingsForm from '@baserow_enterprise/components/admin/forms/SamlSet
 import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
 import error from '@baserow/modules/core/mixins/error'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
-import { mapActions, mapGetters } from 'vuex'
 import modal from '@baserow/modules/core/mixins/modal'
 
 export default {
   name: 'CommonSamlSettingsModal',
   components: { SamlSettingsForm },
   mixins: [error, authProviderForm, modal],
-  inject: ['builder'],
   props: {
     integration: {
       type: Object,
@@ -100,32 +87,12 @@ export default {
       required: true,
     },
   },
-  async fetch() {
-    try {
-      await this.actionFetchDomains({ builderId: this.builder.id })
-    } catch (error) {
-      this.handleError(error)
-    }
-  },
   computed: {
-    ...mapGetters({ domains: 'domain/getDomains' }),
-    config() {
-      const previewRelay = `${this.$config.PUBLIC_WEB_FRONTEND_URL}/builder/${this.builder.id}/preview/`
-      const previewACS = `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/${this.userSource.uid}/sso/saml/acs/`
-      const preview = [
-        {
-          name: this.$t('commonSamlSettingModal.preview'),
-          acs: previewACS,
-          relay: previewRelay,
-        },
-      ]
-
-      const others = this.domains.map((domain) => ({
-        name: domain.domain_name,
-        acs: `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/domain_${domain.id}__${this.userSource.uid}/sso/saml/acs/`,
-        relay: this.getDomainUrl(domain),
-      }))
-      return [...preview, ...others]
+    relayStateUrls() {
+      return this.authProviderType.getRelayStateUrls(this.userSource)
+    },
+    acsUrl() {
+      return this.authProviderType.getAcsUrl(this.userSource)
     },
   },
   watch: {
@@ -135,9 +102,6 @@ export default {
     },
   },
   methods: {
-    ...mapActions({
-      actionFetchDomains: 'domain/fetch',
-    }),
     copyToClipboard(value) {
       copyToClipboard(value)
     },
@@ -153,12 +117,6 @@ export default {
       } else {
         this.$emit('form-valid', true)
       }
-    },
-    getDomainUrl(domain) {
-      const url = new URL(this.$config.PUBLIC_WEB_FRONTEND_URL)
-      return `${url.protocol}//${domain.domain_name}${
-        url.port ? `:${url.port}` : ''
-      }`
     },
     handleServerError(error) {
       return this.$refs.samlForm.handleServerError(error)

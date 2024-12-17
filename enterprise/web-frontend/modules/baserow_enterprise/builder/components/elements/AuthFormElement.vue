@@ -11,6 +11,9 @@
           :user-source="selectedUserSource"
           :auth-providers="appAuthProviderPerTypes[appAuthType.type]"
           :login-button-label="resolvedLoginButtonLabel"
+          :before-login="beforeLogin"
+          :read-only="isEditMode"
+          :authenticate="authenticateWithCredentials"
           @after-login="afterLogin"
         />
       </div>
@@ -31,7 +34,7 @@ import { mapActions } from 'vuex'
 export default {
   name: 'AuthFormElement',
   mixins: [element, form, error],
-  inject: ['elementPage', 'builder'],
+  inject: ['elementPage', 'builder', 'mode'],
   props: {
     /**
      * @type {Object}
@@ -48,6 +51,14 @@ export default {
     return {}
   },
   computed: {
+    isAuthenticated() {
+      return this.$store.getters['userSourceUser/isAuthenticated'](
+        this.application
+      )
+    },
+    isEditMode() {
+      return this.mode === 'editing'
+    },
     fullStyle() {
       return {
         ...this.getStyleOverride('input'),
@@ -127,6 +138,21 @@ export default {
       return (
         this.appAuthProviderPerTypes[authProviderType.getType()]?.length > 0
       )
+    },
+    async beforeLogin() {
+      if (this.isAuthenticated) {
+        await this.$store.dispatch('userSourceUser/logoff', {
+          application: this.builder,
+        })
+      }
+    },
+    async authenticateWithCredentials(credentials) {
+      await this.$store.dispatch('userSourceUser/authenticate', {
+        application: this.builder,
+        userSource: this.selectedUserSource,
+        credentials,
+        setCookie: this.mode === 'public',
+      })
     },
     afterLogin() {
       this.fireEvent(

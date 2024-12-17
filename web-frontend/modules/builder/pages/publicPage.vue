@@ -389,8 +389,8 @@ export default {
     },
   },
   async mounted() {
-    await this.maybeRedirectUserToLoginPage()
     await this.checkProviderAuthentication()
+    await this.maybeRedirectUserToLoginPage()
   },
   methods: {
     /**
@@ -412,6 +412,10 @@ export default {
 
         const currentPath = this.$route.fullPath
         if (url !== currentPath) {
+          this.$store.dispatch('toast/info', {
+            title: this.$t('publicPage.authorizedToastTitle'),
+            message: this.$t('publicPage.authorizedToastMessage'),
+          })
           const nextPath = encodeURIComponent(currentPath)
           this.$router.push({ path: url, query: { next: nextPath } })
         }
@@ -449,6 +453,10 @@ export default {
           await this.$store.dispatch('userSourceUser/refreshAuth', {
             application: this.builder,
             token: refreshTokenFromProvider,
+          })
+          this.$store.dispatch('toast/info', {
+            title: this.$t('publicPage.loginToastTitle'),
+            message: this.$t('publicPage.loginToastMessage'),
           })
         } catch (error) {
           if (error.response?.status === 401) {
