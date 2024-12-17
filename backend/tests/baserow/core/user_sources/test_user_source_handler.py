@@ -4,6 +4,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
+from freezegun.api import freeze_time
 
 from baserow.core.exceptions import (
     ApplicationOperationNotSupported,
@@ -520,6 +521,71 @@ def test_get_all_roles_for_application_returns_user_roles(
     user_roles = UserSourceHandler().get_all_roles_for_application(builder)
 
     assert user_roles == expected_roles
+
+
+@pytest.mark.django_db
+def test__generate_update_user_count_chunk_queryset(data_fixture):
+    builder = data_fixture.create_builder_application()
+
+    ids_seen = []
+    ids_expected = list(range(1, 11))
+
+    # Create ten `UserSource` of the first type, with the exact IDs of 1 through 10.
+    user_sources = []
+    user_source_type = list(user_source_type_registry.get_all())[0]
+
+    for user_source_id in ids_expected:
+        user_source = data_fixture.create_user_source(
+            user_source_type.model_class,
+            id=user_source_id,
+            application=builder,
+        )
+        user_sources.append(user_source)
+
+    # Sanity-check that all of them don't have a cached user count.
+    for user_source in user_sources:
+        assert (
+            user_source.get_type().get_user_count(user_source, update_if_uncached=False)
+            is None
+        )
+
+    with freeze_time("2024-12-16 12:00"):
+        chunk = list(
+            UserSourceHandler()
+            ._generate_update_user_count_chunk_queryset(user_source_type)
+            .values_list("id", flat=True)
+        )
+        ids_seen.extend(chunk)
+        assert chunk == [4, 8]
+
+    with freeze_time("2024-12-16 12:15"):
+        chunk = list(
+            UserSourceHandler()
+            ._generate_update_user_count_chunk_queryset(user_source_type)
+            .values_list("id", flat=True)
+        )
+        ids_seen.extend(chunk)
+        assert chunk == [1, 5, 9]
+
+    with freeze_time("2024-12-16 12:30"):
+        chunk = list(
+            UserSourceHandler()
+            ._generate_update_user_count_chunk_queryset(user_source_type)
+            .values_list("id", flat=True)
+        )
+        ids_seen.extend(chunk)
+        assert chunk == [2, 6, 10]
+
+    with freeze_time("2024-12-16 12:45"):
+        chunk = list(
+            UserSourceHandler()
+            ._generate_update_user_count_chunk_queryset(user_source_type)
+            .values_list("id", flat=True)
+        )
+        ids_seen.extend(chunk)
+        assert chunk == [3, 7]
+
+    assert sorted(ids_seen) == ids_expected
 
 
 @pytest.mark.django_db

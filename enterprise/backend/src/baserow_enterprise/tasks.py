@@ -20,7 +20,7 @@ def count_all_user_source_users(self):
     of external sources there are per user source type, and caching the results.
     """
 
-    UserSourceHandler().update_all_user_source_counts()
+    UserSourceHandler().update_all_user_source_counts(update_in_chunks=True)
 
 
 @app.on_after_finalize.connect

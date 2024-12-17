@@ -1,3 +1,5 @@
+from django.contrib.contenttypes.models import ContentType
+
 from baserow.core.user_sources.registries import user_source_type_registry
 
 
@@ -17,6 +19,7 @@ class UserSourceFixtures:
         if "order" not in kwargs:
             kwargs["order"] = model_class.get_last_order(application)
 
+        kwargs["content_type"] = ContentType.objects.get_for_model(model_class)
         user_source = model_class.objects.create(application=application, **kwargs)
 
         return user_source

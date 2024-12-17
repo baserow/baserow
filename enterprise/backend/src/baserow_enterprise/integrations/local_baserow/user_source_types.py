@@ -813,7 +813,10 @@ class LocalBaserowUserSourceType(UserSourceType):
         return user_source_count
 
     def get_user_count(
-        self, user_source: LocalBaserowUserSource, force_recount: bool = False
+        self,
+        user_source: LocalBaserowUserSource,
+        force_recount: bool = False,
+        update_if_uncached: bool = True,
     ) -> Optional[UserSourceCount]:
         """
         Responsible for retrieving a user source's count. If the user source isn't
@@ -825,6 +828,9 @@ class LocalBaserowUserSourceType(UserSourceType):
         :param user_source: The user source we want a count from.
         :param force_recount: If True, we will re-count the users and ignore any
             existing cached count.
+        :param update_if_uncached: If True, we will count the users and cache the
+            result if the cache entry is missing. Set this to False if you need to
+            know if the cache entry is missing.
         :return: A `UserSourceCount` instance if the user source is configured,
             otherwise `None`.
         """
@@ -835,7 +841,7 @@ class LocalBaserowUserSourceType(UserSourceType):
             return None
 
         cached_user_source_count = self._get_cached_user_count(user_source)
-        if cached_user_source_count and not force_recount:
+        if (cached_user_source_count and not force_recount) or not update_if_uncached:
             return cached_user_source_count
 
         queryset = UserSourceHandler().get_user_sources(
