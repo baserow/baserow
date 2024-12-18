@@ -4,7 +4,6 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
-from django.http import HttpRequest
 
 from baserow.contrib.builder.formula_property_extractor import (
     get_builder_used_property_names,
@@ -18,16 +17,6 @@ CACHE_KEY_PREFIX = "used_properties_for_page"
 
 
 class BuilderHandler:
-    def __init__(
-        self,
-        request: Optional[HttpRequest] = None,
-        builder: Optional[Builder] = None,
-        only_expose_public_formula_fields: Optional[bool] = True,
-    ):
-        self.request = request
-        self.builder = builder
-        self.only_expose_public_formula_fields = only_expose_public_formula_fields
-
     def get_builder(self, builder_id: int) -> Builder:
         """
         Gets builder instance from database using its ID
