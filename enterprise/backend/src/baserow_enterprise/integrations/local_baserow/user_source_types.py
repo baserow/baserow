@@ -786,9 +786,15 @@ class LocalBaserowUserSourceType(UserSourceType):
             )
             user_sources = self.model_class.objects.filter(field_q)
 
+        # Narrow down the `user_sources` to only those that pass our `is_configured`
+        # check. Often this will be the same filtering as what is done in the ORM, but
+        # just in case we have additional validation requirements in `is_configured`,
+        # we will filter again here.
+        configured_user_sources = [us for us in user_sources if self.is_configured(us)]
+
         # Fetch all the table records in bulk.
         user_source_table_map = defaultdict(list)
-        for us in user_sources:
+        for us in configured_user_sources:
             user_source_table_map[us.table_id].append(us)
         tables = TableHandler.get_tables().filter(id__in=user_source_table_map.keys())
 
