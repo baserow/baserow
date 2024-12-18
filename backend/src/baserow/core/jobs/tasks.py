@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.conf import settings
 
 from baserow.config.celery import app
+from baserow.core.cache import clear_short_cache
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.sentry import setup_user_in_sentry
@@ -21,6 +22,9 @@ def run_async_job(self, job_id: int):
 
     from baserow.core.jobs.handler import JobHandler
     from baserow.core.jobs.models import Job
+
+    # Clear the short cache before starting the job.
+    clear_short_cache()
 
     job = Job.objects.select_related("user", "content_type").get(id=job_id).specific
     if job.cancelled:
