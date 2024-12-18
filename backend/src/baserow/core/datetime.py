@@ -10,8 +10,8 @@ def get_timezones():
 
 def get_current_hourly_quarter() -> int:
     """
-    Returns the current hourly quarter based on the current minute. The quarter is
-    calculated by dividing the current minute by 15.
+    Returns the current hourly quarter based on the current minute.
+    :returns: The current hourly quarter.
     """
 
     minutes = datetime.now().minute

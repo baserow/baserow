@@ -1,6 +1,12 @@
+from typing import List
+
 from django.contrib.contenttypes.models import ContentType
 
-from baserow.core.user_sources.registries import user_source_type_registry
+from baserow.core.user_sources.models import UserSource
+from baserow.core.user_sources.registries import (
+    UserSourceType,
+    user_source_type_registry,
+)
 
 
 class UserSourceFixtures:
@@ -23,3 +29,14 @@ class UserSourceFixtures:
         user_source = model_class.objects.create(application=application, **kwargs)
 
         return user_source
+
+    def create_user_sources_with_primary_keys(
+        self, user_source_type: UserSourceType, primary_keys: List[int], **kwargs
+    ) -> List[UserSource]:
+        user_sources = []
+        for user_source_id in primary_keys:
+            user_source = self.create_user_source(
+                user_source_type.model_class, id=user_source_id, **kwargs
+            )
+            user_sources.append(user_source)
+        return user_sources

@@ -355,7 +355,7 @@ class UserSourceType(
     @abstractmethod
     def get_user_count(
         self,
-        user_source,
+        user_source: UserSource,
         force_recount: bool = False,
         update_if_uncached: bool = True,
     ) -> UserSourceCount:
