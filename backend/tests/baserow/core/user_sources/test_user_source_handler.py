@@ -526,7 +526,7 @@ def test_get_all_roles_for_application_returns_user_roles(
 
 
 @pytest.mark.django_db
-def test__generate_update_user_count_chunk_queryset(data_fixture):
+def test_generate_update_user_count_chunk_queryset(data_fixture):
     builder = data_fixture.create_builder_application()
 
     ids_seen = []

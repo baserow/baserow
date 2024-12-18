@@ -1,4 +1,5 @@
 from ast import Dict
+from datetime import datetime
 from typing import Iterable, List, Optional, Union
 from zipfile import ZipFile
 
@@ -8,7 +9,6 @@ from django.db.models import F, QuerySet
 
 from loguru import logger
 
-from baserow.core.datetime import get_current_hourly_quarter
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
 from baserow.core.models import Application
@@ -331,9 +331,13 @@ class UserSourceHandler:
         :return: A queryset that can be used to update the user count in chunks.
         """
 
-        return user_source_type.model_class.objects.annotate(idmod=F("id") % 4).filter(
-            idmod=get_current_hourly_quarter()
+        batch_per_hour = (
+            60 // settings.BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_TASK_INTERVAL_MINUTES
         )
+
+        return user_source_type.model_class.objects.annotate(
+            idmod=F("id") % batch_per_hour
+        ).filter(idmod=datetime.now().minute // (60 // batch_per_hour))
 
     def update_all_user_source_counts(
         self,
