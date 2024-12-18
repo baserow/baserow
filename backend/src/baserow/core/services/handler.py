@@ -23,7 +23,7 @@ from .types import DispatchResult, ServiceForUpdate, UpdatedService
 
 class ServiceHandler:
     def get_service(
-        self, service_id: int, base_queryset: QuerySet[Service] = None
+        self, service_id: int, base_queryset: QuerySet[Service] = None, specific=True
     ) -> Service:
         """
         Returns an service instance from the database.
@@ -37,15 +37,23 @@ class ServiceHandler:
         queryset = base_queryset if base_queryset is not None else Service.objects.all()
 
         try:
-            service = (
-                queryset.select_related(
-                    "integration",
-                    "integration__application",
+            if specific:
+                service = queryset.get(id=service_id).specific
+                # We use the enhanced version of the queryset to get the related
+                # fields.
+                service = service.get_type().get_queryset().get(id=service_id)
+
+                if service.integration_id:
+                    specific_integration = IntegrationHandler().get_integration(
+                        service.integration_id, specific=True
+                    )
+                    service.__class__.integration.field.set_cached_value(
+                        service, specific_integration
+                    )
+            else:
+                service = queryset.select_related(
                     "integration__application__workspace",
-                )
-                .get(id=service_id)
-                .specific
-            )
+                ).get(id=service_id)
         except Service.DoesNotExist:
             raise ServiceDoesNotExist()
 
@@ -94,8 +102,6 @@ class ServiceHandler:
             queryset = queryset.filter(integration=integration)
 
         if specific:
-            queryset = queryset.select_related("content_type")
-
             # Apply the type specific queryset enhancement for performance.
             def per_content_type_queryset_hook(model, queryset):
                 service_type = service_type_registry.get_by_model(model)
@@ -125,8 +131,8 @@ class ServiceHandler:
                     ]
 
             return specific_services
-
         else:
+            queryset = queryset.select_related("integration__application")
             return queryset
 
     def create_service(self, service_type: ServiceType, **kwargs) -> Service:

@@ -9,6 +9,8 @@ import random
 import re
 import socket
 import string
+import threading
+import time
 from collections import defaultdict, namedtuple
 from decimal import Decimal
 from fractions import Fraction
@@ -1284,3 +1286,73 @@ def invalidate_versioned_cache(version_cache_key: str):
     except ValueError:
         # No cache key, we create one
         cache.set(version_cache_key, 1)
+
+
+TTL_CACHE_CLEANUP_INTERVAL = 60 * 60  # 1 hour
+
+
+# class GlobalCache:
+#    pass
+
+
+global_cache = threading.local()
+
+
+def get_short_ttl_cache(
+    key: str, default: Any | Callable, instance: Any = global_cache
+):
+    """
+    Retrieves a cached value for a given key. The cached value has a short TTL so it
+    will live for a few seconds.
+    If the cached value does not exist or has expired, it uses the given `default`
+    value to populate the cache. The default value can be a callable in which case it
+    will be called.
+    If you don't give an instance, the key will be stored on the global cache object
+    in which case you should try to have very unique key to prevent conflicts.
+    It makes sense to use an instance is the instance can live longer than the cache.
+
+    :param key: The key of the value to retrieve.
+    :param default: A default value to set if the key is missing. If a callable is
+      given, it will be called to generate the default value.
+    :param instance: An optional object that act as a namespace for the cache. it will
+      be used to store the cache. if no instance is given a global object is used.
+    :return: The cached or newly generated value.
+    """
+
+    # To deactivate the cache we can set the duration to 0
+    # the cache is also deactivated by default in the tests
+    if settings.SHORT_LIVE_CACHE_TTL_DURATION == 0 or getattr(settings, "TESTS", False):
+        return default() if callable(default) else default
+
+    # Initialize the cache and last cleanup time on the instance if they don't exist
+    if not hasattr(instance, "_ttl_cache"):
+        instance._ttl_cache = {}
+        instance._last_cleanup = time.time()
+
+    # Perform cleanup only if enough time has passed since the last cleanup
+    # We prevent memory leak that way
+    current_time = time.time()
+    if current_time - instance._last_cleanup > TTL_CACHE_CLEANUP_INTERVAL:
+        instance._ttl_cache = {
+            key: (value, expiration)
+            for key, (value, expiration) in instance._ttl_cache.items()
+            if current_time < expiration
+        }
+        instance._last_cleanup = current_time  # Update the last cleanup time
+
+    # Check if the property exists in the cache and if it's still valid
+    cache_entry = instance._ttl_cache.get(key, None)
+    if cache_entry:
+        value, expiration = cache_entry
+        if current_time < expiration:
+            return value
+
+    # If not valid or doesn't exist, populate the cache with the default value
+    new_value = default() if callable(default) else default
+
+    instance._ttl_cache[key] = (
+        new_value,
+        current_time + settings.SHORT_LIVE_CACHE_TTL_DURATION,
+    )
+
+    return new_value

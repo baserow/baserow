@@ -23,7 +23,10 @@ from .types import IntegrationForUpdate
 
 class IntegrationHandler:
     def get_integration(
-        self, integration_id: int, base_queryset: Optional[QuerySet] = None
+        self,
+        integration_id: int,
+        base_queryset: Optional[QuerySet] = None,
+        specific=True,
     ) -> Integration:
         """
         Returns an integration instance from the database.
@@ -38,12 +41,18 @@ class IntegrationHandler:
             base_queryset if base_queryset is not None else Integration.objects.all()
         )
 
+        queryset = queryset.select_related("application__workspace")
+
         try:
-            integration = (
-                queryset.select_related("application", "application__workspace")
-                .get(id=integration_id)
-                .specific
-            )
+            if specific:
+                integration = queryset.get(id=integration_id)
+                # We use the enhanced version of the queryset to get the related
+                # fields.
+                integration = (
+                    integration.get_type().get_queryset().get(id=integration_id)
+                )
+            else:
+                integration = queryset.get(id=integration_id)
         except Integration.DoesNotExist:
             raise IntegrationDoesNotExist()
 
@@ -101,9 +110,7 @@ class IntegrationHandler:
                 integration_type = integration_type_registry.get_by_model(model)
                 return integration_type.enhance_queryset(queryset)
 
-            queryset = queryset.select_related(
-                "content_type", "application", "application__workspace"
-            )
+            queryset = queryset.select_related("application__workspace")
 
             return specific_iterator(
                 queryset, per_content_type_queryset_hook=per_content_type_queryset_hook
