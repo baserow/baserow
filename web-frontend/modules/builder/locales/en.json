@@ -46,7 +46,8 @@
     "errorPathNotUnique": "A path with this name already exists",
     "errorStartingSlash": "A path needs to start with a '/'",
     "errorValidPathCharacters": "The path contains invalid characters",
-    "errorUniquePathParams": "Path parameters have to be unique."
+    "errorUniquePathParams": "Path parameters have to be unique.",
+    "errorUniqueValidQueryParams": "Query parameter names have to be unique and valid."
   },
   "pageHeaderItemTypes": {
     "labelElements": "Elements",

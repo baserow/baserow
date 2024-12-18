@@ -16,19 +16,21 @@ from baserow.contrib.builder.pages.constants import (
     ILLEGAL_PATH_SAMPLE_CHARACTER,
     PAGE_PATH_PARAM_PREFIX,
     PATH_PARAM_REGEX,
+    QUERY_PARAM_EXACT_MATCH_REGEX
 )
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePathParamsInPath,
+    InvalidQueryParamName,
     PageDoesNotExist,
     PageNameNotUnique,
     PageNotInBuilder,
     PagePathNotUnique,
     PathParamNotDefined,
     PathParamNotInPath,
-    SharedPageIsReadOnly,
+    SharedPageIsReadOnly, DuplicatePageParams,
 )
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParam
+from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParam, PageQueryParams
 from baserow.contrib.builder.types import PageDict
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
@@ -176,6 +178,9 @@ class PageHandler:
                 ),  # We don't want to conflict with the current page
                 raises=True,
             )
+        if "query_params" in kwargs:
+            query_params = kwargs.get("query_params")
+            self.validate_query_params(kwargs.get("path", page.path), kwargs.get("path_params", page.path_params), query_params)
 
         for key, value in kwargs.items():
             setattr(page, key, value)
@@ -347,6 +352,47 @@ class PageHandler:
 
         return True
 
+    def validate_query_params(
+        self, path: str, path_params: PagePathParams, query_params: PageQueryParams
+    ) -> bool:
+        """
+        Validates the query parameters of a page.
+
+        :param path: The path of the page.
+        :param path_params: The path parameters defined for the page.
+        :param query_params: The query parameters to validate.
+        :raises InvalidQueryParamName: If a query parameter name doesn't match the required format.
+        :raises DuplicatePageParams: If a query parameter is defined multiple times or clashes
+            with path parameters.
+        :return: True if validation passes.
+        """
+        # Extract path param names for checking duplicates
+
+        path_param_names = [p["name"] for p in path_params]
+
+
+        # Get list of query param names
+        query_param_names = [p["name"] for p in query_params]
+
+        # Check for duplicates within query params
+        seen_params = set()
+        for param_name in query_param_names:
+            # Validate query param name format using regex
+            if not QUERY_PARAM_EXACT_MATCH_REGEX.match(param_name):
+                raise InvalidQueryParamName(query_param_name=param_name)
+
+            # Check if param name already seen or conflicts with path param
+            if param_name in seen_params or param_name in path_param_names:
+                raise DuplicatePageParams(
+                    param=param_name,
+                    query_param_names=query_param_names,
+                    path_param_names=path_param_names
+                )
+
+            seen_params.add(param_name)
+
+        return True
+
     def is_page_path_unique(
         self,
         builder: Builder,
@@ -373,7 +419,6 @@ class PageHandler:
                 if raises:
                     raise PagePathNotUnique(path=path, builder_id=builder.id)
                 return False
-
         return True
 
     def generalise_path(self, path: str) -> str:

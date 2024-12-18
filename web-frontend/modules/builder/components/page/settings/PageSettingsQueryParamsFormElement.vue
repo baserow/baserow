@@ -1,5 +1,13 @@
 <template>
-  <FormGroup small-label :label="$t('pageForm.queryParamsTitle')" required>
+  <FormGroup
+    small-label
+    :label="$t('pageForm.queryParamsTitle')"
+    :error="
+      hasErrors ||
+      (validationState.$dirty && !validationState.uniqueQueryParams)
+    "
+    required
+  >
     <div
       v-for="(queryParam, index) in localQueryParams"
       :key="index"
@@ -47,6 +55,12 @@
         }}
       </ButtonText>
     </div>
+    <span
+      v-if="validationState.$dirty && !validationState.uniqueQueryParams"
+      class="error"
+    >
+      {{ $t('pageErrors.errorUniqueValidQueryParams') }}
+    </span>
   </FormGroup>
 </template>
 
@@ -63,6 +77,16 @@ export default {
       default: () => [],
     },
     disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    validationState: {
+      type: Object,
+      required: false,
+      default: () => ({}),
+    },
+    hasErrors: {
       type: Boolean,
       required: false,
       default: false,
@@ -88,8 +112,6 @@ export default {
     },
     updateQueryParamName(index, newName) {
       this.localQueryParams[index].name = newName
-    },
-    finalizeQueryParamUpdate(index) {
       this.$emit('update', this.localQueryParams)
     },
     updateQueryParamType(index, newType) {
@@ -102,6 +124,9 @@ export default {
         type: this.queryParamTypes[0].getType(),
       }
       this.localQueryParams.push(newParam)
+      this.$emit('update', this.localQueryParams)
+    },
+    finalizeQueryParamUpdate(index) {
       this.$emit('update', this.localQueryParams)
     },
   },

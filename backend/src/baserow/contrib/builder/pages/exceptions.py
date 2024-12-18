@@ -103,3 +103,23 @@ class DuplicatePathParamsInPath(Exception):
             f"The path params {path_param_names} are defined multiple times "
             f"in path {path}"
         )
+
+
+class InvalidQueryParamName(Exception):
+    """Raised when an invalid query param name is being set"""
+    def __init__(self, query_param_name: str, *args, **kwargs):
+        self.query_param_name = query_param_name
+        super().__init__(f"The query param {query_param_name} is invalid")
+
+
+class DuplicatePageParams(Exception):
+    """Raised when same query param is defined multiple times or query
+    param names clash with path param names."""
+    def __init__(self, param: str, query_param_names: List[str], path_param_names: List[str], *args, **kwargs):
+        self.query_param_names = query_param_names
+        self.path_param_names = path_param_names
+        self.param = param
+        super().__init__(
+            f"The query param {param} is are defined multiple times in {query_param_names}"
+            f"or clash with path params {path_param_names}"
+        )
