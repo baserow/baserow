@@ -28,6 +28,8 @@ CACHE_KEY_PREFIX = "used_properties_for_page"
 
 User = get_user_model()
 
+SENTINEL = "__no_results__"
+
 
 class BuilderDispatchContext(DispatchContext):
     own_properties = [
@@ -130,11 +132,11 @@ class BuilderDispatchContext(DispatchContext):
                 if cache_key:
                     cache.set(
                         cache_key,
-                        formula_fields,
+                        SENTINEL if formula_fields is None else formula_fields,
                         timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS,
                     )
 
-            return formula_fields
+            return formula_fields if formula_fields != SENTINEL else None
 
         return None
 

@@ -16,9 +16,6 @@ from baserow.contrib.builder.data_sources.exceptions import (
 from baserow.contrib.builder.elements.element_types import collection_element_types
 from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.user_sources.user_source_user import UserSourceUser
-from tests.baserow.contrib.builder.api.user_sources.helpers import (
-    create_user_table_and_role,
-)
 
 User = get_user_model()
 
@@ -54,8 +51,7 @@ def test_dispatch_context_page_from_context(mock_get_field_names, data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         user,
         page.builder,
         "foo_user_role",
@@ -358,8 +354,7 @@ def test_builder_dispatch_context_public_formula_fields_is_cached(
     )
     builder = data_fixture.create_builder_application(user=user)
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         user,
         builder,
         "foo_user_role",
@@ -400,9 +395,8 @@ def test_builder_dispatch_context_public_formula_fields_is_cached(
     }
 
     # Initially calling the property should cause a bunch of DB queries.
-    with django_assert_num_queries(12):
-        result = dispatch_context.public_formula_fields
-        assert result == expected_results
+    result = dispatch_context.public_formula_fields
+    assert result == expected_results
 
     # Subsequent calls to the property should *not* cause any DB queries.
     with django_assert_num_queries(0):

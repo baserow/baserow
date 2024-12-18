@@ -508,7 +508,9 @@ class CollectionElementTypeMixin:
                 "data_source_id", None
             )
             if data_source_id:
-                data_source = DataSourceHandler().get_data_source(data_source_id)
+                data_source = DataSourceHandler().get_data_source(
+                    data_source_id, with_ttl_cache=True
+                )
                 properties[data_source.service_id] = [schema_property]
 
         return properties

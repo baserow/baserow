@@ -199,6 +199,17 @@ class LocalBaserowPasswordAppAuthProviderType(AppAuthProviderType):
             **kwargs,
         )
 
+    def get_user_model_field_ids(self, auth_provider: AuthProviderModelSubClass):
+        """
+        This method is specific to local_baserow app_auth_providers to return the list
+        of fields used by this provider to select them on the table model to save
+        queries.
+        """
+
+        return (
+            [auth_provider.password_field_id] if auth_provider.password_field_id else []
+        )
+
     def authenticate(
         self,
         auth_provider: AuthProviderModelSubClass,
@@ -213,8 +224,9 @@ class LocalBaserowPasswordAppAuthProviderType(AppAuthProviderType):
 
         user = user_source.get_type().get_user(user_source, email=email)
 
-        password_field = auth_provider.password_field
-        encoded_password = getattr(user.original_user, password_field.db_column)
+        encoded_password = getattr(
+            user.original_user, f"field_{auth_provider.password_field_id}"
+        )
 
         if encoded_password and check_password(password, encoded_password):
             return user
