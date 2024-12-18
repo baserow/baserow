@@ -24,6 +24,8 @@ CACHE_KEY_PREFIX = "used_properties_for_page"
 
 User = get_user_model()
 
+SENTINEL = "__no_results__"
+
 
 class BuilderDispatchContext(DispatchContext):
     own_properties = [

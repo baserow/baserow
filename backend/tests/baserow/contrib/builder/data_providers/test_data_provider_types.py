@@ -1298,7 +1298,9 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
     result = DataSourceDataProviderType().extract_properties(path)
 
     assert result == {mocked_data_source.service_id: expected}
-    mocked_get_data_source.assert_called_once_with(int(data_source_id))
+    mocked_get_data_source.assert_called_once_with(
+        int(data_source_id), with_ttl_cache=True
+    )
     mocked_service_type.extract_properties.assert_called_once_with([expected])
 
 
@@ -1394,7 +1396,9 @@ def test_data_source_context_extract_properties_calls_correct_service_type(
     result = DataSourceContextDataProviderType().extract_properties(path)
 
     assert result == {mocked_data_source.service_id: expected}
-    mocked_get_data_source.assert_called_once_with(int(data_source_id))
+    mocked_get_data_source.assert_called_once_with(
+        int(data_source_id), with_ttl_cache=True
+    )
     mocked_service_type.extract_properties.assert_called_once_with([expected])
 
 
@@ -1472,7 +1476,7 @@ def test_data_source_context_data_provider_extract_properties_raises_if_data_sou
     with pytest.raises(InvalidBaserowFormula):
         DataSourceContextDataProviderType().extract_properties(path)
 
-    mock_get_data_source.assert_called_once_with(int(path[0]))
+    mock_get_data_source.assert_called_once_with(int(path[0]), with_ttl_cache=True)
 
 
 @pytest.mark.parametrize(
@@ -1499,7 +1503,7 @@ def test_data_source_data_provider_extract_properties_raises_if_data_source_does
     with pytest.raises(InvalidBaserowFormula):
         DataSourceDataProviderType().extract_properties(path)
 
-    mock_get_data_source.assert_called_once_with(int(path[0]))
+    mock_get_data_source.assert_called_once_with(int(path[0]), with_ttl_cache=True)
 
 
 @pytest.mark.parametrize("path", ([], [""], ["foo"]))
@@ -1541,7 +1545,9 @@ def test_current_record_extract_properties_raises_if_data_source_doesnt_exist(
     with pytest.raises(InvalidBaserowFormula):
         CurrentRecordDataProviderType().extract_properties(path, invalid_data_source_id)
 
-    mock_get_data_source.assert_called_once_with(invalid_data_source_id)
+    mock_get_data_source.assert_called_once_with(
+        invalid_data_source_id, with_ttl_cache=True
+    )
 
 
 @pytest.mark.django_db
@@ -1577,7 +1583,7 @@ def test_current_record_extract_properties_calls_correct_service_type(
     result = CurrentRecordDataProviderType().extract_properties(path, fake_element_id)
 
     assert result == {mocked_data_source.service_id: expected_field}
-    mock_get_data_source.assert_called_once_with(fake_element_id)
+    mock_get_data_source.assert_called_once_with(fake_element_id, with_ttl_cache=True)
     mocked_service_type.extract_properties.assert_called_once_with(
         ["0", expected_field]
     )
@@ -1636,7 +1642,7 @@ def test_current_record_extract_properties_called_with_correct_path(
         schema_property,
     )
 
-    mock_get_data_source.assert_called_once_with(data_source_id)
+    mock_get_data_source.assert_called_once_with(data_source_id, with_ttl_cache=True)
 
     if returns_list:
         if schema_property:

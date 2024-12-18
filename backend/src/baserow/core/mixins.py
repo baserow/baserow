@@ -218,19 +218,43 @@ class PolymorphicContentTypeMixin:
             if not self.content_type_id:
                 self.content_type = ContentType.objects.get_for_model(self)
 
+    def get_content_type(self):
+        """
+        Check if the content type has already been loaded with a selected related,
+        otherwise, returns the cached version.
+        """
+
+        # We check if the Django fields_cache includes the content_type value
+        if self.__class__.content_type.is_cached(self):
+            return self.content_type
+        else:
+            content_type = ContentType.objects.get_for_id(self.content_type_id)
+            if isinstance(self.__class__.content_type, FieldCacheMixin):
+                # We add it to the django field cache.
+                self.__class__.content_type.set_cached_value(self, content_type)
+            return content_type
+
     @cached_property
     def specific(self):
         """Returns this instance in its most specific subclassed form."""
 
         self._ensure_content_type_is_set()
-        content_type = ContentType.objects.get_for_id(self.content_type_id)
         model_class = self.specific_class
         if model_class is None:
             return self
         elif isinstance(self, model_class):
             return self
         else:
-            return content_type.get_object_for_this_type(id=self.id)
+            specific_object = self.get_content_type().get_object_for_this_type(
+                id=self.id
+            )
+            # We populate the new object cache to keep the already loaded objects
+            # for instance with a select_related or a direct access.
+            for field in self.__class__._meta.get_fields():
+                if isinstance(field, FieldCacheMixin) and field.is_cached(self):
+                    field.set_cached_value(specific_object, getattr(self, field.name))
+
+            return specific_object
 
     @cached_property
     def specific_class(self):
@@ -240,8 +264,7 @@ class PolymorphicContentTypeMixin:
         """
 
         self._ensure_content_type_is_set()
-        content_type = ContentType.objects.get_for_id(self.content_type_id)
-        return content_type.model_class()
+        return self.get_content_type().model_class()
 
     def parent_ptrs(self):
         model = self.__class__

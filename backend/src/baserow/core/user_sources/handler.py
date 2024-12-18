@@ -11,6 +11,7 @@ from loguru import logger
 
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Application
 from baserow.core.registries import application_type_registry
 from baserow.core.storage import ExportZipFile
@@ -29,13 +30,17 @@ class UserSourceHandler:
     allowed_fields_update = ["name", "integration"]
 
     def get_user_source(
-        self, user_source_id: int, base_queryset: Optional[QuerySet] = None
+        self,
+        user_source_id: int,
+        base_queryset: Optional[QuerySet] = None,
+        specific=True,
     ) -> UserSource:
         """
         Returns a user_source instance from the database.
 
         :param user_source_id: The ID of the user_source.
         :param base_queryset: The base queryset use to build the query if provided.
+        :param specific: To return the specific instances.
         :raises UserSourceDoesNotExist: If the user_source can't be found.
         :return: The specific user_source instance.
         """
@@ -44,12 +49,23 @@ class UserSourceHandler:
             base_queryset if base_queryset is not None else UserSource.objects.all()
         )
 
+        queryset = queryset.select_related("application__workspace")
+
         try:
-            user_source = (
-                queryset.select_related("application", "application__workspace")
-                .get(id=user_source_id)
-                .specific
-            )
+            if specific:
+                user_source = queryset.get(id=user_source_id).specific
+                if user_source.integration_id:
+                    specific_integration = IntegrationHandler().get_integration(
+                        user_source.integration_id, specific=True
+                    )
+                    user_source.__class__.integration.field.set_cached_value(
+                        user_source, specific_integration
+                    )
+            else:
+                user_source = queryset.select_related("integration").get(
+                    id=user_source_id
+                )
+
         except UserSource.DoesNotExist as exc:
             raise UserSourceDoesNotExist() from exc
 
@@ -59,12 +75,14 @@ class UserSourceHandler:
         self,
         user_source_uid: str,
         base_queryset: Optional[QuerySet] = None,
+        specific=True,
     ) -> UserSource:
         """
         Returns a user_source instance from the database.
 
         :param user_source_uid: The uid of the user_source.
         :param base_queryset: The base queryset use to build the query if provided.
+        :param specific: To return the specific instances.
         :raises UserSourceDoesNotExist: If the user_source can't be found.
         :return: The specific user_source instance.
         """
@@ -73,12 +91,23 @@ class UserSourceHandler:
             base_queryset if base_queryset is not None else UserSource.objects.all()
         )
 
+        queryset = queryset.select_related("application__workspace")
+
         try:
-            user_source = (
-                queryset.select_related("application", "application__workspace")
-                .get(uid=user_source_uid)
-                .specific
-            )
+            if specific:
+                user_source = queryset.get(uid=user_source_uid).specific
+                if user_source.integration_id:
+                    specific_integration = IntegrationHandler().get_integration(
+                        user_source.integration_id, specific=True
+                    )
+                    user_source.__class__.integration.field.set_cached_value(
+                        user_source, specific_integration
+                    )
+            else:
+                user_source = queryset.select_related("integration").get(
+                    id=user_source_uid
+                )
+
         except UserSource.DoesNotExist as exc:
             raise UserSourceDoesNotExist() from exc
 
@@ -136,9 +165,7 @@ class UserSourceHandler:
                 user_source_type = user_source_type_registry.get_by_model(model)
                 return user_source_type.enhance_queryset(queryset)
 
-            queryset = queryset.select_related(
-                "content_type", "application", "application__workspace"
-            )
+            queryset = queryset.select_related("application__workspace", "integration")
 
             return specific_iterator(
                 queryset, per_content_type_queryset_hook=per_content_type_queryset_hook

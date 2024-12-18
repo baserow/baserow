@@ -16,6 +16,9 @@ User = get_user_model()
 CACHE_KEY_PREFIX = "used_properties_for_page"
 
 
+SENTINEL = "__no_results__"
+
+
 class BuilderHandler:
     def get_builder(self, builder_id: int) -> Builder:
         """
@@ -82,13 +85,14 @@ class BuilderHandler:
 
         cache_key = self.get_builder_used_properties_cache_key(user, builder)
         properties = cache.get(cache_key) if cache_key else None
+
         if properties is None:
             properties = get_builder_used_property_names(user, builder)
             if cache_key:
                 cache.set(
                     cache_key,
-                    properties,
+                    SENTINEL if properties is None else properties,
                     timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS,
                 )
 
-        return properties
+        return properties if properties != SENTINEL else None

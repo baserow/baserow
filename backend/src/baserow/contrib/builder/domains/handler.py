@@ -57,7 +57,7 @@ class DomainHandler:
         """
 
         if base_queryset is None:
-            base_queryset = Domain.objects
+            base_queryset = Domain.objects.all()
 
         return specific_iterator(base_queryset.filter(builder=builder))
 
@@ -73,7 +73,7 @@ class DomainHandler:
         try:
             domain = (
                 Domain.objects.exclude(published_to=None)
-                .select_related("published_to", "builder")
+                .select_related("published_to", "builder__workspace")
                 .only("published_to", "builder")
                 .get(domain_name=domain_name)
             )
