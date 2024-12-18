@@ -744,7 +744,7 @@ def test_sync_data_sync_table_without_license(enterprise_data_fixture):
         github_issues_api_token="test",
     )
 
-    License.objects.all().delete()
+    enterprise_data_fixture.delete_all_licenses()
 
     with pytest.raises(FeaturesNotAvailableError):
         handler.sync_data_sync_table(user=user, data_sync=data_sync)

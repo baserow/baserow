@@ -9,7 +9,6 @@ from django.utils import timezone as django_timezone
 import pytest
 import responses
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
-from baserow_premium.license.models import License
 from freezegun.api import freeze_time
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
@@ -377,7 +376,7 @@ def test_skip_automatically_deactivated_periodic_data_syncs(enterprise_data_fixt
         when=time(hour=12, minute=10, second=1, microsecond=1),
     )
 
-    License.objects.all().delete()
+    enterprise_data_fixture.delete_all_licenses()
 
     with freeze_time("2024-10-10T12:15:00.00Z"):
         with transaction.atomic():

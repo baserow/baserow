@@ -12,6 +12,7 @@ from baserow_premium.license.registries import LicenseType, license_type_registr
 from baserow_premium.plugins import PremiumPlugin
 from fakeredis import FakeRedis, FakeServer
 
+from baserow.core.cache import local_cache
 from baserow.test_utils.pytest_conftest import *  # noqa: F403, F401
 
 
@@ -80,6 +81,7 @@ class PerWorkspaceLicensePlugin(LicensePlugin):
             self.per_workspace_licenses[user.id][workspace_id].add(
                 license_type_registry.get(license_type)
             )
+        local_cache.clear()
 
 
 class PremiumPluginWithPerWorkspaceLicensePlugin(PremiumPlugin):

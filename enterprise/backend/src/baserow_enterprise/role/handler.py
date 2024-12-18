@@ -8,6 +8,7 @@ from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
 
 from baserow_premium.license.handler import LicenseHandler
 
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.mixins import TrashableModelMixin
@@ -45,6 +46,34 @@ from .constants import (
 from .types import NewRoleAssignment
 
 User = get_user_model()
+ROLE_ASSIGNMENT_CACHE_KEY_PREFIX = "role_assignments"
+
+
+def _clear_role_assignments_from_local_cache():
+    """
+    Simple helper to clear the local cache for role assignments when needed.
+    """
+
+    local_cache.delete(f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_*")
+
+
+def clear_roles_from_local_cache():
+    """
+    Decorator to use for methods that need to clear the role assignment cache at the end
+    of their implementation.
+    """
+
+    def decorator(method):
+        def wrapper(*args, **kwargs):
+            try:
+                result = method(*args, **kwargs)
+            finally:
+                _clear_role_assignments_from_local_cache()
+            return result
+
+        return wrapper
+
+    return decorator
 
 
 class RoleAssignmentHandler:
@@ -322,7 +351,18 @@ class RoleAssignmentHandler:
             subject_id__in=actor_by_id.keys(),
         )
 
-        teams_subjects = users_teams_qs.values_list("team_id", "subject_id")
+        model_class_meta = actor_subject_type.model_class._meta
+        actor_type = f"{model_class_meta.app_label}.{model_class_meta.model_name}"
+        actor_ids = "_".join([str(a.id) for a in actors])
+        actors_cache_key = f"{actor_type}_{actor_ids}"
+
+        def _get_teams_subjects():
+            return users_teams_qs.values_list("team_id", "subject_id")
+
+        teams_subjects = local_cache.get(
+            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{actors_cache_key}",
+            _get_teams_subjects,
+        )
 
         # Populate double map for later use
         subjects_per_team = defaultdict(list)
@@ -364,27 +404,33 @@ class RoleAssignmentHandler:
         ]
 
         # Final query
-        role_assignments = (
-            RoleAssignment.objects.filter(
-                workspace=workspace,
+        def _get_role_assignments():
+            return (
+                RoleAssignment.objects.filter(
+                    workspace=workspace,
+                )
+                .filter(subjects_q, ~Q(role__uid=NO_ROLE_LOW_PRIORITY_ROLE_UID))
+                .annotate(
+                    scope_type_order=Case(
+                        *scope_cases,
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    ),
+                    role_priority=Case(
+                        *role_priority_cases,
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    ),
+                )
+                .order_by(
+                    "scope_type_order", "scope_id", "role_priority", "subject_id", "id"
+                )
+                .select_related("subject_type")
             )
-            .filter(subjects_q, ~Q(role__uid=NO_ROLE_LOW_PRIORITY_ROLE_UID))
-            .annotate(
-                scope_type_order=Case(
-                    *scope_cases,
-                    default=Value(0),
-                    output_field=IntegerField(),
-                ),
-                role_priority=Case(
-                    *role_priority_cases,
-                    default=Value(0),
-                    output_field=IntegerField(),
-                ),
-            )
-            .order_by(
-                "scope_type_order", "scope_id", "role_priority", "subject_id", "id"
-            )
-            .select_related("subject_type")
+
+        role_assignments = local_cache.get(
+            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{workspace.id}_{actors_cache_key}",
+            _get_role_assignments,
         )
 
         workspace_scope_param = (content_types[Workspace].id, workspace.id)
@@ -442,12 +488,24 @@ class RoleAssignmentHandler:
         # WorkspaceUser permissions property
         if actor_subject_type.type == UserSubjectType.type:
             # Get all workspace users at once
-            user_permissions_by_id = dict(
-                CoreHandler()
-                .get_workspace_users(
-                    workspace, actor_by_id.values(), include_trash=include_trash
-                )
-                .values_list("user_id", "permissions")
+            actor_ids_set = {a.id for a in actors}
+
+            def _get_user_permissions_by_id():
+                if include_trash:
+                    wp_users = WorkspaceUser.objects_and_trash.filter(
+                        workspace_id=workspace.id, user_id__in=actor_ids_set
+                    )
+                else:
+                    wp_users = workspace.workspaceuser_set.all()
+                return {
+                    wu.user_id: wu.permissions
+                    for wu in wp_users
+                    if wu.user_id in actor_ids_set
+                }
+
+            user_permissions_by_id = local_cache.get(
+                f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{workspace.id}_{actors_cache_key}_{include_trash}",
+                _get_user_permissions_by_id,
             )
 
             for actor in actors:
@@ -534,6 +592,7 @@ class RoleAssignmentHandler:
 
         return most_precise_roles
 
+    @clear_roles_from_local_cache()
     def assign_role(
         self, subject, workspace, role=None, scope=None, send_signals: bool = True
     ) -> Optional[RoleAssignment]:
@@ -608,6 +667,7 @@ class RoleAssignmentHandler:
 
         return role_assignment
 
+    @clear_roles_from_local_cache()
     def remove_role(
         self, subject: Union[AbstractUser, Team], workspace: Workspace, scope=None
     ):
