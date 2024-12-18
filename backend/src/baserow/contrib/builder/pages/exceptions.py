@@ -1,6 +1,6 @@
 from typing import List
 
-from baserow.contrib.builder.pages.constants import PAGE_PATH_PARAM_TYPE_CHOICES
+from baserow.contrib.builder.pages.constants import PAGE_PARAM_TYPE_CHOICES
 
 
 class PageDoesNotExist(Exception):
@@ -89,7 +89,7 @@ class InvalidPagePathParamType(Exception):
         self.param_type = param_type
         super().__init__(
             f"The param type {param_type} is invalid, please chose from "
-            f"{PAGE_PATH_PARAM_TYPE_CHOICES}"
+            f"{PAGE_PARAM_TYPE_CHOICES}"
         )
 
 

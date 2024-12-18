@@ -12,6 +12,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="page",
             name="query_params",
-            field=models.JSONField(blank=True, default=list),
+            field=models.JSONField(blank=True, default=list, db_default=[]),
         ),
     ]

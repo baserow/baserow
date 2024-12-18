@@ -1,13 +1,13 @@
 import re
 import typing
 
-from baserow.contrib.builder.pages.types import PAGE_PATH_PARAM_TYPE_CHOICES_LITERAL
+from baserow.contrib.builder.pages.types import PAGE_PARAM_TYPE_CHOICES_LITERAL
 
 # Every page param in a page path needs to be prefixed by the below symbol
 PAGE_PATH_PARAM_PREFIX = ":"
 
-PAGE_PATH_PARAM_TYPE_CHOICES = list(
-    typing.get_args(PAGE_PATH_PARAM_TYPE_CHOICES_LITERAL)
+PAGE_PARAM_TYPE_CHOICES = list(
+    typing.get_args(PAGE_PARAM_TYPE_CHOICES_LITERAL)
 )
 
 # This regex needs to match the regex in `getPathParams` in the frontend

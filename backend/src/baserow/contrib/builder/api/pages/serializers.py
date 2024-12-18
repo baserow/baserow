@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from baserow.contrib.builder.pages.constants import PAGE_PATH_PARAM_TYPE_CHOICES
+from baserow.contrib.builder.pages.constants import PAGE_PARAM_TYPE_CHOICES
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.validators import (
     path_param_name_validation,
@@ -16,7 +16,7 @@ class PathParamSerializer(serializers.Serializer):
         max_length=255,
     )
     type = serializers.ChoiceField(
-        choices=PAGE_PATH_PARAM_TYPE_CHOICES, help_text="The type of the parameter."
+        choices=PAGE_PARAM_TYPE_CHOICES, help_text="The type of the parameter."
     )
 
 
@@ -29,7 +29,7 @@ class QueryParamSerializer(serializers.Serializer):
     )
     # TODO: Add own type for query params
     type = serializers.ChoiceField(
-        choices=PAGE_PATH_PARAM_TYPE_CHOICES, help_text="The type of the parameter."
+        choices=PAGE_PARAM_TYPE_CHOICES, help_text="The type of the parameter."
     )
 
 
