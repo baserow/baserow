@@ -358,21 +358,21 @@ def test_progress_higher_total_than_parent():
 
     sub_progress.increment()
 
-    assert mock_event.call_count == 2
+    assert mock_event.call_count == 1
     args = mock_event.call_args
     assert args[0][0] == 1
     assert args[0][1] is None
 
     sub_progress.increment(8)
 
-    assert mock_event.call_count == 3
+    assert mock_event.call_count == 1
     args = mock_event.call_args
     assert args[0][0] == 1
     assert args[0][1] is None
 
     sub_progress.increment()
 
-    assert mock_event.call_count == 4
+    assert mock_event.call_count == 2
     args = mock_event.call_args
     assert args[0][0] == 2
     assert args[0][1] is None

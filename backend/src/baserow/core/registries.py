@@ -425,6 +425,8 @@ class ApplicationType(
         :rtype: dict
         """
 
+        progress = ChildProgressBuilder.build(progress_builder, child_total=1)
+
         structure = CoreExportSerializedStructure.application(
             id=application.id,
             name=application.name,
@@ -435,6 +437,7 @@ class ApplicationType(
         structure = self.export_serialized_structure_with_registry(
             application.get_root(), application, structure, import_export_config
         )
+        progress.increment()
         return structure
 
     def import_serialized(

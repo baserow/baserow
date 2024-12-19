@@ -508,13 +508,12 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         self.create_manifest_signature(manifest_data, zip_file)
 
+        progress.set_progress(95, state=EXPORT_WORKSPACE_CREATE_ARCHIVE)
         with _create_storage_dir_if_missing_and_open(
             export_file_path, storage
         ) as files_buffer:
             for chunk in zip_file:
                 files_buffer.write(chunk)
-
-        progress.set_progress(95, state=EXPORT_WORKSPACE_CREATE_ARCHIVE)
 
         with storage.open(export_file_path, "rb") as zip_file_handle:
             with ZipFile(zip_file_handle, "r") as zip_file:

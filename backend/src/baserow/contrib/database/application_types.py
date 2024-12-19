@@ -231,7 +231,7 @@ class DatabaseApplicationType(ApplicationType):
         )
 
         serialized = super().export_serialized(
-            database, import_export_config, files_zip, storage, progress_builder
+            database, import_export_config, files_zip, storage
         )
         serialized.update(
             **DatabaseExportSerializedStructure.database(tables=serialized_tables)

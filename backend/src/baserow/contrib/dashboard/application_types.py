@@ -59,8 +59,6 @@ class DashboardApplicationType(ApplicationType):
         be imported via the `import_serialized`.
         """
 
-        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
-
         self.cache = {}
 
         serialized_integrations = [
@@ -96,7 +94,7 @@ class DashboardApplicationType(ApplicationType):
             import_export_config,
             files_zip=files_zip,
             storage=storage,
-            progress_builder=progress.create_child_builder(represents_progress=100),
+            progress_builder=None,
         )
 
         return DashboardDict(

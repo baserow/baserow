@@ -71,6 +71,11 @@ import job from '@baserow/modules/core/mixins/job'
 import ExportWorkspaceForm from '@baserow/modules/core/components/export/ExportWorkspaceForm'
 import { ExportApplicationsJobType } from '@baserow/modules/core/jobTypes'
 import ExportWorkspaceListItem from '@baserow/modules/core/components/export/ExportWorkspaceListItem.vue'
+import {
+  EXPORT_SERIALIZED_EXPORTING,
+  EXPORT_SERIALIZED_EXPORTING_TABLE,
+  EXPORT_WORKSPACE_CREATE_ARCHIVE,
+} from '@baserow/modules/core/constants'
 
 const WORKSPACE_EXPORTS_LIMIT = 5
 
@@ -182,15 +187,15 @@ export default {
     },
 
     getCustomHumanReadableJobState(jobState) {
-      if (jobState === 'exporting') {
+      if (jobState === EXPORT_SERIALIZED_EXPORTING) {
         return this.$t('exportWorkspaceModal.exportingState')
       }
-      if (jobState.startsWith('exporting-table')) {
+      if (jobState.startsWith(EXPORT_SERIALIZED_EXPORTING_TABLE)) {
         return this.$t('exportWorkspaceModal.exportingTableState', {
-          table: jobState.replace(/^exporting-table-/, ''),
+          table: jobState.replace(EXPORT_SERIALIZED_EXPORTING_TABLE, ''),
         })
       }
-      if (jobState === 'create-archive"') {
+      if (jobState === EXPORT_WORKSPACE_CREATE_ARCHIVE) {
         return this.$t('exportWorkspaceModal.exportingCreateArchiveState')
       }
       return ''

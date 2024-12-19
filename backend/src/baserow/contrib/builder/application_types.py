@@ -206,6 +206,7 @@ class BuilderApplicationType(ApplicationType):
             import_export_config,
             files_zip=files_zip,
             storage=storage,
+            progress_builder=progress_builder,
         )
 
         serialized_login_page = None
@@ -216,9 +217,6 @@ class BuilderApplicationType(ApplicationType):
                 storage=storage,
                 cache=self.cache,
             )
-
-        progress = ChildProgressBuilder.build(progress_builder, child_total=1)
-        progress.increment()
 
         return BuilderDict(
             pages=serialized_pages,
