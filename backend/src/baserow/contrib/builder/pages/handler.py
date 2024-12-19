@@ -16,9 +16,10 @@ from baserow.contrib.builder.pages.constants import (
     ILLEGAL_PATH_SAMPLE_CHARACTER,
     PAGE_PATH_PARAM_PREFIX,
     PATH_PARAM_REGEX,
-    QUERY_PARAM_EXACT_MATCH_REGEX
+    QUERY_PARAM_EXACT_MATCH_REGEX,
 )
 from baserow.contrib.builder.pages.exceptions import (
+    DuplicatePageParams,
     DuplicatePathParamsInPath,
     InvalidQueryParamName,
     PageDoesNotExist,
@@ -27,10 +28,14 @@ from baserow.contrib.builder.pages.exceptions import (
     PagePathNotUnique,
     PathParamNotDefined,
     PathParamNotInPath,
-    SharedPageIsReadOnly, DuplicatePageParams,
+    SharedPageIsReadOnly,
 )
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParam, PageQueryParams
+from baserow.contrib.builder.pages.types import (
+    PagePathParams,
+    PageQueryParam,
+    PageQueryParams,
+)
 from baserow.contrib.builder.types import PageDict
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
@@ -43,7 +48,7 @@ from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_nam
 class PageHandler:
     def get_page(self, page_id: int, base_queryset: Optional[QuerySet] = None) -> Page:
         """
-        Gets a page by ID
+        Gets a page by ID.
 
         :param page_id: The ID of the page
         :param base_queryset: Can be provided to already filter or apply performance
@@ -103,7 +108,7 @@ class PageHandler:
         shared: bool = False,
     ) -> Page:
         """
-        Creates a new page
+        Creates a new page.
 
         :param builder: The builder the page belongs to
         :param name: The name of the page
@@ -143,7 +148,7 @@ class PageHandler:
 
     def delete_page(self, page: Page):
         """
-        Deletes the page provided
+        Deletes the page provided.
 
         :param page: The page that must be deleted
         """
@@ -155,7 +160,7 @@ class PageHandler:
 
     def update_page(self, page: Page, **kwargs) -> Page:
         """
-        Updates fields of a page
+        Updates fields of a page.
 
         :param page: The page that should be updated
         :param kwargs: The fields that should be updated with their corresponding value
@@ -180,7 +185,11 @@ class PageHandler:
             )
         if "query_params" in kwargs:
             query_params = kwargs.get("query_params")
-            self.validate_query_params(kwargs.get("path", page.path), kwargs.get("path_params", page.path_params), query_params)
+            self.validate_query_params(
+                kwargs.get("path", page.path),
+                kwargs.get("path_params", page.path_params),
+                query_params,
+            )
 
         for key, value in kwargs.items():
             setattr(page, key, value)
@@ -224,7 +233,7 @@ class PageHandler:
         self, page: Page, progress_builder: Optional[ChildProgressBuilder] = None
     ):
         """
-        Duplicates an existing page instance
+        Duplicates an existing page instance.
 
         :param page: The page that is being duplicated
         :param progress_builder: A progress object that can be used to report progress
@@ -361,15 +370,15 @@ class PageHandler:
         :param path: The path of the page.
         :param path_params: The path parameters defined for the page.
         :param query_params: The query parameters to validate.
-        :raises InvalidQueryParamName: If a query parameter name doesn't match the required format.
-        :raises DuplicatePageParams: If a query parameter is defined multiple times or clashes
-            with path parameters.
+        :raises InvalidQueryParamName: If a query parameter name doesn't match the
+            required format.
+        :raises DuplicatePageParams: If a query parameter is defined multiple times
+            or clashes with path parameters.
         :return: True if validation passes.
         """
+
         # Extract path param names for checking duplicates
-
         path_param_names = [p["name"] for p in path_params]
-
 
         # Get list of query param names
         query_param_names = [p["name"] for p in query_params]
@@ -386,7 +395,7 @@ class PageHandler:
                 raise DuplicatePageParams(
                     param=param_name,
                     query_param_names=query_param_names,
-                    path_param_names=path_param_names
+                    path_param_names=path_param_names,
                 )
 
             seen_params.add(param_name)

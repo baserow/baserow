@@ -16,13 +16,15 @@ from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.contrib.builder.api.pages.errors import (
     ERROR_DUPLICATE_PATH_PARAMS_IN_PATH,
+    ERROR_DUPLICATE_QUERY_PARAMS,
+    ERROR_INVALID_QUERY_PARAM_NAME,
     ERROR_PAGE_DOES_NOT_EXIST,
     ERROR_PAGE_NAME_NOT_UNIQUE,
     ERROR_PAGE_NOT_IN_BUILDER,
     ERROR_PAGE_PATH_NOT_UNIQUE,
     ERROR_PATH_PARAM_NOT_DEFINED,
     ERROR_PATH_PARAM_NOT_IN_PATH,
-    ERROR_SHARED_PAGE_READ_ONLY, ERROR_INVALID_QUERY_PARAM_NAME, ERROR_DUPLICATE_QUERY_PARAMS,
+    ERROR_SHARED_PAGE_READ_ONLY,
 )
 from baserow.contrib.builder.api.pages.serializers import (
     CreatePageSerializer,
@@ -32,14 +34,16 @@ from baserow.contrib.builder.api.pages.serializers import (
 )
 from baserow.contrib.builder.handler import BuilderHandler
 from baserow.contrib.builder.pages.exceptions import (
+    DuplicatePageParams,
     DuplicatePathParamsInPath,
+    InvalidQueryParamName,
     PageDoesNotExist,
     PageNameNotUnique,
     PageNotInBuilder,
     PagePathNotUnique,
     PathParamNotDefined,
     PathParamNotInPath,
-    SharedPageIsReadOnly, DuplicatePageParams,
+    SharedPageIsReadOnly,
 )
 from baserow.contrib.builder.pages.job_types import DuplicatePageJobType
 from baserow.contrib.builder.pages.service import PageService
@@ -47,7 +51,6 @@ from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from contrib.builder.pages.exceptions import InvalidQueryParamName
 
 
 class PagesView(APIView):

@@ -4,7 +4,9 @@ from baserow.contrib.builder.elements.models import ColumnElement, TextElement
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.constants import ILLEGAL_PATH_SAMPLE_CHARACTER
 from baserow.contrib.builder.pages.exceptions import (
+    DuplicatePageParams,
     DuplicatePathParamsInPath,
+    InvalidQueryParamName,
     PageDoesNotExist,
     PageNameNotUnique,
     PageNotInBuilder,
@@ -12,8 +14,6 @@ from baserow.contrib.builder.pages.exceptions import (
     PathParamNotDefined,
     PathParamNotInPath,
     SharedPageIsReadOnly,
-    InvalidQueryParamName,
-    DuplicatePageParams,
 )
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
@@ -406,12 +406,13 @@ def test_import_element_has_to_instance_already_created(data_fixture):
 
 def test_validate_query_params_valid():
     """Test validation with valid query parameters."""
+
     handler = PageHandler()
     path = "/products/:id"
     path_params = [{"name": "id", "type": "text"}]
     query_params = [
         {"name": "filter", "type": "text"},
-        {"name": "sort", "type": "text"}
+        {"name": "sort", "type": "text"},
     ]
 
     # Should return True for valid params
@@ -420,6 +421,7 @@ def test_validate_query_params_valid():
 
 def test_validate_query_params_invalid_name():
     """Test validation with invalid query parameter names."""
+
     handler = PageHandler()
     path = "/products"
     path_params = []
@@ -442,6 +444,7 @@ def test_validate_query_params_invalid_name():
 
 def test_validate_query_params_duplicate_names():
     """Test validation with duplicate query parameter names."""
+
     handler = PageHandler()
     path = "/products"
     path_params = []
@@ -449,7 +452,7 @@ def test_validate_query_params_duplicate_names():
     # Test duplicate query param names
     duplicate_params = [
         {"name": "filter", "type": "text"},
-        {"name": "filter", "type": "text"}
+        {"name": "filter", "type": "text"},
     ]
     with pytest.raises(DuplicatePageParams):
         handler.validate_query_params(path, path_params, duplicate_params)
@@ -457,6 +460,7 @@ def test_validate_query_params_duplicate_names():
 
 def test_validate_query_params_clash_with_path_params():
     """Test validation when query params clash with path params."""
+
     handler = PageHandler()
     path = "/products/:id"
     path_params = [{"name": "id", "type": "text"}]
@@ -469,6 +473,7 @@ def test_validate_query_params_clash_with_path_params():
 
 def test_validate_query_params_empty_lists():
     """Test validation with empty parameter lists."""
+
     handler = PageHandler()
     path = "/products"
 
@@ -478,6 +483,7 @@ def test_validate_query_params_empty_lists():
 
 def test_validate_query_params_special_cases():
     """Test validation with special but valid cases."""
+
     handler = PageHandler()
     path = "/products"
     path_params = []
@@ -486,13 +492,14 @@ def test_validate_query_params_special_cases():
     valid_params = [
         {"name": "filter_1", "type": "text"},
         {"name": "sort_by_2", "type": "text"},
-        {"name": "_prefix", "type": "text"}
+        {"name": "_prefix", "type": "text"},
     ]
     assert handler.validate_query_params(path, path_params, valid_params) is True
 
 
 def test_validate_query_params_edge_cases():
     """Test validation with edge cases."""
+
     handler = PageHandler()
     path = "/products/:id"
     path_params = [{"name": "id", "type": "text"}]
