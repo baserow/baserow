@@ -557,8 +557,8 @@ def test_dispatch_local_baserow_create_row_workflow_action(api_client, data_fixt
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
-    assert response_json[color_field.db_column] == "Brown"
-    assert response_json[animal_field.db_column] == "Horse"
+    assert color_field.db_column not in response_json
+    assert animal_field.db_column not in response_json
 
 
 @pytest.mark.django_db
@@ -607,8 +607,9 @@ def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixt
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["id"] == first_row.id
-    assert response_json[color_field.db_column] == "Blue"
-    assert response_json[animal_field.db_column] == "Horse"
+
+    assert color_field.db_column not in response_json
+    assert animal_field.db_column not in response_json
 
 
 @pytest.mark.django_db
@@ -657,8 +658,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
     )
 
     assert response.status_code == HTTP_200_OK
-    response_json = response.json()
-    assert response_json[index.db_column] == "Index 123"
+    assert index.db_column not in response.json()
 
 
 @pytest.mark.django_db
@@ -768,8 +768,8 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["id"] == first_row.id
-    assert response_json[color_field.db_column] == "Orange"
-    assert response_json[animal_field.db_column] == f"{rows[1].id}"
+    assert color_field.db_column not in response_json
+    assert animal_field.db_column not in response_json
 
 
 @pytest.mark.django_db

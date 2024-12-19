@@ -497,7 +497,7 @@ def test_recalculate_full_orders(data_fixture):
 
 @pytest.mark.django_db
 @patch("baserow.contrib.builder.handler.get_builder_used_property_names")
-def test_dispatch_data_source_returns_formula_field_names(
+def test_dispatch_data_source_doesnt_return_formula_field_names(
     mock_get_builder_used_property_names, data_fixture, api_request_factory
 ):
     """
@@ -588,14 +588,10 @@ def test_dispatch_data_source_returns_formula_field_names(
             {
                 "id": 1,
                 "order": "1.00000000000000000000",
-                f"field_{fields[0].id}": "Paneer Tikka",
-                f"field_{fields[1].id}": "5",
             },
             {
                 "id": 2,
                 "order": "2.00000000000000000000",
-                f"field_{fields[0].id}": "Gobi Manchurian",
-                f"field_{fields[1].id}": "8",
             },
         ],
     }

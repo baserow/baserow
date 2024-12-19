@@ -452,6 +452,11 @@ class PreviousActionProviderType(DataProviderType):
         previous_id, *rest = path
 
         try:
+            previous_id = int(previous_id)
+        except ValueError:
+            return {}
+
+        try:
             previous_action = BuilderWorkflowActionHandler().get_workflow_action(
                 previous_id
             )
