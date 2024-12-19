@@ -7,9 +7,6 @@
       :id="name"
       v-model="inputValue"
       class="preview-navigation-bar-input"
-      :class="{
-        'preview-navigation-bar-input--invalid': invalidValueForType,
-      }"
     />
   </div>
 </template>
@@ -26,15 +23,10 @@ export default {
       type: String,
       required: true,
     },
-    validationFn: {
-      type: Function,
-      required: true,
-    },
   },
   data() {
     return {
       value: this.defaultValue,
-      invalidValueForType: false,
     }
   },
   computed: {
@@ -43,19 +35,14 @@ export default {
         return this.value
       },
       set(inputValue) {
-        this.invalidValueForType = false
         this.value = inputValue
-        try {
-          this.$emit('change', this.validationFn(this.value))
-        } catch (error) {
-          this.invalidValueForType = true
-        }
+        this.$emit('change', this.value)
       },
     },
   },
   watch: {
     defaultValue(newValue) {
-      this.inputValue = newValue
+      this.value = newValue
     },
   },
 }
