@@ -236,7 +236,20 @@
         "shareOnTwitter": "Tweet sobre Baserow",
         "shareOnReddit": "Compartilhar no Reddit",
         "shareOnFacebook": "Compartilhar no Facebook",
-        "shareOnLinkedIn": "Compartilhar no LinkedIn"
+        "shareOnLinkedIn": "Compartilhar no LinkedIn",
+        "totals": "Totais",
+        "totalUsers": "Total de usuários",
+        "totalWorkspaces": "Total de grupos",
+        "totalApplications": "Total de aplicações",
+        "newUsers": "Novos usuários",
+        "newUsers24h": "Novos usuários nas últimas 24 horas",
+        "newUsers7days": "Novos usuários nos últimos 7 dias",
+        "newUsers30days": "Novos usuários nos últimos 30 dias",
+        "activeUsers": "Usuários ativos",
+        "activeUsers24h": "Usuários ativos nos últimas 24 horas",
+        "activeUsers7days": "Usuários ativos nos últimos 7 dias",
+        "activeUsers30days": "Usuários ativos nos últimos 30 dias",
+        "viewAll": "Visualizar tudo"
     },
     "login": {
         "title": "Login",
@@ -345,7 +358,6 @@
             }
         }
     },
-<<<<<<< HEAD
     "notificationPanel": {
         "noNotification": "Notificaremos sobre atualizações importar e quando você mencionado no Baserow.",
         "title": "Notificações",
@@ -452,21 +464,5 @@
     "editUserModal": {
         "delete": "Deletar usuário",
         "edit": "Editar { username }"
-    },
-    "dashboard": {
-        "title": "Painel de controle",
-        "totals": "Totais",
-        "totalUsers": "Total de usuários",
-        "totalWorkspaces": "Total de grupos",
-        "totalApplications": "Total de aplicações",
-        "newUsers": "Novos usuários",
-        "newUsers24h": "Novos usuários nas últimas 24 horas",
-        "newUsers7days": "Novos usuários nos últimos 7 dias",
-        "newUsers30days": "Novos usuários nos últimos 30 dias",
-        "activeUsers": "Usuários ativos",
-        "activeUsers24h": "Usuários ativos nos últimas 24 horas",
-        "activeUsers7days": "Usuários ativos nos últimos 7 dias",
-        "activeUsers30days": "Usuários ativos nos últimos 30 dias",
-        "viewAll": "Visualizar tudo"
     }
 }
