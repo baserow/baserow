@@ -706,7 +706,7 @@ def test_dispatch_data_sources_excludes_unused_get_row_data_sources(
     }
 
     with patch(
-        "baserow.contrib.builder.data_sources.service.BuilderDispatchContext.public_allowed_properties",
+        "baserow.contrib.builder.data_sources.builder_dispatch_context.BuilderDispatchContext.public_allowed_properties",
         new_callable=PropertyMock,
     ) as mock_public_allowed_properties:
         mock_public_allowed_properties.return_value = {
@@ -723,11 +723,12 @@ def test_dispatch_data_sources_excludes_unused_get_row_data_sources(
     # in the page.
     assert len(result.keys()) == len(data_sources)
 
-    for index, data_source in enumerate(data_sources):
+    # Ensure field_names are not in the returned result for security reasons.
+    for data_source in data_sources:
         row = result[data_source.id]
         for field in fields:
             field_name = f"field_{field.id}"
-            assert row[field_name] == getattr(rows[index], field_name)
+            assert field_name not in row
 
 
 @pytest.mark.django_db
@@ -812,13 +813,6 @@ def test_dispatch_data_sources_excludes_unused_list_rows_data_sources(
     # Ensure that the results size equals the number of data sources used
     # in the page.
     assert len(result.keys()) == len(data_sources)
-
-    for index, data_source in enumerate(data_sources):
-        assert result[data_source.id]["has_next_page"] is False
-        row = result[data_source.id]["results"][0]
-        for field in fields:
-            field_name = f"field_{field.id}"
-            assert row[field_name] == getattr(rows[index], field_name)
 
 
 @pytest.mark.django_db
