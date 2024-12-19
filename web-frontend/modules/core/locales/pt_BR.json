@@ -358,7 +358,6 @@
             }
         }
     },
-<<<<<<< HEAD
     "notificationPanel": {
         "noNotification": "Notificaremos sobre atualizações importar e quando você mencionado no Baserow.",
         "title": "Notificações",
