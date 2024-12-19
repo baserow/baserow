@@ -551,9 +551,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         """
 
         if isinstance(dispatch_context.public_allowed_properties, dict):
-            return dispatch_context.public_allowed_properties.get(
-                "all", {}
-            ).get(service.id, [])
+            return dispatch_context.public_allowed_properties.get("all", {}).get(
+                service.id, []
+            )
 
         return None
 
@@ -1896,7 +1896,7 @@ class LocalBaserowUpsertRowServiceType(
             if new_formula is not None:
                 field_mapping.value = new_formula
                 yield field_mapping
-    
+
     def extract_properties(self, path: List[str], **kwargs) -> List[str]:
         """
         Given a list of formula path parts, call the ServiceType's

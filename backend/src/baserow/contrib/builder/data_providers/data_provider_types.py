@@ -457,9 +457,11 @@ class PreviousActionProviderType(DataProviderType):
             )
         except WorkflowActionDoesNotExist as exc:
             raise InvalidBaserowFormula() from exc
-    
+
         service_type = previous_action.service.specific.get_type()
-        return {previous_action.service.id: service_type.extract_properties(rest, **kwargs)}
+        return {
+            previous_action.service.id: service_type.extract_properties(rest, **kwargs)
+        }
 
 
 class UserDataProviderType(DataProviderType):
