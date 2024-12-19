@@ -446,10 +446,10 @@ class PreviousActionProviderType(DataProviderType):
         returned: `{123: ['field_1234']}`.
         """
 
-        if len(path) != 2:
+        if not path:
             return {}
 
-        previous_id, field_name = path
+        previous_id, *rest = path
 
         try:
             previous_action = BuilderWorkflowActionHandler().get_workflow_action(
@@ -457,8 +457,9 @@ class PreviousActionProviderType(DataProviderType):
             )
         except WorkflowActionDoesNotExist as exc:
             raise InvalidBaserowFormula() from exc
-
-        return {previous_action.service.id: [field_name]}
+    
+        service_type = previous_action.service.specific.get_type()
+        return {previous_action.service.id: service_type.extract_properties(rest, **kwargs)}
 
 
 class UserDataProviderType(DataProviderType):
