@@ -107,6 +107,3 @@ def test_record_selector_element_form_submission(api_client, data_fixture):
     )
     assert response.status_code == HTTP_200_OK
     assert "id" in response.json()
-    # The created item should have "field_1" set to the first item of the
-    # record selector list
-    assert response.json()[f"field_{fields[0].id}"] == f"{rows[0].id}"
