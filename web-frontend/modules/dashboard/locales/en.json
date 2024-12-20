@@ -40,5 +40,8 @@
   },
   "widgetContext": {
     "delete": "Delete"
+  },
+  "trashType": {
+    "widget": "widget"
   }
 }

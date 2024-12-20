@@ -162,6 +162,17 @@ class WidgetHandler:
         widget.delete()
         widget_type.after_delete(widget)
 
+    def restore_widget(self, trashed_widget: Widget):
+        """
+        Restores the provided widget.
+
+        :param trashed_widget: The trashed widget that should
+            be restored.
+        """
+
+        widget_type = widget_type_registry.get_by_model(trashed_widget)
+        widget_type.restore(trashed_widget)
+
     def export_widget(
         self,
         widget: Widget,

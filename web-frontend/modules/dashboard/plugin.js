@@ -7,6 +7,7 @@ import it from '@baserow/modules/dashboard/locales/it.json'
 import pl from '@baserow/modules/dashboard/locales/pl.json'
 import ko from '@baserow/modules/dashboard/locales/ko.json'
 
+import { registerRealtimeEvents } from '@baserow/modules/dashboard/realtime'
 import { DashboardApplicationType } from '@baserow/modules/dashboard/applicationTypes'
 import { SummaryWidgetType } from '@baserow/modules/dashboard/widgetTypes'
 import dashboardApplicationStore from '@baserow/modules/dashboard/store/dashboardApplication'
@@ -27,6 +28,8 @@ export default (context) => {
     i18n.mergeLocaleMessage('pl', pl)
     i18n.mergeLocaleMessage('ko', ko)
   }
+
+  registerRealtimeEvents(app.$realtime)
 
   store.registerModule('dashboardApplication', dashboardApplicationStore)
 
