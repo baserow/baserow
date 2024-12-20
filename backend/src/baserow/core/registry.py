@@ -532,23 +532,20 @@ class EasyImportExportMixin(Generic[T], ABC):
         :return: The exported instance as serialized dict.
         """
 
-        serialized = dict(
-            **{
-                key: self.serialize_property(
-                    instance,
-                    key,
-                    files_zip=files_zip,
-                    storage=storage,
-                    cache=cache,
-                )
-                for key in self.get_property_names()
-            }
+        exclude_sensitive_data = getattr(
+            import_export_config, "exclude_sensitive_data", False
         )
 
-        if getattr(import_export_config, "exclude_sensitive_data", False):
-            for field_name in self.sensitive_fields:
-                if field_name in serialized:
-                    serialized[field_name] = None
+        serialized = {
+            key: (
+                None
+                if exclude_sensitive_data and key in self.sensitive_fields
+                else self.serialize_property(
+                    instance, key, files_zip=files_zip, storage=storage, cache=cache
+                )
+            )
+            for key in self.get_property_names()
+        }
 
         return serialized
 
