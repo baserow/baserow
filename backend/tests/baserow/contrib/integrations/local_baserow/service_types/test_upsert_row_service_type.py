@@ -736,3 +736,33 @@ def test_dispatch_transform_passes_field_ids(
         is_response=True,
         field_ids=expected,
     )
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ([], []),
+        ([None], []),
+        ([""], []),
+        (["foo"], []),
+        (["bar"], []),
+        (["foo", "bar"], []),
+        # "id" is valid
+        (["id"], ["id"]),
+        # "field_<id>" is a valid pattern
+        (["field_1"], ["field_1"]),
+    ]
+)
+def test_extract_properties_returns_expected_list(path, expected):
+    """
+    Test the LocalBaserowUpsertRowServiceType::extract_properties() method.
+
+    Ensure that given the path parameter, the expected list is returned.
+    """
+
+    service_type = LocalBaserowUpsertRowServiceType()
+
+    result = service_type.extract_properties(path)
+
+    assert result == expected
+
