@@ -751,7 +751,7 @@ def test_dispatch_transform_passes_field_ids(
         (["id"], ["id"]),
         # "field_<id>" is a valid pattern
         (["field_1"], ["field_1"]),
-    ]
+    ],
 )
 def test_extract_properties_returns_expected_list(path, expected):
     """
@@ -765,4 +765,3 @@ def test_extract_properties_returns_expected_list(path, expected):
     result = service_type.extract_properties(path)
 
     assert result == expected
-

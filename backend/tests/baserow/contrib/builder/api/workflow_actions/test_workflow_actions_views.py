@@ -28,6 +28,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.test_utils.helpers import AnyInt, AnyStr
 
 
 @pytest.mark.django_db
@@ -902,3 +903,159 @@ def test_update_delete_row_workflow_action(api_client, data_fixture):
     assert response_json["service"]["row_id"] == service.row_id
     assert response_json["service"]["table_id"] == service.table_id
     assert response_json["service"]["integration_id"] == service.integration_id
+
+
+@pytest.fixture
+def workflow_action_hidden_fields_fixture(data_fixture):
+    """Fixture to help test hidden fields related to Workflow Actions."""
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Food", "text"),
+            ("Spiciness", "number"),
+            ("Color", "text"),
+        ],
+        rows=[
+            ["Paneer Tikka", 5, "Red"],
+            ["Gobi Manchurian", 8, "Yellow"],
+        ],
+    )
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(builder=builder)
+
+    # Create the button and workflow actions
+    button = data_fixture.create_builder_button_element(page=page)
+
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table,
+        integration=integration,
+    )
+    service.field_mappings.create(
+        field=fields[0],
+        value=f"'Palak Paneer'",
+    )
+    service.field_mappings.create(
+        field=fields[1],
+        value=f"'3'",
+    )
+    service.field_mappings.create(
+        field=fields[2],
+        value=f"'Green'",
+    )
+
+    return {
+        "token": token,
+        "page": page,
+        "service": service,
+        "button": button,
+        "fields": fields,
+    }
+
+
+@pytest.mark.django_db
+def test_workflow_action_dispatch_does_not_return_fields(
+    data_fixture, api_client, workflow_action_hidden_fields_fixture
+):
+    """
+    An Integration test to ensure that a Workflow Action does not return any
+    field information by default.
+    """
+
+    page = workflow_action_hidden_fields_fixture["page"]
+    service = workflow_action_hidden_fields_fixture["service"]
+    button = workflow_action_hidden_fields_fixture["button"]
+    token = workflow_action_hidden_fields_fixture["token"]
+
+    action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page,
+        service=service,
+        element=button,
+        event=EventTypes.CLICK,
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch", kwargs={"workflow_action_id": action.id}
+    )
+    response = api_client.post(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200
+
+    # Ensure that field information is not returned.
+    assert response.json() == {
+        "id": AnyInt(),
+        "order": AnyStr(),
+    }
+
+
+@pytest.mark.django_db
+def test_notification_action_can_access_the_field_of_previous_action(
+    data_fixture, api_client, workflow_action_hidden_fields_fixture
+):
+    """
+    An Integration test to ensure that a chained Workflow Action has access to
+    the Previous Action field. In this test, there are two Workflow Actions:
+    'Create Row' followed by a 'Show Notification'.
+
+    When dispatching a Workflow Action, the response will not contain any field
+    information by default.
+
+    However, if a field is explicitly referenced, e.g. in a Show Notification
+    Workflow Action where the description uses the field, that field will
+    be returned in the dispatch response. The field is needed for the frontend
+    to correctly display the value.
+    """
+
+    page = workflow_action_hidden_fields_fixture["page"]
+    service = workflow_action_hidden_fields_fixture["service"]
+    button = workflow_action_hidden_fields_fixture["button"]
+    fields = workflow_action_hidden_fields_fixture["fields"]
+    token = workflow_action_hidden_fields_fixture["token"]
+
+    action_1 = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page,
+        service=service,
+        element=button,
+        event=EventTypes.CLICK,
+    )
+
+    # This second workflow action references the field that was just created
+    # by the first workflow action.
+    _ = data_fixture.create_notification_workflow_action(
+        page=page,
+        element=button,
+        event=EventTypes.CLICK,
+        description=f"get('previous_action.{action_1.id}.{fields[0].db_column}')",
+        title=f"'hello world'",
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": action_1.id},
+    )
+    response = api_client.post(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200
+
+    # Since the first field was used in action_2, the dispatch response action
+    # returns the field so that the frontend can display the value.
+    #
+    # Conversely, the other DB columns aren't returned, since they aren't used.
+    assert response.json() == {
+        "id": AnyInt(),
+        "order": AnyStr(),
+        fields[0].db_column: "Palak Paneer",
+    }
