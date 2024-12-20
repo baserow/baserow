@@ -17,7 +17,10 @@ export default {
   },
   watch: {
     'filter.value'(value, oldValue) {
-      if (!this.focused) {
+      const isFocused = Object.prototype.hasOwnProperty.call(this, 'focused')
+        ? this.focused
+        : false
+      if (!isFocused) {
         this.copy = this.prepareCopy(this.filter.value)
         if (oldValue !== value) {
           this.afterValueChanged(value, oldValue)

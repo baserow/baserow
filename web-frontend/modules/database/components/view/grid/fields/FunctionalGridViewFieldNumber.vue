@@ -9,7 +9,11 @@
     }"
   >
     <div class="grid-field-number">
-      {{ $options.methods.formatNumberValue(props.field, props.value) }}
+      {{
+        props.value === 'NaN'
+          ? parent.$t('fieldErrors.invalidNumber')
+          : $options.methods.formatNumberValue(props.field, props.value)
+      }}
     </div>
   </div>
 </template>
