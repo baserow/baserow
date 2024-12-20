@@ -128,7 +128,10 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
   }
 
   async execute({ workflowAction, applicationContext }) {
-    applicationContext.page.elements
+    const {
+      workflowActionContext: { dataSourcePage },
+    } = applicationContext
+    dataSourcePage.elements
       .filter((element) => {
         return element.data_source_id === workflowAction.data_source_id
       })
@@ -147,7 +150,7 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
     await this.app.store.dispatch(
       'dataSourceContent/fetchPageDataSourceContentById',
       {
-        page: applicationContext.page,
+        page: dataSourcePage,
         dataSourceId: workflowAction.data_source_id,
         dispatchContext,
         mode: applicationContext.mode,
