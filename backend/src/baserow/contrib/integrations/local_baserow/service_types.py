@@ -1915,7 +1915,7 @@ class LocalBaserowUpsertRowServiceType(
 
         # If the field_dbname doesn't start with "field_" it means that the
         # formula is invalid.
-        if not str(field_dbname).startswith("field_"):
+        if not str(field_dbname).startswith("field_") and field_dbname != "id":
             return []
 
         return [field_dbname]
