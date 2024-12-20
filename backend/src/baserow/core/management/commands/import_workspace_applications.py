@@ -79,7 +79,4 @@ class Command(BaseCommand):
             for application in applications:
                 application_imported.send(self, application=application, user=None)
 
-            for application in applications:
-                application_imported.send(self, application=application, user=None)
-
         self.stdout.write(f"{len(applications)} application(s) has/have been imported.")
