@@ -1114,6 +1114,14 @@ class Table(
 
             if use_cache:
                 set_cached_model_field_attrs(self, field_attrs)
+        elif (
+            "invalidated_field_ids" in field_attrs
+            and len(field_attrs["invalidated_field_ids"]) > 0
+        ):
+            field_attrs = self._fetch_and_add_invalidated_field_attrs(field_attrs)
+
+            if use_cache:
+                set_cached_model_field_attrs(self, field_attrs)
         else:
             # We found cached model fields, they will have a cached creation_counter
             # attribute each used to compare model fields to do django
@@ -1240,6 +1248,43 @@ class Table(
                 field_object["field"], model, field_object["name"]
             )
 
+    def _fetch_and_add_invalidated_field_attrs(self, existing_field_attrs):
+        invalidated_field_ids = existing_field_attrs["invalidated_field_ids"]
+
+        missing_field_attrs = self._fetch_and_generate_field_attrs(
+            add_dependencies=True,
+            attribute_names=False,
+            field_ids=invalidated_field_ids,
+            field_names=None,
+            fields=[],
+            filtered=False,
+        )
+
+        # If the primary field is not `-1`, then it could have changed, so it must be
+        # updated here.
+        if missing_field_attrs["_primary_field_id"] != -1:
+            existing_field_attrs["_primary_field_id"] = missing_field_attrs[
+                "_primary_field_id"
+            ]
+
+        # Remove the invalidated field ids from the object because they don't have to
+        # be fetched the next time.
+        existing_field_attrs["invalidated_field_ids"] = []
+
+        # Remove the invalidated fields from the existing field objects because they
+        # will be replaced with the newly fetched ones.
+        for field_id in invalidated_field_ids:
+            existing_field_attrs["_field_objects"].pop(field_id, None)
+            existing_field_attrs["_trashed_field_objects"].pop(field_id, None)
+
+        for field_id, values in missing_field_attrs["_field_objects"].items():
+            existing_field_attrs["_field_objects"][field_id] = values
+
+        for field_id, values in missing_field_attrs["_trashed_field_objects"].items():
+            existing_field_attrs["_trashed_field_objects"][field_id] = values
+
+        return existing_field_attrs
+
     @baserow_trace(tracer)
     def _fetch_and_generate_field_attrs(
         self,
@@ -1258,6 +1303,8 @@ class Table(
             # An object containing the trashed table fields, field types and the
             # chosen names with the table field id as key.
             "_trashed_field_objects": {},
+            # @TODO docs
+            "invalidated_field_ids": [],
         }
         # Construct a query to fetch all the fields of that table. We need to
         # include any trashed fields so the created model still has them present

@@ -75,3 +75,34 @@ def invalidate_table_in_model_cache(table_id: int):
     from baserow.contrib.database.table.models import Table
 
     Table.objects_and_trash.filter(id=table_id).update(version=new_version)
+
+
+def invalidate_field_in_model_cache(table, field_id):
+    if settings.BASEROW_DISABLE_MODEL_CACHE:
+        return None
+
+    new_version = str(uuid.uuid4())
+
+    field_attrs = get_cached_model_field_attrs(table)
+
+    if not field_attrs:
+        # If the `field_attrs` are None, then the cache entry doesn't exist. This
+        # means we don't have to do anything because the cache entry will be
+        # generated the next time.
+        return
+
+    field_attrs["version"] = new_version
+
+    if "invalidated_field_ids" not in field_attrs:
+        field_attrs["invalidated_field_ids"] = []
+
+    if field_id not in field_attrs["invalidated_field_ids"]:
+        field_attrs["invalidated_field_ids"].append(field_id)
+
+    table.version = new_version
+    set_cached_model_field_attrs(table, field_attrs)
+
+    # Make sure to invalidate ourselves and any directly connected tables.
+    from baserow.contrib.database.table.models import Table
+
+    Table.objects_and_trash.filter(id=table.id).update(version=new_version)
