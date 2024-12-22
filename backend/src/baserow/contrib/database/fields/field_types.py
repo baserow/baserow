@@ -5670,37 +5670,46 @@ class LookupFieldType(FormulaFieldType):
         through_field_name = values.get("through_field_name", None)
         target_field_name = values.get("target_field_name", None)
 
-        if through_field_id is None:
-            try:
-                through_field_id = table.field_set.get(name=through_field_name).id
-            except Field.DoesNotExist:
-                raise InvalidLookupThroughField()
-        try:
-            through_field = FieldHandler().get_field(through_field_id, LinkRowField)
-        except FieldDoesNotExist:
-            # Occurs when the through_field_id points at a non LinkRowField
-            raise InvalidLookupThroughField()
+        def get_field(table_id, field_id, field_name, model_class, prefix, exc):
+            field_object = model_class.objects.filter(table_id=table_id)
+            if field_id is not None:
+                field_object = field_object.filter(id=field_id)
+            elif field_name is not None:
+                field_object = field_object.filter(name=field_name)
+            else:
+                raise ValueError(
+                    f"Either a {prefix}field_id or {prefix}field_name must be provided."
+                )
 
-        if through_field.table != table:
-            raise InvalidLookupThroughField()
+            try:
+                field_object = field_object.get()
+            except model_class.DoesNotExist:
+                raise exc()
+
+            return field_object
+
+        through_field = get_field(
+            table_id=table.id,
+            field_id=through_field_id,
+            field_name=through_field_name,
+            model_class=LinkRowField,
+            prefix="through_",
+            exc=InvalidLookupThroughField,
+        )
 
         values["through_field_id"] = through_field.id
         values["through_field_name"] = through_field.name
 
-        if target_field_id is None:
-            try:
-                target_field_id = through_field.link_row_table.field_set.get(
-                    name=target_field_name
-                ).id
-            except Field.DoesNotExist:
-                raise InvalidLookupTargetField()
+        target_field = get_field(
+            table_id=through_field.link_row_table_id,
+            field_id=target_field_id,
+            field_name=target_field_name,
+            model_class=Field,
+            prefix="target_",
+            exc=InvalidLookupTargetField,
+        )
 
-        try:
-            target_field = FieldHandler().get_field(target_field_id)
-        except FieldDoesNotExist:
-            raise InvalidLookupTargetField()
-
-        if target_field.table != through_field.link_row_table:
+        if target_field.table_id != through_field.link_row_table_id:
             raise InvalidLookupTargetField()
 
         values["target_field_id"] = target_field.id
@@ -5773,9 +5782,16 @@ class LookupFieldType(FormulaFieldType):
             self._validate_through_and_target_field_values(field.table, values)
         except (InvalidLookupTargetField, InvalidLookupThroughField):
             pass
+
+        changed = False
         for key, value in values.items():
-            setattr(field, key, value)
-        field.save(recalculate=False)
+            if getattr(field, key) != value:
+                changed = True
+                setattr(field, key, value)
+        # Only update if the values have actually changed to reduce the number of
+        # queries and unnecessary model invalidations.
+        if changed:
+            field.save(recalculate=False)
 
     def import_serialized(
         self,
