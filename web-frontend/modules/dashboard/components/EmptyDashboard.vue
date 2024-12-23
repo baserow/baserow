@@ -4,10 +4,11 @@
       <div class="empty-dashboard__content-title">
         {{ $t('emptyDashboard.title') }}
       </div>
-      <div class="empty-dashboard__content-subtitle">
+      <div v-if="canCreateWidget" class="empty-dashboard__content-subtitle">
         {{ $t('emptyDashboard.subtitle') }}
       </div>
       <Button
+        v-if="canCreateWidget"
         type="primary"
         icon="iconoir-plus"
         @click="openCreateWidgetModal"
@@ -37,6 +38,13 @@ export default {
   methods: {
     openCreateWidgetModal() {
       this.$refs.createWidgetModal.show()
+    },
+    canCreateWidget() {
+      return this.$hasPermission(
+        'dashboard.create_widget',
+        this.dashboard,
+        this.dashboard.workspace.id
+      )
     },
   },
 }
