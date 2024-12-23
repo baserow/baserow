@@ -13,7 +13,6 @@ export default {
   name: 'Dashboard',
   components: { DashboardHeader, DashboardContent },
   beforeRouteLeave(to, from, next) {
-    this.$store.dispatch('dashboardApplication/reset')
     this.$store.dispatch('application/unselect')
     next()
   },
