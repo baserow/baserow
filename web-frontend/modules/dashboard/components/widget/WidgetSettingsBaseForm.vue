@@ -23,6 +23,9 @@
           <span v-if="$v.values.title.$dirty && !$v.values.title.required">
             {{ $t('error.requiredField') }}
           </span>
+          <span v-if="$v.values.title.$dirty && !$v.values.title.maxLength">
+            {{ $t('error.maxLength', { max: 255 }) }}
+          </span>
         </template>
       </FormGroup>
       <FormGroup
@@ -41,13 +44,22 @@
           :error="fieldHasErrors('description')"
           @blur="$v.values.description.$touch()"
         ></FormTextarea>
+        <template #error>
+          <span
+            v-if="
+              $v.values.description.$dirty && !$v.values.description.maxLength
+            "
+          >
+            {{ $t('error.maxLength', { max: 255 }) }}
+          </span>
+        </template>
       </FormGroup>
     </FormSection>
   </form>
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required, maxLength } from 'vuelidate/lib/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -72,8 +84,8 @@ export default {
   validations() {
     return {
       values: {
-        title: { required },
-        description: {},
+        title: { required, maxLength: maxLength(255) },
+        description: { maxLength: maxLength(255) },
       },
     }
   },
