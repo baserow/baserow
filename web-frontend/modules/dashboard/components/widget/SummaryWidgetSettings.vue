@@ -59,6 +59,8 @@ export default {
             values: changedDataSourceValues,
           })
         } catch (error) {
+          this.$refs.dataSourceForm.reset()
+          this.$refs.dataSourceForm.touch()
           notifyIf(error, 'dashboard')
         }
       }

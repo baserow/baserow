@@ -113,12 +113,13 @@ export const actions = {
     })
   },
   async updateDataSource({ commit, dispatch }, { dataSourceId, values }) {
+    const { data } = await DataSourceService(this.$client).update(
+      dataSourceId,
+      values
+    )
+    commit('UPDATE_DATA_SOURCE', { dataSourceId, values: data })
+
     try {
-      const { data } = await DataSourceService(this.$client).update(
-        dataSourceId,
-        values
-      )
-      commit('UPDATE_DATA_SOURCE', { dataSourceId, values: data })
       await dispatch('dispatchDataSource', dataSourceId)
     } catch (error) {
       commit('UPDATE_DATA', { dataSourceId, values: { _error: true } })
