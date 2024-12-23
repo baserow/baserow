@@ -35,7 +35,7 @@ export default {
   },
   computed: {
     widgetType() {
-      return this.$registry.get('dashboard_widget', this.widget.type)
+      return this.$registry.get('dashboardWidget', this.widget.type)
     },
     widgetSettingsComponent() {
       return this.widgetType.settingsComponent

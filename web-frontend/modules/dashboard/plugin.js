@@ -32,6 +32,6 @@ export default (context) => {
 
   if (app.$featureFlagIsEnabled(FF_DASHBOARDS)) {
     app.$registry.register('application', new DashboardApplicationType(context))
-    app.$registry.register('dashboard_widget', new SummaryWidgetType(context))
+    app.$registry.register('dashboardWidget', new SummaryWidgetType(context))
   }
 }

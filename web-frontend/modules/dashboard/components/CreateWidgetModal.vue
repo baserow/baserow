@@ -35,7 +35,7 @@ export default {
   },
   computed: {
     widgetTypes() {
-      return this.$registry.getAll('dashboard_widget')
+      return this.$registry.getAll('dashboardWidget')
     },
   },
   methods: {

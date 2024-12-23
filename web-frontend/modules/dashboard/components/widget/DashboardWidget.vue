@@ -45,7 +45,7 @@ export default {
       return this.selectedWidgetId !== this.widget.id && this.isEditMode
     },
     widgetType() {
-      return this.$registry.get('dashboard_widget', this.widget.type)
+      return this.$registry.get('dashboardWidget', this.widget.type)
     },
   },
   methods: {
@@ -53,7 +53,7 @@ export default {
       selectWidget: 'dashboardApplication/selectWidget',
     }),
     widgetComponent(type) {
-      const widgetType = this.$registry.get('dashboard_widget', type)
+      const widgetType = this.$registry.get('dashboardWidget', type)
       return widgetType.component
     },
     selectWidgetIfAllowed(widgetId) {

@@ -89,10 +89,7 @@ export default {
       )
     },
     async createWidget(widgetType) {
-      const typeFromRegistry = this.$registry.get(
-        'dashboard_widget',
-        widgetType
-      )
+      const typeFromRegistry = this.$registry.get('dashboardWidget', widgetType)
       try {
         await this.$store.dispatch('dashboardApplication/createWidget', {
           dashboard: this.dashboard,
