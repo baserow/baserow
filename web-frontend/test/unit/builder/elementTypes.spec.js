@@ -825,7 +825,7 @@ describe('elementTypes tests', () => {
     })
   })
 
-  describe.only('FormContainerElementType isInError tests', () => {
+  describe('FormContainerElementType isInError tests', () => {
     test('Returns true if Form Container Element has no errors, but has misconfigured workflow actions.', () => {
       const page = {
         id: 2,
