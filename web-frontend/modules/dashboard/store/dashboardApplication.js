@@ -101,6 +101,7 @@ export const actions = {
       debouncedWidgetUpdate = debounce(async () => {
         try {
           await WidgetService(this.$client).update(widgetId, values)
+          debouncedWidgetUpdate = null
           resolve()
         } catch (error) {
           commit('UPDATE_WIDGET', { widgetId, values: previousOriginalValues })
