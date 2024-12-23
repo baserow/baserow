@@ -4,7 +4,7 @@
       {{ $t('createWidgetModal.title') }}
     </h2>
     <div>
-      <div
+      <a
         v-for="widgetType in widgetTypes"
         :key="widgetType.type"
         class="create-widget-card"
@@ -16,7 +16,7 @@
         <div class="create-widget-card__name">
           {{ widgetType.name }}
         </div>
-      </div>
+      </a>
     </div>
   </Modal>
 </template>
