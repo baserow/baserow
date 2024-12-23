@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0173_datasyncsyncedproperty_metadata"),
+        ("database", "0175_formviewfieldoptions_include_all_select_options_and_more"),
     ]
 
     operations = [
