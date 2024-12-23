@@ -31,4 +31,4 @@ class Command(BaseCommand):
         formula = FormulaField.objects.get(id=field_id)
         formula.formula = new_formula
         formula.save(recalculate=True, raise_if_invalid=True)
-        FieldDependencyHandler().rebuild_dependencies(formula, FieldCache())
+        FieldDependencyHandler().rebuild_dependencies([formula], FieldCache())

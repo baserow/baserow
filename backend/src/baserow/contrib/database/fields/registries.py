@@ -1504,7 +1504,7 @@ class FieldType(
             FieldDependencyHandler,
         )
 
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
         from baserow.contrib.database.views.handler import ViewHandler
 
