@@ -30,7 +30,7 @@ class FieldDependency(models.Model):
     broken_reference_field_name = models.TextField(null=True, blank=True, db_index=True)
 
     def _dependency_postfix(self) -> str:
-        if self.via is not None:
+        if self.via_id is not None:
             if self.broken_reference_field_name is not None:
                 return f"broken_via__{self.via_id}__{self.broken_reference_field_name}"
             else:
