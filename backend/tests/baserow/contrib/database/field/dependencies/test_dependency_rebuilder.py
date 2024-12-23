@@ -31,7 +31,7 @@ def test_formula_fields_will_be_rebuilt_to_depend_on_each_other(
     )
 
     cache = FieldCache()
-    FieldDependencyHandler.rebuild_dependencies(dependant_formula, cache)
+    FieldDependencyHandler.rebuild_dependencies([dependant_formula], cache)
 
     assert _unwrap_ids(dependant_formula.field_dependencies) == [first_formula_field.id]
     assert _unwrap_ids(dependant_formula.dependant_fields) == []
@@ -48,7 +48,7 @@ def _assert_rebuilding_changes_nothing(cache, field_to_rebuild):
     )
     before_strs = [str(f) for f in FieldDependency.objects.order_by("id").all()]
     # Rebuilding a second time doesn't change any field dependency rows
-    FieldDependencyHandler.rebuild_dependencies(field_to_rebuild, cache)
+    FieldDependencyHandler.rebuild_dependencies([field_to_rebuild], cache)
     after_ids = list(
         FieldDependency.objects.order_by("id").values_list("id", flat=True)
     )
@@ -76,9 +76,9 @@ def test_rebuilding_with_a_circular_ref_will_raise(
     )
 
     cache = FieldCache()
-    FieldDependencyHandler.rebuild_dependencies(first_formula_field, cache)
+    FieldDependencyHandler.rebuild_dependencies([first_formula_field], cache)
     with pytest.raises(CircularFieldDependencyError):
-        FieldDependencyHandler.rebuild_dependencies(second_formula_field, cache)
+        FieldDependencyHandler.rebuild_dependencies([second_formula_field], cache)
 
     assert _unwrap_ids(second_formula_field.field_dependencies) == []
     assert _unwrap_ids(second_formula_field.dependant_fields) == [
@@ -106,7 +106,7 @@ def test_rebuilding_a_link_row_field_creates_dependencies_with_vias(
     )
 
     cache = FieldCache()
-    FieldDependencyHandler.rebuild_dependencies(link_row_field, cache)
+    FieldDependencyHandler.rebuild_dependencies([link_row_field], cache)
 
     assert _unwrap_ids(link_row_field.field_dependencies) == [other_primary_field.id]
     assert _unwrap_ids(link_row_field.dependant_fields) == []
@@ -135,7 +135,7 @@ def test_trashing_a_link_row_field_breaks_vias(
     )
 
     cache = FieldCache()
-    FieldDependencyHandler.rebuild_dependencies(link_row_field, cache)
+    FieldDependencyHandler.rebuild_dependencies([link_row_field], cache)
 
     # Create a fake dependencies until we have lookup fields
     via_dep = FieldDependency.objects.create(
@@ -186,8 +186,8 @@ def test_trashing_a_lookup_target_still_has_the_dep_depend_on_the_through_field(
     )
 
     cache = FieldCache()
-    FieldDependencyHandler.rebuild_dependencies(link_row_field, cache)
-    FieldDependencyHandler.rebuild_dependencies(lookup_field, cache)
+    FieldDependencyHandler.rebuild_dependencies([link_row_field], cache)
+    FieldDependencyHandler.rebuild_dependencies([lookup_field], cache)
 
     target_field.trashed = True
     target_field.save()

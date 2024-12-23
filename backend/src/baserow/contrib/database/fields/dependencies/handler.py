@@ -9,7 +9,7 @@ from django.db.models import Q, QuerySet
 
 from baserow.contrib.database.fields.dependencies.dependency_rebuilder import (
     break_dependencies_for_field,
-    rebuild_field_dependencies,
+    rebuild_fields_dependencies,
     update_fields_with_broken_references,
 )
 from baserow.contrib.database.fields.dependencies.exceptions import (
@@ -48,18 +48,18 @@ class FieldDependencyHandler:
 
     @classmethod
     def rebuild_dependencies(
-        cls, field, field_cache: FieldCache
+        cls, fields, field_cache: FieldCache
     ) -> List[FieldDependency]:
         """
         Rebuilds this fields dependencies based off field_type.get_field_dependencies.
 
-        :param field: The field to rebuild its field dependencies for.
+        :param fields: The fields to rebuild its field dependencies for.
         :param field_cache: A field cache which will be used to lookup fields.
         :return: Any new dependencies created by the rebuild.
         """
 
-        update_fields_with_broken_references(field)
-        return rebuild_field_dependencies(field, field_cache)
+        update_fields_with_broken_references(fields)
+        return rebuild_fields_dependencies(fields, field_cache)
 
     @classmethod
     def break_dependencies_delete_dependants(cls, field):
@@ -721,7 +721,7 @@ class FieldDependencyHandler:
         field_operation_name: str,
     ):
         new_dependencies = FieldDependencyHandler.rebuild_dependencies(
-            field, field_cache
+            [field], field_cache
         )
         FieldDependencyHandler.raise_if_user_doesnt_have_operation_on_dependencies_in_other_tables(
             workspace, user, field, new_dependencies, field_operation_name

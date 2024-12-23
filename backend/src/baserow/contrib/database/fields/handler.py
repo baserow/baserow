@@ -1195,7 +1195,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
     def _update_dependencies_of_field_restored(
         self, field, update_collector, field_cache
     ):
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
         field_type = field_type_registry.get_by_model(field)
         field_type.field_dependency_created(field, field, update_collector, field_cache)
