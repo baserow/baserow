@@ -1279,9 +1279,13 @@ class Table(
 
         for field_id, values in missing_field_attrs["_field_objects"].items():
             existing_field_attrs["_field_objects"][field_id] = values
+            existing_field_attrs.pop(values["name"], None)
+            existing_field_attrs[values["name"]] = missing_field_attrs[values["name"]]
 
         for field_id, values in missing_field_attrs["_trashed_field_objects"].items():
             existing_field_attrs["_trashed_field_objects"][field_id] = values
+            existing_field_attrs.pop(values["name"], None)
+            existing_field_attrs[values["name"]] = missing_field_attrs[values["name"]]
 
         return existing_field_attrs
 

@@ -99,6 +99,10 @@ def invalidate_field_in_model_cache(table, field_id):
     if field_id not in field_attrs["invalidated_field_ids"]:
         field_attrs["invalidated_field_ids"].append(field_id)
 
+    # This approach is safe from a race condition because the updated field_attrs are
+    # written as a new version. If there is another process invalidating the fields,
+    # or needing to generate a model, the version would not match, and the model is
+    # regenerated from scratch.
     table.version = new_version
     set_cached_model_field_attrs(table, field_attrs)
 
