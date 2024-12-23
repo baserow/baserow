@@ -14,7 +14,6 @@
       :is="widgetComponent(widget.type)"
       :dashboard="dashboard"
       :widget="widget"
-      @delete-widget="$emit('delete-widget', $event)"
     />
   </div>
 </template>

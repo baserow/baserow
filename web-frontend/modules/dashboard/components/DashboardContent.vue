@@ -15,10 +15,7 @@
               @widget-type-selected="createWidget($event)"
             />
             <template v-else>
-              <WidgetBoard
-                :dashboard="dashboard"
-                @delete-widget="deleteWidget($event)"
-              />
+              <WidgetBoard :dashboard="dashboard" />
               <CreateWidgetButton
                 v-if="isEditMode && canCreateWidget"
                 :dashboard="dashboard"
@@ -102,16 +99,6 @@ export default {
           widget: { title: typeFromRegistry.name, type: widgetType },
         })
         this.enterEditMode()
-      } catch (error) {
-        notifyIf(error, 'dashboard')
-      }
-    },
-    async deleteWidget(widgetId) {
-      try {
-        await this.$store.dispatch(
-          'dashboardApplication/deleteWidget',
-          widgetId
-        )
       } catch (error) {
         notifyIf(error, 'dashboard')
       }

@@ -1,11 +1,7 @@
 <template>
   <div class="widget-board">
     <div v-for="widget in widgets" :key="widget.id">
-      <DashboardWidget
-        :widget="widget"
-        :dashboard="dashboard"
-        @delete-widget="$emit('delete-widget', $event)"
-      />
+      <DashboardWidget :widget="widget" :dashboard="dashboard" />
     </div>
   </div>
 </template>
