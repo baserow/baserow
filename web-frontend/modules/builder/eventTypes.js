@@ -26,15 +26,31 @@ export class Event {
 
   async fire({ workflowActions, applicationContext }) {
     const additionalContext = {}
-    const { element, recordIndexPath } = applicationContext
+    const { element, recordIndexPath, builder, page } = applicationContext
+    const pages = [page, this.store.getters['page/getSharedPage'](builder)]
     const elementType = this.$registry.get('element', element.type)
     const dispatchedById = elementType.uniqueElementId(element, recordIndexPath)
     for (let i = 0; i < workflowActions.length; i += 1) {
+      const workflowActionContext = {}
       const workflowAction = workflowActions[i]
       const workflowActionType = this.$registry.get(
         'workflowAction',
         workflowAction.type
       )
+
+      // If the workflow action is dispatched by a dataSource...
+      if (workflowAction.data_source_id) {
+        // Stash away in the workflow action's context the dataSource and
+        // the page the dataSource belongs to. It's possible that the page
+        // is not `applicationContext.page` - the dataSource could be shared.
+        workflowActionContext.dataSource = this.store.getters[
+          'dataSource/getPagesDataSourceById'
+        ](pages, parseInt(workflowAction.data_source_id))
+        workflowActionContext.dataSourcePage = pages.find(
+          (page) => page.id === workflowActionContext.dataSource.page_id
+        )
+      }
+
       const localResolveFormula = (formula) => {
         const formulaFunctions = {
           get: (name) => {
@@ -79,6 +95,7 @@ export class Event {
             additionalContext,
             applicationContext: {
               ...applicationContext,
+              workflowActionContext,
               previousActionResults: additionalContext,
             },
             resolveFormula: localResolveFormula,

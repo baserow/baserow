@@ -46,6 +46,7 @@ export class DataSourceDataProviderType extends DataProviderType {
           applicationContext
         ),
         dataSources,
+        mode: applicationContext.mode,
       }
     )
   }
