@@ -197,7 +197,6 @@
 
 .header__search-icon {
   color: $color-neutral-900;
-  margin-right: 4px;
   font-size: 16px;
 }
 
@@ -227,12 +226,11 @@
   flex-direction: row-reverse;
   display: flex;
   flex-grow: 1;
-  min-width: 0;
+  min-width: 36px;
 
   .header__filter-link {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    @extend %ellipsis;
+
     display: inline-block;
   }
 }
