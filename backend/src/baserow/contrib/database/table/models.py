@@ -51,7 +51,10 @@ from baserow.contrib.database.table.constants import (
 )
 from baserow.contrib.database.views.exceptions import ViewFilterTypeNotAllowedForField
 from baserow.contrib.database.views.registries import view_filter_type_registry
-from baserow.core.db import MultiFieldPrefetchQuerysetMixin, specific_iterator
+from baserow.core.db import (
+    MultiFieldPrefetchQuerysetMixin,
+    select_related_specific_iterator,
+)
 from baserow.core.fields import AutoTrueBooleanField
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
@@ -1288,12 +1291,12 @@ class Table(
                 fields_query = fields_query.filter(name__in=field_names)
 
         if isinstance(fields_query, QuerySet):
-            fields_query = specific_iterator(
+            fields_query = select_related_specific_iterator(
                 fields_query,
                 per_content_type_queryset_hook=(
-                    lambda model, queryset: field_type_registry.get_by_model(
+                    lambda model, queryset, prefix: field_type_registry.get_by_model(
                         model
-                    ).enhance_field_queryset(queryset, model)
+                    ).enhance_field_queryset(queryset, model, prefix)
                 ),
             )
 
