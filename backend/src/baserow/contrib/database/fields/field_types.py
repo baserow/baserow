@@ -5677,7 +5677,7 @@ class LookupFieldType(FormulaFieldType):
             elif field_name is not None:
                 field_object = field_object.filter(name=field_name)
             else:
-                raise ValueError(
+                raise exc(
                     f"Either a {prefix}field_id or {prefix}field_name must be provided."
                 )
 
