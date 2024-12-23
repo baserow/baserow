@@ -1,8 +1,11 @@
 .dashboard-widget {
   border: 1px solid $palette-neutral-200;
   box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
-  margin-top: 24px;
   position: relative;
+
+  &:not(:first-child) {
+    margin-top: 24px;
+  }
 
   @include rounded($rounded-md);
 }

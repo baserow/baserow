@@ -1,8 +1,11 @@
 <template>
-  <div class="widget-board">
-    <div v-for="widget in widgets" :key="widget.id">
-      <DashboardWidget :widget="widget" :dashboard="dashboard" />
-    </div>
+  <div>
+    <DashboardWidget
+      v-for="widget in widgets"
+      :key="widget.id"
+      :widget="widget"
+      :dashboard="dashboard"
+    />
   </div>
 </template>
 
