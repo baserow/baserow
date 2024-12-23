@@ -244,7 +244,7 @@ export default {
     },
 
     emitChange(newValues) {
-      if (this.emitValuesOnReset !== false || this.isAfterReset === false) {
+      if (this.emitValuesOnReset === true || this.isAfterReset === false) {
         this.$emit('values-changed', newValues)
       }
 
