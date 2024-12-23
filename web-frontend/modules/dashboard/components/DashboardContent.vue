@@ -3,7 +3,6 @@
     <div v-if="!isLoading">
       <div class="layout__col-2-2 dashboard-app__layout">
         <div
-          ref="scrollable"
           class="dashboard-app__layout-scrollable"
           :style="{ width: `calc(100% - ${sidebarWidth}px)` }"
         >
