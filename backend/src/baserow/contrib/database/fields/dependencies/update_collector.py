@@ -413,12 +413,16 @@ class FieldUpdateCollector:
             deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
         )
 
+        return updated_rows_count
+
+    def apply_view_fields_type_changed(self, field_cache: FieldCache):
         if len(self._view_fields_type_changed) > 0:
             from baserow.contrib.database.views.handler import ViewHandler
 
             ViewHandler().fields_type_changed(list(self._view_fields_type_changed))
             self._view_fields_type_changed = set()
 
+    def apply_field_rebuild_dependencies(self, field_cache: FieldCache):
         if len(self._field_rebuild_dependencies) > 0:
             from baserow.contrib.database.fields.dependencies.handler import (
                 FieldDependencyHandler,
@@ -429,10 +433,12 @@ class FieldUpdateCollector:
             )
             self._field_rebuild_dependencies = set()
 
-        return updated_rows_count
-
     def apply_updates_and_get_updated_fields(
-        self, field_cache: FieldCache, skip_search_updates=False
+        self,
+        field_cache: FieldCache,
+        skip_search_updates=False,
+        skip_view_fields_type_changed=False,
+        skip_field_rebuild_dependencies=False,
     ) -> List[Field]:
         """
         Triggers all update statements to be executed in the correct order in as few
@@ -462,6 +468,12 @@ class FieldUpdateCollector:
         # will only send signals for the newly updated fields.
         self._pending_field_updates = FieldUpdatesTracker()
         self._update_statement_collector = self._init_update_statement_collector()
+
+        if not skip_view_fields_type_changed:
+            self.apply_view_fields_type_changed(field_cache)
+
+        if not skip_field_rebuild_dependencies:
+            self.apply_field_rebuild_dependencies(field_cache)
 
         return updated_fields
 

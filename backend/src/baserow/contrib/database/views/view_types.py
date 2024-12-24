@@ -227,12 +227,18 @@ class GridViewType(ViewType):
         field_options = (
             GridViewFieldOptions.objects_and_trash.filter(field__in=fields)
             .exclude(aggregation_raw_type="")
-            .select_related("grid_view", "field")
+            .select_related("grid_view")
         )
 
         view_handler = ViewHandler()
 
         for field_option in field_options:
+            # Set the already existing specific field as property on the options so
+            # that it doesn't have to be joined in and fetched later on.
+            field_option.field = next(
+                f for f in fields if f.id == field_option.field_id
+            )
+
             aggregation_type = view_aggregation_type_registry.get(
                 field_option.aggregation_raw_type
             )

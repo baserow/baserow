@@ -460,8 +460,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                     path_to_starting_table,
                 )
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
-                field_cache, skip_search_updates
+                field_cache,
+                skip_search_updates,
+                skip_view_fields_type_changed=True,
+                skip_field_rebuild_dependencies=True,
             )
+
+        update_collector.apply_view_fields_type_changed(field_cache)
+        update_collector.apply_field_rebuild_dependencies(field_cache)
 
         return updated_fields
 
@@ -758,8 +764,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                     path_to_starting_table,
                 )
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
-                field_cache
+                field_cache,
+                skip_view_fields_type_changed=True,
+                skip_field_rebuild_dependencies=True,
             )
+
+        update_collector.apply_view_fields_type_changed(field_cache)
+        update_collector.apply_field_rebuild_dependencies(field_cache)
+
         return updated_fields
 
     def duplicate_field(
@@ -983,8 +995,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 )
 
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
-                field_cache
+                field_cache,
+                skip_view_fields_type_changed=True,
+                skip_field_rebuild_dependencies=True,
             )
+
+        update_collector.apply_view_fields_type_changed(field_cache)
+        update_collector.apply_field_rebuild_dependencies(field_cache)
+
         return updated_fields
 
     def update_field_select_options(self, user, field, select_options):
@@ -1229,8 +1247,13 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 )
 
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
-                field_cache
+                field_cache,
+                skip_view_fields_type_changed=True,
+                skip_field_rebuild_dependencies=True,
             )
+
+        update_collector.apply_view_fields_type_changed(field_cache)
+        update_collector.apply_field_rebuild_dependencies(field_cache)
 
         return updated_fields
 
