@@ -3,6 +3,7 @@ from django.db import models
 
 from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
+    FontWeights,
     WIDTHS,
     HorizontalAlignments,
 )
@@ -36,6 +37,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default="inter",
     )
     body_font_size = models.SmallIntegerField(default=14)
+    body_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.REGULAR,
+        db_default=FontWeights.REGULAR,
+    )
     body_text_color = models.CharField(max_length=9, default="#070810ff")
     body_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
@@ -47,6 +54,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default="inter",
     )
     heading_1_font_size = models.SmallIntegerField(default=24)
+    heading_1_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.BOLD,
+        db_default=FontWeights.BOLD,
+    )
     heading_1_text_color = models.CharField(max_length=9, default="#070810ff")
     heading_1_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
@@ -58,6 +71,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default="inter",
     )
     heading_2_font_size = models.SmallIntegerField(default=20)
+    heading_2_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.SEMI_BOLD,
+        db_default=FontWeights.SEMI_BOLD,
+    )
     heading_2_text_color = models.CharField(max_length=9, default="#070810ff")
     heading_2_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
@@ -69,6 +88,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default="inter",
     )
     heading_3_font_size = models.SmallIntegerField(default=16)
+    heading_3_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.MEDIUM,
+        db_default=FontWeights.MEDIUM,
+    )
     heading_3_text_color = models.CharField(max_length=9, default="#070810ff")
     heading_3_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
@@ -80,6 +105,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default="inter",
     )
     heading_4_font_size = models.SmallIntegerField(default=16)
+    heading_4_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.MEDIUM,
+        db_default=FontWeights.MEDIUM,
+    )
     heading_4_text_color = models.CharField(max_length=9, default="#070810ff")
     heading_4_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
@@ -91,6 +122,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default="inter",
     )
     heading_5_font_size = models.SmallIntegerField(default=14)
+    heading_5_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.REGULAR,
+        db_default=FontWeights.REGULAR,
+    )
     heading_5_text_color = models.CharField(max_length=9, default="#070810ff")
     heading_5_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
@@ -102,6 +139,12 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default="inter",
     )
     heading_6_font_size = models.SmallIntegerField(default=14)
+    heading_6_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.REGULAR,
+        db_default=FontWeights.REGULAR,
+    )
     heading_6_text_color = models.CharField(max_length=9, default="#202128")
     heading_6_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
