@@ -347,6 +347,12 @@ class InputThemeConfigBlock(ThemeConfigBlock):
         default=13,
         help_text="The font size of the label",
     )
+    label_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.REGULAR,
+        db_default=FontWeights.REGULAR,
+    )
 
     input_font_family = models.CharField(
         max_length=250,
@@ -354,6 +360,12 @@ class InputThemeConfigBlock(ThemeConfigBlock):
         help_text="The font family of the input",
     )
     input_font_size = models.SmallIntegerField(default=13)
+    input_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.REGULAR,
+        db_default=FontWeights.REGULAR,
+    )
     input_text_color = models.CharField(
         max_length=20,
         default="#070810FF",
