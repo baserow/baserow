@@ -148,23 +148,33 @@ class BaserowFilterExpression(Expression):
 
         return c
 
-    def get_template(self, template: str | None = None) -> str:
-        return template or self.template
-
-    def get_data(self, sql_value) -> dict:
-        data = {
+    def get_template_data(self, sql_value) -> dict:
+        return {
             "field_name": f'"{self.field_name.field.column}"',
             "value": sql_value,
         }
-        return data
+
+    def render_template_as_sql(
+        self, filter_value: str, template: str | None = None
+    ) -> str:
+        """
+        Renders the template with the given sql_value and returns the result. If a
+        custom template is provided, it will be used instead of the default one.
+
+        :param filter_value: The value that will be used in the template.
+        :param template: The custom template to use. If not provided, the default one
+            will be used.
+        :return: The rendered template with data that will be used as SQL.
+        """
+
+        template = template or self.template
+        data = self.get_template_data(filter_value)
+        return template % data
 
     def as_sql(self, compiler, connection, template=None):
-        sql_value, params_value = compiler.compile(self.value)
-
-        data = self.get_data(sql_value)
-        template = self.get_template(template)
-
-        return template % data, params_value
+        sql_value, sql_params = compiler.compile(self.value)
+        sql_query = self.render_template_as_sql(sql_value, template)
+        return sql_query, sql_params
 
 
 class FileNameContainsExpr(BaserowFilterExpression):
@@ -189,20 +199,6 @@ class JSONArrayContainsValueExpr(BaserowFilterExpression):
             SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE UPPER(filtered_field ->> 'value') LIKE UPPER(%(value)s::text)
-        )
-        """  # nosec B608
-    )
-    # fmt: on
-
-
-class JSONArrayEqualNumericValueExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE (filtered_field ->> 'value')::numeric = %(value)s::numeric
         )
         """  # nosec B608
     )
@@ -241,24 +237,10 @@ class JSONArrayAllAreExpr(BaserowFilterExpression):
     # fmt: off
     template = (
         f"""
-        upper(%(value)s::text) =ALL(
+        upper(%(value)s::text) = ALL(
             SELECT upper(filtered_field ->> 'value')
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
         ) AND JSONB_ARRAY_LENGTH(%(field_name)s) > 0
-                """  # nosec B608 %(value)s
-    )
-    # fmt: on
-
-
-class JSONArrayHasEmptyValueExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS( SELECT 1
-
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE coalesce(filtered_field ->> 'value', '') = ''
-        )
                 """  # nosec B608 %(value)s
     )
     # fmt: on
@@ -306,17 +288,21 @@ class JSONArrayContainsSelectOptionValueSimilarToExpr(BaserowFilterExpression):
     # fmt: on
 
 
-class JSONArrayContainsNumericValueWithComparisonExpr(BaserowFilterExpression):
+class JSONArrayCompareNumericValueExpr(BaserowFilterExpression):
     """
-    Common base class for json array value comparison expression.
+    Base class for expressions that compare a numeric value in a JSON array.
+    Together with the field_name and value, a comparison operator must be provided to be
+    used in the template.
+    """
 
-    A sublcass is expected to provide `comparison_op` class attribute, which will be
-    used to render the template.
-    """
+    def __init__(
+        self, field_name: F, value: Value, comparison_op: str, output_field: Field
+    ):
+        super().__init__(field_name, value, output_field)
+        self.comparison_op = comparison_op
 
     # fmt: off
     template = (
-
         f"""
             EXISTS(
                 SELECT 1
@@ -327,34 +313,7 @@ class JSONArrayContainsNumericValueWithComparisonExpr(BaserowFilterExpression):
     )
     # fmt: on
 
-    # customizes comparison operator in `template`
-    comparison_op: str
-
-    def get_data(self, sql_value) -> dict:
-        data = super().get_data(sql_value)
+    def get_template_data(self, sql_value) -> dict:
+        data = super().get_template_data(sql_value)
         data["comparison_op"] = self.comparison_op
         return data
-
-
-class JSONArrayContainsValueHigherThanNumericExpr(
-    JSONArrayContainsNumericValueWithComparisonExpr
-):
-    comparison_op = ">"
-
-
-class JSONArrayContainsValueHigherThanOrEqualNumericExpr(
-    JSONArrayContainsNumericValueWithComparisonExpr
-):
-    comparison_op = ">="
-
-
-class JSONArrayContainsValueLowerThanNumericExpr(
-    JSONArrayContainsNumericValueWithComparisonExpr
-):
-    comparison_op = "<"
-
-
-class JSONArrayContainsValueLowerThanOrEqualNumericExpr(
-    JSONArrayContainsNumericValueWithComparisonExpr
-):
-    comparison_op = "<="

@@ -2,10 +2,8 @@ import datetime as datetime_module
 import zoneinfo
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from decimal import Decimal
 from enum import Enum
 from functools import reduce
-from math import ceil, floor
 from types import MappingProxyType
 from typing import Any, Dict, NamedTuple, Optional, Tuple, Union
 
@@ -124,8 +122,9 @@ class EqualViewFilterType(ViewFilterType):
             return Q()
 
         # Check if the model_field accepts the value.
+        field_type = field_type_registry.get_by_model(field)
         try:
-            value = model_field.get_prep_value(value)
+            value = field_type.prepare_filter_value(field, model_field, value)
             return Q(**{field_name: value})
         except Exception:
             return self.default_filter_on_exception()
@@ -379,9 +378,6 @@ class NumericComparisonViewFilterType(ViewFilterType):
         ),
     ]
 
-    def should_round_value_to_compare(self, value, model_field):
-        return isinstance(model_field, IntegerField) and value.find(".") != -1
-
     def get_filter(self, field_name, value, model_field, field):
         value = value.strip()
 
@@ -389,16 +385,13 @@ class NumericComparisonViewFilterType(ViewFilterType):
         if value == "":
             return Q()
 
-        if self.should_round_value_to_compare(value, model_field):
-            decimal_value = Decimal(value)
-            value = self.rounding_func(decimal_value)
-
-        # Check if the model_field accepts the value.
+        field_type = field_type_registry.get_by_model(field)
         try:
-            value = model_field.get_prep_value(value)
-            return Q(**{f"{field_name}__{self.operator}": value})
-        except Exception:
+            filter_value = field_type.prepare_filter_value(field, model_field, value)
+        except ValueError:
             return self.default_filter_on_exception()
+
+        return Q(**{f"{field_name}__{self.operator}": filter_value})
 
 
 class LowerThanViewFilterType(NumericComparisonViewFilterType):
@@ -409,7 +402,6 @@ class LowerThanViewFilterType(NumericComparisonViewFilterType):
 
     type = "lower_than"
     operator = "lt"
-    rounding_func = floor
 
 
 class LowerThanOrEqualViewFilterType(NumericComparisonViewFilterType):
@@ -421,7 +413,6 @@ class LowerThanOrEqualViewFilterType(NumericComparisonViewFilterType):
 
     type = "lower_than_or_equal"
     operator = "lte"
-    rounding_func = floor
 
 
 class HigherThanViewFilterType(NumericComparisonViewFilterType):
@@ -432,7 +423,6 @@ class HigherThanViewFilterType(NumericComparisonViewFilterType):
 
     type = "higher_than"
     operator = "gt"
-    rounding_func = ceil
 
 
 class HigherThanOrEqualViewFilterType(NumericComparisonViewFilterType):
@@ -444,7 +434,6 @@ class HigherThanOrEqualViewFilterType(NumericComparisonViewFilterType):
 
     type = "higher_than_or_equal"
     operator = "gte"
-    rounding_func = ceil
 
 
 class TimezoneAwareDateViewFilterType(ViewFilterType):
@@ -1217,24 +1206,15 @@ class BooleanViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field):
-        value = value.strip().lower()
-        value = value in [
-            "y",
-            "t",
-            "o",
-            "yes",
-            "true",
-            "on",
-            "1",
-        ]
+        if value == "":  # consider emtpy value as False
+            value = "false"
 
-        # Check if the model_field accepts the value.
-        # noinspection PyBroadException
+        field_type = field_type_registry.get_by_model(field)
         try:
-            value = model_field.get_prep_value(value)
+            value = field_type.prepare_filter_value(field, model_field, value)
             return Q(**{field_name: value})
-        except Exception:
-            return Q()
+        except ValueError:
+            return self.default_filter_on_exception()
 
 
 class ManyToManyHasBaseViewFilter(ViewFilterType):

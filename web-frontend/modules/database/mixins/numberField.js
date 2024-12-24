@@ -16,6 +16,7 @@ export default {
     return {
       formattedValue: '',
       focused: false,
+      roundDecimals: true,
     }
   },
   methods: {
@@ -23,7 +24,7 @@ export default {
       this.formattedValue = this.formatNumberValue(field, value)
     },
     formatNumberValue(field, value) {
-      return formatNumberValue(field, value)
+      return formatNumberValue(field, value, true, this.roundDecimals)
     },
     /*
      * This method is similar to formatNumberValue, but it returns the value as a
@@ -33,10 +34,15 @@ export default {
      */
     formatNumberValueForEdit(field, value) {
       const withThousandSeparator = false
-      return formatNumberValue(field, value, withThousandSeparator)
+      return formatNumberValue(
+        field,
+        value,
+        withThousandSeparator,
+        this.roundDecimals
+      )
     },
     parseNumberValue(field, value) {
-      return parseNumberValue(field, value)
+      return parseNumberValue(field, value, this.roundDecimals)
     },
     getNumberFormatOptions(field) {
       return getNumberFormatOptions(field)

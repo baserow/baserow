@@ -132,12 +132,11 @@ ALL_ROW_NAMES = [
 
 
 @pytest.mark.parametrize(
-    "filter_type_name,test_value,expected_rows",
+    "filter_type_name,expected_rows",
     [
-        ("has_empty_value", "", ["refs with empty", "100 with empty"]),
+        ("has_empty_value", ["refs with empty", "100 with empty"]),
         (
             "has_not_empty_value",
-            "",
             [
                 "above 100",
                 "exact 100",
@@ -156,11 +155,9 @@ ALL_ROW_NAMES = [
 )
 @pytest.mark.django_db
 def test_number_lookup_field_has_empty_value_filter(
-    data_fixture, filter_type_name, test_value, expected_rows
+    data_fixture, filter_type_name, expected_rows
 ):
-    return number_lookup_filter_proc(
-        data_fixture, filter_type_name, test_value, expected_rows
-    )
+    return number_lookup_filter_proc(data_fixture, filter_type_name, "", expected_rows)
 
 
 @pytest.mark.parametrize(

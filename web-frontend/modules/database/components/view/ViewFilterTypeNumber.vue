@@ -20,6 +20,12 @@ import numberField from '@baserow/modules/database/mixins/numberField'
 export default {
   name: 'ViewFilterTypeNumber',
   mixins: [filterTypeInput, numberField],
+  data() {
+    return {
+      // Avoid rounding decimals to ensure filter values match backend behavior.
+      roundDecimals: false,
+    }
+  },
   watch: {
     field: {
       handler() {

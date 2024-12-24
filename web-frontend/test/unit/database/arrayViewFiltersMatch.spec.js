@@ -1302,7 +1302,7 @@ describe('Number-based array view filters', () => {
   )
 
   test.each(hasValueHigherThanOrEqualTestCases)(
-    'hasValueHigherOrEqualkTestCases %j',
+    'hasValueHigherOrEqualTestCases %j',
     (testValues) => {
       const result = new HasValueHigherThanOrEqualViewFilterType({
         app: testApp._app,

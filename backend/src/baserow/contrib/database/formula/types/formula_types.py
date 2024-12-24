@@ -42,9 +42,8 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueLengthIsLowerThanFilterSupport,
     get_array_json_filter_expression,
 )
-from baserow.contrib.database.fields.filter_support.formula import (
-    FormulaFieldPrepDbValueMixin,
-    FormulaNumberFilterSupport,
+from baserow.contrib.database.fields.filter_support.number import (
+    FormulaNumberTypeFilterSupport,
 )
 from baserow.contrib.database.fields.filter_support.single_select import (
     SingleSelectFormulaTypeFilterSupport,
@@ -83,7 +82,14 @@ from baserow.core.utils import list_to_comma_separated_string
 
 
 class BaserowJSONBObjectBaseType(BaserowFormulaValidType, ABC):
-    pass
+    def prepare_filter_value(self, field, model_field, value):
+        """
+        Since the subclasses don't have a baserow_field_type or data might be stored
+        differently due to the JSONB nature, return the value as is here and let the
+        filter method handle it.
+        """
+
+        return value
 
 
 class BaserowFormulaBaseTextType(BaserowFormulaTypeHasEmptyBaserowExpression):
@@ -330,7 +336,7 @@ class BaserowFormulaButtonType(BaserowFormulaLinkType):
 
 
 class BaserowFormulaNumberType(
-    FormulaNumberFilterSupport,
+    FormulaNumberTypeFilterSupport,
     BaserowFormulaTypeHasEmptyBaserowExpression,
     BaserowFormulaValidType,
 ):
@@ -469,7 +475,6 @@ class BaserowFormulaNumberType(
 
 
 class BaserowFormulaBooleanType(
-    FormulaFieldPrepDbValueMixin,
     HasAllValuesEqualFilterSupport,
     HasValueEqualFilterSupport,
     BaserowFormulaTypeHasEmptyBaserowExpression,
@@ -508,9 +513,6 @@ class BaserowFormulaBooleanType(
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        value = self._get_prep_value(value)
-        if value is None:
-            return Q()
         return get_array_json_filter_expression(
             JSONArrayContainsValueExpr, field_name, value
         )
@@ -528,9 +530,6 @@ class BaserowFormulaBooleanType(
     def get_has_all_values_equal_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
-        value = self._get_prep_value(value)
-        if value is None:
-            return Q()
         return super().get_has_all_values_equal_query(
             field_name, value, model_field, field
         )
@@ -1303,15 +1302,8 @@ class BaserowFormulaArrayType(
         return None
 
     def check_if_compatible_with(self, compatible_formula_types: List[str]):
-        # some sub types may add field-specific context, like `numeric(3)`, which
-        # will fail when compared with static list of type. `clean_formula` allows to
-        # use clean static field type.
-        clean_formula = self.formula_array_type_as_str(self.sub_type.type)
-        return (
-            self.type in compatible_formula_types
-            or str(self) in compatible_formula_types
-            or clean_formula in compatible_formula_types
-        )
+        self_as_str = self.formula_array_type_as_str(self.sub_type.type)
+        return self_as_str in compatible_formula_types
 
     def __str__(self) -> str:
         return self.formula_array_type_as_str(self.sub_type)
@@ -1343,6 +1335,9 @@ class BaserowFormulaArrayType(
                 read_only=True,
             )
         }
+
+    def prepare_filter_value(self, field, model_field, value):
+        return self.sub_type.prepare_filter_value(field, model_field, value)
 
 
 class BaserowFormulaSingleSelectType(

@@ -4,6 +4,7 @@
 //    list of file names, we don't want the filterValue to accidentally match the end
 //    of one filename and the start of another.
 import _ from 'lodash'
+import BigNumber from 'bignumber.js'
 
 export function filenameContainsFilter(
   rowValue,
@@ -152,78 +153,61 @@ export function genericHasValueLengthLowerThanFilter(cellValue, filterValue) {
   return false
 }
 
-function doArrayNumberComparison(valA, valB, opfunc) {
-  if (!(_.isArray(valA) && _.isNumber(Number(valB)))) {
+function doArrayNumberComparison(cellValue, filterValue, compareFunc) {
+  const filterNr = new BigNumber(filterValue)
+  if (!Array.isArray(cellValue) || filterNr.isNaN()) {
     return false
   }
-  const parsedValA = _.map(_.map(valA, 'value'), Number)
-  const parsedValB = Number(valB)
-
-  return _.some(parsedValA, (item) => {
-    try {
-      return opfunc(item, parsedValB)
-    } catch (e) {
-      return false
-    }
-  })
+  return _.some(_.map(cellValue, 'value'), (item) =>
+    compareFunc(new BigNumber(item), filterNr)
+  )
 }
 
-export function genericHasValueHigherThanFilterFunction(
+export function numericHasValueHigherThanFilterFunction(
   cellValue,
   filterValue
 ) {
-  return doArrayNumberComparison(cellValue, filterValue, (cell, filter) => {
-    return cell > filter
-  })
+  return doArrayNumberComparison(
+    cellValue,
+    filterValue,
+    (arrayItemNr, filterNr) => arrayItemNr.isGreaterThan(filterNr)
+  )
 }
 
-export function genericHasValueHigherThanOrEqualFilterFunction(
+export function numericHasValueHigherThanOrEqualFilterFunction(
   cellValue,
   filterValue
 ) {
-  return doArrayNumberComparison(cellValue, filterValue, (cell, filter) => {
-    return cell >= filter
-  })
+  return doArrayNumberComparison(
+    cellValue,
+    filterValue,
+    (arrayItemNr, filterNr) => arrayItemNr.isGreaterThanOrEqualTo(filterNr)
+  )
 }
 
-export function genericHasValueLowerThanFilterFunction(cellValue, filterValue) {
-  return doArrayNumberComparison(cellValue, filterValue, (cell, filter) => {
-    return cell < filter
-  })
+export function numericHasValueLowerThanFilterFunction(cellValue, filterValue) {
+  return doArrayNumberComparison(
+    cellValue,
+    filterValue,
+    (arrayItemNr, filterNr) => arrayItemNr.isLessThan(filterNr)
+  )
 }
 
-export function genericHasValueLowerThanOrEqualFilterFunction(
+export function numericHasValueLowerThanOrEqualFilterFunction(
   cellValue,
   filterValue
 ) {
-  return doArrayNumberComparison(cellValue, filterValue, (cell, filter) => {
-    return cell <= filter
-  })
+  return doArrayNumberComparison(
+    cellValue,
+    filterValue,
+    (arrayItemNr, filterNr) => arrayItemNr.isLessThanOrEqualTo(filterNr)
+  )
 }
 
-export function genericHasNotValueHigherThanFilterFunction(
-  cellValue,
-  filterValue
-) {
-  return !genericHasValueHigherThanFilterFunction(cellValue, filterValue)
-}
-export function genericHasNotValueHigherThanOrEqualFilterFunction(
-  cellValue,
-  filterValue
-) {
-  return !genericHasValueHigherThanOrEqualFilterFunction(cellValue, filterValue)
-}
-
-export function genericHasNotValueLowerThanFilterFunction(
-  cellValue,
-  filterValue
-) {
-  return !genericHasValueLowerThanFilterFunction(cellValue, filterValue)
-}
-
-export function genericHasNotValueLowerThanOrEqualFilterFunction(
-  cellValue,
-  filterValue
-) {
-  return !genericHasValueLowerThanOrEqualFilterFunction(cellValue, filterValue)
+export function numericHasValueEqualToFilterFunction(cellValue, filterValue) {
+  return doArrayNumberComparison(
+    cellValue,
+    filterValue,
+    (arrayItemNr, filterNr) => arrayItemNr.isEqualTo(filterNr)
+  )
 }

@@ -15,15 +15,7 @@ import {
   isValidEmail,
   isValidURL,
 } from '@baserow/modules/core/utils/string'
-import {
-  hasValueContainsFilterMixin,
-  hasValueEqualFilterMixin,
-  hasValueContainsWordFilterMixin,
-  hasValueLengthIsLowerThanFilterMixin,
-  hasEmptyValueFilterMixin,
-  hasAllValuesEqualFilterMixin,
-  formulaFieldArrayFilterMixin,
-} from '@baserow/modules/database/arrayFilterMixins'
+import { formulaFielArrayFilterMixin } from '@baserow/modules/database/arrayFilterMixins'
 import {
   parseNumberValue,
   formatNumberValue,
@@ -719,6 +711,14 @@ export class FieldType extends Registerable {
    */
   getFilterInputComponent(field, filterType) {
     return null
+  }
+
+  /**
+   * Return a valid filter value for the field type. This is used to parse the
+   * filter value from the frontend to the backend.
+   */
+  prepareFilterValue(field, filterValue) {
+    return filterValue
   }
 
   /**
@@ -1651,6 +1651,11 @@ export class NumberFieldType extends FieldType {
     }
     return new BigNumber(value)
   }
+
+  prepareFilterValue(field, value) {
+    const res = parseNumberValue(field, String(value ?? ''), false)
+    return res === null || res.isNaN() ? '' : res.toString()
+  }
 }
 
 BigNumber.config({ EXPONENTIAL_AT: NumberFieldType.getMaxNumberLength() })
@@ -1921,6 +1926,10 @@ export class BooleanFieldType extends FieldType {
 
   getHasNotValueEqualFilterFunction(field) {
     return this.getHasValueEqualFilterFunction(field, true)
+  }
+
+  prepareFilterValue(field, value) {
+    return this.parseInputValue(field, String(value ?? ''))
   }
 }
 
@@ -3753,13 +3762,7 @@ export class PhoneNumberFieldType extends FieldType {
 }
 
 export class FormulaFieldType extends mix(
-  hasAllValuesEqualFilterMixin,
-  hasEmptyValueFilterMixin,
-  hasValueEqualFilterMixin,
-  hasValueContainsFilterMixin,
-  hasValueContainsWordFilterMixin,
-  hasValueLengthIsLowerThanFilterMixin,
-  formulaFieldArrayFilterMixin,
+  formulaFielArrayFilterMixin,
   FieldType
 ) {
   static getType() {
@@ -3801,7 +3804,11 @@ export class FormulaFieldType extends mix(
     return i18n.t('fieldType.formula')
   }
 
-  getFormulaSubtype(field) {
+  prepareFilterValue(field, value) {
+    return this.getFormulaType(field)?.prepareFilterValue(field, value)
+  }
+
+  getFormulaType(field) {
     return this.app.$registry.get('formula_type', field.formula_type)
   }
 
@@ -3822,7 +3829,7 @@ export class FormulaFieldType extends mix(
   }
 
   getFilterInputComponent(field, filterType) {
-    return this.getFormulaSubtype(field)?.getFilterInputComponent(
+    return this.getFormulaType(field)?.getFilterInputComponent(
       field,
       filterType
     )
@@ -3833,15 +3840,15 @@ export class FormulaFieldType extends mix(
   }
 
   getCardValueHeight(field) {
-    return this.getFormulaSubtype(field)?.getCardComponent().height || 0
+    return this.getFormulaType(field)?.getCardComponent().height || 0
   }
 
   getCanSortInView(field) {
-    return this.getFormulaSubtype(field)?.getCanSortInView(field)
+    return this.getFormulaType(field)?.getCanSortInView(field)
   }
 
   getSort(name, order, field) {
-    return this.getFormulaSubtype(field)?.getSort(name, order, field)
+    return this.getFormulaType(field)?.getSort(name, order, field)
   }
 
   getEmptyValue(field) {
@@ -3849,7 +3856,7 @@ export class FormulaFieldType extends mix(
   }
 
   getDocsDataType(field) {
-    return this.getFormulaSubtype(field)?.getDocsDataType(field)
+    return this.getFormulaType(field)?.getDocsDataType(field)
   }
 
   getDocsDescription(field) {
@@ -3861,11 +3868,11 @@ export class FormulaFieldType extends mix(
   }
 
   getDocsResponseExample(field) {
-    return this.getFormulaSubtype(field)?.getDocsResponseExample(field)
+    return this.getFormulaType(field)?.getDocsResponseExample(field)
   }
 
   prepareValueForCopy(field, value) {
-    return this.getFormulaSubtype(field)?.prepareValueForCopy(field, value)
+    return this.getFormulaType(field)?.prepareValueForCopy(field, value)
   }
 
   getContainsFilterFunction(field) {
@@ -3885,11 +3892,11 @@ export class FormulaFieldType extends mix(
   }
 
   toHumanReadableString(field, value) {
-    return this.getFormulaSubtype(field)?.toHumanReadableString(field, value)
+    return this.getFormulaType(field)?.toHumanReadableString(field, value)
   }
 
   getSortIndicator(field) {
-    return this.getFormulaSubtype(field)?.getSortIndicator(field)
+    return this.getFormulaType(field)?.getSortIndicator(field)
   }
 
   getFormComponent() {
@@ -3921,57 +3928,25 @@ export class FormulaFieldType extends mix(
   }
 
   canRepresentDate(field) {
-    return this.getFormulaSubtype(field)?.canRepresentDate(field)
+    return this.getFormulaType(field)?.canRepresentDate(field)
   }
 
   getCanGroupByInView(field) {
-    return this.getFormulaSubtype(field)?.canGroupByInView(field)
+    return this.getFormulaType(field)?.canGroupByInView(field)
   }
 
   parseInputValue(field, value) {
-    const underlyingFieldType = this.getFormulaSubtype(field)
+    const underlyingFieldType = this.getFormulaType(field)
     return underlyingFieldType.parseInputValue(field, value)
   }
 
   parseFromLinkedRowItemValue(field, value) {
-    const underlyingFieldType = this.getFormulaSubtype(field)
+    const underlyingFieldType = this.getFormulaType(field)
     return underlyingFieldType.parseFromLinkedRowItemValue(field, value)
   }
 
   canRepresentFiles(field) {
-    return this.getFormulaSubtype(field)?.canRepresentFiles(field)
-  }
-
-  getHasAllValuesEqualFilterFunction(field) {
-    return this.getFormulaSubtype(field)?.getHasAllValuesEqualFilterFunction(
-      field
-    )
-  }
-
-  getHasEmptyValueFilterFunction(field) {
-    return this.getFormulaSubtype(field)?.getHasEmptyValueFilterFunction(field)
-  }
-
-  getHasValueEqualFilterFunction(field) {
-    return this.getFormulaSubtype(field)?.getHasValueEqualFilterFunction(field)
-  }
-
-  getHasValueContainsFilterFunction(field) {
-    return this.getFormulaSubtype(field)?.getHasValueContainsFilterFunction(
-      field
-    )
-  }
-
-  getHasValueContainsWordFilterFunction(field) {
-    return this.getFormulaSubtype(field)?.getHasValueContainsWordFilterFunction(
-      field
-    )
-  }
-
-  getHasValueLengthIsLowerThanFilterFunction(field) {
-    return this.getFormulaSubtype(
-      field
-    )?.getHasValueLengthIsLowerThanFilterFunction(field)
+    return this.getFormulaType(field)?.canRepresentFiles(field)
   }
 }
 

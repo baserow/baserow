@@ -1825,6 +1825,30 @@ class FieldType(
 
         return value1 == value2
 
+    def prepare_filter_value(
+        self, field: "Field", model_field: django_models.Field, value: Any
+    ) -> Any:
+        """
+        Prepare a non-empty value string to be used in a view filter, verifying if it is
+        compatible with the given field and model_field. This method must be called
+        before the value is passed to the filter method that requires it. This is useful
+        to ensure that comparisons are done correctly and that the value is correctly
+        prepared for the database, like converting a string to a date object or a
+        number.
+
+        :param field: The field instance that the value belongs to.
+        :param model_field: The model field that the value must be prepared for.
+        :param value: The value that must be prepared for filtering.
+        :return: The prepared value.
+        :raises ValueError: If the value is not compatible for the given field and
+            model_field.
+        """
+
+        try:
+            return model_field.get_prep_value(value)
+        except ValidationError as e:
+            raise ValueError(str(e))
+
 
 class ReadOnlyFieldType(FieldType):
     read_only = True

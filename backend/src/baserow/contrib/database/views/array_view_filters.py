@@ -1,13 +1,10 @@
-import typing
+from abc import ABC, abstractmethod
 
 from django.db.models import Q
-
-from loguru import logger
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.filter_support.base import (
-    HasAllValuesEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
@@ -18,10 +15,7 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueLowerOrEqualThanFilterSupport,
     HasValueLowerThanFilterSupport,
 )
-from baserow.contrib.database.fields.filter_support.exceptions import (
-    FilterNotSupportedException,
-)
-from baserow.contrib.database.fields.registries import FieldType, field_type_registry
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import (
     BaserowFormulaNumberType,
     BaserowFormulaTextType,
@@ -55,14 +49,8 @@ class HasEmptyValueViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        field_type = field_type_registry.get_by_model(field)
-        try:
-            if not isinstance(field_type, HasValueEmptyFilterSupport):
-                raise FilterNotSupportedException(field_type)
-
-            return field_type.get_in_array_empty_query(field_name, model_field, field)
-        except FilterNotSupportedException:
-            return self.default_filter_on_exception()
+        field_type: HasValueEmptyFilterSupport = field_type_registry.get_by_model(field)
+        return field_type.get_in_array_empty_query(field_name, model_field, field)
 
 
 class HasNotEmptyValueViewFilterType(
@@ -71,7 +59,43 @@ class HasNotEmptyValueViewFilterType(
     type = "has_not_empty_value"
 
 
-class HasValueEqualViewFilterType(ViewFilterType):
+class ComparisonHasValueFilter(ViewFilterType, ABC):
+    """
+    A filter that can be used to compare the values in an array with a specific value
+    using a comparison operator.
+    """
+
+    def get_filter(
+        self, field_name, value: str, model_field, field
+    ) -> OptionallyAnnotatedQ:
+        if value == "":
+            return Q()
+
+        field_type = field_type_registry.get_by_model(field)
+        try:
+            filter_value = field_type.prepare_filter_value(field, model_field, value)
+        except ValueError:  # invalid filter value for the field
+            return self.default_filter_on_exception()
+
+        return self.get_filter_expression(field_name, filter_value, model_field, field)
+
+    @abstractmethod
+    def get_filter_expression(
+        self, field_name, value, model_field, field
+    ) -> OptionallyAnnotatedQ:
+        """
+        Return the filter expression to use for the required comparison.
+
+        :param field_name: The name of the field to filter on.
+        :param value: A non-empty string value to compare against.
+        :param model_field: The model field instance.
+        :param field: The field instance.
+        :return: The filter expression to use.
+        :raises ValidationError: If the value cannot be parsed to the proper type.
+        """
+
+
+class HasValueEqualViewFilterType(ComparisonHasValueFilter):
     """
     The filter can be used to check for "is" condition for
     items in an array.
@@ -89,16 +113,11 @@ class HasValueEqualViewFilterType(ViewFilterType):
         ),
     ]
 
-    def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        field_type = field_type_registry.get_by_model(field)
-        try:
-            if not isinstance(field_type, HasValueEqualFilterSupport):
-                raise FilterNotSupportedException(field_type)
-            return field_type.get_in_array_is_query(
-                field_name, value, model_field, field
-            )
-        except FilterNotSupportedException:
-            return self.default_filter_on_exception()
+    def get_filter_expression(
+        self, field_name, value, model_field, field
+    ) -> OptionallyAnnotatedQ:
+        field_type: HasValueEqualFilterSupport = field_type_registry.get_by_model(field)
+        return field_type.get_in_array_is_query(field_name, value, model_field, field)
 
 
 class HasNotValueEqualViewFilterType(
@@ -125,16 +144,15 @@ class HasValueContainsViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        field_type = field_type_registry.get_by_model(field)
-        try:
-            if not isinstance(field_type, HasValueContainsFilterSupport):
-                raise FilterNotSupportedException(field_type)
+        if value == "":
+            return Q()
 
-            return field_type.get_in_array_contains_query(
-                field_name, value, model_field, field
-            )
-        except FilterNotSupportedException:
-            return self.default_filter_on_exception()
+        field_type: HasValueContainsFilterSupport = field_type_registry.get_by_model(
+            field
+        )
+        return field_type.get_in_array_contains_query(
+            field_name, value, model_field, field
+        )
 
 
 class HasNotValueContainsViewFilterType(
@@ -160,16 +178,15 @@ class HasValueContainsWordViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        field_type = field_type_registry.get_by_model(field)
-        try:
-            if not isinstance(field_type, HasValueContainsWordFilterSupport):
-                raise FilterNotSupportedException(field_type)
+        if value == "":
+            return Q()
 
-            return field_type.get_in_array_contains_word_query(
-                field_name, value, model_field, field
-            )
-        except FilterNotSupportedException:
-            return self.default_filter_on_exception()
+        field_type: HasValueContainsWordFilterSupport = (
+            field_type_registry.get_by_model(field)
+        )
+        return field_type.get_in_array_contains_word_query(
+            field_name, value, model_field, field
+        )
 
 
 class HasNotValueContainsWordViewFilterType(
@@ -194,19 +211,25 @@ class HasValueLengthIsLowerThanViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        field_type = field_type_registry.get_by_model(field)
-        try:
-            if not isinstance(field_type, HasValueLengthIsLowerThanFilterSupport):
-                raise FilterNotSupportedException(field_type)
+        value = value.strip()
+        if value == "":
+            return Q()
 
-            return field_type.get_in_array_length_is_lower_than_query(
-                field_name, value, model_field, field
-            )
-        except FilterNotSupportedException:
+        try:
+            # The value is expected to be an integer representing the length to compare
+            filter_value = int(value)
+        except (ValueError, TypeError):
             return self.default_filter_on_exception()
 
+        field_type: HasValueLengthIsLowerThanFilterSupport = (
+            field_type_registry.get_by_model(field)
+        )
+        return field_type.get_in_array_length_is_lower_than_query(
+            field_name, filter_value, model_field, field
+        )
 
-class HasAllValuesEqualViewFilterType(ViewFilterType):
+
+class HasAllValuesEqualViewFilterType(ComparisonHasValueFilter):
     """
     The filter checks if all values in an array are equal to a specific value.
     """
@@ -218,16 +241,15 @@ class HasAllValuesEqualViewFilterType(ViewFilterType):
         ),
     ]
 
-    def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        try:
-            field_type = field_type_registry.get_by_model(field)
-            if not isinstance(field_type, HasAllValuesEqualFilterSupport):
-                raise FilterNotSupportedException(field_type)
-            return field_type.get_has_all_values_equal_query(
-                field_name, value, model_field, field
-            )
-        except FilterNotSupportedException:
-            return self.default_filter_on_exception()
+    def get_filter_expression(
+        self, field_name, value, model_field, field
+    ) -> OptionallyAnnotatedQ:
+        field_type: HasAllValuesEqualViewFilterType = field_type_registry.get_by_model(
+            field
+        )
+        return field_type.get_has_all_values_equal_query(
+            field_name, value, model_field, field
+        )
 
 
 class HasAnySelectOptionEqualViewFilterType(HasValueEqualViewFilterType):
@@ -244,6 +266,9 @@ class HasAnySelectOptionEqualViewFilterType(HasValueEqualViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        if value == "":
+            return Q()
+
         return super().get_filter(field_name, value.split(","), model_field, field)
 
 
@@ -258,92 +283,72 @@ class HasNoneSelectOptionEqualViewFilterType(
     type = "has_none_select_option_equal"
 
 
-class CallDelegateMixin:
-    """
-    Encapsulates calling a delegate method in a ViewFilterType.
-
-    ViewFilter may not know details on how a specific field type can be filtered due
-    to field type nuances (field data type may require special handling in the database,
-    a field may be just a facade or an aggregation to other field types), so in this
-    case it may cede `ViewFilterType.get_filter()` responsibility to a specific field
-    type that is called upon.
-
-    This is done by calling a delegate method on a field type. Method name should be
-    filter-specific, but general logic remains the same.
-    """
-
-    delegate_method: typing.ClassVar[typing.Callable]
-
-    def get_filter_expression(
-        self, field_name, value, model_field, field
-    ) -> OptionallyAnnotatedQ:
-        field_type = field_type_registry.get_by_model(field)
-        filter_method = self.get_delegate_method(field_type)
-        return filter_method(field_name, value, model_field, field)
-
-    def get_delegate_method(self, field_type: FieldType) -> typing.Callable:
-        method_name = self.__class__.delegate_method.__name__
-        try:
-            return getattr(field_type, method_name)
-        except AttributeError:
-            raise FilterNotSupportedException(method_name)
-
-
-class ComparisonHasValueFilter(CallDelegateMixin, ViewFilterType):
-    def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        if value == "" or value is None:
-            return Q()
-        try:
-            return self.get_filter_expression(field_name, value, model_field, field)
-        except FilterNotSupportedException as err:
-            logger.warning(
-                f"Cannot use {self.type} with {model_field} {field_name}: {err}"
-            )
-            return self.default_filter_on_exception()
-
-
 class HasValueHigherThanFilter(ComparisonHasValueFilter):
     type = "has_value_higher"
-    delegate_method = HasValueHigherThanFilterSupport.get_has_value_higher_filter_query
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaNumberType.type)
         ),
     ]
+
+    def get_filter_expression(self, field_name, value, model_field, field):
+        field_type: HasValueHigherThanFilterSupport = field_type_registry.get_by_model(
+            field
+        )
+        return field_type.get_has_value_higher_filter_query(
+            field_name, value, model_field, field
+        )
 
 
 class HasValueHigherOrEqualThanFilter(ComparisonHasValueFilter):
     type = "has_value_higher_or_equal"
-    delegate_method = (
-        HasValueHigherOrEqualThanFilterSupport.get_has_value_higher_or_equal_filter_query
-    )
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaNumberType.type)
         ),
     ]
+
+    def get_filter_expression(self, field_name, value, model_field, field):
+        field_type: HasValueHigherOrEqualThanFilterSupport = (
+            field_type_registry.get_by_model(field)
+        )
+        return field_type.get_has_value_higher_or_equal_filter_query(
+            field_name, value, model_field, field
+        )
 
 
 class HasValueLowerThanFilter(ComparisonHasValueFilter):
     type = "has_value_lower"
-    delegate_method = HasValueLowerThanFilterSupport.get_has_value_lower_filter_query
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaNumberType.type)
         ),
     ]
+
+    def get_filter_expression(self, field_name, value, model_field, field):
+        field_type: HasValueLowerThanFilterSupport = field_type_registry.get_by_model(
+            field
+        )
+        return field_type.get_has_value_lower_filter_query(
+            field_name, value, model_field, field
+        )
 
 
 class HasValueLowerOrEqualThanFilter(ComparisonHasValueFilter):
     type = "has_value_lower_or_equal"
-    delegate_method = (
-        HasValueLowerOrEqualThanFilterSupport.get_has_value_lower_or_equal_filter_query
-    )
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaNumberType.type)
         ),
     ]
+
+    def get_filter_expression(self, field_name, value, model_field, field):
+        field_type: HasValueLowerOrEqualThanFilterSupport = (
+            field_type_registry.get_by_model(field)
+        )
+        return field_type.get_has_value_lower_or_equal_filter_query(
+            field_name, value, model_field, field
+        )
 
 
 class HasNotValueHigherOrEqualTHanFilterType(

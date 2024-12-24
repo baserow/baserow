@@ -4,21 +4,7 @@ import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 import { ViewFilterType } from '@baserow/modules/database/viewFilters'
 import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
-import _ from 'lodash'
 import { BaserowFormulaNumberType } from '@baserow/modules/database/formula/formulaTypes'
-
-/**
- * This function normalizes boolean values that may be used internally in the filter
- * to values that can be transferred to the backend.
- * @param value
- * @returns {string|*}
- */
-const normalizeBooleanForFilters = (value) => {
-  if (!_.isBoolean(value)) {
-    return value
-  }
-  return value ? '1' : '0'
-}
 
 export class HasEmptyValueViewFilterType extends ViewFilterType {
   static getType() {
@@ -80,23 +66,9 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasValueEqual')
   }
 
-  getDefaultValue(field) {
-    // has_value_equal filter by default sends an empty string. For consistency
-    // a default value should be in pair with a default value from the input component.
-    return this.prepareValue('', field)
-  }
-
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.parseInputValue(field, filterValue)
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
-  }
-
-  prepareValue(value, field) {
-    const fieldType = this.app.$registry.get('field', field.type)
-    const val = normalizeBooleanForFilters(
-      fieldType.parseInputValue(field, value)
-    )
-    return val === null || _.isNan(val) ? '' : val
   }
 
   getInputComponent(field) {
@@ -129,23 +101,8 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.parseInputValue(field, filterValue)
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
-  }
-
-  getDefaultValue(field) {
-    // has_not_value_equal filter by default sends an empty string. For consistency
-    // a default value should be in pair with a default value from the input component.
-    return this.prepareValue('', field)
-  }
-
-  prepareValue(value, field) {
-    const fieldType = this.app.$registry.get('field', field.type)
-    const val = normalizeBooleanForFilters(
-      fieldType.parseInputValue(field, value)
-    )
-
-    return val === null || _.isNaN(val) ? '' : val
   }
 
   getInputComponent(field) {
@@ -339,7 +296,7 @@ export class HasAllValuesEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.parseInputValue(field, filterValue)
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasAllValuesEqualFilter(cellValue, filterValue, field)
   }
 }
@@ -413,6 +370,7 @@ export class HasValueHigherThanViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasValueHigherThanFilter(cellValue, filterValue, field)
   }
 }
@@ -440,6 +398,7 @@ export class HasValueHigherThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasValueHigherThanOrEqualFilter(
       cellValue,
       filterValue,
@@ -471,6 +430,7 @@ export class HasValueLowerThanViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasValueLowerThanFilter(cellValue, filterValue, field)
   }
 }
@@ -498,6 +458,7 @@ export class HasValueLowerThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasValueLowerThanOrEqualFilter(
       cellValue,
       filterValue,
@@ -529,6 +490,7 @@ export class HasNotValueHigherThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasNotValueHigherThanOrEqualFilter(
       cellValue,
       filterValue,
@@ -560,6 +522,7 @@ export class HasNotValueHigherThanViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasNotValueHigherThanFilter(cellValue, filterValue, field)
   }
 }
@@ -587,6 +550,7 @@ export class HasNotValueLowerThanViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasNotValueLowerThanFilter(cellValue, filterValue, field)
   }
 }
@@ -614,6 +578,7 @@ export class HasNotValueLowerThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
     return fieldType.hasNotValueLowerThanOrEqualFilter(
       cellValue,
       filterValue,

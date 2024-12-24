@@ -25,66 +25,81 @@ class BaserowFormulaArrayFilterSupportMixin(
     HasValueLengthIsLowerThanFilterSupport,
 ):
     """
-    This mixin provides filter interface for array formula type, which basically
-    delegates the call to a subtype formula type.
+    This mixin proxies all the array formula filters methods to the formula subtype.
     """
 
-    def get_in_array_is_query(self, field_name, value, model_field, field):
-        return self.sub_type.get_in_array_is_query(
-            field_name, value, model_field, field
-        )
+    def get_in_array_empty_value(self, field):
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
+        return self.sub_type.get_in_array_empty_value(field_instance)
 
     def get_in_array_empty_query(self, field_name, model_field, field):
-        return self.sub_type.get_in_array_empty_query(field_name, model_field, field)
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
+        return self.sub_type.get_in_array_empty_query(
+            field_name, model_field, field_instance
+        )
+
+    def get_in_array_is_query(self, field_name, value, model_field, field):
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
+        return self.sub_type.get_in_array_is_query(
+            field_name, value, model_field, field_instance
+        )
 
     def get_in_array_contains_query(self, field_name, value, model_field, field):
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
         return self.sub_type.get_in_array_contains_query(
-            field_name, value, model_field, field
+            field_name, value, model_field, field_instance
         )
 
     def get_in_array_contains_word_query(self, field_name, value, model_field, field):
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
         return self.sub_type.get_in_array_contains_word_query(
-            field_name, value, model_field, field
+            field_name, value, model_field, field_instance
         )
 
     def get_in_array_length_is_lower_than_query(
         self, field_name, value, model_field, field
     ):
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
         return self.sub_type.get_in_array_length_is_lower_than_query(
-            field_name, value, model_field, field
+            field_name, value, model_field, field_instance
         )
 
     def get_has_all_values_equal_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
         return self.sub_type.get_has_all_values_equal_query(
-            field_name, value, model_field, field
+            field_name, value, model_field, field_instance
         )
 
     def get_has_value_higher_filter_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
         return self.sub_type.get_has_value_higher_filter_query(
-            field_name, value, model_field, field
+            field_name, value, model_field, field_instance
         )
 
     def get_has_value_higher_or_equal_filter_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
         return self.sub_type.get_has_value_higher_or_equal_filter_query(
-            field_name, value, model_field, field
+            field_name, value, model_field, field_instance
         )
 
     def get_has_value_lower_filter_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
         return self.sub_type.get_has_value_lower_filter_query(
-            field_name, value, model_field, field
+            field_name, value, model_field, field_instance
         )
 
     def get_has_value_lower_or_equal_filter_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> "OptionallyAnnotatedQ":
+        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
         return self.sub_type.get_has_value_lower_or_equal_filter_query(
-            field_name, value, model_field, field
+            field_name, value, model_field, field_instance
         )
