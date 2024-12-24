@@ -304,7 +304,10 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
         files_to_download,
     ):
         foreign_table_id = raw_airtable_column["typeOptions"]["foreignTableId"]
-        return [row_id_mapping[foreign_table_id][v["foreignRowId"]] for v in value]
+        foreign_row_ids = filter(
+            lambda v: v is not None, [v.get("foreignRowId") for v in value]
+        )
+        return [row_id_mapping[foreign_table_id][row_id] for row_id in foreign_row_ids]
 
 
 class MultipleAttachmentAirtableColumnType(AirtableColumnType):
