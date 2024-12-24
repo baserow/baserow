@@ -282,6 +282,11 @@ export class TypographyThemeConfigBlockType extends ThemeConfigBlockType {
         `heading_${level}_font_family`,
         `--heading-h${level}-font-family`
       )
+      style.addFontWeightIfExists(
+        theme,
+        `heading_${level}_font_weight`,
+        `--heading-h${level}-font-weight`
+      )
     })
     style.addPixelValueIfExists(theme, `body_font_size`)
     style.addColorIfExists(theme, `body_text_color`)
