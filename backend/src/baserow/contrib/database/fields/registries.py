@@ -330,7 +330,10 @@ class FieldType(
         return queryset
 
     def enhance_field_queryset(
-        self, queryset: QuerySet[Field], field: Field
+        self,
+        queryset: QuerySet[Field],
+        field: Field,
+        prefix: str = "",
     ) -> QuerySet[Field]:
         """
         This hook can be used to enhance a queryset when fetching multiple fields of a

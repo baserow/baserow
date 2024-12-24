@@ -11,6 +11,7 @@ import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import (
+    CountField,
     Field,
     LongTextField,
     SelectOption,
@@ -23,6 +24,7 @@ from baserow.core.db import (
     LockedAtomicTransaction,
     MultiFieldPrefetchQuerysetMixin,
     QuerySet,
+    select_related_specific_iterator,
     specific_iterator,
     specific_queryset,
 )
@@ -646,3 +648,252 @@ def test_multiple_field_prefetch__many_to_many_missing_source(data_fixture):
     )
     row = rows[0]
     assert len(row.field.all()) == 1
+
+
+@pytest.mark.django_db
+def test_select_related_specific_iterator(data_fixture, django_assert_num_queries):
+    text_field_1 = data_fixture.create_text_field()
+    text_field_2 = data_fixture.create_text_field()
+    text_field_3 = data_fixture.create_text_field()
+
+    long_text_field_1 = data_fixture.create_long_text_field()
+    long_text_field_2 = data_fixture.create_long_text_field()
+    long_text_field_3 = data_fixture.create_long_text_field()
+
+    base_queryset = Field.objects.filter(
+        id__in=[
+            text_field_1.id,
+            text_field_2.id,
+            text_field_3.id,
+            long_text_field_1.id,
+            long_text_field_2.id,
+            long_text_field_3.id,
+        ]
+    ).order_by("id")
+
+    with django_assert_num_queries(1):
+        specific_objects = list(select_related_specific_iterator(base_queryset))
+
+        assert isinstance(specific_objects[0], TextField)
+        assert specific_objects[0].id == text_field_1.id
+
+        assert isinstance(specific_objects[1], TextField)
+        assert specific_objects[1].id == text_field_2.id
+
+        assert isinstance(specific_objects[2], TextField)
+        assert specific_objects[2].id == text_field_3.id
+
+        assert isinstance(specific_objects[3], LongTextField)
+        assert specific_objects[3].id == long_text_field_1.id
+
+        assert isinstance(specific_objects[4], LongTextField)
+        assert specific_objects[4].id == long_text_field_2.id
+
+        assert isinstance(specific_objects[5], LongTextField)
+        assert specific_objects[5].id == long_text_field_3.id
+
+
+@pytest.mark.django_db
+def test_select_related_specific_iterator_most_specific_object(
+    data_fixture, django_assert_num_queries
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    other_table = data_fixture.create_database_table(user=user, database=database)
+    link_row_field = data_fixture.create_link_row_field(
+        name="link", table=table, link_row_table=other_table
+    )
+    count_field = data_fixture.create_count_field(
+        table=table,
+        through_field=link_row_field,
+        setup_dependencies=False,
+    )
+    count_field_2 = data_fixture.create_count_field(
+        table=table,
+        through_field=link_row_field,
+        setup_dependencies=False,
+    )
+
+    base_queryset = Field.objects.filter(
+        id__in=[
+            count_field.id,
+            count_field_2.id,
+        ]
+    ).order_by("id")
+
+    print("=====")
+    print("=====")
+
+    with django_assert_num_queries(1):
+        print("1")
+        specific_objects = list(select_related_specific_iterator(base_queryset))
+
+        print("2")
+        assert isinstance(specific_objects[0], CountField)
+        assert specific_objects[0].specific.id == count_field.id
+
+        assert isinstance(specific_objects[1], CountField)
+        assert specific_objects[1].specific.id == count_field_2.id
+
+
+@pytest.mark.django_db
+def test_select_related_specific_iterator_with_annotation(
+    data_fixture, django_assert_num_queries
+):
+    text_field_1 = data_fixture.create_text_field()
+
+    long_text_field_1 = data_fixture.create_long_text_field()
+
+    base_queryset = (
+        Field.objects.filter(
+            id__in=[
+                text_field_1.id,
+                long_text_field_1.id,
+            ]
+        )
+        .annotate(
+            tmp_test_annotation=ExpressionWrapper(
+                Concat(Value("test"), "id"),
+                output_field=CharField(),
+            )
+        )
+        .order_by("id")
+    )
+
+    with django_assert_num_queries(1):
+        specific_objects = list(select_related_specific_iterator(base_queryset))
+
+    assert specific_objects[0].tmp_test_annotation == f"test{text_field_1.id}"
+    assert specific_objects[1].tmp_test_annotation == f"test{long_text_field_1.id}"
+
+
+@pytest.mark.django_db
+def test_select_related_specific_iterator_selected_related(
+    data_fixture, django_assert_num_queries
+):
+    text_field_1 = data_fixture.create_text_field()
+    long_text_field_1 = data_fixture.create_long_text_field()
+
+    base_queryset = (
+        Field.objects.filter(
+            id__in=[
+                text_field_1.id,
+                long_text_field_1.id,
+            ]
+        )
+        .select_related("table")
+        .order_by("id")
+    )
+
+    with django_assert_num_queries(1):
+        specific_objects = list(select_related_specific_iterator(base_queryset))
+        assert specific_objects[0].table.id == text_field_1.table_id
+        assert specific_objects[1].table.id == long_text_field_1.table_id
+
+
+@pytest.mark.django_db
+def test_select_related_specific_iterator_with_prefetch_related(
+    data_fixture, django_assert_num_queries
+):
+    table = data_fixture.create_database_table()
+    data_fixture.create_text_field()
+    data_fixture.create_text_field()
+    grid_view_1 = data_fixture.create_grid_view(table=table)
+    grid_view_2 = data_fixture.create_grid_view(table=table)
+    gallery_view_1 = data_fixture.create_gallery_view(table=table)
+    gallery_view_2 = data_fixture.create_gallery_view(table=table)
+
+    base_queryset = (
+        View.objects.filter(
+            id__in=[
+                grid_view_1.id,
+                grid_view_2.id,
+                gallery_view_1.id,
+                gallery_view_2.id,
+            ]
+        )
+        .prefetch_related("viewfilter_set")
+        .order_by("id")
+    )
+
+    # 1 base queryset
+    # 2 `viewfilter_set` prefetch_related
+    with django_assert_num_queries(2):
+        specific_objects = list(select_related_specific_iterator(base_queryset))
+        list(specific_objects[0].viewfilter_set.all())
+        list(specific_objects[1].viewfilter_set.all())
+        list(specific_objects[2].viewfilter_set.all())
+        list(specific_objects[3].viewfilter_set.all())
+
+
+@pytest.mark.django_db
+def test_select_related_specific_iterator_per_content_type_hook(
+    data_fixture, django_assert_num_queries
+):
+    table = data_fixture.create_database_table()
+    data_fixture.create_text_field()
+    data_fixture.create_text_field()
+    grid_view_1 = data_fixture.create_grid_view(table=table)
+    grid_view_2 = data_fixture.create_grid_view(table=table)
+    gallery_view_1 = data_fixture.create_gallery_view(table=table)
+    gallery_view_2 = data_fixture.create_gallery_view(table=table)
+
+    base_queryset = View.objects.filter(
+        id__in=[
+            grid_view_1.id,
+            grid_view_2.id,
+            gallery_view_1.id,
+            gallery_view_2.id,
+        ]
+    ).order_by("id")
+
+    # 1 base queryset
+    # 3 `gridviewfieldoptions_set` prefetch_related
+    # 4 `galleryviewfieldoptions_set` prefetch_related
+    with django_assert_num_queries(3):
+
+        def hook(model, queryset, prefix):
+            if model == GridView:
+                queryset = queryset.prefetch_related(
+                    f"{prefix}gridviewfieldoptions_set"
+                )
+            if model == GalleryView:
+                queryset = queryset.prefetch_related(
+                    f"{prefix}galleryviewfieldoptions_set"
+                )
+            return queryset
+
+        specific_objects = list(
+            select_related_specific_iterator(
+                base_queryset, per_content_type_queryset_hook=hook
+            )
+        )
+        list(specific_objects[0].gridviewfieldoptions_set.all())
+        list(specific_objects[1].gridviewfieldoptions_set.all())
+        list(specific_objects[2].galleryviewfieldoptions_set.all())
+        list(specific_objects[3].galleryviewfieldoptions_set.all())
+
+
+@pytest.mark.django_db
+def test_select_related_specific_iterator_content_type_pre_check(
+    data_fixture, django_assert_num_queries
+):
+    text_field_1 = data_fixture.create_text_field()
+    long_text_field_1 = data_fixture.create_long_text_field()
+
+    base_queryset = Field.objects.filter(
+        id__in=[
+            text_field_1.id,
+            long_text_field_1.id,
+        ]
+    ).order_by("id")
+
+    with django_assert_num_queries(2) as captured_queries:
+        list(
+            select_related_specific_iterator(base_queryset, content_type_pre_check=True)
+        )
+
+    # Because the a NumberField object is not in the `base_querset`, it's not
+    # expected to be included as join in the query.
+    assert "numberfield" not in captured_queries[1]["sql"]

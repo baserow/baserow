@@ -2350,11 +2350,14 @@ class LinkRowFieldType(
         )
 
     def enhance_field_queryset(
-        self, queryset: QuerySet[Field], field: Field
+        self,
+        queryset: QuerySet[Field],
+        field: Field,
+        prefix: str = "",
     ) -> QuerySet[Field]:
         return queryset.prefetch_related(
             models.Prefetch(
-                "link_row_table__field_set",
+                f"{prefix}link_row_table__field_set",
                 queryset=specific_queryset(
                     Field.objects.filter(primary=True)
                     .select_related("content_type")

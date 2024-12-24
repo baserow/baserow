@@ -20,7 +20,14 @@ from typing import (
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import DEFAULT_DB_ALIAS, connection, transaction
-from django.db.models import ForeignKey, ManyToManyField, Max, Model, QuerySet
+from django.db.models import (
+    ForeignKey,
+    ManyToManyField,
+    Max,
+    Model,
+    OneToOneRel,
+    QuerySet,
+)
 from django.db.models.functions import Collate
 from django.db.models.sql.query import LOOKUP_SEP
 from django.db.transaction import Atomic, get_connection
@@ -68,6 +75,39 @@ class LockedAtomicTransaction(Atomic):
 
 
 T = TypeVar("T", bound=Model)
+
+
+def _apply_annotations_to_specific(annotation_keys, item, specific_item):
+    """
+    If there are annotation keys, we must extract them from the original item
+    because they should exist there and set them on the specific object so they
+    can be used from there.
+    """
+
+    if annotation_keys:
+        for annotation_key in annotation_keys:
+            if hasattr(item, annotation_key):
+                setattr(specific_item, annotation_key, getattr(item, annotation_key))
+    return specific_item
+
+
+def _apply_prefetch_related_to_specific(item, specific_item):
+    """
+    If the original item has the `_prefetched_objects_cache` object, it means that
+    the `prefetch_related` was used and fetched on the base queryset. By setting it
+    on the specific object, we move that prefetched data over so that we don't have
+    to execute the same query again.
+    """
+
+    if hasattr(item, "_prefetched_objects_cache"):
+        specific_prefetched_objects_cache = getattr(
+            specific_item, "_prefetched_objects_cache", {}
+        )
+        specific_item._prefetched_objects_cache = {
+            **item._prefetched_objects_cache,
+            **specific_prefetched_objects_cache,
+        }
+    return specific_item
 
 
 def specific_iterator(
@@ -168,15 +208,10 @@ def specific_iterator(
                 f"The specific object with id {item.id} does not exist."
             )
 
-        # If there are annotation keys, we must extract them from the original item
-        # because they should exist there and set them on the specific object so they
-        # can be used from there.
-        if annotation_keys:
-            for annotation_key in annotation_keys:
-                if hasattr(item, annotation_key):
-                    setattr(
-                        specific_object, annotation_key, getattr(item, annotation_key)
-                    )
+        specific_object = _apply_annotations_to_specific(
+            annotation_keys, item, specific_object
+        )
+        specific_object = _apply_prefetch_related_to_specific(item, specific_object)
 
         if select_related_keys:
             for select_related_key in select_related_keys:
@@ -186,19 +221,6 @@ def specific_iterator(
                         select_related_key,
                         getattr(item, select_related_key),
                     )
-
-        # If the original item has the `_prefetched_objects_cache` object, it means that
-        # the `prefetch_related` was used and fetched on the base queryset. By
-        # setting it on the specific object, we move that prefetched data over so
-        # that we don't have to execute the same query again.
-        if hasattr(item, "_prefetched_objects_cache"):
-            specific_prefetched_objects_cache = getattr(
-                specific_object, "_prefetched_objects_cache", {}
-            )
-            specific_object._prefetched_objects_cache = {
-                **item._prefetched_objects_cache,
-                **specific_prefetched_objects_cache,
-            }
 
         ordered_specific_objects.append(specific_object)
 
@@ -253,6 +275,113 @@ def specific_queryset(
     clone._iterable_class = SpecificIterable
 
     return clone
+
+
+def get_child_models_and_select_related_path(
+    model: Model, prefix: Optional[str] = ""
+) -> List[Tuple[Model, str]]:
+    """
+    Returns the child models with a one on one relations recursively. These are
+    automatically created when a model is extended.
+
+    :param model: The base model where to get the child models for.
+    :param prefix: Needed to calculate the full select_related path.
+    :return: A list with all the child models and their select related paths.
+    """
+
+    model_and_select_related_path = []
+    for relation in model._meta.related_objects:
+        related_model = relation.related_model
+        if isinstance(relation, OneToOneRel) and issubclass(related_model, model):
+            # Use related_name if defined, otherwise, default to the lowercase model
+            # name because that's the default related_name.
+            related_name = (
+                relation.related_name or relation.related_model._meta.model_name
+            )
+            model_and_select_related_path += get_child_models_and_select_related_path(
+                related_model, f"{related_name}__"
+            )
+            model_and_select_related_path += [
+                (related_model, f"{prefix}{related_name}")
+            ]
+    return model_and_select_related_path
+
+
+def select_related_specific_iterator(
+    queryset,
+    per_content_type_queryset_hook: Optional[Callable] = None,
+    content_type_pre_check=False,
+):
+    """
+    Extends the provided queryset to that the specific objects are joined into the
+    query using select_related. It then iterates over the result and extracts the
+    specific objects.
+
+    This specific iterator doesn't need to execute a query for each specific model,
+    but puts executes everything in a single query using joins. This can have
+    performance benefits.
+
+    :param queryset: The queryset where to get the specific objects for.
+    :param per_content_type_queryset_hook: A function that's called for every
+        specific model type. This can be used to add additional select_related or
+        prefetch_related to the queryset.
+    :param content_type_pre_check: If true, then an extra query will be executed
+        first to fetch the unique content types, and only those will be included in
+        the select related. This can be faster if there are
+    :return:
+    """
+
+    model = queryset.model
+
+    # Extract the annotation keys from the query, so that they can be cloned onto the
+    # specific object later.
+    annotation_keys = queryset.query.annotations.keys()
+
+    # Optionally fetch the unique content types, so that only the existing specific
+    # objects will be included in the `select_related`. This costs an additional
+    # query.
+    allowed_related_models = None
+    if content_type_pre_check:
+        allowed_related_models = [
+            ContentType.objects.get_for_id(item["content_type_id"]).model_class()
+            for item in queryset.order_by().values("content_type_id").distinct()
+        ]
+
+    child_related_names = []
+    for related_model, related_name in get_child_models_and_select_related_path(model):
+        # If the `allowed_related_models` is set, then we only want to include
+        # the select related of those models to reduce the number of joins.
+        if allowed_related_models is None or related_model in allowed_related_models:
+            child_related_names.append(related_name)
+            queryset = queryset.select_related(related_name)
+
+            if per_content_type_queryset_hook is not None:
+                queryset = per_content_type_queryset_hook(
+                    related_model, queryset, f"{related_name}__"
+                )
+
+    specific_items = []
+    for item in queryset:
+        specific_item = None
+        for name_parts in child_related_names:
+            # Traverse to the select_related objects can find the most specific one.
+            # This works because the most specific ones are first in the list.
+            for name in name_parts.split("__"):
+                specific_item = (specific_item or item)._state.fields_cache.get(name)
+
+            if specific_item is not None:
+                specific_item = _apply_annotations_to_specific(
+                    annotation_keys, item, specific_item
+                )
+                specific_item = _apply_prefetch_related_to_specific(item, specific_item)
+                specific_items.append(specific_item)
+                break
+        if specific_item is None:
+            raise model.DoesNotExist(
+                f"The specific object with id {item.id} does not exist."
+            )
+
+    return specific_items
 
 
 class IsolationLevel:

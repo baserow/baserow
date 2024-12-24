@@ -7,6 +7,7 @@ from baserow.contrib.database.fields.field_types import AutonumberFieldType
 from baserow.contrib.database.fields.models import (
     AutonumberField,
     BooleanField,
+    CountField,
     CreatedByField,
     CreatedOnField,
     DateField,
@@ -382,6 +383,26 @@ class FieldFixtures:
 
         field = LookupField(**kwargs)
         field.save(recalculate=recalculate)
+
+        if create_field:
+            self.create_model_field(kwargs["table"], field)
+
+        if setup_dependencies:
+            FieldDependencyHandler().rebuild_dependencies([field], FieldCache())
+
+        return field
+
+    def create_count_field(
+        self,
+        user=None,
+        create_field=True,
+        setup_dependencies=True,
+        **kwargs,
+    ):
+        self.set_test_field_kwarg_defaults(user, kwargs)
+
+        field = CountField(**kwargs)
+        field.save()
 
         if create_field:
             self.create_model_field(kwargs["table"], field)
