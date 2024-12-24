@@ -236,6 +236,12 @@ class LinkThemeConfigBlock(ThemeConfigBlock):
         default="inter",
     )
     link_font_size = models.SmallIntegerField(default=13)
+    link_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.REGULAR,
+        db_default=FontWeights.REGULAR,
+    )
     link_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
