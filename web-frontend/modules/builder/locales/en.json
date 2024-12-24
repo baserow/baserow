@@ -529,7 +529,8 @@
     "borderRadius": "Border radius",
     "padding": "Padding",
     "fontFamily": "Font",
-    "size": "Font size"
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "imageThemeConfigBlock": {
     "alignment": "Alignment",

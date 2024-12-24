@@ -58,6 +58,20 @@
             />
           </template>
         </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('inputThemeConfigBlock.weight')"
+        >
+          <FontWeightSelector v-model="values.label_font_weight" />
+          <template #after-input>
+            <ResetButton
+              v-model="values.label_font_weight"
+              :default-value="theme?.label_font_weight"
+            />
+          </template>
+        </FormGroup>
       </template>
       <template #preview>
         <ABFormGroup :label="$t('inputThemeConfigBlock.label')">
@@ -117,6 +131,20 @@
             <ResetButton
               v-model="values.input_font_size"
               :default-value="theme?.input_font_size"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('inputThemeConfigBlock.weight')"
+        >
+          <FontWeightSelector v-model="values.input_font_weight" />
+          <template #after-input>
+            <ResetButton
+              v-model="values.input_font_weight"
+              :default-value="theme?.input_font_weight"
             />
           </template>
         </FormGroup>
@@ -273,6 +301,7 @@ import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/T
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
+import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
 import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
 import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
@@ -310,6 +339,7 @@ export default {
     ThemeConfigBlockSection,
     ResetButton,
     FontFamilySelector,
+    FontWeightSelector,
     PixelValueSelector,
     PaddingSelector,
   },

@@ -557,6 +557,7 @@ export class InputThemeConfigBlockType extends ThemeConfigBlockType {
     style.addColorIfExists(theme, 'label_text_color')
     style.addFontFamilyIfExists(theme, `label_font_family`)
     style.addPixelValueIfExists(theme, `label_font_size`)
+    style.addFontWeightIfExists(theme, `label_font_weight`)
 
     style.addColorIfExists(theme, 'input_text_color')
     style.addColorRecommendationIfExists(
@@ -566,6 +567,7 @@ export class InputThemeConfigBlockType extends ThemeConfigBlockType {
     )
     style.addFontFamilyIfExists(theme, `input_font_family`)
     style.addPixelValueIfExists(theme, `input_font_size`)
+    style.addFontWeightIfExists(theme, `input_font_weight`)
     style.addColorIfExists(theme, 'input_background_color')
     style.addColorRecommendationIfExists(
       theme,
