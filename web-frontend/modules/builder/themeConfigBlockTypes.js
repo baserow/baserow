@@ -342,6 +342,7 @@ export class ButtonThemeConfigBlockType extends ThemeConfigBlockType {
         }[v])
     )
     style.addFontFamilyIfExists(theme, `button_font_family`)
+    style.addFontWeightIfExists(theme, `button_font_weight`)
     style.addPixelValueIfExists(theme, `button_font_size`)
     style.addPixelValueIfExists(theme, `button_border_radius`)
     style.addPixelValueIfExists(theme, `button_border_size`)
