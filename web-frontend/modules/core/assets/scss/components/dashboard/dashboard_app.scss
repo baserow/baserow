@@ -1,14 +1,32 @@
+.dashboard-app__layout {
+  display: flex;
+}
+
+.dashboard-app__layout-scrollable {
+  height: 100%;
+  overflow: auto;
+}
+
 .dashboard-app__content {
+  min-height: calc(100vh - 100px);
+  min-width: 400px;
+  display: flex;
+  flex-direction: column;
   margin: 24px 20px 24px 24px;
+  padding: 56px 80px;
   background-color: $white;
   border: 1px solid $palette-neutral-200;
   box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
 
   @include rounded($rounded);
+
+  @media screen and (max-width: $dashboard-breakpoint) {
+    padding: 20px 24px;
+  }
 }
 
 .dashboard-app__content-header {
-  margin: 56px 80px 0;
+  margin-bottom: 24px;
 }
 
 .dashboard-app__title {

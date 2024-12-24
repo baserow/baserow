@@ -4,6 +4,7 @@ import Context from '@baserow/modules/core/components/Context'
 import Modal from '@baserow/modules/core/components/Modal'
 import Editable from '@baserow/modules/core/components/Editable'
 import Dropdown from '@baserow/modules/core/components/Dropdown'
+import DropdownSection from '@baserow/modules/core/components/DropdownSection'
 import DropdownItem from '@baserow/modules/core/components/DropdownItem'
 import Picker from '@baserow/modules/core/components/Picker'
 import ProgressBar from '@baserow/modules/core/components/ProgressBar'
@@ -65,6 +66,7 @@ function setupVue(Vue) {
   Vue.component('Modal', Modal)
   Vue.component('Editable', Editable)
   Vue.component('Dropdown', Dropdown)
+  Vue.component('DropdownSection', DropdownSection)
   Vue.component('DropdownItem', DropdownItem)
   Vue.component('Checkbox', Checkbox)
   Vue.component('Radio', Radio)

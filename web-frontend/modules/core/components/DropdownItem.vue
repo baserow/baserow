@@ -4,6 +4,7 @@
     class="select__item select__item--no-options"
     :class="{
       hidden: !isVisible(query),
+      visible: isVisible(query),
       active: isActive(value),
       disabled: disabled,
       hover: isHovering(value),
@@ -12,6 +13,7 @@
   >
     <a
       class="select__item-link"
+      :class="{ 'select__item-link--indented': indented }"
       @click="select(value, disabled)"
       @mousemove="hover(value, disabled)"
     >
