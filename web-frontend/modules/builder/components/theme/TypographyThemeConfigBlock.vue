@@ -97,6 +97,20 @@
           horizontal-narrow
           small-label
           class="margin-bottom-2"
+          :label="$t('typographyThemeConfigBlock.weight')"
+        >
+          <FontWeightSelector v-model="values.body_font_weight" />
+          <template #after-input>
+            <ResetButton
+              v-model="values.body_font_weight"
+              :default-value="theme?.body_font_weight"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
           :label="$t('typographyThemeConfigBlock.color')"
         >
           <ColorInput
