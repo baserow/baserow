@@ -515,7 +515,9 @@
     "defaultState": "Default state",
     "hoverState": "Hover state",
     "alignment": "Alignment",
-    "fontFamily": "Font"
+    "fontFamily": "Font",
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "inputThemeConfigBlock": {
     "label": "Label",

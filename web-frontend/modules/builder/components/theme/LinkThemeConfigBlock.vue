@@ -18,6 +18,26 @@
           </template>
         </FormGroup>
         <FormGroup
+          horizontal-narrow
+          small-label
+          :label="$t('linkThemeConfigBlock.size')"
+          :error-message="getError('link_font_size')"
+          class="margin-bottom-2"
+        >
+          <PixelValueSelector
+            v-model="values.link_font_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`link_font_size`]
+            "
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="values.link_font_size"
+              :default-value="theme?.link_font_size"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
           v-if="!extraArgs?.noAlignment"
           horizontal-narrow
           small-label
@@ -100,6 +120,16 @@ import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/T
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
+import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
+import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
+
+const minMax = {
+  link_font_size: {
+    min: 1,
+    max: 100,
+  },
+}
 
 export default {
   name: 'LinkThemeConfigBlock',
@@ -108,16 +138,36 @@ export default {
     ResetButton,
     HorizontalAlignmentsSelector,
     FontFamilySelector,
+    PixelValueSelector,
   },
   mixins: [themeConfigBlock],
   data() {
     return {
       values: {},
+      defaultValuesWhenEmpty: {
+        link_font_size: DEFAULT_FONT_SIZE_PX,
+      },
     }
   },
   methods: {
     isAllowedKey(key) {
       return key.startsWith('link_')
+    },
+    getError(property) {
+      if (this.$v.values[property].$invalid) {
+        return this.$t('error.minMaxValueField', minMax[property])
+      }
+      return null
+    },
+  },
+  validations: {
+    values: {
+      link_font_size: {
+        required,
+        integer,
+        minValue: minValue(minMax.link_font_size.min),
+        maxValue: maxValue(minMax.link_font_size.max),
+      },
     },
   },
 }
