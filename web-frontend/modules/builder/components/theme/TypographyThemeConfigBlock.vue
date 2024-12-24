@@ -176,7 +176,9 @@
             class="margin-bottom-2"
             :label="$t('typographyThemeConfigBlock.weight')"
           >
-            <FontWeightSelector v-model="values[`heading_${level}_font_weight`]" />
+            <FontWeightSelector
+              v-model="values[`heading_${level}_font_weight`]"
+            />
             <template #after-input>
               <ResetButton
                 v-model="values[`heading_${level}_font_weight`]"

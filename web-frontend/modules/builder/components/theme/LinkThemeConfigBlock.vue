@@ -26,9 +26,7 @@
         >
           <PixelValueSelector
             v-model="values.link_font_size"
-            :default-value-when-empty="
-              defaultValuesWhenEmpty[`link_font_size`]
-            "
+            :default-value-when-empty="defaultValuesWhenEmpty[`link_font_size`]"
           />
           <template #after-input>
             <ResetButton

@@ -21,8 +21,8 @@ export default {
   },
   computed: {
     fontWeights() {
-      return Object.values(this.$registry.getAll('fontWeight')).sort((a, b) =>
-        a.weight < b.weight
+      return Object.values(this.$registry.getAll('fontWeight')).sort(
+        (a, b) => a.weight < b.weight
       )
     },
   },
