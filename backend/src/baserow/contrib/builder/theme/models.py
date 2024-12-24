@@ -159,6 +159,12 @@ class ButtonThemeConfigBlock(ThemeConfigBlock):
         default="inter",
     )
     button_font_size = models.SmallIntegerField(default=13)
+    button_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.REGULAR,
+        db_default=FontWeights.REGULAR,
+    )
     button_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
