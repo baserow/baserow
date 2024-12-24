@@ -92,6 +92,7 @@
     flex-grow: 1;
     display: flex;
     min-width: 0;
+    margin-right: 10px;
   }
 
   &.header__filter-item--no-margin-left {
@@ -222,7 +223,6 @@
 
 .header__search {
   margin-left: auto;
-  margin-right: 10px;
   flex-direction: row-reverse;
   display: flex;
   flex-grow: 1;
