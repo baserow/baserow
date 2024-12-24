@@ -1,5 +1,6 @@
 .ab-link {
   font-size: var(--link-font-size, 14px);
+  font-weight: var(--link-font-weight, 400);
   text-decoration: var(--link-text-decoration, underline);
   color: var(--link-text-color, $black);
   align-self: var(--force-self-alignment, var(--link-text-alignment, initial));

@@ -392,6 +392,7 @@ export class LinkThemeConfigBlockType extends ThemeConfigBlockType {
       return `"${fontFamilyType.name}","${fontFamilyType.safeFont}"`
     })
     style.addPixelValueIfExists(theme, `link_font_size`)
+    style.addFontWeightIfExists(theme, `link_font_weight`)
     return style.toObject()
   }
 
