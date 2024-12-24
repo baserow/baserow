@@ -59,7 +59,7 @@ export class ThemeStyle {
   addFontWeightIfExists(theme, propName, styleName) {
     return this.addIfExists(theme, propName, styleName, (v) => {
       const fontWeightType = this.$registry.get('fontWeight', v)
-      return fontWeightType.name
+      return fontWeightType.weight
     })
   }
 
