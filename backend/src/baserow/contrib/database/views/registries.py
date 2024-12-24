@@ -682,7 +682,7 @@ class ViewType(
         times for an event but with different fields. This hook gives a view type the
         opportunity to react on any value change for a field.
 
-        :param update_fields: a unique or a list of affected field.
+        :param updated_fields: a unique or a list of affected field.
         """
 
     def after_field_update(self, updated_fields: Union[Iterable["Field"], "Field"]):
