@@ -434,6 +434,12 @@ class TableThemeConfigBlock(ThemeConfigBlock):
         default=13,
         help_text="The font size of the header cells",
     )
+    table_header_font_weight = models.CharField(
+        choices=FontWeights.choices,
+        max_length=11,
+        default=FontWeights.REGULAR,
+        db_default=FontWeights.REGULAR,
+    )
     table_header_font_family = models.CharField(
         max_length=250,
         default="inter",
