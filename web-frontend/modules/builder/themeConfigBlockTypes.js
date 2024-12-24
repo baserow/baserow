@@ -618,6 +618,7 @@ export class TableThemeConfigBlockType extends ThemeConfigBlockType {
     style.addColorIfExists(theme, 'table_header_background_color')
     style.addColorIfExists(theme, 'table_header_text_color')
     style.addPixelValueIfExists(theme, `table_header_font_size`)
+    style.addFontWeightIfExists(theme, `table_header_font_weight`)
     style.addFontFamilyIfExists(theme, `table_header_font_family`)
     style.addIfExists(theme, `table_header_text_alignment`)
 

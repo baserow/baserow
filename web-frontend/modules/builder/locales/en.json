@@ -556,6 +556,7 @@
     "fontFamily": "Font",
     "size": "Size",
     "fontSize": "Font size",
+    "fontWeight": "Font weight",
     "table": "Table",
     "header": "Header",
     "alignment": "Alignment",

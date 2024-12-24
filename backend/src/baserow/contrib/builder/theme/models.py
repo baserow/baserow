@@ -437,8 +437,8 @@ class TableThemeConfigBlock(ThemeConfigBlock):
     table_header_font_weight = models.CharField(
         choices=FontWeights.choices,
         max_length=11,
-        default=FontWeights.REGULAR,
-        db_default=FontWeights.REGULAR,
+        default=FontWeights.SEMI_BOLD,
+        db_default=FontWeights.SEMI_BOLD,
     )
     table_header_font_family = models.CharField(
         max_length=250,

@@ -132,6 +132,20 @@
         <FormGroup
           horizontal-narrow
           small-label
+          class="margin-bottom-2"
+          :label="$t('tableThemeConfigBlock.fontWeight')"
+        >
+          <FontWeightSelector v-model="values.table_header_font_weight" />
+          <template #after-input>
+            <ResetButton
+              v-model="values.table_header_font_weight"
+              :default-value="theme?.table_header_font_weight"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
           :label="$t('tableThemeConfigBlock.textColor')"
           class="margin-bottom-2"
         >
@@ -354,6 +368,7 @@ import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/T
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
+import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
 import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
@@ -397,6 +412,7 @@ export default {
     ResetButton,
     HorizontalAlignmentsSelector,
     FontFamilySelector,
+    FontWeightSelector,
     PixelValueSelector,
     PaddingSelector,
   },
