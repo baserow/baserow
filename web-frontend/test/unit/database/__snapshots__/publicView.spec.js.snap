@@ -335,7 +335,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
             class="header__filter-item header__filter-item--full-width"
           >
             <div
-              class="header__view-search--wrapper"
+              class="header__search"
             >
               <a
                 class="header__filter-link"

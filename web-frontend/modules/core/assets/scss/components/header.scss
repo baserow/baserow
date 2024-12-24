@@ -200,11 +200,6 @@
   color: $palette-neutral-600;
 }
 
-.header__search-icon {
-  color: $color-neutral-900;
-  font-size: 16px;
-}
-
 .header__info {
   @extend %clearfix;
 
@@ -225,7 +220,7 @@
   }
 }
 
-.header__view-search--wrapper {
+.header__search {
   margin-left: auto;
   margin-right: 10px;
   flex-direction: row-reverse;
@@ -238,4 +233,9 @@
 
     display: inline-block;
   }
+}
+
+.header__search-icon {
+  color: $color-neutral-900;
+  font-size: 16px;
 }
