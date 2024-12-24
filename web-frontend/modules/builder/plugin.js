@@ -135,7 +135,6 @@ import {
   BrushScriptMTFontFamilyType,
 } from '@baserow/modules/builder/fontFamilyTypes'
 
-
 import {
   ThinFontWeightType,
   UltraLightFontWeightType,
