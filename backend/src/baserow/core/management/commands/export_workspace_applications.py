@@ -9,7 +9,9 @@ from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
 
 cli_import_export_config = ImportExportConfig(
-    include_permission_data=False, reduce_disk_space_usage=False
+    include_permission_data=False,
+    reduce_disk_space_usage=False,
+    exclude_sensitive_data=True,
 )
 
 

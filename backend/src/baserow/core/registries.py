@@ -99,6 +99,13 @@ class ImportExportConfig:
     Whether or not the export should include the user data
     """
 
+    exclude_sensitive_data: bool = True
+    """
+    When True, during an export any sensitive fields defined in the
+    `sensitive_fields` list will have their serialized values set to None. This
+    ensures that sensitive data are excluded from the exported workspace file.
+    """
+
 
 class Plugin(APIUrlsInstanceMixin, Instance):
     """

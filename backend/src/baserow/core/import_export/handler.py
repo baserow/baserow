@@ -49,7 +49,7 @@ from baserow.core.models import (
 )
 from baserow.core.operations import ReadWorkspaceOperationType
 from baserow.core.registries import ImportExportConfig, application_type_registry
-from baserow.core.signals import application_created
+from baserow.core.signals import application_created, application_imported
 from baserow.core.storage import (
     ExportZipFile,
     _create_storage_dir_if_missing_and_open,
@@ -669,6 +669,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         if core_settings.verify_import_signature:
             self.validate_signature(zip_file, manifest_data)
+
         return manifest_data
 
     def validate_signature(self, zip_file: ZipFile, manifest_data: Dict):
@@ -1017,12 +1018,13 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                     application_type = application_type_registry.get_by_model(
                         application
                     )
-                    application_created.send(
-                        self,
-                        application=application,
-                        user=user,
-                        type_name=application_type.type,
-                    )
+                    for signal in [application_created, application_imported]:
+                        signal.send(
+                            self,
+                            application=application,
+                            user=user,
+                            type_name=application_type.type,
+                        )
 
         self.clean_storage(import_tmp_path, storage)
         self.clean_storage(import_file_path, storage)

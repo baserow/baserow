@@ -214,7 +214,9 @@ class DomainHandler:
         builder_application_type = application_type_registry.get("builder")
 
         import_export_config = ImportExportConfig(
-            include_permission_data=True, reduce_disk_space_usage=False
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=False,
         )
 
         default_storage = get_default_storage()

@@ -152,6 +152,7 @@ class BuilderApplicationType(ApplicationType):
         serialized_integrations = [
             IntegrationHandler().export_integration(
                 i,
+                import_export_config,
                 files_zip=files_zip,
                 storage=storage,
                 cache=self.cache,
