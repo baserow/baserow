@@ -45,11 +45,7 @@ class FieldCache:
     def get_model(self, table):
         table_id = table.id
         if table_id not in self._model_cache:
-            model = table.get_model()
             self._model_cache[table_id] = table.get_model()
-            # Immediately cache the fields that belong to the model because that can
-            # reduce the queries when the specific fields are needed later.
-            self.cache_model_fields(model)
         return self._model_cache[table_id]
 
     def uncache_field(self, field):
