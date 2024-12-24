@@ -1,10 +1,11 @@
 from ast import Dict
+from datetime import datetime
 from typing import Iterable, List, Optional, Union
 from zipfile import ZipFile
 
 from django.conf import settings
 from django.core.files.storage import Storage
-from django.db.models import QuerySet
+from django.db.models import F, QuerySet
 
 from loguru import logger
 
@@ -19,9 +20,8 @@ from baserow.core.user_sources.registries import (
     UserSourceType,
     user_source_type_registry,
 )
+from baserow.core.user_sources.types import UserSourceForUpdate
 from baserow.core.utils import extract_allowed
-
-from .types import UserSourceForUpdate
 
 
 class UserSourceHandler:
@@ -321,14 +321,36 @@ class UserSourceHandler:
 
         return user_source
 
+    def _generate_update_user_count_chunk_queryset(
+        self, user_source_type: UserSourceType
+    ):
+        """
+        Generates a queryset that can be used to update the user count in chunks. This
+        method is used to avoid updating all user sources in the same Celery task.
+        :param user_source_type: The user source type to generate the queryset for.
+        :return: A queryset that can be used to update the user count in chunks.
+        """
+
+        batch_per_hour = (
+            60 // settings.BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_TASK_INTERVAL_MINUTES
+        )
+
+        return user_source_type.model_class.objects.annotate(
+            idmod=F("id") % batch_per_hour
+        ).filter(idmod=datetime.now().minute // (60 // batch_per_hour))
+
     def update_all_user_source_counts(
-        self, user_source_type: Optional[str] = None, raise_on_error: bool = False
+        self,
+        user_source_type: Optional[str] = None,
+        update_in_chunks: bool = False,
+        raise_on_error: bool = False,
     ):
         """
         Responsible for iterating over all registered user source types, and asking the
         implementation to count the number of external users it points to.
 
         :param user_source_type: Optionally, a specific user source type to update.
+        :param update_in_chunks: Whether to update the user count in chunks or not.
         :param raise_on_error: Whether to raise an exception when a user source
             type raises an exception, or to continue with the remaining user sources.
         :return: None
@@ -340,8 +362,13 @@ class UserSourceHandler:
             else user_source_type_registry.get_all()
         )
         for user_source_type in user_source_types:
+            base_queryset = (
+                self._generate_update_user_count_chunk_queryset(user_source_type)
+                if update_in_chunks
+                else None
+            )
             try:
-                user_source_type.update_user_count()
+                user_source_type.update_user_count(base_queryset)
             except Exception as e:
                 if not settings.TESTS:
                     logger.exception(

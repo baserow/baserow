@@ -354,7 +354,10 @@ class UserSourceType(
 
     @abstractmethod
     def get_user_count(
-        self, user_source, force_recount: bool = False
+        self,
+        user_source: UserSource,
+        force_recount: bool = False,
+        update_if_uncached: bool = True,
     ) -> UserSourceCount:
         """
         Responsible for retrieving a user source's count.
@@ -362,6 +365,9 @@ class UserSourceType(
         :param user_source: The user source we want a count from.
         :param force_recount: If True, we will re-count the users and ignore any
             existing cached count.
+        :param update_if_uncached: If True, we will count the users and cache the
+            result if the cache entry is missing. Set this to False if you need to
+            know if the cache entry is missing.
         :return: A `UserSourceCount` instance or `None`.
         """
 

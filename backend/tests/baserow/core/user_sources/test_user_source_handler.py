@@ -3,7 +3,10 @@ from collections import defaultdict
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.db.models import QuerySet
+
 import pytest
+from freezegun.api import freeze_time
 
 from baserow.core.exceptions import (
     ApplicationOperationNotSupported,
@@ -523,6 +526,63 @@ def test_get_all_roles_for_application_returns_user_roles(
 
 
 @pytest.mark.django_db
+def test_generate_update_user_count_chunk_queryset(data_fixture):
+    builder = data_fixture.create_builder_application()
+
+    ids_seen = []
+    ids_expected = list(range(1, 11))
+    user_source_type = list(user_source_type_registry.get_all())[0]
+    user_sources = data_fixture.create_user_sources_with_primary_keys(
+        user_source_type, ids_expected, application=builder
+    )
+
+    # Sanity-check that all of them don't have a cached user count.
+    for user_source in user_sources:
+        assert (
+            user_source.get_type().get_user_count(user_source, update_if_uncached=False)
+            is None
+        )
+
+    with freeze_time("2024-12-16 12:00"):
+        chunk = list(
+            UserSourceHandler()
+            ._generate_update_user_count_chunk_queryset(user_source_type)
+            .values_list("id", flat=True)
+        )
+        ids_seen.extend(chunk)
+        assert chunk == [4, 8]
+
+    with freeze_time("2024-12-16 12:15"):
+        chunk = list(
+            UserSourceHandler()
+            ._generate_update_user_count_chunk_queryset(user_source_type)
+            .values_list("id", flat=True)
+        )
+        ids_seen.extend(chunk)
+        assert chunk == [1, 5, 9]
+
+    with freeze_time("2024-12-16 12:30"):
+        chunk = list(
+            UserSourceHandler()
+            ._generate_update_user_count_chunk_queryset(user_source_type)
+            .values_list("id", flat=True)
+        )
+        ids_seen.extend(chunk)
+        assert chunk == [2, 6, 10]
+
+    with freeze_time("2024-12-16 12:45"):
+        chunk = list(
+            UserSourceHandler()
+            ._generate_update_user_count_chunk_queryset(user_source_type)
+            .values_list("id", flat=True)
+        )
+        ids_seen.extend(chunk)
+        assert chunk == [3, 7]
+
+    assert sorted(ids_seen) == ids_expected
+
+
+@pytest.mark.django_db
 def test_update_all_user_source_counts(stub_user_source_registry):
     # Calling each `update_user_count`.
     with stub_user_source_registry(update_user_count_return=lambda: 123):
@@ -543,3 +603,75 @@ def test_update_all_user_source_counts(stub_user_source_registry):
     ), pytest.raises(Exception) as exc:
         UserSourceHandler().update_all_user_source_counts(raise_on_error=True)
     assert str(exc.value) == "An error has occurred."
+
+
+@pytest.mark.django_db
+def test_update_all_user_source_counts_in_chunks(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(application=builder)
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Email", "text"),
+            ("Name", "text"),
+            ("Role", "text"),
+        ],
+        rows=[
+            ["jrmi@baserow.io", "Jérémie", ""],
+            ["peter@baserow.io", "Peter", ""],
+            ["afonso@baserow.io", "Afonso", ""],
+            ["tsering@baserow.io", "Tsering", ""],
+            ["evren@baserow.io", "Evren", ""],
+        ],
+    )
+    email_field, name_field, role_field = fields
+
+    user_source_type = list(user_source_type_registry.get_all())[0]
+    user_sources = data_fixture.create_user_sources_with_primary_keys(
+        user_source_type,
+        list(range(1, 11)),
+        application=builder,
+        integration=integration,
+        table=table,
+        email_field=email_field,
+        name_field=name_field,
+        role_field=role_field,
+    )
+
+    def _count_user_sources_with_cached_value(
+        user_sources: QuerySet[UserSource],
+    ) -> int:
+        with_cached_count = [
+            user_source
+            for user_source in user_sources
+            if user_source.get_type().get_user_count(
+                user_source, update_if_uncached=False
+            )
+            is not None
+        ]
+        return len(with_cached_count)
+
+    # Sanity-check that all of them don't have a cached user count.
+    assert _count_user_sources_with_cached_value(user_sources) == 0
+
+    with freeze_time("2024-12-16 12:00"):
+        UserSourceHandler().update_all_user_source_counts(update_in_chunks=True)
+        assert _count_user_sources_with_cached_value(user_sources) == 2  # [4,8]
+
+    with freeze_time("2024-12-16 12:15"):
+        UserSourceHandler().update_all_user_source_counts(update_in_chunks=True)
+        assert _count_user_sources_with_cached_value(user_sources) == 5  # [1,4,5,8,9]
+
+    with freeze_time("2024-12-16 12:30"):
+        UserSourceHandler().update_all_user_source_counts(update_in_chunks=True)
+        assert (
+            _count_user_sources_with_cached_value(user_sources) == 8
+        )  # [1,2,4,5,6,8,9,10]
+
+    with freeze_time("2024-12-16 12:45"):
+        UserSourceHandler().update_all_user_source_counts(update_in_chunks=True)
+        assert (
+            _count_user_sources_with_cached_value(user_sources) == 10
+        )  # [1,2,3,4,5,6,7,8,9,10]
