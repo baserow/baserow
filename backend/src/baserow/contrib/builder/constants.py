@@ -28,7 +28,7 @@ class BACKGROUND_IMAGE_MODES(models.TextChoices):
 
 class FontWeights(models.TextChoices):
     THIN = "Thin"
-    ULTRA_LIGHT = "Extra-light"
+    EXTRA_LIGHT = "Extra-light"
     LIGHT = "Light"
     REGULAR = "Regular"
     MEDIUM = "Medium"
@@ -36,3 +36,5 @@ class FontWeights(models.TextChoices):
     BOLD = "Bold"
     EXTRA_BOLD = "Extra-bold"
     HEAVY = "Heavy"
+    BLACK = "Black"
+    EXTRA_BLACK = "Extra-black"
