@@ -487,6 +487,7 @@
     "headingValue": "Heading <h{i}>",
     "color": "Color",
     "size": "Size",
+    "weight": "Weight",
     "textAlignment": "Alignment",
     "bodyLabel": "Body",
     "fontFamily": "Font"

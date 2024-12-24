@@ -56,6 +56,13 @@ export class ThemeStyle {
     })
   }
 
+  addFontWeightIfExists(theme, propName, styleName) {
+    return this.addIfExists(theme, propName, styleName, (v) => {
+      const fontWeightType = this.$registry.get('fontWeight', v)
+      return fontWeightType.name
+    })
+  }
+
   addPixelValueIfExists(theme, propName, styleName) {
     return this.addIfExists(
       theme,
@@ -280,6 +287,7 @@ export class TypographyThemeConfigBlockType extends ThemeConfigBlockType {
     style.addColorIfExists(theme, `body_text_color`)
     style.addIfExists(theme, `body_text_alignment`)
     style.addFontFamilyIfExists(theme, `body_font_family`)
+    style.addFontWeightIfExists(theme, `body_font_weight`)
 
     return style.toObject()
   }
