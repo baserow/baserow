@@ -20,13 +20,13 @@ export class ThinFontWeightType extends FontWeightType {
   }
 
   get weight() {
-    100
+    return 100
   }
 }
 
 export class UltraLightFontWeightType extends FontWeightType {
   static getType() {
-    return 'Ultra-light'
+    return 'Extra-light'
   }
 
   get name() {
@@ -34,7 +34,7 @@ export class UltraLightFontWeightType extends FontWeightType {
   }
 
   get weight() {
-    200
+    return 200
   }
 }
 
@@ -48,7 +48,7 @@ export class LightFontWeightType extends FontWeightType {
   }
 
   get weight() {
-    300
+    return 300
   }
 }
 
@@ -62,7 +62,7 @@ export class RegularFontWeightType extends FontWeightType {
   }
 
   get weight() {
-    400
+    return 400
   }
 }
 
@@ -76,7 +76,7 @@ export class MediumFontWeightType extends FontWeightType {
   }
 
   get weight() {
-    500
+    return 500
   }
 }
 
@@ -90,7 +90,7 @@ export class SemiBoldFontWeightType extends FontWeightType {
   }
 
   get weight() {
-    600
+    return 600
   }
 }
 
@@ -104,7 +104,7 @@ export class BoldFontWeightType extends FontWeightType {
   }
 
   get weight() {
-    700
+    return 700
   }
 }
 
@@ -118,7 +118,7 @@ export class ExtraBoldFontWeightType extends FontWeightType {
   }
 
   get weight() {
-    800
+    return 800
   }
 }
 
@@ -132,7 +132,7 @@ export class BlackFontWeightType extends FontWeightType {
   }
 
   get weight() {
-    900
+    return 900
   }
 }
 
@@ -146,6 +146,6 @@ export class ExtraBlackFontWeightType extends FontWeightType {
   }
 
   get weight() {
-    950
+    return 950
   }
 }
