@@ -3,8 +3,8 @@ from django.db import models
 
 from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
-    FontWeights,
     WIDTHS,
+    FontWeights,
     HorizontalAlignments,
 )
 from baserow.core.fields import AutoOneToOneField
