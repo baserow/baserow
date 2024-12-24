@@ -306,8 +306,8 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
         foreign_table_id = raw_airtable_column["typeOptions"]["foreignTableId"]
 
         # Airtable doens't always provide an object with a `foreignRowId`. This can
-        # happen with a synced for example. Because we don't have access to the source
-        # in that case, we need to skip them.
+        # happen with a synced table for example. Because we don't have access to the
+        # source in that case, we need to skip them.
         return [
             row_id_mapping[foreign_table_id][v["foreignRowId"]]
             for v in value
