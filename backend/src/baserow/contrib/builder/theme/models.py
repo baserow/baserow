@@ -350,8 +350,8 @@ class InputThemeConfigBlock(ThemeConfigBlock):
     label_font_weight = models.CharField(
         choices=FontWeights.choices,
         max_length=11,
-        default=FontWeights.REGULAR,
-        db_default=FontWeights.REGULAR,
+        default=FontWeights.MEDIUM,
+        db_default=FontWeights.MEDIUM,
     )
 
     input_font_family = models.CharField(
