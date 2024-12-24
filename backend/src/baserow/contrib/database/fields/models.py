@@ -19,7 +19,7 @@ from baserow.contrib.database.formula import (
     FormulaHandler,
 )
 from baserow.contrib.database.mixins import ParentFieldTrashableModelMixin
-from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
+from baserow.contrib.database.table.cache import invalidate_field_in_model_cache
 from baserow.contrib.database.table.constants import (
     LINK_ROW_THROUGH_TABLE_PREFIX,
     MULTIPLE_COLLABORATOR_THROUGH_TABLE_PREFIX,
@@ -219,7 +219,7 @@ class Field(
         return name
 
     def invalidate_table_model_cache(self):
-        invalidate_table_in_model_cache(self.table_id)
+        invalidate_field_in_model_cache(self.table, self.id)
 
     def dependant_fields_with_types(
         self,

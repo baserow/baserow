@@ -25,6 +25,7 @@ from baserow.contrib.database.search.handler import (
     SearchHandler,
     SearchModes,
 )
+from baserow.contrib.database.table.cache import invalidate_field_in_model_cache
 from baserow.contrib.database.table.constants import (
     LAST_MODIFIED_BY_COLUMN_NAME,
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
@@ -1111,6 +1112,42 @@ def test_model_coming_out_of_cache_queries_correctly(
         assert single_select_2.db_column in compiled_query_that_should_have_all_fields
     finally:
         Field.creation_counter = original_counter
+
+
+@pytest.mark.django_db
+def test_invalidating_field_in_model(data_fixture, django_assert_num_queries):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(name="Cars", user=user)
+    field_1 = data_fixture.create_text_field(table=table, name="Text 1")
+    field_2 = data_fixture.create_text_field(table=table, name="Text 2")
+    field_3 = data_fixture.create_long_text_field(table=table, name="Long text 3")
+    field_4 = data_fixture.create_long_text_field(table=table, name="Long text 4")
+    field_4 = data_fixture.create_number_field(table=table, name="Number field 1")
+
+    # Create the cache entry. Need to make the following queries:
+    # - version check
+    # - fetching all fields
+    # - fetching text fields
+    # - fetching long text fields
+    # - fetching number fields
+    with django_assert_num_queries(5):
+        original_model = table.get_model()
+
+    # Now that the cache entry exists, we need to make the following queries:
+    # - version check
+    with django_assert_num_queries(1):
+        table.get_model()
+
+    invalidate_field_in_model_cache(table, field_1.id)
+
+    # One fetch the missing fields, we need to make the following queries:
+    # - version check
+    # - fetch invalidated fields
+    # - fetch text fields.
+    with django_assert_num_queries(3):
+        new_model = table.get_model()
+
+    assert len(original_model._meta.get_fields()) == len(new_model._meta.get_fields())
 
 
 def assert_no_duplicate_values(dictionary):
