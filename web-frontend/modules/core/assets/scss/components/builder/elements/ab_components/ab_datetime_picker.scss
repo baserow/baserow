@@ -1,0 +1,225 @@
+.ab-datetime-picker__wrapper {
+  display: flex;
+  align-items: center;
+  border: var(--input-border-size, 1px) solid var(--input-border-color, black);
+  border-radius: var(--input-border-radius, 0);
+  background-color: var(--input-background-color, $white);
+  padding: var(--input-vertical-padding, 8px)
+    var(--input-horizontal-padding, 12px);
+}
+
+.ab-datetime-picker__input {
+  &.ab-input {
+    border: none;
+    padding: 0 var(--input-horizontal-padding, 12px);
+    width: 14ch; // 14 characters is enough to fit a date format ('YYYY-MM-DD')
+  }
+}
+
+.ab-datetime-picker__calendar--context {
+  border: var(--input-border-size, 1px) solid var(--input-border-color, $black);
+  border-radius: var(--input-border-radius, 0);
+}
+
+.vdp-datepicker.ab-datetime-picker__calendar .vdp-datepicker__calendar {
+  /* Behave similar to database date picker, except for the AB theming overrides */
+  border: none;
+  border-radius: var(--input-border-radius, 0);
+  width: 280px;
+  padding: 16px;
+  box-sizing: content-box;
+  background-color: var(--input-background-color, $white);
+  color: var(--input-text-color, $black);
+
+  &.vdp-datepicker__calendar--small {
+    width: 280px;
+    padding: 0;
+  }
+
+  .month,
+  .year {
+    width: calc(33.333% - 4px);
+  }
+
+  .cell {
+    padding: 0;
+    margin: 2px;
+  }
+
+  header {
+    @include flex-align-items;
+
+    line-height: 25px;
+    justify-content: space-around;
+  }
+
+  .prev {
+    /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
+    @extend .iconoir-nav-arrow-left;
+    @extend %icon;
+
+    &::before {
+      position: relative;
+    }
+  }
+
+  .next {
+    /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
+    @extend .iconoir-nav-arrow-right;
+    @extend %icon;
+  }
+
+  .prev,
+  .next {
+    font-size: 0;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &::before {
+      font-size: 16px;
+      color: $palette-neutral-700;
+    }
+
+    &:hover {
+      border-radius: 100% !important;
+
+      &::before {
+        color: $palette-neutral-900;
+      }
+    }
+
+    &::after {
+      display: none;
+    }
+  }
+
+  .prev:not(.disabled):hover,
+  .next:not(.disabled):hover,
+  .up:not(.disabled):hover {
+    background-color: $color-neutral-100;
+
+    @include rounded($rounded);
+  }
+
+  .cell.day,
+  .cell.day-header {
+    width: 36px;
+    height: 36px;
+    line-height: 36px;
+  }
+
+  .cell.day-header {
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .cell.day.today {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .cell:not(.blank):not(.disabled).day {
+    &.selected,
+    &:hover {
+      border-radius: 100%;
+    }
+  }
+
+  /* stylelint-disable */
+  .cell:not(.blank):not(.disabled).day,
+  .cell:not(.blank):not(.disabled).month,
+  .cell:not(.blank):not(.disabled).year {
+    @include rounded($rounded);
+
+    &:hover {
+      border-color: transparent;
+      background-color: $color-neutral-100;
+    }
+
+    &.selected {
+      border-color: transparent;
+      background-color: var(--input-border-color, $black);
+      font-weight: 500;
+      color: $white;
+    }
+  }
+
+  .day-header {
+    color: var(--input-text-color, $black);
+  }
+
+  .context-datepicker & {
+    border: none;
+  }
+
+  .month__year_btn,
+  .day__month_btn {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 500;
+  }
+  /* stylelint-enable */
+}
+
+.ab-datetime-picker__clock {
+  /* Behave similar to database time picker, except for the AB theming overrides */
+  border: var(--input-border-size, 1px) solid var(--input-border-color, $black);
+  border-radius: var(--input-border-radius, 0);
+  display: flex;
+  flex-direction: column;
+
+  ul {
+    display: block;
+    border-radius: var(--input-border-radius, 0);
+    background-color: var(--input-background-color, $white);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: (6 * (24px + 4px + 4px)) + 40px;
+    min-height: 0;
+    width: 92px;
+    overflow: auto;
+
+    &::before,
+    &::after {
+      content: '';
+      display: block;
+      height: 10px;
+      width: 100%;
+    }
+  }
+
+  li {
+    display: block;
+    background-color: var(--input-background-color, $white);
+    padding: 4px 6px;
+  }
+
+  a {
+    display: block;
+    line-height: 28px;
+    text-align: center;
+    background-color: var(--input-background-color, $white);
+    color: var(--input-text-color, $black);
+    white-space: nowrap;
+
+    @include rounded($rounded);
+
+    &:hover {
+      background-color: $color-neutral-100;
+      text-decoration: none;
+    }
+
+    &.active {
+      background-color: var(--input-border-color, $black);
+      color: $white;
+    }
+  }
+}

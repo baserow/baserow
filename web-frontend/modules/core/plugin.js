@@ -5,6 +5,8 @@ import { PasswordAuthProviderType } from '@baserow/modules/core/authProviderType
 import {
   CreateSnapshotJobType,
   DuplicateApplicationJobType,
+  ExportApplicationsJobType,
+  ImportApplicationsJobType,
   InstallTemplateJobType,
   RestoreSnapshotJobType,
 } from '@baserow/modules/core/jobTypes'
@@ -19,12 +21,18 @@ import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspa
 import {
   OpenAIModelType,
   OllamaModelType,
+  AnthropicModelType,
+  MistralModelType,
+  OpenRouterModelType,
 } from '@baserow/modules/core/generativeAIModelTypes'
 import {
   UploadFileUserFileUploadType,
   UploadViaURLUserFileUploadType,
 } from '@baserow/modules/core/userFileUploadTypes'
 import {
+  DashboardAdminType,
+  UsersAdminType,
+  WorkspacesAdminType,
   HealthCheckAdminType,
   SettingsAdminType,
 } from '@baserow/modules/core/adminTypes'
@@ -75,6 +83,7 @@ import de from '@baserow/modules/core/locales/de.json'
 import es from '@baserow/modules/core/locales/es.json'
 import it from '@baserow/modules/core/locales/it.json'
 import pl from '@baserow/modules/core/locales/pl.json'
+import ko from '@baserow/modules/core/locales/ko.json'
 import { DefaultErrorPageType } from '@baserow/modules/core/errorPageTypes'
 import {
   RuntimeAdd,
@@ -104,6 +113,7 @@ export default (context, inject) => {
     i18n.mergeLocaleMessage('es', es)
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
+    i18n.mergeLocaleMessage('ko', ko)
   }
 
   const registry = new Registry()
@@ -140,7 +150,10 @@ export default (context, inject) => {
   )
 
   registry.register('generativeAIModel', new OpenAIModelType(context))
+  registry.register('generativeAIModel', new AnthropicModelType(context))
+  registry.register('generativeAIModel', new MistralModelType(context))
   registry.register('generativeAIModel', new OllamaModelType(context))
+  registry.register('generativeAIModel', new OpenRouterModelType(context))
 
   registry.register('permissionManager', new CorePermissionManagerType(context))
   registry.register(
@@ -169,6 +182,9 @@ export default (context, inject) => {
     'userFileUpload',
     new UploadViaURLUserFileUploadType(context)
   )
+  registry.register('admin', new DashboardAdminType(context))
+  registry.register('admin', new UsersAdminType(context))
+  registry.register('admin', new WorkspacesAdminType(context))
   registry.register('admin', new SettingsAdminType(context))
   registry.register('admin', new HealthCheckAdminType(context))
   inject('registry', registry)
@@ -191,6 +207,8 @@ export default (context, inject) => {
   registry.register('job', new InstallTemplateJobType(context))
   registry.register('job', new CreateSnapshotJobType(context))
   registry.register('job', new RestoreSnapshotJobType(context))
+  registry.register('job', new ExportApplicationsJobType(context))
+  registry.register('job', new ImportApplicationsJobType(context))
 
   registry.register(
     'workspaceSettingsPage',

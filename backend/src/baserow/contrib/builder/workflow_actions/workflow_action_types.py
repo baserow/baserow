@@ -366,6 +366,19 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
         values["service"] = service
         return super().prepare_values(values, user, instance)
 
+    def formula_generator(
+        self, workflow_action: WorkflowAction
+    ) -> Generator[str | Instance, str, None]:
+        """
+        This formula generator includes the service formulas.
+        """
+
+        yield from super().formula_generator(workflow_action)
+
+        # Now yield from the service
+        service = workflow_action.service.specific
+        yield from service.get_type().formula_generator(service)
+
 
 class UpsertRowWorkflowActionType(BuilderWorkflowServiceActionType):
     type = "upsert_row"

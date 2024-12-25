@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Resolved an issue where a table element's form would not display its columns if the table had no content.",
+    "issue_number": 3055,
+    "bullet_points": [],
+    "created_at": "2024-09-27"
+}

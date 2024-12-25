@@ -16,13 +16,29 @@
 ## @param global.baserow.backendSecret Configure a name for the backend secret.
 ## @param global.baserow.frontendConfigMap Configure a name for the frontend configmap.
 ## @param global.baserow.envFrom Configure secrets or configMaps to be used as environment variables for all components.
-## @param global.baserow.domain Configure the domain for the application.
+## @param global.baserow.domain Configure the domain for the ## @param global.baserow.containerSecurityContext.enabled Enabled containers' Security Context
+## @param global.baserow.containerSecurityContext.enabled Enabled containers' Security Context
+## @param global.baserow.containerSecurityContext.seLinuxOptions [object,nullable] Set SELinux options in container
+## @param global.baserow.containerSecurityContext.runAsUser Set containers' Security Context runAsUser
+## @param global.baserow.containerSecurityContext.runAsGroup Set containers' Security Context runAsGroup
+## @param global.baserow.containerSecurityContext.runAsNonRoot Set container's Security Context runAsNonRoot
+## @param global.baserow.containerSecurityContext.privileged Set container's Security Context privileged
+## @param global.baserow.containerSecurityContext.readOnlyRootFilesystem Set container's Security Context readOnlyRootFilesystem
+## @param global.baserow.containerSecurityContext.allowPrivilegeEscalation Set container's Security Context allowPrivilegeEscalation
+## @param global.baserow.containerSecurityContext.capabilities.drop List of capabilities to be dropped
+## @param global.baserow.containerSecurityContext.capabilities.add List of capabilities to be added
+## @param global.baserow.containerSecurityContext.seccompProfile.type Set container's Security Context seccomp profile
+## @param global.baserow.securityContext.enabled Enable security context
+## @param global.baserow.securityContext.fsGroupChangePolicy Set filesystem group change policy
+## @param global.baserow.securityContext.sysctls Set kernel settings using the sysctl interface
+## @param global.baserow.securityContext.supplementalGroups Set filesystem extra groups
+## @param global.baserow.securityContext.fsGroup Group ID for the pod
 ##
 global:
   baserow:
     imageRegistry: baserow
     image:
-      tag: 1.27.2
+      tag: 1.30.1
     imagePullSecrets: []
     serviceAccount:
       shared: true
@@ -30,11 +46,34 @@ global:
       name: baserow
       annotations: {}
       automountServiceAccountToken: false
+
     backendConfigMap: backend-config
     backendSecret: backend-secret
     frontendConfigMap: frontend-config
     envFrom: []
     domain: cluster.local
+
+    securityContext:
+      enabled: false
+      fsGroupChangePolicy: ""
+      sysctls: ""
+      supplementalGroups: ""
+      fsGroup: ""
+
+    containerSecurityContext:
+      enabled: false
+      seLinuxOptions: {}
+      runAsUser: ""
+      runAsGroup: ""
+      runAsNonRoot: ""
+      privileged: false
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        add: []
+        drop: []
+      seccompProfile:
+        type: ""
 
 ## Baserow application image version
 ## ref: https://hub.docker.com/r/baserow/baserow/tags/
@@ -44,7 +83,7 @@ global:
 ##
 image:
   repository: baserow/baserow # Docker image repository
-  tag: 1.27.2 # Docker image tag
+  tag: 1.30.1 # Docker image tag
   pullPolicy: IfNotPresent # Image pull policy
 
 ## @param workingDir Application container working directory
@@ -86,9 +125,9 @@ additionalSelectorLabels: {}
 ##
 securityContext:
   enabled: false
-  fsGroupChangePolicy: ""
-  sysctls: ""
-  supplementalGroups: ""
+  fsGroupChangePolicy: "Always"
+  sysctls: []
+  supplementalGroups: []
   fsGroup: ""
 ## Container Security Context
 ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
@@ -101,11 +140,12 @@ securityContext:
 ## @param containerSecurityContext.readOnlyRootFilesystem Set container's Security Context readOnlyRootFilesystem
 ## @param containerSecurityContext.allowPrivilegeEscalation Set container's Security Context allowPrivilegeEscalation
 ## @param containerSecurityContext.capabilities.drop List of capabilities to be dropped
+## @param containerSecurityContext.capabilities.add List of capabilities to be added
 ## @param containerSecurityContext.seccompProfile.type Set container's Security Context seccomp profile
 ##
 containerSecurityContext:
   enabled: false
-  seLinuxOptions: ""
+  seLinuxOptions: {}
   runAsUser: ""
   runAsGroup: ""
   runAsNonRoot: ""
@@ -113,6 +153,7 @@ containerSecurityContext:
   readOnlyRootFilesystem: false
   allowPrivilegeEscalation: false
   capabilities:
+    add: []
     drop: []
   seccompProfile:
     type: ""

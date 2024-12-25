@@ -25,6 +25,7 @@ from baserow.contrib.builder.pages.exceptions import (
     PagePathNotUnique,
     PathParamNotDefined,
     PathParamNotInPath,
+    SharedPageIsReadOnly,
 )
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.types import PagePathParams
@@ -33,11 +34,12 @@ from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
 
 
 class PageHandler:
-    def get_page(self, page_id: int, base_queryset: QuerySet = None) -> Page:
+    def get_page(self, page_id: int, base_queryset: Optional[QuerySet] = None) -> Page:
         """
         Gets a page by ID
 
@@ -49,14 +51,45 @@ class PageHandler:
         """
 
         if base_queryset is None:
-            base_queryset = Page.objects
+            base_queryset = Page.objects_with_shared
 
         try:
-            return base_queryset.select_related("builder", "builder__workspace").get(
-                id=page_id
-            )
+            return base_queryset.select_related("builder__workspace").get(id=page_id)
         except Page.DoesNotExist:
             raise PageDoesNotExist()
+
+    def get_shared_page(self, builder: Builder) -> Page:
+        """
+        Returns the shared page for the given builder.
+        """
+
+        return Page.objects_with_shared.select_related("builder__workspace").get(
+            builder=builder, shared=True
+        )
+
+    def get_pages(self, builder, base_queryset: Optional[QuerySet] = None):
+        """
+        Returns all the page in the current builder.
+        """
+
+        if base_queryset is None:
+            base_queryset = Page.objects_with_shared.all()
+
+        return base_queryset.filter(builder=builder).select_related(
+            "builder__workspace"
+        )
+
+    def create_shared_page(self, builder: Builder) -> Page:
+        """
+        Creates the shared page of the given builder.
+
+        :param builder: The ID of the builder we want to create the shared page.
+        :return: The model instance of the shared Page
+        """
+
+        return self.create_page(
+            builder, name="__shared__", path="__shared__", shared=True
+        )
 
     def create_page(
         self,
@@ -64,6 +97,7 @@ class PageHandler:
         name: str,
         path: str,
         path_params: PagePathParams = None,
+        shared: bool = False,
     ) -> Page:
         """
         Creates a new page
@@ -72,6 +106,8 @@ class PageHandler:
         :param name: The name of the page
         :param path: The path of the page
         :param path_params: The params of the path provided
+        :param shared: If this is the shared page. They should be only one shared page
+          per builder application.
         :return: The newly created page instance
         """
 
@@ -88,6 +124,7 @@ class PageHandler:
                 order=last_order,
                 path=path,
                 path_params=path_params,
+                shared=shared,
             )
         except IntegrityError as e:
             if "unique constraint" in e.args[0] and "name" in e.args[0]:
@@ -105,6 +142,9 @@ class PageHandler:
         :param page: The page that must be deleted
         """
 
+        if page.shared:
+            raise SharedPageIsReadOnly()
+
         page.delete()
 
     def update_page(self, page: Page, **kwargs) -> Page:
@@ -116,6 +156,9 @@ class PageHandler:
         :return: The updated page
         """
 
+        if page.shared:
+            raise SharedPageIsReadOnly()
+
         if "path" in kwargs or "path_params" in kwargs:
             path = kwargs.get("path", page.path)
             path_params = kwargs.get("path_params", page.path_params)
@@ -124,7 +167,7 @@ class PageHandler:
             self.is_page_path_unique(
                 page.builder,
                 path,
-                base_queryset=Page.objects.exclude(
+                base_queryset=Page.objects_with_shared.exclude(
                     id=page.id
                 ),  # We don't want to conflict with the current page
                 raises=True,
@@ -180,6 +223,9 @@ class PageHandler:
         :return: The duplicated page
         """
 
+        if page.shared:
+            raise SharedPageIsReadOnly()
+
         start_progress, export_progress, import_progress = 10, 30, 60
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
         progress.increment(by=start_progress)
@@ -197,6 +243,17 @@ class PageHandler:
 
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["builder_pages"] = MirrorDict()
+        id_mapping["builder_elements"] = {}
+        id_mapping["builder_workflow_actions"] = {}
+
+        shared_data_sources = DataSourceHandler().get_data_sources(
+            page=page.builder.shared_page
+        )
+        # Populate data_sources id_mapping with existing data sources as we want
+        # to keep the same Id for these.
+        id_mapping["builder_data_sources"] = {
+            ds.id: ds.id for ds in shared_data_sources
+        }
 
         new_page_clone = self.import_page(
             builder,
@@ -302,7 +359,7 @@ class PageHandler:
         :return: If the path is unique
         """
 
-        queryset = Page.objects if base_queryset is None else base_queryset
+        queryset = Page.objects_with_shared if base_queryset is None else base_queryset
 
         existing_paths = queryset.filter(builder=builder).values_list("path", flat=True)
 
@@ -345,7 +402,7 @@ class PageHandler:
     def export_page(
         self,
         page: Page,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
     ) -> List[PageDict]:
@@ -388,9 +445,13 @@ class PageHandler:
             order=page.order,
             path=page.path,
             path_params=page.path_params,
+            shared=page.shared,
             elements=serialized_elements,
             data_sources=serialized_data_sources,
             workflow_actions=serialized_workflow_actions,
+            visibility=page.visibility,
+            role_type=page.role_type,
+            roles=page.roles,
         )
 
     def _ops_count_for_import_page(
@@ -532,13 +593,31 @@ class PageHandler:
         if "builder_pages" not in id_mapping:
             id_mapping["builder_pages"] = {}
 
-        page_instance = Page.objects.create(
-            builder=builder,
-            name=serialized_page["name"],
-            order=serialized_page["order"],
-            path=serialized_page["path"],
-            path_params=serialized_page["path_params"],
-        )
+        shared = serialized_page.get("shared", False)
+
+        if shared:
+            # The shared page has already been created at builder creation. Let's
+            # reuse that one.
+            page_instance = builder.shared_page
+            page_instance.name = serialized_page["name"]
+            page_instance.order = serialized_page["order"]
+            page_instance.path = serialized_page["path"]
+            page_instance.path_params = serialized_page["path_params"]
+        else:
+            # Note: serialized pages exported before the page visibility feature
+            # will not contain the `visibility`, `role_type` or `roles` keys,
+            # so we use the default values for all three values instead.
+            page_instance = Page.objects.create(
+                builder=builder,
+                name=serialized_page["name"],
+                order=serialized_page["order"],
+                path=serialized_page["path"],
+                path_params=serialized_page["path_params"],
+                shared=False,
+                visibility=serialized_page.get("visibility", Page.VISIBILITY_TYPES.ALL),
+                role_type=serialized_page.get("role_type", Page.ROLE_TYPES.ALLOW_ALL),
+                roles=serialized_page.get("roles", []),
+            )
 
         id_mapping["builder_pages"][serialized_page["id"]] = page_instance.id
 

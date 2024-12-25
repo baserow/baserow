@@ -18,6 +18,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.test_utils.helpers import AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -243,6 +244,7 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_multiple_formulas(
     }
 
     dispatch_context = FakeDispatchContext(context=formula_context)
+
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     service_type.dispatch_data(service, dispatch_values, dispatch_context)
 
@@ -351,7 +353,6 @@ def test_local_baserow_upsert_row_service_dispatch_transform(
     service.field_mappings.create(field=ingredient, value='get("page_parameter.id")')
 
     dispatch_context = FakeDispatchContext(context={"page_parameter": {"id": 2}})
-
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     dispatch_data = service_type.dispatch_data(
         service, dispatch_values, dispatch_context
@@ -479,7 +480,7 @@ def test_local_baserow_upsert_row_service_dispatch_data_convert_value(data_fixtu
         table.field_set.get(name="text").db_column: "text",
         # The string '1' is converted to a list with a single item
         table.field_set.get(name="array").db_column: [
-            {"id": 1, "value": "unnamed row 1"}
+            {"id": 1, "value": "unnamed row 1", "order": AnyStr()}
         ],
     }
 
@@ -565,6 +566,7 @@ def test_export_import_local_baserow_upsert_row_service(
     database = data_fixture.create_database_application(workspace=workspace, order=1)
     table = data_fixture.create_database_table(database=database)
     field = data_fixture.create_text_field(table=table)
+    trashed_field = data_fixture.create_text_field(table=table, trashed=True)
     integration = data_fixture.create_local_baserow_integration(application=builder)
 
     get_row_service = LocalBaserowGetRow.objects.create(integration=integration)
@@ -578,6 +580,10 @@ def test_export_import_local_baserow_upsert_row_service(
     )
     upsert_row_service.field_mappings.create(
         field=field, value=f"get('data_source.{data_source.id}.{field.db_column}')"
+    )
+    upsert_row_service.field_mappings.create(
+        field=trashed_field,
+        value=f"get('data_source.{data_source.id}.{trashed_field.db_column}')",
     )
 
     data_fixture.create_local_baserow_create_row_workflow_action(

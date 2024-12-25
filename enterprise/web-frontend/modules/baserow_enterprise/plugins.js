@@ -9,6 +9,7 @@ import EnterpriseSettings from '@baserow_enterprise/components/EnterpriseSetting
 import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/components/EnterpriseSettingsOverrideDashboardHelp'
 import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
+import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning.vue'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -56,6 +57,14 @@ export class EnterprisePlugin extends BaserowPlugin {
       workspace.id
     )
     return rbacSupport ? SnapshotModalWarning : null
+  }
+
+  getExtraExportWorkspaceModalComponents(workspace) {
+    const rbacSupport = this.app.$hasFeature(
+      EnterpriseFeatures.RBAC,
+      workspace.id
+    )
+    return rbacSupport ? ExportWorkspaceModalWarning : null
   }
 
   getSettingsPageComponents() {

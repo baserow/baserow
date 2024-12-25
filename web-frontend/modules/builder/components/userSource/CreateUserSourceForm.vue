@@ -6,11 +6,13 @@
       required
       small-label
       class="margin-bottom-2"
+      size="large"
     >
       <Dropdown
         v-model="$v.values.type.$model"
         :show-search="false"
         class="user-source-settings__user-source-type"
+        size="large"
       >
         <DropdownItem
           v-for="userSourceType in userSourceTypes"
@@ -33,6 +35,7 @@
         :application="builder"
         :integrations="integrations"
         :integration-type="currentUserSourceType?.integrationType"
+        size="large"
       />
     </FormGroup>
 
@@ -64,10 +67,6 @@ export default {
       type: Object,
       required: true,
     },
-    integrations: {
-      type: Array,
-      required: true,
-    },
   },
   data() {
     return {
@@ -75,6 +74,9 @@ export default {
     }
   },
   computed: {
+    integrations() {
+      return this.$store.getters['integration/getIntegrations'](this.builder)
+    },
     userSources() {
       return this.$store.getters['userSource/getUserSources'](this.builder)
     },
@@ -113,6 +115,10 @@ export default {
         return this.$t('error.maxLength', { max: 255 })
       }
       return ''
+    },
+
+    handleServerError() {
+      return false
     },
   },
   validations: {

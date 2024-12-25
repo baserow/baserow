@@ -1,0 +1,7 @@
+{
+    "type": "feature",
+    "message": "Add filters support for formula referencing a single select field.",
+    "issue_number": 3174,
+    "bullet_points": [],
+    "created_at": "2024-11-05"
+}

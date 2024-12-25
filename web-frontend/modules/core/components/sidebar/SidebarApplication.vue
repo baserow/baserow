@@ -5,7 +5,11 @@
       'tree__item--loading': application._.loading,
     }"
   >
-    <div class="tree__action tree__action--has-options" data-sortable-handle>
+    <div
+      class="tree__action tree__action--has-options"
+      :class="{ 'tree__action--highlighted': highlighted }"
+      data-sortable-handle
+    >
       <a
         class="tree__link"
         :class="{ 'tree__link--empty': application.name === '' }"
@@ -74,6 +78,10 @@ export default {
       type: Object,
       required: true,
     },
+    highlighted: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -99,6 +107,5 @@ export default {
       return this.$registry.get('application', this.application.type)
     },
   },
-  methods: {},
 }
 </script>

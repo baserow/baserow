@@ -11,7 +11,6 @@
       </div>
 
       <MarkdownIt
-        tag="p"
         class="api-docs__content"
         :content="
           $t('apiDocsUploadFile.description', {

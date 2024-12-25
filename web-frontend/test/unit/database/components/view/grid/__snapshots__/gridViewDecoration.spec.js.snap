@@ -449,7 +449,16 @@ exports[`GridView component with decoration Default component with first_cell de
           <div
             class="grid-view-aggregation"
           >
-            <!---->
+            <div
+              class="grid-view-aggregation__empty"
+            >
+              <i
+                class="grid-view-aggregation__empty-icon iconoir-plus"
+              />
+              
+    common.summarize
+  
+            </div>
              
           </div>
         </div>
@@ -459,7 +468,16 @@ exports[`GridView component with decoration Default component with first_cell de
           <div
             class="grid-view-aggregation"
           >
-            <!---->
+            <div
+              class="grid-view-aggregation__empty"
+            >
+              <i
+                class="grid-view-aggregation__empty-icon iconoir-plus"
+              />
+              
+    common.summarize
+  
+            </div>
              
           </div>
         </div>
@@ -469,7 +487,16 @@ exports[`GridView component with decoration Default component with first_cell de
           <div
             class="grid-view-aggregation"
           >
-            <!---->
+            <div
+              class="grid-view-aggregation__empty"
+            >
+              <i
+                class="grid-view-aggregation__empty-icon iconoir-plus"
+              />
+              
+    common.summarize
+  
+            </div>
              
           </div>
         </div>
@@ -888,7 +915,16 @@ exports[`GridView component with decoration Default component with row wrapper d
           <div
             class="grid-view-aggregation"
           >
-            <!---->
+            <div
+              class="grid-view-aggregation__empty"
+            >
+              <i
+                class="grid-view-aggregation__empty-icon iconoir-plus"
+              />
+              
+    common.summarize
+  
+            </div>
              
           </div>
         </div>
@@ -898,7 +934,16 @@ exports[`GridView component with decoration Default component with row wrapper d
           <div
             class="grid-view-aggregation"
           >
-            <!---->
+            <div
+              class="grid-view-aggregation__empty"
+            >
+              <i
+                class="grid-view-aggregation__empty-icon iconoir-plus"
+              />
+              
+    common.summarize
+  
+            </div>
              
           </div>
         </div>
@@ -908,7 +953,16 @@ exports[`GridView component with decoration Default component with row wrapper d
           <div
             class="grid-view-aggregation"
           >
-            <!---->
+            <div
+              class="grid-view-aggregation__empty"
+            >
+              <i
+                class="grid-view-aggregation__empty-icon iconoir-plus"
+              />
+              
+    common.summarize
+  
+            </div>
              
           </div>
         </div>
@@ -1392,7 +1446,16 @@ exports[`GridView component with decoration Default component with unavailable d
           <div
             class="grid-view-aggregation"
           >
-            <!---->
+            <div
+              class="grid-view-aggregation__empty"
+            >
+              <i
+                class="grid-view-aggregation__empty-icon iconoir-plus"
+              />
+              
+    common.summarize
+  
+            </div>
              
           </div>
         </div>
@@ -1402,7 +1465,16 @@ exports[`GridView component with decoration Default component with unavailable d
           <div
             class="grid-view-aggregation"
           >
-            <!---->
+            <div
+              class="grid-view-aggregation__empty"
+            >
+              <i
+                class="grid-view-aggregation__empty-icon iconoir-plus"
+              />
+              
+    common.summarize
+  
+            </div>
              
           </div>
         </div>
@@ -1412,7 +1484,16 @@ exports[`GridView component with decoration Default component with unavailable d
           <div
             class="grid-view-aggregation"
           >
-            <!---->
+            <div
+              class="grid-view-aggregation__empty"
+            >
+              <i
+                class="grid-view-aggregation__empty-icon iconoir-plus"
+              />
+              
+    common.summarize
+  
+            </div>
              
           </div>
         </div>

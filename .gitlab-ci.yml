@@ -88,9 +88,9 @@ variables:
   # to run the manual job to build their own. If you want to build and use your own
   # then set PROJECT_PATH_FOR_CI_UTIL_IMAGE in your gitlab ci settings as a project
   # level variable to whichever project you want.
-  PROJECT_PATH_FOR_CI_UTIL_IMAGE: baserow/baserow
-  PROJECT_PATH_FOR_E2E_TEST_IMAGE: baserow/baserow
-  PROJECT_PATH_FOR_CI_DIND_IMAGE: baserow/baserow
+  PROJECT_PATH_FOR_CI_UTIL_IMAGE: $CI_PROJECT_PATH
+  PROJECT_PATH_FOR_E2E_TEST_IMAGE: $CI_PROJECT_PATH
+  PROJECT_PATH_FOR_CI_DIND_IMAGE: $CI_PROJECT_PATH
   # The image path for the helper CI util image that will be built and pushed to.
   CI_UTIL_IMAGE: $CI_REGISTRY/$PROJECT_PATH_FOR_CI_UTIL_IMAGE/ci/ci_util_image:latest
   # The image path for the E2E testing image that will be built and pushed to.
@@ -148,11 +148,7 @@ build-e2e-tests-image:
     - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
     - cd e2e-tests
     - docker build -t $E2E_TEST_IMAGE .
-    - docker push $E2E_TEST_IMAGE
-  # Only trigger this job manually to prevent it running every single time a new branch
-  # is made. See https://gitlab.com/gitlab-org/gitlab/-/issues/11427
-  when:
-    manual
+    - docker push $CI_REGISTRY/$PROJECT_PATH_FOR_E2E_TEST_IMAGE/ci/baserow_e2e-tests:latest
   # We can't use the newer rules: syntax due to https://gitlab.com/gitlab-org/gitlab/-/issues/34756
   only:
     changes:
@@ -388,7 +384,29 @@ build-final-backend-image:
     - job: backend-test-group-3
     - job: backend-test-group-4
     - job: backend-test-group-5
+    - job: backend-test-group-6
+    - job: backend-test-group-7
+    - job: backend-test-group-8
+    - job: backend-test-group-9
     - job: backend-lint
+  variables:
+    IMAGE_NAME: $BACKEND_IMAGE_NAME
+    DEV_IMAGE_NAME: $BACKEND_DEV_IMAGE_NAME
+    DOCKERFILE_PATH: $BACKEND_DOCKERFILE_PATH
+
+
+build-final-backend-image-manual:
+  extends: .build-final-baserow-image
+  needs:
+    - job: build-backend-image
+  except:
+    variables:
+      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
+      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
+      - $CI_COMMIT_MESSAGE =~ /\[build-all]/
+  only:
+  when:
+    manual
   variables:
     IMAGE_NAME: $BACKEND_IMAGE_NAME
     DEV_IMAGE_NAME: $BACKEND_DEV_IMAGE_NAME
@@ -403,6 +421,7 @@ build-web-frontend-image:
   variables:
     DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
     DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
+
 
 # If pipeline not triggered by tag:
 # - Runs eslint and stylelint if the web-frontend code has changed, otherwise skips.
@@ -471,19 +490,39 @@ build-final-web-frontend-image:
     DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
     DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
 
+
+# Allow to manually build the image from any branch
+build-final-web-frontend-image-manual:
+  extends: .build-final-baserow-image
+  needs:
+    - job: build-web-frontend-image
+  except:
+    variables:
+      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
+      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
+      - $CI_COMMIT_MESSAGE =~ /\[build-all]/
+  only:
+  when:
+    manual
+  variables:
+    IMAGE_NAME: $WEBFRONTEND_IMAGE_NAME
+    DEV_IMAGE_NAME: $WEBFRONTEND_DEV_IMAGE_NAME
+    DOCKERFILE_PATH: $WEBFRONTEND_DOCKERFILE_PATH
+
+
 # ==================================== E2E TESTS ======================================
 
 e2e-tests:
   extends:
     - .docker-image-test-stage
-  needs:
-    - job: build-backend-image
-    - job: build-web-frontend-image
-  when:
-    manual
   script:
     - cd e2e-tests
-    - E2E_TEST_YARN_RUN_CMD=test-all-browsers docker compose up --no-build --exit-code-from e2e-tests
+    - E2E_TEST_YARN_RUN_CMD=test-ci docker compose up --no-build --exit-code-from e2e-tests
+  artifacts:
+    paths:
+      # Save the HTML report as an artifact for download or visualization
+      - e2e-tests/playwright-report/
+  allow_failure: true
 
 # ================================== ALL IN ONES ======================================
 # If pipeline not triggered by tag:
@@ -957,7 +996,7 @@ publish-helm-chart:
     - ls baserow-*.tgz
     - echo "Upload to chart repository"
     - CHART_FILE=$(ls baserow-*.tgz)
-    - | 
+    - |
       HELM_CHART_VERSION=$(helm show chart baserow | grep version | tail -n 1 | awk -F ': ' '{print $2}')
     - |
       curl --request POST \

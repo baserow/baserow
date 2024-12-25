@@ -3,16 +3,16 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2023-02-08 03:37+0000\n"
-"Last-Translator: z00w00 ding <z00w00y00t00@gmail.com>\n"
-"Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
-"baserow/backend-core/zh_Hans/>\n"
+"PO-Revision-Date: 2024-12-16 15:08+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"Language-Team: Chinese (Simplified Han script) <https://hosted.weblate.org/"
+"projects/baserow/backend-core/zh_Hans/>\n"
 "Language: zh_Hans\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 4.16-dev\n"
+"X-Generator: Weblate 5.9\n"
 
 #: src/baserow/core/action/scopes.py:9
 #, python-format
@@ -47,8 +47,8 @@ msgid ""
 "Group (%(group_id)s) name changed from \"%(original_group_name)s\" to "
 "\"%(group_name)s.\""
 msgstr ""
-"组 (%(group_id)s) 名称已经改变来自 \"%(original_group_name)s\" 到 "
-"\"%(group_name)s.\""
+"组 (%(group_id)s) 名称已经改变来自 \"%(original_group_name)s\" 到 \""
+"%(group_name)s.\""
 
 #: src/baserow/core/actions.py:237
 msgid "Order groups"
@@ -74,8 +74,7 @@ msgstr "创建应用程序"
 #, python-format
 msgid ""
 "\"%(application_name)s\" (%(application_id)s) %(application_type)s created"
-msgstr ""
-"\"%(application_name)s\" (%(application_id)s) %(application_type)s 已创建"
+msgstr "\"%(application_name)s\" (%(application_id)s) %(application_type)s 已创建"
 
 #: src/baserow/core/actions.py:442
 msgid "Delete application"
@@ -100,8 +99,8 @@ msgid ""
 "Application (%(application_id)s) of type %(application_type)s renamed from "
 "\"%(original_application_name)s\" to \"%(application_name)s\""
 msgstr ""
-"应用程序 (%(application_id)s)的类型 %(application_type)s 重命名来自 "
-"\"%(original_application_name)s\" 到 \"%(application_name)s\""
+"应用程序 (%(application_id)s)的类型 %(application_type)s 重命名来自 \""
+"%(original_application_name)s\" 到 \"%(application_name)s\""
 
 #: src/baserow/core/actions.py:579
 msgid "Duplicate application"
@@ -115,8 +114,8 @@ msgid ""
 "\" (%(original_application_id)s)"
 msgstr ""
 "应用程序 \"%(application_name)s\" (%(application_id)s) 的类型 "
-"%(application_type)s 复制来自 \"%(original_application_name)s"
-"\" (%(original_application_id)s)"
+"%(application_type)s 复制来自 \"%(original_application_name)s\" "
+"(%(original_application_id)s)"
 
 #: src/baserow/core/actions.py:658
 msgid "Install template"
@@ -242,8 +241,8 @@ msgid ""
 "Snapshot \"%(snapshot_name)s\" (%(snapshot_id)s) created for application "
 "\"%(application_name)s\" (%(application_id)s)."
 msgstr ""
-"快照\"%(snapshot_name)s\" (%(snapshot_id)s)已创建基于应用程序 "
-"\"%(application_name)s\" (%(application_id)s)."
+"快照\"%(snapshot_name)s\" (%(snapshot_id)s)已创建基于应用程序 \""
+"%(application_name)s\" (%(application_id)s)."
 
 #: src/baserow/core/snapshots/actions.py:68
 msgid "Restore Snapshot"
@@ -256,9 +255,9 @@ msgid ""
 "\"%(original_application_name)s\" (%(original_application_id)s) to "
 "application \"%(application_name)s\" (%(application_id)s)."
 msgstr ""
-"快照 \"%(snapshot_name)s\" (%(snapshot_id)s) 已还原基于应用程序 "
-"\"%(original_application_name)s\" (%(original_application_id)s) 到应用程序 "
-"\"%(application_name)s\" (%(application_id)s)."
+"快照 \"%(snapshot_name)s\" (%(snapshot_id)s) 已还原基于应用程序 \""
+"%(original_application_name)s\" (%(original_application_id)s) 到应用程序 \""
+"%(application_name)s\" (%(application_id)s)."
 
 #: src/baserow/core/snapshots/actions.py:124
 msgid "Delete Snapshot"
@@ -270,8 +269,8 @@ msgid ""
 "Snapshot \"%(snapshot_name)s\" (%(snapshot_id)s) deleted for application "
 "\"%(application_name)s\" (%(application_id)s)."
 msgstr ""
-"已删除应用程序 \"%(snapshot_name)s\" (%(snapshot_id)s) 的快照 "
-"\"%(application_name)s\" (%(application_id)s)."
+"已删除应用程序 \"%(snapshot_name)s\" (%(snapshot_id)s) 的快照 \""
+"%(application_name)s\" (%(application_id)s)."
 
 #: src/baserow/core/templates/baserow/core/group_invitation.html:144
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:144
@@ -283,8 +282,7 @@ msgstr "邀请"
 msgid ""
 "<strong>%(first_name)s</strong> has invited you to collaborate on <strong>"
 "%(group_name)s</strong>."
-msgstr ""
-"<strong>%(first_name)s</strong> 已邀请你加入<strong>%(group_name)s</strong>。"
+msgstr "<strong>%(first_name)s</strong> 已邀请你加入<strong>%(group_name)s</strong>。"
 
 #: src/baserow/core/templates/baserow/core/group_invitation.html:163
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:167
@@ -302,8 +300,7 @@ msgid ""
 "Baserow is an open source no-code database tool which allows you to "
 "collaborate on projects, customers and more. It gives you the powers of a "
 "developer without leaving your browser."
-msgstr ""
-"Baserow 是一个开源的无代码数据库工具，允许你在项目、客户和其他方面进行协作。"
+msgstr "Baserow 是一个开源的无代码数据库工具，允许你在项目、客户和其他方面进行协作。"
 "它让你在不离开浏览器的情况下拥有开发者的权力。"
 
 #: src/baserow/core/templates/baserow/core/notifications_summary.html:146
@@ -336,8 +333,8 @@ msgid ""
 "Your account (%(username)s) on Baserow (%(public_web_frontend_hostname)s) "
 "has been permanently deleted."
 msgstr ""
-"你在 Baserow (%(public_web_frontend_hostname)s) 上的 (%(username)s) 账户正在"
-"请求重置密码。 如果你并未授权本次操作，可以忽略本封邮件。"
+"你在 Baserow (%(public_web_frontend_hostname)s) 上的 (%(username)s) "
+"账户正在请求重置密码。 如果你并未授权本次操作，可以忽略本封邮件。"
 
 #: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:144
 msgid "Account deletion cancelled"
@@ -354,8 +351,8 @@ msgid ""
 "was pending deletion, but you've logged in so this operation has been "
 "cancelled."
 msgstr ""
-"你在 Baserow (%(public_web_frontend_hostname)s) 上的 (%(username)s) 账户正在"
-"请求重置密码。 如果你并未授权本次操作，可以忽略本封邮件。"
+"你在 Baserow (%(public_web_frontend_hostname)s) 上的 (%(username)s) "
+"账户正在请求重置密码。 如果你并未授权本次操作，可以忽略本封邮件。"
 
 #: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:144
 msgid "Account pending deletion"
@@ -371,8 +368,8 @@ msgid ""
 "Your account (%(username)s) on Baserow (%(public_web_frontend_hostname)s) "
 "will be permanently deleted in %(days_left)s days."
 msgstr ""
-"你在 Baserow (%(public_web_frontend_hostname)s) 上的 (%(username)s) 账户正在"
-"请求重置密码。 如果你并未授权本次操作，可以忽略本封邮件。"
+"你在 Baserow (%(public_web_frontend_hostname)s) 上的 (%(username)s) "
+"账户正在请求重置密码。 如果你并未授权本次操作，可以忽略本封邮件。"
 
 #: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:154
 msgid ""
@@ -392,8 +389,8 @@ msgid ""
 "(%(public_web_frontend_hostname)s). If you did not authorize this, you may "
 "simply ignore this email."
 msgstr ""
-"你在 Baserow (%(public_web_frontend_hostname)s) 上的 (%(username)s) 账户正在"
-"请求重置密码。 如果你并未授权本次操作，可以忽略本封邮件。"
+"你在 Baserow (%(public_web_frontend_hostname)s) 上的 (%(username)s) "
+"账户正在请求重置密码。 如果你并未授权本次操作，可以忽略本封邮件。"
 
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:154
 #, python-format
@@ -401,9 +398,8 @@ msgid ""
 "To continue with your password reset, simply click the button below, and you "
 "will be able to change your password. This link will expire in %(hours)s "
 "hours."
-msgstr ""
-"要继续重置密码，只需点击下面的按钮，然后你将能够更改你的密码。此链接将"
-"在%(hours)s 小时后失效。"
+msgstr "要继续重置密码，只需点击下面的按钮，然后你将能够更改你的密码。此链接将在%(hou"
+"rs)s 小时后失效。"
 
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:149
 #, fuzzy, python-format
@@ -413,8 +409,7 @@ msgstr ""
 msgid ""
 "<strong>%(first_name)s</strong> has invited you to collaborate on <strong>"
 "%(workspace_name)s</strong>."
-msgstr ""
-"<strong>%(first_name)s</strong> 已邀请你加入<strong>%(group_name)s</strong>。"
+msgstr "<strong>%(first_name)s</strong> 已邀请你加入<strong>%(group_name)s</strong>。"
 
 #: src/baserow/core/trash/actions.py:20
 msgid "Empty trash"

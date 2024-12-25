@@ -761,7 +761,6 @@ def test_enable_form_view_file_field(data_fixture):
 def test_field_type_changed(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(user=user, database=table.database)
     text_field = data_fixture.create_text_field(table=table)
     grid_view = data_fixture.create_grid_view(table=table)
     data_fixture.create_view_filter(
@@ -786,10 +785,7 @@ def test_field_type_changed(data_fixture):
     assert ViewGroupBy.objects.all().count() == 1
 
     field_handler.update_field(
-        user=user,
-        field=long_text_field,
-        new_type_name="link_row",
-        link_row_table=table_2,
+        user=user, field=long_text_field, new_type_name="password"
     )
     assert ViewFilter.objects.all().count() == 0
     assert ViewSort.objects.all().count() == 0
@@ -1341,7 +1337,7 @@ def test_create_sort(send_mock, data_fixture):
     grid_view = data_fixture.create_grid_view(user=user)
     text_field = data_fixture.create_text_field(table=grid_view.table)
     text_field_2 = data_fixture.create_text_field(table=grid_view.table)
-    link_row_field = data_fixture.create_link_row_field(table=grid_view.table)
+    password_field = data_fixture.create_password_field(table=grid_view.table)
     other_field = data_fixture.create_text_field()
 
     handler = ViewHandler()
@@ -1357,7 +1353,7 @@ def test_create_sort(send_mock, data_fixture):
 
     with pytest.raises(ViewSortFieldNotSupported):
         handler.create_sort(
-            user=user, view=grid_view, field=link_row_field, order="ASC"
+            user=user, view=grid_view, field=password_field, order="ASC"
         )
 
     with pytest.raises(FieldNotInTable):
@@ -1399,7 +1395,7 @@ def test_update_sort(send_mock, data_fixture):
     grid_view = data_fixture.create_grid_view(user=user)
     text_field = data_fixture.create_text_field(table=grid_view.table)
     long_text_field = data_fixture.create_long_text_field(table=grid_view.table)
-    link_row_field = data_fixture.create_link_row_field(table=grid_view.table)
+    password_field = data_fixture.create_password_field(table=grid_view.table)
     other_field = data_fixture.create_text_field()
     view_sort = data_fixture.create_view_sort(
         view=grid_view,
@@ -1413,7 +1409,7 @@ def test_update_sort(send_mock, data_fixture):
         handler.update_sort(user=user_2, view_sort=view_sort)
 
     with pytest.raises(ViewSortFieldNotSupported):
-        handler.update_sort(user=user, view_sort=view_sort, field=link_row_field)
+        handler.update_sort(user=user, view_sort=view_sort, field=password_field)
 
     with pytest.raises(FieldNotInTable):
         handler.update_sort(user=user, view_sort=view_sort, field=other_field)
@@ -3358,7 +3354,7 @@ def test_update_group_by(send_mock, data_fixture):
     grid_view = data_fixture.create_grid_view(user=user)
     text_field = data_fixture.create_text_field(table=grid_view.table)
     long_text_field = data_fixture.create_long_text_field(table=grid_view.table)
-    link_row_field = data_fixture.create_link_row_field(table=grid_view.table)
+    password_field = data_fixture.create_password_field(table=grid_view.table)
     other_field = data_fixture.create_text_field()
     view_group_by = data_fixture.create_view_group_by(
         view=grid_view,
@@ -3373,7 +3369,7 @@ def test_update_group_by(send_mock, data_fixture):
 
     with pytest.raises(ViewGroupByFieldNotSupported):
         handler.update_group_by(
-            user=user, view_group_by=view_group_by, field=link_row_field
+            user=user, view_group_by=view_group_by, field=password_field
         )
 
     with pytest.raises(FieldNotInTable):
@@ -4245,6 +4241,18 @@ def test_get_group_by_on_all_fields_in_interesting_table(data_fixture):
         "duration_hms_sss": [
             {"count": 1, "field_duration_hms_sss": timedelta(seconds=3666.666)},
             {"count": 1, "field_duration_hms_sss": None},
+        ],
+        "link_row": [
+            {"field_link_row": [], "count": 1},
+            {"field_link_row": [1, 2, 3], "count": 1},
+        ],
+        "self_link_row": [
+            {"field_self_link_row": [], "count": 1},
+            {"field_self_link_row": [1], "count": 1},
+        ],
+        "link_row_without_related": [
+            {"field_link_row_without_related": [], "count": 1},
+            {"field_link_row_without_related": [1, 2], "count": 1},
         ],
     }
 

@@ -835,7 +835,9 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         database_type = application_type_registry.get_by_model(database)
 
         config = ImportExportConfig(
-            include_permission_data=True, reduce_disk_space_usage=False
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            is_duplicate=True,
         )
 
         serialized_tables = database_type.export_tables_serialized([table], config)

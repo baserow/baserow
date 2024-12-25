@@ -1,0 +1,7 @@
+{
+  "type": "feature",
+  "message": "Trigger row update webhook only when chosen field cell value changes.",
+  "issue_number": 2877,
+  "bullet_points": [],
+  "created_at": "2024-09-16"
+}

@@ -150,7 +150,13 @@ export class LinkCollectionFieldType extends CollectionFieldType {
     try {
       return {
         ...defaultProps,
-        url: resolveElementUrl(field, builder, resolveFormula, mode),
+        url: resolveElementUrl(
+          field,
+          builder,
+          this.app.store.getters['page/getVisiblePages'](builder),
+          resolveFormula,
+          mode
+        ),
       }
     } catch (error) {
       return defaultProps
@@ -167,7 +173,10 @@ export class LinkCollectionFieldType extends CollectionFieldType {
    * @returns true if the link field is in error
    */
   isInError({ field, builder }) {
-    return pathParametersInError(field, builder)
+    return pathParametersInError(
+      field,
+      this.app.store.getters['page/getVisiblePages'](builder)
+    )
   }
 }
 

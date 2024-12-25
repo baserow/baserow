@@ -1,6 +1,6 @@
 # When entities are exposed publicly to anonymous users as many entity ids are hardcoded
 # to this value as possible to prevent data leaks.
-from django.utils.functional import lazystr
+from django.utils.functional import lazy
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter
@@ -39,59 +39,144 @@ ONLY_COUNT_API_PARAM = OpenApiParameter(
 )
 
 
-ADHOC_FILTERS_API_PARAMS = (
-    OpenApiParameter(
-        name="filters",
-        location=OpenApiParameter.QUERY,
-        type=OpenApiTypes.STR,
-        description=lazystr(
-            "A JSON serialized string containing the filter tree to apply "
-            "to this view. The filter tree is a nested structure containing "
-            "the filters that need to be applied. \n\n"
-            "An example of a valid filter tree is the following:"
-            '`{"filter_type": "AND", "filters": [{"field": 1, "type": "equal", '
-            '"value": "test"}]}`.\n\n'
-            "The following filters are available: "
-            f'{", ".join(view_filter_type_registry.get_types())}.'
-            "Please note that by passing the filters parameter the "
-            "view filters saved for the view itself will be ignored."
+def make_adhoc_filter_api_params(combine_filters=True, view_is_aggregating=False):
+    """
+    Generate OpenAPI parameters for adhoc filter API params.
+
+    This function generates a parameter set with normalized descriptions. Note, that
+    there is a variance between views in semantics of adhoc filtering params.
+
+    A public view usually allows to combine saved view filters and adhoc filters.
+    Non-public views usually use saved filters if no adhoc filter is provided in
+    request's query string.
+
+    A view that returns aggregated values use filtering params differently, which is
+    reflected in descriptions.
+
+    :param combine_filters: if not set, adds a line about superseding saved view
+        filters with adhoc filters
+    :param view_is_aggregating: if set, describe filtering params as aggregation
+        filtering parameters
+    :return:
+    """
+
+    values = (
+        OpenApiParameter(
+            name="filters",
+            location=OpenApiParameter.QUERY,
+            type=OpenApiTypes.STR,
+            description=lazy(
+                lambda: (
+                    (
+                        "A JSON serialized string containing the filter tree to apply "
+                        "for the aggregation. The filter tree is a nested structure "
+                        "containing the filters that need to be applied. \n\n"
+                        if view_is_aggregating
+                        else "A JSON serialized string containing the filter tree to "
+                        "apply to this view. The filter tree is a nested structure "
+                        "containing the filters that need to be applied. \n\n"
+                    )
+                    + "An example of a valid filter tree is the following:"
+                    '`{"filter_type": "AND", "filters": [{"field": 1, "type": "equal", '
+                    '"value": "test"}]}`. The `field` value must be the ID of the '
+                    "field to filter on, or the name of the field if "
+                    "`user_field_names` is true.\n\n"
+                    f"The following filters are available: "
+                    f'{", ".join(view_filter_type_registry.get_types())}.'
+                    "\n\n**Please note that if this parameter is provided, all other "
+                    "`filter__{field}__{filter}` will be ignored, "
+                    "as well as the `filter_type` parameter.**"
+                    + (
+                        "\n\n**Please note that by passing the filters parameter the "
+                        "view filters saved for the view itself will be ignored.**"
+                        if not combine_filters
+                        else ""
+                    )
+                ),
+                str,
+            )(),
         ),
-    ),
-    OpenApiParameter(
-        name="filter__{field}__{filter}",
-        location=OpenApiParameter.QUERY,
-        type=OpenApiTypes.STR,
-        description=lazystr(
-            "The rows can optionally be filtered by the same view filters "
-            "available for the views. Multiple filters can be provided if "
-            "they follow the same format. The field and filter variable "
-            "indicate how to filter and the value indicates where to filter "
-            "on.\n\n"
-            "Please note that if the `filters` parameter is provided, "
-            "this parameter will be ignored. \n\n"
-            "For example if you provide the following GET parameter "
-            "`filter__field_1__equal=test` then only rows where the value of "
-            "field_1 is equal to test are going to be returned.\n\n"
-            "The following filters are available: "
-            f'{", ".join(view_filter_type_registry.get_types())}.'
-            "Please note that by passing the filter parameters the "
-            "view filters saved for the view itself will be ignored."
+        OpenApiParameter(
+            name="filter__{field}__{filter}",
+            location=OpenApiParameter.QUERY,
+            type=OpenApiTypes.STR,
+            description=lazy(
+                lambda: (
+                    (
+                        f"The aggregation can optionally be filtered by the same view "
+                        f"filters available for the views. Multiple filters can be "
+                        f"provided if they follow the same format. The field and "
+                        f"filter variable indicate how to filter and the value "
+                        f"indicates where to filter on.\n\n"
+                        if view_is_aggregating
+                        else f"The rows can optionally be filtered by the same view "
+                        f"filters available for the views. Multiple filters can be "
+                        f"provided if they follow the same format. The field and "
+                        f"filter variable indicate how to filter and the value "
+                        f"indicates where to filter on.\n\n"
+                    )
+                    + f"For example if you provide the following GET parameter "
+                    f"`filter__field_1__equal=test` then only rows where the value of "
+                    f"field_1 is equal to test are going to be returned.\n\n"
+                    f"The following filters are available: "
+                    f'{", ".join(view_filter_type_registry.get_types())}.'
+                    "\n\n**Please note that if the `filters` parameter is provided, "
+                    "this parameter will be ignored.** \n\n"
+                    + (
+                        "\n\n**Please note that by passing the filter parameters the "
+                        "view filters saved for the view itself will be ignored.**"
+                        if not combine_filters
+                        else ""
+                    )
+                ),
+                str,
+            )(),
         ),
-    ),
-    OpenApiParameter(
-        name="filter_type",
-        location=OpenApiParameter.QUERY,
-        type=OpenApiTypes.STR,
-        description=(
-            "`AND`: Indicates that the rows must match all the provided "
-            "filters.\n"
-            "`OR`: Indicates that the rows only have to match one of the "
-            "filters.\n\n"
-            "This works only if two or more filters are provided."
-            "Please note that if the `filters` parameter is provided, "
-            "this parameter will be ignored. \n\n"
+        OpenApiParameter(
+            name="filter_type",
+            location=OpenApiParameter.QUERY,
+            type=OpenApiTypes.STR,
+            description=(
+                (
+                    "`AND`: Indicates that the aggregated rows must match all the "
+                    "provided filters.\n\n"
+                    "`OR`: Indicates that the aggregated rows only have to match one "
+                    "of the filters.\n\n"
+                    if view_is_aggregating
+                    else "`AND`: Indicates that the rows must match all the provided "
+                    "filters.\n\n"
+                    "`OR`: Indicates that the rows only have to match one of the "
+                    "filters.\n\nThis works only if two or more filters are provided."
+                    "\n\n**Please note that if the `filters` parameter is provided, "
+                    "this parameter will be ignored.**"
+                )
+            ),
         ),
-    ),
+    )
+    return values
+
+
+# views that allow for saved and adhoc filters combination:
+# RowsView, PublicGalleryViewRowsView, PublicGridViewRowsView, PublicCalendarViewView,
+# PublicKanbanViewView, PublicTimelineViewRowsView
+ADHOC_FILTERS_API_PARAMS = make_adhoc_filter_api_params(
+    combine_filters=True, view_is_aggregating=False
+)
+
+# views that will use saved view filters only if no adhoc filters are present:
+# GalleryViewView, GridViewView, CalendarViewView, KanbanViewView, TimelineViewView
+ADHOC_FILTERS_API_PARAMS_NO_COMBINE = make_adhoc_filter_api_params(
+    combine_filters=False, view_is_aggregating=False
+)
+
+# PublicGridViewFieldAggregationsView
+ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION = make_adhoc_filter_api_params(
+    combine_filters=True, view_is_aggregating=True
+)
+
+# GridViewFieldAggregationsView
+ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION_NO_COMBINE = make_adhoc_filter_api_params(
+    combine_filters=False, view_is_aggregating=True
 )
 
 ADHOC_SORTING_API_PARAM = OpenApiParameter(
@@ -103,7 +188,6 @@ ADHOC_SORTING_API_PARAM = OpenApiParameter(
     "order, but by prepending the field with a '-' it can be ordered "
     "descending (Z-A).",
 )
-
 
 PAGINATION_API_PARAMS = (
     OpenApiParameter(
@@ -163,3 +247,11 @@ EXCLUDE_FIELDS_API_PARAM = OpenApiParameter(
         "response. "
     ),
 )
+
+NUMBER_SEPARATOR_MAPPING = {
+    "": ("", "."),
+    "SPACE_COMMA": (" ", ","),
+    "SPACE_PERIOD": (" ", "."),
+    "COMMA_PERIOD": (",", "."),
+    "PERIOD_COMMA": (".", ","),
+}

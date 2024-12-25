@@ -52,6 +52,7 @@
 
 <script>
 import moment from '@baserow/modules/core/moment'
+import { formatFileSize } from '@baserow/modules/core/utils/file'
 
 export default {
   name: 'FileUploaded',
@@ -78,21 +79,8 @@ export default {
     getDate(value) {
       return moment.utc(value).format('MMM Do YYYY [at] H:mm')
     },
-    /**
-     * Originally from
-     * https://stackoverflow.com/questions/15900485/correct-way-to-convert-size-in-bytes-to-kb-mb-gb-in-javascript
-     *
-     * Converts an integer representing the amount of bytes to a human readable format.
-     * Where for example 1024 will end up in 1KB.
-     */
-    formatSize(bytes) {
-      if (bytes === 0) return '0 ' + this.$i18n.t(`rowEditFieldFile.sizes.0`)
-      const k = 1024
-      const i = Math.floor(Math.log(bytes) / Math.log(k))
-      const float = parseFloat((bytes / k ** i).toFixed(2)).toLocaleString(
-        this.$i18n.locale
-      )
-      return float + ' ' + this.$i18n.t(`rowEditFieldFile.sizes.${i}`)
+    formatSize(size) {
+      return formatFileSize(this.$i18n, size)
     },
   },
 }

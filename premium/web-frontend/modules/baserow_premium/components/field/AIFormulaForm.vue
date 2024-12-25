@@ -6,7 +6,7 @@
     ></SelectAIModelForm>
 
     <FormGroup
-      class="margin-bottom-2"
+      class="margin-bottom-2 margin-top-2"
       small-label
       required
       :label="$t('aiFormulaModal.label')"
@@ -22,16 +22,19 @@
       >
       </FormTextarea>
       <template #error>
-        <span v-if="$v.values.ai_prompt.maxLength">
+        <div v-if="$v.values.ai_prompt.$dirty && !$v.values.ai_prompt.required">
+          {{ $t('error.requiredField') }}
+        </div>
+        <span
+          v-else-if="
+            $v.values.ai_prompt.$dirty && !$v.values.ai_prompt.maxLength
+          "
+        >
           {{
             $t('error.maxLength', {
               max: $v.values.ai_prompt.$params.maxLength.max,
             })
           }}</span
-        >
-
-        <span v-if="$v.values.ai_prompt.required">
-          {{ $t('error.requiredField') }}</span
         >
       </template>
     </FormGroup>

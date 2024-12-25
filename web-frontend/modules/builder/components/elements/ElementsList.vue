@@ -1,8 +1,5 @@
 <template>
-  <ul
-    v-auto-overflow-scroll
-    class="elements-list__items elements-list__items--no-max-height"
-  >
+  <ul class="elements-list">
     <ElementsListItem
       v-for="element in filteredElements"
       :key="element.id"
@@ -19,7 +16,6 @@ import ElementsListItem from '@baserow/modules/builder/components/elements/Eleme
 export default {
   name: 'ElementsList',
   components: { ElementsListItem },
-  inject: ['page'],
   props: {
     elements: {
       type: Array,

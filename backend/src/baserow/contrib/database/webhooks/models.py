@@ -3,6 +3,7 @@ import uuid
 from django.core.validators import MaxLengthValidator
 from django.db import models
 
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.core.models import CreatedAndUpdatedOnMixin
 
@@ -66,6 +67,7 @@ class TableWebhookEvent(CreatedAndUpdatedOnMixin, models.Model):
         TableWebhook, related_name="events", on_delete=models.CASCADE
     )
     event_type = models.CharField(max_length=50)
+    fields = models.ManyToManyField(Field)
 
     class Meta:
         ordering = ("id",)

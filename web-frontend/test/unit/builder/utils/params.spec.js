@@ -7,14 +7,12 @@ describe('Builder parameter util tests', () => {
         navigation_type: 'link',
         navigate_to_page_id: 1,
       }
-      const builder = {
-        pages: [
-          { id: 1, path_params: [] },
-          { id: 2, path_params: [] },
-        ],
-      }
+      const pages = [
+        { id: 1, path_params: [] },
+        { id: 2, path_params: [] },
+      ]
 
-      const result = pathParametersInError(element, builder)
+      const result = pathParametersInError(element, pages)
       expect(result).toBe(false)
     })
 
@@ -23,11 +21,9 @@ describe('Builder parameter util tests', () => {
         navigation_type: 'page',
         navigate_to_page_id: 3,
       }
-      const builder = {
-        pages: [{ id: 1, path_params: [] }],
-      }
+      const pages = [{ id: 1, path_params: [] }]
 
-      const result = pathParametersInError(element, builder)
+      const result = pathParametersInError(element, pages)
       expect(result).toBe(false)
     })
 
@@ -40,19 +36,17 @@ describe('Builder parameter util tests', () => {
           { name: 'param2', value: 'abc' },
         ],
       }
-      const builder = {
-        pages: [
-          {
-            id: 1,
-            path_params: [
-              { name: 'param1', type: 'numeric' },
-              { name: 'param2', type: 'text' },
-            ],
-          },
-        ],
-      }
+      const pages = [
+        {
+          id: 1,
+          path_params: [
+            { name: 'param1', type: 'numeric' },
+            { name: 'param2', type: 'text' },
+          ],
+        },
+      ]
 
-      const result = pathParametersInError(element, builder)
+      const result = pathParametersInError(element, pages)
       expect(result).toBe(false)
     })
 
@@ -65,11 +59,11 @@ describe('Builder parameter util tests', () => {
           { name: 'param2', value: 'abc' },
         ],
       }
-      const builder = {
-        pages: [{ id: 1, path_params: [{ name: 'param1', type: 'numeric' }] }],
-      }
+      const pages = [
+        { id: 1, path_params: [{ name: 'param1', type: 'numeric' }] },
+      ]
 
-      const result = pathParametersInError(element, builder)
+      const result = pathParametersInError(element, pages)
       expect(result).toBe(true)
     })
 
@@ -82,19 +76,18 @@ describe('Builder parameter util tests', () => {
           { name: 'param3', value: 'abc' },
         ],
       }
-      const builder = {
-        pages: [
-          {
-            id: 1,
-            path_params: [
-              { name: 'param1', type: 'numeric' },
-              { name: 'param2', type: 'text' },
-            ],
-          },
-        ],
-      }
 
-      const result = pathParametersInError(element, builder)
+      const pages = [
+        {
+          id: 1,
+          path_params: [
+            { name: 'param1', type: 'numeric' },
+            { name: 'param2', type: 'text' },
+          ],
+        },
+      ]
+
+      const result = pathParametersInError(element, pages)
       expect(result).toBe(true)
     })
   })

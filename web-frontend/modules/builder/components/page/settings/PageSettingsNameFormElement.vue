@@ -9,6 +9,7 @@
     <FormInput
       ref="input"
       size="large"
+      :placeholder="$t('pageForm.namePlaceholder')"
       :value="value"
       :disabled="disabled"
       @input="$emit('input', $event)"
@@ -53,7 +54,7 @@ export default {
     validationState: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => ({}),
     },
     isCreation: {
       type: Boolean,

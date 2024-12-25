@@ -27,6 +27,7 @@ from baserow.api.search.serializers import SearchQueryParamSerializer
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
+    ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
     ADHOC_SORTING_API_PARAM,
     EXCLUDE_FIELDS_API_PARAM,
     INCLUDE_FIELDS_API_PARAM,
@@ -75,7 +76,6 @@ from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.signals import view_loaded
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.feature_flags import FF_TIMELINE_VIEW, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 
 from .errors import ERROR_TIMELINE_DOES_NOT_EXIST
@@ -115,7 +115,7 @@ class TimelineViewView(APIView):
             ),
             ONLY_COUNT_API_PARAM,
             *PAGINATION_API_PARAMS,
-            *ADHOC_FILTERS_API_PARAMS,
+            *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
             ADHOC_SORTING_API_PARAM,
             INCLUDE_FIELDS_API_PARAM,
             EXCLUDE_FIELDS_API_PARAM,
@@ -196,8 +196,6 @@ class TimelineViewView(APIView):
         Optionally the field options can also be included in the response if the
         `field_options` are provided in the include GET parameter.
         """
-
-        feature_flag_is_enabled(FF_TIMELINE_VIEW, raise_if_disabled=True)
 
         include_fields = request.GET.get("include_fields")
         exclude_fields = request.GET.get("exclude_fields")
@@ -360,8 +358,6 @@ class PublicTimelineViewRowsView(APIView):
         Optionally the field options can also be included in the response if the the
         `field_options` are provided in the include GET parameter.
         """
-
-        feature_flag_is_enabled(FF_TIMELINE_VIEW, raise_if_disabled=True)
 
         view_handler = ViewHandler()
         view = view_handler.get_public_view_by_slug(

@@ -177,3 +177,8 @@ ERROR_IMMUTABLE_FIELD_PROPERTIES = (
     HTTP_400_BAD_REQUEST,
     "The field properties are immutable.",
 )
+ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD = (
+    "ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD",
+    HTTP_400_BAD_REQUEST,
+    "Select option {e.select_option_id} does not belong to field {e.field_id}",
+)

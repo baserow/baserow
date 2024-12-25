@@ -1,5 +1,5 @@
 <template>
-  <Dropdown :value="value" fixed-items small @input="$emit('input', $event)">
+  <Dropdown :value="value" fixed-items @input="$emit('input', $event)">
     <DropdownItem
       v-for="fontFamily in fontFamilies"
       :key="fontFamily.getType()"

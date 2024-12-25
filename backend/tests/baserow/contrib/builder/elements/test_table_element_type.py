@@ -490,3 +490,22 @@ def test_table_element_import_field_with_formula_with_current_record(data_fixtur
         table_element.fields.first().config["label"]
         == f"get('current_record.field_{fields[0].id}')"
     )
+
+
+@pytest.mark.django_db
+def test_import_context_addition_returns_data_source_id(data_fixture):
+    """
+    Test the TableElementType::import_context_addition() method.
+
+    Ensure the data_source_id is included in the returned dict.
+    """
+
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source()
+    table_element = data_fixture.create_builder_table_element(
+        data_source=data_source,
+    )
+    table_element_type = table_element.get_type()
+
+    context = table_element_type.import_context_addition(table_element)
+
+    assert context["data_source_id"] == data_source.id

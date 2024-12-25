@@ -1,0 +1,880 @@
+{
+    "dataProviderType": {
+        "dataSource": "데이터 레코드",
+        "dataSourceContext": "사용 가능한 옵션",
+        "pageParameter": "매개변수",
+        "currentRecord": "데이터 소스",
+        "formData": "양식 데이터",
+        "previousAction": "이전 작업",
+        "user": "사용자"
+    },
+    "formDataProviderType": {
+        "nodeMissing": "누락됨"
+    },
+    "builderForm": {
+        "submit": "애플리케이션 추가"
+    },
+    "sidebarComponentBuilder": {
+        "settings": "설정",
+        "createPage": "새 페이지"
+    },
+    "builderSettingsModal": {
+        "title": "애플리케이션"
+    },
+    "builderSettingTypes": {
+        "generalName": "일반",
+        "integrationsName": "통합",
+        "themeName": "테마",
+        "domainsName": "도메인",
+        "userSourcesName": "사용자"
+    },
+    "createPageModal": {
+        "header": "페이지 생성",
+        "submit": "페이지 추가"
+    },
+    "pageErrors": {
+        "errorNameNotUnique": "이 이름의 페이지가 이미 존재합니다",
+        "errorPathNotUnique": "이 이름의 경로가 이미 존재합니다",
+        "errorStartingSlash": "경로는 '/'로 시작해야 합니다",
+        "errorValidPathCharacters": "경로에 잘못된 문자가 포함되어 있습니다",
+        "errorUniquePathParams": "경로 매개변수는 고유해야 합니다."
+    },
+    "pageHeaderItemTypes": {
+        "labelElements": "요소",
+        "labelDataSource": "데이터",
+        "labelVariables": "변수",
+        "labelSettings": "페이지 설정"
+    },
+    "pageActionTypes": {
+        "preview": "미리보기",
+        "publish": "게시"
+    },
+    "publishActionModal": {
+        "title": "게시",
+        "description": "도메인 중 하나에 게시하여 앱을 라이브로 만드세요. 애플리케이션은 여러 도메인을 가질 수 있으며, 각 도메인마다 다른 버전의 애플리케이션을 실행할 수 있습니다.",
+        "publish": "게시",
+        "publishSucceedTitle": "사이트 게시됨",
+        "publishSucceedDescription": "사이트가 성공적으로 게시되었습니다.",
+        "publishFailedTitle": "사이트 게시 실패",
+        "publishFailedDescription": "사이트 게시에 실패했습니다. 나중에 다시 시도하세요.",
+        "openInNewTab": "새 탭에서 열기",
+        "importingState": "가져오는 중",
+        "noDomain": "애플리케이션을 게시하려면 최소 하나의 도메인이 필요합니다."
+    },
+    "lastPublishedDomainDate": {
+        "neverPublished": "게시되지 않음",
+        "lastPublished": "마지막 게시:"
+    },
+    "elementsContext": {
+        "searchPlaceholder": "요소 검색",
+        "noElements": "요소를 찾을 수 없습니다",
+        "noPageElements": "이 페이지에 대한 요소가 발견되지 않았습니다"
+    },
+    "elementType": {
+        "heading": "제목",
+        "headingDescription": "페이지 제목",
+        "text": "텍스트",
+        "textDescription": "여러 줄의 텍스트",
+        "link": "링크",
+        "linkDescription": "페이지/URL로의 링크",
+        "image": "이미지",
+        "imageDescription": "이미지 표시",
+        "inputText": "텍스트 입력",
+        "inputTextDescription": "텍스트 입력 필드",
+        "column": "열",
+        "columnDescription": "열 컨테이너",
+        "button": "버튼",
+        "buttonDescription": "버튼 요소",
+        "table": "테이블",
+        "tableDescription": "테이블 요소",
+        "formContainer": "양식",
+        "formContainerDescription": "양식 요소",
+        "choice": "선택",
+        "choiceDescription": "단일/다중 값 선택",
+        "checkbox": "체크박스",
+        "checkboxDescription": "체크박스 요소",
+        "iframe": "아이프레임",
+        "iframeDescription": "인라인 프레임",
+        "authForm": "로그인 양식",
+        "authFormDescription": "사용자 로그인 양식",
+        "repeat": "반복",
+        "repeatDescription": "반복 가능한 요소 집합",
+        "recordSelector": "레코드 선택기",
+        "recordSelectorDescription": "관련 레코드 선택기",
+        "header": "다중 페이지 헤더",
+        "footer": "다중 페이지 바닥글",
+        "notAllowedUnlessTop": "이 요소는 페이지 상단에만 허용됩니다",
+        "notAllowedUnlessBottom": "이 요소는 페이지 하단에만 허용됩니다",
+        "notAllowedUnlessHeader": "이 요소는 페이지 헤더 내부에만 허용됩니다",
+        "notAllowedInsideContainer": "이 요소는 컨테이너 내부에 허용되지 않습니다",
+        "dateTimePickerDescription": "날짜 및 시간 입력 필드",
+        "dateTimePicker": "날짜 시간 선택기",
+        "footerDescription": "여러 페이지에서 공유되는 컨테이너",
+        "headerDescription": "여러 페이지에서 공유되는 컨테이너",
+        "notAllowedUnlessFooter": "이 요소는 페이지 바닥글 내부에만 허용됩니다",
+        "notAllowedInsideSameType": "이 요소는 동일한 유형의 컨테이너에서 허용되지 않습니다",
+        "notAllowedLocation": "이 위치에서는 이 요소가 허용되지 않습니다"
+    },
+    "addElementButton": {
+        "label": "요소"
+    },
+    "addElementModal": {
+        "title": "새 요소 추가",
+        "searchPlaceholder": "요소 검색",
+        "disabledElementTooltip": "이 요소 내에서는 사용할 수 없습니다",
+        "elementInProgress": "요소를 추가하는 중..."
+    },
+    "elementMenu": {
+        "moveUp": "위로 이동",
+        "moveDown": "아래로 이동",
+        "moveLeft": "왼쪽으로 이동",
+        "moveRight": "오른쪽으로 이동",
+        "selectParent": "부모 선택"
+    },
+    "duplicatePageJobType": {
+        "duplicating": "복제 중",
+        "duplicatedTitle": "페이지 복제됨"
+    },
+    "pageSidePanelType": {
+        "general": "일반",
+        "style": "스타일",
+        "visibility": "공개여부",
+        "events": "이벤트",
+        "eventsTabDeactivatedNoEvents": "이 요소는 이벤트를 지원하지 않습니다"
+    },
+    "emptySidePanelState": {
+        "message": "더 자세한 정보를 보려면 요소 중 하나를 클릭하세요"
+    },
+    "pagePreview": {
+        "emptyMessage": "첫 번째 요소를 생성하려면 클릭하세요",
+        "footer": "푸터",
+        "header": "헤더"
+    },
+    "elementForms": {
+        "textInputPlaceholder": "텍스트 입력...",
+        "urlInputPlaceholder": "URL 입력...",
+        "invalidFormula": "수식이 유효하지 않습니다"
+    },
+    "headingElement": {
+        "missingValue": "제목 없음...",
+        "emptyValue": "빈 제목..."
+    },
+    "headingElementForm": {
+        "levelTitle": "레벨",
+        "textTitle": "텍스트",
+        "textPlaceholder": "텍스트 입력...",
+        "headingName": "제목 {level} <h{level}>",
+        "textError": "값이 유효하지 않습니다."
+    },
+    "textElement": {
+        "missingValue": "텍스트 없음...",
+        "emptyValue": "빈 텍스트..."
+    },
+    "textElementForm": {
+        "textTitle": "텍스트",
+        "textPlaceholder": "텍스트 입력...",
+        "textError": "값이 유효하지 않습니다.",
+        "textFormatTypeLabel": "형식",
+        "textFormatTypePlain": "일반 텍스트",
+        "textFormatTypeMarkdown": "마크다운"
+    },
+    "imageElement": {
+        "missingValue": "대체 텍스트 없음...",
+        "emptyValue": "빈 대체 텍스트..."
+    },
+    "generalForm": {
+        "labelTitle": "레이블",
+        "labelPlaceholder": "레이블 입력 (선택 사항)",
+        "valueTitle": "기본값",
+        "valuePlaceholder": "기본값 입력 (선택 사항)",
+        "placeholderTitle": "플레이스홀더",
+        "placeholderPlaceholder": "플레이스홀더 입력 (선택 사항)",
+        "requiredTitle": "필수",
+        "validationTitle": "유효성 검사"
+    },
+    "inputTextElementForm": {
+        "multilineTitle": "여러 줄",
+        "rowsTitle": "줄 수",
+        "rowsPlaceholder": "이 입력의 줄 수 입력",
+        "validationTypeAnyLabel": "무엇이든",
+        "validationTypeAnyDescription": "이 입력에 어떤 값이든 설정할 수 있도록 허용합니다.",
+        "validationTypeIntegerLabel": "숫자",
+        "validationTypeIntegerDescription": "이 입력에 숫자 값을 적용합니다.",
+        "validationTypeEmailLabel": "이메일",
+        "validationTypeEmailDescription": "이 입력에 이메일 주소 값을 적용합니다.",
+        "inputType": "입력 유형",
+        "inputTypeTextLabel": "텍스트",
+        "inputTypePasswordLabel": "비밀번호",
+        "passwordTypeWarning": "비밀번호는 민감한 데이터입니다. 애플리케이션에서 비밀번호를 처리하고 저장하는 방법에 주의하세요."
+    },
+    "imageElementForm": {
+        "fileLabel": "이미지",
+        "invalidUrlError": "URL이 유효하지 않습니다",
+        "altTextTitle": "대체 텍스트",
+        "altTextDescription": "스크린 리더에서 사용되며 이미지를 로드할 수 없는 경우 표시됩니다",
+        "fileSourceTypeUpload": "업로드",
+        "fileSourceTypeURL": "URL",
+        "urlWarning": "참고: 입력한 URL을 신뢰하거나 제어할 수 있는지 확인하세요.",
+        "uploadFileButton": "파일 업로드"
+    },
+    "iframeElementForm": {
+        "missingValue": "IFrame 소스 없음...",
+        "emptyValue": "빈 IFrame 소스...",
+        "sourceTypeLabel": "소스 유형",
+        "urlLabel": "URL",
+        "urlPlaceholder": "삽입할 외부 리소스의 링크",
+        "urlHelp": "참고: 입력한 URL을 신뢰하거나 제어할 수 있는지 확인하세요.",
+        "embedLabel": "임베드",
+        "embedPlaceholder": "삽입할 원시 HTML 콘텐츠",
+        "heightLabel": "높이 (px)",
+        "heightPlaceholder": "최대 높이 입력"
+    },
+    "columnElementForm": {
+        "columnAmountTitle": "레이아웃",
+        "verticalAlignment": "수직 정렬",
+        "columnAmountName": "열 없음 | 1열 | {columnAmount}열",
+        "columnGapTitle": "열 사이 간격",
+        "columnGapPlaceholder": "열 사이 간격 입력..."
+    },
+    "domainSettings": {
+        "titleOverview": "도메인",
+        "titleAddDomain": "도메인 추가",
+        "addDomain": "도메인 추가",
+        "noDomainMessage": "이 애플리케이션에 도메인을 아직 연결하지 않았습니다. 애플리케이션을 게시하려면 도메인을 추가해야 합니다. 여기 나열된 각 도메인에 대해 애플리케이션의 다른 버전을 게시할 수 있습니다."
+    },
+    "userSourceSettings": {
+        "titleAddUserSource": "새 사용자 소스",
+        "titleUpdateUserSource": "사용자 소스 편집",
+        "noUserSourceMessage": "이 애플리케이션에 사용자 소스를 아직 추가하지 않았습니다. 애플리케이션에서 사용자가 인증할 수 있도록 하려면 사용자 소스를 추가해야 합니다.",
+        "titleOverview": "사용자 소스",
+        "addUserSource": "사용자 소스 추가"
+    },
+    "generalSettings": {
+        "titleOverview": "일반",
+        "labelForm": "파비콘",
+        "labelDescription": "128x128px ICO, PNG, GIF 또는 JPEG를 선택하세요.",
+        "labelButton": "파비콘 업로드",
+        "cantUploadFaviconTitle": "파비콘 파일을 업로드할 수 없음",
+        "cantUploadFaviconDescription": "죄송합니다, 파비콘 이미지를 업로드할 수 없습니다. 이미지 파일이 고유하고 지원되는 이미지 형식인지 확인하세요.",
+        "cantUpdateApplicationTitle": "애플리케이션을 업데이트할 수 없음",
+        "cantUpdateApplicationDescription": "죄송합니다, 애플리케이션을 업데이트할 수 없습니다."
+    },
+    "dnsStatus": {
+        "description": "도메인의 DNS 설정으로 이동하여 다음 변경을 수행하세요",
+        "typeHeader": "유형",
+        "hostHeader": "호스트",
+        "valueHeader": "값"
+    },
+    "domainForm": {
+        "invalidDomain": "제공된 도메인 이름이 유효하지 않습니다",
+        "notUniqueDomain": "제공된 도메인이 이미 사용 중입니다"
+    },
+    "customDomainForm": {
+        "domainNameLabel": "도메인 이름"
+    },
+    "subDomainForm": {
+        "domainNameLabel": "도메인 이름"
+    },
+    "subDomainDetails": {
+        "text": "도메인의 DNS 설정이 이미 구성되고 확인되었습니다. 추가 변경 없이 작동합니다."
+    },
+    "domainCard": {
+        "refresh": "설정 새로 고침",
+        "detailLabel": "세부 정보 표시"
+    },
+    "domainTypes": {
+        "customName": "사용자 정의 도메인",
+        "subDomainName": "서브도메인",
+        "subDomain": "{domain}의 서브도메인"
+    },
+    "linkElement": {
+        "missingValue": "링크 텍스트 없음...",
+        "emptyValue": "빈 링크 텍스트..."
+    },
+    "linkNavigationSelection": {
+        "navigateTo": "이동 대상",
+        "navigateToCustom": "사용자 정의 URL",
+        "paramPlaceholder": "값 입력...",
+        "urlPlaceholder": "URL 입력...",
+        "url": "목적지 URL",
+        "paramsInErrorDescription": "저장된 매개변수가 페이지 매개변수와 일치하지 않습니다. 페이지가 삭제되었거나 업데이트되었을 수 있습니다.",
+        "paramsInErrorButton": "매개변수 업데이트",
+        "target": "여는 위치는...",
+        "targetSelf": "현재 탭",
+        "targetNewTab": "새 탭"
+    },
+    "linkElementForm": {
+        "text": "텍스트",
+        "textPlaceholder": "텍스트 입력...",
+        "variant": "변환",
+        "variantLink": "링크",
+        "variantButton": "버튼",
+        "buttonColor": "버튼 색상"
+    },
+    "widthSelector": {
+        "width": "너비",
+        "widthAuto": "자동",
+        "widthFull": "전체 너비"
+    },
+    "backgroundTypes": {
+        "none": "없음",
+        "color": "색상"
+    },
+    "widthTypes": {
+        "fullBleed": "전체 폭",
+        "fullWidth": "전체 너비",
+        "normal": "보통",
+        "medium": "중간",
+        "small": "작게"
+    },
+    "horizontalAlignmentSelector": {
+        "alignmentLeft": "왼쪽",
+        "alignmentCenter": "가운데",
+        "alignmentRight": "오른쪽"
+    },
+    "verticalAlignmentSelector": {
+        "alignmentTop": "상단",
+        "alignmentCenter": "중간",
+        "alignmentBottom": "하단"
+    },
+    "pageSettingsTypes": {
+        "pageName": "페이지"
+    },
+    "pageSettings": {
+        "title": "페이지",
+        "pageUpdatedTitle": "변경됨",
+        "pageUpdatedDescription": "페이지 설정이 업데이트되었습니다."
+    },
+    "pageForm": {
+        "defaultName": "페이지",
+        "nameTitle": "이름",
+        "nameSubtitle": "페이지의 고유한 이름",
+        "namePlaceholder": "이름 입력...",
+        "pathTitle": "경로",
+        "pathSubtitle": ":parameter를 통해 매개변수를 추가할 수 있습니다",
+        "pathPlaceholder": "경로 입력...",
+        "pathParamsTitle": "경로 매개변수",
+        "pathParamsSubtitle": "경로의 :parameter로 정의됩니다",
+        "pathParamsSubtitleTutorial": "경로 매개변수는 제공된 매개변수에 따라 데이터를 동적으로 로드하는 데 사용할 수 있습니다. 경로에 :parameter를 추가하여 하나를 추가하세요."
+    },
+    "pathParamTypes": {
+        "textName": "텍스트",
+        "numericName": "숫자"
+    },
+    "publicPage": {
+        "siteNotFound": "사이트를 찾을 수 없습니다",
+        "pageNotFound": "페이지를 찾을 수 없습니다"
+    },
+    "integrationSettings": {
+        "title": "통합",
+        "noIntegrationMessage": "아직 통합을 생성하지 않았습니다. 데이터 소스, 작업 또는 사용자 인증을 추가하여 생성할 수 있습니다.",
+        "integrationMessage": "데이터 소스, 작업 또는 사용자 인증을 추가하여 새로운 통합을 생성할 수 있습니다."
+    },
+    "dataSourceForm": {
+        "namePlaceholder": "소스 이름",
+        "nameLabel": "이름",
+        "actionLabel": "작업",
+        "integrationLabel": "통합",
+        "servicePlaceholder": "서비스 선택",
+        "integrationPlaceholder": "통합 선택",
+        "errorUniqueName": "데이터 소스 이름은 고유해야 합니다."
+    },
+    "dataSourceContext": {
+        "addDataSource": "새 데이터 소스 추가",
+        "noDataSourceTitle": "아직 데이터 소스를 추가하지 않았습니다.",
+        "noDataSourceMessage": "데이터 소스는 내부 또는 외부 소스에서 데이터를 가져와 페이지에 표시하는 데 사용할 수 있습니다.",
+        "sharedDataSourceTitle": "페이지 간 공유",
+        "pageDataSourceTitle": "이 페이지용",
+        "sharedDataSourceDescription": "모든 페이지에서 접근 가능하며 첫 페이지 로드 시 한 번 가져옵니다.",
+        "pageDataSourceDescription": "사용자가 이 페이지로 이동할 때 가져옵니다."
+    },
+    "dataSourceItem": {
+        "notConfigured": "구성되지 않음"
+    },
+    "dataSourceItemContext": {
+        "shareBetweenPages": "페이지 간 공유",
+        "unshareBetweenPages": "다른 페이지에서 공유 해제"
+    },
+    "dataSourceCreateEditModal": {
+        "editTitle": "데이터 소스 편집",
+        "createTitle": "데이터 소스 생성",
+        "sharedWarning": "이 데이터 소스는 공유되므로 변경 사항이 여러 페이지에 영향을 미칠 수 있습니다."
+    },
+    "defaultStyleForm": {
+        "boxTop": "상단",
+        "boxBottom": "하단",
+        "boxLeft": "왼쪽",
+        "boxRight": "오른쪽",
+        "backgroundLabel": "배경",
+        "backgroundColor": "배경색",
+        "widthLabel": "너비",
+        "backgroundImage": "이미지",
+        "backgroundImageMode": "채우기 모드"
+    },
+    "styleBoxForm": {
+        "borderColor": "테두리 색상",
+        "borderLabel": "크기",
+        "paddingLabel": "안쪽 여백",
+        "marginLabel": "바깥 여백"
+    },
+    "themeConfigBlockType": {
+        "color": "색상",
+        "page": "페이지",
+        "typography": "타이포그래피",
+        "button": "버튼",
+        "link": "링크",
+        "image": "이미지",
+        "input": "입력",
+        "table": "테이블"
+    },
+    "colorThemeConfigBlock": {
+        "transparent": "투명",
+        "primaryColor": "기본",
+        "secondaryColor": "보조",
+        "borderColor": "테두리",
+        "successColor": "성공",
+        "warningColor": "경고",
+        "errorColor": "오류"
+    },
+    "pageThemeConfigBlock": {
+        "backgroundColor": "배경색",
+        "backgroundImage": "배경 이미지",
+        "backgroundMode": "배경 모드"
+    },
+    "colorThemeConfigBlockType": {
+        "transparent": "투명",
+        "primary": "기본",
+        "secondary": "보조",
+        "border": "테두리",
+        "success": "성공",
+        "warning": "경고",
+        "error": "오류"
+    },
+    "typographyThemeConfigBlock": {
+        "headingLabel": "제목 {i} (h{i})",
+        "headingValue": "제목 <h{i}>",
+        "color": "색상",
+        "size": "크기",
+        "textAlignment": "정렬",
+        "bodyLabel": "본문",
+        "fontFamily": "폰트"
+    },
+    "buttonThemeConfigBlock": {
+        "backgroundColor": "배경색",
+        "button": "버튼",
+        "defaultState": "기본 상태",
+        "hoverState": "호버 상태",
+        "textAlignment": "텍스트 정렬",
+        "alignment": "정렬",
+        "width": "너비",
+        "textColor": "텍스트 색상",
+        "borderColor": "테두리 색상",
+        "borderSize": "테두리 크기",
+        "borderRadius": "테두리 반경",
+        "padding": "안쪽 여백",
+        "fontFamily": "폰트",
+        "size": "폰트 크기"
+    },
+    "linkThemeConfigBlock": {
+        "color": "색상",
+        "link": "링크",
+        "defaultState": "기본 상태",
+        "hoverState": "호버 상태",
+        "alignment": "정렬",
+        "fontFamily": "폰트"
+    },
+    "inputThemeConfigBlock": {
+        "label": "레이블",
+        "input": "입력",
+        "backgroundColor": "배경색",
+        "textColor": "텍스트 색상",
+        "borderColor": "테두리 색상",
+        "borderSize": "테두리 크기",
+        "borderRadius": "테두리 반경",
+        "padding": "안쪽 여백",
+        "fontFamily": "폰트",
+        "size": "폰트 크기"
+    },
+    "imageThemeConfigBlock": {
+        "alignment": "정렬",
+        "maxWidthLabel": "최대 너비",
+        "maxHeightLabel": "최대 높이",
+        "maxHeightPlaceholder": "최대 높이 입력",
+        "maxWidthPlaceholder": "최대 너비 입력",
+        "imageConstraintsLabel": "제한",
+        "imageConstraintFullWidth": "최대 너비까지 확장",
+        "imageConstraintCover": "채우기",
+        "imageConstraintCoverDisabled": "빈 최대 높이로는 사용할 수 없습니다.",
+        "imageConstraintContain": "맞춤",
+        "imageConstraintContainDisabled": "최대 높이가 있으면 사용할 수 없습니다."
+    },
+    "tableThemeConfigBlock": {
+        "borderColor": "테두리 색상",
+        "backgroundAlternateColor": "짝수 행 색상",
+        "backgroundColor": "배경색",
+        "textColor": "텍스트 색상",
+        "borderSize": "테두리 크기",
+        "borderRadius": "테두리 반경",
+        "padding": "안쪽 여백",
+        "fontFamily": "폰트",
+        "size": "크기",
+        "fontSize": "폰트 크기",
+        "table": "테이블",
+        "header": "헤더",
+        "alignment": "정렬",
+        "cells": "셀",
+        "separators": "구분선",
+        "verticalSeparatorColor": "수직 색상",
+        "verticalSeparatorSize": "수직 크기",
+        "horizontalSeparatorColor": "수평 색상",
+        "horizontalSeparatorSize": "수평 크기"
+    },
+    "buttonElementForm": {
+        "valueLabel": "버튼 텍스트",
+        "valuePlaceholder": "텍스트 입력..."
+    },
+    "buttonElement": {
+        "missingValue": "버튼 텍스트 없음...",
+        "emptyValue": "빈 버튼 텍스트..."
+    },
+    "eventTypes": {
+        "clickLabel": "클릭 시",
+        "submitLabel": "제출 시",
+        "afterLoginLabel": "로그인 후"
+    },
+    "getFormulaComponent": {
+        "errorTooltip": "유효하지 않은 참조"
+    },
+    "fontSidePanelForm": {
+        "label": "폰트 색상"
+    },
+    "choiceElementForm": {
+        "multiple": "다중 값 허용",
+        "display": "디스플레이",
+        "dropdown": "드롭다운",
+        "checkbox": "체크박스",
+        "radio": "라디오"
+    },
+    "dropdown": {
+        "empty": "사용 가능한 옵션 없음"
+    },
+    "tableElementForm": {
+        "dataSource": "데이터 소스",
+        "fields": "필드",
+        "fieldValueLabel": "값",
+        "addField": "필드 추가",
+        "fieldValuePlaceholder": "값 입력...",
+        "itemsPerPage": "페이지당 항목 수",
+        "fieldDefaultName": "열",
+        "name": "이름",
+        "fieldType": "유형",
+        "itemsPerPagePlaceholder": "값 입력...",
+        "selectSourceFirst": "필드를 구성하려면 데이터 소스 및/또는 속성을 선택하세요.",
+        "buttonColor": "버튼 색상",
+        "refreshFieldsFromDataSource": "데이터 소스에서 필드 새로 고침",
+        "orientation": "방향",
+        "orientationHorizontal": "수평",
+        "orientationVertical": "수직",
+        "buttonLoadMoreLabel": "더 보기 레이블",
+        "propertySelectorMissingArrays": "행으로 사용할 다중 값 필드를 찾을 수 없습니다."
+    },
+    "tableElement": {
+        "showMore": "더 보기"
+    },
+    "abTable": {
+        "loading": "로드 중...",
+        "empty": "항목을 찾을 수 없습니다."
+    },
+    "repeatElement": {
+        "empty": "항목을 찾을 수 없습니다.",
+        "showMore": "더 보기",
+        "missingDataSourceTooltip": "요소를 추가하려면 데이터 소스를 선택하세요.",
+        "missingSchemaPropertyTooltip": "요소를 추가하려면 속성을 선택하세요.",
+        "emptyState": "레코드를 찾을 수 없습니다."
+    },
+    "collectionElementForm": {
+        "noDataSourceMessage": "모든 결과를 나열하려면 여러 행이 있는 데이터 소스를 선택하거나, 이 행 내의 속성을 선택하려면 단일 행 데이터 소스를 선택하세요.",
+        "noSchemaPropertyMessage": "요소의 목록 데이터로 사용할 데이터 소스 내의 속성을 선택하세요.",
+        "propertyOptionLabel": "사용자 작업"
+    },
+    "propertyOptionForm": {
+        "fieldHeading": "필드",
+        "filterHeading": "필터",
+        "sortHeading": "정렬",
+        "searchHeading": "검색",
+        "optionUnavailable": "사용할 수 없음",
+        "noPropertiesAvailable": "사용 가능한 필드가 없습니다.",
+        "formDescription": "외부 사용자가 필터링, 정렬 및 검색할 수 있는 이 요소의 데이터 소스 내 속성을 선택하세요."
+    },
+    "repeatElementForm": {
+        "dataSource": "데이터 소스",
+        "itemsPerPage": "페이지당 항목 수",
+        "itemsPerPagePlaceholder": "값 입력...",
+        "itemsPerRowLabel": "행당 항목 수",
+        "itemsPerRowDescription": "열 당 열 수 및 기기 유형.",
+        "orientationLabel": "방향",
+        "orientationVertical": "수직",
+        "orientationHorizontal": "수평",
+        "buttonLoadMoreLabel": "더 보기 레이블",
+        "toggleEditorRepetitionsLabel": "반복 일시적으로 비활성화",
+        "propertySelectorMissingArrays": "반복할 다중 값 필드를 찾을 수 없습니다."
+    },
+    "recordSelectorElement": {
+        "emptyAdhocState": "'{query}'와 일치하는 레코드를 찾을 수 없습니다.",
+        "emptyState": "레코드를 찾을 수 없습니다."
+    },
+    "recordSelectorElementForm": {
+        "selectRecordsFrom": "레코드 선택",
+        "noDataSourceMessage": "모든 결과를 나열하려면 여러 행이 있는 데이터 소스를 선택하세요.",
+        "optionNameSuffix": "옵션 이름 접미사",
+        "optionNameSuffixPlaceholder": "접미사 입력...",
+        "optionNameSuffixHelper": "드롭다운을 열 때 각 옵션 이름에 추가되며 구분하는 데 도움이 됩니다.",
+        "itemsPerPage": "페이지당 항목 수",
+        "itemsPerPagePlaceholder": "값 입력...",
+        "multipleLabel": "다중 값 허용",
+        "record": "레코드 {id}"
+    },
+    "currentRecordDataProviderType": {
+        "index": "인덱스",
+        "firstPartName": "데이터 소스: {name}",
+        "schemaProperty": "{prefixName}: {schemaProperty}"
+    },
+    "workflowActionTypes": {
+        "notificationLabel": "알림 표시",
+        "openPageLabel": "페이지 열기",
+        "createRowLabel": "행 생성",
+        "updateRowLabel": "행 업데이트",
+        "deleteRowLabel": "행 삭제",
+        "logoutLabel": "로그아웃",
+        "refreshDataSourceLabel": "데이터 소스 새로 고침"
+    },
+    "notificationWorkflowActionForm": {
+        "titleLabel": "제목",
+        "titlePlaceholder": "텍스트 입력...",
+        "descriptionLabel": "설명",
+        "descriptionPlaceholder": "텍스트 입력..."
+    },
+    "event": {
+        "addAction": "작업 추가"
+    },
+    "collectionFieldType": {
+        "boolean": "불리언",
+        "button": "버튼",
+        "text": "텍스트",
+        "link": "링크",
+        "tags": "태그",
+        "image": "이미지"
+    },
+    "textFieldForm": {
+        "fieldValueLabel": "값",
+        "fieldValuePlaceholder": "값 입력..."
+    },
+    "linkFieldForm": {
+        "fieldValueLabel": "URL",
+        "fieldValuePlaceholder": "값 입력...",
+        "fieldLinkNameLabel": "링크 텍스트",
+        "fieldLinkNamePlaceholder": "값 입력...",
+        "buttonColor": "버튼 색상"
+    },
+    "tagsFieldForm": {
+        "fieldValuesLabel": "값",
+        "fieldValuesPlaceholder": "값 입력...",
+        "fieldColorsLabel": "색상",
+        "fieldColorsPlaceholder": "색상 입력..."
+    },
+    "linkField": {
+        "details": "세부 정보"
+    },
+    "imageFieldForm": {
+        "fieldSrcLabel": "이미지 소스",
+        "fieldSrcPlaceholder": "값 입력",
+        "fieldAltLabel": "대체 텍스트",
+        "fieldAltPlaceholder": "값 입력...",
+        "fieldAltHelp": "스크린 리더에서 사용되며 이미지를 로드할 수 없는 경우 표시됩니다"
+    },
+    "createUserSourceForm": {
+        "userSourceType": "유형",
+        "userSourceIntegration": "통합",
+        "userSourceName": "이름"
+    },
+    "updateUserSourceForm": {
+        "nameFieldLabel": "이름",
+        "nameFieldPlaceholder": "이름 입력...",
+        "authTitle": "인증",
+        "integrationFieldLabel": "통합",
+        "addProvider": "제공자 추가"
+    },
+    "formContainerElement": {
+        "submitDeactivatedText": "제출하려면 모든 필수 필드를 완료하세요",
+        "defaultSubmitButtonLabel": "제출"
+    },
+    "formContainerElementForm": {
+        "submitButtonLabel": "제출 버튼",
+        "submitButtonPlaceholder": "값 입력...",
+        "buttonColor": "버튼 색상",
+        "resetToInitialValuesTitle": "제출 후 기본값으로 재설정",
+        "resetToInitialValuesDescription": "선택한 경우, 성공적인 제출 후 양식의 기본값이 양식을 재설정하는 데 사용됩니다. 선택하지 않은 경우, 사용자의 값이 유지됩니다."
+    },
+    "choiceOptionSelector": {
+        "label": "옵션",
+        "value": "옵션 값",
+        "valuePlaceholder": "값 입력",
+        "name": "옵션 이름",
+        "namePlaceholder": "이름 입력",
+        "addOption": "옵션 추가",
+        "addOptionDescription": "'옵션 추가'를 클릭하여 드롭다운에 옵션을 추가하세요",
+        "optionType": "옵션 유형",
+        "manual": "수동",
+        "dataSource": "데이터 소스",
+        "formulas": "수식"
+    },
+    "dispatchWorkflowActionError": {
+        "defaultTitle": "이벤트 오류",
+        "defaultMessage": "이 이벤트를 트리거하는 중 오류가 발생했습니다.",
+        "formDataInvalidTitle": "유효하지 않은 양식",
+        "formDataInvalidMessage": "하나 이상의 필드에 유효하지 않은 값이 있습니다."
+    },
+    "dispatchDataSourceError": {
+        "defaultTitle": "데이터 로딩 오류",
+        "defaultMessage": "페이지의 데이터를 로드하는 중 오류가 발생했습니다."
+    },
+    "localBaserowServiceForm": {
+        "integrationDropdownLabel": "통합",
+        "rowIdLabel": "행 ID",
+        "rowIdPlaceholder": "행 ID 선택"
+    },
+    "upsertRowWorkflowActionForm": {
+        "fieldMappingPlaceholder": "필드 값 선택",
+        "noTableSelectedMessage": "필드를 구성하려면 테이블을 선택하세요."
+    },
+    "fieldMappingContext": {
+        "enableField": "필드 활성화",
+        "disableField": "필드 비활성화"
+    },
+    "checkboxElementForm": {
+        "labelTitle": "옵션 이름",
+        "valueTitle": "기본값",
+        "requiredTitle": "필수"
+    },
+    "choiceElement": {
+        "addOptions": "이 요소를 사용하려면 옵션을 추가하세요..."
+    },
+    "userSourceUsersContext": {
+        "searchPlaceholder": "사용자 검색",
+        "anonymous": "익명",
+        "unnamed": "이름 없음",
+        "noEmail": "이메일 없음"
+    },
+    "userSelector": {
+        "viewAs": "{user}으로 보기",
+        "anonymous": "익명",
+        "member": "{prefix} 멤버"
+    },
+    "visibilityForm": {
+        "allVisitors": "모든 방문자",
+        "loggedInVisitors": "로그인한 방문자",
+        "notLoggedInVisitors": "로그아웃한 방문자",
+        "warningTitle": "우리는 지속적으로 보안을 향상시키고 있습니다",
+        "warningMessage": "현재 공개여부는 UI에만 적용되며, 기본 데이터는 여전히 API에서 접근 가능합니다. 데이터 보안에 대한 자세한 내용은 <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>문서</a>를 확인하세요.",
+        "excludedRolesLabel": "모든 역할 제외",
+        "switchAllowLabel": "허용",
+        "switchDisallowLabel": "허용 안 함",
+        "rolesSelectAll": "모두 선택",
+        "rolesDeselectAll": "모두 선택 취소",
+        "rolesSelectHint": "하나 이상의 역할 선택",
+        "roleTypesHint": "역할 유형 선택",
+        "roleTypeAllowAllRoles": "모든 역할",
+        "roleTypeAllowAllRolesExcept": "역할 허용 안 함...",
+        "roleTypeDisallowAllRolesExcept": "역할 허용...",
+        "rolesAllMembersOf": "{name}의 모든 멤버",
+        "noRole": "역할 없음",
+        "errorFetchingRolesTitle": "사용자 역할을 가져올 수 없습니다",
+        "errorFetchingRolesMessage": "사용자 역할을 가져오는 동안 문제가 발생했습니다."
+    },
+    "userDataProviderType": {
+        "isAuthenticated": "인증됨",
+        "id": "아이디",
+        "email": "이메일",
+        "username": "사용자 이름",
+        "role": "역할"
+    },
+    "buttonField": {
+        "noLabel": "이름 없음..."
+    },
+    "buttonFieldForm": {
+        "infoMessage": "이 버튼의 작업을 구성하려면 현재 요소의 \"이벤트\" 탭을 여세요.",
+        "labelPlaceholder": "레이블 입력..."
+    },
+    "resetButton": {
+        "reset": "기본 테마 값으로 재설정"
+    },
+    "backgroundModes": {
+        "fill": "채우기",
+        "tile": "타일",
+        "fit": "맞춤"
+    },
+    "customStyle": {
+        "themeOverrides": "테마 재정의",
+        "configureThemeOverrides": "이 요소에 대한 테마 재정의 구성"
+    },
+    "serviceSchemaPropertySelector": {
+        "label": "속성",
+        "noProperties": "사용 가능한 속성 없음"
+    },
+    "dataSourceDropdown": {
+        "label": "데이터 소스",
+        "noDataSources": "사용 가능한 데이터 소스 없음",
+        "shared": "공유됨",
+        "pageOnly": "이 페이지",
+        "noSharedDataSources": "공유 데이터 소스가 없습니다"
+    },
+    "common": {
+        "timeFormat12Hour": "12 시간",
+        "dateFormatISO": "ISO",
+        "dateFormatUS": "US",
+        "timeFormatTitle": "시간 형식",
+        "dateFormatEU": "European",
+        "timeFormat24Hour": "24 시간",
+        "dateFormatTitle": "날짜 형식"
+    },
+    "themeSettings": {
+        "titleOverview": "테마"
+    },
+    "pageVisibilitySettings": {
+        "title": "공개여부",
+        "allVisitors": "모든 방문자",
+        "loggedInVisitors": "로그인한 방문자",
+        "description": "이 페이지를 누가 볼 수 있나요"
+    },
+    "multiPageContainerElementForm": {
+        "behaviour": "동작",
+        "display": "표시",
+        "deselectAll": "모두 선택 해제",
+        "pagePosition": "위치",
+        "selectAll": "모두 선택"
+    },
+    "pageShareType": {
+        "all": "모든 페이지에서",
+        "only": "선택된 페이지에서만",
+        "except": "선택한 페이지 제외"
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "시간 포함",
+        "invalidDateError": "잘못된 날짜입니다. 입력 날짜가 주어진 형식과 일치하는지 확인하세요."
+    },
+    "pageVisibilitySettingsTypes": {
+        "logInPageWarningTitle": "로그인 페이지가 설정되지 않았습니다",
+        "pageName": "공개여부",
+        "logInPagewarningMessage": "익명 사용자가 이 페이지에 액세스하려고 하면 로그인 페이지로 리디렉션됩니다. 애플리케이션의 일반 설정에서 로그인 페이지를 설정하세요.",
+        "logInPageInfoTitle": "익명 사용자는 리디렉션됩니다",
+        "logInPageInfoMessage": "익명의 사용자가 이 페이지에 접근을 시도하면 {logInPageName} 페이지로 리디렉션됩니다."
+    },
+    "pageEditor": {
+        "pageNotFound": "페이지를 찾을 수 없습니다"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownLabel": "로그인 페이지",
+        "pageDropdownPlaceholder": "페이지를 선택하세요",
+        "pageDropdownDescription": "로그인하지 않은 사용자가 제한된 페이지에 접근하려 할 때 리디렉션되어야 하는 로그인 페이지를 선택하세요."
+    }
+}

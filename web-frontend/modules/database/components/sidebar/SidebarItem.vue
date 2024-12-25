@@ -79,6 +79,7 @@
         </li>
         <li
           v-if="
+            table.data_sync &&
             $hasPermission(
               'database.data_sync.sync_table',
               table,
@@ -90,7 +91,49 @@
           <a class="context__menu-item-link" @click="openSyncModal()">
             <i class="context__menu-item-icon iconoir-data-transfer-down"></i>
             {{ $t('sidebarItem.sync') }}
+            <div v-if="dataSyncDeactivated" class="deactivated-label">
+              <i class="iconoir-lock"></i>
+            </div>
           </a>
+          <component
+            :is="dataSyncDeactivatedClickModal"
+            v-if="dataSyncDeactivatedClickModal !== null"
+            ref="deactivatedDataSyncClickModal"
+            :workspace="database.workspace"
+            :name="dataSyncType.getName()"
+          ></component>
+        </li>
+        <li
+          v-if="
+            table.data_sync &&
+            $hasPermission(
+              'database.table.update',
+              table,
+              database.workspace.id
+            ) &&
+            $hasPermission(
+              'database.data_sync.get',
+              table,
+              database.workspace.id
+            )
+          "
+          class="context__menu-item"
+        >
+          <a
+            class="context__menu-item-link"
+            @click="openConfigureDataSyncModal()"
+          >
+            <i class="context__menu-item-icon iconoir-settings"></i>
+            {{ $t('sidebarItem.updateSyncConfig') }}
+            <div v-if="dataSyncDeactivated" class="deactivated-label">
+              <i class="iconoir-lock"></i>
+            </div>
+          </a>
+          <ConfigureDataSyncModal
+            ref="configureDataSyncModal"
+            :database="database"
+            :table="table"
+          ></ConfigureDataSyncModal>
         </li>
         <li
           v-if="
@@ -162,10 +205,12 @@ import ExportTableModal from '@baserow/modules/database/components/export/Export
 import WebhookModal from '@baserow/modules/database/components/webhook/WebhookModal'
 import SidebarDuplicateTableContextItem from '@baserow/modules/database/components/sidebar/table/SidebarDuplicateTableContextItem'
 import SyncTableModal from '@baserow/modules/database/components/dataSync/SyncTableModal'
+import ConfigureDataSyncModal from '@baserow/modules/database/components/dataSync/ConfigureDataSyncModal.vue'
 
 export default {
   name: 'SidebarItem',
   components: {
+    ConfigureDataSyncModal,
     ExportTableModal,
     WebhookModal,
     SyncTableModal,
@@ -239,6 +284,15 @@ export default {
       )
       return this.$tc(`datetime.${period}Ago`, count)
     },
+    dataSyncType() {
+      return this.$registry.get('dataSync', this.table.data_sync.type)
+    },
+    dataSyncDeactivated() {
+      return this.dataSyncType.isDeactivated(this.database.workspace.id)
+    },
+    dataSyncDeactivatedClickModal() {
+      return this.dataSyncType.getDeactivatedClickModal()
+    },
   },
   methods: {
     setLoading(database, value) {
@@ -271,8 +325,16 @@ export default {
       this.$refs.webhookModal.show()
     },
     openSyncModal() {
+      if (this.dataSyncDeactivated) {
+        this.$refs.deactivatedDataSyncClickModal.show()
+      } else {
+        this.$refs.context.hide()
+        this.$refs.syncModal.show()
+      }
+    },
+    openConfigureDataSyncModal() {
       this.$refs.context.hide()
-      this.$refs.syncModal.show()
+      this.$refs.configureDataSyncModal.show()
     },
     enableRename() {
       this.$refs.context.hide()

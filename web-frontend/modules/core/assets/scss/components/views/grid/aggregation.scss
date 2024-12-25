@@ -1,23 +1,51 @@
 .grid-view-aggregation {
+  position: relative;
   padding-right: 10px;
   width: 100%;
-  flex: 1;
-
-  @include fixed-height(32px, 13px);
+  height: 32px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
 
   // Handle read-only state
   &:not(.read-only) {
     cursor: pointer;
 
     &:hover {
-      background-color: lighten($color-neutral-200, 5%);
+      background-color: rgba($palette-neutral-1300, 0.04);
     }
+  }
+}
+
+.grid-view-aggregation__empty {
+  width: 100%;
+  text-align: right;
+  font-size: 12px;
+  line-height: 19px;
+  color: $palette-neutral-700;
+
+  &.grid-view-aggregation__empty--active,
+  .grid-view-aggregation:hover & {
+    color: $palette-neutral-900;
+  }
+}
+
+.grid-view-aggregation__empty-icon {
+  font-size: 16px;
+  line-height: 16px;
+  margin-right: 4px;
+  color: $palette-neutral-500;
+
+  .grid-view-aggregation__empty--active &,
+  .grid-view-aggregation:hover & {
+    color: $palette-neutral-700;
   }
 }
 
 .grid-view-aggregation__generic {
   text-align: right;
   display: flex;
+  width: 100%;
 }
 
 .grid-view-aggregation__generic-name {

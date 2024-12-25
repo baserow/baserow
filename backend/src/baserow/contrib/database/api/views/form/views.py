@@ -35,6 +35,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import FormView
 from baserow.contrib.database.views.registries import view_ownership_type_registry
 from baserow.contrib.database.views.validators import (
+    allow_only_specific_select_options_factory,
     no_empty_form_values_when_required_validator,
 )
 from baserow.core.action.registries import action_type_registry
@@ -142,15 +143,28 @@ class SubmitFormViewView(APIView):
         model = form.table.get_model()
 
         options = form.active_field_options
-        field_kwargs = {
-            model._field_objects[option.field_id]["name"]: {
-                "required": True,
-                "default": empty,
-                "validators": [no_empty_form_values_when_required_validator],
-            }
-            for option in options
-            if option.is_required()
-        }
+        field_kwargs = {}
+        for option in options:
+            validators = []
+            o = {}
+            if option.is_required():
+                o["required"] = True
+                o["default"] = empty
+                validators.append(no_empty_form_values_when_required_validator)
+            if not option.include_all_select_options:
+                validators.append(
+                    allow_only_specific_select_options_factory(
+                        [
+                            allowed_select_option.id
+                            for allowed_select_option in option.allowed_select_options.all()
+                        ]
+                    )
+                )
+            if len(validators) > 0 and len(o) > 0:
+                name = model._field_objects[option.field_id]["name"]
+                o["validators"] = validators
+                field_kwargs[name] = o
+
         field_ids = [option.field_id for option in options]
         validation_serializer = get_row_serializer_class(
             model, field_ids=field_ids, field_kwargs=field_kwargs

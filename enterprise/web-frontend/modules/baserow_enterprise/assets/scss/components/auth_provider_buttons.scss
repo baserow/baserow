@@ -1,20 +1,7 @@
 .auth-provider-buttons {
   display: flex;
   flex-direction: column;
-  margin-bottom: 30px;
-}
-
-.auth-provider-buttons--border-bottom {
-  padding-bottom: 20px;
-  border-bottom: 1px solid $color-neutral-200;
-  margin-bottom: 32px;
-  margin-top: 40px;
-}
-
-.auth-provider-buttons--border-top {
-  padding-top: 40px;
-  border-top: 1px solid $color-neutral-200;
-  margin-bottom: 0;
+  gap: 16px;
 }
 
 .auth-provider-buttons__no-buttons {
@@ -38,23 +25,4 @@
   & .auth-provider-icon {
     margin-right: 0;
   }
-}
-
-.auth-provider-buttons__button {
-  color: $color-neutral-900;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 40px;
-  padding: 10px 16px;
-  gap: 8px;
-  border: 1px solid $color-neutral-900;
-  background-color: white;
-  margin-bottom: 20px;
-
-  @include rounded($rounded);
-}
-
-.auth-provider-buttons__button:hover {
-  text-decoration: none;
 }

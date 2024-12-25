@@ -48,7 +48,9 @@
             "convert": "Convertir",
             "title": "Type d'événement obsolète",
             "description": "Ce webhook ne reçoit pas d'informations sur les lignes modifiées en une seule opération. Veuillez le convertir en un type d'événement de type lot. Cette opération modifie le contenu JSON pour un format qui permet de contenir plusieurs lignes."
-        }
+        },
+        "triggerWhenFieldsHaveChanged": "Déclencher en cas de modification des champs",
+        "helpTriggerWhenFieldsHaveChanged": "Ne sera déclenché que si la valeur de la cellule des champs choisis change."
     },
     "webhook": {
         "details": "détails",
@@ -67,7 +69,11 @@
     },
     "sidebarItem": {
         "exportTable": "Exporter la table",
-        "webhooks": "Webhooks"
+        "webhooks": "Webhooks",
+        "notSynced": "non synchronisé",
+        "lastSynced": "Dernière synchronisation",
+        "sync": "Synchroniser la table",
+        "updateSyncConfig": "Mettre à jour la configuration de la synchronisation"
     },
     "apiToken": {
         "create": "créer",
@@ -276,7 +282,8 @@
         "addField": "Ajouter un champ"
     },
     "selectRowContent": {
-        "search": "Rechercher dans la table"
+        "search": "Rechercher dans la table",
+        "hideFields": "Masquer les champs"
     },
     "rowEditModal": {
         "addField": "Ajouter un champ",
@@ -461,7 +468,8 @@
         "selected": "Sélectionné"
     },
     "viewFilter": {
-        "filter": "Filtre | 1 Filtre | {count} Filtres"
+        "filter": "Filtre | 1 Filtre | {count} Filtres",
+        "hasAllValuesEqual": "a toutes les valeurs égales"
     },
     "viewContext": {
         "exportView": "Exporter la vue",
@@ -494,7 +502,8 @@
         "hideField": "Cacher un champ",
         "insertRight": "Insérer à droite",
         "insertLeft": "Insérer à gauche",
-        "duplicate": "Dupliquer le champ"
+        "duplicate": "Dupliquer le champ",
+        "dataSyncField": "Le champ est en lecture seule et fait partie de la synchronisation des données de la table."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "La ligne est filtrée",
@@ -520,7 +529,8 @@
         "tooManyItemsDescription": "Il n'est pas possible de mettre à jour plus de {limit} lignes à la fois, c'est pourquoi seule la première a été mise à jour.",
         "generateCellsValues": "Générer des valeurs avec l'IA",
         "AIValuesGenerationErrorTitle": "La génération de valeur par l'IA a échoué",
-        "AIValuesGenerationErrorMessage": "Veuillez vérifier votre API_KEY et le modèle sélectionné."
+        "AIValuesGenerationErrorMessage": "Veuillez vérifier votre API_KEY et le modèle sélectionné.",
+        "copyCellsWithHeader": "Copier les cellules avec l'en-tête"
     },
     "gridViewFieldLinkRow": {
         "unnamed": "Ligne sans nom {value}"
@@ -536,7 +546,8 @@
         "failedTitle": "L'export a échoué",
         "failedDescription": "L'export n'a pas pu aboutir en raison d'une erreur serveur.",
         "cancelledTitle": "Export annulé",
-        "cancelledDescription": "L'export a été annulé."
+        "cancelledDescription": "L'export a été annulé.",
+        "title": "Exporter {name}"
     },
     "exporterTypeChoices": {
         "formatLabel": "Vers quel format souhaitez-vous réaliser l'export ?"
@@ -557,7 +568,8 @@
         "recordSeparator": "Sép. d'enregistrement",
         "unitSeparator": "Sép. d'unité",
         "encodingLabel": "Encodage",
-        "firstRowIsHeaderLabel": "La première ligne contient l'entête"
+        "firstRowIsHeaderLabel": "La première ligne contient l'entête",
+        "includeHeader": "Inclure les noms de champs comme en-tête"
     },
     "apiDocsDatabase": {
         "pageTitle": "Documentation de l'API de la base {name}",
@@ -684,7 +696,10 @@
         "addCondition": "Ajouter une condition",
         "descriptionPlaceholder": "Description",
         "addConditionGroup": "Ajouter un groupe de conditions",
-        "showFieldAs": "Afficher le champ comme"
+        "showFieldAs": "Afficher le champ comme",
+        "includeAllSelectOptionsHelper": "Choisissez les options qui doivent être incluses dans le formulaire à l'aide de cette liste déroulante",
+        "noSelectOptions": "Il n'y a pas d'options disponibles.",
+        "includeAllSelectOptions": "inclure toutes les options sélectionnées"
     },
     "duplicateFieldContext": {
         "duplicate": "Dupliquer le champ",
@@ -705,7 +720,9 @@
         "snapshot": "Sauvegarde",
         "importingState": "En cours de création",
         "snapshotRestoredErrorTitle": "Une erreur s'est produite",
-        "reset": "Créer une autre"
+        "reset": "Créer une autre",
+        "cancel": "Annuler",
+        "noSnapshots": "Il n'y a pas encore de sauvegarde pour cette application."
     },
     "deleteSnapshotModal": {
         "content": "Êtes-vous sûr·e de vouloir supprimer définitivement la sauvegarde {nom} ?",
@@ -974,5 +991,81 @@
         "fieldBoolean": "Terminé",
         "fieldDuration": "Durée",
         "fieldUrl": "URL"
+    },
+    "createTableModal": {
+        "title": "Créer une nouvelle table",
+        "defaultName": "Table",
+        "importLabel": "Souhaitez vous importer des données existantes ?",
+        "newTable": "Démarrer avec une nouvelle table"
+    },
+    "createTable": {
+        "showTable": "afficher la table",
+        "uploading": "Envoi…",
+        "preparing": "Préparation des données...",
+        "stateRowCreation": "Import en cours...",
+        "statePreValidation": "Validation des données...",
+        "stateCreateTable": "Création d'une table...",
+        "addButton": "Ajouter une table",
+        "importError": "Un problème est survenu lors de l'import du fichier"
+    },
+    "importErrorReport": {
+        "reportTitleFailure": "Lignes en erreur",
+        "reportTitleSuccess": "Importation réussie mais...",
+        "reportMessage": "Les index de ligne suivants n'ont pas pu être importés :"
+    },
+    "dataSyncType": {
+        "icalCalendar": "Synchronisation du flux iCal",
+        "postgresql": "Synchroniser une table PostgreSQL",
+        "syncError": "Erreur de synchronisation"
+    },
+    "createDataSync": {
+        "next": "Suivant",
+        "fields": "Sélectionnez les champs que vous souhaitez synchroniser",
+        "create": "Créer et synchroniser une table",
+        "error": "Un problème s'est produit lors de la synchronisation"
+    },
+    "syncTableModal": {
+        "sync": "Synchroniser la table",
+        "hide": "Cacher",
+        "description": "Cette table est liée à une synchronisation de données. Lorsque vous cliquez sur le bouton de synchronisation, les données sont synchronisées avec la source. Au cours de ce processus, un verrou est placé sur les lignes mises à jour, ce qui peut ralentir temporairement les demandes d'API ou les modifications de la table.",
+        "title": "Synchroniser {name}"
+    },
+    "gridViewRowHeight": {
+        "name": "Hauteur",
+        "small": "Petite",
+        "medium": "Moyenne",
+        "large": "Grande"
+    },
+    "createViewLink": {
+        "inCompatibleWithDataSync": "Ce type de vue n'est pas compatible avec une table de synchronisation des données."
+    },
+    "iCalCalendarDataSync": {
+        "name": "URL iCal",
+        "description": "Le calendrier iCal se synchronise automatiquement avec les entrées du fichier de calendrier de l'URL. Elle ne prend en charge que le type de fichier ICS (Internet Calendar and Scheduling)."
+    },
+    "postgreSQLDataSync": {
+        "host": "Hôte",
+        "schema": "Schéma",
+        "table": "Table",
+        "sslMode": "Mode SSL",
+        "description": "Synchronise une table PostgreSQL avec une table Baserow en fonction des informations fournies ci-dessous. Notez que lorsque la synchronisation démarre, elle sélectionne toutes les lignes de la table fournie. Même si Baserow n'accède à la table qu'en lecture, nous recommandons fortement de limiter l'utilisateur configué à une lecture seule.",
+        "database": "Base de données",
+        "port": "Port",
+        "username": "Identifiant",
+        "password": "Mot de passe"
+    },
+    "configureDataSyncSettings": {
+        "title": "Modifier la synchronisation des données",
+        "syncTable": "Synchroniser lors de l'enregistrement"
+    },
+    "configureDataSyncModal": {
+        "title": "Synchronisation des données",
+        "syncedFields": "Champs synchronisés",
+        "syncSettings": "Paramètres de synchronisation"
+    },
+    "configureDataSyncVisibleFields": {
+        "title": "Modifier les champs synchronisés",
+        "fields": "Champs synchronisés",
+        "syncTable": "Synchroniser lors de l'enregistrement"
     }
 }

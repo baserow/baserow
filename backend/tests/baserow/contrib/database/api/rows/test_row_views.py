@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from unittest.mock import patch
 from urllib.parse import quote
 
 from django.db import connection
@@ -1031,8 +1032,18 @@ def test_list_rows_join_lookup(api_client, data_fixture, user_field_names):
         "results": [
             {
                 f"{link_row_ref}": [
-                    {"id": linked_blank_row.id, "value": "", **looked_up_fields_blank},
-                    {"id": linked_row.id, "value": "text", **looked_up_fields_row},
+                    {
+                        "id": linked_blank_row.id,
+                        "value": "",
+                        **looked_up_fields_blank,
+                        "order": AnyStr(),
+                    },
+                    {
+                        "id": linked_row.id,
+                        "value": "text",
+                        **looked_up_fields_row,
+                        "order": AnyStr(),
+                    },
                 ],
                 "id": row.id,
                 "order": AnyStr(),
@@ -1128,6 +1139,7 @@ def test_list_rows_join_lookup_field_to_same_table(data_fixture, api_client):
                     {
                         "id": table_row.id,
                         "value": "unnamed row 1",
+                        "order": AnyStr(),
                         f"field_{linked_table_text_field.id}": "Text 1",
                         f"field_{linked_table_multiselect.id}": [
                             {
@@ -1213,6 +1225,7 @@ def test_list_rows_join_lookup_multiple_link_row_fields(data_fixture, api_client
                     {
                         "id": table_row.id,
                         "value": "unnamed row 1",
+                        "order": AnyStr(),
                         f"field_{linked_table_text_field.id}": "Text 1",
                         f"field_{linked_table_text_field_2.id}": "Text 2",
                     },
@@ -1221,6 +1234,7 @@ def test_list_rows_join_lookup_multiple_link_row_fields(data_fixture, api_client
                     {
                         "id": table_row.id,
                         "value": "unnamed row 1",
+                        "order": AnyStr(),
                         f"field_{linked_table_2_text_field.id}": "Table 2 Text 1",
                     },
                 ],
@@ -1367,6 +1381,7 @@ def test_list_rows_join_lookup_field_multiple_lookups_user_field_names(
                     {
                         "id": table_row.id,
                         "value": "unnamed row 1",
+                        "order": AnyStr(),
                         f"{linked_table_text_field.name}": "Text 1",
                         f"{linked_table_text_field_2.name}": "Text 2",
                     },
@@ -1374,6 +1389,7 @@ def test_list_rows_join_lookup_field_multiple_lookups_user_field_names(
                 f"{link_row_field_2.name}": [
                     {
                         "id": table_row.id,
+                        "order": AnyStr(),
                         "value": "unnamed row 1",
                         f"{linked_table_2_text_field.name}": "Table 2 Text 1",
                     },
@@ -1840,6 +1856,35 @@ def test_create_row(api_client, data_fixture):
     }
 
 
+@pytest.mark.django_db(transaction=True)
+def test_create_row_with_disabled_webhook_events(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.post(
+            f"{url}?send_webhook_events=false",
+            {f"field_{text_field.id}": "Test 1"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        m.assert_not_called()
+
+
 @pytest.mark.django_db
 def test_create_row_with_read_only_field(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
@@ -2290,6 +2335,40 @@ def test_update_row(api_client, data_fixture):
     assert getattr(row_2, f"field_{boolean_field.id}") is False
 
 
+@pytest.mark.django_db(transaction=True)
+def test_update_row_with_disabled_webhook_events(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create()
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.patch(
+            f"{url}?send_webhook_events=false",
+            {f"field_{text_field.id}": "Test 1"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        m.assert_not_called()
+
+
 @pytest.mark.django_db
 def test_update_row_with_read_only_field(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
@@ -2472,6 +2551,40 @@ def test_move_row(api_client, data_fixture):
     )
 
 
+@pytest.mark.django_db(transaction=True)
+def test_move_row_with_disabled_webhook_events(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create()
+    row_2 = model.objects.create()
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    url = reverse(
+        "api:database:rows:move", kwargs={"table_id": table.id, "row_id": row_2.id}
+    )
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.patch(
+            f"{url}?before_id={row_1.id}&send_webhook_events=false",
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        m.assert_not_called()
+
+
 @pytest.mark.django_db
 def test_cannot_delete_row_by_id_with_data_sync(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
@@ -2566,6 +2679,39 @@ def test_delete_row_by_id(api_client, data_fixture):
     assert model.objects.count() == 0
 
 
+@pytest.mark.django_db(transaction=True)
+def test_delete_row_by_id_with_disabled_webhook_events(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create()
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.delete(
+            f"{url}?send_webhook_events=false",
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_204_NO_CONTENT
+        m.assert_not_called()
+
+
 @pytest.mark.django_db
 def test_list_rows_with_attribute_names(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token(
@@ -2586,6 +2732,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
     link_field = FieldHandler().create_field(
         user, table, "link_row", link_row_table=table_to_link_with, name="Link"
     )
+    password_field = data_fixture.create_password_field(name="Password", table=table)
 
     model = table.get_model()
     row_1 = model.objects.create(
@@ -2611,6 +2758,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
             "id": 1,
             "order": "1.00000000000000000000",
             "Link": [],
+            "Password": None,
         }
     ]
 
@@ -2631,6 +2779,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
         "order": "1.00000000000000000000",
         "Price,": "2",
         "Link": [],
+        "Password": None,
     }
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -2664,6 +2813,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
             "id": 1,
             "order": "1.00000000000000000000",
             "Link": [],
+            "Password": None,
         }
     ]
 
@@ -2677,7 +2827,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     response = api_client.get(
-        f"{url}?user_field_names=true&order_by={link_field.name}",
+        f"{url}?user_field_names=true&order_by={password_field.name}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -2685,8 +2835,8 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert (
         response_json["detail"]
-        == "It is not possible to order by Link because the field type "
-        "link_row does not support filtering."
+        == "It is not possible to order by Password because the field type "
+        "password does not support filtering."
     )
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
@@ -2705,6 +2855,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
             "id": 1,
             "order": "1.00000000000000000000",
             "Link": [],
+            "Password": None,
         },
         {
             '"Name, 2"': True,
@@ -2713,6 +2864,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
             "id": 2,
             "order": "1.00000000000000000000",
             "Link": [],
+            "Password": None,
         },
     ]
 
@@ -2732,6 +2884,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
             "id": 2,
             "order": "1.00000000000000000000",
             "Link": [],
+            "Password": None,
         },
         {
             '"Name, 2"': False,
@@ -2740,6 +2893,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
             "id": 1,
             "order": "1.00000000000000000000",
             "Link": [],
+            "Password": None,
         },
     ]
 
@@ -2778,6 +2932,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
             f"field_{field_3.id}": False,
             f"field_{field_2.id}": "2",
             f"field_{link_field.id}": [],
+            f"field_{password_field.id}": None,
         },
         {
             "id": 2,
@@ -2786,6 +2941,7 @@ def test_list_rows_with_attribute_names(api_client, data_fixture):
             f"field_{field_3.id}": True,
             f"field_{field_2.id}": "1",
             f"field_{link_field.id}": [],
+            f"field_{password_field.id}": None,
         },
     ]
 
@@ -3372,6 +3528,9 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
                         "type": "number",
                         "number_decimal_places": 2,
                         "number_negative": False,
+                        "number_prefix": "",
+                        "number_separator": "",
+                        "number_suffix": "",
                     },
                 },
             },
@@ -3631,6 +3790,9 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
                         "id": number_field.id,
                         "number_decimal_places": 2,
                         "number_negative": False,
+                        "number_prefix": "",
+                        "number_separator": "",
+                        "number_suffix": "",
                         "type": "number",
                     },
                     f"field_{email_field.id}": {

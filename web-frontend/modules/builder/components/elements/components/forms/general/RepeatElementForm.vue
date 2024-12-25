@@ -10,7 +10,8 @@
       <DataSourceDropdown
         v-model="values.data_source_id"
         small
-        :data-sources="dataSources"
+        :shared-data-sources="sharedDataSources"
+        :local-data-sources="localDataSources"
       >
         <template #chooseValueState>
           {{ $t('collectionElementForm.noDataSourceMessage') }}
@@ -128,13 +129,27 @@
       <Checkbox :checked="isCollapsed" @input="emitToggleRepetitions($event)">
       </Checkbox>
     </FormGroup>
+    <FormGroup
+      v-if="propertyOptionsAvailable"
+      small-label
+      class="margin-bottom-2"
+      :label="$t('collectionElementForm.propertyOptionLabel')"
+    >
+      <PropertyOptionForm
+        :default-values="element"
+        :is-filterable="element.is_publicly_filterable"
+        :is-sortable="element.is_publicly_sortable"
+        :is-searchable="element.is_publicly_searchable"
+        :data-source="selectedDataSource"
+        @values-changed="$emit('values-changed', $event)"
+      ></PropertyOptionForm>
+    </FormGroup>
   </form>
 </template>
 
 <script>
 import _ from 'lodash'
 import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
-import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import { mapActions, mapGetters } from 'vuex'
@@ -142,17 +157,19 @@ import CustomStyle from '@baserow/modules/builder/components/elements/components
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector.vue'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
+import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 
 export default {
   name: 'RepeatElementForm',
   components: {
+    PropertyOptionForm,
     DataSourceDropdown,
     DeviceSelector,
     CustomStyle,
     InjectedFormulaInput,
     ServiceSchemaPropertySelector,
   },
-  mixins: [elementForm, collectionElementForm],
+  mixins: [collectionElementForm],
   inject: ['applicationContext'],
   data() {
     return {

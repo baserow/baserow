@@ -202,6 +202,7 @@ export const registerRealtimeEvents = (realtime) => {
           rowBeforeUpdate,
           row,
           data.metadata[row.id],
+          data.updated_field_ids,
           'page/'
         )
       }

@@ -6,7 +6,9 @@ from django.db.models import OrderBy, QuerySet
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
 )
+from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.field_filters import FilterBuilder
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
@@ -15,11 +17,7 @@ from baserow.contrib.integrations.local_baserow.api.serializers import (
     LocalBaserowTableServiceFilterSerializer,
     LocalBaserowTableServiceSortSerializer,
 )
-from baserow.contrib.integrations.local_baserow.models import (
-    LocalBaserowTableServiceFilter,
-    LocalBaserowTableServiceSort,
-    LocalBaserowViewService,
-)
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowViewService
 from baserow.core.formula import BaserowFormula, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
@@ -28,9 +26,13 @@ from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.core.services.types import ServiceDict, ServiceSubClass
+from baserow.core.services.utils import ServiceAdhocRefinements
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
+    from baserow.contrib.integrations.local_baserow.models import (
+        LocalBaserowTableService,
+    )
 
 
 class LocalBaserowTableServiceFilterableMixin:
@@ -73,7 +75,8 @@ class LocalBaserowTableServiceFilterableMixin:
     def deserialize_filters(self, value, id_mapping):
         """
         Deserializes the filters by mapping the field_id to the new field_id if it
-        exists in the id_mapping.
+        exists in the id_mapping. If the value is a digit, try and map the value to
+        the new field select option id.
 
         :param value: the value of this property.
         :param id_mapping: the id mapping dict.
@@ -88,9 +91,38 @@ class LocalBaserowTableServiceFilterableMixin:
                     if "database_fields" in id_mapping
                     else f["field_id"]
                 ),
+                "value": (
+                    id_mapping["database_field_select_options"].get(
+                        int(f["value"]), f["value"]
+                    )
+                    if "database_field_select_options" in id_mapping
+                    and f["value"].isdigit()
+                    else f["value"]
+                ),
             }
             for f in value
         ]
+
+    def get_used_field_names(
+        self,
+        service: "LocalBaserowTableService",
+        dispatch_context: DispatchContext,
+    ):
+        """
+        Add the fields that are related to the service filters.
+        """
+
+        used_fields_from_parent = super().get_used_field_names(
+            service, dispatch_context
+        )
+
+        if isinstance(used_fields_from_parent, list):
+            return used_fields_from_parent + [
+                f"field_{service_filter.field_id}"
+                for service_filter in service.service_filters.all()
+            ]
+
+        return None
 
     def get_dispatch_filters(
         self,
@@ -120,8 +152,7 @@ class LocalBaserowTableServiceFilterableMixin:
             queryset = view_filter_builder.apply_to_queryset(queryset)
 
         service_filter_builder = FilterBuilder(filter_type=service.filter_type)
-        service_filters = LocalBaserowTableServiceFilter.objects.filter(service=service)
-        for service_filter in service_filters:
+        for service_filter in service.service_filters.all():
             field_object = model._field_objects[service_filter.field_id]
             field_name = field_object["name"]
             model_field = model._meta.get_field(field_name)
@@ -193,13 +224,32 @@ class LocalBaserowTableServiceFilterableMixin:
         queryset = super().get_queryset(service, table, dispatch_context, model)
         queryset = self.get_dispatch_filters(service, queryset, model, dispatch_context)
         dispatch_filters = dispatch_context.filters()
-        if dispatch_filters is not None:
+        if dispatch_filters is not None and dispatch_context.is_publicly_filterable:
             deserialized_filters = AdHocFilters.deserialize_dispatch_filters(
                 dispatch_filters
+            )
+            # Next we pluck out the field IDs which the filters point to.
+            field_ids = list(set([f["field"] for f in deserialized_filters["filters"]]))
+            # In bulk fetch the field records.
+            fields = Field.objects.filter(pk__in=field_ids).only("id")
+            # Extract the field db columns names.
+            field_names = [field.db_column for field in fields]
+            # Validate that the fields are filterable.
+            dispatch_context.validate_filter_search_sort_fields(
+                field_names, ServiceAdhocRefinements.FILTER
             )
             adhoc_filters = AdHocFilters.from_dict(deserialized_filters)
             queryset = adhoc_filters.apply_to_queryset(model, queryset)
         return queryset
+
+    def enhance_queryset(self, queryset):
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .prefetch_related(
+                "service_filters",
+            )
+        )
 
 
 class LocalBaserowTableServiceSortableMixin:
@@ -234,6 +284,27 @@ class LocalBaserowTableServiceSortableMixin:
             for s in service.service_sorts.all()
         ]
 
+    def get_used_field_names(
+        self,
+        service: "LocalBaserowTableService",
+        dispatch_context: DispatchContext,
+    ):
+        """
+        Add the fields related to the sort associated to the given service.
+        """
+
+        used_fields_from_parent = super().get_used_field_names(
+            service, dispatch_context
+        )
+
+        if isinstance(used_fields_from_parent, list):
+            return used_fields_from_parent + [
+                f"field_{service_sort.field_id}"
+                for service_sort in service.service_sorts.all()
+            ]
+
+        return None
+
     def get_dispatch_sorts(
         self,
         service: "ServiceSubClass",
@@ -256,7 +327,7 @@ class LocalBaserowTableServiceSortableMixin:
         :return: A list of `OrderBy` expressions.
         """
 
-        service_sorts = LocalBaserowTableServiceSort.objects.filter(service=service)
+        service_sorts = service.service_sorts.all()
         sort_ordering = [service_sort.get_order_by() for service_sort in service_sorts]
 
         if not sort_ordering and service.view:
@@ -288,7 +359,11 @@ class LocalBaserowTableServiceSortableMixin:
         queryset = super().get_queryset(service, table, dispatch_context, model)
 
         adhoc_sort = dispatch_context.sortings()
-        if adhoc_sort is not None:
+        if adhoc_sort and dispatch_context.is_publicly_sortable:
+            field_names = [field.strip("-") for field in adhoc_sort.split(",")]
+            dispatch_context.validate_filter_search_sort_fields(
+                field_names, ServiceAdhocRefinements.SORT
+            )
             queryset = queryset.order_by_fields_string(adhoc_sort, False)
         else:
             view_sorts, queryset = self.get_dispatch_sorts(service, queryset, model)
@@ -306,9 +381,39 @@ class LocalBaserowTableServiceSearchableMixin:
     mixin_simple_formula_fields = ["search_query"]
     mixin_allowed_fields = ["search_query"]
     mixin_serializer_field_names = ["search_query"]
+    mixin_serializer_field_overrides = {
+        "search_query": FormulaSerializerField(
+            required=False,
+            allow_blank=True,
+            help_text="Any search queries to apply to the "
+            "service when it is dispatched.",
+        )
+    }
 
     class SerializedDict(ServiceDict):
         search_query: str
+
+    def get_used_field_names(
+        self,
+        service: "LocalBaserowTableService",
+        dispatch_context: DispatchContext,
+    ):
+        """
+        Add all tsv_vector columns used by the search.
+        """
+
+        used_fields_from_parent = super().get_used_field_names(
+            service, dispatch_context
+        )
+
+        if isinstance(used_fields_from_parent, list) and service.search_query:
+            fields = [fo["field"] for fo in self.get_table_field_objects(service)]
+            return used_fields_from_parent + [
+                f.tsv_db_column if SearchHandler.full_text_enabled() else f.db_column
+                for f in fields
+            ]
+
+        return used_fields_from_parent
 
     def get_dispatch_search(
         self, service: "ServiceSubClass", dispatch_context: DispatchContext
@@ -362,9 +467,24 @@ class LocalBaserowTableServiceSearchableMixin:
                 service_search_query, search_mode=search_mode
             )
         adhoc_search_query = dispatch_context.search_query()
-        if adhoc_search_query is not None:
+        if adhoc_search_query is not None and dispatch_context.is_publicly_searchable:
+            # This mixin's `get_queryset` method does not validate any adhoc
+            # refinements, as the search query is not a field. We instead
+            # restrict the fields that we search against to only those which
+            # the page designer has marked as searchable.
+            only_search_by_field_names = dispatch_context.searchable_fields()
+            if not only_search_by_field_names:
+                # We've been given an adhoc search to use, but none of the
+                # properties have been flagged as searchable, so we can't
+                # return anything.
+                return queryset.none()
+            only_search_by_field_ids = extract_field_ids_from_list(
+                only_search_by_field_names
+            )
             queryset = queryset.search_all_fields(
-                adhoc_search_query, search_mode=search_mode
+                adhoc_search_query,
+                only_search_by_field_ids=only_search_by_field_ids,
+                search_mode=search_mode,
             )
         return queryset
 
@@ -401,7 +521,6 @@ class LocalBaserowTableServiceSpecificRowMixin:
             return resolved_values
 
         try:
-            dispatch_context.reset_call_stack()
             resolved_values["row_id"] = ensure_integer(
                 resolve_formula(
                     service.row_id,
@@ -417,6 +536,8 @@ class LocalBaserowTableServiceSpecificRowMixin:
         except DataProviderChunkInvalidException as e:
             message = f"Formula for row {service.row_id} could not be resolved."
             raise ServiceImproperlyConfigured(message) from e
+        except ServiceImproperlyConfigured:
+            raise
         except Exception as e:
             raise ServiceImproperlyConfigured(
                 f"The `row_id` formula can't be resolved: {e}"

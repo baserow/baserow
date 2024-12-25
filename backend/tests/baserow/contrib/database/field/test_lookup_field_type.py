@@ -22,6 +22,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.test_utils.helpers import AnyStr
 
 
 @pytest.mark.django_db
@@ -82,8 +83,8 @@ def test_can_update_lookup_field_value(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": a.id, "value": "2021-02-01"},
@@ -117,8 +118,8 @@ def test_can_update_lookup_field_value(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": a.id, "value": "2000-02-01"},
@@ -186,7 +187,9 @@ def test_can_batch_create_lookup_field_value(
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"field_{table_primary_field.id}": "row 1",
-                f"field_{link_row_field.id}": [{"id": 1, "value": "row A"}],
+                f"field_{link_row_field.id}": [
+                    {"id": 1, "value": "row A", "order": AnyStr()}
+                ],
                 f"field_{lookup_field.id}": [{"id": 1, "value": "row A"}],
             }
         ]
@@ -248,7 +251,9 @@ def test_can_batch_update_lookup_field_value(
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"field_{table_primary_field.id}": "row 1",
-                f"field_{link_row_field.id}": [{"id": 1, "value": "row A"}],
+                f"field_{link_row_field.id}": [
+                    {"id": 1, "value": "row A", "order": AnyStr()}
+                ],
                 f"field_{lookup_field.id}": [{"id": 1, "value": "row A"}],
             }
         ]
@@ -312,8 +317,8 @@ def test_can_set_sub_type_options_for_lookup_field(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": a.id, "value": "1.00"},
@@ -385,8 +390,8 @@ def test_can_lookup_single_select(data_fixture, api_client, django_assert_num_qu
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {
@@ -738,8 +743,8 @@ def test_moving_a_looked_up_row_updates_the_order(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": a.id, "value": "2021-02-01"},
@@ -773,8 +778,8 @@ def test_moving_a_looked_up_row_updates_the_order(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": b.id, "value": "primary b"},
-                    {"id": a.id, "value": "primary a"},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": b.id, "value": "2022-02-03"},
@@ -872,8 +877,8 @@ def test_can_modify_row_containing_lookup(
                 f"field_{table_primary_field.id}": None,
                 f"field_{table_long_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": a.id, "value": "2021-02-01"},
@@ -919,8 +924,8 @@ def test_can_modify_row_containing_lookup(
                 f"field_{table_primary_field.id}": "other",
                 f"field_{table_long_field.id}": "other",
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": a.id, "value": "2021-02-01"},
@@ -1005,8 +1010,8 @@ def test_deleting_restoring_lookup_target_works(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": a.id, "value": "2021-02-01"},
@@ -1042,8 +1047,8 @@ def test_deleting_restoring_lookup_target_works(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": None,
                 f"field_{string_agg.id}": None,
@@ -1095,8 +1100,8 @@ def test_deleting_restoring_lookup_target_works(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": a.id, "value": "2021-02-01"},
@@ -1271,8 +1276,8 @@ def test_deleting_related_link_row_field_dep_breaks_deps(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": a.id, "value": "2021-02-01"},
@@ -1494,8 +1499,8 @@ def test_deleting_table_with_dependants_works(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {"id": a.id, "value": "2021-02-01"},
@@ -1901,7 +1906,11 @@ def test_can_modify_row_containing_lookup_diamond_dep(
             {
                 "id": table2_row1.id,
                 "linkrowfield": [
-                    {"id": starting_row.id, "value": "table1_primary_row_1"}
+                    {
+                        "id": starting_row.id,
+                        "value": "table1_primary_row_1",
+                        "order": AnyStr(),
+                    }
                 ],
                 "middle_lookup": "table1_primary_row_1",
                 "order": "1.00000000000000000000",
@@ -1909,7 +1918,11 @@ def test_can_modify_row_containing_lookup_diamond_dep(
             {
                 "id": table2_row2.id,
                 "linkrowfield": [
-                    {"id": starting_row.id, "value": "table1_primary_row_1"}
+                    {
+                        "id": starting_row.id,
+                        "value": "table1_primary_row_1",
+                        "order": AnyStr(),
+                    }
                 ],
                 "middle_lookup": "table1_primary_row_1",
                 "order": "2.00000000000000000000",
@@ -1928,7 +1941,9 @@ def test_can_modify_row_containing_lookup_diamond_dep(
         "previous": None,
         "results": [
             {
-                "a": [{"id": table2_row1.id, "value": "table2_row1"}],
+                "a": [
+                    {"id": table2_row1.id, "value": "table2_row1", "order": AnyStr()}
+                ],
                 "b": [],
                 "final_lookup": "table1_primary_row_1",
                 "id": 1,
@@ -1936,7 +1951,9 @@ def test_can_modify_row_containing_lookup_diamond_dep(
             },
             {
                 "a": [],
-                "b": [{"id": table2_row2.id, "value": "table2_row2"}],
+                "b": [
+                    {"id": table2_row2.id, "value": "table2_row2", "order": AnyStr()}
+                ],
                 "final_lookup": "table1_primary_row_1",
                 "id": 2,
                 "order": "2.00000000000000000000",
@@ -1967,7 +1984,9 @@ def test_can_modify_row_containing_lookup_diamond_dep(
         "previous": None,
         "results": [
             {
-                "a": [{"id": table2_row1.id, "value": "table2_row1"}],
+                "a": [
+                    {"id": table2_row1.id, "value": "table2_row1", "order": AnyStr()}
+                ],
                 "b": [],
                 "final_lookup": "changed",
                 "id": table3_row1.id,
@@ -1975,7 +1994,9 @@ def test_can_modify_row_containing_lookup_diamond_dep(
             },
             {
                 "a": [],
-                "b": [{"id": table2_row2.id, "value": "table2_row2"}],
+                "b": [
+                    {"id": table2_row2.id, "value": "table2_row2", "order": AnyStr()}
+                ],
                 "final_lookup": "changed",
                 "id": table3_row2.id,
                 "order": "2.00000000000000000000",

@@ -178,7 +178,7 @@ def test_get_workflow_action_no_permissions(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_workflow_actions(data_fixture):
+def test_get_workflow_actions(data_fixture, stub_check_permissions):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     element = data_fixture.create_builder_button_element(page=page)
@@ -190,13 +190,64 @@ def test_get_workflow_actions(data_fixture):
         page=page, element=element, event=event
     )
 
-    [
-        workflow_action_one_fetched,
-        workflow_action_two_fetched,
-    ] = BuilderWorkflowActionService().get_workflow_actions(user, page)
+    def exclude_wa_1(
+        actor,
+        operation_name,
+        queryset,
+        workspace=None,
+        context=None,
+    ):
+        return queryset.exclude(id=workflow_action_one.id)
 
-    assert workflow_action_one_fetched.id == workflow_action_one.id
-    assert workflow_action_two_fetched.id == workflow_action_two.id
+    with stub_check_permissions() as stub:
+        stub.filter_queryset = exclude_wa_1
+
+        [
+            workflow_action_two_fetched,
+        ] = BuilderWorkflowActionService().get_workflow_actions(user, page)
+
+        assert workflow_action_two_fetched.id == workflow_action_two.id
+
+
+@pytest.mark.django_db
+def test_get_builder_workflow_actions(data_fixture, stub_check_permissions):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(builder=page.builder)
+
+    element = data_fixture.create_builder_button_element(page=page)
+    element2 = data_fixture.create_builder_button_element(page=page2)
+
+    event = EventTypes.CLICK
+    workflow_action_one = data_fixture.create_notification_workflow_action(
+        page=page, element=element, event=event
+    )
+    workflow_action_two = data_fixture.create_notification_workflow_action(
+        page=page, element=element, event=event
+    )
+    workflow_action_three = data_fixture.create_notification_workflow_action(
+        page=page, element=element2, event=event
+    )
+
+    def exclude_wa_1(
+        actor,
+        operation_name,
+        queryset,
+        workspace=None,
+        context=None,
+    ):
+        return queryset.exclude(id=workflow_action_one.id)
+
+    with stub_check_permissions() as stub:
+        stub.filter_queryset = exclude_wa_1
+
+        was = BuilderWorkflowActionService().get_builder_workflow_actions(
+            user, page.builder
+        )
+
+        assert sorted([w.id for w in was]) == sorted(
+            [workflow_action_two.id, workflow_action_three.id]
+        )
 
 
 @pytest.mark.django_db
@@ -224,7 +275,8 @@ def test_order_workflow_actions(data_fixture):
         element=element, order=0
     )
     workflow_action_two = data_fixture.create_notification_workflow_action(
-        element=element, order=1
+        element=element,
+        order=1,
     )
 
     BuilderWorkflowActionService().order_workflow_actions(

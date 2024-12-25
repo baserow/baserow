@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "FieldType.prepare_db_value validates arbitrary values in fields",
+    "issue_number": 2768,
+    "bullet_points": [],
+    "created_at": "2024-10-11"
+}

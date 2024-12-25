@@ -1,5 +1,5 @@
 <template>
-  <div class="dropdown" :class="{ 'dropdown--small': small }">
+  <div class="dropdown" :class="{ 'dropdown--large': !small }">
     <a
       ref="pickerLink"
       class="dropdown__selected"

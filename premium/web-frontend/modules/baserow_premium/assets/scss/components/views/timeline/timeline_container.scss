@@ -1,0 +1,42 @@
+.timeline-container {
+  height: 100%;
+  width: 100%;
+  background-color: white;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-container__header {
+  height: 72px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.timeline-container__grid-header {
+  height: 36px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.timeline-container__grid-body {
+  flex: 1 1;
+  min-height: 0;
+  width: 100%;
+  overflow: scroll;
+  position: relative;
+}
+
+.timeline-container__header-right {
+  display: flex;
+  align-items: center;
+  margin-right: 24px;
+}
+
+.timeline-container__header-timescale {
+  width: 100px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: start;
+}

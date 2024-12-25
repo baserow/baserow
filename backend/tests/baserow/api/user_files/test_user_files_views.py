@@ -68,7 +68,9 @@ def test_upload_file_with_jwt_auth(api_client, data_fixture, tmpdir):
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage", new=lambda: storage
+    ):
         with freeze_time("2020-01-01 12:00"):
             file = SimpleUploadedFile("test.txt", b"Hello World")
             token = data_fixture.generate_token(user)
@@ -97,7 +99,9 @@ def test_upload_file_with_jwt_auth(api_client, data_fixture, tmpdir):
     file_path = tmpdir.join("user_files", user_file.name)
     assert file_path.isfile()
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage", new=lambda: storage
+    ):
         file = SimpleUploadedFile("test.txt", b"Hello World")
         token = data_fixture.generate_token(user)
         response_2 = api_client.post(
@@ -117,7 +121,9 @@ def test_upload_file_with_jwt_auth(api_client, data_fixture, tmpdir):
     image.save(file, format="PNG")
     file.seek(0)
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage", new=lambda: storage
+    ):
         response = api_client.post(
             reverse("api:user_files:upload_file"),
             data={"file": file},
@@ -199,7 +205,9 @@ def test_upload_file_with_token_auth(api_client, data_fixture, tmpdir):
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage", new=lambda: storage
+    ):
         with freeze_time("2020-01-01 12:00"):
             file = SimpleUploadedFile("test.txt", b"Hello World")
             response = api_client.post(
@@ -227,7 +235,9 @@ def test_upload_file_with_token_auth(api_client, data_fixture, tmpdir):
     file_path = tmpdir.join("user_files", user_file.name)
     assert file_path.isfile()
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage", new=lambda: storage
+    ):
         file = SimpleUploadedFile("test.txt", b"Hello World")
         response_2 = api_client.post(
             reverse("api:user_files:upload_file"),
@@ -245,7 +255,9 @@ def test_upload_file_with_token_auth(api_client, data_fixture, tmpdir):
     image.save(file, format="PNG")
     file.seek(0)
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage", new=lambda: storage
+    ):
         response = api_client.post(
             reverse("api:user_files:upload_file"),
             data={"file": file},
@@ -361,7 +373,9 @@ def test_upload_file_via_url_with_jwt_auth(api_client, data_fixture, tmpdir):
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage", new=lambda: storage
+    ):
         response = api_client.post(
             reverse("api:user_files:upload_via_url"),
             data={"url": "http://localhost/test.txt"},
@@ -470,7 +484,9 @@ def test_upload_file_via_url_with_token_auth(api_client, data_fixture, tmpdir):
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage", new=lambda: storage
+    ):
         response = api_client.post(
             reverse("api:user_files:upload_via_url"),
             data={"url": "http://localhost/test.txt"},

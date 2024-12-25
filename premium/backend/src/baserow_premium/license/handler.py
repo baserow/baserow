@@ -91,6 +91,21 @@ class LicenseHandler:
             raise FeaturesNotAvailableError()
 
     @classmethod
+    def raise_if_workspace_doesnt_have_feature(cls, feature: str, workspace: Workspace):
+        """
+        Checks if the provided workspace has the feature for a workspace or
+        instance-wide.
+
+        :param feature: The feature the user must have.
+        :param workspace: The workspace that the user must have active premium for.
+        :raises FeaturesNotAvailableError: if the user does not have premium
+            features from a license the provided workspace.
+        """
+
+        if not cls.workspace_has_feature(feature, workspace):
+            raise FeaturesNotAvailableError()
+
+    @classmethod
     def user_has_feature(cls, feature: str, user: AbstractUser, workspace: Workspace):
         """
         Checks if the user has a particular feature granted by an active license for a

@@ -363,6 +363,9 @@ export const getters = {
   getUserId(state) {
     return state.user ? state.user.id : null
   },
+  getLanguage(state) {
+    return state.user ? state.user.language : 'en'
+  },
   isStaff(state) {
     return state.user ? state.user.is_staff : false
   },

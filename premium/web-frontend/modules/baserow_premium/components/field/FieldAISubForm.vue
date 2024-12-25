@@ -18,12 +18,9 @@
       <Dropdown
         v-model="values.ai_file_field_id"
         class="dropdown--floating"
-        :class="{
-          'dropdown--error': $v.values.ai_file_field_id.$error,
-        }"
+        :error="$v.values.ai_file_field_id.$error"
         :fixed-items="true"
         :show-search="false"
-        small
         @hide="$v.values.ai_file_field_id.$touch()"
       >
         <DropdownItem
@@ -38,6 +35,31 @@
         />
       </Dropdown>
     </FormGroup>
+
+    <FormGroup
+      required
+      small-label
+      :label="$t('fieldAISubForm.outputType')"
+      :help-icon-tooltip="$t('fieldAISubForm.outputTypeTooltip')"
+    >
+      <Dropdown
+        v-model="values.ai_output_type"
+        class="dropdown--floating"
+        :fixed-items="true"
+      >
+        <DropdownItem
+          v-for="outputType in outputTypes"
+          :key="outputType.getType()"
+          :name="outputType.getName()"
+          :value="outputType.getType()"
+          :description="outputType.getDescription()"
+        />
+      </Dropdown>
+      <template v-if="changedOutputType" #warning>
+        {{ $t('fieldAISubForm.outputTypeChangedWarning') }}
+      </template>
+    </FormGroup>
+
     <FormGroup
       small-label
       :label="$t('fieldAISubForm.prompt')"
@@ -50,10 +72,17 @@
           :data-providers="dataProviders"
           :application-context="applicationContext"
           :placeholder="$t('fieldAISubForm.promptPlaceholder')"
+          @input="$v.values.ai_prompt.$touch()"
         ></FormulaInputField>
       </div>
       <template #error> {{ $t('error.requiredField') }}</template>
     </FormGroup>
+
+    <component
+      :is="outputType.getFormComponent()"
+      ref="childForm"
+      v-bind="$props"
+    />
   </div>
   <div v-else>
     <p>
@@ -69,6 +98,7 @@ import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import SelectAIModelForm from '@baserow/modules/core/components/ai/SelectAIModelForm'
+import { TextAIFieldOutputType } from '@baserow_premium/aiFieldOutputTypes'
 
 export default {
   name: 'FieldAISubForm',
@@ -76,9 +106,10 @@ export default {
   mixins: [form, fieldSubForm],
   data() {
     return {
-      allowedValues: ['ai_prompt', 'ai_file_field_id'],
+      allowedValues: ['ai_prompt', 'ai_file_field_id', 'ai_output_type'],
       values: {
         ai_prompt: '',
+        ai_output_type: TextAIFieldOutputType.getType(),
         ai_file_field_id: null,
       },
       fileFieldSupported: false,
@@ -114,6 +145,19 @@ export default {
         const t = this.$registry.get('field', field.type)
         return t.canRepresentFiles(field)
       })
+    },
+    outputTypes() {
+      return Object.values(this.$registry.getAll('aiFieldOutputType'))
+    },
+    outputType() {
+      return this.$registry.get('aiFieldOutputType', this.values.ai_output_type)
+    },
+    changedOutputType() {
+      return (
+        this.defaultValues.id &&
+        this.defaultValues.type === this.values.type &&
+        this.defaultValues.ai_output_type !== this.values.ai_output_type
+      )
     },
   },
   methods: {

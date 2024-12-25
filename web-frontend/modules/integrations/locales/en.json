@@ -12,8 +12,9 @@
     "localBaserowWarning": "Authorizing your account gives everyone who has edit permissions to the application full access to the data you have access to. It’s possible to create a second user, give the right permissions and use that one."
   },
   "serviceType": {
-    "localBaserowGetRow": "Get {singleRow}",
-    "localBaserowListRows": "List {multipleRows}"
+    "localBaserowGetRow": "Get single row",
+    "localBaserowListRows": "List multiple rows",
+    "localBaserowAggregateRows": "Summarize field"
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"
@@ -40,6 +41,14 @@
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters.",
     "noTableChosenForSorting": "Choose a table to begin using data source sorts."
+  },
+  "localBaserowAggregateRowsForm": {
+    "filterTabTitle": "Filters",
+    "searchTabTitle": "Search",
+    "aggregationFieldLabel": "Field",
+    "aggregationTypeLabel": "Aggregation",
+    "searchFieldPlaceHolder": "Enter a search term...",
+    "noTableChosenForFiltering": "Choose a table to begin using data source filters."
   },
   "localBaserowTableServiceConditionalForm": {
     "addFilter": "Add additional filter",

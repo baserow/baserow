@@ -79,7 +79,7 @@ export default {
         if (this.fields[i].id === id) {
           break
         }
-        left += this.getFieldWidth(this.fields[i].id)
+        left += this.getFieldWidth(this.fields[i])
       }
       return left
     },
@@ -144,7 +144,7 @@ export default {
       // This is the horizontally scrollable element.
       const element = this.$parent.$el
 
-      this.draggingWidth = this.getFieldWidth(this.field.id)
+      this.draggingWidth = this.getFieldWidth(this.field)
 
       // Calculate the left position of the dragging animation. This is the transparent
       // overlay that has the same width as the field.
@@ -168,10 +168,10 @@ export default {
         element.scrollLeft
       let left = this.offset
       for (let i = 0; i < this.fields.length; i++) {
-        const width = this.getFieldWidth(this.fields[i].id)
+        const width = this.getFieldWidth(this.fields[i])
         const nextWidth =
           i + 1 < this.fields.length
-            ? this.getFieldWidth(this.fields[i + 1].id)
+            ? this.getFieldWidth(this.fields[i + 1])
             : width
         const leftHalf = left + Math.floor(width / 2)
         const rightHalf = left + width + Math.floor(nextWidth / 2)
@@ -195,7 +195,7 @@ export default {
       // might need to initiate that process.
       if (!this.autoScrolling || !startAutoScroll) {
         const relativeLeft = this.draggingLeft - element.scrollLeft
-        const relativeRight = relativeLeft + this.getFieldWidth(this.field.id)
+        const relativeRight = relativeLeft + this.getFieldWidth(this.field)
         const maxScrollLeft = element.scrollWidth - element.clientWidth
         let speed = 0
 

@@ -14,7 +14,7 @@
       :label="$t('headingElementForm.levelTitle')"
       class="margin-bottom-2"
     >
-      <Dropdown v-model="values.level" :show-search="false" small>
+      <Dropdown v-model="values.level" :show-search="false">
         <DropdownItem
           v-for="level in levels"
           :key="level.value"
@@ -42,8 +42,7 @@
 <script>
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
-import CustomStyle from '../style/CustomStyle.vue'
+import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
 
 export default {
   name: 'HeaderElementForm',
@@ -57,14 +56,13 @@ export default {
       values: {
         value: '',
         level: 1,
-        alignment: HORIZONTAL_ALIGNMENTS.LEFT,
         styles: {},
       },
       levels: [...Array(6).keys()].map((level) => ({
         name: this.$t('headingElementForm.headingName', { level: level + 1 }),
         value: level + 1,
       })),
-      allowedValues: ['value', 'level', 'alignment', 'styles'],
+      allowedValues: ['value', 'level', 'styles'],
     }
   },
 }

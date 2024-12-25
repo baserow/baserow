@@ -7,6 +7,7 @@ import setupClient, {
 
 import setupDatabasePlugin from '@baserow/modules/database/plugin'
 import setupBuilderPlugin from '@baserow/modules/builder/plugin'
+import setupIntegrationPlugin from '@baserow/modules/integrations/plugin'
 import { bootstrapVueContext } from '@baserow/test/helpers/components'
 import MockAdapter from 'axios-mock-adapter'
 import _ from 'lodash'
@@ -40,6 +41,7 @@ function _createBaserowStoreAndRegistry(app, vueContext, extraPluginSetupFunc) {
     app,
   }
   setupDatabasePlugin(setupContext)
+  setupIntegrationPlugin(setupContext)
   setupBuilderPlugin(setupContext)
   setupHasFeaturePlugin(setupContext, (name, dep) => {
     app[`$${name}`] = dep

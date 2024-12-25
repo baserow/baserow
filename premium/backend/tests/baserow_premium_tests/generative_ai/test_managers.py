@@ -1,18 +1,19 @@
 from io import BytesIO
 from unittest.mock import Mock
 
-from django.core.files.storage import default_storage
-
 import pytest
 from baserow_premium.generative_ai.managers import AIFileManager
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.test_utils.fixtures.generative_ai import TestGenerativeAIWithFilesModelType
 
 
 @pytest.mark.django_db
 def test_upload_files_from_file_field(premium_data_fixture):
+    storage = get_default_storage()
+
     user = premium_data_fixture.create_user()
     generative_ai_model_type = TestGenerativeAIWithFilesModelType()
     table = premium_data_fixture.create_database_table()
@@ -23,7 +24,7 @@ def test_upload_files_from_file_field(premium_data_fixture):
         table=table, order=1, name="AI prompt", ai_file_field=file_field
     )
     user_file_1 = UserFileHandler().upload_user_file(
-        user, "aifile.txt", BytesIO(b"Hello"), storage=default_storage
+        user, "aifile.txt", BytesIO(b"Hello"), storage=storage
     )
     table_model = table.get_model()
 
@@ -49,6 +50,8 @@ def test_upload_files_from_file_field(premium_data_fixture):
 
 @pytest.mark.django_db
 def test_upload_files_from_file_field_skip_files_over_max_size(premium_data_fixture):
+    storage = get_default_storage()
+
     user = premium_data_fixture.create_user()
     generative_ai_model_type = TestGenerativeAIWithFilesModelType()
     table = premium_data_fixture.create_database_table()
@@ -59,7 +62,7 @@ def test_upload_files_from_file_field_skip_files_over_max_size(premium_data_fixt
         table=table, order=1, name="AI prompt", ai_file_field=file_field
     )
     user_file_1 = UserFileHandler().upload_user_file(
-        user, "aifile.txt", BytesIO(b"Hello"), storage=default_storage
+        user, "aifile.txt", BytesIO(b"Hello"), storage=storage
     )
     table_model = table.get_model()
     values = {f"field_{file_field.id}": [{"name": user_file_1.name}]}

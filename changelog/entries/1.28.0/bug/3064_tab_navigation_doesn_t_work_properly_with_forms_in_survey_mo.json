@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fix a bug causing Tab navigation to not work properly with forms in Survey mode.",
+    "issue_number": 3064,
+    "bullet_points": [],
+    "created_at": "2024-10-01"
+}

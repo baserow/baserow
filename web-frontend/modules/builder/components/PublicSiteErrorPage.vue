@@ -16,17 +16,7 @@
     </p>
     <p v-else class="placeholder__content">{{ content }}</p>
     <div class="placeholder__action">
-      <Button
-        type="primary"
-        icon="iconoir-home"
-        size="large"
-        @click="
-          $router.go({
-            name: 'application-builder-page',
-            params: { pathMatch: '/' },
-          })
-        "
-      >
+      <Button type="primary" icon="iconoir-home" size="large" @click="onHome()">
         {{ $t('action.backToHome') }}
       </Button>
     </div>
@@ -60,6 +50,16 @@ export default {
     },
     content() {
       return this.error.content || this.$t('errorLayout.error')
+    },
+  },
+  methods: {
+    onHome() {
+      this.$router.push({
+        name: 'application-builder-page',
+        params: { pathMatch: '/' },
+        // We remove the query parameters. Important if we have some with error
+        query: {},
+      })
     },
   },
 }

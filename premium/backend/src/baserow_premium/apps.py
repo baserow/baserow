@@ -23,12 +23,20 @@ class BaserowPremiumConfig(AppConfig):
         )
 
         from .fields.actions import GenerateFormulaWithAIActionType
+        from .fields.ai_field_output_types import (
+            ChoiceAIFieldOutputType,
+            TextAIFieldOutputType,
+        )
         from .fields.field_converters import AIFieldConverter
         from .fields.field_types import AIFieldType
+        from .fields.registries import ai_field_output_registry
 
         field_type_registry.register(AIFieldType())
 
         field_converter_registry.register(AIFieldConverter())
+
+        ai_field_output_registry.register(TextAIFieldOutputType())
+        ai_field_output_registry.register(ChoiceAIFieldOutputType())
 
         from baserow.contrib.database.rows.registries import row_metadata_registry
         from baserow.contrib.database.views.registries import (
@@ -43,7 +51,11 @@ class BaserowPremiumConfig(AppConfig):
 
         action_type_registry.register(GenerateFormulaWithAIActionType())
 
-        from .export.exporter_types import JSONTableExporter, XMLTableExporter
+        from .export.exporter_types import (
+            ExcelTableExporter,
+            JSONTableExporter,
+            XMLTableExporter,
+        )
         from .plugins import PremiumPlugin
         from .views.actions import RotateCalendarIcalSlugActionType
         from .views.decorator_types import (
@@ -61,6 +73,7 @@ class BaserowPremiumConfig(AppConfig):
 
         table_exporter_registry.register(JSONTableExporter())
         table_exporter_registry.register(XMLTableExporter())
+        table_exporter_registry.register(ExcelTableExporter())
 
         row_metadata_registry.register(RowCommentCountMetadataType())
         row_metadata_registry.register(RowCommentsNotificationModeMetadataType())

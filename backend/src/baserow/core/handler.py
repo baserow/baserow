@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import IO, Any, Dict, List, NewType, Optional, Tuple, Union, cast
@@ -11,12 +12,13 @@ from zipfile import ZIP_DEFLATED, ZipFile
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, AnonymousUser
-from django.core.files.storage import Storage, default_storage
+from django.core.files.storage import Storage
 from django.db import OperationalError, transaction
 from django.db.models import Count, Prefetch, Q, QuerySet
 from django.utils import translation
 from django.utils.translation import gettext as _
 
+import zipstream
 from itsdangerous import URLSafeSerializer
 from loguru import logger
 from opentelemetry import trace
@@ -87,6 +89,7 @@ from .registries import (
 from .signals import (
     application_created,
     application_deleted,
+    application_imported,
     application_updated,
     applications_reordered,
     before_workspace_deleted,
@@ -103,6 +106,7 @@ from .signals import (
     workspace_user_updated,
     workspaces_reordered,
 )
+from .storage import get_default_storage
 from .telemetry.utils import baserow_trace_methods, disable_instrumentation
 from .trash.handler import TrashHandler
 from .types import (
@@ -126,6 +130,13 @@ User = get_user_model()
 WorkspaceForUpdate = NewType("WorkspaceForUpdate", Workspace)
 
 tracer = trace.get_tracer(__name__)
+
+
+@dataclass
+class ApplicationUpdatedResult:
+    updated_application_instance: Application
+    original_app_allowed_values: Dict[str, Any]
+    updated_app_allowed_values: Dict[str, Any]
 
 
 class CoreHandler(metaclass=baserow_trace_methods(tracer)):
@@ -188,6 +199,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                 "show_baserow_help_request",
                 "co_branding_logo",
                 "email_verification",
+                "verify_import_signature",
             ],
             settings_instance,
         )
@@ -1417,7 +1429,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
 
     def update_application(
         self, user: AbstractUser, application: Application, **kwargs
-    ) -> Application:
+    ) -> ApplicationUpdatedResult:
         """
         Updates an existing application instance.
 
@@ -1435,18 +1447,25 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         application_type = application_type_registry.get_by_model(application)
-        allowed_updates = extract_allowed(
+        allowed_values = extract_allowed(
             kwargs, self.default_update_allowed_fields + application_type.allowed_fields
         )
-
-        for key, value in allowed_updates.items():
+        original_allowed_values = {
+            allowed_value: getattr(application, allowed_value)
+            for allowed_value in allowed_values
+        }
+        for key, value in allowed_values.items():
             setattr(application, key, value)
 
         application.save()
 
         application_updated.send(self, application=application, user=user)
 
-        return application
+        return ApplicationUpdatedResult(
+            updated_application_instance=application,
+            original_app_allowed_values=original_allowed_values,
+            updated_app_allowed_values=allowed_values,
+        )
 
     def duplicate_application(
         self,
@@ -1478,7 +1497,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         progress.increment(by=start_progress)
 
         duplicate_import_export_config = ImportExportConfig(
-            include_permission_data=True, reduce_disk_space_usage=False
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            is_duplicate=True,
+            exclude_sensitive_data=False,
         )
         # export the application
         specific_application = application.specific
@@ -1629,20 +1651,25 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :rtype: list
         """
 
-        if not storage:
-            storage = default_storage
+        storage = storage or get_default_storage()
+        zip_stream = zipstream.ZipStream(
+            compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+            compress_type=zipstream.ZIP_DEFLATED,
+        )
 
-        with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
-            exported_applications = []
-            applications = workspace.application_set.all()
-            for a in applications:
-                application = a.specific
-                application_type = application_type_registry.get_by_model(application)
-                with application_type.export_safe_transaction_context(application):
-                    exported_application = application_type.export_serialized(
-                        application, import_export_config, files_zip, storage
-                    )
-                exported_applications.append(exported_application)
+        exported_applications = []
+        applications = workspace.application_set.all()
+        for a in applications:
+            application = a.specific
+            application_type = application_type_registry.get_by_model(application)
+            with application_type.export_safe_transaction_context(application):
+                exported_application = application_type.export_serialized(
+                    application, import_export_config, zip_stream, storage
+                )
+            exported_applications.append(exported_application)
+
+        for chunk in zip_stream:
+            files_buffer.write(chunk)
 
         return exported_applications
 
@@ -1679,14 +1706,39 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             progress_builder, len(exported_applications) * 1000
         )
 
-        if not storage:
-            storage = default_storage
+        storage = storage or get_default_storage()
+
+        # Sort the serialized applications so that we import:
+        # Database first
+        # Applications second
+        # Everything else after that.
+        def application_priority_sort(application_to_sort):
+            return application_type_registry.get(
+                application_to_sort["type"]
+            ).import_application_priority
+
+        prioritized_applications = sorted(
+            exported_applications, key=application_priority_sort, reverse=True
+        )
+
+        # Sort the serialized applications so that we import:
+        # Database first
+        # Applications second
+        # Everything else after that.
+        def application_priority_sort(application_to_sort):
+            return application_type_registry.get(
+                application_to_sort["type"]
+            ).import_application_priority
+
+        prioritized_applications = sorted(
+            exported_applications, key=application_priority_sort, reverse=True
+        )
 
         with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
             id_mapping: Dict[str, Any] = {}
             imported_applications = []
             next_application_order_value = Application.get_last_order(workspace)
-            for application in exported_applications:
+            for application in prioritized_applications:
                 application_type = application_type_registry.get(application["type"])
                 imported_application = application_type.import_serialized(
                     workspace,
@@ -2005,15 +2057,19 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Because a user has initiated the creation of applications, we need to
         # call the `application_created` signal for each created application.
+        #
+        # The `application_imported` signal is sent to ensure that any
+        # post-import logic is executed, e.g. configuring integrations.
         for application in applications:
             application_type = application_type_registry.get_by_model(application)
             application.installed_from_template = template
-            application_created.send(
-                self,
-                application=application,
-                user=user,
-                type_name=application_type.type,
-            )
+            for signal in [application_created, application_imported]:
+                signal.send(
+                    self,
+                    application=application,
+                    user=user,
+                    type_name=application_type.type,
+                )
 
         Application.objects.bulk_update(applications, ["installed_from_template"])
 

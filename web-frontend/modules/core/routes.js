@@ -30,6 +30,7 @@ export const routes = [
     name: 'reset-password',
     path: '/reset-password/:token',
     component: path.resolve(__dirname, 'pages/resetPassword.vue'),
+    meta: { preventPageViewTracking: true },
   },
   {
     name: 'verify-email-address',
@@ -50,6 +51,7 @@ export const routes = [
     name: 'workspace-invitation',
     path: '/workspace-invitation/:token',
     component: path.resolve(__dirname, 'pages/workspaceInvitation.vue'),
+    meta: { preventPageViewTracking: true },
   },
   {
     name: 'admin-settings',
@@ -60,6 +62,21 @@ export const routes = [
     name: 'admin-health',
     path: '/admin/health',
     component: path.resolve(__dirname, 'pages/admin/health.vue'),
+  },
+  {
+    name: 'admin-dashboard',
+    path: '/admin/dashboard',
+    component: path.resolve(__dirname, 'pages/admin/dashboard.vue'),
+  },
+  {
+    name: 'admin-users',
+    path: '/admin/users',
+    component: path.resolve(__dirname, 'pages/admin/users.vue'),
+  },
+  {
+    name: 'admin-workspaces',
+    path: '/admin/workspaces',
+    component: path.resolve(__dirname, 'pages/admin/workspaces.vue'),
   },
   {
     name: 'style-guide',

@@ -23,7 +23,7 @@ export default {
     },
     to: {
       type: Object,
-      default: () => {},
+      default: () => undefined,
       required: false,
     },
     icon: {

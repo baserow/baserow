@@ -80,7 +80,7 @@ def test_create_view_sort(api_client, data_fixture):
     field_2 = data_fixture.create_text_field(table=table_2)
     field_3 = data_fixture.create_text_field(table=table_1)
     field_4 = data_fixture.create_text_field(table=table_1)
-    link_row_field = data_fixture.create_link_row_field(table=table_1)
+    password_field = data_fixture.create_password_field(table=table_1)
     view_1 = data_fixture.create_grid_view(table=table_1)
     view_2 = data_fixture.create_grid_view(table=table_2)
 
@@ -145,7 +145,7 @@ def test_create_view_sort(api_client, data_fixture):
 
     response = api_client.post(
         reverse("api:database:views:list_sortings", kwargs={"view_id": view_1.id}),
-        {"field": link_row_field.id, "order": "ASC"},
+        {"field": password_field.id, "order": "ASC"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -260,7 +260,7 @@ def test_update_view_sort(api_client, data_fixture):
     sort_2 = data_fixture.create_view_sort()
     sort_3 = data_fixture.create_view_sort(view=sort_1.view, order="ASC")
     field_1 = data_fixture.create_text_field(table=sort_1.view.table)
-    link_row_field = data_fixture.create_link_row_field(table=sort_1.view.table)
+    password_field = data_fixture.create_password_field(table=sort_1.view.table)
     field_2 = data_fixture.create_text_field()
 
     response = api_client.patch(
@@ -308,7 +308,7 @@ def test_update_view_sort(api_client, data_fixture):
 
     response = api_client.patch(
         reverse("api:database:views:sort_item", kwargs={"view_sort_id": sort_1.id}),
-        {"field": link_row_field.id},
+        {"field": password_field.id},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )

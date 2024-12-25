@@ -24,7 +24,9 @@
         "pathTitle": "Pad",
         "pathParamsSubtitleTutorial": "Pad parameters kunnen worden gebruikt om gegevens dynamisch te laden, afhankelijk van de opgegeven parameter. Voeg :parameter toe aan het pad om er een toe te voegen.",
         "nameTitle": "Naam",
-        "pathSubtitle": "Een parameter kan worden toegevoegd via :parameter"
+        "pathSubtitle": "Een parameter kan worden toegevoegd via :parameter",
+        "namePlaceholder": "Voer een naam in...",
+        "pathPlaceholder": "Voer een pad in..."
     },
     "builderForm": {
         "submit": "Applicatie toevoegen"
@@ -51,7 +53,8 @@
     },
     "elementsContext": {
         "searchPlaceholder": "Zoek elementen",
-        "noElements": "Geen elementen gevonden"
+        "noElements": "Geen elementen gevonden",
+        "noPageElements": "Geen elementen gevonden voor deze pagina"
     },
     "elementType": {
         "heading": "Kop",
@@ -83,7 +86,22 @@
         "repeat": "Herhaal",
         "repeatDescription": "Een herhaalbare reeks elementen",
         "choice": "Keuze",
-        "choiceDescription": "Voor enkele/meervoudige waarde selectie"
+        "choiceDescription": "Voor enkele/meervoudige waarde selectie",
+        "recordSelector": "Recordkiezer",
+        "recordSelectorDescription": "Een gerelateerde recordkiezer",
+        "header": "Multi-pagina header",
+        "headerDescription": "Een container gedeeld over pagina's",
+        "footer": "Multi-pagina footer",
+        "footerDescription": "Een container gedeeld over pagina's",
+        "notAllowedUnlessTop": "Dit element is alleen toegestaan bovenaan de pagina",
+        "notAllowedUnlessBottom": "Dit element is alleen toegestaan onderaan de pagina",
+        "notAllowedUnlessHeader": "Dit element is alleen toegestaan in de pagina header",
+        "notAllowedUnlessFooter": "Dit element is alleen toegestaan in de footer van de pagina",
+        "notAllowedInsideContainer": "Dit element is niet toegestaan in een container",
+        "notAllowedInsideSameType": "Dit element is niet toegestaan in een container van hetzelfde type",
+        "notAllowedLocation": "Dit element is niet toegestaan op deze locatie",
+        "dateTimePicker": "Datum tijd kiezer",
+        "dateTimePickerDescription": "Een invoerveld voor datum en tijd"
     },
     "addElementButton": {
         "label": "Element"
@@ -91,7 +109,8 @@
     "addElementModal": {
         "title": "Nieuw element toevoegen",
         "searchPlaceholder": "Zoek elementen",
-        "disabledElementTooltip": "Niet beschikbaar binnen dit element"
+        "disabledElementTooltip": "Niet beschikbaar binnen dit element",
+        "elementInProgress": "Element toevoegen..."
     },
     "duplicatePageJobType": {
         "duplicating": "Dupliceren",
@@ -108,7 +127,9 @@
         "message": "Klik op een van de elementen om meer details te zien"
     },
     "headingElement": {
-        "noValue": "Geen titel..."
+        "noValue": "Geen titel...",
+        "emptyValue": "Lege titel...",
+        "missingValue": "Ontbrekende titel..."
     },
     "headingElementForm": {
         "levelTitle": "Niveau",
@@ -118,7 +139,9 @@
         "textPlaceholder": "Tekst invoeren..."
     },
     "textElement": {
-        "noValue": "Lege paragraaf..."
+        "noValue": "Lege paragraaf...",
+        "emptyValue": "Lege tekst...",
+        "missingValue": "Ontbrekende tekst..."
     },
     "textElementForm": {
         "textTitle": "Tekst",
@@ -191,7 +214,9 @@
         "subDomainName": "Subdomein"
     },
     "linkElement": {
-        "noValue": "Naamloos..."
+        "noValue": "Naamloos...",
+        "missingValue": "Ontbrekende linktekst...",
+        "emptyValue": "Lege linktekst..."
     },
     "linkElementForm": {
         "text": "Tekst",
@@ -247,15 +272,24 @@
         "errorUniqueName": "Data bron naam moet uniek zijn.",
         "selectTypeFirst": "Selecteer eerst de dienst",
         "servicePlaceholder": "Selecteer een dienst",
-        "namePlaceholder": "Bron naam"
+        "namePlaceholder": "Bron naam",
+        "actionLabel": "Actie",
+        "nameLabel": "Naam",
+        "integrationLabel": "Integratie"
     },
     "dataSourceContext": {
         "addDataSource": "Nieuwe gegevensbron toevoegen",
         "noDataSourceTitle": "Je hebt nog geen data toegevoegd",
-        "noDataSourceMessage": "Data kan worden gebruikt om gegevens op te halen uit interne of externe bronnen en deze op de pagina weer te geven."
+        "noDataSourceMessage": "Data kan worden gebruikt om gegevens op te halen uit interne of externe bronnen en deze op de pagina weer te geven.",
+        "sharedDataSourceTitle": "Gedeeld tussen pagina's",
+        "pageDataSourceTitle": "Voor deze pagina",
+        "sharedDataSourceDescription": "Toegankelijk op elke pagina en wordt eenmalig opgehaald bij de eerste keer dat de pagina wordt geladen.",
+        "pageDataSourceDescription": "Wordt opgehaald wanneer de gebruiker naar deze pagina navigeert."
     },
     "imageElement": {
-        "emptyState": "Geen alt-tekst gedefinieerd..."
+        "emptyState": "Geen alt-tekst gedefinieerd...",
+        "emptyValue": "Lege alt-tekst...",
+        "missingValue": "Ontbrekende alt-tekst..."
     },
     "elementForms": {
         "textInputPlaceholder": "Voer tekst in...",
@@ -303,7 +337,8 @@
         "orientation": "Oriëntatie",
         "orientationHorizontal": "Horizontaal",
         "orientationVertical": "Verticaal",
-        "buttonLoadMoreLabel": "Toon meer label"
+        "buttonLoadMoreLabel": "Toon meer label",
+        "propertySelectorMissingArrays": "Geen velden met meerdere waarden gevonden om als rijen te gebruiken."
     },
     "linkFieldForm": {
         "fieldLinkNamePlaceholder": "Waarde invoeren...",
@@ -339,7 +374,8 @@
         "nameFieldLabel": "Naam",
         "nameFieldPlaceholder": "Voer een naam in...",
         "integrationFieldLabel": "Integratie",
-        "authTitle": "Authenticatie"
+        "authTitle": "Authenticatie",
+        "addProvider": "Provider toevoegen"
     },
     "mainThemeConfigBlock": {
         "colorsLabel": "Kleuren",
@@ -430,7 +466,8 @@
     },
     "currentRecordDataProviderType": {
         "index": "Index",
-        "firstPartName": "Gegevensbron: {name}"
+        "firstPartName": "Gegevensbron: {name}",
+        "schemaProperty": "{prefixName}: {schemaProperty}"
     },
     "domainForm": {
         "notUniqueDomain": "De opgegeven domeinnaam is al in gebruik",
@@ -450,7 +487,9 @@
         "text": "Tekst",
         "link": "Link",
         "boolean": "Boolean",
-        "tags": "Tags"
+        "tags": "Tags",
+        "button": "Knop",
+        "image": "Afbeelding"
     },
     "createUserSourceForm": {
         "userSourceName": "Naam",
@@ -461,7 +500,9 @@
         "addAction": "actie toevoegen"
     },
     "buttonElement": {
-        "noValue": "Naamloos..."
+        "noValue": "Naamloos...",
+        "missingValue": "Ontbrekende knop tekst...",
+        "emptyValue": "Lege knop tekst..."
     },
     "formDataProviderType": {
         "nodeMissing": "Ontbrekend"
@@ -489,7 +530,9 @@
         "none": "Geen"
     },
     "pagePreview": {
-        "emptyMessage": "Klik om het eerste element te maken"
+        "emptyMessage": "Klik om het eerste element te maken",
+        "header": "HEADER",
+        "footer": "FOOTER"
     },
     "eventTypes": {
         "submitLabel": "Op versturen",
@@ -543,7 +586,9 @@
         "embedLabel": "Insluiten",
         "embedPlaceholder": "Ruwe HTML-inhoud die moet worden ingesloten",
         "heightLabel": "Hoogte (px)",
-        "heightPlaceholder": "Hoogte in pixels"
+        "heightPlaceholder": "Hoogte in pixels",
+        "missingValue": "IFrame bron ontbreekt...",
+        "emptyValue": "Lege IFrame bron..."
     },
     "dropdownOptionSelector": {
         "label": "Opties",
@@ -582,7 +627,8 @@
         "member": "{prefix} lid"
     },
     "formContainerElement": {
-        "submitDeactivatedText": "Vul alle verplichte velden in om te verzenden"
+        "submitDeactivatedText": "Vul alle verplichte velden in om te verzenden",
+        "defaultSubmitButtonLabel": "Verstuur"
     },
     "visibilityForm": {
         "allVisitors": "Alle bezoekers",
@@ -629,7 +675,8 @@
         "itemsPerPagePlaceholder": "Waarde invoeren...",
         "itemsPerRowLabel": "Items per rij",
         "buttonLoadMoreLabel": "Toon meer label",
-        "toggleEditorRepetitionsLabel": "Herhalingen tijdelijk uitschakelen"
+        "toggleEditorRepetitionsLabel": "Herhalingen tijdelijk uitschakelen",
+        "propertySelectorMissingArrays": "Geen velden met meerdere waarden gevonden om mee te herhalen."
     },
     "userDataProviderType": {
         "isAuthenticated": "Is ingelogd",
@@ -644,7 +691,9 @@
     "repeatElement": {
         "showMore": "Meer tonen",
         "missingDataSourceTooltip": "Kies een gegevensbron om te beginnen met het toevoegen van elementen.",
-        "empty": "Er zijn geen items gevonden."
+        "empty": "Er zijn geen items gevonden.",
+        "missingSchemaPropertyTooltip": "Kies een eigenschap om te beginnen met het toevoegen van elementen.",
+        "emptyState": "Geen rijen gevonden."
     },
     "tagsFieldForm": {
         "fieldValuesLabel": "Waarden",
@@ -807,7 +856,8 @@
         "empty": "Geen opties beschikbaar"
     },
     "abTable": {
-        "empty": "Er zijn geen items gevonden."
+        "empty": "Er zijn geen items gevonden.",
+        "loading": "Aan het laden..."
     },
     "localBaserowServiceForm": {
         "rowIdPlaceholder": "Selecteer een rij ID",
@@ -817,5 +867,113 @@
     "fieldMappingContext": {
         "enableField": "Veld inschakelen",
         "disableField": "Veld uitschakelen"
+    },
+    "collectionElementForm": {
+        "noSchemaPropertyMessage": "Kies een eigenschap in de gegevensbron om te gebruiken als de lijstgegevens van je element.",
+        "noDataSourceMessage": "Kies een gegevensbron met meerdere rijen om alle resultaten weer te geven, of een gegevensbron met één rij om een eigenschap in deze rij te kiezen.",
+        "propertyOptionLabel": "Acties van gebruikers"
+    },
+    "imageFieldForm": {
+        "fieldAltHelp": "Wordt gebruikt door schermlezers en weergegeven als de afbeelding niet kan worden geladen",
+        "fieldSrcPlaceholder": "Waarde invoeren",
+        "fieldSrcLabel": "Afbeelding bron",
+        "fieldAltLabel": "Alt tekst",
+        "fieldAltPlaceholder": "Waarde invoeren..."
+    },
+    "serviceSchemaPropertySelector": {
+        "label": "Eigenschap",
+        "noProperties": "Geen eigenschappen beschikbaar"
+    },
+    "dataSourceDropdown": {
+        "noDataSources": "Geen gegevensbronnen beschikbaar",
+        "label": "Gegevensbron",
+        "shared": "gedeeld",
+        "pageOnly": "deze pagina",
+        "noSharedDataSources": "Geen gedeelde gegevensbronnen beschikbaar"
+    },
+    "recordSelectorElementForm": {
+        "selectRecordsFrom": "Records selecteren uit",
+        "optionNameSuffix": "Optie naam achtervoegsel",
+        "optionNameSuffixPlaceholder": "Voer een achtervoegsel in...",
+        "optionNameSuffixHelper": "Dit achtervoegsel wordt toegevoegd aan elke optienaam wanneer je de vervolgkeuzelijst opent en helpt om ze te onderscheiden.",
+        "itemsPerPage": "Items per pagina",
+        "record": "Record {id}",
+        "noDataSourceMessage": "Kies een gegevensbron met meerdere rijen om alle resultaten te vermelden.",
+        "itemsPerPagePlaceholder": "Waarde invoeren...",
+        "multipleLabel": "Meerdere waarden toestaan"
+    },
+    "dataSourceItemContext": {
+        "unshareBetweenPages": "Stop delen met andere pagina's",
+        "shareBetweenPages": "Delen tussen pagina's"
+    },
+    "dataSourceCreateEditModal": {
+        "sharedWarning": "Deze gegevensbron wordt gedeeld, dus je wijzigingen kunnen invloed hebben op meerdere pagina's.",
+        "editTitle": "Gegevensbron bewerken",
+        "createTitle": "Gegevensbron maken"
+    },
+    "propertyOptionForm": {
+        "searchHeading": "Zoeken",
+        "filterHeading": "Filter",
+        "sortHeading": "Sorteren",
+        "fieldHeading": "Veld",
+        "noPropertiesAvailable": "Geen velden beschikbaar.",
+        "optionUnavailable": "Niet beschikbaar",
+        "formDescription": "Kies op welke eigenschappen in de gegevensbron van dit element externe gebruikers kunnen filteren, sorteren en zoeken."
+    },
+    "dataSourceItem": {
+        "notConfigured": "Niet geconfigureerd"
+    },
+    "recordSelectorElement": {
+        "emptyAdhocState": "Geen rijen gevonden die overeenkomen met '{query}'.",
+        "emptyState": "Geen rijen gevonden."
+    },
+    "common": {
+        "dateFormatEU": "Europees",
+        "dateFormatTitle": "Datum formaat",
+        "dateFormatUS": "VS",
+        "dateFormatISO": "ISO",
+        "timeFormatTitle": "Tijdformaat",
+        "timeFormat24Hour": "24 uur",
+        "timeFormat12Hour": "12 uur"
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "Inclusief tijd",
+        "invalidDateError": "Ongeldige datum. Controleer of de ingevoerde datum overeenkomt met het opgegeven formaat."
+    },
+    "themeSettings": {
+        "titleOverview": "Thema"
+    },
+    "pageVisibilitySettingsTypes": {
+        "pageName": "Zichtbaarheid",
+        "logInPageWarningTitle": "De login pagina is niet ingesteld",
+        "logInPagewarningMessage": "Als een anonieme gebruiker deze pagina probeert te openen, wordt hij doorgestuurd naar een inlogpagina. Stel de login pagina in bij de algemene instellingen van de applicatie.",
+        "logInPageInfoTitle": "Anonieme gebruikers worden omgeleid",
+        "logInPageInfoMessage": "Anonieme gebruikers die deze pagina proberen te openen, worden doorgestuurd naar de {logInPageName} pagina."
+    },
+    "pageVisibilitySettings": {
+        "title": "Zichtbaarheid",
+        "allVisitors": "Alle bezoekers",
+        "loggedInVisitors": "Aangemelde bezoekers",
+        "description": "Wie kan deze pagina zien"
+    },
+    "pageEditor": {
+        "pageNotFound": "Pagina niet gevonden"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownDescription": "Selecteer de aanmeldpagina waar niet-ingelogde gebruikers naar moeten worden omgeleid als ze een pagina met verboden proberen te openen.",
+        "pageDropdownLabel": "Login pagina",
+        "pageDropdownPlaceholder": "Selecteer een pagina"
+    },
+    "multiPageContainerElementForm": {
+        "pagePosition": "Positie",
+        "behaviour": "Gedrag",
+        "display": "Weergave",
+        "selectAll": "Selecteer alles",
+        "deselectAll": "Deselecteer alles"
+    },
+    "pageShareType": {
+        "except": "Geselecteerde pagina's uitsluiten",
+        "all": "Op alle pagina's",
+        "only": "Alleen op geselecteerde pagina's"
     }
 }

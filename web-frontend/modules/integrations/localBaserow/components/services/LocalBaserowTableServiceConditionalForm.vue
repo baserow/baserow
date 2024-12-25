@@ -14,7 +14,7 @@
       :filters="getSortedDataSourceFilters()"
       :disable-filter="false"
       :filter-type="filterType"
-      :fields="dataSourceFields"
+      :fields="fields"
       :read-only="false"
       class="filters__items"
       :prepare-value="prepareValue"
@@ -64,7 +64,6 @@
     </ViewFieldConditionsForm>
     <div class="filters_footer">
       <ButtonText
-        v-if="!tableLoading"
         type="secondary"
         size="small"
         icon="iconoir-plus"
@@ -95,40 +94,26 @@ export default {
       type: Array,
       required: true,
     },
-    schema: {
-      type: Object,
+    fields: {
+      type: Array,
       required: true,
     },
     filterType: {
       type: String,
       required: true,
     },
-    tableLoading: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
   },
   computed: {
     filterTypes() {
       return this.$registry.getAll('viewFilter')
     },
-    /*
-     * Responsible for finding all field metadata in the schema.
-     * This will be used by the `ViewFieldConditionsForm` component
-     * to display the filters applicable for each field type.
-     */
-    dataSourceFields() {
-      if (this.schema === null) {
-        return []
-      }
-      const schemaProperties =
-        this.schema.type === 'array'
-          ? this.schema.items.properties
-          : this.schema.properties
-      return Object.values(schemaProperties)
-        .filter(({ metadata }) => metadata)
-        .map((prop) => prop.metadata)
+    databaseSelected() {
+      return this.databases.find(
+        (database) => database.id === this.databaseSelectedId
+      )
+    },
+    tables() {
+      return this.databaseSelected?.tables || []
     },
   },
   methods: {
@@ -159,7 +144,7 @@ export default {
      */
     async addFilter() {
       try {
-        const field = this.getFirstCompatibleField(this.dataSourceFields)
+        const field = this.getFirstCompatibleField(this.fields)
         if (field === undefined) {
           await this.$store.dispatch('toast/error', {
             title: this.$t(

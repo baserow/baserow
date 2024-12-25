@@ -15,15 +15,20 @@ class DataSyncSyncedPropertySerializer(serializers.ModelSerializer):
 
 class DataSyncSerializer(serializers.ModelSerializer):
     synced_properties = DataSyncSyncedPropertySerializer(many=True)
+    type = serializers.SerializerMethodField()
 
     class Meta:
         model = DataSync
         fields = (
             "id",
+            "type",
             "synced_properties",
             "last_sync",
             "last_error",
         )
+
+    def get_type(self, instance):
+        return data_sync_type_registry.get_by_model(instance.specific_class).type
 
 
 class CreateDataSyncSerializer(serializers.ModelSerializer):
@@ -40,6 +45,16 @@ class CreateDataSyncSerializer(serializers.ModelSerializer):
     class Meta:
         model = DataSync
         fields = ("synced_properties", "type", "table_name")
+
+
+class UpdateDataSyncSerializer(serializers.ModelSerializer):
+    synced_properties = serializers.ListField(
+        child=serializers.CharField(), required=False
+    )
+
+    class Meta:
+        model = DataSync
+        fields = ("synced_properties",)
 
 
 class ListDataSyncPropertiesRequestSerializer(serializers.ModelSerializer):
@@ -59,6 +74,7 @@ class ListDataSyncPropertySerializer(serializers.Serializer):
     key = serializers.CharField()
     name = serializers.CharField()
     field_type = serializers.SerializerMethodField()
+    initially_selected = serializers.BooleanField()
 
     def get_field_type(self, instance):
         field_type = field_type_registry.get_by_model(instance.to_baserow_field())

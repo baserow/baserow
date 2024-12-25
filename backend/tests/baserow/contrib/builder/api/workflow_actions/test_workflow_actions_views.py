@@ -662,6 +662,117 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
 
 
 @pytest.mark.django_db
+def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_data_source(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    wa_table, wa_fields, wa_rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Animal", "text"),
+            ("Color", "text"),
+        ],
+        rows=[["Horse", "Brown"]],
+    )
+    first_row = wa_rows[0]
+    color_field = wa_table.field_set.get(name="Color")
+    animal_field = wa_table.field_set.get(name="Animal")
+
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+
+    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+        page=page,
+        element=element,
+        event=EventTypes.CLICK,
+        user=user,
+    )
+
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            ["BMW", "Blue"],
+            ["Audi", "Orange"],
+            ["Volkswagen", "White"],
+            ["Volkswagen", "Green"],
+        ],
+    )
+    table2, fields2, rows2 = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Id", "text"),
+        ],
+        rows=[
+            ["42"],
+            [f"{rows[1].id}"],
+            ["44"],
+            ["45"],
+        ],
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    shared_page = builder.shared_page
+
+    shared_data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        user=user,
+        page=shared_page,
+        integration=integration,
+        table=table2,
+        row_id=f"'{rows2[1].id}'",
+        name="Id source",
+    )
+
+    # This data source use the shared data source
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+        row_id=f"get('data_source.{shared_data_source.id}.{fields2[0].db_column}')",
+        name="Item",
+    )
+
+    service = workflow_action.service.specific
+    service.table = wa_table
+    service.row_id = f"'{first_row.id}'"
+    # from the local data source
+    service.field_mappings.create(
+        field=color_field,
+        value=f"get('data_source.{data_source.id}.{fields[1].db_column}')",
+    )
+    # From the shared data source
+    service.field_mappings.create(
+        field=animal_field,
+        value=f"get('data_source.{shared_data_source.id}.{fields2[0].db_column}')",
+    )
+    service.save()
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+
+    response = api_client.post(
+        url,
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["id"] == first_row.id
+    assert response_json[color_field.db_column] == "Orange"
+    assert response_json[animal_field.db_column] == f"{rows[1].id}"
+
+
+@pytest.mark.django_db
 @patch(
     "baserow.contrib.builder.data_providers.data_provider_types.FormDataProviderType.validate_data_chunk",
     side_effect=FormDataProviderChunkInvalidException,

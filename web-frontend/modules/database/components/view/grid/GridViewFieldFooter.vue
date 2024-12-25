@@ -22,7 +22,18 @@
       :aggregation-type="viewAggregationType"
       :value="value"
     />
-    <Context :ref="`fieldContext`">
+    <div
+      v-else-if="userCanMakeAggregations"
+      class="grid-view-aggregation__empty"
+      :class="{
+        'grid-view-aggregation__empty--active':
+          $refs.fieldContext && $refs.fieldContext.isOpen(),
+      }"
+    >
+      <i class="grid-view-aggregation__empty-icon iconoir-plus"></i>
+      {{ $t('common.summarize') }}
+    </div>
+    <Context ref="fieldContext">
       <ul class="select__items">
         <li
           class="select__item select__item--no-options"

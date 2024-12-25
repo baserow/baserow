@@ -12,6 +12,7 @@ import { ensureString } from '@baserow/modules/core/utils/validator'
  *
  * @param {Object} element The element's properties we'll use for generating the URL.
  * @param {Object} builder A builder application.
+ * @param {Array} pages A list of pages of this application.
  * @param {Function} resolveFormula A resolveFormula function we'll use if the
  *  element has page parameters which need to be resolved.
  * @param {String} editorMode A builder application's editor mode.
@@ -20,15 +21,14 @@ import { ensureString } from '@baserow/modules/core/utils/validator'
 export default function resolveElementUrl(
   element,
   builder,
+  pages,
   resolveFormula,
   editorMode
 ) {
   let resolvedUrl = ''
   if (element.navigation_type === 'page') {
     if (!isNaN(element.navigate_to_page_id)) {
-      const page = builder.pages.find(
-        ({ id }) => id === element.navigate_to_page_id
-      )
+      const page = pages.find(({ id }) => id === element.navigate_to_page_id)
 
       // The builder page list might be empty or the page has been deleted
       if (!page) {

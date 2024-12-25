@@ -14,6 +14,7 @@ from rest_framework.serializers import Serializer
 from baserow.contrib.database.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.core.auth_provider.registries import AuthenticationProviderTypeRegistry
 from baserow.core.exceptions import SubjectTypeNotExist
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder
 
 from .exceptions import (
@@ -70,6 +71,7 @@ class ImportExportConfig:
 
     include_permission_data: bool
 
+    reduce_disk_space_usage: bool = False
     """
     Whether or not the import/export should attempt to save disk space by excluding
     certain pieces of optional data or processes that could instead be done later or
@@ -79,13 +81,30 @@ class ImportExportConfig:
     tsvector full text search columns as they can also be lazy loaded after the import
     when the user opens a view.
     """
-    reduce_disk_space_usage: bool = False
 
+    workspace_for_user_references: "Workspace" = None
     """
     Determines an alternative workspace to search for user references
     during imports.
     """
-    workspace_for_user_references: "Workspace" = None
+
+    is_duplicate: bool = False
+    """
+    Indicates whether the import export operation is duplicating an existing object.
+    The data then doesn't leave the instance.
+    """
+
+    only_structure: bool = False
+    """
+    Whether or not the export should include the user data
+    """
+
+    exclude_sensitive_data: bool = True
+    """
+    When True, during an export any sensitive fields defined in the
+    `sensitive_fields` list will have their serialized values set to None. This
+    ensures that sensitive data are excluded from the exported workspace file.
+    """
 
 
 class Plugin(APIUrlsInstanceMixin, Instance):
@@ -270,6 +289,11 @@ class ApplicationType(
 
     supports_user_sources = False
 
+    # The order in which this application type is imported in
+    # `import_applications_to_workspace`. By default, the priority is `0`, the lowest
+    # value. If this property is not overridden, then the instance is imported last.
+    import_application_priority = 0
+
     def pre_delete(self, application):
         """
         A hook that is called before the application instance is deleted.
@@ -378,7 +402,7 @@ class ApplicationType(
         self,
         application: "Application",
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
         """
@@ -489,6 +513,13 @@ class ApplicationType(
 
     def enhance_queryset(self, queryset):
         return queryset
+
+    def get_default_application_urls(self, application: "Application") -> list[str]:
+        """
+        Returns the default frontend urls of the application if any.
+        """
+
+        return []
 
 
 ApplicationSubClassInstance = TypeVar(

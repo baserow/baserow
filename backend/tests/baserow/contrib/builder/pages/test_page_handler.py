@@ -11,6 +11,7 @@ from baserow.contrib.builder.pages.exceptions import (
     PagePathNotUnique,
     PathParamNotDefined,
     PathParamNotInPath,
+    SharedPageIsReadOnly,
 )
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
@@ -83,9 +84,20 @@ def test_create_page_duplicate_params_in_path(data_fixture):
 def test_delete_page(data_fixture):
     page = data_fixture.create_builder_page()
 
+    previous_count = Page.objects.count()
+
     PageHandler().delete_page(page)
 
-    assert Page.objects.count() == 0
+    assert Page.objects.count() == previous_count - 1
+
+
+@pytest.mark.django_db
+def test_delete_shared_page(data_fixture):
+    page = data_fixture.create_builder_page()
+    shared_page = page.builder.shared_page
+
+    with pytest.raises(SharedPageIsReadOnly):
+        PageHandler().delete_page(shared_page)
 
 
 @pytest.mark.django_db
@@ -97,6 +109,15 @@ def test_update_page(data_fixture):
     page.refresh_from_db()
 
     assert page.name == "new"
+
+
+@pytest.mark.django_db
+def test_update_shared_page(data_fixture):
+    page = data_fixture.create_builder_page(name="test")
+    shared_page = page.builder.shared_page
+
+    with pytest.raises(SharedPageIsReadOnly):
+        PageHandler().update_page(shared_page, name="new")
 
 
 @pytest.mark.django_db
@@ -120,8 +141,8 @@ def test_update_page_page_path_not_unique(data_fixture):
 @pytest.mark.django_db
 def test_order_pages(data_fixture):
     builder = data_fixture.create_builder_application()
-    page_one = data_fixture.create_builder_page(builder=builder, order=1)
-    page_two = data_fixture.create_builder_page(builder=builder, order=2)
+    page_one = data_fixture.create_builder_page(builder=builder, order=10)
+    page_two = data_fixture.create_builder_page(builder=builder, order=20)
 
     assert PageHandler().order_pages(builder, [page_two.id, page_one.id]) == [
         page_two.id,
@@ -131,13 +152,13 @@ def test_order_pages(data_fixture):
     page_one.refresh_from_db()
     page_two.refresh_from_db()
 
-    assert page_one.order == 2
-    assert page_two.order == 1
+    assert page_one.order > page_two.order
 
 
 @pytest.mark.django_db
 def test_order_pages_page_not_in_builder(data_fixture):
     builder = data_fixture.create_builder_application()
+    shared_page = builder.shared_page
     page_one = data_fixture.create_builder_page(builder=builder, order=1)
     page_two = data_fixture.create_builder_page(builder=builder, order=2)
 
@@ -146,17 +167,32 @@ def test_order_pages_page_not_in_builder(data_fixture):
     with pytest.raises(PageNotInBuilder):
         PageHandler().order_pages(builder, [page_two.id, page_one.id], base_qs=base_qs)
 
+    # We can't order shared page
+    with pytest.raises(PageNotInBuilder):
+        PageHandler().order_pages(builder, [page_two.id, shared_page.id])
+
 
 @pytest.mark.django_db
 def test_duplicate_page(data_fixture):
     page = data_fixture.create_builder_page()
 
+    previous_count = Page.objects.count()
+
     page_clone = PageHandler().duplicate_page(page)
 
-    assert Page.objects.count() == 2
+    assert Page.objects.count() == previous_count + 1
     assert page_clone.id != page.id
     assert page_clone.name != page.name
     assert page_clone.order != page.order
+
+
+@pytest.mark.django_db
+def test_duplicate_shared_page(data_fixture):
+    page = data_fixture.create_builder_page()
+    shared_page = page.builder.shared_page
+
+    with pytest.raises(SharedPageIsReadOnly):
+        PageHandler().duplicate_page(shared_page)
 
 
 def test_is_page_path_valid():

@@ -30,24 +30,36 @@
                             "id": 17340,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17341,
                             "type": "text",
                             "name": "Product or service",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17342,
                             "type": "single_select",
                             "name": "Major strength",
+                            "description": null,
                             "order": 3,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "select_options": [
                                 {
                                     "id": 9617,
@@ -139,8 +151,12 @@
                             "id": 17343,
                             "type": "single_select",
                             "name": "Major weakness",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "select_options": [
                                 {
                                     "id": 9631,
@@ -226,8 +242,12 @@
                             "id": 17344,
                             "type": "number",
                             "name": "Market Share %",
+                            "description": null,
                             "order": 5,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "number_decimal_places": 0,
                             "number_negative": false
                         },
@@ -235,16 +255,24 @@
                             "id": 17345,
                             "type": "long_text",
                             "name": "Notes",
+                            "description": null,
                             "order": 6,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "long_text_enable_rich_text": false
                         },
                         {
                             "id": 17346,
                             "type": "single_select",
                             "name": "Type",
+                            "description": null,
                             "order": 8,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "select_options": [
                                 {
                                     "id": 9644,
@@ -264,8 +292,12 @@
                             "id": 17347,
                             "type": "link_row",
                             "name": "Feature Comparison",
+                            "description": null,
                             "order": 9,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1889,
                             "link_row_related_field_id": 17351,
                             "link_row_limit_selection_view_id": null,
@@ -275,18 +307,22 @@
                             "id": 17348,
                             "type": "rollup",
                             "name": "Avg Score vs. Them",
+                            "description": null,
                             "order": 10,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "through_field_id": 17347,
                             "target_field_id": 17659,
                             "rollup_function": "avg"
@@ -295,18 +331,22 @@
                             "id": 17662,
                             "type": "rollup",
                             "name": "Avg % vs Them",
+                            "description": null,
                             "order": 11,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "through_field_id": 17347,
                             "target_field_id": 17661,
                             "rollup_function": "avg"
@@ -315,18 +355,22 @@
                             "id": 17702,
                             "type": "formula",
                             "name": "ID",
+                            "description": null,
                             "order": 12,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "formula": "row_id()",
                             "formula_type": "number"
                         }
@@ -354,6 +398,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 50549,
@@ -486,6 +531,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51420,
@@ -618,6 +664,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51430,
@@ -741,6 +788,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51440,
@@ -864,6 +912,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51480,
@@ -987,6 +1036,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51470,
@@ -1119,6 +1169,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51613,
@@ -1258,6 +1309,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51450,
@@ -1388,6 +1440,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51460,
@@ -1818,7 +1871,8 @@
                             "field_17662": null,
                             "field_17702": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 1928,
@@ -1829,16 +1883,24 @@
                             "id": 17654,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17655,
                             "type": "number",
                             "name": "Weight",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "number_decimal_places": 0,
                             "number_negative": false
                         },
@@ -1846,8 +1908,12 @@
                             "id": 17658,
                             "type": "link_row",
                             "name": "Feature Comparison",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1889,
                             "link_row_related_field_id": 17657,
                             "link_row_limit_selection_view_id": null,
@@ -1857,18 +1923,22 @@
                             "id": 17663,
                             "type": "rollup",
                             "name": "Average score",
+                            "description": null,
                             "order": 3,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "through_field_id": 17658,
                             "target_field_id": 17350,
                             "rollup_function": "avg"
@@ -1877,18 +1947,22 @@
                             "id": 17701,
                             "type": "formula",
                             "name": "Competitor IDs",
+                            "description": null,
                             "order": 4,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "formula": "join(totext(lookup('Feature Comparison','Competitor (ID)')),' ')",
                             "formula_type": "text"
                         }
@@ -1916,6 +1990,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51410,
@@ -2088,7 +2163,8 @@
                             "field_17663": null,
                             "field_17701": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 1889,
@@ -2099,18 +2175,22 @@
                             "id": 17349,
                             "type": "formula",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "formula": "min(concat(join(lookup('Competitor','Name'),''),' - ',upper(left(lookup('Feature','Name'),3))))",
                             "formula_type": "text"
                         },
@@ -2118,8 +2198,12 @@
                             "id": 17350,
                             "type": "rating",
                             "name": "Score (Us vs. Them)",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "max_value": 5,
                             "color": "dark-orange",
                             "style": "star"
@@ -2128,8 +2212,12 @@
                             "id": 17351,
                             "type": "link_row",
                             "name": "Competitor",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1888,
                             "link_row_related_field_id": 17347,
                             "link_row_limit_selection_view_id": null,
@@ -2139,8 +2227,12 @@
                             "id": 17352,
                             "type": "link_row",
                             "name": "Action Item(s)",
+                            "description": null,
                             "order": 3,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1890,
                             "link_row_related_field_id": 17355,
                             "link_row_limit_selection_view_id": null,
@@ -2150,8 +2242,12 @@
                             "id": 17657,
                             "type": "link_row",
                             "name": "Feature",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1928,
                             "link_row_related_field_id": 17658,
                             "link_row_limit_selection_view_id": null,
@@ -2161,18 +2257,22 @@
                             "id": 17659,
                             "type": "formula",
                             "name": "Weighted score",
+                            "description": null,
                             "order": 5,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "formula": "field('Score (Us vs. Them)') * min(lookup('Feature','Weight'))",
                             "formula_type": "number"
                         },
@@ -2180,18 +2280,22 @@
                             "id": 17660,
                             "type": "formula",
                             "name": "Highest possible weighted score",
+                            "description": null,
                             "order": 6,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "formula": "min(lookup('Feature','Weight')) * 5",
                             "formula_type": "number"
                         },
@@ -2199,18 +2303,22 @@
                             "id": 17661,
                             "type": "formula",
                             "name": "Score %",
+                            "description": null,
                             "order": 7,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "formula": "round(field('Weighted score') / field('Highest possible weighted score') * 100,0)",
                             "formula_type": "number"
                         },
@@ -2218,18 +2326,22 @@
                             "id": 17666,
                             "type": "rollup",
                             "name": "Competitor (name)",
+                            "description": null,
                             "order": 8,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": true,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": true,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "through_field_id": 17351,
                             "target_field_id": 17340,
                             "rollup_function": "min"
@@ -2238,18 +2350,22 @@
                             "id": 17667,
                             "type": "rollup",
                             "name": "Feature (name)",
+                            "description": null,
                             "order": 9,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": true,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": true,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "through_field_id": 17657,
                             "target_field_id": 17654,
                             "rollup_function": "min"
@@ -2258,18 +2374,22 @@
                             "id": 17703,
                             "type": "rollup",
                             "name": "Competitor (ID)",
+                            "description": null,
                             "order": 10,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "through_field_id": 17351,
                             "target_field_id": 17702,
                             "rollup_function": "min"
@@ -2384,6 +2504,7 @@
                             ],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 50558,
@@ -2600,6 +2721,7 @@
                             ],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51593,
@@ -2816,6 +2938,7 @@
                             ],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51603,
@@ -2944,6 +3067,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51553,
@@ -3072,6 +3196,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51563,
@@ -3179,7 +3304,6 @@
                                 1
                             ],
                             "field_17352": [
-                                1,
                                 3
                             ],
                             "field_17657": [
@@ -3203,9 +3327,7 @@
                             "field_17351": [
                                 1
                             ],
-                            "field_17352": [
-                                4
-                            ],
+                            "field_17352": [],
                             "field_17657": [
                                 2
                             ],
@@ -3228,7 +3350,6 @@
                                 1
                             ],
                             "field_17352": [
-                                2,
                                 5
                             ],
                             "field_17657": [
@@ -3401,9 +3522,7 @@
                             "field_17351": [
                                 2
                             ],
-                            "field_17352": [
-                                12
-                            ],
+                            "field_17352": [],
                             "field_17657": [
                                 5
                             ],
@@ -3526,9 +3645,7 @@
                             "field_17351": [
                                 7
                             ],
-                            "field_17352": [
-                                17
-                            ],
+                            "field_17352": [],
                             "field_17657": [
                                 5
                             ],
@@ -3874,9 +3991,7 @@
                             "field_17351": [
                                 9
                             ],
-                            "field_17352": [
-                                31
-                            ],
+                            "field_17352": [],
                             "field_17657": [
                                 4
                             ],
@@ -4024,9 +4139,7 @@
                             "field_17351": [
                                 14
                             ],
-                            "field_17352": [
-                                37
-                            ],
+                            "field_17352": [],
                             "field_17657": [
                                 5
                             ],
@@ -4428,7 +4541,8 @@
                             "field_17667": null,
                             "field_17703": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 1890,
@@ -4439,24 +4553,36 @@
                             "id": 17353,
                             "type": "text",
                             "name": "Task",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17354,
                             "type": "long_text",
                             "name": "Description",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "long_text_enable_rich_text": false
                         },
                         {
                             "id": 17355,
                             "type": "link_row",
                             "name": "Feature Comparison",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1889,
                             "link_row_related_field_id": 17352,
                             "link_row_limit_selection_view_id": null,
@@ -4466,18 +4592,22 @@
                             "id": 17664,
                             "type": "rollup",
                             "name": "Comparison %",
+                            "description": null,
                             "order": 3,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "through_field_id": 17355,
                             "target_field_id": 17661,
                             "rollup_function": "min"
@@ -4486,18 +4616,22 @@
                             "id": 17665,
                             "type": "formula",
                             "name": "Priority",
+                            "description": null,
                             "order": 4,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": false,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": false,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "formula": "if(field('Comparison %') > 70,'Low',if(field('Comparison %') > 30,'Medium','High'))",
                             "formula_type": "text"
                         },
@@ -4505,18 +4639,22 @@
                             "id": 17668,
                             "type": "rollup",
                             "name": "Competitor",
+                            "description": null,
                             "order": 5,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": true,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": true,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "through_field_id": 17355,
                             "target_field_id": 17351,
                             "rollup_function": "min"
@@ -4525,18 +4663,22 @@
                             "id": 17669,
                             "type": "rollup",
                             "name": "Feature",
+                            "description": null,
                             "order": 6,
                             "primary": false,
-                            "date_force_timezone": null,
-                            "duration_format": null,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
-                            "nullable": true,
-                            "date_show_tzinfo": null,
-                            "error": null,
                             "date_time_format": null,
-                            "array_formula_type": null,
+                            "nullable": true,
                             "date_format": null,
+                            "date_force_timezone": null,
+                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
                             "through_field_id": 17355,
                             "target_field_id": 17657,
                             "rollup_function": "min"
@@ -4618,6 +4760,7 @@
                             ],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 50562,
@@ -4765,6 +4908,7 @@
                             ],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51502,
@@ -4912,6 +5056,7 @@
                             ],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51511,
@@ -5059,6 +5204,7 @@
                             ],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51518,
@@ -5620,24 +5766,60 @@
                             "field_17668": null,
                             "field_17669": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 }
             ]
         },
         {
             "pages": [
                 {
-                    "id": 178,
-                    "name": "Homepage",
-                    "order": 1,
-                    "path": "/",
-                    "path_params": [],
+                    "id": 1456,
+                    "name": "__shared__",
+                    "order": 0,
+                    "path": "__shared__",
+                    "path_params": {},
+                    "shared": true,
                     "elements": [
                         {
-                            "id": 2598,
-                            "order": "0.50000000000000000000",
-                            "type": "image",
+                            "id": 40328,
+                            "order": "1.00000000000000000000",
+                            "type": "header",
                             "parent_element_id": null,
+                            "place_in_container": null,
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {},
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 10,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 10,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 0,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 0,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "share_type": "all",
+                            "pages": []
+                        },
+                        {
+                            "id": 40329,
+                            "order": "1.00000000000000000000",
+                            "type": "image",
+                            "parent_element_id": 40328,
                             "place_in_container": null,
                             "visibility": "all",
                             "role_type": "allow_all",
@@ -5666,12 +5848,27 @@
                             "style_width": "normal",
                             "image_source_type": "upload",
                             "image_file_id": {
-                                "name": "VBUt4qBUOItxJWiTfHfOZSRZrFfE8jtJ_d570910b4de568550dc3e4548e3233094024b77f3ddab2102aaddce3023fd13f.png",
-                                "original_name": "marketing-header.png"
+                                "name": "IYxovwCoEsQatEcZGPEOm78RvPCw887P_d570910b4de568550dc3e4548e3233094024b77f3ddab2102aaddce3023fd13f.png",
+                                "original_name": "template-header.png"
                             },
                             "image_url": "",
                             "alt_text": ""
-                        },
+                        }
+                    ],
+                    "data_sources": [],
+                    "workflow_actions": [],
+                    "visibility": "all",
+                    "role_type": "allow_all",
+                    "roles": []
+                },
+                {
+                    "id": 178,
+                    "name": "Homepage",
+                    "order": 1,
+                    "path": "/",
+                    "path_params": [],
+                    "shared": false,
+                    "elements": [
                         {
                             "id": 2584,
                             "order": "1.00000000000000000000",
@@ -5774,14 +5971,70 @@
                             "data_source_id": 339,
                             "items_per_page": 5,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_17340",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17341",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17342",
+                                    "filterable": false,
+                                    "sortable": false,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17343",
+                                    "filterable": false,
+                                    "sortable": false,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17344",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_17348",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_17662",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": false
+                                }
+                            ],
                             "fields": [
                                 {
-                                    "uid": "f0a68e47-749b-4fb2-9a16-0bfbc1a743c7",
+                                    "uid": "abdffc55-af41-4cbb-8f7c-9fe0571e1d7c",
                                     "name": "Name",
-                                    "type": "text",
+                                    "type": "link",
                                     "styles": {},
                                     "config": {
-                                        "value": "get('current_record.field_17340')"
+                                        "navigation_type": "page",
+                                        "navigate_to_page_id": 180,
+                                        "page_parameters": [
+                                            {
+                                                "name": "competitor_id",
+                                                "value": "get('current_record.id')"
+                                            }
+                                        ],
+                                        "navigate_to_url": "",
+                                        "target": "self",
+                                        "link_name": "get('current_record.field_17340')",
+                                        "variant": "link"
                                     }
                                 },
                                 {
@@ -5794,12 +6047,14 @@
                                     }
                                 },
                                 {
-                                    "uid": "2d6bfaa6-6dae-4495-a8f0-45b8f2758cbb",
+                                    "uid": "c915fa3f-44fa-4223-ad06-021527e15390",
                                     "name": "Type",
-                                    "type": "text",
+                                    "type": "tags",
                                     "styles": {},
                                     "config": {
-                                        "value": "get('current_record.field_17346.value')"
+                                        "values": "get('current_record.field_17346.value')",
+                                        "colors_is_formula": true,
+                                        "colors": "get('current_record.field_17346.color')"
                                     }
                                 },
                                 {
@@ -5846,31 +6101,12 @@
                                     "config": {
                                         "value": "concat(get('current_record.field_17344'),'%')"
                                     }
-                                },
-                                {
-                                    "uid": "d2f8177b-acef-4713-ba62-230604437965",
-                                    "name": "-",
-                                    "type": "link",
-                                    "styles": {},
-                                    "config": {
-                                        "navigation_type": "page",
-                                        "navigate_to_page_id": 180,
-                                        "page_parameters": [
-                                            {
-                                                "name": "competitor_id",
-                                                "value": "get('current_record.id')"
-                                            }
-                                        ],
-                                        "navigate_to_url": "",
-                                        "target": "self",
-                                        "link_name": "'Details'"
-                                    }
                                 }
                             ],
                             "orientation": {
-                                "tablet": "horizontal",
+                                "tablet": "vertical",
                                 "desktop": "horizontal",
-                                "smartphone": "horizontal"
+                                "smartphone": "vertical"
                             }
                         },
                         {
@@ -5941,14 +6177,58 @@
                             "data_source_id": 336,
                             "items_per_page": 5,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_17340",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17341",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17342",
+                                    "filterable": false,
+                                    "sortable": false,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17343",
+                                    "filterable": false,
+                                    "sortable": false,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17344",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": false
+                                }
+                            ],
                             "fields": [
                                 {
-                                    "uid": "f0a68e47-749b-4fb2-9a16-0bfbc1a743c7",
+                                    "uid": "d8706113-4f1b-4959-b09c-17732cab8a04",
                                     "name": "Name",
-                                    "type": "text",
+                                    "type": "link",
                                     "styles": {},
                                     "config": {
-                                        "value": "get('current_record.field_17340')"
+                                        "navigation_type": "page",
+                                        "navigate_to_page_id": 180,
+                                        "page_parameters": [
+                                            {
+                                                "name": "competitor_id",
+                                                "value": "get('current_record.id')"
+                                            }
+                                        ],
+                                        "navigate_to_url": "",
+                                        "target": "self",
+                                        "link_name": "get('current_record.field_17340')",
+                                        "variant": "link"
                                     }
                                 },
                                 {
@@ -5961,12 +6241,14 @@
                                     }
                                 },
                                 {
-                                    "uid": "2d6bfaa6-6dae-4495-a8f0-45b8f2758cbb",
+                                    "uid": "216bad6a-44d5-4d56-9ced-5b64e5962cec",
                                     "name": "Type",
-                                    "type": "text",
+                                    "type": "tags",
                                     "styles": {},
                                     "config": {
-                                        "value": "get('current_record.field_17346.value')"
+                                        "values": "get('current_record.field_17346.value')",
+                                        "colors_is_formula": true,
+                                        "colors": "get('current_record.field_17346.color')"
                                     }
                                 },
                                 {
@@ -6012,14 +6294,15 @@
                                         ],
                                         "navigate_to_url": "",
                                         "target": "self",
-                                        "link_name": "'Add comparison'"
+                                        "link_name": "'Add comparison'",
+                                        "variant": "button"
                                     }
                                 }
                             ],
                             "orientation": {
-                                "tablet": "horizontal",
+                                "tablet": "vertical",
                                 "desktop": "horizontal",
-                                "smartphone": "horizontal"
+                                "smartphone": "vertical"
                             }
                         }
                     ],
@@ -6057,7 +6340,10 @@
                             }
                         }
                     ],
-                    "workflow_actions": []
+                    "workflow_actions": [],
+                    "visibility": "all",
+                    "role_type": "allow_all",
+                    "roles": []
                 },
                 {
                     "id": 180,
@@ -6070,46 +6356,8 @@
                             "type": "numeric"
                         }
                     ],
+                    "shared": false,
                     "elements": [
-                        {
-                            "id": 2602,
-                            "order": "0.50000000000000000000",
-                            "type": "image",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "image_source_type": "upload",
-                            "image_file_id": {
-                                "name": "VBUt4qBUOItxJWiTfHfOZSRZrFfE8jtJ_d570910b4de568550dc3e4548e3233094024b77f3ddab2102aaddce3023fd13f.png",
-                                "original_name": "marketing-header.png"
-                            },
-                            "image_url": "",
-                            "alt_text": ""
-                        },
                         {
                             "id": 2625,
                             "order": "0.66666666666666662966",
@@ -6810,6 +7058,8 @@
                             "data_source_id": 338,
                             "items_per_page": 5,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [],
                             "orientation": "vertical",
                             "items_per_row": {
                                 "tablet": 2,
@@ -6851,6 +7101,8 @@
                             "data_source_id": 340,
                             "items_per_page": 5,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [],
                             "orientation": "vertical",
                             "items_per_row": {
                                 "tablet": 2,
@@ -6974,7 +7226,10 @@
                             "event": "click",
                             "data_source_id": 338
                         }
-                    ]
+                    ],
+                    "visibility": "all",
+                    "role_type": "allow_all",
+                    "roles": []
                 }
             ],
             "integrations": [
@@ -7061,10 +7316,10 @@
                 "input_vertical_padding": 8,
                 "input_horizontal_padding": 12,
                 "table_border_color": "#000000FF",
-                "table_border_size": 1,
+                "table_border_size": 0,
                 "table_border_radius": 0,
-                "table_header_background_color": "#edededff",
-                "table_header_text_color": "#000000ff",
+                "table_header_background_color": "primary",
+                "table_header_text_color": "#ffffffff",
                 "table_header_font_size": 13,
                 "table_header_font_family": "inter",
                 "table_header_text_alignment": "left",
@@ -7075,11 +7330,12 @@
                 "table_cell_horizontal_padding": 20,
                 "table_vertical_separator_color": "#000000FF",
                 "table_vertical_separator_size": 0,
-                "table_horizontal_separator_color": "#000000FF",
+                "table_horizontal_separator_color": "border",
                 "table_horizontal_separator_size": 1
             },
             "user_sources": [],
             "favicon_file": null,
+            "login_page": null,
             "id": 420,
             "name": "Competitor Analysis App",
             "order": 2,

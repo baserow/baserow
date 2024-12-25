@@ -20,6 +20,10 @@
           :class="{ active: isTableActive(table) }"
         >
           <a class="tree__sub-link" @click="selectTable(application, table)">
+            <i
+              v-if="table.data_sync"
+              class="context__menu-item-icon iconoir-data-transfer-down"
+            ></i>
             {{ table.name }}
           </a>
         </li>

@@ -31,7 +31,7 @@
     </FormGroup>
 
     <FormGroup :label="$t('accountForm.languageLabel')" small-label required>
-      <Dropdown v-model="values.language" :show-search="false">
+      <Dropdown v-model="values.language" :show-search="false" size="large">
         <DropdownItem
           v-for="locale in $i18n.locales"
           :key="locale.code"

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="auth__wrapper">
     <Login
       :display-header="true"
       :redirect-on-success="true"

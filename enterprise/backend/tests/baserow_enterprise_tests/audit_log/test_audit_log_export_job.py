@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.test.utils import override_settings
 
 import pytest
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from freezegun import freeze_time
 
 from baserow.contrib.database.export.handler import ExportHandler
@@ -16,10 +17,12 @@ from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow.contrib.database.export.handler.default_storage")
+@patch("baserow.core.storage.get_default_storage")
 def test_audit_log_export_csv_correctly(
-    storage_mock, enterprise_data_fixture, synced_roles
+    get_storage_mock, enterprise_data_fixture, synced_roles
 ):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
     user, _ = enterprise_data_fixture.create_enterprise_admin_user_and_token()
 
     with freeze_time("2023-01-01 12:00:00"):
@@ -94,12 +97,14 @@ def test_audit_log_export_csv_correctly(
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.database.export.handler.default_storage")
+@patch("baserow.core.storage.get_default_storage")
 @override_settings(DEBUG=True)
 @pytest.mark.skip("Need to re-build the translations first.")
 def test_audit_log_export_csv_in_the_user_language(
-    storage_mock, enterprise_data_fixture, synced_roles
+    get_storage_mock, enterprise_data_fixture, synced_roles
 ):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
     user, _ = enterprise_data_fixture.create_enterprise_admin_user_and_token(
         language="it"
     )
@@ -136,11 +141,13 @@ def test_audit_log_export_csv_in_the_user_language(
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.database.export.handler.default_storage")
+@patch("baserow.core.storage.get_default_storage")
 @override_settings(DEBUG=True)
 def test_deleting_audit_log_export_job_also_delete_exported_file(
-    storage_mock, enterprise_data_fixture, synced_roles
+    get_storage_mock, enterprise_data_fixture, synced_roles
 ):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
     user, _ = enterprise_data_fixture.create_enterprise_admin_user_and_token()
     csv_settings = {
         "csv_column_separator": ",",
@@ -163,19 +170,26 @@ def test_deleting_audit_log_export_job_also_delete_exported_file(
     # ensure the clean_job method will delete the file
     assert csv_export_job.exported_file_name is not None
 
-    with patch("django.core.files.storage.default_storage.delete") as remove_mock:
+    with patch(
+        "baserow_enterprise.audit_log.job_types.get_default_storage"
+    ) as get_remove_mock:
+        remove_mock = storage_mock
+        get_remove_mock.return_value = remove_mock
         AuditLogExportJobType().before_delete(csv_export_job)
-        remove_mock.assert_called_once_with(
+        remove_mock.delete.assert_called_once_with(
             ExportHandler.export_file_path(csv_export_job.exported_file_name)
         )
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.database.export.handler.default_storage")
+@patch("baserow.core.storage.get_default_storage")
 @override_settings(DEBUG=True)
 def test_audit_log_export_filters_work_correctly(
-    storage_mock, enterprise_data_fixture, synced_roles
+    get_storage_mock, enterprise_data_fixture, synced_roles
 ):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+
     user, _ = enterprise_data_fixture.create_enterprise_admin_user_and_token()
 
     with freeze_time("2023-01-01 12:00:00"):
@@ -224,10 +238,12 @@ def test_audit_log_export_filters_work_correctly(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow.contrib.database.export.handler.default_storage")
+@patch("baserow.core.storage.get_default_storage")
 def test_audit_log_export_workspace_csv_correctly(
-    storage_mock, enterprise_data_fixture, synced_roles
+    get_storage_mock, enterprise_data_fixture, synced_roles
 ):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
     user, _ = enterprise_data_fixture.create_enterprise_admin_user_and_token()
     workspace = enterprise_data_fixture.create_workspace(user=user)
 
@@ -273,3 +289,89 @@ def test_audit_log_export_workspace_csv_correctly(
     )
 
     close()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow.core.storage.get_default_storage")
+def test_audit_log_export_workspace_csv_correctly_if_feature_is_enable_for_the_user(
+    get_storage_mock, enterprise_data_fixture, synced_roles
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+
+    with freeze_time("2023-01-01 12:00:00"):
+        app_1 = CreateApplicationActionType.do(
+            user, workspace, "database", name="App 1"
+        )
+
+    with freeze_time("2023-01-01 12:00:10"):
+        app_2 = CreateApplicationActionType.do(
+            user, workspace, "database", name="App 2"
+        )
+
+    csv_settings = {
+        "csv_column_separator": ",",
+        "csv_first_row_header": True,
+        "export_charset": "utf-8",
+        "exclude_columns": "workspace_id,workspace_name",
+    }
+
+    stub_file = BytesIO()
+    storage_mock.open.return_value = stub_file
+    close = stub_file.close
+    stub_file.close = lambda: None
+
+    # The user cannot use the feature without a license, both instance-wide and for a
+    # specific workspace.
+    with pytest.raises(FeaturesNotAvailableError):
+        csv_export_job = JobHandler().create_and_start_job(
+            user, AuditLogExportJobType.type, sync=True, **csv_settings
+        )
+
+    with pytest.raises(FeaturesNotAvailableError):
+        csv_export_job = JobHandler().create_and_start_job(
+            user,
+            AuditLogExportJobType.type,
+            sync=True,
+            filter_workspace_id=workspace.id,
+            **csv_settings,
+        )
+
+    # Patch only the workspace feature, the instance-wide feature should still raise an
+    # exception.
+    with patch(
+        "baserow_enterprise.audit_log.utils.LicenseHandler.raise_if_user_doesnt_have_feature"
+    ):
+        with pytest.raises(FeaturesNotAvailableError):
+            csv_export_job = JobHandler().create_and_start_job(
+                user, AuditLogExportJobType.type, sync=True, **csv_settings
+            )
+
+        # Providing the workspace id should work as it checks if the feature is enabled
+        # for the workspace.
+        csv_export_job = JobHandler().create_and_start_job(
+            user,
+            AuditLogExportJobType.type,
+            sync=True,
+            filter_workspace_id=workspace.id,
+            **csv_settings,
+        )
+        csv_export_job.refresh_from_db()
+        assert csv_export_job.state == JOB_FINISHED
+
+        data = stub_file.getvalue().decode(csv_settings["export_charset"])
+        bom = "\ufeff"
+
+        assert data == (
+            bom
+            + "User Email,User ID,Action Type,Description,Timestamp,IP Address\r\n"
+            + f'{user.email},{user.id},Create application,"""{app_2.name}"" ({app_2.id}) database created '
+            + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:10+00:00,\r\n'
+            + f'{user.email},{user.id},Create application,"""{app_1.name}"" ({app_1.id}) database created '
+            + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:00+00:00,\r\n'
+        )
+
+        close()

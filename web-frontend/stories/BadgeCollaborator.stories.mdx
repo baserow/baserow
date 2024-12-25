@@ -1,0 +1,85 @@
+import { Meta, Story, Props, Canvas } from '@storybook/addon-docs/blocks'
+import { config, withDesign } from 'storybook-addon-designs'
+import { action } from '@storybook/addon-actions'
+
+import BadgeCollaborator from '@baserow/modules/core/components/BadgeCollaborator'
+
+<Meta
+    title="Baserow/Badges"
+    component={BadgeCollaborator}
+    parameters={{
+        backgrounds: {
+            default: 'white',
+            values: [
+                { name: 'white', value: '#ffffff' },
+                { name: 'light', value: '#eeeeee' },
+                { name: 'dark', value: '#222222' },
+            ],
+        },
+    }}
+    decorators={[withDesign]}
+    argTypes={{
+        default: {
+            control: 'text',
+            description: 'Slot content',
+            defaultValue: 'Roger Federer',
+        },
+        initials: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: 'RF',
+        },
+        removeIcon: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        size: {
+            control: {
+                type: 'select',
+                options: ['regular', 'small'],
+            },
+            defaultValue: 'regular',
+        },
+    }}
+/>
+
+# Badge Collaborator
+
+export const Template = (args, { argTypes }) => ({
+    methods: {
+        handleRemove: action('remove'),
+    },
+    components: { BadgeCollaborator },
+    props: Object.keys(argTypes),
+    template: `<BadgeCollaborator v-bind="$props" @remove="handleRemove">${args.default}</BadgeCollaborator>`,
+})
+
+export const designConfig = {
+    type: 'figma',
+    url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=53%3A21&mode=dev',
+}
+
+<Canvas>
+    <Story
+        name="Collaborator"
+        parameters={{
+            design: config(designConfig),
+        }}
+    >
+        {Template.bind({})}
+    </Story>
+</Canvas>
+
+## Example
+
+```javascript
+<BadgeCollaborator></BadgeCollaborator>
+```
+
+## Props
+
+<Props of={BadgeCollaborator} />

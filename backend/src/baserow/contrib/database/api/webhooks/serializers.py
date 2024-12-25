@@ -15,7 +15,20 @@ from baserow.core.utils import truncate_middle
 
 
 class TableWebhookEventsSerializer(serializers.ListField):
-    child = serializers.ChoiceField(choices=webhook_event_type_registry.get_types())
+    child = serializers.ChoiceField(
+        choices=lazy(webhook_event_type_registry.get_types, list)()
+    )
+
+
+class TableWebhookEventConfig(serializers.Serializer):
+    event_type = serializers.ChoiceField(
+        help_text="The type of the event.",
+        choices=webhook_event_type_registry.get_types(),
+    )
+    fields = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text="A list of field IDs that are related to the event.",
+    )
 
 
 class TableWebhookCreateRequestSerializer(serializers.ModelSerializer):
@@ -23,6 +36,11 @@ class TableWebhookCreateRequestSerializer(serializers.ModelSerializer):
         required=False,
         child=serializers.ChoiceField(choices=webhook_event_type_registry.get_types()),
         help_text="A list containing the events that will trigger this webhook.",
+    )
+    event_config = serializers.ListField(
+        required=False,
+        child=TableWebhookEventConfig(),
+        help_text="A list containing the addition event options.",
     )
     headers = serializers.DictField(
         required=False,
@@ -42,6 +60,7 @@ class TableWebhookCreateRequestSerializer(serializers.ModelSerializer):
             "url",
             "include_all_events",
             "events",
+            "event_config",
             "request_method",
             "headers",
             "name",
@@ -52,14 +71,13 @@ class TableWebhookCreateRequestSerializer(serializers.ModelSerializer):
 class TableWebhookUpdateRequestSerializer(serializers.ModelSerializer):
     events = serializers.ListField(
         required=False,
-        child=serializers.ChoiceField(
-            choices=[
-                t
-                for t in webhook_event_type_registry.get_types()
-                if t not in ["row.created", "row.updated", "row.deleted"]
-            ]
-        ),
+        child=serializers.ChoiceField(choices=webhook_event_type_registry.get_types()),
         help_text="A list containing the events that will trigger this webhook.",
+    )
+    event_config = serializers.ListField(
+        required=False,
+        child=TableWebhookEventConfig(),
+        help_text="A list containing the addition event options.",
     )
     headers = serializers.DictField(
         required=False,
@@ -80,6 +98,7 @@ class TableWebhookUpdateRequestSerializer(serializers.ModelSerializer):
             "url",
             "include_all_events",
             "events",
+            "event_config",
             "request_method",
             "headers",
             "name",
@@ -131,6 +150,9 @@ class TableWebhookSerializer(serializers.ModelSerializer):
     events = serializers.SerializerMethodField(
         help_text="A list containing the events that will trigger this webhook.",
     )
+    event_config = serializers.SerializerMethodField(
+        help_text="A list containing the addition event options."
+    )
     headers = serializers.SerializerMethodField(
         help_text="The additional headers as an object where the key is the name and "
         "the value the value."
@@ -144,6 +166,7 @@ class TableWebhookSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "events",
+            "event_config",
             "headers",
             "calls",
             "created_on",
@@ -160,6 +183,17 @@ class TableWebhookSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_events(self, instance):
         return [event.event_type for event in instance.events.all()]
+
+    @extend_schema_field(TableWebhookEventConfig(many=True))
+    def get_event_config(self, instance):
+        events = [
+            {
+                "event_type": event.event_type,
+                "fields": [f.id for f in event.fields.all()],
+            }
+            for event in instance.events.all()
+        ]
+        return [TableWebhookEventConfig(event).data for event in events]
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_headers(self, instance):

@@ -40,12 +40,11 @@
         <Dropdown
           ref="fieldTypesDropdown"
           v-model="values.type"
-          :class="{ 'dropdown--error': $v.values.type.$error }"
+          :error="$v.values.type.$error"
           :fixed-items="true"
           :disabled="
             defaultValues.immutable_type || defaultValues.immutable_properties
           "
-          small
           @hide="$v.values.type.$touch()"
         >
           <DropdownItem
@@ -53,6 +52,7 @@
             :key="type"
             :icon="fieldType.iconClass"
             :name="fieldType.getName()"
+            :alias="fieldType.getAlias()"
             :value="fieldType.type"
             :disabled="
               (primary && !fieldType.canBePrimaryField) ||

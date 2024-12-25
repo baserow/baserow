@@ -34,13 +34,17 @@ export default {
     },
   },
   methods: {
-    getFieldWidth(fieldId) {
-      const hasFieldOptions = Object.prototype.hasOwnProperty.call(
-        this.fieldOptions,
-        fieldId
-      )
+    getFieldWidth(field) {
+      const fieldId = field?.id
+      const hasFieldOptions =
+        fieldId &&
+        Object.prototype.hasOwnProperty.call(this.fieldOptions, fieldId)
 
-      if (hasFieldOptions && this.fieldOptions[fieldId].hidden) {
+      if (
+        hasFieldOptions &&
+        this.fieldOptions[fieldId].hidden &&
+        !field.primary
+      ) {
         return 0
       }
 

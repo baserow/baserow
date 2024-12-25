@@ -159,3 +159,25 @@ Return the username for the postgres user
     {{ include "postgresql.v1.username" .Subcharts.postgresql }}
   {{- end -}}
 {{- end -}}
+
+{{/*
+PodSecurityContext combine the global and local PodSecurityContexts
+*/}}
+{{- define "podSecurityContext" -}}
+{{- if .Values.migration.securityContext.enabled }}
+{{- omit .Values.migration.securityContext "enabled" | toYaml  }}
+{{- else if .Values.global.baserow.securityContext.enabled }}
+{{- omit .Values.global.baserow.securityContext "enabled" | toYaml }}
+{{- end }}
+{{- end }}
+
+{{/*
+ContainerSecurityContext combine the global and local ContainerSecurityContexts
+*/}}
+{{- define "containerSecurityContext" -}}
+{{- if .Values.migration.containerSecurityContext.enabled }}
+{{- omit .Values.migration.containerSecurityContext "enabled" | toYaml  }}
+{{- else if .Values.global.baserow.containerSecurityContext.enabled }}
+{{- omit .Values.global.baserow.containerSecurityContext "enabled" | toYaml }}
+{{- end }}
+{{- end }}

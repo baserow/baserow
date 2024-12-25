@@ -30,11 +30,16 @@ export const mutations = {
 export const actions = {
   ...galleryBufferedRows.actions,
   ...galleryFieldOptions.actions,
-  async fetchInitial({ dispatch, commit }, { viewId, fields }) {
+  async fetchInitial(
+    { dispatch },
+    { viewId, fields, adhocFiltering, adhocSorting }
+  ) {
     const data = await dispatch('fetchInitialRows', {
       viewId,
       fields,
       initialRowArguments: { includeFieldOptions: true },
+      adhocFiltering,
+      adhocSorting,
     })
     await dispatch('forceUpdateAllFieldOptions', data.field_options)
   },

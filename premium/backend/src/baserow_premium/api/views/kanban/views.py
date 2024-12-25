@@ -14,6 +14,10 @@ from rest_framework.views import APIView
 from baserow.api.decorators import allowed_includes, map_exceptions
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.schemas import get_error_schema
+from baserow.contrib.database.api.constants import (
+    ADHOC_FILTERS_API_PARAMS,
+    ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
+)
 from baserow.contrib.database.api.fields.errors import (
     ERROR_FIELD_DOES_NOT_EXIST,
     ERROR_FILTER_FIELD_NOT_FOUND,
@@ -42,10 +46,7 @@ from baserow.contrib.database.views.exceptions import (
 )
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.registries import (
-    view_filter_type_registry,
-    view_type_registry,
-)
+from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.signals import view_loaded
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
@@ -112,58 +113,7 @@ class KanbanViewView(APIView):
                     "option id `1` with a limit of `10` and and offset of `20`."
                 ),
             ),
-            OpenApiParameter(
-                name="filters",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    "A JSON serialized string containing the filter tree to apply "
-                    "to this view. The filter tree is a nested structure containing "
-                    "the filters that need to be applied. \n\n"
-                    "An example of a valid filter tree is the following:"
-                    '`{"filter_type": "AND", "filters": [{"field": 1, "type": "equal", '
-                    '"value": "test"}]}`.\n\n'
-                    f"The following filters are available: "
-                    f'{", ".join(view_filter_type_registry.get_types())}.'
-                    "Please note that by passing the filters parameter the "
-                    "view filters saved for the view itself will be ignored."
-                ),
-            ),
-            OpenApiParameter(
-                name="filter__{field}__{filter}",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    f"The rows can optionally be filtered by the same view filters "
-                    f"available for the views. Multiple filters can be provided if "
-                    f"they follow the same format. The field and filter variable "
-                    f"indicate how to filter and the value indicates where to filter "
-                    f"on.\n\n"
-                    "Please note that if the `filters` parameter is provided, "
-                    "this parameter will be ignored. \n\n"
-                    f"For example if you provide the following GET parameter "
-                    f"`filter__field_1__equal=test` then only rows where the value of "
-                    f"field_1 is equal to test are going to be returned.\n\n"
-                    f"The following filters are available: "
-                    f'{", ".join(view_filter_type_registry.get_types())}.'
-                    "Please note that by passing the filter parameters the "
-                    "view filters saved for the view itself will be ignored."
-                ),
-            ),
-            OpenApiParameter(
-                name="filter_type",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    "`AND`: Indicates that the rows must match all the provided "
-                    "filters.\n"
-                    "`OR`: Indicates that the rows only have to match one of the "
-                    "filters.\n\n"
-                    "This works only if two or more filters are provided."
-                    "Please note that if the `filters` parameter is provided, "
-                    "this parameter will be ignored. \n\n"
-                ),
-            ),
+            *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
         ],
         tags=["Database table kanban view"],
         operation_id="list_database_table_kanban_view_rows",
@@ -331,57 +281,7 @@ class PublicKanbanViewView(APIView):
                     "option id `1` with a limit of `10` and and offset of `20`."
                 ),
             ),
-            OpenApiParameter(
-                name="filters",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    "A JSON serialized string containing the filter tree to apply "
-                    "to this view. The filter tree is a nested structure containing "
-                    "the filters that need to be applied. \n\n"
-                    "Please note that if this parameter is provided, all other "
-                    "`filter__{field}__{filter}` will be ignored, "
-                    "as well as the `filter_type` parameter. \n\n"
-                    "An example of a valid filter tree is the following:"
-                    '`{"filter_type": "AND", "filters": [{"field": 1, "type": "equal", '
-                    '"value": "test"}]}`.\n\n'
-                    f"The following filters are available: "
-                    f'{", ".join(view_filter_type_registry.get_types())}.'
-                ),
-            ),
-            OpenApiParameter(
-                name="filter__{field}__{filter}",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    f"The rows can optionally be filtered by the same view filters "
-                    f"available for the views. Multiple filters can be provided if "
-                    f"they follow the same format. The field and filter variable "
-                    f"indicate how to filter and the value indicates where to filter "
-                    f"on.\n\n"
-                    "Please note that if the `filters` parameter is provided, "
-                    "this parameter will be ignored. \n\n"
-                    f"For example if you provide the following GET parameter "
-                    f"`filter__field_1__equal=test` then only rows where the value of "
-                    f"field_1 is equal to test are going to be returned.\n\n"
-                    f"The following filters are available: "
-                    f'{", ".join(view_filter_type_registry.get_types())}.'
-                ),
-            ),
-            OpenApiParameter(
-                name="filter_type",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    "`AND`: Indicates that the rows must match all the provided "
-                    "filters.\n"
-                    "`OR`: Indicates that the rows only have to match one of the "
-                    "filters.\n\n"
-                    "This works only if two or more filters are provided."
-                    "Please note that if the `filters` parameter is provided, "
-                    "this parameter will be ignored. \n\n"
-                ),
-            ),
+            *ADHOC_FILTERS_API_PARAMS,
         ],
         tags=["Database table kanban view"],
         operation_id="public_list_database_table_kanban_view_rows",

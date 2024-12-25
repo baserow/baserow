@@ -7,7 +7,8 @@
         "free": "Bezpłatnie",
         "all": "Wszystkie",
         "billable": "Płatny",
-        "comingSoon": "Już wkrótce..."
+        "comingSoon": "Już wkrótce...",
+        "beta": "Beta"
     },
     "action": {
         "upload": "Prześlij",
@@ -15,7 +16,7 @@
         "backToLogin": "Powrót do logowania",
         "signUp": "Zarejestruj się",
         "signIn": "Zaloguj się",
-        "createNew": "Utwórz nowy",
+        "createNew": "Dodaj nowy",
         "create": "Utwórz",
         "edit": "Edytuj",
         "change": "Zmiana",
@@ -38,7 +39,8 @@
         "copyToClipboard": "Skopiuj do schowka",
         "reset": "Resetowanie",
         "set": "Zestaw",
-        "logout": "Wylogowanie"
+        "logout": "Wylogowanie",
+        "backToHome": "Powrót do domu"
     },
     "adminType": {
         "settings": "Ustawienia",
@@ -52,7 +54,11 @@
         "builder": "Aplikacja",
         "builderDefaultName": "Aplikacja bez tytułu",
         "cantSelectPageTitle": "Nie można było wybrać aplikacji.",
-        "cantSelectPageDescription": "Nie można wybrać kreatora aplikacji, ponieważ nie ma on żadnych stron. Użyj paska bocznego, aby go utworzyć."
+        "cantSelectPageDescription": "Nie można wybrać kreatora aplikacji, ponieważ nie ma on żadnych stron. Użyj paska bocznego, aby go utworzyć.",
+        "builderDesc": "Łatwe tworzenie stron internetowych, aplikacji internetowych i portali bez kodu.",
+        "databases": "Bazy danych",
+        "databaseDesc": "Stwórz zorganizowaną kolekcję uporządkowanych danych.",
+        "builders": "Aplikacje"
     },
     "settingType": {
         "account": "Konto",
@@ -79,7 +85,10 @@
         "minValueField": "Pole musi być większe lub równe {min}.",
         "maxValueField": "Pole musi być mniejsze lub równe {max}.",
         "invalidNumber": "Pole musi być liczbą.",
-        "minMaxValueField": "Wartość pola musi zawierać się w przedziale od {min} do {max}."
+        "minMaxValueField": "Wartość pola musi zawierać się w przedziale od {min} do {max}.",
+        "email": "Pole musi być adresem e-mail.",
+        "invalidURL": "Wprowadź prawidłowy adres URL.",
+        "alreadyInUse": "Ta nazwa pola jest już używana."
     },
     "permission": {
         "admin": "Administrator",
@@ -132,14 +141,14 @@
         "invalidPhoneNumber": "Nieważny numer telefonu",
         "maxChars": "Maksymalnie {max} znaków.",
         "minChars": "Min {min} znaków.",
-        "overflowDuration": "Wartość jest zbyt duża.",
+        "overflowDuration": "Wartość jest poza limitem.",
         "invalidDuration": "Nieprawidłowy format ({durationFormat})."
     },
     "fieldDocs": {
         "readOnly": "To jest pole tylko do odczytu.",
         "text": "Akceptuje tekst jednowierszowy.",
         "longText": "Akceptuje tekst wielowierszowy. Jeśli formatowanie tekstu sformatowanego jest włączone, można użyć markdown do sformatowania tekstu.",
-        "linkRow": "Akceptuje tablicę zawierającą identyfikatory lub wartości tekstowe pól głównych powiązanych wierszy z tabeli id {table}. Wszystkie identyfikatory muszą być podane za każdym razem, gdy relacje są aktualizowane. Jeśli podana zostanie pusta tablica, wszystkie relacje zostaną usunięte. W przypadku podania wartości tekstowej zamiast identyfikatora, wyszukany zostanie wiersz z pasującą wartością pola głównego. Jeśli zostanie znalezione więcej niż jedno dopasowanie, zostanie wybrane pierwsze w kolejności tabeli. Można wysłać ciąg znaków z nazwami oddzielonymi przecinkami, w którym to przypadku ciąg znaków jest konwertowany na tablicę nazw wierszy.",
+        "linkRow": "Akceptuje tablicę zawierającą identyfikatory lub wartości tekstowe pól głównych powiązanych wierszy z tabeli id {table}. Wszystkie identyfikatory muszą być dostarczone za każdym razem, gdy relacje są aktualizowane. Jeśli podana zostanie pusta tablica, wszystkie relacje zostaną usunięte. W przypadku podania wartości tekstowej zamiast identyfikatora, wyszukany zostanie wiersz z pasującą wartością pola głównego. Jeśli zostanie znalezione więcej niż jedno dopasowanie, zostanie wybrane pierwsze w kolejności tabeli. Można wysłać ciąg znaków z nazwami oddzielonymi przecinkami, w którym to przypadku ciąg znaków zostanie przekonwertowany na tablicę nazw wierszy. Można również wysłać tylko identyfikator wiersza.",
         "number": "Akceptuje liczbę.",
         "numberPositive": "Akceptuje liczbę dodatnią.",
         "decimal": "Przyjmuje liczbę dziesiętną z {places} miejscami dziesiętnymi po kropce.",
@@ -154,7 +163,7 @@
         "createdOnReadOnly": "Pole created on jest polem tylko do odczytu.",
         "url": "Przyjmuje ciąg znaków, który musi być adresem URL.",
         "email": "Przyjmuje ciąg znaków, który musi być adresem e-mail.",
-        "file": "Akceptuje tablicę obiektów zawierających co najmniej nazwę pliku użytkownika. Możesz użyć punktów końcowych \"Przesyłanie plików\", aby przesłać plik. Odpowiedź tych wywołań może być przekazana bezpośrednio jako obiekt tutaj. Punkty końcowe można znaleźć na lewym pasku bocznym.",
+        "file": "Akceptuje tablicę obiektów zawierającą co najmniej nazwę pliku użytkownika. Alternatywnie można podać listę nazw plików oddzielonych przecinkami lub tablicę nazw plików. Do przesłania pliku można użyć punktów końcowych \"File uploads\". Odpowiedź na te wywołania może być dostarczona bezpośrednio jako obiekt tutaj. Punkty końcowe można znaleźć na lewym pasku bocznym.",
         "singleSelect": "Przyjmuje liczbę całkowitą lub wartość tekstową reprezentującą wybrany identyfikator opcji wyboru lub wartość opcji. Wartość null oznacza, że żadna nie zostanie wybrana. W przypadku wartości tekstowej, wybrana zostanie pierwsza pasująca opcja.",
         "multipleSelect": "Akceptuje tablicę mieszanych liczb całkowitych lub wartości tekstowych, z których każda reprezentuje identyfikator lub wartość wybranej opcji wyboru. W przypadku wartości tekstowej wybierana jest pierwsza pasująca opcja. Jako wartość można wysłać ciąg znaków z nazwami oddzielonymi przecinkami, w którym to przypadku ciąg znaków jest konwertowany na tablicę nazw opcji.",
         "phoneNumber": "Akceptuje numer telefonu o maksymalnej długości 100 znaków składający się wyłącznie z cyfr, spacji i następujących znaków: Nx,._+*()#=;/- .",
@@ -211,7 +220,42 @@
         "lowerThanOrEqual": "niższy lub równy",
         "filesLowerThan": "pliki niższe niż",
         "isAnyOf": "jest dowolnym z",
-        "isNoneOf": "nie jest żadnym z"
+        "isNoneOf": "nie jest żadnym z",
+        "hasNotEmptyValue": "nie ma pustej wartości",
+        "hasValueEqual": "ma wartość równą",
+        "hasValueContains": "ma wartość zawiera",
+        "hasNotValueEqual": "nie ma wartości równej",
+        "hasNotValueContains": "nie ma wartości zawiera",
+        "nrMonthsFromNow": "miesięcy od teraz",
+        "tomorrow": "jutro",
+        "thisWeek": "w tym tygodniu",
+        "nextWeek": "w przyszłym tygodniu",
+        "thisMonth": "w tym miesiącu",
+        "oneWeekAgo": "tydzień temu",
+        "nrDaysAgo": "dni temu",
+        "nrWeeksAgo": "tygodni temu",
+        "nrMonthsAgo": "miesięcy temu",
+        "hasEmptyValue": "ma wartość pustą",
+        "hasValueContainsWord": "ma wartość zawiera słowo",
+        "hasNotValueContainsWord": "nie ma wartości zawiera słowo",
+        "hasValueLengthIsLowerThan": "ma długość mniejszą niż",
+        "today": "dzisiaj",
+        "yesterday": "wczoraj",
+        "exactDate": "dokładna data",
+        "isBefore": "jest przed",
+        "isAfter": "jest po",
+        "isOnOrBefore": "jest na lub przed",
+        "isOnOrAfter": "jest włączony lub po",
+        "isWithin": "znajduje się w",
+        "oneMonthAgo": "miesiąc temu",
+        "nextMonth": "w przyszłym miesiącu",
+        "thisYear": "w tym roku",
+        "oneYearAgo": "rok temu",
+        "nextYear": "w przyszłym roku",
+        "nrYearsAgo": "lat temu",
+        "nrDaysFromNow": "dni od teraz",
+        "nrWeeksFromNow": "tygodnie od teraz",
+        "nrYearsFromNow": "lat od teraz"
     },
     "viewType": {
         "grid": "Siatka",
@@ -246,7 +290,13 @@
             "rowUpdated": "Kiedy wiersz jest aktualizowany",
             "rowsUpdated": "Wiersze są aktualizowane",
             "rowDeleted": "Gdy wiersz jest usuwany",
-            "rowsDeleted": "Wiersze są usuwane"
+            "rowsDeleted": "Wiersze są usuwane",
+            "fieldCreated": "Pole jest tworzone",
+            "fieldUpdated": "Pole jest aktualizowane",
+            "fieldDeleted": "Pole jest usuwane",
+            "viewCreated": "Widok jest tworzony",
+            "viewUpdated": "Widok jest aktualizowany",
+            "viewDeleted": "Widok został usunięty"
         },
         "form": {
             "invalidURLTitle": "Nieprawidłowy URL.",
@@ -325,7 +375,19 @@
         "modelDoesNotBelongToTypeTitle": "Wybrany model nie należy do typu AI",
         "modelDoesNotBelongToTypeDescription": "Wybrany model nie należy do wybranego typu AI.",
         "adminAlreadyExistsTitle": "Nie mogę użyć tej nazwy użytkownika",
-        "adminAlreadyExistsDescription": "Ta nazwa użytkownika nie może zostać użyta, ponieważ już istnieje."
+        "adminAlreadyExistsDescription": "Ta nazwa użytkownika nie może zostać użyta, ponieważ już istnieje.",
+        "outputParserTitle": "Nieprawidłowe wyjście",
+        "outputParserDescription": "Model odpowiedział nieprawidłowym wynikiem. Spróbuj ponownie.",
+        "generateAIPromptDescription": "Coś było nie tak ze skonstruowanym monitem.",
+        "maxNumberOfPendingWorkspaceInvitesReachedTitle": "Osiągnięto maksymalną liczbę oczekujących zaproszeń",
+        "maxNumberOfPendingWorkspaceInvitesReachedDescription": "Osiągnięto maksymalną liczbę oczekujących zaproszeń dla tego obszaru roboczego. Pozwól zaproszonym zaakceptować zaproszenia lub anuluj istniejące, aby kontynuować.",
+        "fieldIsAlreadyPrimaryTitle": "Pole jest już pierwotne",
+        "fieldIsAlreadyPrimaryDescription": "Wybrane nowe pole podstawowe jest już polem podstawowym.",
+        "generateAIPromptTitle": "Błąd zapytania",
+        "incompatiblePrimaryFieldTypeTitle": "Pole nie jest kompatybilne",
+        "incompatiblePrimaryFieldTypeDescription": "Wybrane pole nie może być polem podstawowym, ponieważ jest niekompatybilne.",
+        "cannotCreateRowsInTableTitle": "Nie można utworzyć wierszy",
+        "cannotCreateRowsInTableDescription": "Nie jest możliwe tworzenie wierszy w tej tabeli."
     },
     "importerType": {
         "csv": "Importuj plik CSV",
@@ -353,7 +415,7 @@
         "queryParameters": "Parametry zapytań",
         "pathParameters": "Parametry ścieżki",
         "requestBodySchema": "Schemat treści żądania",
-        "userFieldNamesDescription": "Jeśli podano jakąkolwiek wartość dla parametru `user_field_names` GET, wówczas nazwy pól zwracane przez ten punkt końcowy będą rzeczywistymi nazwami pól.\n\n Jeśli `user_field_names` GET param nie jest podany, wtedy wszystkie zwrócone nazwy pól będą miały postać `field_` a następnie id pola. Na przykład `field_1` odnosi się do pola o id `1`.",
+        "userFieldNamesDescription": "Gdy dostarczony jest parametr GET `user_field_names`, a jego wartość jest jedną z następujących: `y`, `yes`, `true`, `t`, `on`, `1` lub pusty ciąg znaków, nazwy pól zwrócone przez ten punkt końcowy będą rzeczywistymi nazwami pól.\n\nJeśli parametr GET `user_field_names` nie zostanie podany lub jeśli nie pasuje do żadnej z powyższych wartości, wówczas wszystkie zwrócone nazwy pól będą miały postać `field_`, po której nastąpi identyfikator pola. Na przykład `field_1` odnosi się do pola o identyfikatorze `1`.",
         "singleRow": "Pojedynczy",
         "batchRows": "Partia",
         "uploadFile": "Prześlij plik",
@@ -473,7 +535,9 @@
         "getImageWidthDescription": "Zwraca szerokość obrazu z pojedynczego pliku zwróconego przez funkcję index.",
         "getImageHeightDescription": "Zwraca wysokość obrazu z pojedynczego pliku zwróconego przez funkcję index.",
         "getIsImageDescription": "Zwraca, czy pojedynczy plik zwrócony przez funkcję index jest obrazem, czy nie.",
-        "indexDescription": "Zwraca plik z pola pliku w pozycji podanej w drugim argumencie."
+        "indexDescription": "Zwraca plik z pola pliku w pozycji podanej w drugim argumencie.",
+        "secondsToDurationDescription": "Konwertuje podaną liczbę sekund na czas trwania.",
+        "durationToSecondsDescription": "Konwertuje podany czas trwania na odpowiednią liczbę sekund."
     },
     "functionnalGridViewFieldLinkRow": {
         "unnamed": "nienazwany wiersz {value}"

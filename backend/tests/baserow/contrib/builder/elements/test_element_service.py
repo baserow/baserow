@@ -26,6 +26,11 @@ def pytest_generate_tests(metafunc):
 def test_create_element(element_created_mock, data_fixture, element_type):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
+    shared_page = page.builder.shared_page
+
+    if element_type.is_multi_page_element:
+        page = shared_page
+
     element1 = data_fixture.create_builder_heading_element(page=page, order="1.0000")
     element3 = data_fixture.create_builder_heading_element(page=page, order="2.0000")
 
@@ -205,6 +210,37 @@ def test_get_elements(data_fixture, stub_check_permissions):
             element2.id,
             element3.id,
         ]
+
+
+@pytest.mark.django_db
+def test_get_builder_elements(data_fixture, stub_check_permissions):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(builder=page.builder)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+    element2 = data_fixture.create_builder_heading_element(page=page)
+    element3 = data_fixture.create_builder_text_element(page=page2)
+
+    def exclude_element_1(
+        actor,
+        operation_name,
+        queryset,
+        workspace=None,
+        context=None,
+    ):
+        return queryset.exclude(id=element1.id)
+
+    with stub_check_permissions() as stub:
+        stub.filter_queryset = exclude_element_1
+
+        assert sorted(
+            [p.id for p in ElementService().get_builder_elements(user, page.builder)]
+        ) == sorted(
+            [
+                element2.id,
+                element3.id,
+            ]
+        )
 
 
 @pytest.mark.django_db

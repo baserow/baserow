@@ -285,43 +285,6 @@
             </div>
           </FormGroup>
 
-          <FormGroup label="Dropdown small" required class="margin-bottom-2">
-            <div style="width: 200px">
-              <Dropdown v-model="dropdown" small>
-                <DropdownItem name="Choice 1" value="choice-1"></DropdownItem>
-                <DropdownItem
-                  name="Choice 2"
-                  value="choice-2"
-                  icon="iconoir-edit-pencil"
-                  description="Lorem ipsum dolor sit amet, consectetur."
-                ></DropdownItem>
-                <DropdownItem
-                  name="Choice 3"
-                  value="choice-3"
-                  icon="iconoir-db"
-                ></DropdownItem>
-                <DropdownItem
-                  name="Choice 4"
-                  value="choice-4"
-                  icon="iconoir-cancel"
-                  :disabled="true"
-                ></DropdownItem>
-                <DropdownItem
-                  name="Choice 5"
-                  value="choice-5"
-                  icon="iconoir-edit-pencil"
-                  description="Lorem ipsum dolor sit amet, consectetur."
-                ></DropdownItem>
-                <DropdownItem
-                  name="Choice 6"
-                  value="choice-6"
-                  icon="iconoir-edit-pencil"
-                  description="Lorem ipsum dolor sit amet, consectetur."
-                ></DropdownItem>
-              </Dropdown>
-            </div>
-          </FormGroup>
-
           <FormGroup label="Dropdown disabled" required class="margin-bottom-2">
             <div style="width: 200px">
               <Dropdown v-model="dropdown" disabled>
@@ -465,13 +428,9 @@
             </div>
           </FormGroup>
 
-          <FormGroup label="Dropdown tiny" required class="margin-bottom-2">
+          <FormGroup label="Dropdown large" required class="margin-bottom-2">
             <div style="width: 200px">
-              <Dropdown
-                v-model="dropdown"
-                :show-search="false"
-                class="dropdown--tiny"
-              >
+              <Dropdown v-model="dropdown" :show-search="false" size="large">
                 <DropdownItem name="Choice 1" value="choice-1"></DropdownItem>
                 <DropdownItem
                   name="Choice 2"
@@ -495,7 +454,7 @@
 
           <FormGroup label="Dropdown error" required class="margin-bottom-2">
             <div style="width: 200px">
-              <Dropdown v-model="dropdown" class="dropdown--error">
+              <Dropdown v-model="dropdown" :error="true">
                 <DropdownItem name="Choice 1" value="choice-1"></DropdownItem>
                 <DropdownItem
                   name="Choice 2"
@@ -1373,7 +1332,6 @@
             </p>
           </Modal>
           <Button
-            type="success"
             @click="
               $store.dispatch('toast/success', {
                 title: 'Custom success toast',
@@ -1384,7 +1342,7 @@
             toggle success toast
           </Button>
           <Button
-            type="error"
+            type="danger"
             @click="
               $store.dispatch('toast/error', {
                 title: 'Custom error toast',

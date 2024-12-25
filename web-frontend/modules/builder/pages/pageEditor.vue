@@ -1,6 +1,6 @@
 <template>
   <div class="page-editor">
-    <PageHeader :page="page" />
+    <PageHeader />
     <div class="layout__col-2-2 page-editor__content">
       <div :style="{ width: `calc(100% - ${panelWidth}px)` }">
         <PagePreview />
@@ -34,12 +34,13 @@ export default {
     return {
       workspace: this.workspace,
       builder: this.builder,
-      page: this.page,
+      currentPage: this.currentPage,
       mode,
       formulaComponent: ApplicationBuilderFormulaInput,
       applicationContext: this.applicationContext,
     }
   },
+
   /**
    * When the route is updated we want to unselect the element
    */
@@ -52,9 +53,16 @@ export default {
       // When we switch from one application to another we want to logoff the current
       // user
       const builder = this.$store.getters['application/get'](
-        from.params.builderId
+        parseInt(from.params.builderId)
       )
-      this.$store.dispatch('userSourceUser/logoff', { application: builder })
+      if (builder) {
+        // We want to reload once only data for this builder next time
+        this.$store.dispatch('application/forceUpdate', {
+          application: builder,
+          data: { _loadedOnce: false },
+        })
+        this.$store.dispatch('userSourceUser/logoff', { application: builder })
+      }
     }
     next()
   },
@@ -70,13 +78,21 @@ export default {
     })
 
     const builder = this.$store.getters['application/get'](
-      from.params.builderId
+      parseInt(from.params.builderId)
     )
-    this.$store.dispatch('userSourceUser/logoff', { application: builder })
+    if (builder) {
+      // We want to reload once only data for this builder next time
+      this.$store.dispatch('application/forceUpdate', {
+        application: builder,
+        data: { _loadedOnce: false },
+      })
+      this.$store.dispatch('userSourceUser/logoff', { application: builder })
+    }
+
     next()
   },
   layout: 'app',
-  async asyncData({ store, params, error, $registry }) {
+  async asyncData({ store, params, error, $registry, app }) {
     const builderId = parseInt(params.builderId)
     const pageId = parseInt(params.pageId)
 
@@ -87,7 +103,6 @@ export default {
       store.dispatch('userSourceUser/setCurrentApplication', {
         application: builder,
       })
-
       const workspace = await store.dispatch(
         'workspace/selectById',
         builder.workspace.id
@@ -97,9 +112,17 @@ export default {
         'application',
         BuilderApplicationType.getType()
       )
-      await builderApplicationType.loadExtraData(builder)
 
       const page = store.getters['page/getById'](builder, pageId)
+
+      if (page.shared) {
+        return error({
+          statusCode: 404,
+          message: app.i18n.t('pageEditor.pageNotFound'),
+        })
+      }
+
+      await builderApplicationType.loadExtraData(builder, mode)
 
       await Promise.all([
         store.dispatch('dataSource/fetch', {
@@ -123,14 +146,17 @@ export default {
 
       data.workspace = workspace
       data.builder = builder
-      data.page = page
+      data.currentPage = page
     } catch (e) {
       // In case of a network error we want to fail hard.
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
       }
 
-      return error({ statusCode: 404, message: 'page not found.' })
+      return error({
+        statusCode: 404,
+        message: app.i18n.t('pageEditor.pageNotFound'),
+      })
     }
 
     return data
@@ -139,17 +165,34 @@ export default {
     applicationContext() {
       return {
         builder: this.builder,
-        page: this.page,
         mode,
       }
     },
     dataSources() {
-      return this.$store.getters['dataSource/getPageDataSources'](this.page)
+      return this.$store.getters['dataSource/getPageDataSources'](
+        this.currentPage
+      )
+    },
+    sharedPage() {
+      return this.$store.getters['page/getSharedPage'](this.builder)
+    },
+    sharedDataSources() {
+      return this.$store.getters['dataSource/getPageDataSources'](
+        this.sharedPage
+      )
     },
     dispatchContext() {
       return DataProviderType.getAllDataSourceDispatchContext(
         this.$registry.getAll('builderDataProvider'),
-        this.applicationContext
+        { ...this.applicationContext, page: this.currentPage }
+      )
+    },
+    // Separate dispatch context for application level shared data sources
+    // This one doesn't contain the page.
+    applicationDispatchContext() {
+      return DataProviderType.getAllDataSourceDispatchContext(
+        this.$registry.getAll('builderDataProvider'),
+        { builder: this.builder, mode }
       )
     },
   },
@@ -163,7 +206,23 @@ export default {
         this.$store.dispatch(
           'dataSourceContent/debouncedFetchPageDataSourceContent',
           {
-            page: this.page,
+            page: this.currentPage,
+            data: this.dispatchContext,
+            mode: this.mode,
+          }
+        )
+      },
+    },
+    sharedDataSources: {
+      deep: true,
+      /**
+       * Update shared data source content on data source configuration changes
+       */
+      handler() {
+        this.$store.dispatch(
+          'dataSourceContent/debouncedFetchPageDataSourceContent',
+          {
+            page: this.sharedPage,
             data: this.dispatchContext,
           }
         )
@@ -179,7 +238,25 @@ export default {
           this.$store.dispatch(
             'dataSourceContent/debouncedFetchPageDataSourceContent',
             {
-              page: this.page,
+              page: this.currentPage,
+              data: newDispatchContext,
+              mode: this.mode,
+            }
+          )
+        }
+      },
+    },
+    applicationDispatchContext: {
+      deep: true,
+      /**
+       * Update data source content on backend context changes
+       */
+      handler(newDispatchContext, oldDispatchContext) {
+        if (!_.isEqual(newDispatchContext, oldDispatchContext)) {
+          this.$store.dispatch(
+            'dataSourceContent/debouncedFetchPageDataSourceContent',
+            {
+              page: this.sharedPage,
               data: newDispatchContext,
             }
           )

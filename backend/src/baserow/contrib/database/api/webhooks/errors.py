@@ -13,3 +13,8 @@ ERROR_TABLE_WEBHOOK_MAX_LIMIT_EXCEEDED = (
     f"The maximally allowed webhooks per table has been exceeded. You can create "
     f"a maximum of {settings.BASEROW_WEBHOOKS_MAX_PER_TABLE} webhooks.",
 )
+ERROR_TABLE_WEBHOOK_EVENT_CONFIG_FIELD_NOT_IN_TABLE = (
+    "ERROR_TABLE_WEBHOOK_EVENT_CONFIG_FIELD_NOT_IN_TABLE",
+    HTTP_400_BAD_REQUEST,
+    "The provided event config field with ID {e.field_id} does not belong to the table.",
+)

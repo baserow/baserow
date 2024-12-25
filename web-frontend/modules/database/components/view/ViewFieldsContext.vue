@@ -104,7 +104,6 @@ import { mapGetters } from 'vuex'
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
 import context from '@baserow/modules/core/mixins/context'
 import { clone } from '@baserow/modules/core/utils/object'
-import { FileFieldType } from '@baserow/modules/database/fieldTypes'
 import { sortFieldsByOrderAndIdFunction } from '@baserow/modules/database/utils/view'
 
 export default {
@@ -176,8 +175,10 @@ export default {
         .sort(sortFieldsByOrderAndIdFunction(this.fieldOptions))
     },
     fileFields() {
-      const type = FileFieldType.getType()
-      return this.fields.filter((field) => field.type === type)
+      return this.fields.filter((field) => {
+        const fieldType = this.$registry.get('field', field.type)
+        return fieldType.canRepresentFiles(field)
+      })
     },
     ...mapGetters({
       allFields: 'field/getAll',

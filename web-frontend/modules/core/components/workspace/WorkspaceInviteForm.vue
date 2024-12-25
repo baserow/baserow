@@ -26,7 +26,6 @@
               class="workspace-invite-form__role-selector-dropdown"
               :show-search="false"
               fixed-items
-              small
             >
               <DropdownItem
                 v-for="(role, index) in roles"

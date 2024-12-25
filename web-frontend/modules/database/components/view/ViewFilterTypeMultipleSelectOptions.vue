@@ -6,8 +6,7 @@
     :fixed-items="true"
     :multiple="true"
     :show-empty-value="false"
-    class="dropdown--floating dropdown--small filters__value-dropdown"
-    small
+    class="dropdown--floating filters__value-dropdown"
     @input="input"
   ></FieldSelectOptionsDropdown>
 </template>

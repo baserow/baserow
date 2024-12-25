@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -9,6 +10,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowListRowsUserServiceType,
     LocalBaserowServiceType,
     LocalBaserowTableServiceType,
+    LocalBaserowViewServiceType,
 )
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.test_utils.helpers import setup_interesting_test_table
@@ -102,6 +104,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["text"]: {
             "title": "text",
             "default": "",
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "text",
             "metadata": {},
             "type": "string",
@@ -109,6 +114,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["long_text"]: {
             "title": "long_text",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "long_text",
             "metadata": {},
             "type": "string",
@@ -116,6 +124,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["url"]: {
             "title": "url",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "url",
             "metadata": {},
             "type": "string",
@@ -123,6 +134,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["email"]: {
             "title": "email",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "email",
             "metadata": {},
             "type": "string",
@@ -130,6 +144,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["negative_int"]: {
             "title": "negative_int",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "number",
             "metadata": {},
             "type": "string",
@@ -137,6 +154,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["positive_int"]: {
             "title": "positive_int",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "number",
             "metadata": {},
             "type": "string",
@@ -144,6 +164,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["negative_decimal"]: {
             "title": "negative_decimal",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "number",
             "metadata": {},
             "type": "string",
@@ -151,6 +174,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["positive_decimal"]: {
             "title": "positive_decimal",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "number",
             "metadata": {},
             "type": "string",
@@ -158,6 +184,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["rating"]: {
             "title": "rating",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "rating",
             "metadata": {},
             "type": "number",
@@ -165,6 +194,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["boolean"]: {
             "title": "boolean",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "boolean",
             "metadata": {},
             "type": "boolean",
@@ -172,118 +204,185 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["datetime_us"]: {
             "title": "datetime_us",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["date_us"]: {
             "title": "date_us",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date",
         },
         field_db_column_by_name["datetime_eu"]: {
             "title": "datetime_eu",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["date_eu"]: {
             "title": "date_eu",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date",
         },
         field_db_column_by_name["datetime_eu_tzone_visible"]: {
             "title": "datetime_eu_tzone_visible",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["datetime_eu_tzone_hidden"]: {
             "title": "datetime_eu_tzone_hidden",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "date",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_datetime_us"]: {
             "title": "last_modified_datetime_us",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_date_us"]: {
             "title": "last_modified_date_us",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_datetime_eu"]: {
             "title": "last_modified_datetime_eu",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_date_eu"]: {
             "title": "last_modified_date_eu",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_datetime_eu_tzone"]: {
             "title": "last_modified_datetime_eu_tzone",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "last_modified",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_datetime_us"]: {
             "title": "created_on_datetime_us",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_date_us"]: {
             "title": "created_on_date_us",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_datetime_eu"]: {
             "title": "created_on_datetime_eu",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_date_eu"]: {
             "title": "created_on_date_eu",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["created_on_datetime_eu_tzone"]: {
             "title": "created_on_datetime_eu_tzone",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "created_on",
             "metadata": {},
             "type": "string",
+            "format": "date-time",
         },
         field_db_column_by_name["last_modified_by"]: {
             "default": None,
             "metadata": {},
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "last_modified_by",
             "properties": {
                 "id": {"title": "id", "type": "number"},
@@ -295,6 +394,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["created_by"]: {
             "default": None,
             "metadata": {},
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "created_by",
             "properties": {
                 "id": {"title": "id", "type": "number"},
@@ -306,6 +408,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["link_row"]: {
             "title": "link_row",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "link_row",
             "metadata": {},
             "type": "array",
@@ -314,12 +419,16 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 "properties": {
                     "id": {"title": "id", "type": "number"},
                     "value": {"title": "value", "type": "string"},
+                    "order": {"title": "order", "type": "string"},
                 },
             },
         },
         field_db_column_by_name["self_link_row"]: {
             "title": "self_link_row",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "link_row",
             "metadata": {},
             "type": "array",
@@ -328,12 +437,16 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 "properties": {
                     "id": {"title": "id", "type": "number"},
                     "value": {"title": "value", "type": "string"},
+                    "order": {"title": "order", "type": "string"},
                 },
             },
         },
         field_db_column_by_name["link_row_without_related"]: {
             "title": "link_row_without_related",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "link_row",
             "metadata": {},
             "type": "array",
@@ -342,12 +455,16 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 "properties": {
                     "id": {"title": "id", "type": "number"},
                     "value": {"title": "value", "type": "string"},
+                    "order": {"title": "order", "type": "string"},
                 },
             },
         },
         field_db_column_by_name["decimal_link_row"]: {
             "title": "decimal_link_row",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "link_row",
             "metadata": {},
             "type": "array",
@@ -356,12 +473,16 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 "properties": {
                     "id": {"title": "id", "type": "number"},
                     "value": {"title": "value", "type": "string"},
+                    "order": {"title": "order", "type": "string"},
                 },
             },
         },
         field_db_column_by_name["file_link_row"]: {
             "title": "file_link_row",
             "default": None,
+            "searchable": True,
+            "sortable": False,
+            "filterable": False,
             "original_type": "link_row",
             "metadata": {},
             "type": "array",
@@ -370,12 +491,16 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 "properties": {
                     "id": {"title": "id", "type": "number"},
                     "value": {"title": "value", "type": "string"},
+                    "order": {"title": "order", "type": "string"},
                 },
             },
         },
         field_db_column_by_name["file"]: {
             "title": "file",
             "default": None,
+            "searchable": True,
+            "sortable": False,
+            "filterable": True,
             "original_type": "file",
             "metadata": {},
             "type": "array",
@@ -390,13 +515,20 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                     "is_image": {"title": "is_image", "type": "boolean"},
                     "image_width": {"title": "image_width", "type": "number"},
                     "image_height": {"title": "image_height", "type": "number"},
-                    "uploaded_at": {"title": "uploaded_at", "type": "string"},
+                    "uploaded_at": {
+                        "title": "uploaded_at",
+                        "type": "string",
+                        "format": "date-time",
+                    },
                 },
             },
         },
         field_db_column_by_name["single_select"]: {
             "title": "single_select",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "single_select",
             "metadata": {},
             "type": "object",
@@ -409,6 +541,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["multiple_select"]: {
             "title": "multiple_select",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "multiple_select",
             "metadata": {},
             "type": "array",
@@ -424,6 +559,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["multiple_collaborators"]: {
             "title": "multiple_collaborators",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "multiple_collaborators",
             "metadata": {},
             "type": "array",
@@ -438,6 +576,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["phone_number"]: {
             "title": "phone_number",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "phone_number",
             "metadata": {},
             "type": "string",
@@ -445,6 +586,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["formula_text"]: {
             "title": "formula_text",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "string",
@@ -452,6 +596,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["formula_int"]: {
             "title": "formula_int",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "string",
@@ -459,6 +606,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["formula_bool"]: {
             "title": "formula_bool",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "boolean",
@@ -466,6 +616,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["formula_decimal"]: {
             "title": "formula_decimal",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "string",
@@ -473,6 +626,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["formula_dateinterval"]: {
             "title": "formula_dateinterval",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "string",
@@ -480,13 +636,20 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["formula_date"]: {
             "title": "formula_date",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "string",
+            "format": "date",
         },
         field_db_column_by_name["formula_singleselect"]: {
             "title": "formula_singleselect",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "object",
@@ -499,6 +662,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["formula_email"]: {
             "title": "formula_email",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "string",
@@ -506,6 +672,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["formula_link_with_label"]: {
             "title": "formula_link_with_label",
             "default": None,
+            "searchable": True,
+            "sortable": False,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "object",
@@ -517,6 +686,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["formula_link_url_only"]: {
             "title": "formula_link_url_only",
             "default": None,
+            "searchable": True,
+            "sortable": False,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "object",
@@ -528,6 +700,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["formula_multipleselect"]: {
             "title": "formula_multipleselect",
             "default": None,
+            "searchable": True,
+            "sortable": False,
+            "filterable": False,
             "original_type": "formula",
             "metadata": {},
             "type": "array",
@@ -543,6 +718,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["count"]: {
             "title": "count",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "count",
             "metadata": {},
             "type": "string",
@@ -550,6 +728,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["rollup"]: {
             "title": "rollup",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "rollup",
             "metadata": {},
             "type": "string",
@@ -557,6 +738,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["duration_rollup_sum"]: {
             "default": None,
             "metadata": {},
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "rollup",
             "title": "duration_rollup_sum",
             "type": "string",
@@ -564,6 +748,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["duration_rollup_avg"]: {
             "default": None,
             "metadata": {},
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "rollup",
             "title": "duration_rollup_avg",
             "type": "string",
@@ -571,6 +758,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["lookup"]: {
             "title": "lookup",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "lookup",
             "metadata": {},
             "type": "array",
@@ -585,6 +775,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["uuid"]: {
             "title": "uuid",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "uuid",
             "metadata": {},
             "type": "string",
@@ -592,6 +785,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["autonumber"]: {
             "title": "autonumber",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "autonumber",
             "metadata": {},
             "type": "number",
@@ -599,6 +795,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["duration_hm"]: {
             "title": "duration_hm",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "duration",
             "metadata": {},
             "type": "string",
@@ -606,6 +805,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["duration_hms"]: {
             "title": "duration_hms",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "duration",
             "metadata": {},
             "type": "string",
@@ -613,6 +815,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["duration_hms_s"]: {
             "title": "duration_hms_s",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "duration",
             "metadata": {},
             "type": "string",
@@ -620,6 +825,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["duration_hms_ss"]: {
             "title": "duration_hms_ss",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "duration",
             "metadata": {},
             "type": "string",
@@ -627,6 +835,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["duration_hms_sss"]: {
             "title": "duration_hms_sss",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "duration",
             "metadata": {},
             "type": "string",
@@ -634,6 +845,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["duration_dh"]: {
             "title": "duration_dh",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "duration",
             "metadata": {},
             "type": "string",
@@ -641,6 +855,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["duration_dhm"]: {
             "title": "duration_dhm",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "duration",
             "metadata": {},
             "type": "string",
@@ -648,6 +865,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["duration_dhms"]: {
             "title": "duration_dhms",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": True,
             "original_type": "duration",
             "metadata": {},
             "type": "string",
@@ -655,6 +875,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["password"]: {
             "title": "password",
             "default": None,
+            "searchable": False,
+            "sortable": False,
+            "filterable": True,  # Only by `EmptyViewFilterType`
             "original_type": "password",
             "metadata": {},
             "type": "boolean",
@@ -662,11 +885,36 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
         field_db_column_by_name["ai"]: {
             "title": "ai",
             "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
             "original_type": "ai",
             "metadata": {},
             "type": "string",
         },
-        "id": {"metadata": {}, "type": "number", "title": "Id"},
+        field_db_column_by_name["ai_choice"]: {
+            "title": "ai_choice",
+            "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
+            "original_type": "ai",
+            "metadata": {},
+            "properties": {
+                "color": {"title": "color", "type": "string"},
+                "id": {"title": "id", "type": "number"},
+                "value": {"title": "value", "type": "string"},
+            },
+            "type": "object",
+        },
+        "id": {
+            "type": "number",
+            "title": "Id",
+            "metadata": {},
+            "sortable": False,
+            "filterable": False,
+            "searchable": False,
+        },
     }
 
     get_row_service_type = LocalBaserowGetRowUserServiceType()
@@ -866,3 +1114,369 @@ def test_local_baserow_table_service_type_get_context_data_schema(data_fixture):
             },
         },
     }
+
+
+@pytest.mark.django_db
+def test_local_baserow_view_service_type_prepare_values(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table_a = data_fixture.create_database_table(database=database)
+    view_a = data_fixture.create_grid_view(table=table_a)
+    table_b = data_fixture.create_database_table(database=database)
+    view_b = data_fixture.create_grid_view(table=table_b)
+
+    # We're just testing the `ViewServiceType`'s `prepare_values`, we don't
+    # want to test any additional requirements for list rows.
+    service_type = LocalBaserowViewServiceType
+    service_type.model_class = Mock()
+    instance = data_fixture.create_local_baserow_list_rows_service(
+        table=table_a, view=view_a
+    )
+
+    # Providing a `view_id` that does not exist.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values({"view_id": "123"}, user, instance)
+    assert str(exc.value.detail["detail"]) == "The view with ID 123 does not exist."
+
+    # Providing a `table`, no `view_id`, when the instance already
+    # points to a view, will cause the `view` values to be `None`.
+    assert service_type().prepare_values({"table": table_b}, user, instance) == {
+        "table": table_b,
+        "view": None,
+    }
+
+    # Providing a `view_id` and `table_id` when none have previously been set.
+    instance.view_id = None
+    instance.table_id = None
+    instance.save()
+    assert service_type().prepare_values(
+        {"table": table_a, "view_id": view_a.id}, user, instance
+    ) == {
+        "view": view_a.view_ptr,
+        "table": table_a,
+    }
+
+    # Providing a `view_id` when the instance and values don't contain a table.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values({"view_id": view_a.id}, user, instance)
+    assert (
+        str(exc.value.detail["detail"])
+        == "A table ID is required alongside the view ID."
+    )
+
+    # Providing a `view_id` when a `table_id` has previously been set, and the
+    # view belongs to the instance's table.
+    instance.view_id = view_a.id
+    instance.table_id = table_a.id
+    instance.save()
+    assert service_type().prepare_values({"view_id": view_a.id}, user, instance) == {
+        "view": view_a.view_ptr,
+        "table": table_a,
+    }
+
+    # Providing a `view_id` when a `table_id` has previously been set, and the
+    # view doesn't belong to the instance's table.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values({"view_id": view_b.id}, user, instance)
+    assert (
+        str(exc.value.detail[0])
+        == f"The view with ID {view_b.id} is not related to the given table {instance.table_id}."
+    )
+
+    # Providing a `view_id` and `table_id` when none was previously been set,
+    # and the view belongs to the provided table.
+    instance.view_id = None
+    instance.table_id = None
+    instance.save()
+    assert service_type().prepare_values(
+        {"view_id": view_a.id, "table": table_a}, user, instance
+    ) == {
+        "view": view_a.view_ptr,
+        "table": table_a,
+    }
+
+    # Providing a `view_id` and `table_id` when none was previously been set,
+    # and the `view_id` doesn't belong to the provided `table`.
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values(
+            {"view_id": view_a.id, "table": table_b}, user, instance
+        )
+    assert (
+        str(exc.value.detail[0])
+        == f"The view with ID {view_a.id} is not related to the given table {table_b.id}."
+    )
+
+
+@pytest.fixture
+def local_baserow_get_context_data_fixture(data_fixture):
+    """
+    Fixture to help test LocalBaserowTableServiceType's get_context_data()
+    and get_context_data_schema() methods.
+    """
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[("Ingredient", "text", {})],
+    )
+    field_handler = FieldHandler()
+    field = field_handler.create_field(
+        user=user,
+        table=table,
+        type_name="single_select",
+        name="Category",
+        select_options=[
+            {
+                "value": "Doom Red",
+                "color": "red",
+            },
+            {
+                "value": "Quake Green",
+                "color": "green",
+            },
+            {
+                "value": "Warcraft Blue",
+                "color": "blue",
+            },
+        ],
+    )
+
+    service_type = LocalBaserowGetRowUserServiceType()
+    service = data_fixture.create_local_baserow_get_row_service(
+        integration=integration,
+        table=table,
+    )
+
+    return {
+        "field": field,
+        "service": service,
+        "service_type": service_type,
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "allowed_fields_type,expect_none",
+    [
+        (
+            [],
+            True,
+        ),
+        (
+            None,
+            False,
+        ),
+        (
+            [0],
+            False,
+        ),
+    ],
+)
+def test_local_baserow_table_service_type_get_context_data_schema_excludes_fields(
+    local_baserow_get_context_data_fixture,
+    allowed_fields_type,
+    expect_none,
+):
+    """
+    Test the LocalBaserowTableServiceType's get_context_data_schema() method.
+
+    Ensure that when the optional allowed_fields list is supplied, any field
+    not in the list are excluded from the schema.
+    """
+
+    field = local_baserow_get_context_data_fixture["field"]
+    service = local_baserow_get_context_data_fixture["service"]
+    service_type = local_baserow_get_context_data_fixture["service_type"]
+
+    if allowed_fields_type is None:
+        allowed_fields = None
+    elif allowed_fields_type == []:
+        allowed_fields = []
+    else:
+        allowed_fields = [field.db_column]
+
+    schema = service_type.get_context_data_schema(
+        service, allowed_fields=allowed_fields
+    )
+
+    if expect_none:
+        assert schema is None
+    else:
+        assert schema == {
+            "properties": {
+                field.db_column: {
+                    "default": None,
+                    "items": {
+                        "properties": {
+                            "color": {
+                                "type": "string",
+                            },
+                            "id": {
+                                "type": "number",
+                            },
+                            "value": {
+                                "type": "string",
+                            },
+                        },
+                        "type": "object",
+                    },
+                    "title": "Category",
+                    "type": "array",
+                },
+            },
+            "title": f"Table{service.table_id}Schema",
+            "type": "object",
+        }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "allowed_fields_id_indexes,expect_empty_dict",
+    [
+        (
+            [],
+            True,
+        ),
+        (
+            [0],
+            False,
+        ),
+        (
+            None,
+            False,
+        ),
+    ],
+)
+def test_local_baserow_table_service_type_get_context_data_excludes_fields(
+    local_baserow_get_context_data_fixture,
+    allowed_fields_id_indexes,
+    expect_empty_dict,
+):
+    """
+    Test the LocalBaserowTableServiceType's get_context_data() method.
+
+    Ensure that when the optional allowed_fields list is supplied, any field
+    not in the list are excluded from the schema.
+    """
+
+    field = local_baserow_get_context_data_fixture["field"]
+    service = local_baserow_get_context_data_fixture["service"]
+    service_type = local_baserow_get_context_data_fixture["service_type"]
+
+    select_options = field.select_options.all()
+
+    if allowed_fields_id_indexes is None:
+        allowed_fields = None
+    elif allowed_fields_id_indexes == []:
+        allowed_fields = []
+    else:
+        allowed_fields = [field.db_column]
+
+    schema = service_type.get_context_data(service, allowed_fields=allowed_fields)
+
+    if expect_empty_dict:
+        assert schema == {}
+    else:
+        assert schema == {
+            field.db_column: [
+                {
+                    "color": option.color,
+                    "value": option.value,
+                    "id": option.id,
+                }
+                for option in select_options
+            ]
+        }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "allowed_fields_id_indexes,expect_empty_dict",
+    [
+        (
+            [],
+            True,
+        ),
+        (
+            [0],
+            False,
+        ),
+        (
+            None,
+            False,
+        ),
+    ],
+)
+def test_local_baserow_table_service_type_generate_schema_excludes_fields(
+    local_baserow_get_context_data_fixture,
+    allowed_fields_id_indexes,
+    expect_empty_dict,
+):
+    """
+    Test the LocalBaserowTableServiceType's generate_schema() method.
+
+    Ensure that when the optional allowed_fields list is supplied, any field
+    not in the list are excluded from the schema.
+    """
+
+    field = local_baserow_get_context_data_fixture["field"]
+    service = local_baserow_get_context_data_fixture["service"]
+    service_type = local_baserow_get_context_data_fixture["service_type"]
+
+    select_options = field.select_options.all()
+
+    if allowed_fields_id_indexes is None:
+        allowed_fields = None
+    elif allowed_fields_id_indexes == []:
+        allowed_fields = []
+    else:
+        allowed_fields = [field.db_column]
+
+    schema = service_type.generate_schema(service, allowed_fields=allowed_fields)
+
+    if expect_empty_dict:
+        assert schema == {
+            "properties": {
+                "id": {
+                    "filterable": False,
+                    "searchable": False,
+                    "sortable": False,
+                    "title": "Id",
+                    "type": "number",
+                },
+            },
+            "title": f"Table{service.table_id}Schema",
+            "type": "object",
+        }
+    else:
+        expected_select_options = [
+            {
+                "color": option.color,
+                "value": option.value,
+                "id": option.id,
+            }
+            for option in select_options
+        ]
+        expected_field_properties = {
+            "color": {"title": "color", "type": "string"},
+            "id": {"title": "id", "type": "number"},
+            "value": {"title": "value", "type": "string"},
+        }
+
+        assert (
+            schema["properties"][field.db_column]["metadata"]["select_options"]
+            == expected_select_options
+        )
+        assert (
+            schema["properties"][field.db_column]["properties"]
+            == expected_field_properties
+        )

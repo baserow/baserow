@@ -87,7 +87,7 @@ export default {
     decorationsByPlace: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => undefined,
     },
   },
   data() {

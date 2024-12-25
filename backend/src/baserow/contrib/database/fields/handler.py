@@ -35,6 +35,7 @@ from baserow.contrib.database.db.sql_queries import (
 from baserow.contrib.database.fields.constants import (
     RESERVED_BASEROW_FIELD_NAMES,
     UPSERT_OPTION_DICT_KEY,
+    DeleteFieldStrategyEnum,
 )
 from baserow.contrib.database.fields.field_converters import (
     MultipleSelectConversionConfig,
@@ -56,6 +57,7 @@ from baserow.core.models import TrashEntry
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.trash.registries import trash_item_type_registry
 from baserow.core.utils import (
     ChildProgressBuilder,
     extract_allowed,
@@ -441,6 +443,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 [field.id],
                 field_cache,
                 associated_relations_changed=True,
+                database_id_prefilter=field.table.database_id,
             )
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
@@ -717,6 +720,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             field=field,
             old_field=old_field,
             related_fields=updated_fields,
+            field_type_changed=baserow_field_type_changed,
             user=user,
         )
         update_collector.send_additional_field_updated_signals()
@@ -736,6 +740,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 [field.id],
                 field_cache,
                 associated_relations_changed=True,
+                database_id_prefilter=field.table.database_id,
             )
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
@@ -838,7 +843,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         field_cache: Optional[FieldCache] = None,
         apply_and_send_updates: Optional[bool] = True,
         allow_deleting_primary: Optional[bool] = False,
-        permanently_delete_field: Optional[bool] = False,
+        delete_strategy: DeleteFieldStrategyEnum = DeleteFieldStrategyEnum.TRASH,
     ) -> List[Field]:
         """
         Deletes an existing field if it is not a primary field.
@@ -856,11 +861,9 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             updates being applied and any signals from being sent.
         :param allow_deleting_primary: Set to true if its OK for a primary field
             to be deleted.
-        :param permanently_delete_field: If True, avoids to use
-            the trash system and directly calls delete for the field metadata
-            instead. In case we're not using the trash but just deleting the
-            field, we also skip the deletion of other related fields defined by
-            field_type.get_other_fields_to_trash_restore_always_together.
+        :param delete_strategy: Indicates how to delete the field. By default it's
+            trashed, but depending on the value is van also just delete the object, or
+            permanently delete it immediately.
         :raises ValueError: When the provided field is not an instance of Field.
         :raises CannotDeletePrimaryField: When we try to delete the primary
             field which cannot be deleted.
@@ -893,6 +896,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 [field.id],
                 field_cache,
                 associated_relations_changed=True,
+                database_id_prefilter=field.table.database_id,
             )
         )
         before_return = before_field_deleted.send(
@@ -905,7 +909,15 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
 
         FieldDependencyHandler.break_dependencies_delete_dependants(field)
 
-        if permanently_delete_field:
+        if delete_strategy == DeleteFieldStrategyEnum.PERMANENTLY_DELETE:
+            from baserow.contrib.database.trash.trash_types import (
+                FieldTrashableItemType,
+            )
+
+            trash_item_type_registry.get(
+                FieldTrashableItemType.type
+            ).permanently_delete_item(field)
+        elif delete_strategy == DeleteFieldStrategyEnum.DELETE_OBJECT:
             field.delete()
         else:
             existing_trash_entry = TrashHandler.trash(
@@ -922,7 +934,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             field, update_collector, field_cache, all_dependent_fields_grouped_by_depth
         )
 
-        if not permanently_delete_field:
+        if delete_strategy == DeleteFieldStrategyEnum.TRASH:
             field_type = field_type_registry.get_by_model(field)
             related_fields_to_trash = [
                 f
@@ -1198,6 +1210,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 [field.id],
                 field_cache,
                 associated_relations_changed=True,
+                database_id_prefilter=field.table.database_id,
             )
         )
 

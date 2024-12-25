@@ -1,4 +1,8 @@
+import _ from 'lodash'
+
 import { trueValues, falseValues } from '@baserow/modules/core/utils/constants'
+import { DATE_FORMATS } from '@baserow/modules/builder/enums'
+import moment from '@baserow/modules/core/moment'
 
 /**
  * Ensures that the value is an integer or can be converted to an integer.
@@ -46,7 +50,8 @@ export const ensureString = (value, { allowEmpty = true } = {}) => {
     value === null ||
     value === undefined ||
     value === '' ||
-    (Array.isArray(value) && !value.length)
+    (Array.isArray(value) && !value.length) ||
+    (typeof value === 'object' && _.isEmpty(value))
   ) {
     if (!allowEmpty) {
       throw new Error('A valid String is required.')
@@ -54,7 +59,11 @@ export const ensureString = (value, { allowEmpty = true } = {}) => {
     return ''
   }
   if (Array.isArray(value)) {
-    return value.flat(Infinity).join(',')
+    // convert item into a string recursively
+    const results = value.map((item) => ensureString(item))
+    return results.join(',')
+  } else if (typeof value === 'object') {
+    return JSON.stringify(value)
   }
   return `${value}`
 }
@@ -129,4 +138,19 @@ export const ensureBoolean = (value) => {
     return false
   }
   throw new Error('Value is not a valid boolean or convertible to a boolean.')
+}
+
+/**
+ * Ensures that the value is a valid datetime or convert it.
+ * @param {*} value - The value to ensure as a datetime
+ * @param {string} format - The format to use to parse the date.
+ * @returns {Date} - The converted value as a Date object.
+ * @throws {Error} if `value` is not a valid date representation.
+ */
+export const ensureDateTime = (value, format = DATE_FORMATS.ISO.format) => {
+  const momentObject = moment.utc(value, format)
+  if (!momentObject.isValid()) {
+    throw new Error('Value is not a valid date')
+  }
+  return momentObject.toDate()
 }

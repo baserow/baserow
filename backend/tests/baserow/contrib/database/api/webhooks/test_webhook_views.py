@@ -10,7 +10,7 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.contrib.database.webhooks.models import TableWebhook
+from baserow.contrib.database.webhooks.models import TableWebhook, TableWebhookEvent
 from baserow.core.utils import truncate_middle
 
 
@@ -144,7 +144,6 @@ def test_create_webhooks(api_client, data_fixture):
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
-    print(response.json())
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_TABLE_DOES_NOT_EXIST"
 
@@ -279,6 +278,80 @@ def test_create_webhooks(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_webhook_with_event_config(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+
+    response = api_client.post(
+        reverse("api:database:webhooks:list", kwargs={"table_id": table.id}),
+        {
+            "url": "https://mydomain.com/endpoint",
+            "name": "My Webhook",
+            "include_all_events": False,
+            "events": ["rows.updated"],
+            "event_config": [
+                {"event_type": "rows.updated", "fields": [field_1.id, field_2.id]},
+                # Will be omitted from the response because it's not included in the
+                # `events` property.
+                {"event_type": "rows.deleted", "fields": [field_2.id, field_3.id]},
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["use_user_field_names"] is True
+    assert response_json["url"] == "https://mydomain.com/endpoint"
+    assert response_json["request_method"] == "POST"
+    assert response_json["name"] == "My Webhook"
+    assert response_json["include_all_events"] is False
+    assert response_json["failed_triggers"] == 0
+    assert response_json["events"] == ["rows.updated"]
+    assert response_json["event_config"] == [
+        {"event_type": "rows.updated", "fields": [field_1.id, field_2.id]}
+    ]
+    assert response_json["headers"] == {}
+    assert response_json["calls"] == []
+
+    events = list(TableWebhookEvent.objects.all())
+    assert len(events) == 1
+    event_fields = list(events[0].fields.all().order_by("id"))
+    assert event_fields[0].id == field_1.id
+    assert event_fields[1].id == field_2.id
+
+
+@pytest.mark.django_db
+def test_create_webhook_with_event_config_unrelated_fields(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_3 = data_fixture.create_text_field()
+
+    response = api_client.post(
+        reverse("api:database:webhooks:list", kwargs={"table_id": table.id}),
+        {
+            "url": "https://mydomain.com/endpoint",
+            "name": "My Webhook",
+            "include_all_events": False,
+            "events": ["rows.updated"],
+            "event_config": [
+                {"event_type": "rows.updated", "fields": [field_3.id]},
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert (
+        response_json["error"] == "ERROR_TABLE_WEBHOOK_EVENT_CONFIG_FIELD_NOT_IN_TABLE"
+    )
+
+
+@pytest.mark.django_db
 def test_get_webhook(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     user_2, jwt_token_2 = data_fixture.create_user_and_token()
@@ -361,6 +434,7 @@ def test_update_webhook(api_client, data_fixture):
     assert response_json["include_all_events"] == webhook.include_all_events
     assert response_json["failed_triggers"] == 0
     assert response_json["events"] == []
+    assert response_json["event_config"] == []
     assert response_json["headers"] == {}
     assert response_json["calls"] == []
 
@@ -388,6 +462,9 @@ def test_update_webhook(api_client, data_fixture):
     assert response_json["include_all_events"] is False
     assert response_json["failed_triggers"] == 0
     assert response_json["events"] == ["rows.created"]
+    assert response_json["event_config"] == [
+        {"event_type": "rows.created", "fields": []}
+    ]
     assert response_json["headers"] == {"Baserow-add-1": "Value 1"}
     assert response_json["calls"] == []
 
@@ -405,6 +482,84 @@ def test_update_webhook(api_client, data_fixture):
     assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
     assert response_json["detail"]["headers"][0]["code"] == "invalid_http_header_name"
     assert response_json["detail"]["events"]["0"][0]["code"] == "invalid_choice"
+
+
+@pytest.mark.django_db
+def test_update_webhook_with_event_config(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    webhook = data_fixture.create_table_webhook(table=table)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+
+    response = api_client.patch(
+        reverse("api:database:webhooks:item", kwargs={"webhook_id": webhook.id}),
+        {
+            "url": "https://mydomain.com/endpoint",
+            "name": "My Webhook 2",
+            "include_all_events": False,
+            "events": ["rows.updated"],
+            "event_config": [
+                {"event_type": "rows.updated", "fields": [field_1.id, field_2.id]}
+            ],
+            "request_method": "PATCH",
+            "use_user_field_names": False,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["id"] == webhook.id
+    assert response_json["events"] == ["rows.updated"]
+    assert response_json["event_config"] == [
+        {"event_type": "rows.updated", "fields": [field_1.id, field_2.id]}
+    ]
+
+    response = api_client.patch(
+        reverse("api:database:webhooks:item", kwargs={"webhook_id": webhook.id}),
+        {
+            "events": ["rows.updated", "rows.deleted"],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["events"] == ["rows.updated", "rows.deleted"]
+    assert response_json["event_config"] == [
+        {"event_type": "rows.updated", "fields": [field_1.id, field_2.id]},
+        {"event_type": "rows.deleted", "fields": []},
+    ]
+
+    response = api_client.patch(
+        reverse("api:database:webhooks:item", kwargs={"webhook_id": webhook.id}),
+        {
+            "events": ["rows.deleted"],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["events"] == ["rows.deleted"]
+    assert response_json["event_config"] == [
+        {"event_type": "rows.deleted", "fields": []},
+    ]
+
+    response = api_client.patch(
+        reverse("api:database:webhooks:item", kwargs={"webhook_id": webhook.id}),
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["events"] == ["rows.deleted"]
+    assert response_json["event_config"] == [
+        {"event_type": "rows.deleted", "fields": []},
+    ]
 
 
 @pytest.mark.django_db

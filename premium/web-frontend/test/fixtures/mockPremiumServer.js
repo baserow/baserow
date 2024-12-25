@@ -1,10 +1,3 @@
-import {
-  aUser,
-  createUsersForAdmin,
-  expectUserDeleted,
-  expectUserUpdated,
-  expectUserUpdatedRespondsWithError,
-} from './user'
 import { thereAreComments } from './comments'
 import { createKanbanView, thereAreRowsInKanbanView } from './kanban'
 import { createCalendarView, thereAreRowsInCalendarView } from './calendar'
@@ -55,10 +48,6 @@ export default class MockPremiumServer extends MockServer {
     })
   }
 
-  thereAreUsers(users, page, options = {}) {
-    createUsersForAdmin(this.mock, users, page, options)
-  }
-
   thereAreRowsInKanbanView(fieldOptions, rows) {
     thereAreRowsInKanbanView(this.mock, fieldOptions, rows)
   }
@@ -69,22 +58,6 @@ export default class MockPremiumServer extends MockServer {
 
   thereAreComments(comments, tableId, rowId) {
     thereAreComments(this.mock, comments, tableId, rowId)
-  }
-
-  aUser(user = {}) {
-    return aUser(user)
-  }
-
-  expectUserDeleted(userId) {
-    expectUserDeleted(this.mock, userId)
-  }
-
-  expectUserUpdated(user, changes) {
-    expectUserUpdated(this.mock, user, changes)
-  }
-
-  expectUserUpdatedRespondsWithError(user, error) {
-    expectUserUpdatedRespondsWithError(this.mock, user, error)
   }
 
   expectPremiumViewUpdate(viewId, expectedContents) {

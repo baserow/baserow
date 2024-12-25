@@ -5,6 +5,7 @@ import de from '@baserow/modules/builder/locales/de.json'
 import es from '@baserow/modules/builder/locales/es.json'
 import it from '@baserow/modules/builder/locales/it.json'
 import pl from '@baserow/modules/builder/locales/pl.json'
+import ko from '@baserow/modules/builder/locales/ko.json'
 import {
   GeneralBuilderSettingsType,
   DomainsBuilderSettingsType,
@@ -38,9 +39,12 @@ import {
   FormContainerElementType,
   ChoiceElementType,
   CheckboxElementType,
+  DateTimePickerElementType,
   IFrameElementType,
   RepeatElementType,
   RecordSelectorElementType,
+  HeaderElementType,
+  FooterElementType,
 } from '@baserow/modules/builder/elementTypes'
 import {
   DesktopDeviceType,
@@ -65,7 +69,10 @@ import {
   CustomDomainType,
   SubDomainType,
 } from '@baserow/modules/builder/domainTypes'
-import { PagePageSettingsType } from '@baserow/modules/builder/pageSettingsTypes'
+import {
+  PagePageSettingsType,
+  PageVisibilitySettingsType,
+} from '@baserow/modules/builder/pageSettingsTypes'
 import {
   TextPathParamType,
   NumericPathParamType,
@@ -141,6 +148,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('es', es)
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
+    i18n.mergeLocaleMessage('ko', ko)
   }
 
   registerRealtimeEvents(app.$realtime)
@@ -203,10 +211,13 @@ export default (context) => {
   app.$registry.register('element', new ButtonElementType(context))
   app.$registry.register('element', new TableElementType(context))
   app.$registry.register('element', new ColumnElementType(context))
+  app.$registry.register('element', new HeaderElementType(context))
+  app.$registry.register('element', new FooterElementType(context))
   app.$registry.register('element', new FormContainerElementType(context))
   app.$registry.register('element', new InputTextElementType(context))
   app.$registry.register('element', new ChoiceElementType(context))
   app.$registry.register('element', new CheckboxElementType(context))
+  app.$registry.register('element', new DateTimePickerElementType(context))
   app.$registry.register('element', new RecordSelectorElementType(context))
   app.$registry.register('element', new RepeatElementType(context))
 
@@ -238,6 +249,10 @@ export default (context) => {
   app.$registry.register('domain', new SubDomainType(context))
 
   app.$registry.register('pageSettings', new PagePageSettingsType(context))
+  app.$registry.register(
+    'pageSettings',
+    new PageVisibilitySettingsType(context)
+  )
 
   app.$registry.register('pathParamType', new TextPathParamType(context))
   app.$registry.register('pathParamType', new NumericPathParamType(context))

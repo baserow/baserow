@@ -11,6 +11,7 @@ from freezegun import freeze_time
 from pyinstrument import Profiler
 
 from baserow.contrib.database.api.utils import (
+    extract_field_ids_from_list,
     extract_field_ids_from_string,
     extract_user_field_names_from_params,
     get_include_exclude_fields,
@@ -31,6 +32,19 @@ def test_get_field_ids_from_dict():
         "fieldd_3": "Not included",
     }
     assert handler.extract_field_ids_from_dict(fields_dict) == [1, 2, 3]
+
+
+def test_extract_field_ids_from_list():
+    assert extract_field_ids_from_list([]) == []
+    assert extract_field_ids_from_list(["not", "something"]) == []
+    assert extract_field_ids_from_list(["field_1", "field_2"]) == [1, 2]
+    assert extract_field_ids_from_list(["field_22", "test_8", "999"]) == [22, 999]
+    assert extract_field_ids_from_list(["field_22", "test_8", "999"], False) == [
+        22,
+        8,
+        999,
+    ]
+    assert extract_field_ids_from_list(["is", "1", "one"]) == [1]
 
 
 def test_extract_field_ids_from_string():
@@ -779,12 +793,18 @@ def test_update_rows_return_original_values_and_fields_metadata(data_fixture):
                 "type": "number",
                 "number_decimal_places": 0,
                 "number_negative": False,
+                "number_prefix": "",
+                "number_separator": "",
+                "number_suffix": "",
             },
             f"field_{price_field.id}": {
                 "id": price_field.id,
                 "type": "number",
                 "number_decimal_places": 2,
                 "number_negative": False,
+                "number_prefix": "",
+                "number_separator": "",
+                "number_suffix": "",
             },
         },
         rows[1].id: {
@@ -798,12 +818,18 @@ def test_update_rows_return_original_values_and_fields_metadata(data_fixture):
                 "type": "number",
                 "number_decimal_places": 0,
                 "number_negative": False,
+                "number_prefix": "",
+                "number_separator": "",
+                "number_suffix": "",
             },
             f"field_{price_field.id}": {
                 "id": price_field.id,
                 "type": "number",
                 "number_decimal_places": 2,
                 "number_negative": False,
+                "number_prefix": "",
+                "number_separator": "",
+                "number_suffix": "",
             },
         },
     }

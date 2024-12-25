@@ -22,9 +22,10 @@ export default {
     }
   },
   watch: {
-    copy(value) {
+    copy(newVal) {
       if (this.editing) {
-        this.$emit('edit', value, this.value)
+        const oldVal = this.value
+        this.$emit('edit', this.prepareValue(newVal), oldVal)
       }
     },
   },
@@ -145,8 +146,18 @@ export default {
       }
 
       this.editing = true
-      this.copy = value === null ? this.value : value
+      this.copy = this.prepareCopy(value === null ? this.value : value)
       this.afterEdit(event, value)
+    },
+    /**
+     * Method that can be called after initiating the edit state to prepare the
+     * component version of the value. This can be overridden in the component.
+     */
+    prepareCopy(value) {
+      return value
+    },
+    prepareValue(copy) {
+      return copy
     },
     /**
      * Method that can be called when in the editing state. It will bring the
@@ -162,7 +173,6 @@ export default {
       if (newValue === this.value) {
         return
       }
-
       this.$emit('update', newValue, this.value)
       this.afterSave()
     },
@@ -173,7 +183,7 @@ export default {
     cancel() {
       this.opened = false
       this.editing = false
-      this.copy = this.value
+      this.copy = this.prepareCopy(this.value)
       this.$emit('edit', this.value, this.value)
     },
     /**
@@ -221,7 +231,9 @@ export default {
       return !this.editing
     },
     getError() {
-      return this.getValidationError(this.editing ? this.copy : this.value)
+      return this.getValidationError(
+        this.editing ? this.prepareValue(this.copy) : this.value
+      )
     },
   },
 }

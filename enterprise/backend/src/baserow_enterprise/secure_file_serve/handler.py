@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
-from django.core.files.storage import default_storage
 from django.core.signing import BadSignature, SignatureExpired
 
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import ReadWorkspaceOperationType
+from baserow.core.storage import get_default_storage
 from baserow_enterprise.secure_file_serve.constants import SecureFileServePermission
 from baserow_enterprise.secure_file_serve.exceptions import SecureFileServeException
 from baserow_enterprise.secure_file_serve.storage import (
@@ -24,7 +24,8 @@ class SecureFile:
     path: str
 
     def open(self, mode="rb"):
-        return default_storage.open(self.path, mode)
+        storage = get_default_storage()
+        return storage.open(self.path, mode)
 
 
 class SecureFileServeHandler:
@@ -85,9 +86,10 @@ class SecureFileServeHandler:
                 raise SecureFileServeException("Can't access file")
 
     def get_file_path(self, data: SecureFileServeSignerPayload) -> str:
+        storage = get_default_storage()
         file_path = data.name
 
-        if not default_storage.exists(file_path):
+        if not storage.exists(file_path):
             raise SecureFileServeException("File does not exist")
         return file_path
 

@@ -4,7 +4,7 @@
       :fetch-page="fetchPage"
       :value="dropdownValue"
       :initial-display-name="initialDisplayName"
-      :class="{ 'dropdown--error': touched && !valid }"
+      :error="touched && !valid"
       :fetch-on-open="lazyLoad"
       :disabled="readOnly"
       :include-display-name-in-selected-event="true"

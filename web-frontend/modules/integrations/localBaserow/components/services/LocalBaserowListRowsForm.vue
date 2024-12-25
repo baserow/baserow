@@ -17,10 +17,9 @@
             class="data-source-form__condition-form-tab"
           >
             <LocalBaserowTableServiceConditionalForm
-              v-if="values.table_id && dataSource.schema"
+              v-if="values.table_id"
               v-model="dataSourceFilters"
-              :schema="dataSource.schema"
-              :table-loading="tableLoading"
+              :fields="tableFields"
               :filter-type.sync="values.filter_type"
             >
             </LocalBaserowTableServiceConditionalForm>
@@ -33,10 +32,9 @@
             class="data-source-form__sort-form-tab"
           >
             <LocalBaserowTableServiceSortForm
-              v-if="values.table_id && dataSource.schema"
+              v-if="values.table_id"
               v-model="dataSourceSortings"
-              :schema="dataSource.schema"
-              :table-loading="tableLoading"
+              :fields="tableFields"
             ></LocalBaserowTableServiceSortForm>
             <p v-if="!values.table_id">
               {{ $t('localBaserowListRowsForm.noTableChosenForSorting') }}
@@ -66,6 +64,7 @@ import LocalBaserowTableSelector from '@baserow/modules/integrations/localBasero
 import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceConditionalForm'
 import LocalBaserowTableServiceSortForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceSortForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
+import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
 
 export default {
   components: {
@@ -74,19 +73,7 @@ export default {
     LocalBaserowTableServiceSortForm,
     LocalBaserowTableServiceConditionalForm,
   },
-  mixins: [form],
-  inject: ['page'],
-  props: {
-    builder: {
-      type: Object,
-      required: true,
-    },
-    contextData: { type: Object, required: true },
-    dataSource: {
-      type: Object,
-      required: true,
-    },
-  },
+  mixins: [form, localBaserowService],
   data() {
     return {
       allowedValues: [
@@ -107,79 +94,6 @@ export default {
       },
       tableLoading: false,
     }
-  },
-  computed: {
-    dataSourceLoading() {
-      return this.$store.getters['dataSource/getLoading'](this.page)
-    },
-    dataSourceFilters: {
-      get() {
-        return this.excludeTrashedFields(this.values.filters)
-      },
-      set(newValue) {
-        this.values.filters = newValue
-      },
-    },
-    dataSourceSortings: {
-      get() {
-        return this.excludeTrashedFields(this.values.sortings)
-      },
-      set(newValue) {
-        this.values.sortings = newValue
-      },
-    },
-    fakeTableId: {
-      get() {
-        return this.values.table_id
-      },
-      set(newValue) {
-        // If we currently have a `table_id` selected, and the `newValue`
-        // is different to the current `table_id`, then reset the `filters`
-        // and `sortings` to a blank array, and `view_id` to `null`.
-        if (this.values.table_id && this.values.table_id !== newValue) {
-          this.values.filters = []
-          this.values.sortings = []
-          this.values.view_id = null
-        }
-        this.values.table_id = newValue
-      },
-    },
-    databases() {
-      return this.contextData?.databases || []
-    },
-  },
-  watch: {
-    'values.table_id'(newValue, oldValue) {
-      if (oldValue && newValue !== oldValue) {
-        this.tableLoading = true
-      }
-    },
-    dataSourceLoading: {
-      handler() {
-        this.tableLoading = false
-      },
-      immediate: true,
-    },
-  },
-  methods: {
-    /**
-     * Given an array of objects containing a `field` property (e.g. the data
-     * source filters or sortings arrays), this method will return a new array
-     * containing only the objects where the field is part of the schema, so,
-     * untrashed.
-     *
-     * @param {Array} value - The array of objects to filter.
-     * @returns {Array} - The filtered array.
-     */
-    excludeTrashedFields(value) {
-      const schema = this.dataSource.schema
-      const schemaProperties =
-        schema.type === 'array' ? schema.items.properties : schema.properties
-      const localBaserowFieldIds = Object.values(schemaProperties)
-        .filter(({ metadata }) => metadata)
-        .map((prop) => prop.metadata.id)
-      return value.filter(({ field }) => localBaserowFieldIds.includes(field))
-    },
   },
 }
 </script>

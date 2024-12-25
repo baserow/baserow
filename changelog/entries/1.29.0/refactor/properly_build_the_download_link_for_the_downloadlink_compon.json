@@ -1,0 +1,7 @@
+{
+    "type": "refactor",
+    "message": "Properly build the download link for the DownloadLink frontend component.",
+    "issue_number": null,
+    "bullet_points": [],
+    "created_at": "2024-10-14"
+}

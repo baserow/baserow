@@ -1,0 +1,176 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "baserow_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "total_files": {
+      "type": "integer"
+    },
+    "configuration": {
+      "type": "object",
+      "properties": {
+        "only_structure": {
+          "type": "boolean"
+        }
+      },
+      "required": ["only_structure"]
+    },
+    "applications": {
+      "type": "object",
+      "properties": {
+        "database": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "configuration": {
+              "type": "object"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "uuid": {
+                    "type": "string"
+                  },
+                  "total_files": {
+                    "type": "integer"
+                  },
+                  "files": {
+                    "type": "object",
+                    "properties": {
+                      "schema": {
+                          "type": "string"
+                      }
+                    },
+                    "required": ["schema"]
+                  }
+                },
+                "required": ["id", "type", "name", "uuid", "files"]
+              }
+            }
+          }
+        },
+        "dashboard": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "configuration": {
+              "type": "object"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "uuid": {
+                    "type": "string"
+                  },
+                  "total_files": {
+                    "type": "integer"
+                  },
+                  "files":{
+                    "type": "object",
+                    "properties": {
+                      "schema": {
+                          "type": "string"
+                      }
+                    },
+                    "required": ["schema"]
+                  }
+                },
+                "required": ["id", "type", "name", "uuid", "files"]
+              }
+            }
+          }
+        },
+        "builder": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "configuration": {
+              "type": "object"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "uuid": {
+                    "type": "string"
+                  },
+                  "total_files": {
+                    "type": "integer"
+                  },
+                  "files": {
+                    "type": "object",
+                    "properties": {
+                      "schema": {
+                          "type": "string"
+                      }
+                    },
+                    "required": ["schema"]
+                  }
+                },
+                "required": ["id", "type", "name", "uuid", "files"]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "checksums": {
+    "type": "object",
+    "patternProperties": {
+      ".*": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "required": ["version", "configuration", "applications",  "checksums"]
+}

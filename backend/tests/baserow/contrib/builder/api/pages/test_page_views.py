@@ -356,6 +356,21 @@ def test_update_page_page_does_not_exist(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_shared_page(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    shared_page = builder.shared_page
+
+    url = reverse("api:builder:pages:item", kwargs={"page_id": shared_page.id})
+    response = api_client.patch(
+        url, {"name": "test"}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SHARED_PAGE_READ_ONLY"
+
+
+@pytest.mark.django_db
 def test_update_page_duplicate_page_name(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)
@@ -592,6 +607,27 @@ def test_order_pages_page_not_in_builder(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_order_pages_shared_page(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    shared_page = builder.shared_page
+    page_one = data_fixture.create_builder_page(builder=builder, order=1)
+
+    url = reverse(
+        "api:builder:builder_id:pages:order", kwargs={"builder_id": builder.id}
+    )
+    response = api_client.post(
+        url,
+        {"page_ids": [shared_page.id, page_one.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_PAGE_NOT_IN_BUILDER"
+
+
+@pytest.mark.django_db
 def test_order_pages_application_does_not_exist(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)
@@ -656,3 +692,20 @@ def test_delete_page_page_not_exist(api_client, data_fixture):
 
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_PAGE_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_delete_shared_page(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    shared_page = builder.shared_page
+
+    url = reverse("api:builder:pages:item", kwargs={"page_id": shared_page.id})
+    response = api_client.delete(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SHARED_PAGE_READ_ONLY"

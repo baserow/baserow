@@ -1,0 +1,611 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-07-16 13:47+0000\n"
+"PO-Revision-Date: 2024-12-04 17:00+0000\n"
+"Last-Translator: 0v0 <0v0tvs@gmail.com>\n"
+"Language-Team: Korean <https://hosted.weblate.org/projects/baserow/"
+"backend-database/ko/>\n"
+"Language: ko\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 5.9-dev\n"
+
+#: src/baserow/contrib/database/action/scopes.py:9
+#, python-format
+msgid "in database \"%(database_name)s\" (%(database_id)s)."
+msgstr "데이터베이스 \"%(database_name)s\" (%(database_id)s)에서."
+
+#: src/baserow/contrib/database/action/scopes.py:13
+#, python-format
+msgid ""
+"in table \"%(table_name)s\" (%(table_id)s) of database "
+"\"%(database_name)s\" (%(database_id)s)."
+msgstr "데이터베이스 \"%(database_name)s\" (%(database_id)s)의 테이블 \"%(table_name)s\" (%(table_id)s)에서."
+
+#: src/baserow/contrib/database/action/scopes.py:19
+#, python-format
+msgid ""
+"in view \"%(view_name)s\" (%(view_id)s) of table "
+"\"%(table_name)s\" (%(table_id)s) in database "
+"\"%(database_name)s\" (%(database_id)s)."
+msgstr "데이터베이스 \"%(database_name)s\" (%(database_id)s)의 테이블 \"%(table_name)s\" (%(table_id)s)의 뷰 \"%(view_name)s\" (%(view_id)s)에서."
+
+#: src/baserow/contrib/database/airtable/actions.py:22
+msgid "Import database from Airtable"
+msgstr "Airtable에서 데이터베이스 가져오기"
+
+#: src/baserow/contrib/database/airtable/actions.py:24
+#, python-format
+msgid ""
+"Imported database "
+"\"%(installed_application_name)s\" (%(installed_application_id)s) from "
+"Airtable share ID \"%(airtable_share_id)s\""
+msgstr "Airtable 공유 ID \"%(airtable_share_id)s\"에서 데이터베이스 \"%(installed_application_name)s\" (%(installed_application_id)s)를 가져왔습니다"
+
+#: src/baserow/contrib/database/application_types.py:236
+msgid "Table"
+msgstr "테이블"
+
+#: src/baserow/contrib/database/export/actions.py:20
+msgid "Export Table"
+msgstr "테이블 내보내기"
+
+#: src/baserow/contrib/database/export/actions.py:21
+#, python-format
+msgid "View \"%(view_name)s\" (%(view_id)s) exported to %(export_type)s"
+msgstr "뷰 \"%(view_name)s\" (%(view_id)s)를 %(export_type)s로 내보냈습니다"
+
+#: src/baserow/contrib/database/export/actions.py:89
+#, python-format
+msgid "Table \"%(table_name)s\" (%(table_id)s) exported to %(export_type)s"
+msgstr "테이블 \"%(table_name)s\" (%(table_id)s)를 %(export_type)s로 내보냈습니다"
+
+#: src/baserow/contrib/database/fields/actions.py:36
+msgid "Update field"
+msgstr "필드 업데이트"
+
+#: src/baserow/contrib/database/fields/actions.py:37
+#, python-format
+msgid "Field \"%(field_name)s\" (%(field_id)s) updated"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)가 업데이트되었습니다"
+
+#: src/baserow/contrib/database/fields/actions.py:340
+msgid "Create field"
+msgstr "필드 생성"
+
+#: src/baserow/contrib/database/fields/actions.py:341
+#, python-format
+msgid "Field \"%(field_name)s\" (%(field_id)s) created"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)가 생성되었습니다"
+
+#: src/baserow/contrib/database/fields/actions.py:434
+msgid "Delete field"
+msgstr "필드 삭제"
+
+#: src/baserow/contrib/database/fields/actions.py:435
+#, python-format
+msgid "Field \"%(field_name)s\" (%(field_id)s) deleted"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)가 삭제되었습니다"
+
+#: src/baserow/contrib/database/fields/actions.py:507
+msgid "Duplicate field"
+msgstr "필드 복제"
+
+#: src/baserow/contrib/database/fields/actions.py:509
+#, python-format
+msgid ""
+"Field \"%(field_name)s\" (%(field_id)s) duplicated (with_data=%(with_data)s) "
+"from field \"%(original_field_name)s\" (%(original_field_id)s)"
+msgstr "필드 \"%(original_field_name)s\" (%(original_field_id)s)에서 필드 \"%(field_name)s\" (%(field_id)s)가 복제되었습니다 (with_data=%(with_data)s)"
+
+#: src/baserow/contrib/database/fields/actions.py:592
+msgid "Change primary field"
+msgstr "기본 필드 변경"
+
+#: src/baserow/contrib/database/fields/actions.py:594
+#, python-format
+msgid ""
+"Primary field of table %(table_name)s was changed to "
+"%(new_primary_field_name)s"
+msgstr "테이블 %(table_name)s의 기본 필드가 %(new_primary_field_name)s로 변경되었습니다"
+
+#: src/baserow/contrib/database/fields/models.py:371
+#: src/baserow/contrib/database/fields/models.py:519
+msgid "The format of the duration."
+msgstr "기간의 형식입니다."
+
+#: src/baserow/contrib/database/fields/notification_types.py:53
+#, python-format
+msgid ""
+"%(sender)s assigned you to %(field_name)s in row %(row_name)s in "
+"%(table_name)s."
+msgstr "%(sender)s님이 %(table_name)s의 행 %(row_name)s의 %(field_name)s에 당신을 할당했습니다."
+
+#: src/baserow/contrib/database/fields/notification_types.py:181
+#, python-format
+msgid ""
+"%(sender)s mentioned you in %(field_name)s in row %(row_name)s in "
+"%(table_name)s."
+msgstr "%(sender)s님이 %(table_name)s의 행 %(row_name)s의 %(field_name)s에서 당신을 언급했습니다."
+
+#: src/baserow/contrib/database/plugins.py:46
+#, python-format
+msgid "%(first_name)s's company"
+msgstr "%(first_name)s의 회사"
+
+#: src/baserow/contrib/database/plugins.py:53
+msgid "Customers"
+msgstr "고객"
+
+#: src/baserow/contrib/database/plugins.py:55
+#: src/baserow/contrib/database/plugins.py:77
+#: src/baserow/contrib/database/table/handler.py:624
+#: src/baserow/contrib/database/table/handler.py:637
+msgid "Name"
+msgstr "이름"
+
+#: src/baserow/contrib/database/plugins.py:56
+msgid "Last name"
+msgstr "성"
+
+#: src/baserow/contrib/database/plugins.py:57
+#: src/baserow/contrib/database/table/handler.py:625
+msgid "Notes"
+msgstr "노트"
+
+#: src/baserow/contrib/database/plugins.py:58
+#: src/baserow/contrib/database/plugins.py:79
+#: src/baserow/contrib/database/table/handler.py:626
+msgid "Active"
+msgstr "활성"
+
+#: src/baserow/contrib/database/plugins.py:75
+msgid "Projects"
+msgstr "프로젝트"
+
+#: src/baserow/contrib/database/plugins.py:78
+msgid "Started"
+msgstr "시작됨"
+
+#: src/baserow/contrib/database/plugins.py:84
+msgid "Calculator"
+msgstr "계산기"
+
+#: src/baserow/contrib/database/plugins.py:85
+msgid "Turing machine"
+msgstr "튜링 기계"
+
+#: src/baserow/contrib/database/plugins.py:86
+msgid "Computer architecture"
+msgstr "컴퓨터 아키텍처"
+
+#: src/baserow/contrib/database/plugins.py:87
+msgid "Cellular Automata"
+msgstr "셀룰러 오토마타"
+
+#: src/baserow/contrib/database/rows/actions.py:32
+msgid "Create row"
+msgstr "행 생성"
+
+#: src/baserow/contrib/database/rows/actions.py:32
+#, python-format
+msgid "Row (%(row_id)s) created"
+msgstr "행 (%(row_id)s)이 생성되었습니다"
+
+#: src/baserow/contrib/database/rows/actions.py:117
+msgid "Create rows"
+msgstr "행 생성"
+
+#: src/baserow/contrib/database/rows/actions.py:117
+#, python-format
+msgid "Rows (%(row_ids)s) created"
+msgstr "행 (%(row_ids)s)이 생성되었습니다"
+
+#: src/baserow/contrib/database/rows/actions.py:203
+msgid "Import rows"
+msgstr "행 가져오기"
+
+#: src/baserow/contrib/database/rows/actions.py:203
+#, python-format
+msgid "Rows (%(row_ids)s) imported"
+msgstr "행 (%(row_ids)s)이 가져와졌습니다"
+
+#: src/baserow/contrib/database/rows/actions.py:284
+msgid "Delete row"
+msgstr "행 삭제"
+
+#: src/baserow/contrib/database/rows/actions.py:284
+#, python-format
+msgid "Row (%(row_id)s) deleted"
+msgstr "행 (%(row_id)s)이 삭제되었습니다"
+
+#: src/baserow/contrib/database/rows/actions.py:350
+msgid "Delete rows"
+msgstr "행 삭제"
+
+#: src/baserow/contrib/database/rows/actions.py:350
+#, python-format
+msgid "Rows (%(row_ids)s) deleted"
+msgstr "행 (%(row_ids)s)이 삭제되었습니다"
+
+#: src/baserow/contrib/database/rows/actions.py:497
+msgid "Move row"
+msgstr "행 이동"
+
+#: src/baserow/contrib/database/rows/actions.py:497
+#, python-format
+msgid "Row (%(row_id)s) moved"
+msgstr "행 (%(row_id)s)이 이동되었습니다"
+
+#: src/baserow/contrib/database/rows/actions.py:607
+msgid "Update row"
+msgstr "행 업데이트"
+
+#: src/baserow/contrib/database/rows/actions.py:607
+#, python-format
+msgid "Row (%(row_id)s) updated"
+msgstr "행 (%(row_id)s)이 업데이트되었습니다"
+
+#: src/baserow/contrib/database/rows/actions.py:707
+msgid "Update rows"
+msgstr "행 업데이트"
+
+#: src/baserow/contrib/database/rows/actions.py:707
+#, python-format
+msgid "Rows (%(row_ids)s) updated"
+msgstr "행 (%(row_ids)s)이 업데이트되었습니다"
+
+#: src/baserow/contrib/database/table/actions.py:26
+msgid "Create table"
+msgstr "테이블 생성"
+
+#: src/baserow/contrib/database/table/actions.py:27
+#, python-format
+msgid "Table \"%(table_name)s\" (%(table_id)s) created"
+msgstr "테이블 \"%(table_name)s\" (%(table_id)s)이 생성되었습니다"
+
+#: src/baserow/contrib/database/table/actions.py:104
+msgid "Delete table"
+msgstr "테이블 삭제"
+
+#: src/baserow/contrib/database/table/actions.py:105
+#, python-format
+msgid "Table \"%(table_name)s\" (%(table_id)s) deleted"
+msgstr "테이블 \"%(table_name)s\" (%(table_id)s)이 삭제되었습니다"
+
+#: src/baserow/contrib/database/table/actions.py:160
+msgid "Order tables"
+msgstr "테이블 순서 변경"
+
+#: src/baserow/contrib/database/table/actions.py:161
+msgid "Tables order changed"
+msgstr "테이블 순서가 변경되었습니다"
+
+#: src/baserow/contrib/database/table/actions.py:224
+msgid "Update table"
+msgstr "테이블 업데이트"
+
+#: src/baserow/contrib/database/table/actions.py:226
+#, python-format
+msgid ""
+"Table (%(table_id)s) name changed from \"%(original_table_name)s\" to "
+"\"%(table_name)s\""
+msgstr "테이블 (%(table_id)s)의 이름이 \"%(original_table_name)s\"에서 \"%(table_name)s\"로 변경되었습니다"
+
+#: src/baserow/contrib/database/table/actions.py:296
+msgid "Duplicate table"
+msgstr "테이블 복제"
+
+#: src/baserow/contrib/database/table/actions.py:298
+#, python-format
+msgid ""
+"Table \"%(table_name)s\" (%(table_id)s) duplicated from "
+"\"%(original_table_name)s\" (%(original_table_id)s) "
+msgstr "테이블 \"%(table_name)s\" (%(table_id)s)이 \"%(original_table_name)s\" (%(original_table_id)s)에서 복제되었습니다 "
+
+#: src/baserow/contrib/database/table/handler.py:528
+msgid "Grid"
+msgstr "그리드"
+
+#: src/baserow/contrib/database/table/handler.py:586
+#, python-format
+msgid "Field %d"
+msgstr "필드 %d"
+
+#: src/baserow/contrib/database/tokens/actions.py:21
+msgid "Create DB token"
+msgstr "DB 토큰 생성"
+
+#: src/baserow/contrib/database/tokens/actions.py:23
+#, python-format
+msgid ""
+"A Database Token with name \"%(token_name)s\" (%(token_id)s) has been created"
+msgstr "이름이 \"%(token_name)s\" (%(token_id)s)인 데이터베이스 토큰이 생성되었습니다"
+
+#: src/baserow/contrib/database/tokens/actions.py:58
+msgid "Update DB token name"
+msgstr "DB 토큰 이름 업데이트"
+
+#: src/baserow/contrib/database/tokens/actions.py:60
+#, python-format
+msgid ""
+"The Database Token (%(token_name)s) name changed from "
+"\"%(original_token_name)s\" to \"%(token_name)s\""
+msgstr "데이터베이스 토큰 (%(token_name)s)의 이름이 \"%(original_token_name)s\"에서 \"%(token_name)s\"로 변경되었습니다"
+
+#: src/baserow/contrib/database/tokens/actions.py:102
+msgid "Update DB token permissions"
+msgstr "DB 토큰 권한 업데이트"
+
+#: src/baserow/contrib/database/tokens/actions.py:104
+#, python-format
+msgid ""
+"The Database Token \"%(token_name)s\" (%(token_id)s) permissions has been "
+"updated"
+msgstr "데이터베이스 토큰 \"%(token_name)s\" (%(token_id)s)의 권한이 업데이트되었습니다"
+
+#: src/baserow/contrib/database/tokens/actions.py:163
+msgid "Rotate DB token key"
+msgstr "DB 토큰 키 교체"
+
+#: src/baserow/contrib/database/tokens/actions.py:164
+#, python-format
+msgid "The Database Token \"%(token_name)s\" (%(token_id)s) has been rotated"
+msgstr "데이터베이스 토큰 \"%(token_name)s\" (%(token_id)s)가 교체되었습니다"
+
+#: src/baserow/contrib/database/tokens/actions.py:200
+msgid "Delete DB token"
+msgstr "DB 토큰 삭제"
+
+#: src/baserow/contrib/database/tokens/actions.py:201
+#, python-format
+msgid "The Database Token \"%(token_name)s\" (%(token_id)s) has been deleted"
+msgstr "데이터베이스 토큰 \"%(token_name)s\" (%(token_id)s)가 삭제되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:42
+msgid "Create a view filter"
+msgstr "뷰 필터 생성"
+
+#: src/baserow/contrib/database/views/actions.py:43
+#, python-format
+msgid "View filter created on field \"%(field_name)s\" (%(field_id)s)"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)에 뷰 필터가 생성되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:152
+msgid "Update a view filter"
+msgstr "뷰 필터 업데이트"
+
+#: src/baserow/contrib/database/views/actions.py:153
+#, python-format
+msgid "View filter updated on field \"%(field_name)s\" (%(field_id)s)"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)의 뷰 필터가 업데이트되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:284
+msgid "Delete a view filter"
+msgstr "뷰 필터 삭제"
+
+#: src/baserow/contrib/database/views/actions.py:285
+#, python-format
+msgid "View filter deleted from field \"%(field_name)s\" (%(field_id)s)"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)의 뷰 필터가 삭제되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:394
+msgid "Create a view filter group"
+msgstr "뷰 필터 그룹 생성"
+
+#: src/baserow/contrib/database/views/actions.py:395
+msgid "View filter group created"
+msgstr "뷰 필터 그룹이 생성되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:488
+msgid "Update a view filter group"
+msgstr "뷰 필터 그룹 업데이트"
+
+#: src/baserow/contrib/database/views/actions.py:489
+#, python-format
+msgid "View filter group updated to \"%(filter_type)s\""
+msgstr "뷰 필터 그룹이 \"%(filter_type)s\"로 업데이트되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:589
+msgid "Delete a view filter group"
+msgstr "뷰 필터 그룹 삭제"
+
+#: src/baserow/contrib/database/views/actions.py:590
+msgid "View filter group deleted"
+msgstr "뷰 필터 그룹이 삭제되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:744
+msgid "Create a view sort"
+msgstr "뷰 정렬 생성"
+
+#: src/baserow/contrib/database/views/actions.py:745
+#, python-format
+msgid "View sorted on field \"%(field_name)s\" (%(field_id)s)"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)에 뷰가 정렬되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:829
+msgid "Update a view sort"
+msgstr "뷰 정렬 업데이트"
+
+#: src/baserow/contrib/database/views/actions.py:830
+#, python-format
+msgid "View sort updated on field \"%(field_name)s\" (%(field_id)s)"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)의 뷰 정렬이 업데이트되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:938
+msgid "Delete a view sort"
+msgstr "뷰 정렬 삭제"
+
+#: src/baserow/contrib/database/views/actions.py:939
+#, python-format
+msgid "View sort deleted from field \"%(field_name)s\" (%(field_id)s)"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)의 뷰 정렬이 삭제되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1024
+msgid "Order views"
+msgstr "뷰 순서 변경"
+
+#: src/baserow/contrib/database/views/actions.py:1024
+msgid "Views order changed"
+msgstr "뷰 순서가 변경되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1095
+msgid "Update view field options"
+msgstr "뷰 필드 옵션 업데이트"
+
+#: src/baserow/contrib/database/views/actions.py:1096
+msgid "ViewFieldOptions updated"
+msgstr "뷰 필드 옵션이 업데이트되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1197
+msgid "View slug URL updated"
+msgstr "뷰 슬러그 URL 업데이트"
+
+#: src/baserow/contrib/database/views/actions.py:1198
+msgid "View changed public slug URL"
+msgstr "뷰의 공개 슬러그 URL이 변경되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1271
+msgid "Update view"
+msgstr "뷰 업데이트"
+
+#: src/baserow/contrib/database/views/actions.py:1272
+#, python-format
+msgid "View \"%(view_name)s\" (%(view_id)s) updated"
+msgstr "뷰 \"%(view_name)s\" (%(view_id)s)가 업데이트되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1353
+msgid "Create view"
+msgstr "뷰 생성"
+
+#: src/baserow/contrib/database/views/actions.py:1354
+#, python-format
+msgid "View \"%(view_name)s\" (%(view_id)s) created"
+msgstr "뷰 \"%(view_name)s\" (%(view_id)s)가 생성되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1428
+msgid "Duplicate view"
+msgstr "뷰 복제"
+
+#: src/baserow/contrib/database/views/actions.py:1430
+#, python-format
+msgid ""
+"View \"%(view_name)s\" (%(view_id)s) duplicated from view "
+"\"%(original_view_name)s\" (%(original_view_id)s)"
+msgstr "뷰 \"%(view_name)s\" (%(view_id)s)가 뷰 \"%(original_view_name)s\" (%(original_view_id)s)에서 복제되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1504
+msgid "Delete view"
+msgstr "뷰 삭제"
+
+#: src/baserow/contrib/database/views/actions.py:1505
+#, python-format
+msgid "View \"%(view_name)s\" (%(view_id)s) deleted"
+msgstr "뷰 \"%(view_name)s\" (%(view_id)s)가 삭제되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1567
+msgid "Create decoration"
+msgstr "장식 생성"
+
+#: src/baserow/contrib/database/views/actions.py:1568
+#, python-format
+msgid "View decoration %(decorator_id)s created"
+msgstr "뷰 장식 %(decorator_id)s가 생성되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1672
+msgid "Update decoration"
+msgstr "장식 업데이트"
+
+#: src/baserow/contrib/database/views/actions.py:1673
+#, python-format
+msgid "View decoration %(decorator_id)s updated"
+msgstr "뷰 장식 %(decorator_id)s가 업데이트되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1810
+msgid "Delete decoration"
+msgstr "장식 삭제"
+
+#: src/baserow/contrib/database/views/actions.py:1811
+#, python-format
+msgid "View decoration %(decorator_id)s deleted"
+msgstr "뷰 장식 %(decorator_id)s가 삭제되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:1907
+msgid "Create a view group"
+msgstr "뷰 그룹 생성"
+
+#: src/baserow/contrib/database/views/actions.py:1908
+#, python-format
+msgid "View grouped on field \"%(field_name)s\" (%(field_id)s)"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)에 뷰가 그룹화되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:2008
+msgid "Update a view group"
+msgstr "뷰 그룹 업데이트"
+
+#: src/baserow/contrib/database/views/actions.py:2009
+#, python-format
+msgid "View group by updated on field \"%(field_name)s\" (%(field_id)s)"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)의 뷰 그룹이 업데이트되었습니다"
+
+#: src/baserow/contrib/database/views/actions.py:2137
+msgid "Delete a view group"
+msgstr "뷰 그룹 삭제"
+
+#: src/baserow/contrib/database/views/actions.py:2138
+#, python-format
+msgid "View group by deleted from field \"%(field_name)s\" (%(field_id)s)"
+msgstr "필드 \"%(field_name)s\" (%(field_id)s)의 뷰 그룹이 삭제되었습니다"
+
+#: src/baserow/contrib/database/views/notification_types.py:84
+#, python-format
+msgid "%(form_name)s has been submitted in %(table_name)s"
+msgstr "%(table_name)s에서 %(form_name)s이(가) 제출되었습니다"
+
+#: src/baserow/contrib/database/views/notification_types.py:101
+#, python-format
+msgid "and 1 more field"
+msgid_plural "and %(count)s more fields"
+msgstr[0] "그리고 %(count)s개의 추가 필드"
+
+#: src/baserow/contrib/database/webhooks/actions.py:20
+msgid "Create Webhook"
+msgstr "웹훅 생성"
+
+#: src/baserow/contrib/database/webhooks/actions.py:22
+#, python-format
+msgid ""
+"Webhook \"%(webhook_name)s\" (%(webhook_id)s) as %(webhook_request_method)s "
+"to %(webhook_url)s\" created"
+msgstr "Webhook \"%(webhook_name)s\" (%(webhook_id)s)가 %(webhook_request_method)s로 %(webhook_url)s에 생성되었습니다"
+
+#: src/baserow/contrib/database/webhooks/actions.py:88
+msgid "Delete Webhook"
+msgstr "Webhook 삭제"
+
+#: src/baserow/contrib/database/webhooks/actions.py:90
+#, python-format
+msgid ""
+"Webhook \"%(webhook_name)s\" (%(webhook_id)s) as %(webhook_request_method)s "
+"to %(webhook_url)s\" deleted"
+msgstr "Webhook \"%(webhook_name)s\" (%(webhook_id)s)가 %(webhook_request_method)s로 %(webhook_url)s에서 삭제되었습니다"
+
+#: src/baserow/contrib/database/webhooks/actions.py:152
+msgid "Update Webhook"
+msgstr "Webhook 업데이트"
+
+#: src/baserow/contrib/database/webhooks/actions.py:154
+#, python-format
+msgid ""
+"Webhook \"%(webhook_name)s\" (%(webhook_id)s) as %(webhook_request_method)s "
+"to %(webhook_url)s\" updated"
+msgstr "Webhook \"%(webhook_name)s\" (%(webhook_id)s)가 %(webhook_request_method)s로 %(webhook_url)s에 업데이트되었습니다"

@@ -43,7 +43,8 @@
     },
     "serviceType": {
         "localBaserowGetRow": "Rij ophalen",
-        "localBaserowListRows": "Rijen ophalen"
+        "localBaserowListRows": "Rijen ophalen",
+        "localBaserowAggregateRows": "Veld samenvatten"
     },
     "userSourceType": {
         "localBaserow": "Baserow tabel authenticatie"
@@ -68,5 +69,17 @@
         "localBaserowWarning": "Door jouw account te autoriseren krijgt iedereen die bewerkingsrechten heeft voor de applicatie volledige toegang tot de gegevens waar jij toegang tot hebt. Het is mogelijk om een tweede gebruiker aan te maken, de juiste rechten te geven en die te gebruiken.",
         "localBaserowSummary": "Lokaal Baserow - {name}, {username}",
         "localBaserowNoUser": "Lokale Baserow - Niet geconfigureerd"
+    },
+    "integrationsCommon": {
+        "singleRow": "enkele rij",
+        "multipleRows": "meerdere rijen"
+    },
+    "localBaserowAggregateRowsForm": {
+        "filterTabTitle": "Filters",
+        "searchTabTitle": "Zoeken",
+        "aggregationFieldLabel": "Veld",
+        "aggregationTypeLabel": "Aggregatie",
+        "searchFieldPlaceHolder": "Voer een zoekterm in...",
+        "noTableChosenForFiltering": "Kies een tabel om te beginnen met het gebruik van gegevensbronfilters."
     }
 }

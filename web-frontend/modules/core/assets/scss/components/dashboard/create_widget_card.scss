@@ -1,0 +1,37 @@
+.create-widget-card {
+  max-width: 116px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    cursor: pointer;
+    text-decoration: none;
+  }
+}
+
+.create-widget-card__name {
+  color: $palette-neutral-1200;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.create-widget-card__img-container {
+  padding: 16px 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 6px;
+  border: 1px solid #ededed;
+  background: #fafafa;
+  box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
+}
+
+.create-widget-card:hover .create-widget-card__img-container {
+  border: 1px solid #d7d8d9;
+  background: #f7f7f7;
+}

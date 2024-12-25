@@ -8,6 +8,7 @@ import de from './locales/de.json'
 import it from './locales/it.json'
 import es from './locales/es.json'
 import pl from './locales/pl.json'
+import ko from './locales/ko.json'
 
 export default function DatabaseModule(options) {
   this.addPlugin({ src: path.resolve(__dirname, 'middleware.js') })
@@ -23,6 +24,6 @@ export default function DatabaseModule(options) {
   })
 
   this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
-    additionalMessages.push({ en, fr, nl, de, it, es, pl })
+    additionalMessages.push({ en, fr, nl, de, it, es, pl, ko })
   })
 }

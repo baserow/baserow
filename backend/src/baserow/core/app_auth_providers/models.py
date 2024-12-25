@@ -37,4 +37,4 @@ class AppAuthProvider(BaseAuthProviderModel, HierarchicalModelMixin):
         return app_auth_provider_type_registry
 
     class Meta:
-        ordering = ["domain", "id"]
+        ordering = ["id"]

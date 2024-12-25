@@ -78,7 +78,7 @@ export default {
       // It might be possible that the view also has some stores that need to be
       // filled with initial data, so we're going to call the fetch function here.
       const type = app.$registry.get('view', view.type)
-      await type.fetch({ store }, database, view, fields, 'page/')
+      await type.fetch({ store, app }, database, view, fields, 'page/')
       return {
         database,
         table,

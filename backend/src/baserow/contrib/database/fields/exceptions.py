@@ -289,3 +289,15 @@ class ImmutableFieldProperties(Exception):
     Raised when trying to change any of the field properties and the field properties
     are immutable.
     """
+
+
+class SelectOptionDoesNotBelongToField(Exception):
+    """
+    Raised when the provided select option does not belong to the select options
+    in the field.
+    """
+
+    def __init__(self, select_option_id=None, field_id=None, *args, **kwargs):
+        self.select_option_id = select_option_id
+        self.field_id = field_id
+        super().__init__(*args, **kwargs)

@@ -1,7 +1,11 @@
+import os
+from dataclasses import dataclass
 from datetime import date
 from io import BytesIO
+from typing import Dict, List, Type
 
 from django.apps.registry import apps
+from django.contrib.auth.models import AbstractUser
 from django.db import connection
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
@@ -21,6 +25,7 @@ from baserow.contrib.database.fields.field_types import MultipleSelectFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import (
     EmailField,
+    Field,
     MultipleSelectField,
     NumberField,
     SelectOption,
@@ -29,7 +34,9 @@ from baserow.contrib.database.fields.models import (
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils import DeferredForeignKeyUpdater
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import GridView
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.test_utils.helpers import AnyInt
@@ -2538,86 +2545,56 @@ def test_get_group_by_metadata_in_rows_with_many_to_many_field(data_fixture):
         color="blue",
     )
 
-    RowHandler().create_row(
+    RowHandler().force_create_rows(
         user=user,
         table=table,
-        values={
-            f"field_{text_field.id}": "Row 1",
-            f"field_{multiple_select_field.id}": [],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 2",
-            f"field_{multiple_select_field.id}": [],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 3",
-            f"field_{multiple_select_field.id}": [select_option_1.id],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 4",
-            f"field_{multiple_select_field.id}": [select_option_1.id],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 5",
-            f"field_{multiple_select_field.id}": [select_option_2.id],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 6",
-            f"field_{multiple_select_field.id}": [select_option_2.id],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 7",
-            f"field_{multiple_select_field.id}": [
-                select_option_1.id,
-                select_option_2.id,
-            ],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 8",
-            f"field_{multiple_select_field.id}": [
-                select_option_1.id,
-                select_option_2.id,
-            ],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 9",
-            f"field_{multiple_select_field.id}": [
-                select_option_2.id,
-                select_option_1.id,
-            ],
-        },
+        rows_values=[
+            {
+                f"field_{text_field.id}": "Row 1",
+                f"field_{multiple_select_field.id}": [],
+            },
+            {
+                f"field_{text_field.id}": "Row 2",
+                f"field_{multiple_select_field.id}": [],
+            },
+            {
+                f"field_{text_field.id}": "Row 3",
+                f"field_{multiple_select_field.id}": [select_option_1.id],
+            },
+            {
+                f"field_{text_field.id}": "Row 4",
+                f"field_{multiple_select_field.id}": [select_option_1.id],
+            },
+            {
+                f"field_{text_field.id}": "Row 5",
+                f"field_{multiple_select_field.id}": [select_option_2.id],
+            },
+            {
+                f"field_{text_field.id}": "Row 6",
+                f"field_{multiple_select_field.id}": [select_option_2.id],
+            },
+            {
+                f"field_{text_field.id}": "Row 7",
+                f"field_{multiple_select_field.id}": [
+                    select_option_1.id,
+                    select_option_2.id,
+                ],
+            },
+            {
+                f"field_{text_field.id}": "Row 8",
+                f"field_{multiple_select_field.id}": [
+                    select_option_1.id,
+                    select_option_2.id,
+                ],
+            },
+            {
+                f"field_{text_field.id}": "Row 9",
+                f"field_{multiple_select_field.id}": [
+                    select_option_2.id,
+                    select_option_1.id,
+                ],
+            },
+        ],
     )
 
     model = table.get_model()
@@ -2760,91 +2737,61 @@ def test_get_group_by_metadata_in_rows_multiple_and_single_select_fields(data_fi
         color="blue",
     )
 
-    RowHandler().create_row(
+    RowHandler().force_create_rows(
         user=user,
         table=table,
-        values={
-            f"field_{text_field.id}": "Row 1",
-            f"field_{multiple_select_field.id}": [],
-            f"field_{single_select_field.id}": None,
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 2",
-            f"field_{multiple_select_field.id}": [],
-            f"field_{single_select_field.id}": ss_option_1.id,
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 3",
-            f"field_{multiple_select_field.id}": [ms_option_1.id],
-            f"field_{single_select_field.id}": ss_option_1.id,
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 4",
-            f"field_{multiple_select_field.id}": [ms_option_1.id],
-            f"field_{single_select_field.id}": ss_option_2.id,
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 5",
-            f"field_{multiple_select_field.id}": [ms_option_2.id],
-            f"field_{single_select_field.id}": ss_option_2.id,
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 6",
-            f"field_{multiple_select_field.id}": [ms_option_2.id],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 7",
-            f"field_{multiple_select_field.id}": [
-                ms_option_1.id,
-                ms_option_2.id,
-            ],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 8",
-            f"field_{multiple_select_field.id}": [
-                ms_option_1.id,
-                ms_option_2.id,
-            ],
-        },
-    )
-    RowHandler().create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{text_field.id}": "Row 9",
-            f"field_{multiple_select_field.id}": [
-                ms_option_2.id,
-                ms_option_1.id,
-            ],
-        },
+        rows_values=[
+            {
+                f"field_{text_field.id}": "Row 1",
+                f"field_{multiple_select_field.id}": [],
+                f"field_{single_select_field.id}": None,
+            },
+            {
+                f"field_{text_field.id}": "Row 2",
+                f"field_{multiple_select_field.id}": [],
+                f"field_{single_select_field.id}": ss_option_1.id,
+            },
+            {
+                f"field_{text_field.id}": "Row 3",
+                f"field_{multiple_select_field.id}": [ms_option_1.id],
+                f"field_{single_select_field.id}": ss_option_1.id,
+            },
+            {
+                f"field_{text_field.id}": "Row 4",
+                f"field_{multiple_select_field.id}": [ms_option_1.id],
+                f"field_{single_select_field.id}": ss_option_2.id,
+            },
+            {
+                f"field_{text_field.id}": "Row 5",
+                f"field_{multiple_select_field.id}": [ms_option_2.id],
+                f"field_{single_select_field.id}": ss_option_2.id,
+            },
+            {
+                f"field_{text_field.id}": "Row 6",
+                f"field_{multiple_select_field.id}": [ms_option_2.id],
+            },
+            {
+                f"field_{text_field.id}": "Row 7",
+                f"field_{multiple_select_field.id}": [
+                    ms_option_1.id,
+                    ms_option_2.id,
+                ],
+            },
+            {
+                f"field_{text_field.id}": "Row 8",
+                f"field_{multiple_select_field.id}": [
+                    ms_option_1.id,
+                    ms_option_2.id,
+                ],
+            },
+            {
+                f"field_{text_field.id}": "Row 9",
+                f"field_{multiple_select_field.id}": [
+                    ms_option_2.id,
+                    ms_option_1.id,
+                ],
+            },
+        ],
     )
 
     model = table.get_model()
@@ -2940,3 +2887,369 @@ def test_get_group_by_metadata_in_rows_multiple_and_single_select_fields(data_fi
             ]
         ),
     }
+
+
+@pytest.mark.django_db
+def test_multiple_select_field_type_get_order_collate(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    multiple_select_field = data_fixture.create_multiple_select_field(
+        table=table, name="option_field", order=1, primary=True
+    )
+
+    model = table.get_model()
+
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    with open(
+        dir_path + "/../../../../../../tests/all_chars.txt", mode="r", encoding="utf-8"
+    ) as f:
+        all_chars = f.read()
+    with open(
+        dir_path + "/../../../../../../tests/sorted_chars.txt",
+        mode="r",
+        encoding="utf-8",
+    ) as f:
+        sorted_chars = f.read()
+
+    options, rows = [], []
+    for char in all_chars:
+        options.append(
+            SelectOption(field=multiple_select_field, value=char, color="blue", order=0)
+        )
+        rows.append(model())
+
+    options = SelectOption.objects.bulk_create(options)
+    rows = model.objects.bulk_create(rows)
+
+    relations = []
+    field_name = f"field_{multiple_select_field.id}"
+
+    for row, option in zip(rows, options):
+        relation, _ = RowHandler()._prepare_m2m_field_related_objects(
+            row, field_name, [option.id]
+        )
+        relations.extend(relation)
+
+    getattr(model, field_name).through.objects.bulk_create(relations)
+
+    queryset = (
+        model.objects.all()
+        .order_by_fields_string(field_name)
+        .prefetch_related(field_name)
+    )
+    result = ""
+    for char in queryset:
+        result += getattr(char, field_name).all()[0].value
+
+    assert result == sorted_chars
+
+
+@dataclass
+class ViewWithFieldsSetup:
+    user: AbstractUser
+    table: Table
+    grid_view: GridView
+    fields: Dict[str, Field]
+    model: Type[GeneratedTableModel]
+    rows: List[Type[GeneratedTableModel]]
+    options: List[SelectOption]
+
+
+def setup_view_for_multiple_select_field(data_fixture, option_values):
+    """
+    Setup a view with a multiple select field and some options. `field_name` must be one
+    of the following: "multiple_select", "ref_multiple_select",
+    "ref_ref_multiple_select".
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    multiple_select_field = data_fixture.create_multiple_select_field(
+        table=table, name="multiple_select"
+    )
+    formula_field = data_fixture.create_formula_field(
+        table=table, formula="field('multiple_select')", name="ref_multiple_select"
+    )
+    ref_formula_field = data_fixture.create_formula_field(
+        table=table,
+        formula="field('ref_multiple_select')",
+        name="ref_ref_multiple_select",
+    )
+
+    options = [
+        data_fixture.create_select_option(field=multiple_select_field, value=value)
+        if value
+        else None
+        for value in option_values
+    ]
+
+    model = table.get_model()
+
+    def prep_row(options):
+        if options is None:
+            return {}
+        return {multiple_select_field.db_column: [opt.id for opt in options]}
+
+    rows = RowHandler().force_create_rows(
+        user,
+        table,
+        [prep_row([option] if option is not None else None) for option in options],
+        model=model,
+    )
+
+    fields = {
+        "multiple_select": multiple_select_field,
+        "ref_multiple_select": formula_field,
+        "ref_ref_multiple_select": ref_formula_field,
+    }
+
+    return ViewWithFieldsSetup(
+        user=user,
+        table=table,
+        grid_view=grid_view,
+        fields=fields,
+        model=model,
+        rows=rows,
+        options=options,
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["multiple_select", "ref_multiple_select", "ref_ref_multiple_select"]
+)
+def test_multiple_select_has_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_multiple_select_field(
+        data_fixture, ["AAA", "AAB", "ABB", "BBB", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    field = test_setup.fields[field_name]
+    rows = test_setup.rows
+    (option_1, option_2, option_3, option_4, _) = test_setup.options
+    options = (option_1, option_2, option_3, option_4)
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view,
+        field=field,
+        type="multiple_select_has",
+        value=f"{option_1.id},{option_2.id}",
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # only two last (ABB, BBB) are selected
+    assert len(ids) == 2
+    # first two rows only
+    assert set([r.id for r in rows[:2]]) == set(ids)
+
+    # no match values
+    view_filter.value = ""
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # all rows are visible because the value is empty.
+    assert len(ids) == 5
+
+    # no match values
+    view_filter.value = "12345678,12345679,12345680"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # all rows are filtered out
+    assert ids == []
+
+    # no match values
+    view_filter.value = "true,false"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # all rows are filtered out
+    assert len(ids) == 0
+
+    view_filter.value = ",".join([str(o.id) for o in options])
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    # all the rows with an option are selected
+    assert len(ids) == 4
+    assert set(ids) == set([o.id for o in rows[:4]])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["multiple_select", "ref_multiple_select", "ref_ref_multiple_select"]
+)
+def test_multiple_select_is_empty_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_multiple_select_field(
+        data_fixture,
+        ["A", "B", None],
+    )
+
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="empty"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_3.id in ids
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["multiple_select", "ref_multiple_select", "ref_ref_multiple_select"]
+)
+def test_multiple_select_is_not_empty_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_multiple_select_field(data_fixture, ["A", "B", None])
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="not_empty"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["multiple_select", "ref_multiple_select", "ref_ref_multiple_select"]
+)
+def test_multiple_select_contains_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_multiple_select_field(
+        data_fixture, ["A", "AA", "B", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3, _ = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="contains", value="A"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+
+    view_filter.value = "AA"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_2.id in ids
+
+    view_filter.value = "B"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_3.id in ids
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["multiple_select", "ref_multiple_select", "ref_ref_multiple_select"]
+)
+def test_multiple_select_contains_not_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_multiple_select_field(
+        data_fixture, ["A", "AA", "B", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3, row_4 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="contains_not", value="A"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_3.id in ids
+    assert row_4.id in ids
+
+    view_filter.value = "AA"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert ids == unordered([row_1.id, row_3.id, row_4.id])
+
+    view_filter.value = "B"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+    assert ids == unordered([row_1.id, row_2.id, row_4.id])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["multiple_select", "ref_multiple_select", "ref_ref_multiple_select"]
+)
+def test_multiple_select_contains_word_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_multiple_select_field(
+        data_fixture, ["A", "AA", "B", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3, row_4 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="contains_word", value="A"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_1.id in ids
+
+    view_filter.value = "AA"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_2.id in ids
+
+    view_filter.value = "B"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_3.id in ids
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name", ["multiple_select", "ref_multiple_select", "ref_ref_multiple_select"]
+)
+def test_multiple_select_doest_contains_word_filter_type(field_name, data_fixture):
+    test_setup = setup_view_for_multiple_select_field(
+        data_fixture, ["A", "AA", "B", None]
+    )
+    handler = ViewHandler()
+    grid_view = test_setup.grid_view
+    model = test_setup.model
+    row_1, row_2, row_3, row_4 = test_setup.rows
+    field = test_setup.fields[field_name]
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=field, type="doesnt_contain_word", value="A"
+    )
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+    assert ids == unordered([row_2.id, row_3.id, row_4.id])
+
+    view_filter.value = "AA"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+    assert ids == unordered([row_1.id, row_3.id, row_4.id])
+
+    view_filter.value = "B"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+    assert ids == unordered([row_1.id, row_2.id, row_4.id])

@@ -1,4 +1,16 @@
-from typing import TYPE_CHECKING, Any, Dict, List, NoReturn, Optional, Set, Tuple, Union
+from functools import cached_property
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    NoReturn,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
@@ -11,8 +23,10 @@ from django.db import models as django_models
 from django.db.models import (
     BooleanField,
     CharField,
+    Count,
     DurationField,
     Expression,
+    F,
     IntegerField,
     JSONField,
     Model,
@@ -30,6 +44,11 @@ from rest_framework import serializers
 from baserow.contrib.database.fields.constants import UPSERT_OPTION_DICT_KEY
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
 from baserow.contrib.database.types import SerializedRowHistoryFieldMetadata
+from baserow.contrib.database.views.exceptions import (
+    AggregationTypeAlreadyRegistered,
+    AggregationTypeDoesNotExist,
+)
+from baserow.contrib.database.views.utils import AnnotatedAggregation
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     APIUrlsInstanceMixin,
@@ -46,6 +65,7 @@ from baserow.core.registry import (
 from .exceptions import (
     FieldTypeAlreadyRegistered,
     FieldTypeDoesNotExist,
+    IncompatibleField,
     ReadOnlyFieldHasNoInternalDbValueError,
 )
 from .fields import DurationFieldUsingPostgresFormatting
@@ -195,6 +215,10 @@ class FieldType(
         returned value will be used. It is also possible to raise validation errors if
         the value is incorrect.
 
+        Note that a LinkRowFieldType may call this method internally with any value.
+        Field type should validate value's type and contents here and raise a proper
+        ValidationError.
+
         :param instance: The field instance.
         :param value: The value that needs to be inserted or updated.
         :return: The modified value that is going to be saved in the database.
@@ -301,6 +325,18 @@ class FieldType(
         :type name: str
         :return: The enhanced queryset.
         :rtype: QuerySet
+        """
+
+        return queryset
+
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        """
+        This hook can be used to enhance a queryset when fetching multiple fields of a
+        table. This is used when retrieving the fields of a table in the table view
+        to, for example, retrieve the primary field of the related table for the link
+        row field.
         """
 
         return queryset
@@ -796,7 +832,11 @@ class FieldType(
         """
 
     def get_order(
-        self, field, field_name, order_direction
+        self,
+        field: Type[Field],
+        field_name: str,
+        order_direction: str,
+        table_model: Optional["GeneratedTableModel"] = None,
     ) -> OptionallyAnnotatedOrderBy:
         """
         This hook can be called to generate a different order by expression.
@@ -810,17 +850,15 @@ class FieldType(
         get_value_for_filter method.
 
         :param field: The related field object instance.
-        :type field: Field
         :param field_name: The name of the field.
-        :type field_name: str
-        :param order_direction: The sort order direction.
-        :type order_direction: str (Either "ASC" or "DESC")
+        :param order_direction: The sort order direction (either "ASC" or "DESC").
+        :param table_model: The table model instance that the field is part of,
+            if available.
         :return: Either the expression that is added directly to the
             model.objects.order(), an AnnotatedOrderBy class or None.
-        :rtype: Optional[Expression, AnnotatedOrderBy, None]
         """
 
-        field_expr = django_models.F(field_name)
+        field_expr = self.get_sortable_column_expression(field, field_name)
 
         if order_direction == "ASC":
             field_order_by = field_expr.asc(nulls_first=True)
@@ -897,6 +935,7 @@ class FieldType(
             "id": field.id,
             "type": self.type,
             "name": field.name,
+            "description": field.description,
             "order": field.order,
             "primary": field.primary,
             "read_only": field.read_only,
@@ -962,7 +1001,7 @@ class FieldType(
         field_id = serialized_copy.pop("id")
         serialized_copy.pop("type")
         select_options = (
-            serialized_copy.pop("select_options")
+            serialized_copy.pop("select_options", [])
             if self.can_have_select_options
             else []
         )
@@ -1517,6 +1556,37 @@ class FieldType(
 
         return self._can_be_primary_field
 
+    @cached_property
+    def _can_filter_by(self) -> bool:
+        """
+        Responsible for returning whether any view filter types are compatible
+        with this field type.
+        """
+
+        from baserow.contrib.database.views.registries import view_filter_type_registry
+
+        compatible_view_filters = [
+            view_filter_type
+            for view_filter_type in view_filter_type_registry.get_all()
+            if self.type in view_filter_type.compatible_field_types
+        ]
+
+        return len(compatible_view_filters) > 0
+
+    def check_can_filter_by(self, field: Field) -> bool:
+        """
+        Override this method if this field type can sometimes be filtered or sometimes
+        cannot be filtered depending on the individual field state. By default will just
+        return the bool property _can_filter_by so if your field type doesn't depend
+        on the field state and is always just True or False just set _can_filter_by
+        to the desired value.
+
+        :param field: The field to check to see if it can be filtered by or not.
+        :return: True if a view can be filtered by this field, False otherwise.
+        """
+
+        return self._can_filter_by
+
     def check_can_order_by(self, field: Field) -> bool:
         """
         Override this method if this field type can sometimes be ordered or sometimes
@@ -1544,6 +1614,21 @@ class FieldType(
         """
 
         return self._can_group_by
+
+    def get_sortable_column_expression(
+        self, field: Field, field_name: str
+    ) -> Expression | F:
+        """
+        Returns the expression that can be used to sort the field in the database.
+        By default, it will just return the field name, but for example for a
+        SingleSelectField, the select option value should be returned.
+
+        :param field: The field where to get the sortable column expression for.
+        :param field_name: The name of the field in the table.
+        :return: The expression that can be used to sort the field in the database.
+        """
+
+        return F(field_name)
 
     def get_group_by_field_unique_value(
         self, field: Field, field_name: str, value: Any
@@ -1676,6 +1761,16 @@ class FieldType(
 
         return False
 
+    def can_represent_files(self, field):
+        """Indicates whether the field can be used to represent a file."""
+
+        return False
+
+    def can_represent_select_options(self, field):
+        """Indicates whether the field can be used to represent select options."""
+
+        return False
+
     def get_permission_error_when_user_changes_field_to_depend_on_forbidden_field(
         self, user: AbstractUser, changed_field: Field, forbidden_field: Field
     ) -> Exception:
@@ -1799,6 +1894,21 @@ class ManyToManyGroupByMixin:
     that the field type must set the `_can_group_by` property to `True`.
     """
 
+    def _get_group_by_agg_expression(self, field_name: str) -> Expression:
+        """
+        Returns the aggregation expression that can be used to group by the field. By
+        default it will return an ArrayAgg expression that will aggregate all the
+        related field values.
+
+        :param field_name: The name of the field in the table.
+        :return: The aggregation expression that can be used to group by the field.
+        """
+
+        return ArrayAgg(
+            f"{field_name}__id",
+            filter=Q(**{f"{field_name}__isnull": False}),
+        )
+
     def get_group_by_field_unique_value(
         self, field: Field, field_name: str, value: Any
     ) -> Any:
@@ -1815,10 +1925,7 @@ class ManyToManyGroupByMixin:
                 base_queryset.filter(id=OuterRef("id"))
                 .annotate(
                     res=Coalesce(
-                        ArrayAgg(
-                            f"{field_name}__id",
-                            filter=Q(**{f"{field_name}__id__isnull": False}),
-                        ),
+                        self._get_group_by_agg_expression(field_name),
                         Value([], output_field=ArrayField(IntegerField())),
                     ),
                 )
@@ -1986,7 +2093,148 @@ class FieldConverterRegistry(Registry):
         return None
 
 
+class FieldAggregationType(Instance):
+    """
+    FieldAggregationType represents a specific aggregation that can be
+    done on values from supported fields. It is expected that
+    instances set 'compatible_field_types' and 'raw_type' class
+    attributes.
+    """
+
+    result_type = "string"
+    """Informs features which use field aggregation types what the aggregation
+    result type be. At the moment the result is always a string, but in the future
+    if we generated an array for example, the result type would be 'array'."""
+
+    with_total = False
+    """Determines if the result of the aggregation needs to
+    be computed using the total count of rows."""
+
+    def aggregate(self, queryset: QuerySet, model_field, field: Field):
+        """
+        The main method to call to aggregate values for a field.
+
+        :param queryset: The queryset to select only the rows that should
+            be aggregated.
+        :param model_field: The Django model field of the field that
+            the aggregation is for.
+        :param field: The field that the aggregation is for.
+        """
+
+        if self.field_is_compatible(field) is False:
+            raise IncompatibleField()
+
+        aggregation_dict = self._get_aggregation_dict(queryset, model_field, field)
+
+        # Check if the returned aggregations contain a `AnnotatedAggregation`,
+        # and if so, apply the annotations and only keep the actual aggregation in
+        # the dict. This is needed because some aggregations require annotated values
+        # before they work.
+        for key, value in aggregation_dict.items():
+            if isinstance(value, AnnotatedAggregation):
+                queryset = queryset.annotate(**value.annotations)
+                aggregation_dict[key] = value.aggregation
+
+        results = queryset.aggregate(**aggregation_dict)
+        return self._compute_final_aggregation(
+            results[f"{field.db_column}_raw"], results.get("total", None)
+        )
+
+    def field_is_compatible(self, field: "Field") -> bool:
+        """
+        Given a particular instance of a field returns whether the field is supported
+        by this aggregation type or not.
+
+        :param field: The field to check.
+        :return: True if the field is compatible, False otherwise.
+        """
+
+        from baserow.contrib.database.fields.registries import field_type_registry
+
+        field_type = field_type_registry.get_by_model(field.specific_class)
+
+        return any(
+            callable(t) and t(field) or t == field_type.type
+            for t in self.compatible_field_types
+        )
+
+    def _get_raw_aggregation(
+        self, model_field: django_models.Field, field: Field
+    ) -> django_models.Aggregate:
+        """
+        Returns the raw aggregation that should be used for the field aggregation
+        type.
+
+        :param model_field: The Django model field of the field that
+            the aggregation is for.
+        :param field: The field that the aggregation is for.
+        """
+
+        return self.raw_type().get_aggregation(field.db_column, model_field, field)
+
+    def _get_aggregation_dict(
+        self, queryset: QuerySet, model_field: django_models.Field, field: Field
+    ) -> dict:
+        """
+        Returns a dictinary defining the aggregation for the queryset.aggregate
+        call.
+
+        :param queryset: The queryset to select only the rows that should
+            be aggregated.
+        :param model_field: The Django model field of the field that
+            the aggregation is for.
+        :param field: The field that the aggregation is for.
+        """
+
+        aggregation = self._get_raw_aggregation(model_field, field.specific)
+        aggregation_dict = {f"{field.db_column}_raw": aggregation}
+        # Check if the returned aggregations contain a `AnnotatedAggregation`,
+        # and if so, apply the annotations and only keep the actual aggregation in
+        # the dict. This is needed because some aggregations require annotated values
+        # before they work.
+        if isinstance(aggregation, AnnotatedAggregation):
+            queryset = queryset.annotate(**aggregation.annotations)
+            aggregation_dict[field.db_column] = aggregation.aggregation
+
+        if self.with_total:
+            aggregation_dict["total"] = Count("id", distinct=True)
+
+        return aggregation_dict
+
+    def _compute_final_aggregation(self, raw_aggregation_result, total_count: int):
+        """
+        For field aggregation types that require 'with_total' the number of all
+        rows to compute the final number this method will be called to compute
+        the final result. It can be overridden for each field aggregation type
+        to make the correct computation.
+
+        :param raw_aggregation_result: The result of raw aggregation.
+        :param total_count: The total number of rows.
+        """
+
+        if self.with_total:
+            if total_count == 0:
+                return 0
+            return (raw_aggregation_result / total_count) * 100
+        return raw_aggregation_result
+
+
+class FieldAggregationTypeRegistry(Registry):
+    """
+    The main registry for storing field aggregation types. This is different
+    from the older ViewAggregationTypeRegistry that stores
+    raw_aggregation types.
+    """
+
+    name = "field_aggregations"
+    does_not_exist_exception_class = AggregationTypeDoesNotExist
+    already_registered_exception_class = AggregationTypeAlreadyRegistered
+
+
 # A default field type registry is created here, this is the one that is used
 # throughout the whole Baserow application to add a new field type.
 field_type_registry: FieldTypeRegistry = FieldTypeRegistry()
 field_converter_registry: FieldConverterRegistry = FieldConverterRegistry()
+field_aggregation_registry: FieldAggregationTypeRegistry = (
+    FieldAggregationTypeRegistry()
+)

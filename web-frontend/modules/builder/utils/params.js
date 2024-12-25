@@ -17,15 +17,15 @@ export function defaultValueForParameterType(type) {
  * points to a page, and then the page's parameters are altered.
  *
  * @param {Object} element The element's properties we'll validate.
- * @param {Object} builder A builder application.
+ * @param {Object} pages Page of this application.
  * @returns {Boolean} Whether this resolvedUrl is external.
  */
-export function pathParametersInError(element, builder) {
+export function pathParametersInError(element, pages) {
   if (
     element.navigation_type === 'page' &&
     !isNaN(element.navigate_to_page_id)
   ) {
-    const destinationPage = builder.pages.find(
+    const destinationPage = pages.find(
       ({ id }) => id === element.navigate_to_page_id
     )
 

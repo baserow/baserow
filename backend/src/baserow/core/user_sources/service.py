@@ -65,11 +65,11 @@ class UserSourceService:
         self, user: AbstractUser, user_source_uid: str, for_authentication: bool = False
     ) -> UserSource:
         """
-        Returns an user_source instance from the database. Also checks the user
+        Returns a user_source instance from the database. Also checks the user
         permissions.
 
         :param user: The user trying to get the user_source.
-        :param user_source_id: The ID of the user_source.
+        :param user_source_uid: The uid of the user_source.
         :param for_authentication: If true we check a different permission.
         :return: The user_source instance.
         """
@@ -184,8 +184,7 @@ class UserSourceService:
 
         :param user: The user trying to update the user_source.
         :param user_source: The user_source that should be updated.
-        :param values: The values that should be set on the user_source.
-        :param kwargs: Additional attributes of the user_source.
+        :param kwargs: The values that should be set on the user_source.
         :return: The updated user_source.
         """
 
@@ -196,15 +195,27 @@ class UserSourceService:
             context=user_source,
         )
 
-        prepared_values = user_source.get_type().prepare_values(
-            kwargs, user, user_source
+        user_source_type: UserSourceType = user_source.get_type()
+        prepared_values = user_source_type.prepare_values(kwargs, user, user_source)
+
+        # Detect if a user re-count is required. Per user source type
+        # we track which properties changing triggers a recount.
+        trigger_user_count_update = (
+            user_source_type.after_user_source_update_requires_user_recount(
+                user_source, prepared_values
+            )
         )
 
         user_source = self.handler.update_user_source(
-            user_source.get_type(), user_source, **prepared_values
+            user_source_type, user_source, **prepared_values
         )
 
-        user_source.get_type().after_update(user, user_source, prepared_values)
+        user_source_type.after_update(
+            user,
+            user_source,
+            prepared_values,
+            trigger_user_count_update=trigger_user_count_update,
+        )
 
         user_source_updated.send(self, user_source=user_source, user=user)
 

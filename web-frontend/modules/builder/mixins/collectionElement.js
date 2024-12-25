@@ -6,9 +6,13 @@ import _ from 'lodash'
 export default {
   data() {
     return {
+      adhocFilters: undefined,
+      adhocSortings: undefined,
+      adhocSearch: undefined,
       currentOffset: 0,
       errorNotified: false,
       resetTimeout: null,
+      contentFetchEnabled: true,
     }
   },
   computed: {
@@ -17,16 +21,21 @@ export default {
       getHasMorePage: 'elementContent/getHasMorePage',
       getElementContent: 'elementContent/getElementContent',
       getReset: 'elementContent/getReset',
-      getPageDataSourceById: 'dataSource/getPageDataSourceById',
+      getPagesDataSourceById: 'dataSource/getPagesDataSourceById',
+      getSharedPage: 'page/getSharedPage',
     }),
     reset() {
       return this.getReset(this.element)
+    },
+    sharedPage() {
+      return this.getSharedPage(this.builder)
     },
     dataSource() {
       if (!this.element.data_source_id) {
         return null
       }
-      return this.getPageDataSourceById(this.page, this.element.data_source_id)
+      const pages = [this.currentPage, this.sharedPage]
+      return this.getPagesDataSourceById(pages, this.element.data_source_id)
     },
     dataSourceType() {
       if (!this.dataSource) {
@@ -49,9 +58,19 @@ export default {
         this.applicationContext
       )
     },
+    elementHasSourceOfData() {
+      return this.elementType.hasSourceOfData(this.element)
+    },
+    adhocRefinements() {
+      return {
+        filters: this.adhocFilters,
+        sortings: this.adhocSortings,
+        search: this.adhocSearch,
+      }
+    },
     elementIsInError() {
       return this.elementType.isInError({
-        page: this.page,
+        page: this.elementPage,
         element: this.element,
         builder: this.builder,
       })
@@ -80,25 +99,27 @@ export default {
       },
       deep: true,
     },
+    adhocRefinements: {
+      handler(newValue, prevValue) {
+        if (!_.isEqual(newValue, prevValue)) {
+          this.debouncedReset()
+        }
+      },
+    },
   },
-  async mounted() {
+  async fetch() {
     if (!this.elementIsInError && this.elementType.fetchAtLoad) {
-      // This fetch is necessary when we duplicate the collection element as
-      // the initial load from the data provider has already happened.
-      // It won't be executed by the store when the data provider has already loaded
-      // the data because the range is the same in which case only the `currentOffset`
-      // is updated.
       await this.fetchContent([0, this.element.items_per_page])
     }
   },
   methods: {
     ...mapActions({
       fetchElementContent: 'elementContent/fetchElementContent',
-      clearElementContent: 'elementContent/clearElementContent',
     }),
     debouncedReset() {
       clearTimeout(this.resetTimeout)
       this.resetTimeout = setTimeout(() => {
+        this.contentFetchEnabled = true
         this.errorNotified = false
         this.currentOffset = 0
         this.loadMore(true)
@@ -110,15 +131,22 @@ export default {
       }
       try {
         await this.fetchElementContent({
-          page: this.page,
+          page: this.elementPage,
           element: this.element,
           dataSource: this.dataSource,
           data: this.dispatchContext,
           range,
+          filters: this.adhocRefinements.filters,
+          sortings: this.adhocRefinements.sortings,
+          search: this.adhocRefinements.search,
+          mode: this.applicationContext.mode,
           replace,
         })
         this.currentOffset += this.element.items_per_page
       } catch (error) {
+        // Handle the HTTP error if needed
+        this.onContentFetchError(error)
+
         // We need to only launch one toast error message per element,
         // not one per element fetch, or we can end up with many error
         // toasts per element sharing a datasource.
@@ -136,7 +164,17 @@ export default {
     },
     /** Overrides this if you want to prevent data fetching */
     canFetch() {
-      return true
+      return this.contentFetchEnabled
+    },
+
+    /** Override this if you want to handle content fetch errors */
+    onContentFetchError(error) {
+      // If the request failed without reaching the server, `error.response`
+      // will be `undefined`, so we need to check that before checking the
+      // HTTP status code
+      if (error.response && [400, 404].includes(error.response.status)) {
+        this.contentFetchEnabled = false
+      }
     },
   },
 }

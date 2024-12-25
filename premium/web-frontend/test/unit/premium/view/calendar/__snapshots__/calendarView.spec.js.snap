@@ -14,16 +14,16 @@ exports[`CalendarView component CalendarView allows deleting row with context me
         class="calendar-month__header"
       >
         <div
-          class="calendar-date-indicator calendar-month__header-selected-month"
+          class="view-date-indicator calendar-month__header-selected-month"
         >
           July 2024
         </div>
          
         <div
-          class="calendar-date-selector"
+          class="view-date-selector"
         >
           <a
-            class="calendar-date-selector__prev"
+            class="view-date-selector__prev"
           >
             <i
               class="iconoir-nav-arrow-left"
@@ -31,7 +31,7 @@ exports[`CalendarView component CalendarView allows deleting row with context me
           </a>
            
           <a
-            class="calendar-date-selector__next"
+            class="view-date-selector__next"
           >
             <i
               class="iconoir-nav-arrow-right"
@@ -47,7 +47,8 @@ exports[`CalendarView component CalendarView allows deleting row with context me
               class="button__label"
             >
               
-    calendarDateSelector.today
+    viewDateSelector.today
+  
             </span>
              
             <!---->
@@ -1023,16 +1024,16 @@ exports[`CalendarView component CalendarView row is restored when server fails t
         class="calendar-month__header"
       >
         <div
-          class="calendar-date-indicator calendar-month__header-selected-month"
+          class="view-date-indicator calendar-month__header-selected-month"
         >
           July 2024
         </div>
          
         <div
-          class="calendar-date-selector"
+          class="view-date-selector"
         >
           <a
-            class="calendar-date-selector__prev"
+            class="view-date-selector__prev"
           >
             <i
               class="iconoir-nav-arrow-left"
@@ -1040,7 +1041,7 @@ exports[`CalendarView component CalendarView row is restored when server fails t
           </a>
            
           <a
-            class="calendar-date-selector__next"
+            class="view-date-selector__next"
           >
             <i
               class="iconoir-nav-arrow-right"
@@ -1056,7 +1057,8 @@ exports[`CalendarView component CalendarView row is restored when server fails t
               class="button__label"
             >
               
-    calendarDateSelector.today
+    viewDateSelector.today
+  
             </span>
              
             <!---->

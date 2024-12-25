@@ -10,6 +10,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.serializers import SkipField, empty
 
+from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.api.user_files.serializers import UserFileURLAndThumbnailsSerializerMixin
 from baserow.api.user_files.validators import user_file_name_validator
 from baserow.contrib.database.fields.constants import (
@@ -69,6 +70,16 @@ class FieldSerializer(serializers.ModelSerializer):
             field_type_registry.get_by_model(instance.specific_class).read_only
             or instance.read_only
         )
+
+
+class PolymorphicFieldSerializer(PolymorphicSerializer):
+    """
+    Polymorphic field serializer.
+    """
+
+    base_class = FieldSerializer
+    registry = field_type_registry
+    request = False
 
 
 class RelatedFieldsSerializer(serializers.Serializer):
@@ -187,6 +198,11 @@ class LinkRowValueSerializer(serializers.Serializer):
         required=False,
         source="*",
     )
+    order = serializers.DecimalField(
+        max_digits=40,
+        decimal_places=20,
+        required=False,
+    )
 
 
 class FileFieldRequestSerializer(serializers.ListField):
@@ -219,12 +235,13 @@ class FileFieldRequestSerializer(serializers.ListField):
 
         elif isinstance(data[0], dict):
             for val in data:
-                if "name" not in val:
+                name = val.get("name")
+                if name is None:
                     raise serializers.ValidationError(
                         "A name property is required for all values of the list.",
                         code="required",
                     )
-                user_file_name_validator(val["name"])
+                user_file_name_validator(name)
         else:
             raise serializers.ValidationError(
                 "The provided value should be a list of valid string or objects "
@@ -447,3 +464,17 @@ class PasswordSerializer(serializers.CharField):
             return None
 
         return make_password(data)
+
+
+class LinkRowFieldSerializerMixin(serializers.ModelSerializer):
+    link_row_table_primary_field = serializers.SerializerMethodField(
+        help_text="The primary field of the table that is linked to."
+    )
+
+    def get_link_row_table_primary_field(self, instance):
+        related_field = instance.link_row_table_primary_field
+        if related_field is None:
+            return None
+        return field_type_registry.get_serializer(
+            related_field.specific, FieldSerializer
+        ).data

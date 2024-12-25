@@ -332,7 +332,7 @@ export const actions = {
       tableId,
       rowId,
       'row_comments_notification_mode',
-      () => mode
+      () => mode.toString()
     )
   },
 }

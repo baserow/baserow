@@ -62,14 +62,14 @@ export default {
       last += this.includeRowDetails ? this.gridViewRowDetailsWidth : 0
       const placeholderPositions = {}
       this.visibleFields.forEach((field) => {
-        last += this.getFieldWidth(field.id)
+        last += this.getFieldWidth(field)
         placeholderPositions[field.id] = last
       })
       return placeholderPositions
     },
     placeholderWidth() {
       let width = this.visibleFields.reduce(
-        (value, field) => this.getFieldWidth(field.id) + value,
+        (value, field) => this.getFieldWidth(field) + value,
         0
       )
       width += this.groupByWidth

@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Resolved an accidental regression when an exact date filter is applied to a date field.",
+    "issue_number": null,
+    "bullet_points": [],
+    "created_at": "2024-12-12"
+}

@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -26,6 +26,9 @@ from baserow.core.workflow_actions.handler import WorkflowActionHandler
 from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.workflow_actions.registries import WorkflowActionType
 
+if TYPE_CHECKING:
+    from baserow.contrib.builder.models import Builder
+
 
 class BuilderWorkflowActionHandler(WorkflowActionHandler):
     model = BuilderWorkflowAction
@@ -35,7 +38,7 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
         self, page: Page, base_queryset: Optional[QuerySet] = None
     ) -> Iterable[WorkflowAction]:
         """
-        Get all the workflow actions of an page
+        Get all the workflow actions of a page
 
         :param page: The page associated with the workflow actions
         :param base_queryset: Optional base queryset to filter the results
@@ -46,6 +49,21 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
             base_queryset = self.model.objects
 
         base_queryset = base_queryset.filter(page=page)
+
+        return super().get_all_workflow_actions(base_queryset)
+
+    def get_builder_workflow_actions(
+        self, builder: "Builder", base_queryset: QuerySet
+    ) -> Iterable[WorkflowAction]:
+        """
+        Get all the workflow actions of a builder
+
+        :param builder: The builder that holds the workflow actions
+        :param base_queryset: The base queryset to filter the results
+        :return: A list of workflow actions
+        """
+
+        base_queryset = base_queryset.filter(page__builder=builder)
 
         return super().get_all_workflow_actions(base_queryset)
 

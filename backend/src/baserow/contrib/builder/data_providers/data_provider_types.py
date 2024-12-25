@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 from django.utils.translation import gettext as _
 
@@ -24,7 +24,7 @@ from baserow.contrib.builder.elements.models import FormElement
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
-from baserow.core.formula.exceptions import FormulaRecursion
+from baserow.core.formula.exceptions import FormulaRecursion, InvalidBaserowFormula
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
@@ -177,6 +177,34 @@ class DataSourceDataProviderType(DataProviderType):
 
         return [str(data_source_id), *rest]
 
+    def extract_properties(self, path: List[str], **kwargs) -> Dict[str, List[str]]:
+        """
+        Given a list of formula path parts, call the ServiceType's
+        extract_properties() method and return a dict where the keys are the
+        Service IDs and the values are the field names.
+
+        E.g. given that path is: ['96', '1', 'field_5191'], returns
+        {1: ['field_5191']}.
+        """
+
+        if not path:
+            return {}
+
+        _data_source_id, *rest = path
+        try:
+            data_source_id = int(_data_source_id)
+        except ValueError:
+            return {}
+
+        try:
+            data_source = DataSourceHandler().get_data_source(data_source_id)
+        except DataSourceDoesNotExist as exc:
+            # The data source has probably been deleted
+            raise InvalidBaserowFormula() from exc
+
+        service_type = data_source.service.specific.get_type()
+        return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
+
 
 class DataSourceContextDataProviderType(DataProviderType):
     """
@@ -219,6 +247,34 @@ class DataSourceContextDataProviderType(DataProviderType):
             rest = service_type.import_context_path(rest, id_mapping)
 
         return [str(data_source_id), *rest]
+
+    def extract_properties(self, path: List[str], **kwargs) -> Dict[str, List[str]]:
+        """
+        Given a list of formula path parts, call the ServiceType's
+        extract_properties() method and return a dict where the keys are the
+        Service IDs and the values are the field names.
+
+        E.g. given that path is: ['96', '1', 'field_5191'], returns
+        {1: ['field_5191']}.
+        """
+
+        if not path:
+            return {}
+
+        _data_source_id, *rest = path
+        try:
+            data_source_id = int(_data_source_id)
+        except ValueError:
+            return {}
+
+        try:
+            data_source = DataSourceHandler().get_data_source(data_source_id)
+        except DataSourceDoesNotExist as exc:
+            # The data source has probably been deleted
+            raise InvalidBaserowFormula() from exc
+
+        service_type = data_source.service.specific.get_type()
+        return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
 
 
 class CurrentRecordDataProviderType(DataProviderType):
@@ -289,6 +345,53 @@ class CurrentRecordDataProviderType(DataProviderType):
         _, *rest = service_type.import_path([0, *path], id_mapping)
 
         return rest
+
+    def extract_properties(
+        self,
+        path: List[str],
+        data_source_id: Optional[int] = None,
+        schema_property: Optional[str] = None,
+        **kwargs,
+    ) -> Dict[str, List[str]]:
+        """
+        Given a list of formula path parts, call the ServiceType's
+        extract_properties() method and return a dict where the keys are the
+        Service IDs and the values are the field names.
+
+        E.g. given that path is: ['96', '1', 'field_5191'], returns
+        {1: ['field_5191']}.
+        """
+
+        if not path:
+            return {}
+
+        if data_source_id is None:
+            return {}
+
+        try:
+            data_source = DataSourceHandler().get_data_source(data_source_id)
+        except DataSourceDoesNotExist as exc:
+            # The data source is probably not accessible so we raise an invalid formula
+            raise InvalidBaserowFormula() from exc
+
+        service_type = data_source.service.specific.get_type()
+
+        if service_type.returns_list:
+            # Here we add a fake row part to make it match the usual shape
+            # for this path
+            if schema_property:
+                path = ["0", schema_property, *path]
+            else:
+                path = ["0", *path]
+        else:
+            # Current Record could also use Get Row service type (via Repeat
+            # element), so we need to add the field name if it is available.
+            if not schema_property:
+                return {}
+            else:
+                path = [schema_property, *path]
+
+        return {data_source.service_id: service_type.extract_properties(path, **kwargs)}
 
 
 class PreviousActionProviderType(DataProviderType):

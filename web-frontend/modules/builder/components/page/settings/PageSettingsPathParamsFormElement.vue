@@ -9,7 +9,6 @@
       <div class="page-settings-path-params__dropdown">
         <Dropdown
           :value="pathParam.type"
-          small
           :disabled="disabled"
           @input="$emit('update', pathParam.name, $event)"
         >
@@ -41,7 +40,7 @@ export default {
     pathParams: {
       type: Array,
       required: false,
-      default: () => {},
+      default: () => [],
     },
     disabled: {
       type: Boolean,

@@ -19,6 +19,9 @@ from baserow.api.search.serializers import SearchQueryParamSerializer
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
+    ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
+    ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION,
+    ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION_NO_COMBINE,
     ADHOC_SORTING_API_PARAM,
     EXCLUDE_FIELDS_API_PARAM,
     INCLUDE_FIELDS_API_PARAM,
@@ -82,7 +85,6 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import GridView
 from baserow.contrib.database.views.registries import (
     view_aggregation_type_registry,
-    view_filter_type_registry,
     view_type_registry,
 )
 from baserow.contrib.database.views.signals import view_loaded
@@ -135,7 +137,7 @@ class GridViewView(APIView):
             ),
             ONLY_COUNT_API_PARAM,
             *PAGINATION_API_PARAMS,
-            *ADHOC_FILTERS_API_PARAMS,
+            *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
             ADHOC_SORTING_API_PARAM,
             INCLUDE_FIELDS_API_PARAM,
             EXCLUDE_FIELDS_API_PARAM,
@@ -382,58 +384,7 @@ class GridViewFieldAggregationsView(APIView):
                     "returned with the result."
                 ),
             ),
-            OpenApiParameter(
-                name="filters",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    "A JSON serialized string containing the filter tree to apply "
-                    "for the aggregation. The filter tree is a nested structure containing "
-                    "the filters that need to be applied. \n\n"
-                    "An example of a valid filter tree is the following:"
-                    '`{"filter_type": "AND", "filters": [{"field": 1, "type": "equal", '
-                    '"value": "test"}]}`.\n\n'
-                    f"The following filters are available: "
-                    f'{", ".join(view_filter_type_registry.get_types())}.'
-                    "Please note that by passing the filters parameter the "
-                    "view filters saved for the view itself will be ignored."
-                ),
-            ),
-            OpenApiParameter(
-                name="filter__{field}__{filter}",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    f"The aggregation can optionally be filtered by the same view filters "
-                    f"available for the views. Multiple filters can be provided if "
-                    f"they follow the same format. The field and filter variable "
-                    f"indicate how to filter and the value indicates where to filter "
-                    f"on.\n\n"
-                    "Please note that if the `filters` parameter is provided, "
-                    "this parameter will be ignored. \n\n"
-                    f"For example if you provide the following GET parameter "
-                    f"`filter__field_1__equal=test` then only rows where the value of "
-                    f"field_1 is equal to test are going to be returned.\n\n"
-                    f"The following filters are available: "
-                    f'{", ".join(view_filter_type_registry.get_types())}.'
-                    "Please note that by passing the filter parameters the "
-                    "view filters saved for the view itself will be ignored."
-                ),
-            ),
-            OpenApiParameter(
-                name="filter_type",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    "`AND`: Indicates that the aggregated rows must match all the provided "
-                    "filters.\n"
-                    "`OR`: Indicates that the aggregated rows only have to match one of the "
-                    "filters.\n\n"
-                    "This works only if two or more filters are provided."
-                    "Please note that if the `filters` parameter is provided, "
-                    "this parameter will be ignored. \n\n"
-                ),
-            ),
+            *ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION_NO_COMBINE,
             SEARCH_MODE_API_PARAM,
         ],
         tags=["Database table grid view"],
@@ -538,58 +489,7 @@ class PublicGridViewFieldAggregationsView(APIView):
                     "returned with the result."
                 ),
             ),
-            OpenApiParameter(
-                name="filters",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    "A JSON serialized string containing the filter tree to apply "
-                    "for the aggregation. The filter tree is a nested structure containing "
-                    "the filters that need to be applied. \n\n"
-                    "An example of a valid filter tree is the following:"
-                    '`{"filter_type": "AND", "filters": [{"field": 1, "type": "equal", '
-                    '"value": "test"}]}`.\n\n'
-                    f"The following filters are available: "
-                    f'{", ".join(view_filter_type_registry.get_types())}.'
-                    "Please note that by passing the filters parameter the "
-                    "view filters saved for the view itself will be ignored."
-                ),
-            ),
-            OpenApiParameter(
-                name="filter__{field}__{filter}",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    f"The aggregation can optionally be filtered by the same view filters "
-                    f"available for the views. Multiple filters can be provided if "
-                    f"they follow the same format. The field and filter variable "
-                    f"indicate how to filter and the value indicates where to filter "
-                    f"on.\n\n"
-                    "Please note that if the `filters` parameter is provided, "
-                    "this parameter will be ignored. \n\n"
-                    f"For example if you provide the following GET parameter "
-                    f"`filter__field_1__equal=test` then only rows where the value of "
-                    f"field_1 is equal to test are going to be returned.\n\n"
-                    f"The following filters are available: "
-                    f'{", ".join(view_filter_type_registry.get_types())}.'
-                    "Please note that by passing the filter parameters the "
-                    "view filters saved for the view itself will be ignored."
-                ),
-            ),
-            OpenApiParameter(
-                name="filter_type",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description=(
-                    "`AND`: Indicates that the aggregated rows must match all the provided "
-                    "filters.\n"
-                    "`OR`: Indicates that the aggregated rows only have to match one of the "
-                    "filters.\n\n"
-                    "This works only if two or more filters are provided."
-                    "Please note that if the `filters` parameter is provided, "
-                    "this parameter will be ignored. \n\n"
-                ),
-            ),
+            *ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION,
             SEARCH_MODE_API_PARAM,
         ],
         tags=["Database table grid view"],
@@ -655,6 +555,7 @@ class PublicGridViewFieldAggregationsView(APIView):
             search=search,
             search_mode=search_mode,
             adhoc_filters=adhoc_filters,
+            combine_filters=True,
             skip_perm_check=True,
         )
 
@@ -804,12 +705,12 @@ class PublicGridViewRowsView(APIView):
             ),
             ONLY_COUNT_API_PARAM,
             *PAGINATION_API_PARAMS,
-            *ADHOC_FILTERS_API_PARAMS,
             ADHOC_SORTING_API_PARAM,
             INCLUDE_FIELDS_API_PARAM,
             EXCLUDE_FIELDS_API_PARAM,
             SEARCH_VALUE_API_PARAM,
             SEARCH_MODE_API_PARAM,
+            *ADHOC_FILTERS_API_PARAMS,
             OpenApiParameter(
                 name="group_by",
                 location=OpenApiParameter.QUERY,

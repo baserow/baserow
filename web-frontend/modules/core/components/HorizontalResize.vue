@@ -20,6 +20,11 @@ export default {
       required: false,
       default: null,
     },
+    stopPropagation: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
     return {
@@ -31,6 +36,9 @@ export default {
   methods: {
     start(event) {
       event.preventDefault()
+      if (this.stopPropagation) {
+        event.stopPropagation()
+      }
       this.dragging = true
       this.mouseStart = event.clientX
       this.startWidth = parseFloat(this.width)
@@ -56,7 +64,7 @@ export default {
       event.preventDefault()
       this.dragging = false
       const difference = event.clientX - this.mouseStart
-      const newWidth = Math.max(this.startWidth + difference, 100)
+      const newWidth = Math.max(this.startWidth + difference, this.min)
       window.removeEventListener('mousemove', this.$el.moveEvent)
       window.removeEventListener('mouseup', this.$el.upEvent)
       document.body.classList.remove('resizing-horizontal')

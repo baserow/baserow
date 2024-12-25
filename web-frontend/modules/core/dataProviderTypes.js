@@ -19,10 +19,38 @@ export class DataProviderType extends Registerable {
   }
 
   /**
-   * Initialize the data needed by the data provider if necessary. Used during the
-   * page init phase to collect all the data for the first display.
+   * Initialize the data needed by the data provider for the current application.
+   * Used during the application init phase to collect all the data for the first
+   * display.
+   */
+  async initOnce(r) {}
+
+  /**
+   * Initialize the data needed by the data provider for the current page.
+   * Used during the page init phase to collect all the data for the first display.
    */
   async init(r) {}
+
+  /**
+   * Call init Once step of all given data providers according to the application
+   * context
+   * @param {Array} dataProviders
+   * @param {Object} applicationContext the application context.
+   */
+  static async initOnceAll(dataProviders, applicationContext) {
+    // First we initialize providers that doesn't need a backend context
+    await Promise.all(
+      Object.values(dataProviders)
+        .filter((provider) => !provider.needBackendContext)
+        .map((dataProvider) => dataProvider.initOnce(applicationContext))
+    )
+    // Then we initialize those that need the backend context
+    await Promise.all(
+      Object.values(dataProviders)
+        .filter((provider) => provider.needBackendContext)
+        .map((dataProvider) => dataProvider.initOnce(applicationContext))
+    )
+  }
 
   /**
    * Call init step of all given data providers according to the application context

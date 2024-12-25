@@ -2,8 +2,8 @@
   <Dropdown
     :value="value"
     fixed-items
-    small
     class="integration-dropdown"
+    :size="size"
     :disabled="disabled || !integrationType"
     :placeholder="
       !integrationType
@@ -72,10 +72,10 @@ export default {
       required: false,
       default: false,
     },
-    small: {
-      type: Boolean,
+    size: {
+      type: String,
       required: false,
-      default: false,
+      default: 'regular',
     },
   },
 }

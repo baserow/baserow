@@ -1,0 +1,7 @@
+{
+  "type": "bug",
+  "message": "Fix Baserow table data sync export import authorized user and source table bug.",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2024-10-24"
+}

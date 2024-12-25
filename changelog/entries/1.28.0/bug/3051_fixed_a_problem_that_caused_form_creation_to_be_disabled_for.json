@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fixed a problem that caused form creation to be disabled for unsynced tables",
+    "issue_number": 3051,
+    "bullet_points": [],
+    "created_at": "2024-09-26"
+}

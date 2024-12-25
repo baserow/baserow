@@ -1,0 +1,18 @@
+%%{init: {'theme': 'base'}}%%
+stateDiagram-v2
+
+    [*] --> pending: a job is scheduled
+    pending --> started: a job is picked by the worker
+    pending --> cancelled: a job is cancelled before started
+    started --> cancelled: a job is cancelled during the execution
+    started --> finished
+    started --> failed: an error during the executiuon
+    cancelled --> [*]
+    finished --> [*]
+    failed --> [*]
+
+    state ended {
+        cancelled
+        finished
+        failed
+    }

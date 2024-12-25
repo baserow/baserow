@@ -5,6 +5,8 @@ from baserow.contrib.builder.api.domains.public_views import (
     PublicBuilderByIdView,
     PublicBuilderWorkflowActionsView,
     PublicDataSourcesView,
+    PublicDispatchDataSourcesView,
+    PublicDispatchDataSourceView,
     PublicElementsView,
 )
 from baserow.contrib.builder.api.domains.views import (
@@ -62,5 +64,15 @@ urlpatterns_without_builder_id = [
         r"ask-public-domain-exists/$",
         AskPublicBuilderDomainExistsView.as_view(),
         name="ask_exists",
+    ),
+    re_path(
+        r"published/data-source/(?P<data_source_id>[0-9]+)/dispatch/$",
+        PublicDispatchDataSourceView.as_view(),
+        name="public_dispatch",
+    ),
+    re_path(
+        r"published/page/(?P<page_id>[0-9]+)/dispatch-data-sources/$",
+        PublicDispatchDataSourcesView.as_view(),
+        name="public_dispatch_all",
     ),
 ]

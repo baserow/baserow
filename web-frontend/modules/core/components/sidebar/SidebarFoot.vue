@@ -6,6 +6,20 @@
       </div>
       <div class="sidebar__foot-links">
         <a
+          v-if="!collapsed && width > 220"
+          class="sidebar__foot-link"
+          @click="$emit('set-col1-width', 52)"
+        >
+          <i class="sidebar__foot-link-icon iconoir-fast-arrow-left"></i>
+        </a>
+        <a
+          v-if="collapsed"
+          class="sidebar__foot-link"
+          @click="$emit('set-col1-width', 240)"
+        >
+          <i class="sidebar__foot-link-icon iconoir-fast-arrow-right"></i>
+        </a>
+        <a
           class="sidebar__foot-link"
           :class="{
             'sidebar__foot-link--loading': undoLoading,
@@ -36,5 +50,16 @@ export default {
   name: 'SidebarFoot',
   components: { ExternalLinkBaserowLogo },
   mixins: [undoRedo],
+  props: {
+    collapsed: {
+      type: Boolean,
+      required: false,
+      default: () => false,
+    },
+    width: {
+      type: Number,
+      required: true,
+    },
+  },
 }
 </script>

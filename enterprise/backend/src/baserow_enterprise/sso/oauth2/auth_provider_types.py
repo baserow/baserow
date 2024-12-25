@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from django.conf import settings
 from django.contrib.sessions.backends.base import SessionBase
-from django.urls import reverse
+from django.urls import include, path, reverse
 
 import requests
 from loguru import logger
@@ -30,6 +30,8 @@ from .models import (
 
 OAUTH_BACKEND_URL = settings.PUBLIC_BACKEND_URL
 
+_is_url_already_loaded = False
+
 
 @dataclass
 class WellKnownUrls:
@@ -50,6 +52,20 @@ class OAuth2AuthProviderMixin:
     - self.SCOPE
     """
 
+    def get_api_urls(self):
+        global _is_url_already_loaded
+
+        from baserow_enterprise.api.sso.oauth2 import urls
+
+        if not _is_url_already_loaded:
+            _is_url_already_loaded = True
+            # We need to register this only once
+            return [
+                path("sso/oauth2/", include(urls, namespace="enterprise_sso_oauth2"))
+            ]
+        else:
+            return []
+
     def get_login_options(self, **kwargs) -> Optional[Dict[str, Any]]:
         if not is_sso_feature_active():
             return None
@@ -64,7 +80,7 @@ class OAuth2AuthProviderMixin:
                 {
                     "redirect_url": urllib.parse.urljoin(
                         OAUTH_BACKEND_URL,
-                        reverse("api:enterprise:sso:oauth2:login", args=(instance.id,)),
+                        reverse("api:enterprise_sso_oauth2:login", args=(instance.id,)),
                     ),
                     "name": instance.name,
                     "type": self.type,
@@ -144,7 +160,7 @@ class OAuth2AuthProviderMixin:
 
         redirect_uri = urllib.parse.urljoin(
             OAUTH_BACKEND_URL,
-            reverse("api:enterprise:sso:oauth2:callback", args=(instance.id,)),
+            reverse("api:enterprise_sso_oauth2:callback", args=(instance.id,)),
         )
         if "oauth_state" in session:
             return OAuth2Session(

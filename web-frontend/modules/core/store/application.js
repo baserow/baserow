@@ -209,6 +209,7 @@ export const actions = {
   forceUpdate({ commit }, { application, data }) {
     const type = this.$registry.get('application', application.type)
     data = type.prepareForStoreUpdate(application, data)
+
     commit('UPDATE_ITEM', { id: application.id, values: data })
   },
   /**

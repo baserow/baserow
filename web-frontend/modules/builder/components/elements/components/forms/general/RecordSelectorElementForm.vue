@@ -15,7 +15,8 @@
       <DataSourceDropdown
         v-model="values.data_source_id"
         small
-        :data-sources="listDataSources"
+        :shared-data-sources="listSharedDataSources"
+        :local-data-sources="listLocalDataSources"
       >
         <template #chooseValueState>
           {{ $t('recordSelectorElementForm.noDataSourceMessage') }}
@@ -121,6 +122,21 @@
     >
       <Checkbox v-model="values.required"></Checkbox>
     </FormGroup>
+    <FormGroup
+      v-if="propertyOptionsAvailable"
+      small-label
+      class="margin-bottom-2"
+      :label="$t('collectionElementForm.propertyOptionLabel')"
+    >
+      <PropertyOptionForm
+        :default-values="element"
+        :is-filterable="element.is_publicly_filterable"
+        :is-sortable="element.is_publicly_sortable"
+        :is-searchable="element.is_publicly_searchable"
+        :data-source="selectedDataSource"
+        @values-changed="$emit('values-changed', $event)"
+      ></PropertyOptionForm>
+    </FormGroup>
   </form>
 </template>
 
@@ -131,10 +147,16 @@ import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle.vue'
 import { integer, maxValue, minValue, required } from 'vuelidate/lib/validators'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
+import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 
 export default {
   name: 'RecordSelectorElementForm',
-  components: { DataSourceDropdown, CustomStyle, InjectedFormulaInput },
+  components: {
+    PropertyOptionForm,
+    DataSourceDropdown,
+    CustomStyle,
+    InjectedFormulaInput,
+  },
   mixins: [formElementForm, collectionElementForm],
   data() {
     return {
@@ -164,12 +186,33 @@ export default {
   },
   computed: {
     // For now, RecordSelector only supports data sources that return arrays
-    listDataSources() {
-      return this.dataSources.filter(
+    listLocalDataSources() {
+      if (this.localDataSources === null) {
+        return null
+      }
+      return this.localDataSources.filter(
         (dataSource) =>
-          dataSource.type &&
           this.$registry.get('service', dataSource.type).returnsList
       )
+    },
+    listSharedDataSources() {
+      return this.sharedDataSources.filter(
+        (dataSource) =>
+          this.$registry.get('service', dataSource.type).returnsList
+      )
+    },
+  },
+  watch: {
+    'values.data_source_id': {
+      handler(value) {
+        this.values.data_source_id = value
+
+        // If the data source was removed we should also delete the name formula
+        if (value === null) {
+          this.values.option_name_suffix = ''
+        }
+      },
+      immediate: true,
     },
   },
   validations() {
@@ -185,19 +228,6 @@ export default {
         },
       },
     }
-  },
-  watch: {
-    'values.data_source_id': {
-      handler(value) {
-        this.values.data_source_id = value
-
-        // If the data source was removed we should also delete the name formula
-        if (value === null) {
-          this.values.option_name_suffix = ''
-        }
-      },
-      immediate: true,
-    },
   },
 }
 </script>

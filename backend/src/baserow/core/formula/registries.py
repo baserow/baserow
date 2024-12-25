@@ -162,6 +162,22 @@ class DataProviderType(
 
         return path
 
+    def extract_properties(
+        self,
+        path: List[str],
+        **kwargs,
+    ) -> Dict[str, List[str]]:
+        """
+        Given a list of formula path parts, call the ServiceType's
+        extract_properties() method and return a dict where the keys are the
+        Service IDs and the values are the field names.
+
+        E.g. given that path is: ['96', '1', 'field_5191'], returns
+        {1: ['field_5191']}.
+        """
+
+        return {}
+
 
 DataProviderTypeSubClass = TypeVar("DataProviderTypeSubClass", bound=DataProviderType)
 

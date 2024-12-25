@@ -27,7 +27,11 @@ from baserow.contrib.database.views.models import (
     FormViewFieldOptionsConditionGroup,
 )
 from baserow.core.user_files.models import UserFile
-from baserow.test_utils.helpers import AnyInt, setup_interesting_test_table
+from baserow.test_utils.helpers import (
+    AnyInt,
+    is_dict_subset,
+    setup_interesting_test_table,
+)
 
 ICAL_FEED_WITH_ONE_ITEMS = """BEGIN:VCALENDAR
 VERSION:2.0
@@ -184,6 +188,78 @@ def test_create_form_view(api_client, data_fixture):
     assert response_json["logo_image"]["name"] == user_file_2.name
 
 
+@pytest.mark.django_db(transaction=True)
+def test_create_form_view_with_webhooks(api_client, data_fixture):
+    """
+    Test create form handling with webhooks attached to check if the payload is
+    rendered correctly.
+
+    In case of regression, this is a test for a fix for an error:
+
+    File "/baserow/backend/src/baserow/contrib/database/api/views/form/serializers.py",
+        line 175, in get_receive_notification_on_submit
+
+        logged_user_id = self.context["user"].id
+                     ~~~~~~~~~~~~^^^^^^^^
+    KeyError: 'user'
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        use_user_field_names=False,
+        events=["view.created", "view.updated", "view.deleted"],
+    )
+
+    # a transaction should be commited and webhooks after_commit hook should be called
+    # here.
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.post(
+            reverse("api:database:views:list", kwargs={"table_id": table.id}),
+            {
+                "name": "Test Form",
+                "type": "form",
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert m.called
+        print("CALL ARGS", m.call_args)
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert len(response_json["slug"]) == 43
+    assert response_json["type"] == "form"
+    assert response_json["name"] == "Test Form"
+    assert response_json["mode"] == "form"
+    assert response_json["table_id"] == table.id
+    call_args = m.call_args.kwargs
+    assert call_args.get("event_type") == "view.created"
+    assert is_dict_subset(
+        {
+            "event_type": "view.created",
+            "payload": {
+                "view": {
+                    "table_id": table.id,
+                    "type": "form",
+                    "name": "Test Form",
+                    "id": response_json["id"],
+                }
+            },
+        },
+        call_args,
+    ), call_args
+
+    assert "receive_notification_on_submit" in call_args["payload"]["view"], call_args[
+        "payload"
+    ]["view"]
+
+
 @pytest.mark.django_db
 def test_update_form_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
@@ -284,7 +360,6 @@ def test_update_form_view_invalid_mode(api_client, data_fixture):
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
-    print(response_json)
     assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
     assert response_json["detail"]["mode"][0]["code"] == "invalid_choice"
 
@@ -392,8 +467,248 @@ def test_meta_submit_form_view(api_client, data_fixture):
             "type": "number",
             "number_decimal_places": 0,
             "number_negative": False,
+            "number_prefix": "",
+            "number_separator": "",
+            "number_suffix": "",
         },
         "field_component": "default",
+    }
+
+
+@pytest.mark.django_db
+def test_meta_submit_form_view_allowed_select_options_override(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    form = data_fixture.create_form_view(table=table, public=True)
+    single_select_field = data_fixture.create_single_select_field(table=table)
+    option_1 = data_fixture.create_select_option(
+        field=single_select_field,
+        value="Option 1",
+        color="1",
+    )
+    option_2 = data_fixture.create_select_option(
+        field=single_select_field,
+        value="Option 2",
+        color="1",
+    )
+    single_select_field_2 = data_fixture.create_single_select_field(table=table)
+    option_3 = data_fixture.create_select_option(
+        field=single_select_field_2,
+        value="Option 3",
+        color="1",
+    )
+    option_4 = data_fixture.create_select_option(
+        field=single_select_field_2,
+        value="Option 4",
+        color="1",
+    )
+    option_5 = data_fixture.create_select_option(
+        field=single_select_field_2,
+        value="Option 5",
+        color="1",
+    )
+    multiple_select_field = data_fixture.create_multiple_select_field(table=table)
+    option_6 = data_fixture.create_select_option(
+        field=multiple_select_field,
+        value="Option 6",
+        color="1",
+    )
+    option_7 = data_fixture.create_select_option(
+        field=multiple_select_field,
+        value="Option 7",
+        color="1",
+    )
+
+    url = reverse("api:database:views:field_options", kwargs={"view_id": form.id})
+    api_client.patch(
+        url,
+        {
+            "field_options": {
+                str(single_select_field.id): {
+                    "enabled": True,
+                    "include_all_select_options": True,
+                    "allowed_select_options": [],
+                },
+                str(single_select_field_2.id): {
+                    "enabled": True,
+                    "include_all_select_options": False,
+                    "allowed_select_options": [option_3.id, option_4.id],
+                },
+                str(multiple_select_field.id): {
+                    "enabled": True,
+                    "include_all_select_options": False,
+                    "allowed_select_options": [option_6.id],
+                },
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+    response = api_client.get(url, format="json")
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+
+    # Expect all options to be included because `include_all_select_options=True`
+    assert response_json["fields"][0]["field"]["select_options"] == [
+        {"id": option_1.id, "value": "Option 1", "color": "1"},
+        {"id": option_2.id, "value": "Option 2", "color": "1"},
+    ]
+    # Expect only the `allowed_select_options` to be included because
+    # `include_all_select_options=False`.
+    assert response_json["fields"][1]["field"]["select_options"] == [
+        {"id": option_3.id, "value": "Option 3", "color": "1"},
+        {"id": option_4.id, "value": "Option 4", "color": "1"},
+    ]
+    # Expect only the `allowed_select_options` to be included because
+    # `include_all_select_options=False`.
+    assert response_json["fields"][2]["field"]["select_options"] == [
+        {"id": option_6.id, "value": "Option 6", "color": "1"}
+    ]
+
+
+@pytest.mark.django_db
+def test_submit_form_view_with_allowed_select_options_override_single_select(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    form = data_fixture.create_form_view(table=table, public=True)
+    single_select_field = data_fixture.create_single_select_field(table=table)
+    option_1 = data_fixture.create_select_option(
+        field=single_select_field,
+        value="Option 1",
+        color="1",
+    )
+    option_2 = data_fixture.create_select_option(
+        field=single_select_field,
+        value="Option 2",
+        color="1",
+    )
+
+    url = reverse("api:database:views:field_options", kwargs={"view_id": form.id})
+    api_client.patch(
+        url,
+        {
+            "field_options": {
+                str(single_select_field.id): {
+                    "enabled": True,
+                    "include_all_select_options": False,
+                    "allowed_select_options": [option_1.id],
+                },
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+    response = api_client.post(
+        url,
+        {
+            f"field_{single_select_field.id}": option_1.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+    response = api_client.post(
+        url,
+        {
+            f"field_{single_select_field.id}": option_2.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+    )
+    response_json = response.json()
+    assert response_json == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            f"field_{single_select_field.id}": [
+                {
+                    "error": f"The provided select option {option_2.id} is not "
+                    f"allowed.",
+                    "code": "invalid",
+                }
+            ]
+        },
+    }
+
+
+@pytest.mark.django_db
+def test_submit_form_view_with_allowed_select_options_override_multiple_select(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    form = data_fixture.create_form_view(table=table, public=True)
+    multiple_select_field = data_fixture.create_multiple_select_field(table=table)
+    option_1 = data_fixture.create_select_option(
+        field=multiple_select_field,
+        value="Option 1",
+        color="1",
+    )
+    option_2 = data_fixture.create_select_option(
+        field=multiple_select_field,
+        value="Option 2",
+        color="1",
+    )
+
+    url = reverse("api:database:views:field_options", kwargs={"view_id": form.id})
+    api_client.patch(
+        url,
+        {
+            "field_options": {
+                str(multiple_select_field.id): {
+                    "enabled": True,
+                    "include_all_select_options": False,
+                    "allowed_select_options": [option_1.id],
+                },
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+    response = api_client.post(
+        url,
+        {
+            f"field_{multiple_select_field.id}": [option_1.id],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+    response = api_client.post(
+        url,
+        {
+            f"field_{multiple_select_field.id}": [option_2.id],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+    )
+    response_json = response.json()
+    assert response_json == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            f"field_{multiple_select_field.id}": {
+                "0": [
+                    {
+                        "error": f"The provided select option {option_2.id} is not "
+                        f"allowed.",
+                        "code": "invalid",
+                    }
+                ]
+            }
+        },
     }
 
 
@@ -863,7 +1178,6 @@ def test_form_view_link_row_lookup_view(api_client, data_fixture):
     assert len(response_json["results"]) == 3
     assert response_json["results"][0]["id"] == i1.id
     assert response_json["results"][0]["value"] == "Test 1"
-    assert len(response_json["results"][0]) == 2
     assert response_json["results"][1]["id"] == i2.id
     assert response_json["results"][2]["id"] == i3.id
 
@@ -1116,6 +1430,8 @@ def test_get_form_view_field_options(
                     }
                 ],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_2.id): {
                 "name": "",
@@ -1128,6 +1444,8 @@ def test_get_form_view_field_options(
                 "conditions": [],
                 "condition_groups": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
         }
     }
@@ -1218,6 +1536,8 @@ def test_patch_form_view_field_options_conditions_create(
                     }
                 ],
                 "field_component": "test",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_2.id): {
                 "name": "",
@@ -1230,6 +1550,8 @@ def test_patch_form_view_field_options_conditions_create(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
         }
     }
@@ -1332,6 +1654,8 @@ def test_patch_form_view_field_options_condition_groups_create(
                     },
                 ],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_2.id): {
                 "name": "",
@@ -1344,6 +1668,8 @@ def test_patch_form_view_field_options_condition_groups_create(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
         }
     }
@@ -1413,6 +1739,8 @@ def test_patch_form_view_field_options_conditions_update(
                     }
                 ],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_2.id): {
                 "name": "",
@@ -1425,6 +1753,8 @@ def test_patch_form_view_field_options_conditions_update(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_3.id): {
                 "name": "",
@@ -1437,6 +1767,8 @@ def test_patch_form_view_field_options_conditions_update(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
         }
     }
@@ -1549,6 +1881,8 @@ def test_patch_form_view_field_options_condition_groups_update(
                     }
                 ],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_2.id): {
                 "name": "",
@@ -1561,6 +1895,8 @@ def test_patch_form_view_field_options_condition_groups_update(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_3.id): {
                 "name": "",
@@ -1573,6 +1909,8 @@ def test_patch_form_view_field_options_condition_groups_update(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
         }
     }
@@ -1647,6 +1985,8 @@ def test_patch_form_view_field_options_conditions_update_position(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_3.id): {
                 "name": "",
@@ -1667,6 +2007,8 @@ def test_patch_form_view_field_options_conditions_update_position(
                     }
                 ],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_2.id): {
                 "name": "",
@@ -1679,6 +2021,8 @@ def test_patch_form_view_field_options_conditions_update_position(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
         }
     }
@@ -1731,6 +2075,8 @@ def test_patch_form_view_field_options_conditions_delete(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_2.id): {
                 "name": "",
@@ -1743,6 +2089,8 @@ def test_patch_form_view_field_options_conditions_delete(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_3.id): {
                 "name": "",
@@ -1755,6 +2103,8 @@ def test_patch_form_view_field_options_conditions_delete(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
         }
     }
@@ -1812,6 +2162,8 @@ def test_patch_form_view_field_options_condition_groups_delete(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_2.id): {
                 "name": "",
@@ -1824,6 +2176,8 @@ def test_patch_form_view_field_options_condition_groups_delete(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
             str(text_field_3.id): {
                 "name": "",
@@ -1836,6 +2190,8 @@ def test_patch_form_view_field_options_condition_groups_delete(
                 "condition_groups": [],
                 "conditions": [],
                 "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
             },
         }
     }
@@ -2687,7 +3043,11 @@ def test_upload_file_view(api_client, data_fixture, tmpdir):
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage"
+    ) as get_storage_mock:
+        get_storage_mock.return_value = storage
+
         with freeze_time("2020-01-01 12:00"):
             file = SimpleUploadedFile("test.txt", b"Hello World")
             token = data_fixture.generate_token(user)
@@ -2719,7 +3079,11 @@ def test_upload_file_view(api_client, data_fixture, tmpdir):
     file_path = tmpdir.join("user_files", user_file.name)
     assert file_path.isfile()
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage"
+    ) as get_storage_mock:
+        get_storage_mock.return_value = storage
+
         token = data_fixture.generate_token(user)
         file = SimpleUploadedFile("test.txt", b"Hello World")
         response_2 = api_client.post(
@@ -2742,7 +3106,11 @@ def test_upload_file_view(api_client, data_fixture, tmpdir):
     image.save(file, format="PNG")
     file.seek(0)
 
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch(
+        "baserow.core.user_files.handler.get_default_storage"
+    ) as get_storage_mock:
+        get_storage_mock.return_value = storage
+
         response = api_client.post(
             reverse(
                 "api:database:views:form:upload_file",
@@ -2783,7 +3151,7 @@ def test_upload_file_view_with_no_public_file_field(api_client, data_fixture, tm
     data_fixture.create_form_view_field_option(view, field=file_field, enabled=False)
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch("baserow.core.storage.get_default_storage", new=storage):
         with freeze_time("2020-01-01 12:00"):
             file = SimpleUploadedFile("test.txt", b"Hello World")
             response = api_client.post(
@@ -2812,7 +3180,7 @@ def test_upload_file_view_with_a_rich_text_field_is_possible(
     )
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch("baserow.core.storage.get_default_storage", new=storage):
         with freeze_time("2020-01-01 12:00"):
             file = SimpleUploadedFile("test.txt", b"Hello World")
             response = api_client.post(
@@ -2830,7 +3198,7 @@ def test_upload_file_view_with_a_rich_text_field_is_possible(
 @pytest.mark.django_db
 def test_upload_file_form_view_does_not_exist(api_client, data_fixture, tmpdir):
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch("baserow.core.storage.get_default_storage", new=storage):
         with freeze_time("2020-01-01 12:00"):
             file = SimpleUploadedFile("test.txt", b"Hello World")
             response = api_client.post(
@@ -2854,7 +3222,7 @@ def test_upload_file_view_form_is_password_protected(api_client, data_fixture, t
     data_fixture.create_form_view_field_option(view, field=file_field, enabled=True)
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch("baserow.core.storage.get_default_storage", new=storage):
         with freeze_time("2020-01-01 12:00"):
             file = SimpleUploadedFile("test.txt", b"Hello World")
             response = api_client.post(
@@ -2880,7 +3248,7 @@ def test_upload_file_view_form_is_password_protected(api_client, data_fixture, t
     assert public_view_token is not None
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-    with patch("baserow.core.user_files.handler.default_storage", new=storage):
+    with patch("baserow.core.storage.get_default_storage", new=storage):
         with freeze_time("2020-01-01 12:00"):
             file = SimpleUploadedFile("test.txt", b"Hello World")
             response = api_client.post(
@@ -2986,6 +3354,251 @@ def test_patch_multiple_form_view_field_options_conditions_update(
             "type": "equal",
         },
     ]
+
+
+@pytest.mark.django_db
+def test_get_select_options_in_field_options(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    single_select_field = data_fixture.create_single_select_field(table=table)
+    option_1 = data_fixture.create_select_option(
+        field=single_select_field, value="Option 1"
+    )
+    option_2 = data_fixture.create_select_option(
+        field=single_select_field, value="Option 2"
+    )
+    option_3 = data_fixture.create_select_option(
+        field=single_select_field, value="Option 3"
+    )
+
+    form_view = data_fixture.create_form_view(table=table)
+    url = reverse("api:database:views:field_options", kwargs={"view_id": form_view.id})
+    # Make one request to allow the system to cache things.
+    api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    with CaptureQueriesContext(connection) as captured_1:
+        response = api_client.get(
+            url,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.json() == {
+        "field_options": {
+            str(single_select_field.id): {
+                "name": "",
+                "description": "",
+                "enabled": False,
+                "required": True,
+                "show_when_matching_conditions": False,
+                "condition_type": "AND",
+                "order": 32767,
+                "conditions": [],
+                "condition_groups": [],
+                "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
+            }
+        }
+    }
+
+    field_options = FormViewFieldOptions.objects.all().first()
+    field_options.include_all_select_options = False
+    field_options.allowed_select_options.set([option_1.id, option_2.id])
+    field_options.save()
+
+    with CaptureQueriesContext(connection) as captured_2:
+        response = api_client.get(
+            url,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.json() == {
+        "field_options": {
+            str(single_select_field.id): {
+                "name": "",
+                "description": "",
+                "enabled": False,
+                "required": True,
+                "show_when_matching_conditions": False,
+                "condition_type": "AND",
+                "order": 32767,
+                "conditions": [],
+                "condition_groups": [],
+                "field_component": "default",
+                "include_all_select_options": False,
+                "allowed_select_options": [option_1.id, option_2.id],
+            }
+        }
+    }
+    assert len(captured_1) == len(captured_2)
+
+
+@pytest.mark.django_db
+def test_patch_select_options_in_field_options(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    single_select_field = data_fixture.create_single_select_field(table=table)
+    option_1 = data_fixture.create_select_option(
+        field=single_select_field, value="Option 1"
+    )
+    option_2 = data_fixture.create_select_option(
+        field=single_select_field, value="Option 2"
+    )
+    option_3 = data_fixture.create_select_option(
+        field=single_select_field, value="Option 3"
+    )
+
+    form_view = data_fixture.create_form_view(table=table)
+
+    url = reverse("api:database:views:field_options", kwargs={"view_id": form_view.id})
+    response = api_client.patch(
+        url,
+        {
+            "field_options": {
+                str(single_select_field.id): {
+                    "include_all_select_options": False,
+                    "allowed_select_options": [option_1.id, option_2.id],
+                }
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "field_options": {
+            str(single_select_field.id): {
+                "name": "",
+                "description": "",
+                "enabled": False,
+                "required": True,
+                "show_when_matching_conditions": False,
+                "condition_type": "AND",
+                "order": 32767,
+                "conditions": [],
+                "condition_groups": [],
+                "field_component": "default",
+                "include_all_select_options": False,
+                "allowed_select_options": [option_1.id, option_2.id],
+            }
+        }
+    }
+
+    url = reverse("api:database:views:field_options", kwargs={"view_id": form_view.id})
+    response = api_client.patch(
+        url,
+        {
+            "field_options": {
+                str(single_select_field.id): {
+                    "allowed_select_options": [option_2.id, option_3.id],
+                }
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["field_options"][str(single_select_field.id)][
+        "allowed_select_options"
+    ] == [option_2.id, option_3.id]
+
+
+@pytest.mark.django_db
+def test_patch_select_options_in_field_options_num_queries(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    single_select_field = data_fixture.create_single_select_field(table=table)
+    option_1 = data_fixture.create_select_option(
+        field=single_select_field, value="Option 1"
+    )
+    option_2 = data_fixture.create_select_option(
+        field=single_select_field, value="Option 2"
+    )
+    single_select_field_2 = data_fixture.create_single_select_field(table=table)
+    option_3 = data_fixture.create_select_option(
+        field=single_select_field_2, value="Option 1"
+    )
+    option_4 = data_fixture.create_select_option(
+        field=single_select_field_2, value="Option 2"
+    )
+
+    form_view = data_fixture.create_form_view(table=table)
+
+    url = reverse("api:database:views:field_options", kwargs={"view_id": form_view.id})
+    # Make one request to allow the system to cache things.
+    api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    with CaptureQueriesContext(connection) as captured_1:
+        response = api_client.patch(
+            url,
+            {
+                "field_options": {
+                    str(single_select_field.id): {
+                        "allowed_select_options": [option_1.id],
+                    }
+                }
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == HTTP_200_OK
+
+    with CaptureQueriesContext(connection) as captured_2:
+        response = api_client.patch(
+            url,
+            {
+                "field_options": {
+                    str(single_select_field.id): {
+                        "allowed_select_options": [option_1.id, option_2.id],
+                    },
+                    str(single_select_field_2.id): {
+                        "allowed_select_options": [option_3.id, option_4.id],
+                    },
+                }
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+
+    assert len(captured_1) == len(captured_2)
+
+
+@pytest.mark.django_db
+def test_prevent_patch_select_options_in_field_options_of_unrelated_field(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    single_select_field = data_fixture.create_single_select_field(table=table)
+    option_1 = data_fixture.create_select_option(value="Option 1")
+
+    form_view = data_fixture.create_form_view(table=table)
+
+    url = reverse("api:database:views:field_options", kwargs={"view_id": form_view.id})
+    response = api_client.patch(
+        url,
+        {
+            "field_options": {
+                str(single_select_field.id): {
+                    "include_all_select_options": False,
+                    "allowed_select_options": [option_1.id],
+                }
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD"
 
 
 @pytest.mark.django_db

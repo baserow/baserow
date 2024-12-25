@@ -159,7 +159,7 @@ import APIDocsErrors from '@baserow/modules/database/components/docs/sections/AP
 import APIDocsMenu from '@baserow/modules/database/components/docs/sections/APIDocsMenu.vue'
 
 // Re-use the FileFieldType docs response example.
-import { FileFieldType } from '../fieldTypes'
+import { FileFieldType } from '@baserow/modules/database/fieldTypes'
 
 export default {
   name: 'APIDocsDatabase',
@@ -229,11 +229,10 @@ export default {
           return [key, fields.map((field) => this.populateField(field))]
         })
       )
-      // return this.fieldData.map((field) => populateField(field))
     },
     withoutReadOnly() {
       return Object.fromEntries(
-        Object.entries(this.fieldData).map(([key, fields]) => {
+        Object.entries(this.fields).map(([key, fields]) => {
           return [
             key,
             fields.filter((field) => !field._.isReadOnly && !field.read_only),

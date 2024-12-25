@@ -1,8 +1,12 @@
+from django.core.cache import cache
+from django.db import transaction
+
 import pytest
 from freezegun import freeze_time
 
 from baserow.core.action.registries import action_type_registry
 from baserow.core.auth_provider.handler import PasswordProviderHandler
+from baserow.core.models import UserLogEntry
 from baserow.core.user.actions import (
     CancelUserDeletionActionType,
     ChangeUserPasswordActionType,
@@ -14,6 +18,8 @@ from baserow.core.user.actions import (
     UpdateUserActionType,
 )
 from baserow.core.user.handler import UserHandler
+from baserow.throttling_types import RateLimit
+from baserow_enterprise.audit_log.models import AuditLogEntry
 
 
 @pytest.mark.django_db
@@ -79,6 +85,29 @@ def test_sign_in_user_action_type(data_fixture):
         )
 
     assert user.last_login > last_login
+
+
+@pytest.mark.django_db(transaction=True)
+def test_sign_in_user_action_type_action_log_limit(settings, data_fixture):
+    settings.BASEROW_LOGIN_ACTION_LOG_LIMIT = RateLimit.from_string("2/h")
+    user = data_fixture.create_user()
+    cache_key = f"log_signin_action:{user.username}:PasswordAuthProviderModel"
+    cache.delete(cache_key)
+
+    # sign ins are logged
+    with freeze_time("2020-01-01 12:00:10"), transaction.atomic():
+        action_type_registry.get(SignInUserActionType.type).do(user)
+    with freeze_time("2020-01-01 12:01:20"), transaction.atomic():
+        action_type_registry.get(SignInUserActionType.type).do(user)
+
+    # sing ins are NOT logged
+    with freeze_time("2020-01-01 12:02:20"), transaction.atomic():
+        action_type_registry.get(SignInUserActionType.type).do(user)
+
+    user.refresh_from_db()
+    assert str(user.last_login) == "2020-01-01 12:01:20+00:00"
+    assert UserLogEntry.objects.count() == 2
+    assert AuditLogEntry.objects.filter(action_type="sign_in_user").count() == 2
 
 
 @pytest.mark.django_db

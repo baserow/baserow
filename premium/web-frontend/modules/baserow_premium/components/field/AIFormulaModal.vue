@@ -77,6 +77,7 @@ export default {
           this.table.id,
           values.ai_generative_ai_type,
           values.ai_generative_ai_model,
+          values.ai_temperature || null,
           values.ai_prompt
         )
         this.$emit('formula', data.formula)

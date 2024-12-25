@@ -15,6 +15,7 @@
       class="grid-field-long-text__textarea"
     />
     <div v-else class="grid-field-long-text__textarea">{{ value }}</div>
+    <slot name="default" :slot-props="{ editing, opened }"></slot>
   </div>
 </template>
 

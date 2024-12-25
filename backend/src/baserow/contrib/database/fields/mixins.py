@@ -1,17 +1,11 @@
 from django.db import models
 
-DATE_FORMAT = {
-    "EU": {"name": "European (D/M/Y)", "format": "%d/%m/%Y", "sql": "DD/MM/YYYY"},
-    "US": {"name": "US (M/D/Y)", "format": "%m/%d/%Y", "sql": "MM/DD/YYYY"},
-    "ISO": {"name": "ISO (Y-M-D)", "format": "%Y-%m-%d", "sql": "YYYY-MM-DD"},
-}
-DATE_FORMAT_CHOICES = [(k, v["name"]) for k, v in DATE_FORMAT.items()]
-
-DATE_TIME_FORMAT = {
-    "24": {"name": "24 hour", "format": "%H:%M", "sql": "HH24:MI"},
-    "12": {"name": "12 hour", "format": "%I:%M %p", "sql": "HH12:MI AM"},
-}
-DATE_TIME_FORMAT_CHOICES = [(k, v["name"]) for k, v in DATE_TIME_FORMAT.items()]
+from baserow.core.constants import (
+    DATE_FORMAT,
+    DATE_FORMAT_CHOICES,
+    DATE_TIME_FORMAT,
+    DATE_TIME_FORMAT_CHOICES,
+)
 
 
 def get_date_time_format(options, format_type):

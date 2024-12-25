@@ -125,7 +125,7 @@
             required
             class="margin-bottom-2"
           >
-            <Dropdown v-model="mapping[index]" small>
+            <Dropdown v-model="mapping[index]">
               <DropdownItem name="Skip" :value="0" icon="ban" />
               <DropdownItem
                 v-for="field in availableFields"
@@ -329,7 +329,7 @@ export default {
       }
     },
     importInProgress() {
-      return this.state !== null && !this.jobIsFinished && !this.error.visible
+      return this.state !== null && !this.jobIsDone && !this.error.visible
     },
     importerTypes() {
       return this.$registry.getAll('importer')

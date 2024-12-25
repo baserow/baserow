@@ -1,13 +1,13 @@
 <template>
   <div class="snapshots-modal__snapshot">
     <div class="snapshots-modal__info">
-      <div v-if="!jobIsRunning && !jobHasSucceeded">
+      <div v-if="!jobIsRunning && !jobIsFinished">
         <div class="snapshots-modal__name">
           {{ snapshot.name }}
         </div>
         <div class="snapshots-modal__detail">
           {{ snapshot.created_by ? `${snapshot.created_by.username} - ` : '' }}
-          {{ $t('snapshotListItem.created') }} {{ humanCreatedAt }}
+          {{ $t('snapshotListItem.created') }} {{ timeAgo }}
         </div>
       </div>
       <ProgressBar
@@ -44,26 +44,20 @@
 <script>
 import SnapshotsService from '@baserow/modules/core/services/snapshots'
 import DeleteSnapshotModal from '@baserow/modules/core/components/snapshots/DeleteSnapshotModal'
-import { getHumanPeriodAgoCount } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import job from '@baserow/modules/core/mixins/job'
+import timeAgo from '@baserow/modules/core/mixins/timeAgo'
 import { RestoreSnapshotJobType } from '@baserow/modules/core/jobTypes'
 
 export default {
   components: {
     DeleteSnapshotModal,
   },
-  mixins: [job],
+  mixins: [job, timeAgo],
   props: {
     snapshot: {
       type: Object,
       required: true,
-    },
-  },
-  computed: {
-    humanCreatedAt() {
-      const { period, count } = getHumanPeriodAgoCount(this.snapshot.created_at)
-      return this.$tc(`datetime.${period}Ago`, count)
     },
   },
   mounted() {

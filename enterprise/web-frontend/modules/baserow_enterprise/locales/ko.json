@@ -1,0 +1,411 @@
+{
+    "clientHandler": {
+        "cannotDisableAllAuthProvidersTitle": "마지막으로 활성화된 제공자",
+        "cannotDisableAllAuthProvidersDescription": "마지막으로 활성화된 제공자를 비활성화하거나 삭제할 수 없습니다."
+    },
+    "enterprise": {
+        "license": "엔터프라이즈",
+        "sidebarTooltip": "귀하의 계정은 전 세계적으로 엔터프라이즈 기능에 액세스할 수 있습니다",
+        "rbac": "RBAC",
+        "sso": "SSO",
+        "licenseDescription": "Baserow 엔터프라이즈에서는 뷰어가 무료입니다. 사용자가 어떤 작업공간에서든 다른 역할을 가지고 있다면 자동으로 유료 좌석을 사용하게 됩니다.",
+        "overflowWarning": "뷰어가 아닌 사용자가 너무 많으며 모든 유료 좌석을 사용했습니다. 각 작업공간 멤버 페이지에서 사용자를 뷰어로 변경하십시오."
+    },
+    "trashType": {
+        "team": "팀"
+    },
+    "createTeamModal": {
+        "title": "팀 생성",
+        "invalidNameTitle": "다른 이름을 사용하세요",
+        "invalidNameMessage": "지정된 작업공간에서 이 팀 이름이 이미 사용 중입니다."
+    },
+    "updateTeamModal": {
+        "title": "{teamName} 업데이트",
+        "invalidNameTitle": "다른 이름을 사용하세요",
+        "invalidNameMessage": "지정된 작업공간에서 이 팀 이름이 이미 사용 중입니다."
+    },
+    "manageTeamModals": {
+        "subheading": "팀을 통해 여러 사람에게 권한을 일괄적으로 부여하거나 제한할 수 있습니다."
+    },
+    "manageTeamForm": {
+        "submit": "저장",
+        "nameTitle": "이름",
+        "roleTitle": "기본 역할",
+        "inviteMembers": "멤버 추가",
+        "membersTitle": "멤버",
+        "noSubjectsSelected": "선택적으로 팀 사용자들을 추가하려면 '{buttonLabel}'을 클릭하세요.",
+        "roleHelpText": "사용자별 역할은 항상 팀 역할보다 우선합니다."
+    },
+    "editTeamContext": {
+        "edit": "팀 편집",
+        "remove": "팀 삭제"
+    },
+    "teamsTable": {
+        "title": "{workspaceName}의 {teamCount}개 팀",
+        "createNew": "팀 생성",
+        "nameColumn": "이름",
+        "createdColumn": "생성일",
+        "subjectsColumn": "멤버",
+        "roleColumn": "기본 역할",
+        "roleHelpText": "데이터베이스와 테이블의 역할로 재정의할 수 있습니다."
+    },
+    "subjectSampleField": {
+        "titleAttr": "이 팀에는 {subjectCount}명의 멤버가 있습니다."
+    },
+    "teamsSettings": {
+        "teamsTabTitle": "팀"
+    },
+    "adminType": {
+        "AuditLog": "감사 로그",
+        "Authentication": "인증"
+    },
+    "auditLog": {
+        "adminTitle": "감사 로그",
+        "workspaceTitle": "감사 로그 - {workspaceName}",
+        "filterUserTitle": "사용자",
+        "filterWorkspaceTitle": "작업공간",
+        "filterActionTypeTitle": "이벤트 유형",
+        "filterFromTimestampTitle": "시작 날짜",
+        "filterFromTimestamp": "시작 날짜",
+        "filterToTimestampTitle": "종료 날짜",
+        "filterToTimestamp": "종료 날짜",
+        "user": "사용자",
+        "workspace": "작업공간",
+        "actionType": "이벤트 유형",
+        "description": "설명",
+        "timestamp": "타임스탬프",
+        "ip_address": "IP 주소",
+        "exportToCsv": "CSV로 내보내기",
+        "exportModalTitle": "CSV로 내보내기",
+        "clearFilters": "지우기",
+        "allUsers": "모든 사용자",
+        "allWorkspaces": "모든 작업공간",
+        "allActionTypes": "모든 이벤트 유형"
+    },
+    "auditLogExportModal": {
+        "title": "CSV로 내보내기",
+        "exportFilename": "관리자 감사 로그 내보내기 - {date}",
+        "exportWorkspaceFilename": " 작업공간 ({workspaceId}) 감사 로그 내보내기 - {date}",
+        "cancelledTitle": "내보내기 실패",
+        "cancelledDescription": "감사 로그를 내보내는 동안 문제가 발생했습니다. 다시 시도해 주세요."
+    },
+    "authProviders": {
+        "title": "인증 제공자",
+        "noProviders": "아직 구성된 인증 제공자가 없습니다.",
+        "addProvider": "제공자 추가"
+    },
+    "authProviderTypes": {
+        "password": "이메일 및 비밀번호 인증",
+        "saml": "SSO SAML 공급자",
+        "ssoSamlProviderName": "SSO SAML: {domain}",
+        "ssoSamlProviderNameUnconfigured": "구성되지 않은 SSO SAML"
+    },
+    "editAuthProviderMenuContext": {
+        "edit": "편집",
+        "delete": "삭제"
+    },
+    "samlSettingsForm": {
+        "domain": "SAML 도메인",
+        "domainPlaceholder": "회사 도메인 이름을 입력하세요...",
+        "invalidDomain": "유효하지 않은 도메인 이름입니다",
+        "domainAlreadyExists": "이 도메인에 대한 SAML 제공자가 이미 존재합니다",
+        "metadata": "메타데이터",
+        "metadataPlaceholder": "Identity Provider 메타데이터를 붙여넣으세요...",
+        "invalidMetadata": "Identity Provider의 유효하지 않은 XML 메타데이터입니다",
+        "relayStateUrl": "기본 Relay State URL",
+        "acsUrl": "싱글 사인온 URL",
+        "providerIsVerified": "제공자가 확인되었습니다",
+        "samlResponseSettings": "SAML 응답 속성",
+        "defaultAttrs": "기본값",
+        "customAttrs": "사용자 지정",
+        "emailAttrKey": "이메일",
+        "emailAttrKeyHelper": "사용자의 사용자명으로 사용될 이메일 주소입니다.",
+        "firstNameAttrKey": "이름",
+        "firstNameAttrKeyHelper": "'성'이 제공되지 않은 경우 사용자의 이름 또는 전체 이름입니다.",
+        "lastNameAttrKey": "성",
+        "lastNameAttrKeyHelper": "사용자의 성 (선택 사항). 이 값을 지우면 '이름'을 통해 전체 이름을 제공합니다."
+    },
+    "createSettingsAuthProviderModal": {
+        "title": "새로운 {type} 추가"
+    },
+    "updateSettingsAuthProviderModal": {
+        "title": "{name} 편집"
+    },
+    "deleteAuthProviderModal": {
+        "title": "{name} 삭제",
+        "comment": "이 {type}을 정말로 삭제하시겠습니까?"
+    },
+    "loginWithSaml": {
+        "signInWithSaml": "SAML SSO로 로그인",
+        "redirecting": "Identity Provider로 리디렉션 중...",
+        "continueWithSaml": "SAML SSO 제공자로 계속",
+        "requestError": "이 도메인은 SAML SSO로 구성되지 않았습니다",
+        "loginText": "이미 비밀번호가 있습니까?"
+    },
+    "loginError": {
+        "title": "문제가 발생했습니다:",
+        "loginText": "이미 계정이 있으십니까?",
+        "help": "도움이 필요하시면 관리자에게 문의하세요.",
+        "defaultErrorMessage": "SSO 로그인 흐름을 완료할 수 없습니다.",
+        "errorSsoFeatureNotActive": "SSO 기능이 활성화되지 않았습니다. 관리자에게 문의하세요.",
+        "errorInvalidSamlRequest": "유효하지 않은 SAML 요청입니다.",
+        "errorInvalidSamlResponse": "유효하지 않은 SAML 응답입니다.",
+        "errorUserDeactivated": "사용자가 비활성화되었습니다.",
+        "errorProviderDoesNotExist": "이 인증 제공자가 존재하지 않거나 사용할 수 없습니다.",
+        "errorAuthFlowError": "선택한 제공자와의 인증 흐름 중 오류가 발생했습니다.",
+        "errorDifferentProvider": "처음 가입한 제공자를 사용하세요.",
+        "errorWorkspaceInvitationEmailMismatch": "이메일 주소가 초대와 일치하지 않습니다.",
+        "errorSignupDisabled": "관리자가 회원 가입을 비활성화했습니다."
+    },
+    "roles": {
+        "admin": {
+            "name": "관리자",
+            "description": "작업공간과 애플리케이션을 완전히 구성하고 편집할 수 있습니다."
+        },
+        "builder": {
+            "name": "빌더",
+            "description": "애플리케이션을 완전히 구성하고 편집할 수 있습니다."
+        },
+        "editor": {
+            "name": "편집자",
+            "description": "데이터를 완전히 편집할 수 있지만 애플리케이션이나 작업공간을 구성할 수 없습니다."
+        },
+        "commenter": {
+            "name": "댓글 작성자",
+            "description": "데이터를 읽고 댓글만 달 수 있습니다."
+        },
+        "viewer": {
+            "name": "뷰어",
+            "description": "데이터를 읽을 수만 있습니다."
+        },
+        "noAccess": {
+            "name": "접근 불가",
+            "description": "아무 것도 접근할 수 없습니다."
+        },
+        "noRoleLowPriority": {
+            "name": "역할 없음",
+            "description": "팀에서 기본 작업공간 역할을 받습니다."
+        }
+    },
+    "memberRolesModal": {
+        "memberRolesDatabaseTabTitle": "데이터베이스",
+        "memberRolesTableTabTitle": "현재 테이블",
+        "error": {
+            "title": "데이터를 가져올 수 없습니다",
+            "description": "멤버 데이터를 가져오는 동안 오류가 발생했습니다."
+        }
+    },
+    "memberRolesTab": {
+        "database": {
+            "title": "{name} 데이터베이스",
+            "selectMembers": "멤버 선택",
+            "everyoneHasAccess": "{name} 작업공간의 모든 사람이 이 데이터베이스에 액세스할 수 있습니다.",
+            "onlyYouHaveAccess": "이 데이터베이스에 액세스할 수 있는 사람은 당신뿐입니다.",
+            "warningTitle": "다른 사용자가 액세스를 상속받을 수 있습니다!",
+            "warningMessage": "다른 사용자가 상위 작업공간의 해당 역할을 통해 액세스를 상속받을 수 있습니다.",
+            "headerTooltip": "데이터베이스 역할은 작업공간 역할을 재정의합니다."
+        },
+        "table": {
+            "title": "{name} 테이블",
+            "selectMembers": "멤버 선택",
+            "everyoneHasAccess": "{name} 작업공간의 모든 사람이 이 테이블에 액세스할 수 있습니다.",
+            "onlyYouHaveAccess": "이 테이블에 액세스할 수 있는 사람은 당신뿐입니다.",
+            "warningTitle": "다른 사용자가 액세스를 상속받을 수 있습니다!",
+            "warningMessage": "다른 사용자가 상위 데이터베이스 또는 작업공간의 해당 역할을 통해 액세스를 상속받을 수 있습니다.",
+            "headerTooltip": "테이블 역할은 작업공간 및 데이터베이스 역할을 재정의합니다."
+        }
+    },
+    "memberRolesShareToggle": {
+        "label": "모두와 공유 {name}",
+        "subLabel": "{totalUserAmount} 작업공간 멤버"
+    },
+    "memberRolesDatabaseContexItem": {
+        "label": "멤버 관리",
+        "additionalRoles": "추가 역할"
+    },
+    "memberRolesTableContexItem": {
+        "label": "멤버 관리",
+        "additionalRoles": "추가 역할"
+    },
+    "memberRolesMembersList": {
+        "remove": "제거",
+        "teamMembersCount": "{count} 팀 멤버",
+        "adminHelpText": "관리자는 다른 관리자의 역할을 제한할 수 있습니다.",
+        "noMembers": "선택된 멤버가 없습니다. 멤버를 추가하려면 선택 버튼을 사용하세요."
+    },
+    "roleAssignmentModal": {
+        "membersTab": "멤버",
+        "teamsTab": "팀",
+        "subjectTypeNameMembers": "멤버",
+        "subjectTypeNameTeams": "팀"
+    },
+    "selectMembersList": {
+        "searchPlaceholder": "멤버 찾기...",
+        "selectedAmountLabel": "{count}명의 멤버 선택됨"
+    },
+    "selectTeamsList": {
+        "searchPlaceholder": "팀 찾기...",
+        "selectedAmountLabel": "{count}개의 팀 선택됨"
+    },
+    "selectSubjectsListFooter": {
+        "invite": "{count} {type} 초대",
+        "types": {
+            "members": "멤버",
+            "teams": "팀"
+        },
+        "helpTooltip": "멤버 역할 할당은 팀 역할 할당보다 우선합니다."
+    },
+    "membersRoleField": {
+        "noAccessHelpText": "이 사용자는 리소스에 대한 명시적 액세스가 필요합니다.",
+        "adminHelpText": "관리자는 다른 관리자의 역할을 제한할 수 있습니다."
+    },
+    "membersPagePlugin": {
+        "roleHelpText": "데이터베이스와 테이블의 역할로 재정의할 수 있습니다."
+    },
+    "oauthSettingsForm": {
+        "providerName": "이름",
+        "providerNamePlaceholder": "사용자 지정 제공자 이름",
+        "clientId": "클라이언트 ID",
+        "clientIdPlaceholder": "제공자의 클라이언트 ID",
+        "secret": "비밀",
+        "secretPlaceholder": "제공자의 비밀",
+        "baseUrl": "URL",
+        "baseUrlPlaceholder": "제공자의 기본 URL",
+        "invalidBaseUrl": "입력된 URL이 유효한 제공자 URL이 아닙니다",
+        "callbackUrl": "콜백 URL"
+    },
+    "loginButton": {
+        "continueWith": "계속"
+    },
+    "enterpriseFeatures": {
+        "sso": "싱글 사인온",
+        "rbac": "역할 기반 액세스 제어",
+        "auditLogs": "감사 로그",
+        "dataSync": "데이터 동기화",
+        "coBranding": "공동 브랜딩 로고 교체",
+        "support": "직접 지원"
+    },
+    "chatwootSupportSidebarWorkspace": {
+        "directSupport": "직접 지원"
+    },
+    "userTeamsField": {
+        "no_records": "팀 없음"
+    },
+    "snapshotModalWarning": {
+        "message": "스냅샷에는 애플리케이션 및 해당 테이블에 설정된 모든 권한이 포함된다는 점에 유의하십시오."
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "내보내기에는 애플리케이션 및 해당 테이블에 설정된 권한이 포함되지 않는다는 점에 유의하십시오."
+    },
+    "auditLogSidebarWorkspace": {
+        "title": "감사 로그"
+    },
+    "localBaserowUserSourceType": {
+        "notConfigured": "구성되지 않음"
+    },
+    "localBaserowUserSourceForm": {
+        "description": "테이블의 각 행은 사용자 계정입니다. 테이블에서 일치하는 필드를 선택하십시오. 이메일 필드는 식별에 사용됩니다.",
+        "emailFieldLabel": "이메일 필드 선택",
+        "emailFieldLabelPlaceholder": "필드를 선택하세요...",
+        "noFields": "필드 없음",
+        "nameFieldLabel": "이름 필드 선택",
+        "nameFieldPlaceholder": "필드를 선택하세요...",
+        "roleFieldLabel": "역할 필드 선택",
+        "roleFieldPlaceholder": "필드를 선택하세요..."
+    },
+    "appAuthProviderType": {
+        "localBaserowPassword": "이메일/비밀번호",
+        "commonSaml": "Saml SSO"
+    },
+    "localBaserowPasswordAppAuthProviderForm": {
+        "passwordFieldLabel": "비밀번호 필드 선택",
+        "noFields": "호환 가능한 필드 없음"
+    },
+    "enterpriseSettings": {
+        "branding": "브랜딩",
+        "showBaserowHelpMessage": "도움말 메시지 표시",
+        "showBaserowHelpMessageDescription": "대시보드에 도움말 요청 메시지를 표시할지 여부를 나타냅니다.",
+        "deactivated": "엔터프라이즈에서 사용 가능",
+        "coBrandingLogo": "로고",
+        "coBrandingLogoDescription": "Baserow 로고를 사용자 지정 공동 브랜딩 대체 로고로 교체합니다 (176x29).",
+        "uploadFileButton": "이미지 업로드"
+    },
+    "enterpriseModal": {
+        "title": "{name}을(를) 사용하려면 업그레이드하세요",
+        "description": "귀하의 계정은 고급/엔터프라이즈 기능에 액세스할 수 없습니다. {name}을(를) 사용하려면 고급/엔터프라이즈 버전으로 업그레이드하세요. 라이선스를 받아 계정을 업그레이드할 수 있습니다. 아래 버튼을 클릭하여 가격을 확인하세요.",
+        "viewPricing": "가격 보기",
+        "premium": "프리미엄",
+        "enterprise": "엔터프라이즈"
+    },
+    "authFormElementForm": {
+        "userSource": "사용자 소스",
+        "loginButtonLabel": "로그인 버튼 라벨",
+        "loginButtonLabelPlaceholder": "라벨을 입력하세요..."
+    },
+    "authFormElement": {
+        "email": "이메일",
+        "password": "비밀번호",
+        "emailPlaceholder": "이메일을 입력하세요...",
+        "passwordPlaceholder": "비밀번호를 입력하세요...",
+        "selectOrConfigureUserSourceFirst": "이 로그인 요소를 사용하려면 사용자 소스를 선택하세요."
+    },
+    "enterpriseDataSyncType": {
+        "localBaserowTable": "Baserow 테이블 동기화",
+        "jiraIssues": "Jira 이슈 동기화",
+        "githubIssues": "GitHub 이슈 동기화",
+        "gitlabIssues": "GitLab 이슈 동기화",
+        "hubspotContacts": "HubSpot 연락처 동기화"
+    },
+    "localBaserowTableDataSync": {
+        "name": "소스 테이블 ID",
+        "authorizing": "소스 테이블에서 데이터를 선택하기 위해 계정을 승인하고 있습니다.",
+        "workspace": "작업공간",
+        "database": "데이터베이스",
+        "table": "테이블"
+    },
+    "jiraIssuesDataSync": {
+        "jiraUrl": "Jira 인스턴스 URL",
+        "urlHelper": "Jira 인스턴스의 기본 URL (예: https://your-domain.atlassian.net).",
+        "projectKey": "Jira 프로젝트 키 (선택 사항)",
+        "projectKeyHelper": "Jira 프로젝트의 프로젝트 키 (예: PROJ). Jira에서 '프로젝트 설정'을 클릭하여 찾을 수 있습니다. 제공하지 않으면 모든 이슈가 반환됩니다.",
+        "jiraUsername": "Jira 사용자 이름",
+        "usernameHelper": "인증에 사용되는 Jira 계정의 사용자 이름입니다. 로그인에 사용하는 이메일입니다.",
+        "apiToken": "Jira API 토큰",
+        "apiTokenHelper": "https://id.atlassian.com/manage-profile/security/api-tokens에서 생성할 수 있습니다."
+    },
+    "githubIssuesDataSync": {
+        "owner": "소유자",
+        "ownerHelper": "레포지토리의 사용자 이름 또는 소유자. 일반적으로 왼쪽 상단에 'owner / repo'",
+        "repo": "레포지토리",
+        "repoHelper": "레포지토리의 이름. 일반적으로 왼쪽 상단에 'owner / repo'",
+        "apiToken": "API 토큰",
+        "apiTokenHelper": "https://github.com/settings/tokens에서 생성할 수 있으며 'Generate new token'을 클릭하고 'All repositories'를 선택한 다음 'Repository permissions'에서 'Issues'를 'read-only'로 설정합니다."
+    },
+    "gitlabIssuesDataSync": {
+        "url": "기본 URL",
+        "urlHelper": "GitLab 인스턴스의 기본 URL입니다. (예: https://gitlab.com)",
+        "projectId": "프로젝트 ID",
+        "projectIdHelper": "이슈를 동기화하려는 프로젝트의 ID입니다. 프로젝트 페이지(예: https://gitlab.com/baserow/baserow)로 이동하여 오른쪽 상단의 세 점을 클릭한 다음 '프로젝트 ID 복사: 12345678'을 클릭하여 찾을 수 있습니다.",
+        "accessToken": "액세스 토큰",
+        "accessTokenHelper": "https://gitlab.com/-/user_settings/personal_access_tokens에서 생성할 수 있으며 'Add new token'을 클릭하고 'read_api'를 선택합니다."
+    },
+    "samlAuthLink": {
+        "emailPlaceholder": "이메일을 입력하세요...",
+        "provideEmail": "SAML 계정 이메일을 입력하세요",
+        "loginWithSaml": "SAML로 로그인",
+        "placeholderWithSaml": "{login} SAML로 로그인"
+    },
+    "hubspotContactsDataSync": {
+        "accessTokenHelper": "HubSpot에서 개인 앱 액세스 토큰을 생성하려면, 상단 바에서 설정을 클릭하고 통합 > 개인 앱으로 이동한 다음 새 개인 앱을 생성하세요. 다음 권한 범위를 할당합니다: crm.objects.contacts.read, crm.schemas.contacts.read, crm.objects.custom.read. 마지막으로 앱 생성을 클릭하면 토큰이 생성됩니다.",
+        "accessToken": "개인 앱 액세스 토큰"
+    },
+    "commonSamlSettingModal": {
+        "title": "제공자 편집",
+        "relayStateTitle": "도메인별 기본 URL(클릭하여 복사)",
+        "acsTitle": "도메인별 싱글 사인 온 URL (클릭하여 복사)",
+        "preview": "미리보기"
+    },
+    "commonSamlSettingForm": {
+        "authProviderInError": "오류를 수정하려면 이 제공자를 편집하세요."
+    }
+}

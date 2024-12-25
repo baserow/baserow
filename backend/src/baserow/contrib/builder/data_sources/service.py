@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
 from django.utils import translation
@@ -26,12 +26,16 @@ from baserow.contrib.builder.data_sources.signals import (
     data_source_updated,
 )
 from baserow.contrib.builder.data_sources.types import DataSourceForUpdate
+from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.types import PermissionCheck
+
+if TYPE_CHECKING:
+    from baserow.contrib.builder.models import Builder
 
 
 class DataSourceService:
@@ -78,11 +82,33 @@ class DataSourceService:
         user_data_sources = CoreHandler().filter_queryset(
             user,
             ListDataSourcesPageOperationType.type,
-            DataSource.objects.filter(page=page),
+            DataSource.objects.all(),
             workspace=page.builder.workspace,
         )
 
         return self.handler.get_data_sources(page, base_queryset=user_data_sources)
+
+    def get_builder_data_sources(
+        self, user: AbstractUser, builder: "Builder"
+    ) -> List[DataSource]:
+        """
+        Gets all the data_sources of a given builder visible to the given user.
+
+        :param user: The user trying to get the data_sources.
+        :param page: The builder that holds the data_sources.
+        :return: The data_sources of that builder.
+        """
+
+        user_data_sources = CoreHandler().filter_queryset(
+            user,
+            ListDataSourcesPageOperationType.type,
+            DataSource.objects.all(),
+            workspace=builder.workspace,
+        )
+
+        return self.handler.get_builder_data_sources(
+            builder, base_queryset=user_data_sources
+        )
 
     def create_data_source(
         self,
@@ -185,22 +211,41 @@ class DataSourceService:
             context=data_source,
         )
 
+        page = None
+        if "page" in kwargs:
+            page = kwargs.pop("page")
+            # Check we are in the same builder.
+            if page.builder_id != data_source.page.builder_id:
+                raise PageNotInBuilder(page.id)
+
+        # The service type we're using for preparing the values. If we're not
+        # changing service types, then it's `service_type`, otherwise below we
+        # swap to `new_service_type` instead.
+        service_type_for_preparation = service_type
+
         new_service_type = kwargs.get("new_service_type", None)
         if new_service_type:
             # Verify the new `service_type` is dispatch-able by DISPATCH_DATA_SOURCE.
             if new_service_type.dispatch_type != DispatchTypes.DISPATCH_DATA_SOURCE:
                 raise InvalidServiceTypeDispatchSource()
+            # If we're changing service types, we need to prepare the values with
+            # the new one, instead of the old one.
+            service_type_for_preparation = new_service_type
 
-        if service_type:
+        if service_type_for_preparation:
             service = data_source.service.specific if data_source.service_id else None
-            prepared_values = service_type.prepare_values(
+            prepared_values = service_type_for_preparation.prepare_values(
                 kwargs, user, instance=service
             )
-            prepared_values["service_type"] = service_type
         else:
             prepared_values = kwargs
 
-        data_source = self.handler.update_data_source(data_source, **prepared_values)
+        if page is not None:
+            prepared_values["page"] = page
+
+        data_source = self.handler.update_data_source(
+            data_source, service_type, **prepared_values
+        )
 
         data_source_updated.send(self, data_source=data_source, user=user)
 
@@ -229,6 +274,18 @@ class DataSourceService:
             self, data_source_id=data_source.id, page=page, user=user
         )
 
+    def remove_unused_field_names(
+        self,
+        row: Dict[str, Any],
+        field_names: List[str],
+    ) -> Dict[str, Any]:
+        """
+        Given a row dictionary, return a version of it that only contains keys
+        existing in the field_names list.
+        """
+
+        return {key: value for key, value in row.items() if key in field_names}
+
     def dispatch_data_sources(
         self,
         user,
@@ -255,7 +312,38 @@ class DataSourceService:
             workspace=data_sources[0].page.builder.workspace,
         )
 
-        return self.handler.dispatch_data_sources(data_sources, dispatch_context)
+        results = self.handler.dispatch_data_sources(data_sources, dispatch_context)
+
+        # When public_allowed_properties is None, it indicates that filtering
+        # shouldn't be applied, thus the results are returned without changes.
+        if dispatch_context.public_allowed_properties is None:
+            return results
+
+        # We filter the fields before returning the result
+        new_results = {}
+        for data_source in data_sources:
+            if isinstance(results[data_source.id], Exception):
+                new_results[data_source.id] = results[data_source.id]
+                continue
+
+            field_names = dispatch_context.public_allowed_properties.get(
+                "external", {}
+            ).get(data_source.service.id, [])
+
+            if data_source.service.get_type().returns_list:
+                new_results[data_source.id] = {
+                    **results[data_source.id],
+                    "results": [
+                        self.remove_unused_field_names(row, field_names)
+                        for row in results[data_source.id]["results"]
+                    ],
+                }
+            else:
+                new_results[data_source.id] = self.remove_unused_field_names(
+                    results[data_source.id], field_names
+                )
+
+        return new_results
 
     def dispatch_page_data_sources(
         self,
@@ -273,12 +361,18 @@ class DataSourceService:
         :return: The result of dispatching all the data source dispatch mapped by ID.
         """
 
+        # We cache all data sources even the shared ones...
         data_sources = self.handler.get_data_sources_with_cache(page)
 
-        if not data_sources:
+        # ...but we want to dispatch only those for this page
+        dispatchable_data_sources = [d for d in data_sources if d.page_id == page.id]
+
+        if not dispatchable_data_sources:
             return {}
 
-        return self.dispatch_data_sources(user, data_sources, dispatch_context)
+        return self.dispatch_data_sources(
+            user, dispatchable_data_sources, dispatch_context
+        )
 
     def dispatch_data_source(
         self,

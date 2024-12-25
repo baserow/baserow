@@ -3,6 +3,7 @@ from django.utils.functional import lazy
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from baserow.api.serializers import CommaSeparatedIntegerValuesField
 from baserow.api.services.serializers import (
@@ -11,6 +12,7 @@ from baserow.api.services.serializers import (
     UpdateServiceSerializer,
 )
 from baserow.contrib.builder.data_sources.models import DataSource
+from baserow.contrib.builder.elements.models import Element
 from baserow.core.services.registries import service_type_registry
 
 
@@ -159,3 +161,43 @@ class MoveDataSourceSerializer(serializers.Serializer):
 
 class GetRecordIdsSerializer(serializers.Serializer):
     record_ids = CommaSeparatedIntegerValuesField()
+
+
+class DispatchDataSourceDataSourceContextSerializer(serializers.Serializer):
+    element = serializers.PrimaryKeyRelatedField(
+        required=False,
+        default=None,
+        allow_null=True,
+        queryset=Element.objects.select_related("page__builder").all(),
+        help_text="Optionally provide an `element` to the data source. Currently only "
+        "used in element-level filtering, sorting and searching if the "
+        "element is a collection element.",
+    )
+
+
+class DispatchDataSourceRequestSerializer(serializers.Serializer):
+    data_source = DispatchDataSourceDataSourceContextSerializer(
+        required=False,
+        default={},
+        help_text="The data source dispatch context data.",
+    )
+
+    def is_valid(self, *args, **kwargs):
+        """
+        Responsible for validating the data source dispatch request. Ensures that
+        the dispatched element belongs to the same page as the data source.
+        """
+
+        super().is_valid(*args, **kwargs)
+
+        data_source = self.context.get("data_source")
+        element = self.validated_data.get("data_source").get("element")
+        if element:
+            if (
+                element.page_id != data_source.page_id
+                and element.page.builder.shared_page.id != data_source.page_id
+            ):
+                raise ValidationError(
+                    "The data source is not available for the dispatched element.",
+                    code="PAGE_MISMATCH",
+                )

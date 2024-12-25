@@ -32,26 +32,34 @@
                             "id": 24716,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24717,
                             "type": "rollup",
                             "name": "Last examination",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": "ISO",
                             "date_include_time": true,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": false,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": "24",
-                            "duration_format": null,
-                            "date_format": "ISO",
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": false,
-                            "array_formula_type": null,
                             "nullable": true,
-                            "error": null,
                             "through_field_id": 24732,
                             "target_field_id": 24769,
                             "rollup_function": "max"
@@ -60,8 +68,12 @@
                             "id": 24718,
                             "type": "link_row",
                             "name": "Allergies",
+                            "description": null,
                             "order": 3,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2636,
                             "link_row_related_field_id": 24752,
                             "link_row_limit_selection_view_id": null,
@@ -71,24 +83,36 @@
                             "id": 24719,
                             "type": "long_text",
                             "name": "Family medical history",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "long_text_enable_rich_text": true
                         },
                         {
                             "id": 24720,
                             "type": "long_text",
                             "name": "Personal medical history",
+                            "description": null,
                             "order": 5,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "long_text_enable_rich_text": true
                         },
                         {
                             "id": 24721,
                             "type": "link_row",
                             "name": "Vaccinations",
+                            "description": null,
                             "order": 10,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2637,
                             "link_row_related_field_id": 24754,
                             "link_row_limit_selection_view_id": null,
@@ -98,30 +122,46 @@
                             "id": 24722,
                             "type": "text",
                             "name": "Address",
+                            "description": null,
                             "order": 15,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24723,
                             "type": "email",
                             "name": "Email",
+                            "description": null,
                             "order": 16,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 24724,
                             "type": "phone_number",
                             "name": "Phone",
+                            "description": null,
                             "order": 17,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 24725,
                             "type": "link_row",
                             "name": "Medications",
+                            "description": null,
                             "order": 18,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2638,
                             "link_row_related_field_id": 24757,
                             "link_row_limit_selection_view_id": null,
@@ -131,15 +171,23 @@
                             "id": 24726,
                             "type": "file",
                             "name": "Photo",
+                            "description": null,
                             "order": 20,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 24727,
                             "type": "link_row",
                             "name": "General practitioner",
+                            "description": null,
                             "order": 21,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2634,
                             "link_row_related_field_id": 24742,
                             "link_row_limit_selection_view_id": null,
@@ -149,31 +197,47 @@
                             "id": 24728,
                             "type": "boolean",
                             "name": "Insured",
+                            "description": null,
                             "order": 23,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 24729,
                             "type": "text",
                             "name": "SSN/TIN",
+                            "description": null,
                             "order": 24,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24730,
                             "type": "text",
                             "name": "Insurance name",
+                            "description": null,
                             "order": 25,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24731,
                             "type": "date",
                             "name": "Date of birth",
+                            "description": null,
                             "order": 27,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_format": "ISO",
                             "date_include_time": false,
                             "date_time_format": "24",
@@ -184,8 +248,12 @@
                             "id": 24732,
                             "type": "link_row",
                             "name": "Examinations",
+                            "description": null,
                             "order": 28,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2639,
                             "link_row_related_field_id": 24766,
                             "link_row_limit_selection_view_id": null,
@@ -195,18 +263,22 @@
                             "id": 24736,
                             "type": "formula",
                             "name": "Insurance symbol",
+                            "description": null,
                             "order": 32,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "formula": "if(field('Insured'),'\ud83d\udfe2','\ud83d\udd34')",
                             "formula_type": "text"
                         },
@@ -214,39 +286,24 @@
                             "id": 24795,
                             "type": "formula",
                             "name": "Age",
+                            "description": null,
                             "order": 35,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": 0,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": 0,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "formula": "floor(toseconds(today() - field('Date of birth')) / (60 * 60 * 24 * 365))",
                             "formula_type": "number"
-                        },
-                        {
-                            "id": 25291,
-                            "type": "formula",
-                            "name": "Formula",
-                            "order": 36,
-                            "primary": false,
-                            "date_include_time": null,
-                            "date_force_timezone": null,
-                            "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
-                            "nullable": false,
-                            "error": null,
-                            "formula": "replace(field('Email'),'email.com','example.com')",
-                            "formula_type": "text"
                         }
                     ],
                     "views": [
@@ -272,6 +329,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77512,
@@ -315,15 +373,6 @@
                                     "width": 181,
                                     "hidden": false,
                                     "order": 4,
-                                    "aggregation_type": "",
-                                    "aggregation_raw_type": ""
-                                },
-                                {
-                                    "id": 79727,
-                                    "field_id": 25291,
-                                    "width": 200,
-                                    "hidden": false,
-                                    "order": 5,
                                     "aggregation_type": "",
                                     "aggregation_raw_type": ""
                                 },
@@ -485,6 +534,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77822,
@@ -689,6 +739,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77848,
@@ -893,6 +944,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77558,
@@ -1097,6 +1149,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77514,
@@ -1292,6 +1345,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77796,
@@ -1496,6 +1550,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77819,
@@ -1833,6 +1888,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -1846,6 +1902,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -1859,6 +1916,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -1872,6 +1930,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -1885,6 +1944,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -1898,6 +1958,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -1911,6 +1972,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -1924,6 +1986,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -1937,6 +2000,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "multiple"
                                 },
                                 {
@@ -1950,6 +2014,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "multiple"
                                 },
                                 {
@@ -1963,6 +2028,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -1976,6 +2042,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -1989,6 +2056,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -2006,9 +2074,11 @@
                                             "id": 339,
                                             "field": 24728,
                                             "type": "boolean",
+                                            "group": null,
                                             "value": "1"
                                         }
                                     ],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -2022,6 +2092,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -2035,6 +2106,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -2048,6 +2120,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -2061,6 +2134,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -2074,6 +2148,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 }
                             ]
@@ -2089,7 +2164,6 @@
                             "field_24716": "Billie Hart",
                             "field_24717": null,
                             "field_24718": [
-                                10,
                                 4,
                                 8,
                                 6,
@@ -2130,8 +2204,7 @@
                                 9
                             ],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 2,
@@ -2142,7 +2215,6 @@
                             "field_24716": "Layton Kent",
                             "field_24717": null,
                             "field_24718": [
-                                58,
                                 20,
                                 23,
                                 8,
@@ -2191,8 +2263,7 @@
                                 42
                             ],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 3,
@@ -2203,7 +2274,6 @@
                             "field_24716": "Raleigh Marks",
                             "field_24717": null,
                             "field_24718": [
-                                28,
                                 48
                             ],
                             "field_24719": "- Both parents had hypertension.\n- No other family history noted.",
@@ -2237,8 +2307,7 @@
                             "field_24731": "1977-10-06",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 4,
@@ -2288,8 +2357,7 @@
                                 4
                             ],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 5,
@@ -2337,8 +2405,7 @@
                                 6
                             ],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 6,
@@ -2348,9 +2415,7 @@
                             "last_modified_by": "frederik@baserow.io",
                             "field_24716": "Callie Hale",
                             "field_24717": null,
-                            "field_24718": [
-                                31
-                            ],
+                            "field_24718": [],
                             "field_24719": "- Parents both had high cholesterol.\n- No other family history of note.",
                             "field_24720": "History of anxiety disorder, managed with therapy.",
                             "field_24721": [
@@ -2390,8 +2455,7 @@
                                 5
                             ],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 7,
@@ -2442,8 +2506,7 @@
                                 10
                             ],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 8,
@@ -2489,8 +2552,7 @@
                             "field_24731": "2005-03-14",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 9,
@@ -2538,8 +2600,7 @@
                                 2
                             ],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 10,
@@ -2590,14 +2651,13 @@
                             "field_24731": "2000-02-18",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 11,
                             "order": "11.00000000000000000000",
                             "created_on": "2021-08-21T22:52:12.580312+00:00",
-                            "updated_on": "2024-08-29T04:50:19.019274+00:00",
+                            "updated_on": "2024-12-09T12:54:56.340241+00:00",
                             "last_modified_by": "frederik@baserow.io",
                             "field_24716": "Andrea Miller",
                             "field_24717": null,
@@ -2637,8 +2697,7 @@
                             "field_24731": "1996-12-05",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 12,
@@ -2677,8 +2736,7 @@
                             "field_24731": "1978-05-20",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 13,
@@ -2727,8 +2785,7 @@
                             "field_24731": "1998-06-15",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 14,
@@ -2779,8 +2836,7 @@
                             "field_24731": "1974-01-01",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 15,
@@ -2824,8 +2880,7 @@
                             "field_24731": "1984-09-22",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 16,
@@ -2876,8 +2931,7 @@
                             "field_24731": "1991-02-25",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 17,
@@ -2923,8 +2977,7 @@
                             "field_24731": "1992-11-01",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 18,
@@ -2975,8 +3028,7 @@
                             "field_24731": "1997-02-22",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 19,
@@ -3025,8 +3077,7 @@
                             "field_24731": "1997-08-03",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         },
                         {
                             "id": 20,
@@ -3078,10 +3129,10 @@
                             "field_24731": "1975-04-04",
                             "field_24732": [],
                             "field_24736": null,
-                            "field_24795": null,
-                            "field_25291": null
+                            "field_24795": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 2634,
@@ -3092,18 +3143,22 @@
                             "id": 24740,
                             "type": "formula",
                             "name": "Name & speciality",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "formula": "concat(field('Name'),' (',join(lookup('Speciality','Name'),' '),')')",
                             "formula_type": "text"
                         },
@@ -3111,8 +3166,12 @@
                             "id": 24741,
                             "type": "link_row",
                             "name": "Speciality",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2635,
                             "link_row_related_field_id": 24749,
                             "link_row_limit_selection_view_id": null,
@@ -3122,8 +3181,12 @@
                             "id": 24742,
                             "type": "link_row",
                             "name": "Patients",
+                            "description": null,
                             "order": 5,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2633,
                             "link_row_related_field_id": 24727,
                             "link_row_limit_selection_view_id": null,
@@ -3133,8 +3196,12 @@
                             "id": 24743,
                             "type": "link_row",
                             "name": "Examinations",
+                            "description": null,
                             "order": 6,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2639,
                             "link_row_related_field_id": 24767,
                             "link_row_limit_selection_view_id": null,
@@ -3144,29 +3211,45 @@
                             "id": 24744,
                             "type": "file",
                             "name": "Photo",
+                            "description": null,
                             "order": 7,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 24745,
                             "type": "email",
                             "name": "Email",
+                            "description": null,
                             "order": 8,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 24746,
                             "type": "password",
                             "name": "Password",
+                            "description": null,
                             "order": 9,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 24747,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 10,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         }
                     ],
@@ -3193,6 +3276,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77559,
@@ -3298,6 +3382,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77668,
@@ -3457,9 +3542,7 @@
                             "field_24741": [
                                 1
                             ],
-                            "field_24742": [
-                                21
-                            ],
+                            "field_24742": [],
                             "field_24743": [
                                 1,
                                 3,
@@ -3653,7 +3736,8 @@
                             "field_24746": "pbkdf2_sha256$600000$qJ0ig07GYbmQom3GkKghwC$qxVpPafGmVCjmUncWbxW4WVkPPV6kZpuG7IV9Q+mzyA=",
                             "field_24747": "Dr. Amy Richter"
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 2635,
@@ -3664,16 +3748,24 @@
                             "id": 24748,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24749,
                             "type": "link_row",
                             "name": "Associated doctors",
+                            "description": null,
                             "order": 5,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2634,
                             "link_row_related_field_id": 24741,
                             "link_row_limit_selection_view_id": null,
@@ -3683,8 +3775,12 @@
                             "id": 24750,
                             "type": "text",
                             "name": "Shortcode",
+                            "description": null,
                             "order": 8,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         }
                     ],
@@ -3711,6 +3807,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77569,
@@ -3834,7 +3931,8 @@
                             ],
                             "field_24750": "SRG"
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 2636,
@@ -3845,16 +3943,24 @@
                             "id": 24751,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24752,
                             "type": "link_row",
                             "name": "Patients with allergy",
+                            "description": null,
                             "order": 3,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2633,
                             "link_row_related_field_id": 24718,
                             "link_row_limit_selection_view_id": null,
@@ -3884,6 +3990,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77570,
@@ -3927,7 +4034,6 @@
                             "last_modified_by": "frederik@baserow.io",
                             "field_24751": "Fish",
                             "field_24752": [
-                                21,
                                 1
                             ]
                         },
@@ -4128,7 +4234,8 @@
                                 1
                             ]
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 2637,
@@ -4139,16 +4246,24 @@
                             "id": 24753,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24754,
                             "type": "link_row",
                             "name": "Patient",
+                            "description": null,
                             "order": 3,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2633,
                             "link_row_related_field_id": 24721,
                             "link_row_limit_selection_view_id": null,
@@ -4158,26 +4273,34 @@
                             "id": 24755,
                             "type": "text",
                             "name": "Producer",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24791,
                             "type": "count",
                             "name": "Count usage",
+                            "description": null,
                             "order": 5,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": 0,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": 0,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "through_field_id": 24754
                         }
                     ],
@@ -4204,6 +4327,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77572,
@@ -4271,6 +4395,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77677,
@@ -4320,7 +4445,6 @@
                             "last_modified_by": "frederik@baserow.io",
                             "field_24753": "Pneumococcal (PCV13 or PPSV23)",
                             "field_24754": [
-                                22,
                                 1
                             ],
                             "field_24755": "Pfizer-BioNTech",
@@ -4352,8 +4476,7 @@
                                 17,
                                 18,
                                 19,
-                                20,
-                                23
+                                20
                             ],
                             "field_24755": "Moderna",
                             "field_24791": null
@@ -4383,12 +4506,7 @@
                                 17,
                                 18,
                                 19,
-                                20,
-                                22,
-                                23,
-                                24,
-                                25,
-                                26
+                                20
                             ],
                             "field_24755": "AstraZeneca",
                             "field_24791": null
@@ -4419,12 +4537,7 @@
                                 17,
                                 18,
                                 19,
-                                20,
-                                22,
-                                23,
-                                24,
-                                25,
-                                26
+                                20
                             ],
                             "field_24755": "Merck",
                             "field_24791": null
@@ -4447,12 +4560,7 @@
                                 16,
                                 18,
                                 19,
-                                20,
-                                22,
-                                23,
-                                24,
-                                25,
-                                26
+                                20
                             ],
                             "field_24755": "Moderna",
                             "field_24791": null
@@ -4473,9 +4581,7 @@
                                 16,
                                 18,
                                 19,
-                                20,
-                                24,
-                                25
+                                20
                             ],
                             "field_24755": "Pfizer-BioNTech",
                             "field_24791": null
@@ -4496,12 +4602,7 @@
                                 16,
                                 18,
                                 19,
-                                20,
-                                22,
-                                23,
-                                24,
-                                25,
-                                26
+                                20
                             ],
                             "field_24755": "Johnson & Johnson",
                             "field_24791": null
@@ -4537,11 +4638,6 @@
                             "last_modified_by": "frederik@baserow.io",
                             "field_24753": "Hepatitis A (HepA)",
                             "field_24754": [
-                                22,
-                                23,
-                                24,
-                                25,
-                                26,
                                 2
                             ],
                             "field_24755": "Johnson & Johnson",
@@ -4595,13 +4691,13 @@
                                 16,
                                 18,
                                 19,
-                                20,
-                                26
+                                20
                             ],
                             "field_24755": "Merck",
                             "field_24791": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 2641,
@@ -4612,24 +4708,36 @@
                             "id": 24783,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24784,
                             "type": "text",
                             "name": "Producer",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24787,
                             "type": "link_row",
                             "name": "Medications",
+                            "description": null,
                             "order": 3,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2638,
                             "link_row_related_field_id": 24786,
                             "link_row_limit_selection_view_id": null,
@@ -4639,18 +4747,22 @@
                             "id": 24788,
                             "type": "count",
                             "name": "Count usage",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": 0,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": 0,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "through_field_id": 24787
                         }
                     ],
@@ -4677,6 +4789,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77662,
@@ -4744,6 +4857,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77681,
@@ -5138,7 +5252,8 @@
                             ],
                             "field_24788": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 2638,
@@ -5149,18 +5264,22 @@
                             "id": 24756,
                             "type": "formula",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "formula": "concat(min(lookup('Medicine','Name')),'_',min(lookup('Patient','Name')),'_',field('From'),'-',field('Until'))",
                             "formula_type": "text"
                         },
@@ -5168,8 +5287,12 @@
                             "id": 24757,
                             "type": "link_row",
                             "name": "Patient",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2633,
                             "link_row_related_field_id": 24725,
                             "link_row_limit_selection_view_id": null,
@@ -5179,16 +5302,24 @@
                             "id": 24759,
                             "type": "text",
                             "name": "Dose",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24760,
                             "type": "number",
                             "name": "Times a day",
+                            "description": null,
                             "order": 5,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "number_decimal_places": 0,
                             "number_negative": false
                         },
@@ -5196,8 +5327,12 @@
                             "id": 24761,
                             "type": "date",
                             "name": "From",
+                            "description": null,
                             "order": 6,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_format": "ISO",
                             "date_include_time": false,
                             "date_time_format": "24",
@@ -5208,8 +5343,12 @@
                             "id": 24762,
                             "type": "date",
                             "name": "Until",
+                            "description": null,
                             "order": 7,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_format": "ISO",
                             "date_include_time": false,
                             "date_time_format": "24",
@@ -5220,8 +5359,12 @@
                             "id": 24786,
                             "type": "link_row",
                             "name": "Medicine",
+                            "description": null,
                             "order": 8,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2641,
                             "link_row_related_field_id": 24787,
                             "link_row_limit_selection_view_id": null,
@@ -5231,18 +5374,22 @@
                             "id": 24792,
                             "type": "rollup",
                             "name": "Medicine (name)",
+                            "description": null,
                             "order": 9,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": true,
-                            "error": null,
                             "through_field_id": 24786,
                             "target_field_id": 24783,
                             "rollup_function": "min"
@@ -5251,18 +5398,22 @@
                             "id": 24793,
                             "type": "rollup",
                             "name": "Patient (name)",
+                            "description": null,
                             "order": 10,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": true,
-                            "error": null,
                             "through_field_id": 24757,
                             "target_field_id": 24716,
                             "rollup_function": "min"
@@ -5291,6 +5442,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77663,
@@ -5403,6 +5555,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77687,
@@ -5515,6 +5668,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77696,
@@ -5629,6 +5783,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77705,
@@ -5743,6 +5898,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77714,
@@ -5858,6 +6014,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -5871,6 +6028,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -5884,6 +6042,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -5897,6 +6056,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -5910,6 +6070,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -5923,6 +6084,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -5936,6 +6098,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -5949,6 +6112,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -5962,6 +6126,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 }
                             ]
@@ -7355,7 +7520,8 @@
                             "field_24792": null,
                             "field_24793": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 2639,
@@ -7366,18 +7532,22 @@
                             "id": 24763,
                             "type": "formula",
                             "name": "Examination ID",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "formula": "concat(datetime_format_tz(field('Time'),'YYYYMMDDHHmi','Europe/Amsterdam'),min(lookup('Patient','SSN/TIN')))",
                             "formula_type": "text"
                         },
@@ -7385,23 +7555,35 @@
                             "id": 24764,
                             "type": "long_text",
                             "name": "Notes",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "long_text_enable_rich_text": true
                         },
                         {
                             "id": 24765,
                             "type": "boolean",
                             "name": "Completed",
+                            "description": null,
                             "order": 2,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 24766,
                             "type": "link_row",
                             "name": "Patient",
+                            "description": null,
                             "order": 3,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2633,
                             "link_row_related_field_id": 24732,
                             "link_row_limit_selection_view_id": null,
@@ -7411,8 +7593,12 @@
                             "id": 24767,
                             "type": "link_row",
                             "name": "Doctor",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2634,
                             "link_row_related_field_id": 24743,
                             "link_row_limit_selection_view_id": null,
@@ -7422,8 +7608,12 @@
                             "id": 24768,
                             "type": "link_row",
                             "name": "Examination type",
+                            "description": null,
                             "order": 5,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2640,
                             "link_row_related_field_id": 24782,
                             "link_row_limit_selection_view_id": null,
@@ -7433,8 +7623,12 @@
                             "id": 24769,
                             "type": "date",
                             "name": "Time",
+                            "description": null,
                             "order": 6,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_format": "ISO",
                             "date_include_time": true,
                             "date_time_format": "24",
@@ -7445,18 +7639,22 @@
                             "id": 24770,
                             "type": "formula",
                             "name": "Time (format)",
+                            "description": null,
                             "order": 7,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": true,
-                            "error": null,
                             "formula": "datetime_format_tz(field('Time'),'YYYY-MM-DD HH24:mi','Europe/Amsterdam')",
                             "formula_type": "text"
                         },
@@ -7464,18 +7662,22 @@
                             "id": 24771,
                             "type": "rollup",
                             "name": "Doctor contact",
+                            "description": null,
                             "order": 8,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": true,
-                            "error": null,
                             "through_field_id": 24767,
                             "target_field_id": 24745,
                             "rollup_function": "min"
@@ -7484,18 +7686,22 @@
                             "id": 24772,
                             "type": "formula",
                             "name": "Results",
+                            "description": null,
                             "order": 9,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "formula": "not(is_null(index(field('Test results'),0)))",
                             "formula_type": "boolean"
                         },
@@ -7503,25 +7709,33 @@
                             "id": 24773,
                             "type": "file",
                             "name": "Test results",
+                            "description": null,
                             "order": 10,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 24774,
                             "type": "rollup",
                             "name": "Patient name",
+                            "description": null,
                             "order": 11,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": true,
-                            "error": null,
                             "through_field_id": 24766,
                             "target_field_id": 24716,
                             "rollup_function": "min"
@@ -7530,18 +7744,22 @@
                             "id": 24775,
                             "type": "rollup",
                             "name": "Examination name",
+                            "description": null,
                             "order": 12,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": true,
-                            "error": null,
                             "through_field_id": 24768,
                             "target_field_id": 24780,
                             "rollup_function": "min"
@@ -7550,18 +7768,22 @@
                             "id": 24776,
                             "type": "formula",
                             "name": "Completed symbol",
+                            "description": null,
                             "order": 13,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "formula": "if(field('Completed'),'\ud83d\udfe2','\ud83d\udd34')",
                             "formula_type": "text"
                         },
@@ -7569,18 +7791,22 @@
                             "id": 24777,
                             "type": "formula",
                             "name": "Results symbol",
+                            "description": null,
                             "order": 14,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": null,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": null,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "formula": "if(field('Results'),'\ud83d\udfe2','\ud83d\udd34')",
                             "formula_type": "text"
                         },
@@ -7588,8 +7814,12 @@
                             "id": 24778,
                             "type": "created_on",
                             "name": "Created on",
+                            "description": null,
                             "order": 15,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_format": "EU",
                             "date_include_time": true,
                             "date_time_format": "24",
@@ -7620,6 +7850,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77582,
@@ -7795,6 +8026,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77599,
@@ -7970,6 +8202,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77614,
@@ -8118,6 +8351,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77627,
@@ -8268,6 +8502,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77726,
@@ -8452,6 +8687,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77742,
@@ -8629,6 +8865,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77758,
@@ -8946,6 +9183,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -8959,6 +9197,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -8972,6 +9211,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -8985,6 +9225,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -8998,6 +9239,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9011,6 +9253,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9024,6 +9267,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9037,6 +9281,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9050,6 +9295,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9063,6 +9309,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9076,6 +9323,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9089,6 +9337,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9102,6 +9351,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9115,6 +9365,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9128,6 +9379,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 },
                                 {
@@ -9141,6 +9393,7 @@
                                     "show_when_matching_conditions": false,
                                     "condition_type": "AND",
                                     "conditions": [],
+                                    "condition_groups": [],
                                     "field_component": "default"
                                 }
                             ]
@@ -9499,7 +9752,8 @@
                             "field_24777": null,
                             "field_24778": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 2640,
@@ -9510,24 +9764,36 @@
                             "id": 24780,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 24781,
                             "type": "long_text",
                             "name": "Purpose",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "long_text_enable_rich_text": false
                         },
                         {
                             "id": 24782,
                             "type": "link_row",
                             "name": "Examinations",
+                            "description": null,
                             "order": 6,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 2639,
                             "link_row_related_field_id": 24768,
                             "link_row_limit_selection_view_id": null,
@@ -9537,18 +9803,22 @@
                             "id": 24794,
                             "type": "count",
                             "name": "Count usage",
+                            "description": null,
                             "order": 7,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "date_format": null,
                             "date_include_time": null,
+                            "array_formula_type": null,
+                            "date_show_tzinfo": null,
+                            "duration_format": null,
+                            "error": null,
+                            "number_decimal_places": 0,
                             "date_force_timezone": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "date_format": null,
-                            "number_decimal_places": 0,
-                            "date_show_tzinfo": null,
-                            "array_formula_type": null,
                             "nullable": false,
-                            "error": null,
                             "through_field_id": 24782
                         }
                     ],
@@ -9575,6 +9845,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 77657,
@@ -9867,18 +10138,226 @@
                             "field_24782": [],
                             "field_24794": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 }
             ]
         },
         {
             "pages": [
                 {
+                    "id": 1490,
+                    "name": "__shared__",
+                    "order": 0,
+                    "path": "__shared__",
+                    "path_params": {},
+                    "shared": true,
+                    "elements": [
+                        {
+                            "id": 40335,
+                            "order": "1.00000000000000000000",
+                            "type": "header",
+                            "parent_element_id": null,
+                            "place_in_container": null,
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {},
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 10,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 10,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 0,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 0,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "share_type": "except",
+                            "pages": [
+                                369
+                            ]
+                        },
+                        {
+                            "id": 40336,
+                            "order": "1.00000000000000000000",
+                            "type": "image",
+                            "parent_element_id": 40335,
+                            "place_in_container": null,
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {},
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 10,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 10,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 20,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 20,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "image_source_type": "upload",
+                            "image_file_id": {
+                                "name": "8VJA7vNdXFYfhuU2RALIJLFUBiadpGqP_4c089b753d9073e192ec38428b3eef3c43a7af501998d0610b88618901e4689c.png",
+                                "original_name": "baserow-hospital.png"
+                            },
+                            "image_url": "",
+                            "alt_text": ""
+                        },
+                        {
+                            "id": 40338,
+                            "order": "1.00000000000000000000",
+                            "type": "text",
+                            "parent_element_id": 40337,
+                            "place_in_container": "0",
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {},
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 10,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 10,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 0,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 0,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "value": "concat('\ud83d\udd11 Logged in as **', get('user.username'), '** ')",
+                            "format": "markdown"
+                        },
+                        {
+                            "id": 40339,
+                            "order": "1.00000000000000000000",
+                            "type": "button",
+                            "parent_element_id": 40337,
+                            "place_in_container": "1",
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {
+                                "button": {
+                                    "button_alignment": "right",
+                                    "button_font_size": 12
+                                }
+                            },
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 10,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 10,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 0,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 0,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "value": "'LOGOUT'"
+                        },
+                        {
+                            "id": 40337,
+                            "order": "2.00000000000000000000",
+                            "type": "column",
+                            "parent_element_id": 40335,
+                            "place_in_container": null,
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {},
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 0,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 0,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 10,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 10,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "column_amount": 2,
+                            "column_gap": 20,
+                            "alignment": "center"
+                        }
+                    ],
+                    "data_sources": [],
+                    "workflow_actions": [
+                        {
+                            "id": 5363,
+                            "type": "logout",
+                            "order": 1,
+                            "page_id": 1490,
+                            "element_id": 40339,
+                            "event": "click"
+                        }
+                    ],
+                    "visibility": "all",
+                    "role_type": "allow_all",
+                    "roles": []
+                },
+                {
                     "id": 369,
                     "name": "Login",
                     "order": 1,
                     "path": "/",
                     "path_params": [],
+                    "shared": false,
                     "elements": [
                         {
                             "id": 6221,
@@ -9974,7 +10453,10 @@
                             "navigate_to_url": "",
                             "target": "self"
                         }
-                    ]
+                    ],
+                    "visibility": "all",
+                    "role_type": "allow_all",
+                    "roles": []
                 },
                 {
                     "id": 370,
@@ -9982,152 +10464,8 @@
                     "order": 2,
                     "path": "/home",
                     "path_params": [],
+                    "shared": false,
                     "elements": [
-                        {
-                            "id": 6223,
-                            "order": "0.50000000000000000000",
-                            "type": "column",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "logged-in",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "primary",
-                            "style_border_top_size": 2,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "primary",
-                            "style_border_bottom_size": 2,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "column_amount": 2,
-                            "column_gap": 20,
-                            "alignment": "center"
-                        },
-                        {
-                            "id": 6225,
-                            "order": "1.00000000000000000000",
-                            "type": "image",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "image_source_type": "upload",
-                            "image_file_id": {
-                                "name": "umpc2kxxzm5nrMeWMXZ57devRUE8RQYa_4c089b753d9073e192ec38428b3eef3c43a7af501998d0610b88618901e4689c.png",
-                                "original_name": "Baserow hospital.png"
-                            },
-                            "image_url": "",
-                            "alt_text": ""
-                        },
-                        {
-                            "id": 6226,
-                            "order": "1.00000000000000000000",
-                            "type": "text",
-                            "parent_element_id": 6223,
-                            "place_in_container": "0",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "value": "concat('\ud83d\udc4b Welcome ',get('user.username'))",
-                            "format": "plain"
-                        },
-                        {
-                            "id": 6227,
-                            "order": "1.00000000000000000000",
-                            "type": "button",
-                            "parent_element_id": 6223,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "button": {
-                                    "button_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "value": "'LOGOUT'"
-                        },
                         {
                             "id": 6231,
                             "order": "1.00000000000000000000",
@@ -10288,7 +10626,7 @@
                             "type": "repeat",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -10316,6 +10654,33 @@
                             "data_source_id": 773,
                             "items_per_page": 20,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_24716",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_24717",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_24731",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_24795",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": false
+                                }
+                            ],
                             "orientation": "horizontal",
                             "items_per_row": {
                                 "tablet": 2,
@@ -10402,7 +10767,7 @@
                             "type": "table",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -10430,6 +10795,39 @@
                             "data_source_id": 774,
                             "items_per_page": 20,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_24766",
+                                    "filterable": false,
+                                    "sortable": false,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_24765",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_24767",
+                                    "filterable": false,
+                                    "sortable": false,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_24768",
+                                    "filterable": false,
+                                    "sortable": false,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_24772",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": false
+                                }
+                            ],
                             "fields": [
                                 {
                                     "uid": "cc1df189-7384-41ee-b84d-a96386a5c760",
@@ -10492,7 +10890,8 @@
                                         ],
                                         "navigate_to_url": "",
                                         "target": "self",
-                                        "link_name": "'Details'"
+                                        "link_name": "'Details ->'",
+                                        "variant": "link"
                                     }
                                 }
                             ],
@@ -10551,29 +10950,10 @@
                             }
                         }
                     ],
-                    "workflow_actions": [
-                        {
-                            "id": 595,
-                            "type": "logout",
-                            "order": 1,
-                            "page_id": 370,
-                            "element_id": 6227,
-                            "event": "click"
-                        },
-                        {
-                            "id": 596,
-                            "type": "open_page",
-                            "order": 2,
-                            "page_id": 370,
-                            "element_id": 6227,
-                            "event": "click",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 369,
-                            "page_parameters": [],
-                            "navigate_to_url": "",
-                            "target": "self"
-                        }
-                    ]
+                    "workflow_actions": [],
+                    "visibility": "logged-in",
+                    "role_type": "allow_all",
+                    "roles": []
                 },
                 {
                     "id": 371,
@@ -10586,42 +10966,8 @@
                             "type": "numeric"
                         }
                     ],
+                    "shared": false,
                     "elements": [
-                        {
-                            "id": 6235,
-                            "order": "0.50000000000000000000",
-                            "type": "column",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "logged-in",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "primary",
-                            "style_border_top_size": 2,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "primary",
-                            "style_border_bottom_size": 2,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "column_amount": 2,
-                            "column_gap": 20,
-                            "alignment": "center"
-                        },
                         {
                             "id": 6386,
                             "order": "0.50000000000000000000",
@@ -10659,116 +11005,6 @@
                             "style_width": "normal",
                             "value": "'Add vaccine for the patient'",
                             "level": 3
-                        },
-                        {
-                            "id": 6242,
-                            "order": "1.00000000000000000000",
-                            "type": "image",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "image_source_type": "upload",
-                            "image_file_id": {
-                                "name": "umpc2kxxzm5nrMeWMXZ57devRUE8RQYa_4c089b753d9073e192ec38428b3eef3c43a7af501998d0610b88618901e4689c.png",
-                                "original_name": "Baserow hospital.png"
-                            },
-                            "image_url": "",
-                            "alt_text": ""
-                        },
-                        {
-                            "id": 6243,
-                            "order": "1.00000000000000000000",
-                            "type": "text",
-                            "parent_element_id": 6235,
-                            "place_in_container": "0",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "value": "concat('\ud83d\udc4b Welcome ',get('user.username'))",
-                            "format": "plain"
-                        },
-                        {
-                            "id": 6244,
-                            "order": "1.00000000000000000000",
-                            "type": "button",
-                            "parent_element_id": 6235,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "button": {
-                                    "button_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "value": "'LOGOUT'"
                         },
                         {
                             "id": 6245,
@@ -10908,6 +11144,15 @@
                             "data_source_id": 791,
                             "items_per_page": 5,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_24753",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": true
+                                }
+                            ],
                             "fields": [
                                 {
                                     "uid": "7a101f32-10f7-4683-a795-921e4f39af7b",
@@ -11016,6 +11261,15 @@
                             "data_source_id": 790,
                             "items_per_page": 5,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_24751",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": true
+                                }
+                            ],
                             "fields": [
                                 {
                                     "uid": "c1d568f4-cb57-4d8c-886b-c5303155dd8c",
@@ -11117,7 +11371,7 @@
                             "type": "heading",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -11384,7 +11638,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -11520,7 +11774,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -11626,7 +11880,11 @@
                             "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
-                            "styles": {},
+                            "styles": {
+                                "link": {
+                                    "link_text_alignment": "right"
+                                }
+                            },
                             "style_border_top_color": "border",
                             "style_border_top_size": 0,
                             "style_padding_top": 10,
@@ -11733,7 +11991,11 @@
                             "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
-                            "styles": {},
+                            "styles": {
+                                "link": {
+                                    "link_text_alignment": "right"
+                                }
+                            },
                             "style_border_top_color": "border",
                             "style_border_top_size": 0,
                             "style_padding_top": 10,
@@ -11803,7 +12065,7 @@
                             "type": "form_container",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -11837,7 +12099,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -11940,7 +12202,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -11975,7 +12237,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -12010,7 +12272,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -12045,7 +12307,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -12080,7 +12342,7 @@
                             "type": "table",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -12108,6 +12370,27 @@
                             "data_source_id": 776,
                             "items_per_page": 20,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_24756",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_24761",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_24762",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": false
+                                }
+                            ],
                             "fields": [
                                 {
                                     "uid": "e7ffc755-8b58-4568-8b71-1e8ec298fb4d",
@@ -12167,7 +12450,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -12202,7 +12485,7 @@
                             "type": "table",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -12230,6 +12513,39 @@
                             "data_source_id": 777,
                             "items_per_page": 5,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_24765",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_24766",
+                                    "filterable": false,
+                                    "sortable": false,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_24767",
+                                    "filterable": false,
+                                    "sortable": false,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_24772",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_24775",
+                                    "filterable": false,
+                                    "sortable": false,
+                                    "searchable": true
+                                }
+                            ],
                             "fields": [
                                 {
                                     "uid": "c9e7c00b-f042-484c-a92d-ddfa197dc7b2",
@@ -12292,7 +12608,8 @@
                                         ],
                                         "navigate_to_url": "",
                                         "target": "self",
-                                        "link_name": "'Details'"
+                                        "link_name": "'Details ->'",
+                                        "variant": "link"
                                     }
                                 }
                             ],
@@ -12565,27 +12882,6 @@
                             "data_source_id": 793
                         },
                         {
-                            "id": 597,
-                            "type": "logout",
-                            "order": 1,
-                            "page_id": 371,
-                            "element_id": 6244,
-                            "event": "click"
-                        },
-                        {
-                            "id": 598,
-                            "type": "open_page",
-                            "order": 2,
-                            "page_id": 371,
-                            "element_id": 6244,
-                            "event": "click",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 369,
-                            "page_parameters": [],
-                            "navigate_to_url": "",
-                            "target": "self"
-                        },
-                        {
                             "id": 623,
                             "type": "update_row",
                             "order": 1,
@@ -12607,7 +12903,10 @@
                                 ]
                             }
                         }
-                    ]
+                    ],
+                    "visibility": "logged-in",
+                    "role_type": "allow_all",
+                    "roles": []
                 },
                 {
                     "id": 375,
@@ -12620,152 +12919,8 @@
                             "type": "numeric"
                         }
                     ],
+                    "shared": false,
                     "elements": [
-                        {
-                            "id": 6366,
-                            "order": "0.50000000000000000000",
-                            "type": "column",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "primary",
-                            "style_border_top_size": 2,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "primary",
-                            "style_border_bottom_size": 2,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "column_amount": 2,
-                            "column_gap": 20,
-                            "alignment": "center"
-                        },
-                        {
-                            "id": 6367,
-                            "order": "1.00000000000000000000",
-                            "type": "image",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "image_source_type": "upload",
-                            "image_file_id": {
-                                "name": "umpc2kxxzm5nrMeWMXZ57devRUE8RQYa_4c089b753d9073e192ec38428b3eef3c43a7af501998d0610b88618901e4689c.png",
-                                "original_name": "Baserow hospital.png"
-                            },
-                            "image_url": "",
-                            "alt_text": ""
-                        },
-                        {
-                            "id": 6368,
-                            "order": "1.00000000000000000000",
-                            "type": "text",
-                            "parent_element_id": 6366,
-                            "place_in_container": "0",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "value": "concat('\ud83d\udc4b Welcome ',get('user.username'))",
-                            "format": "plain"
-                        },
-                        {
-                            "id": 6369,
-                            "order": "1.00000000000000000000",
-                            "type": "button",
-                            "parent_element_id": 6366,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "button": {
-                                    "button_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "value": "'LOGOUT'"
-                        },
                         {
                             "id": 6370,
                             "order": "2.00000000000000000000",
@@ -12842,7 +12997,7 @@
                             "navigate_to_url": "",
                             "target": "self",
                             "value": "concat('PATIENT: ',get('data_source.789.field_24766.0.value'))",
-                            "variant": "button"
+                            "variant": "link"
                         },
                         {
                             "id": 6372,
@@ -13069,29 +13224,10 @@
                             }
                         }
                     ],
-                    "workflow_actions": [
-                        {
-                            "id": 614,
-                            "type": "logout",
-                            "order": 1,
-                            "page_id": 375,
-                            "element_id": 6369,
-                            "event": "click"
-                        },
-                        {
-                            "id": 615,
-                            "type": "open_page",
-                            "order": 2,
-                            "page_id": 375,
-                            "element_id": 6369,
-                            "event": "click",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 369,
-                            "page_parameters": [],
-                            "navigate_to_url": "",
-                            "target": "self"
-                        }
-                    ]
+                    "workflow_actions": [],
+                    "visibility": "logged-in",
+                    "role_type": "allow_all",
+                    "roles": []
                 },
                 {
                     "id": 377,
@@ -13104,46 +13240,8 @@
                             "type": "numeric"
                         }
                     ],
+                    "shared": false,
                     "elements": [
-                        {
-                            "id": 6454,
-                            "order": "1.00000000000000000000",
-                            "type": "image",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "image_source_type": "upload",
-                            "image_file_id": {
-                                "name": "umpc2kxxzm5nrMeWMXZ57devRUE8RQYa_4c089b753d9073e192ec38428b3eef3c43a7af501998d0610b88618901e4689c.png",
-                                "original_name": "Baserow hospital.png"
-                            },
-                            "image_url": "",
-                            "alt_text": ""
-                        },
                         {
                             "id": 6457,
                             "order": "1.00000000000000000000",
@@ -13254,7 +13352,7 @@
                             "type": "heading",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -13356,7 +13454,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -13459,7 +13557,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -13630,7 +13728,7 @@
                             "type": "text",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -13664,7 +13762,7 @@
                             "type": "text",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -13768,7 +13866,7 @@
                             "type": "text",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {
@@ -13804,7 +13902,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -13873,7 +13971,7 @@
                             "type": "table",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -13901,6 +13999,8 @@
                             "data_source_id": 805,
                             "items_per_page": 20,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [],
                             "fields": [
                                 {
                                     "uid": "c369f182-a5a5-43fc-8cca-5c71d1514198",
@@ -13967,7 +14067,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -14002,7 +14102,7 @@
                             "type": "table",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -14030,6 +14130,8 @@
                             "data_source_id": 804,
                             "items_per_page": 20,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [],
                             "fields": [
                                 {
                                     "uid": "f98de8b5-a941-4ce7-85ee-63cc9dcfd1ef",
@@ -14042,9 +14144,9 @@
                                 }
                             ],
                             "orientation": {
-                                "tablet": "horizontal",
+                                "tablet": "vertical",
                                 "desktop": "horizontal",
-                                "smartphone": "horizontal"
+                                "smartphone": "vertical"
                             }
                         },
                         {
@@ -14053,7 +14155,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -14088,7 +14190,7 @@
                             "type": "table",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -14116,6 +14218,8 @@
                             "data_source_id": 802,
                             "items_per_page": 20,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [],
                             "fields": [
                                 {
                                     "uid": "e7ffc755-8b58-4568-8b71-1e8ec298fb4d",
@@ -14164,7 +14268,7 @@
                                 }
                             ],
                             "orientation": {
-                                "tablet": "horizontal",
+                                "tablet": "vertical",
                                 "desktop": "horizontal",
                                 "smartphone": "vertical"
                             }
@@ -14175,7 +14279,7 @@
                             "type": "column",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -14210,7 +14314,7 @@
                             "type": "table",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -14238,6 +14342,8 @@
                             "data_source_id": 803,
                             "items_per_page": 5,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [],
                             "fields": [
                                 {
                                     "uid": "c9e7c00b-f042-484c-a92d-ddfa197dc7b2",
@@ -14448,7 +14554,10 @@
                             }
                         }
                     ],
-                    "workflow_actions": []
+                    "workflow_actions": [],
+                    "visibility": "logged-in",
+                    "role_type": "allow_all",
+                    "roles": []
                 }
             ],
             "integrations": [
@@ -14535,10 +14644,10 @@
                 "input_vertical_padding": 8,
                 "input_horizontal_padding": 12,
                 "table_border_color": "#000000FF",
-                "table_border_size": 1,
+                "table_border_size": 0,
                 "table_border_radius": 0,
-                "table_header_background_color": "#edededff",
-                "table_header_text_color": "#000000ff",
+                "table_header_background_color": "primary",
+                "table_header_text_color": "#ffffffff",
                 "table_header_font_size": 13,
                 "table_header_font_family": "inter",
                 "table_header_text_alignment": "left",
@@ -14549,7 +14658,7 @@
                 "table_cell_horizontal_padding": 20,
                 "table_vertical_separator_color": "#000000FF",
                 "table_vertical_separator_size": 0,
-                "table_horizontal_separator_color": "#000000FF",
+                "table_horizontal_separator_color": "border",
                 "table_horizontal_separator_size": 1
             },
             "user_sources": [
@@ -14576,6 +14685,113 @@
                 }
             ],
             "favicon_file": null,
+            "login_page": {
+                "id": 369,
+                "name": "Login",
+                "order": 1,
+                "path": "/",
+                "path_params": [],
+                "shared": false,
+                "elements": [
+                    {
+                        "id": 6221,
+                        "order": "1.00000000000000000000",
+                        "type": "image",
+                        "parent_element_id": null,
+                        "place_in_container": null,
+                        "visibility": "all",
+                        "role_type": "allow_all",
+                        "roles": [],
+                        "styles": {},
+                        "style_border_top_color": "border",
+                        "style_border_top_size": 0,
+                        "style_padding_top": 10,
+                        "style_margin_top": 0,
+                        "style_border_bottom_color": "border",
+                        "style_border_bottom_size": 0,
+                        "style_padding_bottom": 10,
+                        "style_margin_bottom": 0,
+                        "style_border_left_color": "border",
+                        "style_border_left_size": 0,
+                        "style_padding_left": 20,
+                        "style_margin_left": 0,
+                        "style_border_right_color": "border",
+                        "style_border_right_size": 0,
+                        "style_padding_right": 20,
+                        "style_margin_right": 0,
+                        "style_background": "none",
+                        "style_background_color": "#ffffffff",
+                        "style_background_file_id": null,
+                        "style_background_mode": "fill",
+                        "style_width": "normal",
+                        "image_source_type": "upload",
+                        "image_file_id": {
+                            "name": "umpc2kxxzm5nrMeWMXZ57devRUE8RQYa_4c089b753d9073e192ec38428b3eef3c43a7af501998d0610b88618901e4689c.png",
+                            "original_name": "Baserow hospital.png"
+                        },
+                        "image_url": "",
+                        "alt_text": ""
+                    },
+                    {
+                        "id": 6222,
+                        "order": "2.00000000000000000000",
+                        "type": "auth_form",
+                        "parent_element_id": null,
+                        "place_in_container": null,
+                        "visibility": "all",
+                        "role_type": "allow_all",
+                        "roles": [],
+                        "styles": {
+                            "input": {},
+                            "login_button": {
+                                "button_alignment": "center"
+                            }
+                        },
+                        "style_border_top_color": "border",
+                        "style_border_top_size": 0,
+                        "style_padding_top": 10,
+                        "style_margin_top": 0,
+                        "style_border_bottom_color": "border",
+                        "style_border_bottom_size": 0,
+                        "style_padding_bottom": 10,
+                        "style_margin_bottom": 0,
+                        "style_border_left_color": "border",
+                        "style_border_left_size": 0,
+                        "style_padding_left": 20,
+                        "style_margin_left": 0,
+                        "style_border_right_color": "border",
+                        "style_border_right_size": 0,
+                        "style_padding_right": 20,
+                        "style_margin_right": 0,
+                        "style_background": "none",
+                        "style_background_color": "#ffffffff",
+                        "style_background_file_id": null,
+                        "style_background_mode": "fill",
+                        "style_width": "small",
+                        "user_source_id": 33,
+                        "login_button_label": "'Login'"
+                    }
+                ],
+                "data_sources": [],
+                "workflow_actions": [
+                    {
+                        "id": 594,
+                        "type": "open_page",
+                        "order": 1,
+                        "page_id": 369,
+                        "element_id": 6222,
+                        "event": "after_login",
+                        "navigation_type": "page",
+                        "navigate_to_page_id": 370,
+                        "page_parameters": [],
+                        "navigate_to_url": "",
+                        "target": "self"
+                    }
+                ],
+                "visibility": "all",
+                "role_type": "allow_all",
+                "roles": []
+            },
             "id": 577,
             "name": "Patient file",
             "order": 6,

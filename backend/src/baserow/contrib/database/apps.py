@@ -150,15 +150,21 @@ class DatabaseConfig(AppConfig):
         from baserow.contrib.database.data_sync.actions import (
             CreateDataSyncTableActionType,
             SyncDataSyncTableActionType,
+            UpdateDataSyncTableActionType,
         )
 
         action_type_registry.register(CreateDataSyncTableActionType())
+        action_type_registry.register(UpdateDataSyncTableActionType())
         action_type_registry.register(SyncDataSyncTableActionType())
 
         from .airtable.registry import airtable_column_type_registry
         from .data_sync.registries import data_sync_type_registry
         from .export.registries import table_exporter_registry
-        from .fields.registries import field_converter_registry, field_type_registry
+        from .fields.registries import (
+            field_aggregation_registry,
+            field_converter_registry,
+            field_type_registry,
+        )
         from .formula.registries import formula_function_registry
         from .plugins import DatabasePlugin
         from .views.registries import (
@@ -227,6 +233,46 @@ class DatabaseConfig(AppConfig):
         field_type_registry.register(UUIDFieldType())
         field_type_registry.register(AutonumberFieldType())
         field_type_registry.register(PasswordFieldType())
+
+        from .fields.field_aggregations import (
+            AverageFieldAggregationType,
+            CheckedFieldAggregationType,
+            CheckedPercentageFieldAggregationType,
+            EarliestDateFieldAggregationType,
+            EmptyCountFieldAggregationType,
+            EmptyPercentageFieldAggregationType,
+            LatestDateFieldAggregationType,
+            MaxFieldAggregationType,
+            MedianFieldAggregationType,
+            MinFieldAggregationType,
+            NotCheckedFieldAggregationType,
+            NotCheckedPercentageFieldAggregationType,
+            NotEmptyCountFieldAggregationType,
+            NotEmptyPercentageFieldAggregationType,
+            StdDevFieldAggregationType,
+            SumFieldAggregationType,
+            UniqueCountFieldAggregationType,
+            VarianceFieldAggregationType,
+        )
+
+        field_aggregation_registry.register(EmptyCountFieldAggregationType())
+        field_aggregation_registry.register(NotEmptyCountFieldAggregationType())
+        field_aggregation_registry.register(CheckedFieldAggregationType())
+        field_aggregation_registry.register(NotCheckedFieldAggregationType())
+        field_aggregation_registry.register(EmptyPercentageFieldAggregationType())
+        field_aggregation_registry.register(NotEmptyPercentageFieldAggregationType())
+        field_aggregation_registry.register(CheckedPercentageFieldAggregationType())
+        field_aggregation_registry.register(NotCheckedPercentageFieldAggregationType())
+        field_aggregation_registry.register(UniqueCountFieldAggregationType())
+        field_aggregation_registry.register(MinFieldAggregationType())
+        field_aggregation_registry.register(MaxFieldAggregationType())
+        field_aggregation_registry.register(EarliestDateFieldAggregationType())
+        field_aggregation_registry.register(LatestDateFieldAggregationType())
+        field_aggregation_registry.register(SumFieldAggregationType())
+        field_aggregation_registry.register(AverageFieldAggregationType())
+        field_aggregation_registry.register(StdDevFieldAggregationType())
+        field_aggregation_registry.register(VarianceFieldAggregationType())
+        field_aggregation_registry.register(MedianFieldAggregationType())
 
         from .fields.field_converters import (
             AutonumberFieldConverter,
@@ -399,7 +445,10 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(UserIsNotViewFilterType())
 
         from .views.array_view_filters import (
+            HasAllValuesEqualViewFilterType,
+            HasAnySelectOptionEqualViewFilterType,
             HasEmptyValueViewFilterType,
+            HasNoneSelectOptionEqualViewFilterType,
             HasNotEmptyValueViewFilterType,
             HasNotValueContainsViewFilterType,
             HasNotValueContainsWordViewFilterType,
@@ -417,8 +466,11 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(HasValueContainsWordViewFilterType())
         view_filter_type_registry.register(HasNotValueContainsWordViewFilterType())
         view_filter_type_registry.register(HasValueLengthIsLowerThanViewFilterType())
+        view_filter_type_registry.register(HasAllValuesEqualViewFilterType())
         view_filter_type_registry.register(HasEmptyValueViewFilterType())
         view_filter_type_registry.register(HasNotEmptyValueViewFilterType())
+        view_filter_type_registry.register(HasAnySelectOptionEqualViewFilterType())
+        view_filter_type_registry.register(HasNoneSelectOptionEqualViewFilterType())
 
         from .views.view_aggregations import (
             AverageViewAggregationType,
@@ -489,20 +541,34 @@ class DatabaseConfig(AppConfig):
         register_formula_functions(formula_function_registry)
 
         from .rows.webhook_event_types import (
-            RowCreatedEventType,
-            RowDeletedEventType,
             RowsCreatedEventType,
             RowsDeletedEventType,
             RowsUpdatedEventType,
-            RowUpdatedEventType,
         )
 
         webhook_event_type_registry.register(RowsCreatedEventType())
-        webhook_event_type_registry.register(RowCreatedEventType())
         webhook_event_type_registry.register(RowsUpdatedEventType())
-        webhook_event_type_registry.register(RowUpdatedEventType())
         webhook_event_type_registry.register(RowsDeletedEventType())
-        webhook_event_type_registry.register(RowDeletedEventType())
+
+        from .fields.webhook_event_types import (
+            FieldCreatedEventType,
+            FieldDeletedEventType,
+            FieldUpdatedEventType,
+        )
+
+        webhook_event_type_registry.register(FieldCreatedEventType())
+        webhook_event_type_registry.register(FieldUpdatedEventType())
+        webhook_event_type_registry.register(FieldDeletedEventType())
+
+        from .views.webhook_event_types import (
+            ViewCreatedEventType,
+            ViewDeletedEventType,
+            ViewUpdatedEventType,
+        )
+
+        webhook_event_type_registry.register(ViewCreatedEventType())
+        webhook_event_type_registry.register(ViewUpdatedEventType())
+        webhook_event_type_registry.register(ViewDeletedEventType())
 
         from .airtable.airtable_column_types import (
             CheckboxAirtableColumnType,
@@ -536,9 +602,13 @@ class DatabaseConfig(AppConfig):
         airtable_column_type_registry.register(RichTextTextAirtableColumnType())
         airtable_column_type_registry.register(CountAirtableColumnType())
 
-        from .data_sync.data_sync_types import ICalCalendarDataSyncType
+        from .data_sync.data_sync_types import (
+            ICalCalendarDataSyncType,
+            PostgreSQLDataSyncType,
+        )
 
         data_sync_type_registry.register(ICalCalendarDataSyncType())
+        data_sync_type_registry.register(PostgreSQLDataSyncType())
 
         from baserow.contrib.database.table.usage_types import (
             TableWorkspaceStorageUsageItemType,
@@ -602,7 +672,11 @@ class DatabaseConfig(AppConfig):
         )
 
         from .airtable.operations import RunAirtableImportJobOperationType
-        from .data_sync.operations import SyncTableOperationType
+        from .data_sync.operations import (
+            GetIncludingPublicValuesOperationType,
+            ListPropertiesOperationType,
+            SyncTableOperationType,
+        )
         from .export.operations import ExportTableOperationType
         from .fields.operations import (
             CreateFieldOperationType,
@@ -780,6 +854,8 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(DeleteViewFilterGroupOperationType())
         operation_type_registry.register(ReadViewFilterGroupOperationType())
         operation_type_registry.register(SyncTableOperationType())
+        operation_type_registry.register(ListPropertiesOperationType())
+        operation_type_registry.register(GetIncludingPublicValuesOperationType())
 
         from baserow.core.registries import permission_manager_type_registry
 

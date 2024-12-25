@@ -6,6 +6,7 @@
   font-size: 11px;
   height: 24px;
   max-width: 100%;
+  line-height: 16px;
 
   @include rounded($rounded);
 }

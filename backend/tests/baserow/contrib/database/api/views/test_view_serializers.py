@@ -84,6 +84,8 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
 
     actual_result_per_field_name = {}
 
+    ai_choice_select_options = Field.objects.get(name="ai_choice").select_options.all()
+
     for field in fields_to_group_by:
         counts = handler.get_group_by_metadata_in_rows([field], rows, queryset)
         serialized = serialize_group_by_metadata(counts)[field.db_column]
@@ -93,7 +95,7 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
             result[f"field_{field.name}"] = result.pop(f"field_{str(field.id)}")
         actual_result_per_field_name[field.name] = unordered(serialized)
 
-    assert actual_result_per_field_name == {
+    expected_result = {
         "text": [
             {"count": 1, "field_text": "text"},
             {"count": 1, "field_text": None},
@@ -258,4 +260,35 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
             {"count": 1, "field_duration_dhms": 90066.0},
             {"count": 1, "field_duration_dhms": None},
         ],
+        "ai": [
+            {"count": 1, "field_ai": "I'm an AI."},
+            {"count": 1, "field_ai": None},
+        ],
+        "ai_choice": [
+            {"count": 1, "field_ai_choice": ai_choice_select_options[0].id},
+            {"count": 1, "field_ai_choice": None},
+        ],
+        "link_row": [
+            {"field_link_row": [], "count": 1},
+            {"field_link_row": [1, 2, 3], "count": 1},
+        ],
+        "self_link_row": [
+            {"field_self_link_row": [], "count": 1},
+            {"field_self_link_row": [1], "count": 1},
+        ],
+        "link_row_without_related": [
+            {"field_link_row_without_related": [], "count": 1},
+            {"field_link_row_without_related": [1, 2], "count": 1},
+        ],
+        "decimal_link_row": [
+            {"field_decimal_link_row": [], "count": 1},
+            {"field_decimal_link_row": [1, 2, 3], "count": 1},
+        ],
     }
+    for key, actual_value in actual_result_per_field_name.items():
+        expected_value = expected_result.get(key, None)
+        assert expected_value is not None, key
+        assert expected_value == actual_value, (expected_value, actual_value)
+    assert len(actual_result_per_field_name) == len(expected_result), set(
+        actual_result_per_field_name.keys()
+    ) - set(expected_result.keys())

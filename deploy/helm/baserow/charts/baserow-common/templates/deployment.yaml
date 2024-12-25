@@ -22,17 +22,15 @@ spec:
       {{- end }}
       labels:
         {{- include "baserow.selectorLabels" . | nindent 8 }}
-    {{- if .Values.securityContext.enabled }}
-    {{- with .Values.securityContext }}
-      securityContext:
-      {{- toYaml . | nindent 8 }}
-    {{- end }}
-    {{- end }}
+
     spec:
       serviceAccountName: {{ include "baserow.serviceAccountName" . }}
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName }}
       {{- end -}}
+      {{- if or .Values.global.baserow.securityContext.enabled .Values.securityContext.enabled }}
+      securityContext: {{- include "baserow.podSecurityContext" . | nindent 8 }}
+      {{- end }}
       {{- if or .Values.imagePullSecrets .Values.global.baserow.imagePullSecrets }}
       imagePullSecrets: {{ include "baserow.imagePullSecrets" . }}
       {{- end }}
@@ -67,11 +65,8 @@ spec:
             {{ toYaml . | nindent 12 }}
           {{- end }}
           {{- end }}
-          {{- if .Values.containerSecurityContext.enabled }}
-          {{- with .Values.containerSecurityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+          {{- if or .Values.global.baserow.containerSecurityContext.enabled .Values.containerSecurityContext.enabled }}
+          securityContext: {{- include "baserow.containerSecurityContext" . | nindent 12 }}
           {{- end }}
           {{- with .Values.resources }}
           resources: {{- toYaml . | nindent 12 }}
@@ -111,6 +106,10 @@ spec:
             {{- if and (.name) (.value) }}
             - name: {{ .name | quote }}
               value: {{ .value | quote }}
+            {{- else if and (.name) (.valueFrom) }}
+            - name: {{ .name | quote }}
+              valueFrom:
+                {{- toYaml .valueFrom | nindent 16 }}
             {{- end }}
             {{- end }}
       {{- with .Values.nodeSelector }}

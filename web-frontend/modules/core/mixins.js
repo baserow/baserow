@@ -36,14 +36,16 @@
 export function mix(...chain) {
   const [baseClass, ...mixins] = chain.reverse()
 
+  class Mixed extends baseClass {}
+
   for (const mixin of mixins) {
     for (const [key, value] of Object.entries(mixin)) {
       /* eslint no-prototype-builtins: "off" */
-      if (!baseClass.prototype.hasOwnProperty(key)) {
-        baseClass.prototype[key] = value
+      if (!Mixed.prototype.hasOwnProperty(key)) {
+        Mixed.prototype[key] = value
       }
     }
   }
 
-  return baseClass
+  return Mixed
 }

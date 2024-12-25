@@ -20,69 +20,62 @@
       </span>
     </a>
     <a
-      v-if="isPlacementVisible(PLACEMENTS.LEFT)"
+      v-if="isDirectionVisible(DIRECTIONS.LEFT)"
       class="element-preview__menu-item"
-      :class="{ disabled: isPlacementDisabled(PLACEMENTS.LEFT) }"
-      @click="
-        !isPlacementDisabled(PLACEMENTS.LEFT) && $emit('move', PLACEMENTS.LEFT)
-      "
+      :class="{
+        'element-preview__menu-item--disabled': !isAllowedDirection(
+          DIRECTIONS.LEFT
+        ),
+      }"
+      @click="$emit('move', DIRECTIONS.LEFT)"
     >
       <i class="iconoir-nav-arrow-left"></i>
-      <span
-        v-if="!isPlacementDisabled(PLACEMENTS.LEFT)"
-        class="element-preview__menu-item-description"
-      >
+      <span class="element-preview__menu-item-description">
         {{ $t('elementMenu.moveLeft') }}
       </span>
     </a>
     <a
-      v-if="isPlacementVisible(PLACEMENTS.RIGHT)"
+      v-if="isDirectionVisible(DIRECTIONS.RIGHT)"
       class="element-preview__menu-item"
-      :class="{ disabled: isPlacementDisabled(PLACEMENTS.RIGHT) }"
-      @click="
-        !isPlacementDisabled(PLACEMENTS.RIGHT) &&
-          $emit('move', PLACEMENTS.RIGHT)
-      "
+      :class="{
+        'element-preview__menu-item--disabled': !isAllowedDirection(
+          DIRECTIONS.RIGHT
+        ),
+      }"
+      @click="$emit('move', DIRECTIONS.RIGHT)"
     >
       <i class="iconoir-nav-arrow-right"></i>
-      <span
-        v-if="!isPlacementDisabled(PLACEMENTS.RIGHT)"
-        class="element-preview__menu-item-description"
-      >
+      <span class="element-preview__menu-item-description">
         {{ $t('elementMenu.moveRight') }}
       </span>
     </a>
     <a
-      v-if="isPlacementVisible(PLACEMENTS.BEFORE)"
+      v-if="isDirectionVisible(DIRECTIONS.BEFORE)"
       class="element-preview__menu-item"
-      :class="{ disabled: isPlacementDisabled(PLACEMENTS.BEFORE) }"
-      @click="
-        !isPlacementDisabled(PLACEMENTS.BEFORE) &&
-          $emit('move', PLACEMENTS.BEFORE)
-      "
+      :class="{
+        'element-preview__menu-item--disabled': !isAllowedDirection(
+          DIRECTIONS.BEFORE
+        ),
+      }"
+      @click="$emit('move', DIRECTIONS.BEFORE)"
     >
       <i class="iconoir-nav-arrow-up"></i>
-      <span
-        v-if="!isPlacementDisabled(PLACEMENTS.BEFORE)"
-        class="element-preview__menu-item-description"
-      >
+      <span class="element-preview__menu-item-description">
         {{ $t('elementMenu.moveUp') }}
       </span>
     </a>
     <a
-      v-if="isPlacementVisible(PLACEMENTS.AFTER)"
+      v-if="isDirectionVisible(DIRECTIONS.AFTER)"
       class="element-preview__menu-item"
-      :class="{ disabled: isPlacementDisabled(PLACEMENTS.AFTER) }"
-      @click="
-        !isPlacementDisabled(PLACEMENTS.AFTER) &&
-          $emit('move', PLACEMENTS.AFTER)
-      "
+      :class="{
+        'element-preview__menu-item--disabled': !isAllowedDirection(
+          DIRECTIONS.AFTER
+        ),
+      }"
+      @click="$emit('move', DIRECTIONS.AFTER)"
     >
       <i class="iconoir-nav-arrow-down"></i>
-      <span
-        v-if="!isPlacementDisabled(PLACEMENTS.AFTER)"
-        class="element-preview__menu-item-description"
-      >
+      <span class="element-preview__menu-item-description">
         {{ $t('elementMenu.moveDown') }}
       </span>
     </a>
@@ -96,7 +89,7 @@
 </template>
 
 <script>
-import { PLACEMENTS } from '@baserow/modules/builder/enums'
+import { DIRECTIONS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'ElementMenu',
@@ -111,26 +104,26 @@ export default {
       required: false,
       default: false,
     },
-    placements: {
+    directions: {
       type: Array,
       required: false,
-      default: () => [PLACEMENTS.BEFORE, PLACEMENTS.AFTER],
+      default: () => [DIRECTIONS.BEFORE, DIRECTIONS.AFTER],
     },
-    placementsDisabled: {
+    allowedDirections: {
       type: Array,
       required: false,
       default: () => [],
     },
   },
   computed: {
-    PLACEMENTS: () => PLACEMENTS,
+    DIRECTIONS: () => DIRECTIONS,
   },
   methods: {
-    isPlacementVisible(placement) {
-      return this.placements.includes(placement)
+    isDirectionVisible(direction) {
+      return this.directions.includes(direction)
     },
-    isPlacementDisabled(placement) {
-      return this.placementsDisabled.includes(placement)
+    isAllowedDirection(direction) {
+      return this.allowedDirections.includes(direction)
     },
   },
 }

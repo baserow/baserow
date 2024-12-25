@@ -32,8 +32,8 @@
         "useDefaultForValue": "Użyj domyślnego filtra dla tego pola"
     },
     "serviceType": {
-        "localBaserowGetRow": "Pobierz wiersz",
-        "localBaserowListRows": "Lista wierszy"
+        "localBaserowGetRow": "Pobierz {singleRow}",
+        "localBaserowListRows": "Lista {multipleRows}"
     },
     "userSourceType": {
         "localBaserow": "Uwierzytelnianie tabeli bazowej Baserow"
@@ -63,5 +63,14 @@
         "noTableChosenForFiltering": "Wybierz tabelę, aby rozpocząć korzystanie z filtrów źródła danych.",
         "filterTabTitle": "Filtry",
         "searchTabTitle": "Szukaj"
+    },
+    "integrationsCommon": {
+        "singleRow": "pojedynczy rząd",
+        "multipleRows": "wiele wierszy"
+    },
+    "localBaserowIntegrationType": {
+        "localBaserowWarning": "Autoryzacja konta daje każdemu, kto ma uprawnienia do edycji aplikacji, pełny dostęp do danych, do których masz dostęp. Możliwe jest utworzenie drugiego użytkownika, nadanie mu odpowiednich uprawnień i korzystanie z niego.",
+        "localBaserowSummary": "Lokalny Baserow - {name}, {username}",
+        "localBaserowNoUser": "Lokalny Baserow - Nie skonfigurowany"
     }
 }

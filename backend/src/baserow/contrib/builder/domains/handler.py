@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 from typing import Iterable, List, cast
 
-from django.core.files.storage import default_storage
 from django.db.models import QuerySet
 from django.db.utils import IntegrityError
 
@@ -17,6 +16,7 @@ from baserow.contrib.builder.models import Builder
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress, extract_allowed
 
@@ -84,6 +84,17 @@ class DomainHandler:
             raise BuilderDoesNotExist()
 
         return domain.published_to
+
+    def get_domain_for_builder(self, builder: Builder) -> Domain | None:
+        """
+        Returns the domain the builder is published for or None if it's not a published
+        builder.
+        """
+
+        try:
+            return Domain.objects.get(published_to=builder)
+        except Domain.DoesNotExist:
+            return None
 
     def create_domain(
         self, domain_type: DomainType, builder: Builder, **kwargs
@@ -203,8 +214,12 @@ class DomainHandler:
         builder_application_type = application_type_registry.get("builder")
 
         import_export_config = ImportExportConfig(
-            include_permission_data=True, reduce_disk_space_usage=False
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=False,
         )
+
+        default_storage = get_default_storage()
 
         exported_builder = builder_application_type.export_serialized(
             builder, import_export_config, None, default_storage

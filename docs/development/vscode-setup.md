@@ -54,9 +54,12 @@ automatic style fixers to make your life as easy as possible.
 1. Now you should be able to run the backend python tests from the testing menu, try
    run `backend/tests/baserow/core/test_core_models.py` for instance.
 1. Now lets set up your frontend dev by changing directory to `baserow/web-frontend`
-1. Install [nvm](https://github.com/nvm-sh/nvm) to install the correct version of `node`.
-   In `launch.json` the `runtimeVersion` is set to `v16.15.0`, so install this specific
-   version using the command: `nvm install v16.15.0`. Then enabled it with the command: `nvm use v16.15.0`
+1. Use [nvm](https://github.com/nvm-sh/nvm) to install the correct version of `node`.
+   To determine the version of Node.js to use, see the `runtimeVersion` inside the
+   `launch.json` file. E.g. if the version is `v16.15.0`, you can install it with:
+   `nvm install v16.15.0` and then enable it with `nvm use v16.15.0`. Alternatively,
+   see `baserow/docs/installation/supported.md` to determine the supported version
+   of Node.js to use.
 1. Install `yarn` globally: `npm install -g yarn`
 1. Now run `yarn install` to install dependencies.
 1. Select "Trust Project" if you see an VSCode popup after running yarn install

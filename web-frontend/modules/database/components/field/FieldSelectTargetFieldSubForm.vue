@@ -17,9 +17,8 @@
     >
       <Dropdown
         v-model="values.target_field_id"
-        :class="{ 'dropdown--error': $v.values.target_field_id.$error }"
+        :error="$v.values.target_field_id.$error"
         :fixed-items="true"
-        small
         @hide="$v.values.target_field_id.$touch()"
         @input="targetFieldChanged($event)"
       >
@@ -115,7 +114,7 @@ export default {
           .filter((f) => {
             return this.$registry
               .get('field', f.type)
-              .canBeReferencedByFormulaField()
+              .canBeReferencedByFormulaField(f)
           })
           .filter((f) => {
             return this.$hasPermission(

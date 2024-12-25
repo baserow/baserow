@@ -74,7 +74,8 @@ def test_exporting_json_writes_file_to_storage(
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with patch("baserow.contrib.database.export.handler.default_storage", new=storage):
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
         run_time = parse_datetime("2020-02-01 01:00").replace(tzinfo=timezone.utc)
         expected_created_at = DateTimeField().to_representation(run_time)
         with freeze_time(run_time):
@@ -228,7 +229,8 @@ def test_exporting_xml_writes_file_to_storage(
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with patch("baserow.contrib.database.export.handler.default_storage", new=storage):
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
         run_time = parse_datetime("2020-02-01 01:00").replace(tzinfo=timezone.utc)
         with freeze_time(run_time):
             token = premium_data_fixture.generate_token(user)

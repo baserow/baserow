@@ -19,6 +19,10 @@ class PageNotInBuilder(Exception):
         )
 
 
+class SharedPageIsReadOnly(Exception):
+    """Raised when trying to do something on shared page."""
+
+
 class PageNameNotUnique(Exception):
     """Raised when a page is trying to be created with a name that already exists"""
 

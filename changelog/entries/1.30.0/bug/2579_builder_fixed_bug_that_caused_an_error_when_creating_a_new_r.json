@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Fixed an error that triggers when adding a new row in the Data Source modal for the Link to Table field.",
+    "issue_number": 2579,
+    "bullet_points": [],
+    "created_at": "2024-12-12"
+}

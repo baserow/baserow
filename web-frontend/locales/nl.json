@@ -10,7 +10,12 @@
         "link": "Link",
         "billable": "Factureerbaar",
         "all": "Alle",
-        "beta": "Beta"
+        "beta": "Beta",
+        "disabled": "Uitgeschakeld",
+        "summarize": "Samenvatten",
+        "enabled": "Ingeschakeld",
+        "or": "of",
+        "and": "en"
     },
     "action": {
         "upload": "Uploaden",
@@ -42,7 +47,10 @@
         "reset": "Reset",
         "logout": "Uitloggen",
         "set": "Stel in",
-        "backToHome": "Terug naar home"
+        "backToHome": "Terug naar home",
+        "close": "Sluit",
+        "getStarted": "Aan de slag",
+        "hide": "Verberg"
     },
     "adminType": {
         "settings": "Instellingen",
@@ -60,7 +68,11 @@
         "databaseDesc": "Maak een georganiseerde verzameling van gestructureerde gegevens.",
         "databases": "Databases",
         "builders": "Applicaties",
-        "builderDesc": "Bouw eenvoudig websites, webapps en portals zonder code."
+        "builderDesc": "Bouw eenvoudig websites, webapps en portals zonder code.",
+        "dashboard": "Dashboard",
+        "dashboards": "Dashboards",
+        "dashboardDefaultName": "Dashboard zonder titel",
+        "dashboardDesc": "Visualiseer je data en statistieken met grafieken, tabellen of diagrammen."
     },
     "settingType": {
         "account": "Account",
@@ -90,7 +102,9 @@
         "invalidNumber": "Het veld moet een getal zijn.",
         "email": "Het veld moet een e-mail zijn.",
         "invalidURL": "Voer een geldige URL in.",
-        "alreadyInUse": "Deze veldnaam is al in gebruik."
+        "alreadyInUse": "Deze veldnaam is al in gebruik.",
+        "invalidCharacters": "Dit veld bevat ongeldige tekens.",
+        "decimalField": "Het veld moet een decimaal zijn."
     },
     "permission": {
         "admin": "Beheerder",
@@ -257,7 +271,9 @@
         "hasValueContains": "heeft waarde bevat",
         "hasNotEmptyValue": "heeft geen lege waarde",
         "hasEmptyValue": "heeft lege waarde",
-        "hasValueLengthIsLowerThan": "heeft waarde lengte is lager dan"
+        "hasValueLengthIsLowerThan": "heeft waarde lengte is lager dan",
+        "hasAnySelectOptionEqual": "heeft elke select-optie gelijk",
+        "hasNoneSelectOptionEqual": "heeft geen select-optie gelijk"
     },
     "viewType": {
         "grid": "Raster",
@@ -295,7 +311,13 @@
             "rowDeleted": "Wanneer een rij is verwijderd",
             "rowsCreated": "Rijen zijn gemaakt",
             "rowsDeleted": "Rijen zijn verwijderd",
-            "rowsUpdated": "Rijen zijn bijgewerkt"
+            "rowsUpdated": "Rijen zijn bijgewerkt",
+            "fieldCreated": "Veld is aangemaakt",
+            "fieldUpdated": "Field is bijgewerkt",
+            "fieldDeleted": "Veld is verwijderd",
+            "viewCreated": "Weergave is gemaakt",
+            "viewUpdated": "Weergave is bijgewerkt",
+            "viewDeleted": "Weergave is verwijderd"
         },
         "form": {
             "invalidURLTitle": "Ongeldige URL.",
@@ -384,7 +406,9 @@
         "incompatiblePrimaryFieldTypeDescription": "Het gekozen veld kan niet het primaire veld zijn omdat het onverenigbaar is.",
         "fieldIsAlreadyPrimaryDescription": "Het gekozen nieuwe primaire veld is al het primaire veld.",
         "fieldIsAlreadyPrimaryTitle": "Veld is al primair",
-        "incompatiblePrimaryFieldTypeTitle": "Veld is niet compatibel"
+        "incompatiblePrimaryFieldTypeTitle": "Veld is niet compatibel",
+        "cannotCreateRowsInTableTitle": "Kan geen rijen maken",
+        "cannotCreateRowsInTableDescription": "Het is niet mogelijk om rijen te maken in deze tabel."
     },
     "importerType": {
         "csv": "Een CSV-bestand importeren",
@@ -419,7 +443,8 @@
         "uploadFileDescription": "De `file` multipart met de inhoud van het bestand.",
         "uploadFileViaUrl": "Bestand uploaden via URL",
         "uploadFileViaUrlDescription": "Uploadt een bestand naar Baserow door het te downloaden van de opgegeven URL.",
-        "fileUploads": "Bestandsuploads"
+        "fileUploads": "Bestandsuploads",
+        "sendWebhookEventsDescription": "Een vlag query parameter die webhooks triggert na de bewerking, indien ingesteld op `ja`, `yes`, `true`, `t`, `on`, `1`, `of` leeg gelaten. Standaard ingesteld op `true`."
     },
     "exporterType": {
         "csv": "Exporteren naar CSV"

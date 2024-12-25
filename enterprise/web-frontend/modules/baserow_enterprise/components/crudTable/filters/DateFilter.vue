@@ -70,7 +70,7 @@ export default {
     },
     disableDates: {
       type: Object,
-      default: () => {},
+      default: () => ({}),
     },
   },
   data() {

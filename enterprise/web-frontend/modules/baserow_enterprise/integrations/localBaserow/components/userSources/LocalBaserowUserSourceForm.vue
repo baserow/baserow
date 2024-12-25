@@ -5,7 +5,7 @@
       class="local-baserow-user-source-form__table-selector"
       :databases="integration.context_data.databases"
       :display-view-dropdown="false"
-      dropdown-sizes="large"
+      dropdown-size="large"
     />
 
     <p>{{ $t('localBaserowUserSourceForm.description') }}</p>
@@ -22,6 +22,7 @@
           :placeholder="
             $t('localBaserowUserSourceForm.emailFieldLabelPlaceholder')
           "
+          size="large"
         >
           <DropdownItem
             v-for="field in emailFields"
@@ -46,6 +47,7 @@
           fixed-items
           :disabled="!selectedTable"
           :placeholder="$t('localBaserowUserSourceForm.nameFieldPlaceholder')"
+          size="large"
         >
           <DropdownItem
             v-for="field in nameFields"
@@ -63,12 +65,14 @@
       <FormGroup
         :label="$t('localBaserowUserSourceForm.roleFieldLabel')"
         small-label
+        required
       >
         <Dropdown
           v-model="values.role_field_id"
           fixed-items
           :disabled="!selectedTable"
           :placeholder="$t('localBaserowUserSourceForm.roleFieldPlaceholder')"
+          size="large"
         >
           <DropdownItem
             key="use-default-role"

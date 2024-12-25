@@ -1,21 +1,24 @@
 {
-    "name": "e2e-tests",
-    "version": "1.0.0",
-    "main": "index.js",
-    "license": "MIT",
-    "scripts": {
-        "test": "playwright test --project=chrome",
-        "test-fast-only": "playwright test --project=chrome --grep @fast",
-        "test-enterprise-only": "playwright test --project=chrome --grep @enterprise",
-        "test-search-only": "playwright test --project=chrome --grep @search",
-        "test-search-only-debug": "playwright test --project=chrome --grep @search --debug",
-        "test-headed": "playwright test --project=chrome --headed",
-        "test-all-browsers": "playwright test"
-    },
-    "dependencies": {
-        "@playwright/test": "1.29.2",
-        "@faker-js/faker": "7.6.0",
-        "axios": "1.2.3",
-        "dotenv": "16.0.3"
-    }
+  "name": "e2e-tests",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "playwright test --project=chrome",
+    "test-ui": "playwright test --project=chrome --ui",
+    "test-fast-only": "playwright test --project=chrome --grep @fast",
+    "test-enterprise-only": "playwright test --project=chrome --grep @enterprise",
+    "test-search-only": "playwright test --project=chrome --grep @search",
+    "test-search-only-debug": "playwright test --project=chrome --grep @search --debug",
+    "test-builder": "playwright test --project=chrome --grep builder",
+    "test-headed": "playwright test --project=chrome --headed",
+    "test-ci": "playwright test --grep-invert=slow",
+    "codegen": "playwright codegen"
+  },
+  "dependencies": {
+    "@faker-js/faker": "7.6.0",
+    "@playwright/test": "^1.48.0",
+    "axios": "1.2.3",
+    "dotenv": "16.0.3"
+  }
 }

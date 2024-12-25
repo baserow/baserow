@@ -4,6 +4,7 @@ import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.test_utils.helpers import AnyStr
 
 
 @pytest.mark.django_db
@@ -46,14 +47,16 @@ def test_batch_create_rows_link_row_field(api_client, data_fixture):
         "items": [
             {
                 f"id": 1,
-                f"field_{link_field.id}": [{"id": linked_row_3.id, "value": "Row 3"}],
+                f"field_{link_field.id}": [
+                    {"id": linked_row_3.id, "value": "Row 3", "order": AnyStr()}
+                ],
                 "order": "1.00000000000000000000",
             },
             {
                 f"id": 2,
                 f"field_{link_field.id}": [
-                    {"id": linked_row_2.id, "value": "Row 2"},
-                    {"id": linked_row_3.id, "value": "Row 3"},
+                    {"id": linked_row_2.id, "value": "Row 2", "order": AnyStr()},
+                    {"id": linked_row_3.id, "value": "Row 3", "order": AnyStr()},
                 ],
                 "order": "2.00000000000000000000",
             },
@@ -128,14 +131,16 @@ def test_batch_create_rows_link_row_field_with_other_value_types(
         "items": [
             {
                 f"id": 1,
-                f"field_{link_field.id}": [{"id": linked_row_3.id, "value": "Row 3"}],
+                f"field_{link_field.id}": [
+                    {"id": linked_row_3.id, "value": "Row 3", "order": AnyStr()}
+                ],
                 "order": "1.00000000000000000000",
             },
             {
                 f"id": 2,
                 f"field_{link_field.id}": [
-                    {"id": linked_row_2.id, "value": "Row 2"},
-                    {"id": linked_row_3.id, "value": "Row 3"},
+                    {"id": linked_row_2.id, "value": "Row 2", "order": AnyStr()},
+                    {"id": linked_row_3.id, "value": "Row 3", "order": AnyStr()},
                 ],
                 "order": "2.00000000000000000000",
             },
@@ -147,15 +152,15 @@ def test_batch_create_rows_link_row_field_with_other_value_types(
             {
                 f"id": 4,
                 f"field_{link_field.id}": [
-                    {"id": linked_row_2.id, "value": "Row 2"},
-                    {"id": linked_row_3.id, "value": "Row 3"},
+                    {"id": linked_row_2.id, "value": "Row 2", "order": AnyStr()},
+                    {"id": linked_row_3.id, "value": "Row 3", "order": AnyStr()},
                 ],
                 "order": "4.00000000000000000000",
             },
             {
                 f"id": 5,
                 f"field_{link_field.id}": [
-                    {"id": linked_row_2.id, "value": "Row 2"},
+                    {"id": linked_row_2.id, "value": "Row 2", "order": AnyStr()},
                 ],
                 "order": "5.00000000000000000000",
             },
@@ -339,15 +344,17 @@ def test_batch_create_rows_link_same_table_row_field(api_client, data_fixture):
             {
                 "id": 4,
                 f"field_{primary_field.id}": "Row 4",
-                f"field_{link_field.id}": [{"id": row_3.id, "value": "Row 3"}],
+                f"field_{link_field.id}": [
+                    {"id": row_3.id, "value": "Row 3", "order": AnyStr()}
+                ],
                 "order": "2.00000000000000000000",
             },
             {
                 "id": 5,
                 f"field_{primary_field.id}": "Row 5",
                 f"field_{link_field.id}": [
-                    {"id": row_1.id, "value": "Row 1"},
-                    {"id": row_2.id, "value": "Row 2"},
+                    {"id": row_1.id, "value": "Row 1", "order": AnyStr()},
+                    {"id": row_2.id, "value": "Row 2", "order": AnyStr()},
                 ],
                 "order": "3.00000000000000000000",
             },
@@ -421,14 +428,16 @@ def test_batch_update_rows_link_row_field(api_client, data_fixture):
         "items": [
             {
                 f"id": row_1.id,
-                f"field_{link_field.id}": [{"id": linked_row_3.id, "value": "Row 3"}],
+                f"field_{link_field.id}": [
+                    {"id": linked_row_3.id, "value": "Row 3", "order": AnyStr()}
+                ],
                 "order": "1.00000000000000000000",
             },
             {
                 f"id": row_2.id,
                 f"field_{link_field.id}": [
-                    {"id": linked_row_2.id, "value": "Row 2"},
-                    {"id": linked_row_3.id, "value": "Row 3"},
+                    {"id": linked_row_2.id, "value": "Row 2", "order": AnyStr()},
+                    {"id": linked_row_3.id, "value": "Row 3", "order": AnyStr()},
                 ],
                 "order": "1.00000000000000000000",
             },
@@ -495,15 +504,17 @@ def test_batch_update_rows_link_same_table_row_field(api_client, data_fixture):
             {
                 "id": row_1.id,
                 f"field_{primary_field.id}": "Row 1",
-                f"field_{link_field.id}": [{"id": row_3.id, "value": "Row 3"}],
+                f"field_{link_field.id}": [
+                    {"id": row_3.id, "value": "Row 3", "order": AnyStr()}
+                ],
                 "order": "1.00000000000000000000",
             },
             {
                 "id": row_2.id,
                 f"field_{primary_field.id}": "Row 2",
                 f"field_{link_field.id}": [
-                    {"id": row_2.id, "value": "Row 2"},
-                    {"id": row_3.id, "value": "Row 3"},
+                    {"id": row_2.id, "value": "Row 2", "order": AnyStr()},
+                    {"id": row_3.id, "value": "Row 3", "order": AnyStr()},
                 ],
                 "order": "1.00000000000000000000",
             },

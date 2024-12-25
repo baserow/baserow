@@ -272,7 +272,9 @@
         "sso": "Logowanie jednokrotne SSO",
         "rbac": "Kontrola dostępu oparta na rolach",
         "auditLogs": "Dzienniki inspekcji",
-        "coBranding": "Wymiana logo w ramach co-brandingu"
+        "coBranding": "Wymiana logo w ramach co-brandingu",
+        "support": "Wsparcie bezpośrednie",
+        "dataSync": "Synchronizacja danych"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Bezpośrednie wsparcie"
@@ -293,7 +295,9 @@
         "nameFieldPlaceholder": "Wybierz pole...",
         "emailFieldLabelPlaceholder": "Wybierz pole...",
         "description": "Każdy wiersz w tabeli to konto użytkownika. Wybierz pasujące pola w tabeli. Pole e-mail będzie używane do identyfikacji.",
-        "emailFieldLabel": "Wybierz pole e-mail"
+        "emailFieldLabel": "Wybierz pole e-mail",
+        "roleFieldLabel": "Wybierz pole roli",
+        "roleFieldPlaceholder": "Wybierz pole..."
     },
     "appAuthProviderType": {
         "localBaserowPassword": "E-mail/hasło"
@@ -313,5 +317,34 @@
     },
     "localBaserowUserSourceType": {
         "notConfigured": "Nie skonfigurowano"
+    },
+    "authFormElementForm": {
+        "loginButtonLabel": "Etykieta przycisku logowania",
+        "loginButtonLabelPlaceholder": "Wprowadź etykietę...",
+        "userSource": "Pochodzenie użytkownika"
+    },
+    "authFormElement": {
+        "passwordPlaceholder": "Wprowadź hasło...",
+        "email": "E-mail",
+        "password": "Hasło",
+        "emailPlaceholder": "Wpisz swój adres e-mail...",
+        "selectOrConfigureUserSourceFirst": "Wybierz źródło użytkownika, aby rozpocząć korzystanie z tego elementu logowania."
+    },
+    "enterpriseModal": {
+        "title": "Uaktualnij, aby użyć {name}",
+        "description": "Twoje konto nie ma dostępu do funkcji zaawansowanych/enterprise. Uaktualnij do wersji advanced/enterprise, aby rozpocząć korzystanie z {name}. Możesz uaktualnić swoje konto, uzyskując licencję. Kliknij poniższy przycisk, aby wyświetlić ceny.",
+        "viewPricing": "Zobacz cennik",
+        "premium": "Premium",
+        "enterprise": "Wersja Enterprise"
+    },
+    "enterpriseDataSyncType": {
+        "localBaserowTable": "Synchronizacja tabeli Baserow"
+    },
+    "localBaserowTableDataSync": {
+        "workspace": "Obszar roboczy",
+        "name": "Identyfikator tabeli źródłowej",
+        "database": "Baza danych",
+        "authorizing": "Autoryzujesz swoje konto do wybierania danych z tabeli źródłowej.",
+        "table": "Tabela"
     }
 }

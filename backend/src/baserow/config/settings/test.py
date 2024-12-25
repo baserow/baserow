@@ -54,6 +54,9 @@ if "cachalot" not in INSTALLED_APPS:
     install_cachalot()
 
 CACHALOT_ENABLED = False
+
+BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = 10
+
 AUTO_INDEX_VIEW_ENABLED = False
 # For ease of testing tests assume this setting is set to this. Set it explicitly to
 # prevent any dev env config from breaking the tests.
@@ -68,6 +71,13 @@ if "baserow.middleware.ConcurrentUserRequestsMiddleware" in MIDDLEWARE:
 BASEROW_OPENAI_API_KEY = None
 BASEROW_OPENAI_ORGANIZATION = None
 BASEROW_OPENAI_MODELS = []
+BASEROW_OPENROUTER_API_KEY = None
+BASEROW_OPENROUTER_ORGANIZATION = None
+BASEROW_OPENROUTER_MODELS = []
+BASEROW_ANTHROPIC_API_KEY = None
+BASEROW_ANTHROPIC_MODELS = []
+BASEROW_MISTRAL_API_KEY = None
+BASEROW_MISTRAL_MODELS = []
 BASEROW_OLLAMA_HOST = None
 BASEROW_OLLAMA_MODELS = []
 
@@ -76,3 +86,14 @@ PUBLIC_WEB_FRONTEND_URL = "http://localhost:3000"
 BASEROW_EMBEDDED_SHARE_URL = "http://localhost:3000"
 
 FEATURE_FLAGS = "*"
+
+# We must allow this because we're connecting to the same database in the tests.
+BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE = False
+
+# Make sure that default storage is used for the tests.
+BASE_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+STORAGES["default"] = {"BACKEND": BASE_FILE_STORAGE}
+
+BASEROW_LOGIN_ACTION_LOG_LIMIT = RateLimit.from_string("1000/s")
+
+BASEROW_WEBHOOKS_ALLOW_PRIVATE_ADDRESS = False

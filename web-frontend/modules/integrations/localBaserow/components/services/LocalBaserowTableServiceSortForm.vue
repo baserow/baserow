@@ -37,7 +37,6 @@
             :disabled="disableSort"
             :fixed-items="true"
             class="dropdown--floating"
-            small
             @input="updateSort(sort, { field: $event })"
           >
             <DropdownItem
@@ -105,7 +104,6 @@
     <template v-if="value.length < availableFieldsLength && !disableSort">
       <div ref="addContextToggle">
         <ButtonText
-          v-if="!tableLoading"
           type="secondary"
           size="small"
           icon="iconoir-plus"
@@ -154,16 +152,11 @@ export default {
       type: Array,
       required: true,
     },
-    schema: {
-      type: Object,
+    fields: {
+      type: Array,
       required: true,
     },
     disableSort: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    tableLoading: {
       type: Boolean,
       required: false,
       default: false,
@@ -175,18 +168,6 @@ export default {
      */
     availableFieldsLength() {
       return this.fields.filter(this.getCanSortInView).length
-    },
-    fields() {
-      if (this.schema === null) {
-        return []
-      }
-      const schemaProperties =
-        this.schema.type === 'array'
-          ? this.schema.items.properties
-          : this.schema.properties
-      return Object.values(schemaProperties)
-        .filter(({ metadata }) => metadata)
-        .map((prop) => prop.metadata)
     },
   },
   methods: {

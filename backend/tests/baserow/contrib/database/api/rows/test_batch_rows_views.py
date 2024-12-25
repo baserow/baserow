@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.conf import settings
 from django.db import connection
@@ -18,7 +19,7 @@ from rest_framework.status import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.tokens.handler import TokenHandler
-from baserow.test_utils.helpers import is_dict_subset
+from baserow.test_utils.helpers import AnyStr, is_dict_subset
 
 # Create
 
@@ -287,6 +288,57 @@ def test_batch_create_rows(api_client, data_fixture):
     assert getattr(row_2, f"field_{text_field.id}") == "yellow"
     assert row_1.needs_background_update
     assert row_2.needs_background_update
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.api_rows
+def test_batch_create_rows_with_disabled_webhook_events(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+    number_field = data_fixture.create_number_field(
+        table=table, order=1, name="Horsepower"
+    )
+    boolean_field = data_fixture.create_boolean_field(
+        table=table, order=2, name="For sale"
+    )
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    request_body = {
+        "items": [
+            {
+                f"field_{text_field.id}": "green",
+                f"field_{number_field.id}": 120,
+                f"field_{boolean_field.id}": True,
+            },
+            {
+                f"field_{text_field.id}": "yellow",
+                f"field_{number_field.id}": 240,
+                f"field_{boolean_field.id}": False,
+            },
+        ]
+    }
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.post(
+            f"{url}?send_webhook_events=false",
+            request_body,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+
+        assert response.status_code == HTTP_200_OK
+        m.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -1184,6 +1236,62 @@ def test_batch_update_rows(api_client, data_fixture):
     assert row_2.needs_background_update
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.api_rows
+def test_batch_update_rows_with_disabled_webhook_events(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+    number_field = data_fixture.create_number_field(
+        table=table, order=1, name="Horsepower"
+    )
+    boolean_field = data_fixture.create_boolean_field(
+        table=table, order=2, name="For sale"
+    )
+    model = table.get_model()
+    row_1 = model.objects.create()
+    row_2 = model.objects.create()
+    model.objects.update(needs_background_update=False)
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    request_body = {
+        "items": [
+            {
+                f"id": row_1.id,
+                f"field_{text_field.id}": "green",
+                f"field_{number_field.id}": 120,
+                f"field_{boolean_field.id}": True,
+            },
+            {
+                f"id": row_2.id,
+                f"field_{text_field.id}": "yellow",
+                f"field_{number_field.id}": 240,
+                f"field_{boolean_field.id}": False,
+            },
+        ]
+    }
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.patch(
+            f"{url}?send_webhook_events=false",
+            request_body,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        m.assert_not_called()
+
+
 @pytest.mark.django_db
 @pytest.mark.api_rows
 def test_batch_update_rows_last_modified_field(api_client, data_fixture):
@@ -1377,7 +1485,9 @@ def test_batch_update_rows_different_manytomany_provided(api_client, data_fixtur
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"field_{primary.id}": "row 1",
-                f"field_{link_row_field_1.id}": [{"id": 1, "value": "row A"}],
+                f"field_{link_row_field_1.id}": [
+                    {"id": 1, "value": "row A", "order": AnyStr()}
+                ],
                 f"field_{link_row_field_2.id}": [],
             },
             {
@@ -1385,19 +1495,21 @@ def test_batch_update_rows_different_manytomany_provided(api_client, data_fixtur
                 "order": "1.00000000000000000000",
                 f"field_{primary.id}": "row 2",
                 f"field_{link_row_field_1.id}": [],
-                f"field_{link_row_field_2.id}": [{"id": 2, "value": "row B"}],
+                f"field_{link_row_field_2.id}": [
+                    {"id": 2, "value": "row B", "order": AnyStr()}
+                ],
             },
             {
                 "id": 3,
                 "order": "1.00000000000000000000",
                 f"field_{primary.id}": "row 3",
                 f"field_{link_row_field_1.id}": [
-                    {"id": 1, "value": "row A"},
-                    {"id": 2, "value": "row B"},
+                    {"id": 1, "value": "row A", "order": AnyStr()},
+                    {"id": 2, "value": "row B", "order": AnyStr()},
                 ],
                 f"field_{link_row_field_2.id}": [
-                    {"id": 1, "value": "row A"},
-                    {"id": 2, "value": "row B"},
+                    {"id": 1, "value": "row A", "order": AnyStr()},
+                    {"id": 2, "value": "row B", "order": AnyStr()},
                 ],
             },
         ]
@@ -1428,27 +1540,35 @@ def test_batch_update_rows_different_manytomany_provided(api_client, data_fixtur
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"field_{primary.id}": "row 1",
-                f"field_{link_row_field_1.id}": [{"id": 1, "value": "row A"}],
-                f"field_{link_row_field_2.id}": [{"id": 1, "value": "row A"}],
+                f"field_{link_row_field_1.id}": [
+                    {"id": 1, "value": "row A", "order": AnyStr()}
+                ],
+                f"field_{link_row_field_2.id}": [
+                    {"id": 1, "value": "row A", "order": AnyStr()}
+                ],
             },
             {
                 "id": 2,
                 "order": "1.00000000000000000000",
                 f"field_{primary.id}": "row 2",
-                f"field_{link_row_field_1.id}": [{"id": 2, "value": "row B"}],
-                f"field_{link_row_field_2.id}": [{"id": 2, "value": "row B"}],
+                f"field_{link_row_field_1.id}": [
+                    {"id": 2, "value": "row B", "order": AnyStr()}
+                ],
+                f"field_{link_row_field_2.id}": [
+                    {"id": 2, "value": "row B", "order": AnyStr()}
+                ],
             },
             {
                 "id": 3,
                 "order": "1.00000000000000000000",
                 f"field_{primary.id}": "row 3",
                 f"field_{link_row_field_1.id}": [
-                    {"id": 1, "value": "row A"},
-                    {"id": 2, "value": "row B"},
+                    {"id": 1, "value": "row A", "order": AnyStr()},
+                    {"id": 2, "value": "row B", "order": AnyStr()},
                 ],
                 f"field_{link_row_field_2.id}": [
-                    {"id": 1, "value": "row A"},
-                    {"id": 2, "value": "row B"},
+                    {"id": 1, "value": "row A", "order": AnyStr()},
+                    {"id": 2, "value": "row B", "order": AnyStr()},
                 ],
             },
         ]
@@ -2275,3 +2395,34 @@ def test_batch_delete_rows_num_of_queries(api_client, data_fixture):
     assert len(delete_one_row_ctx.captured_queries) == len(
         delete_multiple_rows_ctx.captured_queries
     )
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.api_rows
+def test_batch_delete_rows_disabled_webhook_events(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    model = table.get_model()
+    row_1 = model.objects.create()
+    row_2 = model.objects.create()
+    model.objects.create()
+    url = reverse("api:database:rows:batch-delete", kwargs={"table_id": table.id})
+    request_body = {"items": [row_1.id, row_2.id]}
+
+    data_fixture.create_table_webhook(
+        table=table,
+        user=user,
+        request_method="POST",
+        url="http://localhost",
+        events=[],
+    )
+
+    with patch("baserow.contrib.database.webhooks.registries.call_webhook.delay") as m:
+        response = api_client.post(
+            f"{url}?send_webhook_events=false",
+            request_body,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+        assert response.status_code == HTTP_204_NO_CONTENT
+        m.assert_not_called()

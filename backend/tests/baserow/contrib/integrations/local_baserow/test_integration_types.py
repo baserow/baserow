@@ -219,11 +219,18 @@ def test_get_integrations_serializer(
                         "database_id": table.database_id,
                         "fields": [
                             {
+                                "description": None,
                                 "id": field.id,
-                                "name": field.name,
+                                "name": "Name",
+                                "order": 0,
+                                "immutable_properties": False,
+                                "immutable_type": False,
+                                "primary": False,
+                                "read_only": False,
                                 "table_id": table.id,
+                                "text_default": "",
                                 "type": "text",
-                            }
+                            },
                         ],
                     }
                 ],
@@ -259,3 +266,28 @@ def test_get_integrations_serializer(
         print(q, "/n")
 
     assert len(queries.captured_queries) == len(queries_2.captured_queries)
+
+
+@pytest.mark.django_db
+def test_after_import(data_fixture):
+    """Test the LocalBaserowIntegrationType::after_import() method."""
+
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+
+    integration_type = integration_type_registry.get("local_baserow")
+
+    integration = IntegrationService().create_integration(
+        user, integration_type, application=application
+    )
+
+    integration.authorized_user = None
+    integration.save()
+
+    assert integration.authorized_user is None
+
+    integration.get_type().after_import(user, integration)
+
+    integration.refresh_from_db()
+
+    assert integration.authorized_user == user

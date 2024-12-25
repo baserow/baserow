@@ -62,8 +62,13 @@ export default {
     PageSettingsNameFormElement,
   },
   mixins: [form],
-  inject: ['workspace', 'builder', 'page'],
+  inject: ['workspace', 'builder'],
   props: {
+    page: {
+      type: Object,
+      required: false,
+      default: null,
+    },
     isCreation: {
       type: Boolean,
       required: false,
@@ -103,11 +108,14 @@ export default {
       const baseName = this.$t('pageForm.defaultName')
       return getNextAvailableNameInSequence(baseName, this.pageNames)
     },
+    pages() {
+      return this.$store.getters['page/getVisiblePages'](this.builder)
+    },
     pageNames() {
-      return this.builder.pages.map((page) => page.name)
+      return this.pages.map((page) => page.name)
     },
     otherPagePaths() {
-      return this.builder.pages
+      return this.pages
         .filter((page) => page.id !== this.page?.id)
         .map((page) => page.path)
     },

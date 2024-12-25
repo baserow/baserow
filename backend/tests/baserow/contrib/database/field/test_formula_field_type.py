@@ -37,6 +37,7 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC, SORT_ORDER_DESC
 from baserow.contrib.database.views.registries import view_filter_type_registry
+from baserow.test_utils.helpers import AnyStr
 
 
 @pytest.mark.django_db
@@ -366,8 +367,8 @@ def test_can_update_lookup_field_value(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{formulafield.id}": [
                     {"value": "yes", "id": a.id},
@@ -401,8 +402,8 @@ def test_can_update_lookup_field_value(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{formulafield.id}": [
                     {"value": "no", "id": a.id},
@@ -486,8 +487,8 @@ def test_nested_lookup_with_formula(
             {
                 f"field_{table_primary_field.id}": table1_x.p,
                 f"field_{linkrowfield.id}": [
-                    {"id": table2_1.id, "value": table2_1.p},
-                    {"id": table2_2.id, "value": table2_2.p},
+                    {"id": table2_1.id, "value": table2_1.p, "order": AnyStr()},
+                    {"id": table2_2.id, "value": table2_2.p, "order": AnyStr()},
                 ],
                 f"field_{lookup_field.id}": [
                     {
@@ -503,7 +504,9 @@ def test_nested_lookup_with_formula(
             },
             {
                 f"field_{table_primary_field.id}": table1_y.p,
-                f"field_{linkrowfield.id}": [{"id": table2_3.id, "value": table2_3.p}],
+                f"field_{linkrowfield.id}": [
+                    {"id": table2_3.id, "value": table2_3.p, "order": AnyStr()}
+                ],
                 f"field_{lookup_field.id}": [
                     {
                         "value": table3_c.p,
@@ -586,8 +589,8 @@ def test_can_delete_lookup_field_value(
             {
                 f"field_{table_primary_field.id}": "table row 1",
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{formulafield.id}": [
                     {"value": "yes", "id": a.id},
@@ -620,7 +623,7 @@ def test_can_delete_lookup_field_value(
             {
                 f"field_{table_primary_field.id}": "table row 1",
                 f"field_{linkrowfield.id}": [
-                    {"id": b.id, "value": "primary b"},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{formulafield.id}": [
                     {"value": "no", "id": b.id},
@@ -699,8 +702,8 @@ def test_can_delete_double_link_lookup_field_value(
             {
                 f"field_{table_primary_field.id}": "table row 1",
                 f"field_{linkrowfield.id}": [
-                    {"id": table2_a.id, "value": "primary a"},
-                    {"id": table2_b.id, "value": "primary b"},
+                    {"id": table2_a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": table2_b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{formulafield.id}": [
                     {
@@ -745,7 +748,7 @@ def test_can_delete_double_link_lookup_field_value(
             {
                 f"field_{table_primary_field.id}": "table row 1",
                 f"field_{linkrowfield.id}": [
-                    {"id": table2_b.id, "value": "primary b"},
+                    {"id": table2_b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{formulafield.id}": [
                     {
@@ -784,7 +787,7 @@ def test_can_delete_double_link_lookup_field_value(
             {
                 f"field_{table_primary_field.id}": "table row 1",
                 f"field_{linkrowfield.id}": [
-                    {"id": table2_b.id, "value": "primary b"},
+                    {"id": table2_b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{formulafield.id}": [],
                 "id": table_row.id,

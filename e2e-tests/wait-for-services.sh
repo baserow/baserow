@@ -5,12 +5,13 @@ set -Eeo pipefail
 # to become healthy.
 
 # Keep in sync with src/baserow/config/settings/base.py:594
-DEFAULT_APPLICATION_TEMPLATE="Project Tracker"
+DEFAULT_APPLICATION_TEMPLATE="project-tracker"
 
 baserow_ready() {
     curlf() {
       HTTP_CODE=$(curl --silent -o /dev/null --write-out "%{http_code}" --max-time 10 "$@")
       if [[ ${HTTP_CODE} -lt 200 || ${HTTP_CODE} -gt 299 ]] ; then
+        echo "$1 not ready..."
         return 22
       fi
       return 0
@@ -21,6 +22,7 @@ baserow_ready() {
       if [[ ${TEMPLATES_JSON} == *"$DEFAULT_APPLICATION_TEMPLATE"* ]] ; then
         return 0
       fi
+      echo "Template $DEFAULT_APPLICATION_TEMPLATE is missing..."
       return 22
     }
 

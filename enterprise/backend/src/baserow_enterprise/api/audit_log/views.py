@@ -1,19 +1,15 @@
-from typing import Optional
-
-from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
 from django.utils import translation
 
-from baserow_premium.api.admin.views import APIListingView
 from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_202_ACCEPTED
 from rest_framework.views import APIView
 
+from baserow.api.admin.views import APIListingView
 from baserow.api.decorators import (
     map_exceptions,
     validate_body,
@@ -25,15 +21,14 @@ from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.core.actions import DeleteWorkspaceActionType, OrderWorkspacesActionType
 from baserow.core.exceptions import WorkspaceDoesNotExist
-from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.models import User, Workspace
 from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
 from baserow_enterprise.audit_log.models import AuditLogEntry
-from baserow_enterprise.audit_log.operations import (
-    ListWorkspaceAuditLogEntriesOperationType,
+from baserow_enterprise.audit_log.utils import (
+    check_for_license_and_permissions_or_raise,
 )
 from baserow_enterprise.features import AUDIT_LOG
 
@@ -48,30 +43,6 @@ from .serializers import (
     AuditLogWorkspaceSerializer,
     serialize_filtered_action_types,
 )
-
-
-def check_for_license_and_permissions_or_raise(
-    user: AbstractBaseUser, workspace_id: Optional[int] = None
-):
-    """
-    Check if the user has the feature enabled and has the correct permissions to list
-    audit log entries. If not, an exception is raised.
-    """
-
-    if workspace_id is not None:
-        workspace = CoreHandler().get_workspace(workspace_id)
-        LicenseHandler.raise_if_user_doesnt_have_feature(AUDIT_LOG, user, workspace)
-        if not user.is_staff:
-            CoreHandler().check_permissions(
-                user,
-                ListWorkspaceAuditLogEntriesOperationType.type,
-                workspace=workspace,
-                context=workspace,
-            )
-    else:
-        LicenseHandler.raise_if_user_doesnt_have_feature_instance_wide(AUDIT_LOG, user)
-        if not user.is_staff:
-            raise PermissionDenied()
 
 
 class AuditLogView(APIListingView):

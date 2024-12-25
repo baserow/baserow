@@ -1,4 +1,4 @@
-FROM baserow/backend:1.27.2
+FROM baserow/backend:1.30.1
 
 USER root
 

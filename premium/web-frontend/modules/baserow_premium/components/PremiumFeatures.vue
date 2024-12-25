@@ -14,11 +14,11 @@
     </li>
     <li class="premium-features__feature">
       <i class="iconoir-check premium-features__feature-icon"></i>
-      {{ $t('premiumFeatures.exports') }}
+      {{ $t('premiumFeatures.timelineView') }}
     </li>
     <li class="premium-features__feature">
       <i class="iconoir-check premium-features__feature-icon"></i>
-      {{ $t('premiumFeatures.admin') }}
+      {{ $t('premiumFeatures.exports') }}
     </li>
     <li class="premium-features__feature">
       <i class="iconoir-check premium-features__feature-icon"></i>

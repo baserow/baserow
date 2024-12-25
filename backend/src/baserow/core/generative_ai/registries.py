@@ -67,6 +67,7 @@ class GenerativeAIWithFilesModelType(ABC):
         prompt: str,
         file_ids: list[FileId],
         workspace: Optional[Workspace] = None,
+        temperature: Optional[float] = None,
     ):
         """
         Prompt AI model for an answer using the provided files as file ids as the
@@ -75,6 +76,8 @@ class GenerativeAIWithFilesModelType(ABC):
         :param model: The name of the model to use.
         :param prompt: The model's prompt to use.
         :param file_ids: File ids of files to use as the knowledge base.
+        :param workspace: The workspace related to the prompt.
+        :param temperature: The temperature that must be used when executing the prompt.
         """
 
         raise NotImplementedError("The prompt_with_files function must be implemented.")
@@ -95,7 +98,7 @@ class GenerativeAIModelType(Instance):
     def get_enabled_models(self, workspace=None):
         return []
 
-    def prompt(self, model, prompt, workspace=None):
+    def prompt(self, model, prompt, workspace=None, temperature=None):
         raise NotImplementedError("The prompt function must be implemented.")
 
     def get_settings_serializer(self):

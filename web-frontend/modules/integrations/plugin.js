@@ -5,11 +5,13 @@ import de from '@baserow/modules/integrations/locales/de.json'
 import es from '@baserow/modules/integrations/locales/es.json'
 import it from '@baserow/modules/integrations/locales/it.json'
 import pl from '@baserow/modules/integrations/locales/pl.json'
+import ko from '@baserow/modules/integrations/locales/ko.json'
 
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integrationTypes'
 import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
+  LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/serviceTypes'
 
 export default (context) => {
@@ -25,6 +27,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('es', es)
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
+    i18n.mergeLocaleMessage('ko', ko)
   }
 
   app.$registry.register(
@@ -36,5 +39,9 @@ export default (context) => {
   app.$registry.register(
     'service',
     new LocalBaserowListRowsServiceType(context)
+  )
+  app.$registry.register(
+    'service',
+    new LocalBaserowAggregateRowsServiceType(context)
   )
 }

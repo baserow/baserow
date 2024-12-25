@@ -123,12 +123,6 @@ from .serializers import (
     UpdateFieldSerializer,
 )
 
-DuplicateFieldJobTypeSerializer = job_type_registry.get(
-    DuplicateFieldJobType.type
-).get_serializer_class(
-    base_class=JobSerializer, meta_ref_name="SingleDuplicateFieldJobTypeSerializer"
-)
-
 
 class FieldsView(APIView):
     authentication_classes = APIView.authentication_classes + [TokenAuthentication]
@@ -199,7 +193,12 @@ class FieldsView(APIView):
         fields = specific_iterator(
             Field.objects.filter(table=table)
             .select_related("content_type")
-            .prefetch_related("select_options")
+            .prefetch_related("select_options"),
+            per_content_type_queryset_hook=(
+                lambda field, queryset: field_type_registry.get_by_model(
+                    field
+                ).enhance_field_queryset(queryset, field)
+            ),
         )
 
         data = [
@@ -584,7 +583,7 @@ class AsyncDuplicateFieldView(APIView):
         ),
         request=None,
         responses={
-            202: DuplicateFieldJobTypeSerializer,
+            202: DuplicateFieldJobType().response_serializer_class,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",

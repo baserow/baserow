@@ -20,12 +20,15 @@ import {
 } from '@baserow/modules/core/utils/validator'
 import {
   CHOICE_OPTION_TYPES,
-  ELEMENT_EVENTS,
-  PLACEMENTS,
+  DATE_FORMATS,
+  TIME_FORMATS,
+  IMAGE_SOURCE_TYPES,
+  IFRAME_SOURCE_TYPES,
+  DIRECTIONS,
+  PAGE_PLACES,
 } from '@baserow/modules/builder/enums'
 import ColumnElement from '@baserow/modules/builder/components/elements/components/ColumnElement'
 import ColumnElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ColumnElementForm'
-import _ from 'lodash'
 import DefaultStyleForm from '@baserow/modules/builder/components/elements/components/forms/style/DefaultStyleForm'
 import ButtonElement from '@baserow/modules/builder/components/elements/components/ButtonElement'
 import ButtonElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ButtonElementForm'
@@ -43,9 +46,19 @@ import IFrameElementForm from '@baserow/modules/builder/components/elements/comp
 import RepeatElement from '@baserow/modules/builder/components/elements/components/RepeatElement'
 import RepeatElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RepeatElementForm'
 import RecordSelectorElement from '@baserow/modules/builder/components/elements/components/RecordSelectorElement.vue'
+import RecordSelectorElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RecordSelectorElementForm'
+import MultiPageContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MultiPageContainerElementForm'
+import MultiPageContainerElement from '@baserow/modules/builder/components/elements/components/MultiPageContainerElement'
+import DateTimePickerElement from '@baserow/modules/builder/components/elements/components/DateTimePickerElement'
+import DateTimePickerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
+import {
+  ContainerElementTypeMixin,
+  CollectionElementTypeMixin,
+  MultiPageElementTypeMixin,
+} from '@baserow/modules/builder/elementTypeMixins'
 import { isNumeric, isValidEmail } from '@baserow/modules/core/utils/string'
-import RecordSelectorElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RecordSelectorElementForm.vue'
+import { FormattedDate, FormattedDateTime } from '@baserow/modules/builder/date'
 
 export class ElementType extends Registerable {
   get name() {
@@ -98,6 +111,71 @@ export class ElementType extends Registerable {
     ]
   }
 
+  /**
+   * Returns the current place of the given element.
+   *
+   * @param {Object} element
+   * @returns a PAGE_PLACES enum
+   */
+  getPagePlace() {
+    return PAGE_PLACES.CONTENT
+  }
+
+  /**
+   * Returns the reason why this element type is disallowed for the given location.
+   * @param {Object} builder the current builder object
+   * @param {Object} page the current page
+   * @param {Object} parentElement the parent container element in which we want to
+   *   add the element in if any.
+   * @param {Object} beforeElement the element before which we want to add the element.
+   * @param {Object} placeInContainer The place in the container if we are in a
+   *   container
+   * @param {Object} pagePlace the page place we want to add the element to.
+   * @returns null if the element type is allowed or a string explaining the reason why
+   *   the element type is not allowed at the given location.
+   */
+  isDisallowedReason({
+    builder,
+    page: destinationPage,
+    parentElement,
+    beforeElement,
+    placeInContainer,
+    pagePlace,
+  }) {
+    if (!parentElement) {
+      const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+
+      if (pagePlace === PAGE_PLACES.HEADER) {
+        if (beforeElement && beforeElement.page_id === sharedPage.id) {
+          // It's not allowed to add these elements as root inside header before
+          // another multi page element
+          return this.app.i18n.t('elementType.notAllowedLocation')
+        }
+      }
+
+      if (pagePlace === PAGE_PLACES.FOOTER) {
+        if (!beforeElement) {
+          // Not allowed as last child of footer
+          return this.app.i18n.t('elementType.notAllowedLocation')
+        } else {
+          const footerElements = this.app.store.getters[
+            'element/getRootElements'
+          ](sharedPage).filter(
+            (element) =>
+              this.app.$registry.get('element', element.type).getPagePlace() ===
+              PAGE_PLACES.FOOTER
+          )
+          if (beforeElement.id !== footerElements[0].id) {
+            // It's not allowed to add these elements as root inside footer after
+            // another multi page element
+            return this.app.i18n.t('elementType.notAllowedLocation')
+          }
+        }
+      }
+    }
+    return null
+  }
+
   get styles() {
     return this.stylesAll
   }
@@ -122,11 +200,21 @@ export class ElementType extends Registerable {
   }
 
   /**
+   * Should return whether this element is visible.
+   * @param {Object} element the element to check
+   * @param {Object} currentPage the current displayed page
+   * @returns
+   */
+  isVisible({ element, currentPage }) {
+    return true
+  }
+
+  /**
    * Returns whether the element configuration is valid or not.
-   * @param {object} param An object containing the element and the builder
+   * @param {object} param An object containing the page, element, and builder
    * @returns true if the element is in error
    */
-  isInError({ element, builder }) {
+  isInError({ page, element, builder }) {
     return false
   }
 
@@ -236,185 +324,299 @@ export class ElementType extends Registerable {
   afterUpdate(element, page) {}
 
   /**
-   * Move a component in the same place.
-   * @param {Object} page - The page the element belongs to
-   * @param {Object} element - The element to move
-   * @param {String} placement - The direction of the move
+   * Returns the places for this element. The places are the location where we can place
+   * a child element. Only collection elements can have places.
+   *
+   * @param {Object} element
+   * @returns an array of allowed places for the given collection element.
    */
-  async moveElementInSamePlace(page, element, placement) {
-    let beforeElementId = null
-
-    switch (placement) {
-      case PLACEMENTS.BEFORE: {
-        const previousElement = this.app.store.getters[
-          'element/getPreviousElement'
-        ](page, element)
-
-        beforeElementId = previousElement ? previousElement.id : null
-        break
-      }
-      case PLACEMENTS.AFTER: {
-        const nextElement = this.app.store.getters['element/getNextElement'](
-          page,
-          element
-        )
-
-        if (nextElement) {
-          const nextNextElement = this.app.store.getters[
-            'element/getNextElement'
-          ](page, nextElement)
-          beforeElementId = nextNextElement ? nextNextElement.id : null
-        }
-        break
-      }
-    }
-
-    await this.app.store.dispatch('element/move', {
-      page,
-      elementId: element.id,
-      beforeElementId,
-      parentElementId: element.parent_element_id
-        ? element.parent_element_id
-        : null,
-      placeInContainer: element.place_in_container,
-    })
+  getElementPlaces(element) {
+    return []
   }
 
   /**
-   * Move an element according to the new placement.
-   * @param {Object} page - The page the element belongs to
-   * @param {Object} element - The element to move
-   * @param {String} placement - The direction of the move
+   * Returns the places if we move an element in the four directions. Used when we want
+   * to now if we can move an element in a certain direction and what place it will be.
+   *
+   * @param {Object} page the page we want the places for. Usually the current page.
+   * @param {Object} element the element we want the next places for.
+   * @returns an object keyed by the four direction and for each `null` or an object
+   *  containing:
+   * {
+   *   beforeElementId,
+   *   parentElementId,
+   *   placeInContainer,
+   * }
+   * that can be used to move the element.
    */
-  async moveElement(page, element, placement) {
-    if (element.parent_element_id !== null) {
-      const parentElement = this.app.store.getters['element/getElementById'](
-        page,
-        element.parent_element_id
+  getNextPlaces({ builder, page, element }) {
+    let placeInContainer = element.place_in_container
+    const parentElementId = element.parent_element_id
+      ? element.parent_element_id
+      : null
+
+    const elementPage = this.app.store.getters['page/getById'](
+      builder,
+      element.page_id
+    )
+
+    const parentElement = element.parent_element_id
+      ? this.app.store.getters['element/getElementById'](
+          elementPage,
+          element.parent_element_id
+        )
+      : null
+    const parentElementType = parentElement
+      ? this.app.$registry.get('element', parentElement.type)
+      : null
+
+    const elementsAround = this.getElementsAround({ builder, page, element })
+
+    const nextPlaces = {
+      [DIRECTIONS.BEFORE]: null,
+      [DIRECTIONS.AFTER]: null,
+      [DIRECTIONS.LEFT]: null,
+      [DIRECTIONS.RIGHT]: null,
+    }
+
+    // BEFORE
+    const previousElement = elementsAround[DIRECTIONS.BEFORE]
+    if (previousElement) {
+      // If we have a previous element, let place it before it.
+      nextPlaces[DIRECTIONS.BEFORE] = {
+        beforeElementId: previousElement.id,
+        parentElementId,
+        placeInContainer: previousElement.place_in_container,
+      }
+    }
+
+    // AFTER
+    const nextElement = elementsAround[DIRECTIONS.AFTER]
+    if (nextElement) {
+      const nextNextElement = this.app.store.getters['element/getNextElement'](
+        elementPage,
+        nextElement
+      )
+      if (!nextNextElement) {
+        // We have to place this element as last element in the given place
+        nextPlaces[DIRECTIONS.AFTER] = {
+          beforeElementId: null,
+          parentElementId,
+          placeInContainer: element.place_in_container,
+        }
+      } else {
+        // Otherwise it must be placed just before the next next element
+        nextPlaces[DIRECTIONS.AFTER] = {
+          beforeElementId: nextNextElement.id,
+          parentElementId,
+          placeInContainer: nextNextElement.place_in_container,
+        }
+      }
+    }
+
+    // LEFT
+    if (parentElement) {
+      const places = parentElementType.getElementPlaces(parentElement)
+      const placeIndex = places.findIndex(
+        (place) => place === element.place_in_container
       )
 
+      if (placeIndex > 0) {
+        // Let's move it as last of the previous container place
+        nextPlaces[DIRECTIONS.LEFT] = {
+          beforeElementId: null,
+          parentElementId,
+          placeInContainer: places[placeIndex - 1],
+        }
+      }
+    }
+
+    // RIGHT
+    if (parentElement) {
+      const places = parentElementType.getElementPlaces(parentElement)
+      const placeIndex = places.findIndex(
+        (place) => place === element.place_in_container
+      )
+      if (placeIndex < places.length - 1) {
+        placeInContainer = places[placeIndex + 1]
+        const elementsInNextPlace = this.app.store.getters[
+          'element/getElementsInPlace'
+        ](elementPage, element.parent_element_id, placeInContainer)
+        if (elementsInNextPlace.length) {
+          // Let's place it as first element in the next container place
+          nextPlaces[DIRECTIONS.RIGHT] = {
+            beforeElementId: elementsInNextPlace[0].id,
+            parentElementId,
+            placeInContainer,
+          }
+        } else {
+          nextPlaces[DIRECTIONS.RIGHT] = {
+            beforeElementId: null,
+            parentElementId,
+            placeInContainer,
+          }
+        }
+      }
+    }
+    return nextPlaces
+  }
+
+  /**
+   * Returns the elements around the current element in the four directions if the
+   * element exists. The simplified base logic is the following:
+   * - If the element is at root level:
+   *   - The BEFORE element is the previous sibling in the element order
+   *   - The AFTER element is the next sibling in the element order
+   *   - No LEFT nor RIGHT elements.
+   * - If the element is inside container
+   *   - BEFORE and AFTER are the previous and next in order
+   *   - LEFT if the last element of the container previous place if it exists
+   *   - RIGHT is the first element of the container next place if it exists
+   * if `withSharedPage` is true, we consider the header and footer elements as if
+   * they were on the same page respectively before and after the current page elements.
+   * @param {Object} page the current page
+   * @param {Object} element the element we want the elements around
+   * @param {Boolean} withSharedPage whether we want to consider the shared page or not.
+   * @returns an object keyed by the directions and valued by the elements
+   * or null if there is no element in that direction.
+   */
+  getElementsAround({ builder, page, element, withSharedPage = false }) {
+    const elementType = this.app.$registry.get('element', element.type)
+    const elementPlace = elementType.getPagePlace()
+    const isRootElement = !element.parent_element_id
+
+    const elementPage = this.app.store.getters['page/getById'](
+      builder,
+      element.page_id
+    )
+
+    const siblings = this.app.store.getters['element/getElementsInPlace'](
+      elementPage,
+      element.parent_element_id,
+      element.place_in_container
+    ).filter(
+      (sibling) =>
+        Boolean(element.parent_element_id) ||
+        this.app.$registry.get('element', sibling.type).getPagePlace() ===
+          elementPlace
+    )
+
+    const elementIndex = siblings.findIndex((e) => e.id === element.id)
+
+    let previousElement = null
+    let nextElement = null
+
+    if (elementIndex > 0) {
+      previousElement = siblings[elementIndex - 1]
+    }
+
+    if (elementIndex < siblings.length - 1) {
+      nextElement = siblings[elementIndex + 1]
+    }
+
+    // If we are considering the shared page and we have no previous or next element
+    // we want to potentially use the elements from the shared page
+    if (withSharedPage && isRootElement) {
+      const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+
+      if (!previousElement) {
+        // no previous element and we are in the page content, then previous element
+        // could come from the HEADER
+        if (elementPlace === PAGE_PLACES.CONTENT) {
+          const headerElements = this.app.store.getters[
+            'element/getRootElements'
+          ](sharedPage).filter(
+            (element) =>
+              this.app.$registry.get('element', element.type).getPagePlace() ===
+              PAGE_PLACES.HEADER
+          )
+          if (headerElements.length) {
+            previousElement = headerElements.at(-1)
+          }
+        } else if (elementPlace === PAGE_PLACES.FOOTER) {
+          // previous element could come from the page CONTENT if we don't have previous
+          // yet
+          const contentElements =
+            this.app.store.getters['element/getRootElements'](page)
+          if (contentElements.length) {
+            previousElement = contentElements.at(-1)
+          }
+        }
+      }
+
+      // Let's consider the shared page element as next element.
+      // If the current element is in the HEADER, it might be a CONTENT element
+      // If it's a CONTENT element it could be in the FOOTER.
+      if (!nextElement) {
+        if (elementPlace === PAGE_PLACES.HEADER) {
+          const contentElements =
+            this.app.store.getters['element/getRootElements'](page)
+          if (contentElements.length) {
+            nextElement = contentElements[0]
+          }
+        } else if (elementPlace === PAGE_PLACES.CONTENT) {
+          const footerElements = this.app.store.getters[
+            'element/getRootElements'
+          ](sharedPage).filter(
+            (element) =>
+              this.app.$registry.get('element', element.type).getPagePlace() ===
+              PAGE_PLACES.FOOTER
+          )
+          if (footerElements.length) {
+            nextElement = footerElements[0]
+          }
+        }
+      }
+    }
+
+    let leftElement = null
+    let rightElement = null
+
+    // We have a parent, so we can find left and right elements.
+    if (element.parent_element_id) {
+      const parentElement = this.app.store.getters['element/getElementById'](
+        elementPage,
+        element.parent_element_id
+      )
       const parentElementType = this.app.$registry.get(
         'element',
         parentElement.type
       )
-      await parentElementType.moveChildElement(
-        page,
-        parentElement,
-        element,
-        placement
+      const places = parentElementType.getElementPlaces(parentElement)
+      const placeIndex = places.findIndex(
+        (place) => place === element.place_in_container
       )
-    } else {
-      await this.moveElementInSamePlace(page, element, placement)
-    }
-  }
 
-  /**
-   * Identify and select the next element according to the new placement.
-   *
-   * @param {Object} page - The page the element belongs to
-   * @param {Object} element - The element on which the selection should be based on
-   * @param {String} placement - The direction of the selection
-   */
-  async selectNextElement(page, element, placement) {
-    let elementToBeSelected = null
-    if (placement === PLACEMENTS.BEFORE) {
-      elementToBeSelected = this.app.store.getters[
-        'element/getPreviousElement'
-      ](page, element)
-    } else if (placement === PLACEMENTS.AFTER) {
-      elementToBeSelected = this.app.store.getters['element/getNextElement'](
-        page,
-        element
-      )
-    } else {
-      const containerElement = this.app.store.getters['element/getElementById'](
-        page,
-        element.parent_element_id
-      )
-      const containerElementType = this.app.$registry.get(
-        'element',
-        containerElement.type
-      )
-      elementToBeSelected =
-        containerElementType.getNextHorizontalElementToSelect(
-          page,
-          element,
-          placement
-        )
+      let placeLeftIndex = placeIndex - 1
+      while (placeLeftIndex >= 0) {
+        const elementsInNextPlace = this.app.store.getters[
+          'element/getElementsInPlace'
+        ](elementPage, element.parent_element_id, places[placeLeftIndex])
+        if (elementsInNextPlace.length > 0) {
+          leftElement = elementsInNextPlace.at(-1)
+          break
+        }
+        placeLeftIndex -= 1
+      }
+      let placeRightIndex = placeIndex + 1
+      while (placeRightIndex <= places.length - 1) {
+        const elementsInNextPlace = this.app.store.getters[
+          'element/getElementsInPlace'
+        ](elementPage, element.parent_element_id, places[placeRightIndex])
+        if (elementsInNextPlace.length > 0) {
+          rightElement = elementsInNextPlace[0]
+          break
+        }
+        placeRightIndex += 1
+      }
     }
 
-    if (!elementToBeSelected) {
-      return
+    return {
+      [DIRECTIONS.BEFORE]: previousElement,
+      [DIRECTIONS.AFTER]: nextElement,
+      [DIRECTIONS.LEFT]: leftElement,
+      [DIRECTIONS.RIGHT]: rightElement,
     }
-
-    try {
-      await this.app.store.dispatch('element/select', {
-        element: elementToBeSelected,
-      })
-    } catch {}
-  }
-
-  /**
-   * Returns vertical placement disabled.
-   * @param {Object} page - The page the element belongs to
-   * @param {Object} element - The element to move
-   * @param {String} placement - The direction of the move
-   */
-  getVerticalPlacementsDisabled(page, element) {
-    const previousElement = this.app.store.getters[
-      'element/getPreviousElement'
-    ](page, element)
-    const nextElement = this.app.store.getters['element/getNextElement'](
-      page,
-      element
-    )
-
-    const placementsDisabled = []
-
-    if (!previousElement) {
-      placementsDisabled.push(PLACEMENTS.BEFORE)
-    }
-
-    if (!nextElement) {
-      placementsDisabled.push(PLACEMENTS.AFTER)
-    }
-
-    return placementsDisabled
-  }
-
-  /**
-   * Return an array of placements that are disallowed for the element to move
-   * in their container (or root page).
-   *
-   * @param {Object} page The page that is the parent component.
-   * @param {Number} element The element for which the placements should be
-   *  calculated.
-   * @returns {Array} An array of placements that are disallowed for the element.
-   */
-  getPlacementsDisabled(page, element) {
-    // If the element has a parent, let the parent container type derive the
-    // disabled placements.
-    if (element.parent_element_id) {
-      const containerElement = this.app.store.getters['element/getElementById'](
-        page,
-        element.parent_element_id
-      )
-      const elementType = this.app.$registry.get(
-        'element',
-        containerElement.type
-      )
-      return elementType.getPlacementsDisabledForChild(
-        page,
-        containerElement,
-        element
-      )
-    }
-
-    return [
-      PLACEMENTS.LEFT,
-      PLACEMENTS.RIGHT,
-      ...this.getVerticalPlacementsDisabled(page, element),
-    ]
   }
 
   /**
@@ -443,33 +645,6 @@ export class ElementType extends Registerable {
   }
 
   /**
-   * Given an element, iterates over the element's ancestors and finds the
-   * first collection element. An optional function can be passed to map over
-   * each ancestor element.
-   *
-   * @param {Object} page - The page the element belongs to.
-   * @param {Object} element - The element to start the search from.
-   * @param {Function} ancestorMapFn - An optional function which will be
-   * called for each ancestor element, after ensuring it's a collection element.
-   */
-  firstCollectionAncestor(page, element, ancestorMapFn = (element) => true) {
-    const elementType = this.app.$registry.get('element', element.type)
-    if (elementType.isCollectionElement && ancestorMapFn(element)) {
-      return element
-    }
-    const ancestors = this.app.store.getters['element/getAncestors'](
-      page,
-      element
-    )
-    for (const ancestor of ancestors) {
-      const ancestorType = this.app.$registry.get('element', ancestor.type)
-      if (ancestorType.isCollectionElement && ancestorMapFn(ancestor)) {
-        return ancestor
-      }
-    }
-  }
-
-  /**
    * Given a `page` and an `element`, and `ancestorType`, returns whether the
    * element has an ancestor of a specified element type.
    *
@@ -484,112 +659,6 @@ export class ElementType extends Registerable {
     )
   }
 }
-
-const ContainerElementTypeMixin = (Base) =>
-  class extends Base {
-    isContainerElement = true
-
-    get elementTypesAll() {
-      return Object.values(this.app.$registry.getAll('element'))
-    }
-
-    /**
-     * Returns an array of element types that are not allowed as children of this element type.
-     * @param {object} page - The page the element belongs to.
-     * @param {Object} element The element in question, it can be used to
-     *  determine in a more dynamic way if specific children are permitted.
-     * @returns {Array} An array of forbidden child element types.
-     */
-    childElementTypesForbidden(page, element) {
-      return []
-    }
-
-    /**
-     * Returns an array of element types that are allowed as children of this element.
-     * If the parent element we're trying to add a child to has a parent, we'll check
-     * each parent until the root element if they have any forbidden element types to
-     * include as well.
-     * @param page
-     * @param element
-     * @returns {Array} An array of permitted child element types.
-     */
-    childElementTypes(page, element) {
-      if (element.parent_element_id) {
-        const parentElement = this.app.store.getters['element/getElementById'](
-          page,
-          element.parent_element_id
-        )
-        const parentElementType = this.app.$registry.get(
-          'element',
-          parentElement.type
-        )
-        return _.difference(
-          parentElementType.childElementTypes(page, parentElement),
-          this.childElementTypesForbidden(page, element)
-        )
-      }
-      return _.difference(
-        this.elementTypesAll,
-        this.childElementTypesForbidden(page, element)
-      )
-    }
-
-    /**
-     * Returns an array of style types that are not allowed as children of this element.
-     * @returns {Array}
-     */
-    get childStylesForbidden() {
-      return []
-    }
-
-    get defaultPlaceInContainer() {
-      throw new Error('Not implemented')
-    }
-
-    /**
-     * Returns the default value when creating a child element to this container.
-     * @param {Object} page The current page object
-     * @param {Object} values The values of the to be created element
-     * @returns the default values for this element.
-     */
-    getDefaultChildValues(page, values) {
-      // By default, an element inside a container should have no left and right padding
-      return { style_padding_left: 0, style_padding_right: 0 }
-    }
-
-    /**
-     * Given a `page` and an `element`, move the child element of a container
-     * in the direction specified by the `placement`.
-     *
-     * The default implementation only supports moving the element vertically.
-     *
-     * @param {Object} page The page that is the parent component.
-     * @param {Number} element The child element to be moved.
-     * @param {String} placement The direction in which the element should move.
-     */
-    async moveChildElement(page, parentElement, element, placement) {
-      if (placement === PLACEMENTS.AFTER || placement === PLACEMENTS.BEFORE) {
-        await this.moveElementInSamePlace(page, element, placement)
-      }
-    }
-
-    /**
-     * Return an array of placements that are disallowed for the elements to move
-     * in their container.
-     *
-     * @param {Object} page The page that is the parent component.
-     * @param {Number} element The child element for which the placements should
-     *    be calculated.
-     * @returns {Array} An array of placements that are disallowed for the element.
-     */
-    getPlacementsDisabledForChild(page, containerElement, element) {
-      this.getPlacementsDisabled(page, element)
-    }
-
-    getNextHorizontalElementToSelect(page, element, placement) {
-      return null
-    }
-  }
 
 export class FormContainerElementType extends ContainerElementTypeMixin(
   ElementType
@@ -618,17 +687,40 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     return FormContainerElementForm
   }
 
+  getElementPlaces(element) {
+    return [null]
+  }
+
   /**
-   * Only disallow form containers as nested elements.
-   * @param {object} page - The page the element belongs to.
-   * @param {Object} element The element in question, it can be used to
-   *  determine in a more dynamic way if specific children are permitted.
-   * @returns {Array} An array containing the `FormContainerElementType`.
+   * This element is not allowed in another form container.
    */
-  childElementTypesForbidden(page, element) {
-    return this.elementTypesAll.filter(
-      (elementType) => elementType.type === this.getType()
-    )
+  isDisallowedReason({
+    builder,
+    page,
+    parentElement,
+    beforeElement,
+    placeInContainer,
+    pagePlace,
+  }) {
+    if (parentElement) {
+      const hasSameTypeAncestor = !!this.app.store.getters[
+        'element/getAncestors'
+      ](page, parentElement, {
+        predicate: (ancestor) => ancestor.type === this.type,
+        includeSelf: true,
+      }).length
+      if (hasSameTypeAncestor) {
+        return this.app.i18n.t('elementType.notAllowedInsideSameType')
+      }
+    }
+    return super.isDisallowedReason({
+      builder,
+      page,
+      parentElement,
+      beforeElement,
+      placeInContainer,
+      pagePlace,
+    })
   }
 
   get childStylesForbidden() {
@@ -640,20 +732,19 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
   }
 
   /**
-   * Return an array of placements that are disallowed for the elements to move
-   * in their container.
-   *
-   * @param {Object} page The page that is the parent component.
-   * @param {Number} element The child element for which the placements should
-   *    be calculated.
-   * @returns {Array} An array of placements that are disallowed for the element.
+   * A form container is invalid if it has no workflow actions, or it has no
+   * children.
    */
-  getPlacementsDisabledForChild(page, containerElement, element) {
-    return [
-      PLACEMENTS.LEFT,
-      PLACEMENTS.RIGHT,
-      ...this.getVerticalPlacementsDisabled(page, element),
-    ]
+  isInError({ page, element }) {
+    const workflowActions = this.app.store.getters[
+      'workflowAction/getElementWorkflowActions'
+    ](page, element.id)
+
+    if (!workflowActions.length) {
+      return true
+    }
+
+    return super.isInError({ page, element })
   }
 }
 
@@ -682,17 +773,40 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     return ColumnElementForm
   }
 
+  getElementPlaces(element) {
+    return [...Array(element.column_amount)].map((_, index) => `${index}`)
+  }
+
   /**
-   * Only disallow column elements as nested elements.
-   * @param {object} page - The page the element belongs to.
-   * @param {Object} element The element in question, it can be used to
-   *  determine in a more dynamic way if specific children are permitted.
-   * @returns {Array} An array containing the `ColumnElementType`.
+   * This element is not allowed in another column container.
    */
-  childElementTypesForbidden(page, element) {
-    return this.elementTypesAll.filter(
-      (elementType) => elementType.type === this.getType()
-    )
+  isDisallowedReason({
+    builder,
+    page,
+    parentElement,
+    beforeElement,
+    placeInContainer,
+    pagePlace,
+  }) {
+    if (parentElement) {
+      const hasSameTypeAncestor = !!this.app.store.getters[
+        'element/getAncestors'
+      ](page, parentElement, {
+        predicate: (ancestor) => ancestor.type === this.type,
+        includeSelf: true,
+      }).length
+      if (hasSameTypeAncestor) {
+        return this.app.i18n.t('elementType.notAllowedInsideSameType')
+      }
+    }
+    return super.isDisallowedReason({
+      builder,
+      page,
+      parentElement,
+      beforeElement,
+      placeInContainer,
+      pagePlace,
+    })
   }
 
   get childStylesForbidden() {
@@ -702,274 +816,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
   get defaultPlaceInContainer() {
     return '0'
   }
-
-  /**
-   * Given a `page` and an `element`, move the child element of a container
-   * in the direction specified by the `placement`.
-   *
-   * @param {Object} page The page that is the parent component.
-   * @param {Number} element The child element to be moved.
-   * @param {String} placement The direction in which the element should move.
-   */
-  async moveChildElement(page, parentElement, element, placement) {
-    if (placement === PLACEMENTS.AFTER || placement === PLACEMENTS.BEFORE) {
-      await super.moveChildElement(page, parentElement, element, placement)
-    } else {
-      const placeInContainer = parseInt(element.place_in_container)
-      const newPlaceInContainer =
-        placement === PLACEMENTS.LEFT
-          ? placeInContainer - 1
-          : placeInContainer + 1
-
-      if (newPlaceInContainer >= 0) {
-        await this.app.store.dispatch('element/move', {
-          page,
-          elementId: element.id,
-          beforeElementId: null,
-          parentElementId: parentElement.id,
-          placeInContainer: `${newPlaceInContainer}`,
-        })
-      }
-    }
-  }
-
-  /**
-   * Return an array of placements that are disallowed for the elements to move
-   * in their container.
-   *
-   * @param {Object} page The page that is the parent component.
-   * @param {Number} element The child element for which the placements should
-   *    be calculated.
-   * @returns {Array} An array of placements that are disallowed for the element.
-   */
-  getPlacementsDisabledForChild(page, containerElement, element) {
-    const columnIndex = parseInt(element.place_in_container)
-
-    const placementsDisabled = []
-
-    if (columnIndex === 0) {
-      placementsDisabled.push(PLACEMENTS.LEFT)
-    }
-
-    if (columnIndex === containerElement.column_amount - 1) {
-      placementsDisabled.push(PLACEMENTS.RIGHT)
-    }
-
-    return [
-      ...placementsDisabled,
-      ...this.getVerticalPlacementsDisabled(page, element),
-    ]
-  }
-
-  getNextHorizontalElementToSelect(page, element, placement) {
-    const offset = placement === PLACEMENTS.LEFT ? -1 : 1
-    const containerElement = this.app.store.getters['element/getElementById'](
-      page,
-      element.parent_element_id
-    )
-
-    let elementsInPlace = []
-    let nextPlaceInContainer = parseInt(element.place_in_container)
-    for (let i = 0; i < containerElement.column_amount; i++) {
-      nextPlaceInContainer += offset
-      elementsInPlace = this.app.store.getters['element/getElementsInPlace'](
-        page,
-        containerElement.id,
-        nextPlaceInContainer.toString()
-      )
-
-      if (elementsInPlace.length) {
-        return elementsInPlace[elementsInPlace.length - 1]
-      }
-    }
-
-    return null
-  }
 }
-
-const CollectionElementTypeMixin = (Base) =>
-  class extends Base {
-    isCollectionElement = true
-
-    /**
-     * By default collection element will load their content at loading time
-     * but if you don't want that you can return false here.
-     */
-    get fetchAtLoad() {
-      return true
-    }
-
-    hasCollectionAncestor(page, element) {
-      return this.app.store.getters['element/getAncestors'](page, element).some(
-        ({ type }) => {
-          const ancestorType = this.app.$registry.get('element', type)
-          return ancestorType.isCollectionElement
-        }
-      )
-    }
-
-    /**
-     * Collection elements by default will have three permutations of display names:
-     *
-     * 1. If no data source exists, on `element` or its ancestors, then:
-     *   - "Repeat" is returned.
-     * 2. If a data source is found, and `element` has no `schema_property`, then:
-     *   - "Repeat {dataSourceName}" is returned.
-     * 3. If a data source is found, `element` has a `schema_property`, and the integration is Baserow, then:
-     *   - "Repeat {schemaPropertyTitle} ({fieldTypeName})" is returned
-     * 4. If a data source is found, `element` has a `schema_property`, and the integration isn't Baserow, then:
-     *   - "Repeat {schemaPropertyTitle}" is returned
-     * @param element - The element we want to get a display name for.
-     * @param page - The page the element belongs to.
-     * @returns {string} - The display name for the element.
-     */
-    getDisplayName(element, { page }) {
-      let suffix = ''
-
-      const collectionAncestors = this.app.store.getters[
-        'element/getAncestors'
-      ](page, element, {
-        predicate: (ancestor) =>
-          this.app.$registry.get('element', ancestor.type)
-            .isCollectionElement && ancestor.data_source_id !== null,
-      })
-
-      // If the collection element has ancestors, pluck out the first one, which
-      // will have a data source. Otherwise, use `element`, as this element is
-      // the root level element.
-      const collectionElement = collectionAncestors.length
-        ? collectionAncestors[0]
-        : element
-
-      // If we find a collection ancestor which has a data source, we'll
-      // use the data source's name as part of the display name.
-      if (collectionElement?.data_source_id) {
-        const dataSource = this.app.store.getters[
-          'dataSource/getPageDataSourceById'
-        ](page, collectionElement?.data_source_id)
-        suffix = dataSource ? dataSource.name : ''
-
-        // If we have a data source, and the element has a schema property,
-        // we'll find the property within the data source's schema and pluck
-        // out the title property.
-        if (element.schema_property) {
-          // Find the schema properties. They'll be in different places,
-          // depending on whether this is a list or single row data source.
-          const schemaProperties =
-            dataSource.schema.type === 'array'
-              ? dataSource.schema?.items?.properties
-              : dataSource.schema.properties
-          const schemaField = schemaProperties[element.schema_property]
-          // Only Local/Remote Baserow table schemas will have `original_type`,
-          // which is the `FieldType`. If we find it, we can use it to display
-          // what kind of field type was used.
-          suffix = schemaField?.title || element.schema_property
-          if (schemaField.original_type) {
-            const fieldType = this.app.$registry.get(
-              'field',
-              schemaField.original_type
-            )
-            suffix = `${suffix} (${fieldType.getName()})`
-          }
-        }
-      }
-
-      return suffix ? `${this.name} - ${suffix}` : this.name
-    }
-
-    /**
-     * When a data source is modified or destroyed, we need to ensure that
-     * our collection elements respond accordingly.
-     *
-     * If the data source has been removed, we want to remove it from the
-     * collection element, and then clear its contents from the store.
-     *
-     * If the data source has been updated, we want to trigger a content reset.
-     *
-     * @param event - `ELEMENT_EVENTS.DATA_SOURCE_REMOVED` if a data source
-     *  has been destroyed, or `ELEMENT_EVENTS.DATA_SOURCE_AFTER_UPDATE` if
-     *  it's been updated.
-     * @param params - Context data which the element type can use.
-     */
-    async onElementEvent(event, { page, element, dataSourceId }) {
-      if (event === ELEMENT_EVENTS.DATA_SOURCE_REMOVED) {
-        if (element.data_source_id === dataSourceId) {
-          // Remove the data_source_id
-          await this.app.store.dispatch('element/forceUpdate', {
-            page,
-            element,
-            values: { data_source_id: null },
-          })
-          // Empty the element content
-          await this.app.store.dispatch('elementContent/clearElementContent', {
-            element,
-          })
-        }
-      }
-      if (event === ELEMENT_EVENTS.DATA_SOURCE_AFTER_UPDATE) {
-        if (element.data_source_id === dataSourceId) {
-          await this.app.store.dispatch(
-            'elementContent/triggerElementContentReset',
-            {
-              element,
-            }
-          )
-        }
-      }
-    }
-
-    /**
-     * A collection element is in error if:
-     *
-     * - No parent (including self) collection elements have a valid data_source_id.
-     * - The parent with the valid data_source_id points to a data_source
-     *   that !returnsList and `schema_property` is blank.
-     * - It is nested in another collection element, and we don't have a `schema_property`.
-     * @param {Object} page - The page the repeat element belongs to.
-     * @param {Object} element - The repeat element
-     * @returns {Boolean} - Whether the element is in error.
-     */
-    isInError({ page, element }) {
-      // We get all parents with a valid data_source_id
-      const collectionAncestorsWithDataSource = this.app.store.getters[
-        'element/getAncestors'
-      ](page, element, {
-        predicate: (ancestor) =>
-          this.app.$registry.get('element', ancestor.type)
-            .isCollectionElement && ancestor.data_source_id,
-        includeSelf: true,
-      })
-
-      // No parent with a data_source_id means we are in error
-      if (collectionAncestorsWithDataSource.length === 0) {
-        return true
-      }
-
-      // We consider the closest parent collection element with a data_source_id
-      // The closest parent might be the current element itself
-      const parentWithDataSource = collectionAncestorsWithDataSource.at(-1)
-
-      // We now check if the parent element configuration is correct.
-      const dataSource = this.app.store.getters[
-        'dataSource/getPageDataSourceById'
-      ](page, parentWithDataSource.data_source_id)
-      const serviceType = this.app.$registry.get('service', dataSource.type)
-
-      // If the data source type doesn't return a list, we should have a schema_property
-      if (!serviceType.returnsList && !parentWithDataSource.schema_property) {
-        return true
-      }
-
-      // If the current element is not the one with the data source it should have
-      // a schema_property
-      if (parentWithDataSource.id !== element.id && !element.schema_property) {
-        return true
-      }
-
-      // Otherwise it's not in error.
-      return false
-    }
-  }
 
 export class TableElementType extends CollectionElementTypeMixin(ElementType) {
   static getType() {
@@ -1018,11 +865,11 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
 
   /**
    * The table is in error if the configuration is invalid (see collection element
-   * mixin) or if one of the field is in error.
+   * mixin) or if one of the fields are in error.
    */
-  isInError({ element, page, builder }) {
+  isInError({ page, element, builder }) {
     return (
-      super.isInError({ element, page, builder }) ||
+      super.isInError({ page, element, builder }) ||
       element.fields.some((collectionField) => {
         const collectionFieldType = this.app.$registry.get(
           'collectionField',
@@ -1037,8 +884,8 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
   }
 }
 
-export class RepeatElementType extends ContainerElementTypeMixin(
-  CollectionElementTypeMixin(ElementType)
+export class RepeatElementType extends CollectionElementTypeMixin(
+  ContainerElementTypeMixin(ElementType)
 ) {
   static getType() {
     return 'repeat'
@@ -1064,21 +911,8 @@ export class RepeatElementType extends ContainerElementTypeMixin(
     return RepeatElementForm
   }
 
-  /**
-   * Return an array of placements that are disallowed for the elements to move
-   * in their container.
-   *
-   * @param {Object} page The page that is the parent component.
-   * @param {Number} element The child element for which the placements should
-   *    be calculated.
-   * @returns {Array} An array of placements that are disallowed for the element.
-   */
-  getPlacementsDisabledForChild(page, containerElement, element) {
-    return [
-      PLACEMENTS.LEFT,
-      PLACEMENTS.RIGHT,
-      ...this.getVerticalPlacementsDisabled(page, element),
-    ]
+  getElementPlaces(element) {
+    return [null]
   }
 
   /**
@@ -1147,10 +981,6 @@ export class FormElementType extends ElementType {
       page,
       elementId: element.id,
     })
-  }
-
-  getNextHorizontalElementToSelect(page, element, placement) {
-    return null
   }
 
   getDataSchema(element) {
@@ -1254,6 +1084,14 @@ export class HeadingElementType extends ElementType {
     return HeadingElementForm
   }
 
+  /**
+   * A value is mandatory for the Heading element. Return true if the value
+   * is empty to indicate an error, otherwise return false.
+   */
+  isInError({ element }) {
+    return element.value.length === 0
+  }
+
   getDisplayName(element, applicationContext) {
     if (element.value && element.value.length) {
       const resolvedName = ensureString(
@@ -1288,6 +1126,14 @@ export class TextElementType extends ElementType {
 
   get generalFormComponent() {
     return TextElementForm
+  }
+
+  /**
+   * A value is mandatory for the Text element. Return true if the value
+   * is empty to indicate an error, otherwise return false.
+   */
+  isInError({ element }) {
+    return element.value.length === 0
   }
 
   getDisplayName(element, applicationContext) {
@@ -1326,8 +1172,34 @@ export class LinkElementType extends ElementType {
     return LinkElementForm
   }
 
+  /**
+   * LinkElement validation returns true if the element is misconfigured,
+   * otherwise return false.
+   *
+   * When the Navigate To is a Page, the page and the path parameters must
+   * be valid.
+   *
+   * When the Navigate To is a Custom URL, a Destination URL value must be
+   * provided.
+   */
   isInError({ element, builder }) {
-    return pathParametersInError(element, builder)
+    // A Link without any text isn't usable
+    if (!element.value) {
+      return true
+    }
+
+    if (element.navigation_type === 'page') {
+      if (!element.navigate_to_page_id) {
+        return true
+      }
+      return pathParametersInError(
+        element,
+        this.app.store.getters['page/getVisiblePages'](builder)
+      )
+    } else if (element.navigation_type === 'custom') {
+      return Boolean(!element.navigate_to_url)
+    }
+    return true
   }
 
   getDisplayName(element, applicationContext) {
@@ -1335,9 +1207,11 @@ export class LinkElementType extends ElementType {
     let destination = ''
     if (element.navigation_type === 'page') {
       const builder = applicationContext.builder
-      const destinationPage = builder.pages.find(
-        ({ id }) => id === element.navigate_to_page_id
-      )
+
+      const destinationPage = this.app.store.getters['page/getVisiblePages'](
+        builder
+      ).find(({ id }) => id === element.navigate_to_page_id)
+
       if (destinationPage) {
         destination = `${destinationPage.name}`
       }
@@ -1388,6 +1262,19 @@ export class ImageElementType extends ElementType {
     return ImageElementForm
   }
 
+  /**
+   * Image element must have an image file or a URL as its source. Return true
+   * to indicate an error when an image source doesn't exist, otherwise
+   * return false.
+   */
+  isInError({ element }) {
+    if (element.image_source_type === IMAGE_SOURCE_TYPES.UPLOAD) {
+      return Boolean(!element.image_file?.url)
+    } else {
+      return Boolean(!element.image_url)
+    }
+  }
+
   getDisplayName(element, applicationContext) {
     if (element.alt_text) {
       const resolvedName = ensureString(
@@ -1426,6 +1313,23 @@ export class ButtonElementType extends ElementType {
 
   getEvents(element) {
     return [new ClickEvent({ ...this.app })]
+  }
+
+  /**
+   * A Button element must have a Workflow Action to be considered valid. Return
+   * true if there are no Workflow Actions, otherwise return false.
+   */
+  isInError({ page, element }) {
+    // If Button without any label should be considered invalid
+    if (!element.value) {
+      return true
+    }
+
+    const workflowActions = this.app.store.getters[
+      'workflowAction/getElementWorkflowActions'
+    ](page, element.id)
+
+    return !workflowActions.length
   }
 
   getDisplayName(element, applicationContext) {
@@ -1551,7 +1455,7 @@ export class ChoiceElementType extends FormElementType {
     return !(element.required && !validOption)
   }
 
-  isInError({ element, builder }) {
+  isInError({ element }) {
     switch (element.option_type) {
       case CHOICE_OPTION_TYPES.MANUAL:
         return element.options.length === 0
@@ -1646,6 +1550,24 @@ export class IFrameElementType extends ElementType {
 
   get generalFormComponent() {
     return IFrameElementForm
+  }
+
+  /**
+   * IFrame element must have a URL or an embedded value, depending on the
+   * source_type. If the value doesn't exist, return true to indicate an error,
+   * otherwise return false.
+   */
+  isInError({ element }) {
+    if (element.source_type === IFRAME_SOURCE_TYPES.URL && !element.url) {
+      return true
+    } else if (
+      element.source_type === IFRAME_SOURCE_TYPES.EMBED &&
+      !element.embed
+    ) {
+      return true
+    } else {
+      return false
+    }
   }
 
   getDisplayName(element, applicationContext) {
@@ -1743,7 +1665,7 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
   /**
    * This element is a special collection element. It's in error if it's data_source_id
    * is null.
-   * @param {*} param0
+   * @param {Object} element the element to check the error
    * @returns
    */
   isInError({ element }) {
@@ -1764,5 +1686,231 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
         },
       }
     }
+  }
+}
+
+export class DateTimePickerElementType extends FormElementType {
+  static getType() {
+    return 'datetime_picker'
+  }
+
+  get name() {
+    return this.$t('elementType.dateTimePicker')
+  }
+
+  get description() {
+    return this.$t('elementType.dateTimePickerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-calendar'
+  }
+
+  get component() {
+    return DateTimePickerElement
+  }
+
+  get generalFormComponent() {
+    return DateTimePickerElementForm
+  }
+
+  formDataType(element) {
+    return element.include_time ? 'datetime' : 'date'
+  }
+
+  /**
+   * Parse a date and time string value based on the element settings.
+   * It uses element's `date_format` and `time_format` properties to parse the
+   * date. It will only parse the time if `include_time` is on.
+   *
+   * @param element {Object} - The element that contains the formatting options.
+   * @param value {string} - The date and time string to be parsed.
+   * @returns {FormattedDate|FormattedDateTime} - The date or datetimme object.
+   */
+  parseElementDateTime(element, value) {
+    const FormattedDateOrDateTimeClass = element.include_time
+      ? FormattedDateTime
+      : FormattedDate
+
+    // Try to parse the date/datetime initially as an ISO string
+    let parsedValue = new FormattedDateOrDateTimeClass(value)
+
+    // If the previous fails, try again with the element current format
+    if (!parsedValue.isValid()) {
+      const dateFormat = DATE_FORMATS[element.date_format].format
+      const timeFormat = TIME_FORMATS[element.time_format].format
+      const format = element.include_time
+        ? `${dateFormat} ${timeFormat}`
+        : dateFormat
+      parsedValue = new FormattedDateOrDateTimeClass(value, format)
+    }
+    return parsedValue
+  }
+
+  getInitialFormDataValue(element, applicationContext) {
+    const resolvedDefaultValue = this.resolveFormula(element.default_value, {
+      element,
+      ...applicationContext,
+    })
+    return resolvedDefaultValue
+      ? this.parseElementDateTime(element, resolvedDefaultValue)
+      : null
+  }
+
+  isValid(element, value) {
+    if (!value) {
+      return !element.required
+    }
+    return this.parseElementDateTime(element, value).isValid()
+  }
+}
+
+export class HeaderElementType extends MultiPageElementTypeMixin(
+  ContainerElementTypeMixin(ElementType)
+) {
+  static getType() {
+    return 'header'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.header')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.headerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-align-top-box'
+  }
+
+  get component() {
+    return MultiPageContainerElement
+  }
+
+  get generalFormComponent() {
+    return MultiPageContainerElementForm
+  }
+
+  getPagePlace() {
+    return PAGE_PLACES.HEADER
+  }
+
+  getDefaultChildValues(page, values) {
+    return {}
+  }
+
+  getDefaultValues(page, values) {
+    const superValues = super.getDefaultValues(page, values)
+    return {
+      ...superValues,
+      style_padding_left: 0,
+      style_padding_right: 0,
+    }
+  }
+
+  /**
+   * We can't have this element inside another container. Not allowed outside of HEADER.
+   * We can add id before the first element though.
+   */
+  isDisallowedReason({
+    builder,
+    page,
+    parentElement,
+    beforeElement,
+    placeInContainer,
+    pagePlace,
+  }) {
+    if (parentElement) {
+      // Can't be inserted inside another container
+      return this.app.i18n.t('elementType.notAllowedInsideContainer')
+    }
+
+    const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+
+    if (
+      page.id === sharedPage.id &&
+      pagePlace &&
+      pagePlace !== PAGE_PLACES.HEADER
+    ) {
+      // can't be inserted outside of header
+      return this.app.i18n.t('elementType.notAllowedUnlessHeader')
+    }
+
+    if (page.id !== sharedPage.id) {
+      const orderedElements =
+        this.app.store.getters['element/getElementsOrdered'](page)
+      // Can't be inserted after the first element of the page
+      if (beforeElement && beforeElement.id !== orderedElements[0].id) {
+        return this.app.i18n.t('elementType.notAllowedUnlessTop')
+      }
+    }
+    return null
+  }
+}
+
+export class FooterElementType extends HeaderElementType {
+  static getType() {
+    return 'footer'
+  }
+
+  getPagePlace() {
+    return PAGE_PLACES.FOOTER
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.footer')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.footerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-align-bottom-box'
+  }
+
+  get component() {
+    return MultiPageContainerElement
+  }
+
+  get generalFormComponent() {
+    return MultiPageContainerElementForm
+  }
+
+  /**
+   * We can't have this element inside another container. Not allowed outside of FOOTER.
+   * We can add id after the element of the page though.
+   */
+  isDisallowedReason({
+    builder,
+    page,
+    parentElement,
+    beforeElement,
+    placeInContainer,
+    pagePlace,
+  }) {
+    if (parentElement) {
+      // Can't be inserted inside another container
+      return this.app.i18n.t('elementType.notAllowedInsideContainer')
+    }
+
+    const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+    if (
+      page.id === sharedPage.id &&
+      pagePlace &&
+      pagePlace !== PAGE_PLACES.FOOTER
+    ) {
+      // can't be inserted outside of header
+      return this.app.i18n.t('elementType.notAllowedUnlessFooter')
+    }
+
+    if (page.id !== sharedPage.id) {
+      // Can't be inserted before the end of the page
+      if (beforeElement && beforeElement.page_id !== sharedPage.id) {
+        return this.app.i18n.t('elementType.notAllowedUnlessBottom')
+      }
+    }
+    return null
   }
 }

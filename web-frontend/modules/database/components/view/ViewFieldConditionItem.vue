@@ -8,7 +8,6 @@
         :value="filter.field"
         :disabled="disableFilter"
         :fixed-items="true"
-        small
         @input="$emit('updateFilter', { field: $event })"
       >
         <DropdownItem
@@ -25,7 +24,6 @@
         :disabled="disableFilter"
         :value="filter.type"
         :fixed-items="true"
-        small
         @input="$emit('updateFilter', { type: $event })"
       >
         <DropdownItem
@@ -89,7 +87,7 @@
     <a
       class="filters__remove"
       :class="{ 'filters__remove--disabled': disableFilter }"
-      @click="!disableFilter && $emit('deleteFilter', $event)"
+      @click.stop="!disableFilter && $emit('deleteFilter', $event)"
     >
       <i class="iconoir-bin"></i>
     </a>
@@ -115,7 +113,7 @@ export default {
     view: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => undefined,
     },
     isPublicView: {
       type: Boolean,

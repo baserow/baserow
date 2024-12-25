@@ -129,7 +129,9 @@
         "leaveWorkspace": "Quitter le projet",
         "deleteWorkspace": "Supprimer le projet",
         "auditLog": "Journal d'audit",
-        "settings": "Paramètres"
+        "settings": "Paramètres",
+        "importWorkspace": "Importer",
+        "exportWorkspace": "Exporter"
     },
     "createWorkspaceModal": {
         "createNew": "Nouveau projet",
@@ -195,7 +197,9 @@
         "fromTemplate": "À partir d'un modèle",
         "fromTemplateDesc": "Démarrer rapidement avec l'un de nos modèles recommandés",
         "tableDesc": "Créez un nouvel espace pour gérer des données dans votre base.",
-        "table": "Table"
+        "table": "Table",
+        "importWorkspaceDesc": "Importer des données existantes à partir d'une instance Baserow.",
+        "importWorkspace": "Importer"
     },
     "applicationForm": {
         "nameLabel": "Nom",
@@ -252,12 +256,12 @@
         "noWorkspaceDescription": "Pour commencer, créez un nouveau projet"
     },
     "login": {
-        "title": "Identification",
-        "forgotPassword": "Mot de passe oublié ?",
+        "title": "Bienvenue",
+        "forgotPassword": "Oublié ?",
         "signUp": "S'inscrire",
         "emailPlaceholder": "Entrez votre adresse e-mail..",
         "passwordPlaceholder": "Entrez votre mot de passe..",
-        "signUpText": "Vous n'avez pas de compte ?",
+        "signUpText": "Nouveau sur Baserow ?",
         "displayPasswordLogin": "Connectez-vous en utilisant votre e-mail et votre mot de passe",
         "redirecting": "Redirection vers le service d'authentification..."
     },
@@ -272,10 +276,11 @@
         "errorLinkExpiredTitle": "Lien expiré",
         "errorLinkExpiredMessage": "Le lien de réinitialisation de mot de passe a expiré, Veuillez en demander un nouveau.",
         "disabled": "La réinitialisation du mot de passe est désactivée",
-        "disabledMessage": "Il n’est pas possible de réinitialiser le mot de passe car cette fonctionnalité a été désactivé."
+        "disabledMessage": "Il n’est pas possible de réinitialiser le mot de passe car cette fonctionnalité a été désactivé.",
+        "message": "Vous pouvez maintenant vous connecter à Baserow en utilisant votre nouveau mot de passe."
     },
     "signup": {
-        "headTitle": "Création d'un nouveau compte",
+        "headTitle": "Créer un compte",
         "title": "Création de compte",
         "disabled": "Création de compte désactivée",
         "disabledMessage": "Vous ne pouvez pas créer de compte car la création de compte a été désactivée.",
@@ -286,16 +291,21 @@
         "namePlaceholder": "Entrez votre nom..",
         "passwordPlaceholder": "Entrez votre mot de passe..",
         "passwordRepeatPlaceholder": "Confirmez votre mot de passe..",
-        "loginText": "Vous avez déjà un compte ?"
+        "loginText": "Vous avez déjà un compte ?",
+        "terms": "Conditions d'utilisation",
+        "agreeTerms": "En créant un compte, vous acceptez : {0} {1} {2}",
+        "privacyPolicy": "Politique de confidentialité"
     },
     "forgotPassword": {
         "title": "Mot de passe oublié",
-        "message": "Veuillez saisir votre adresse email dans le formulaire. Si nous trouvons un compte correspondant, nous vous enverrons un email avec un lien pour réinitialiser votre mot de passe.",
+        "message": "Veuillez saisir votre adresse et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
         "submit": "Envoyer le lien",
-        "confirmation": "Si un compte correspond à votre adresse email, vous allez recevoir un lien de réinitialisation de mot de passe sur votre messagerie d'ici quelques minutes.",
+        "confirmation": "Nous avons envoyé un courriel à {email}, qui contient un lien pour réinitialiser votre mot de passe Baserow.",
         "disabled": "Mot de passe oublié désactivé",
         "disabledMessage": "Vous ne pouvez pas réinitialiser votre mot de passe car la réinitialisation de mot de passe a été désactivée.",
-        "loginText": "Vous avez déjà un compte et un mot de passe ?"
+        "loginText": "Vous avez déjà un compte et un mot de passe ?",
+        "confirmationTitle": "Vérifiez votre adresse courriel",
+        "goBack": "Retour"
     },
     "settings": {
         "settingsTitle": "Paramètres",
@@ -327,7 +337,9 @@
         "userSettings": "Utilisateur",
         "emailVerification": "Vérification de l'adresse électronique",
         "baserowVersion": "Version de Baserow",
-        "baserowVersionDescription": "Le numéro de version de cette instance."
+        "baserowVersionDescription": "Le numéro de version de cette instance.",
+        "settingsVerifyImportSignature": "Vérifier la signature de l'importation",
+        "settingsVerifyImportSignatureDescription": "Lorsqu'elle est activée, la signature des données importées est vérifiée afin de s'assurer que les données n'ont pas été altérées."
     },
     "copyingNotification": {
         "title": "Copie en cours...",
@@ -460,7 +472,9 @@
         "errorJobAlreadyRunningDescription": "Une autre tâche d'importation est déjà en cours. Vous devez attendre que celle-ci se termine avant d'en lancer une autre.",
         "statePending": "En attente…",
         "stateStarted": "Démarré…",
-        "stateFinished": "Terminé"
+        "stateFinished": "Terminé",
+        "errorJobCannotBeCancelledTitle": "Impossible d'annuler",
+        "errorJobCannotBeCancelledDescription": "Il n'est pas possible d'annuler le travail car il a déjà été effectué.\nVeuillez supprimer la première sauvegarde ci-dessous pour le supprimer."
     },
     "clearingNotification": {
         "content": "Préparation des données",
@@ -472,7 +486,9 @@
         "monthsAgo": "il y a 0 mois | il y a 1 mois | il y a {n} mois",
         "minutesAgo": "il y a 0 minute | il y a 1 minute | il y a {n} minutes",
         "hoursAgo": "Il y a 0 heure | Il y a 1 heure | Il y a {n} heures",
-        "secondsAgo": "A l'instant | Il y a 1 seconde | Il y a {n} secondes"
+        "secondsAgo": "A l'instant | Il y a 1 seconde | Il y a {n} secondes",
+        "justNow": "à l'instant",
+        "lessThanMinuteAgo": "il y a moins d'une minute"
     },
     "duplicateApplicationJobType": {
         "duplicating": "Duplication",
@@ -735,14 +751,32 @@
         "ollamaHostLabel": "Hôte",
         "ollamaHostDescription": "Indiquez le nom d'hôte de votre serveur [Ollama] (https://ollama.com/). Celui-ci s'exécute généralement localement sur votre propre serveur.",
         "ollamaModelsLabel": "Modèles activés",
-        "ollamaModelsDescription": "Fournir une liste de [modèles Ollama installés] (https://ollama.com/library) séparés par des virgules. Notez que le modèle doit être téléchargé et installé avant de pouvoir être utilisé. (par exemple `llama2,mistral`)"
+        "ollamaModelsDescription": "Fournir une liste de [modèles Ollama installés] (https://ollama.com/library) séparés par des virgules. Notez que le modèle doit être téléchargé et installé avant de pouvoir être utilisé. (par exemple `llama2,mistral`)",
+        "anthropicApiKeyLabel": "Clé d'API",
+        "anthropicModelsLabel": "Modèles activés",
+        "anthropicModelsDescription": "Fournissez une liste de [modèles Anthropic](https://docs.anthropic.com/en/docs/about-claude/models) séparés par des virgules que vous souhaitez utilisés dans Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "mistral": "Mistral",
+        "mistralApiKeyLabel": "Clé d'API",
+        "mistralApiKeyDescription": "Fournissez une clé API Mistral si vous souhaitez activer l'intégration. [Instructions sur l'obtention d'une clé API](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralModelsLabel": "Modèles activés",
+        "mistralModelsDescription": "Fournissez une liste de [modèles Mistral] (https://docs.mistral.ai/getting-started/models/models_overview/) séparés par des virgules qui vous souhaitez utiliser dans Baserow. (par exemple : `mistral-large-latest,mistral-small-latest`)",
+        "anthropic": "Anthropic",
+        "anthropicApiKeyDescription": "Fournissez une clé API Anthropic si vous souhaitez activer l'intégration. [Instructions sur l'obtention d'une clé API](https://docs.anthropic.com/en/api/getting-started).",
+        "openRouterModelsLabel": "Modèles activés",
+        "openRouter": "OpenRouter",
+        "openRouterModelsDescription": "Fournissez une liste de [modèles OpenRouter](https://openrouter.ai/models) séparés par des virgules qui peuvent être utilisés dans Baserow. (par exemple `openai/gpt-4o,anthropic/claude-3-haiku`)",
+        "openRouterApiKeyDescription": "Fournissez une clé API OpenRouter si vous souhaitez activer l'intégration. [Obtenir une clé API](https://openrouter.ai/settings/keys).",
+        "openRouterApiKeyLabel": "Clé API",
+        "openRouterOrganization": "Organisation (facultatif)"
     },
     "generativeAIWorkspaceSettings": {
         "title": "Paramètres de l'IA générative",
         "changedTitle": "Les paramètres ont été mis à jour",
         "changedDescription": "Les paramètres ont été mis à jour et seront désormais utilisés dans ce Projet.",
         "submitButton": "Enregistrer",
-        "description": "Ces paramètres peuvent être utilisés pour définir la configuration de l'IA générative au niveau da Projet. Des fonctionnalités telles que le champ IA peuvent être désactivées parce qu'elles ne disposent pas d'une clé API pour l'un des modèles pris en charge. En fournissant les paramètres ici, vous pouvez activer ces fonctionnalités. Si vous laissez une valeur vide, les paramètres globaux de l'instance sont rétablis par défaut. Notez que tous les utilisateurs du Projet partageront ces paramètres."
+        "description": "Ces paramètres peuvent être utilisés pour définir la configuration de l'IA générative au niveau da Projet. Des fonctionnalités telles que le champ IA peuvent être désactivées parce qu'elles ne disposent pas d'une clé API pour l'un des modèles pris en charge. En fournissant les paramètres ici, vous pouvez activer ces fonctionnalités. Si vous laissez une valeur vide, les paramètres globaux de l'instance sont rétablis par défaut. Notez que tous les utilisateurs du Projet partageront ces paramètres.",
+        "openSettings": "Ouvrir la configuration",
+        "hideSettings": "Fermer"
     },
     "dashboardVerifyEmail": {
         "title": "Veuillez vérifier votre boîte aux lettres et cliquer sur le lien pour vérifier votre adresse électronique.",
@@ -806,7 +840,9 @@
     "selectAIModelForm": {
         "AIType": "Type d'IA",
         "AIModel": "Modèle d'IA",
-        "fileField": "Champ de fichier"
+        "fileField": "Champ de fichier",
+        "temperatureLabel": "Température",
+        "temperatureDescription": "La température d'un LLM, un paramètre défini entre 0 et {max}, ajuste le caractère aléatoire des réponses - les valeurs les plus basses donnent des réponses ciblées, tandis que les valeurs les plus élevées augmentent la créativité."
     },
     "workspaceStep": {
         "title": "Créez votre Projet",
@@ -827,5 +863,157 @@
     },
     "templateCard": {
         "viewMore": "Voir plus"
+    },
+    "exportWorkspaceModal": {
+        "title": "Exporter",
+        "description": "Vos données seront exportées sous la forme d'un fichier ZIP, qui pourra être importé dans d'autres instances de Baserow.",
+        "exportSettings": "Paramètres d'exportation",
+        "export": "Exporter",
+        "reset": "Nouvel export",
+        "cancel": "Annuler",
+        "download": "Télécharger",
+        "noExports": "Il n'y a pas d'export pour ce projet.",
+        "created": "Créé le",
+        "importingState": "Import en cours"
+    },
+    "exportWorkspaceForm": {
+        "onlyStructureLabel": "Exporter uniquement la structure",
+        "exportSettingsLabel": "Paramètres d'exportation",
+        "onlyStructureDescription": "Si cette option est activée, seule la structure des applications sera exportée. Les données ne seront pas incluses."
+    },
+    "importWorkspaceModal": {
+        "title": "Importer des données",
+        "upload": "Envoyer",
+        "cancel": "Annuler",
+        "close": "Fermer",
+        "retry": "Réessayer",
+        "uploading": "envoi…",
+        "chooseFile": "Choisir un fichier",
+        "selectApplications": "Sélectionner les données à importer",
+        "deselectAll": "Désélectionner tout",
+        "selectAll": "Sélectionner tout",
+        "applications": "Applications",
+        "successTitle": "L'importation des données est réussie",
+        "successMessage": "{count} applications importées",
+        "signatureVerificationNote": "Il n'est pas possible d'importer un fichier zip à partir d'une source non fiable.",
+        "invalidResourceTitle": "Ressource invalide",
+        "invalidResourceMessage": "Le fichier fourni n'est pas une exportation Baserow valide.",
+        "untrustedPublicKeyTitle": "Signature inconnue",
+        "untrustedPublicKeyMessage": "Le fichier fourni est signé avec une clé publique non approuvée. Demandez à votre administrateur d'ajouter la clé publique à la liste des clés de confiance ou de désactiver la vérification de la signature pour pouvoir importer ce fichier.",
+        "description": "Vous pouvez importer des données Baserow existantes en téléchargeant le fichier .zip d'une autre instance Baserow.",
+        "import": "Importer",
+        "done": "Valider",
+        "databases": "Bases de données"
+    },
+    "user": {
+        "isStaff": "Est collaborateur",
+        "isWorkspaceAdmin": "Est l'administrateur du projet",
+        "active": "Actif",
+        "deactivated": "Inactif"
+    },
+    "adminType": {
+        "dashboard": "Statistiques",
+        "users": "Utilisateurs",
+        "workspaces": "Projets"
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "Liste des projets",
+        "id": "ID",
+        "name": "Nom",
+        "members": "Membres",
+        "applications": "Applications",
+        "created": "Créé le",
+        "seatsTaken": "Places occupées",
+        "storageUsage": "Stockage utilisé (Mo)",
+        "rowCount": "Nombre de lignes",
+        "freeUsers": "Utilisateurs gratuits",
+        "usageHelpText": "Calculé chaque nuit lorsque le paramètre de suivi de l'utilisation des projets est activé"
+    },
+    "editWorkspaceContext": {
+        "delete": "Supprimer définitivement"
+    },
+    "deleteWorkspaceModal": {
+        "title": "Supprimer {name}",
+        "confirmation": "Êtes-vous sûr·e de vouloir supprimer le projet : {name} ?",
+        "comment": "Le projet va être supprimé définitivement ainsi que ses applications liées. Il est impossible d'annuler cette action.",
+        "delete": "Supprimer le projet {name}"
+    },
+    "activeUsers": {
+        "newUsers": "Nouveaux utilisateurs",
+        "activeUsers": "Utilisateurs actifs"
+    },
+    "usersAdminTable": {
+        "allUsers": "Liste des utilisateurs",
+        "id": "ID",
+        "username": "Identifiant",
+        "name": "Nom",
+        "workspaces": "Projets",
+        "lastLogin": "Dernière connexion",
+        "dateJoined": "Date d'inscription",
+        "active": "Actif"
+    },
+    "editUserContext": {
+        "changePassword": "Modifier le mot de passe",
+        "delete": "Supprimer définitivement",
+        "impersonate": "Usurper"
+    },
+    "changePasswordForm": {
+        "newPassword": "Nouveau mot de passe",
+        "repeatPassword": "Répétez le mot de passe",
+        "changePassword": "Mettre à jour le mot de passe",
+        "error": {
+            "doesntMatch": "Les deux mots de passe ne correspondent pas."
+        }
+    },
+    "userForm": {
+        "fullName": "Nom complet",
+        "email": "Adresse électronique",
+        "isActive": "Est actif",
+        "warning": {
+            "changeEmail": "Si vous changez l'adresse électronique, l'utilisateur devra désormais utiliser celle-ci pour s'identifier. Ceci doit être signifié à l'utilisateur.",
+            "inactiveUser": "Un utilisateur inactif n'est plus en mesure de s'identifier.",
+            "userStaff": "Un collaborateur a accès à la liste des utilisateurs, des projets et peut changer les permissions de tous les utilisateurs."
+        },
+        "error": {
+            "invalidName": "Veuillez saisir un nom valide, il doit être composé de plus de 2 caractères et moins de 150.",
+            "invalidEmail": "Veuillez saisir une adresse électronique valide."
+        }
+    },
+    "changeUserPasswordModal": {
+        "changePassword": "Changer le mot de passe pour {username}"
+    },
+    "deleteUserModal": {
+        "title": "Supprimer {username}",
+        "confirmation": "Êtes-vous sûr·e de vouloir supprimer l'utilisateur : {name} ?",
+        "comment1": "Le compte de l'utilisateur va être supprimé, cependant les projets dont l'utilisateur est membre vont continuer d'exister. Ces projets ne seront pas supprimés même si cet utilisateur est le dernier utilisateur du projet. Supprimer le dernier utilisateur d'un projet interdit à quiconque d'y accéder de nouveau.",
+        "comment2": "Après avoir supprimé un utilisateur, il sera possible de créer un nouveau compte avec la même adresse email. Si vous souhaitez éviter que l'utilisateur puisse se connecter avec cette adresse, vous pouvez désactiver l'utilisateur plutôt que supprimer son compte.",
+        "delete": "Supprimer l'utilisateur {username}"
+    },
+    "editUserModal": {
+        "delete": "Supprimer l'utilisateur",
+        "edit": "Modifier {username}"
+    },
+    "adminDashboard": {
+        "title": "Statistiques",
+        "totals": "Résumé",
+        "totalUsers": "Nombre d'utilisateur",
+        "totalWorkspaces": "Nombre de projet",
+        "totalApplications": "Nombre d'application",
+        "newUsers": "Nouveaux utilisateurs",
+        "newUsers24h": "Sur les dernières 24h",
+        "newUsers7days": "sur les 7 derniers jours",
+        "newUsers30days": "Sur les 30 derniers jours",
+        "activeUsers": "Utilisateurs actifs",
+        "activeUsers24h": "Sur les dernières 24h",
+        "activeUsers7days": "sur les 7 derniers jours",
+        "activeUsers30days": "Sur les 30 derniers jours",
+        "viewAll": "Consulter"
+    },
+    "formGroup": {
+        "cancelProtectedField": "Annuler la modification",
+        "protectedField": "Ce champ est protégé. Cliquez pour changer."
+    },
+    "userSourceType": {
+        "userCountSummary": "{count} utilisateurs ({lastUpdated})"
     }
 }

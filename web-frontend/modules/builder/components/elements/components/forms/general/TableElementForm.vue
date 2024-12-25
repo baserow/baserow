@@ -17,7 +17,8 @@
       <DataSourceDropdown
         v-model="computedDataSourceId"
         small
-        :data-sources="dataSources"
+        :shared-data-sources="sharedDataSources"
+        :local-data-sources="localDataSources"
       >
         <template #chooseValueState>
           {{ $t('collectionElementForm.noDataSourceMessage') }}
@@ -82,7 +83,7 @@
     </FormGroup>
 
     <FormSection class="margin-bottom-2" :title="$t('tableElementForm.fields')">
-      <template v-if="elementHasContent.length">
+      <template v-if="values.fields?.length">
         <ButtonText
           v-show="selectedDataSourceReturnsList"
           type="primary"
@@ -169,7 +170,6 @@
                 <Dropdown
                   :value="field.type"
                   :show-search="false"
-                  small
                   @input="changeFieldType(field, $event)"
                 >
                   <DropdownItem
@@ -228,6 +228,21 @@
         </template>
       </DeviceSelector>
     </FormGroup>
+    <FormGroup
+      v-if="propertyOptionsAvailable"
+      small-label
+      class="margin-top-2 margin-bottom-2"
+      :label="$t('collectionElementForm.propertyOptionLabel')"
+    >
+      <PropertyOptionForm
+        :default-values="element"
+        :is-filterable="element.is_publicly_filterable"
+        :is-sortable="element.is_publicly_sortable"
+        :is-searchable="element.is_publicly_searchable"
+        :data-source="selectedDataSource"
+        @values-changed="$emit('values-changed', $event)"
+      ></PropertyOptionForm>
+    </FormGroup>
   </form>
 </template>
 
@@ -244,7 +259,6 @@ import {
   minValue,
   maxValue,
 } from 'vuelidate/lib/validators'
-import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import { TABLE_ORIENTATION } from '@baserow/modules/builder/enums'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
@@ -252,17 +266,19 @@ import { mapActions, mapGetters } from 'vuex'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
 import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown'
+import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 
 export default {
   name: 'TableElementForm',
   components: {
+    PropertyOptionForm,
     DataSourceDropdown,
     ServiceSchemaPropertySelector,
     InjectedFormulaInput,
     DeviceSelector,
     CustomStyle,
   },
-  mixins: [elementForm, collectionElementForm],
+  mixins: [collectionElementForm],
   data() {
     return {
       allowedValues: [

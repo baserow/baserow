@@ -48,7 +48,6 @@
             v-model="values.default_role"
             :show-search="false"
             :fixed-items="true"
-            small
           >
             <DropdownItem
               v-for="role in roles"

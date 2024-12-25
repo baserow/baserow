@@ -24,7 +24,7 @@ def clean_up_audit_log_entries(self):
 
 
 @app.on_after_finalize.connect
-def setup_periodic_tasks(sender, **kwargs):
+def setup_periodic_audit_log_tasks(sender, **kwargs):
     every = timedelta(
         minutes=settings.BASEROW_ENTERPRISE_AUDIT_LOG_CLEANUP_INTERVAL_MINUTES
     )

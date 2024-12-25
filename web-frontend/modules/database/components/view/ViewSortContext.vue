@@ -30,18 +30,18 @@
           <a
             v-if="!disableSort"
             class="sortings__remove"
-            @click.stop="deleteSort(sort)"
+            @click="deleteSort(sort)"
           >
             <i class="iconoir-cancel"></i>
           </a>
 
           <div class="sortings__description">
-            <template v-if="index === 0">{{
-              $t('viewSortContext.sortBy')
-            }}</template>
-            <template v-if="index > 0">{{
-              $t('viewSortContext.thenBy')
-            }}</template>
+            <template v-if="index === 0"
+              >{{ $t('viewSortContext.sortBy') }}
+            </template>
+            <template v-if="index > 0"
+              >{{ $t('viewSortContext.thenBy') }}
+            </template>
           </div>
           <div class="sortings__field">
             <Dropdown
@@ -49,7 +49,6 @@
               :disabled="disableSort"
               :fixed-items="true"
               class="dropdown--floating"
-              small
               @input="updateSort(sort, { field: $event })"
             >
               <DropdownItem
@@ -70,9 +69,9 @@
               :class="{ active: sort.order === 'ASC' }"
               @click="updateSort(sort, { order: 'ASC' })"
             >
-              <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                getSortIndicator(field, 1)
-              }}</template>
+              <template v-if="getSortIndicator(field, 0) === 'text'"
+                >{{ getSortIndicator(field, 1) }}
+              </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 1)"
@@ -80,9 +79,9 @@
 
               <i class="iconoir-arrow-right"></i>
 
-              <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                getSortIndicator(field, 2)
-              }}</template>
+              <template v-if="getSortIndicator(field, 0) === 'text'"
+                >{{ getSortIndicator(field, 2) }}
+              </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 2)"
@@ -93,9 +92,9 @@
               :class="{ active: sort.order === 'DESC' }"
               @click="updateSort(sort, { order: 'DESC' })"
             >
-              <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                getSortIndicator(field, 2)
-              }}</template>
+              <template v-if="getSortIndicator(field, 0) === 'text'"
+                >{{ getSortIndicator(field, 2) }}
+              </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 2)"
@@ -103,9 +102,9 @@
 
               <i class="iconoir-arrow-right"></i>
 
-              <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                getSortIndicator(field, 1)
-              }}</template>
+              <template v-if="getSortIndicator(field, 0) === 'text'"
+                >{{ getSortIndicator(field, 1) }}
+              </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 1)"
@@ -116,40 +115,31 @@
       </div>
       <div
         v-if="view.sortings.length < availableFieldsLength && !disableSort"
-        ref="addContextToggle"
         class="context__footer"
       >
         <ButtonText
+          ref="addDropdownToggle"
           icon="iconoir-plus"
-          @click="
-            $refs.addContext.toggle($refs.addContextToggle, 'bottom', 'left', 4)
-          "
+          @click="$refs.addDropdown.toggle($refs.addDropdownToggle.$el)"
         >
-          {{ $t('viewSortContext.addSort') }}</ButtonText
-        >
-        <Context
-          ref="addContext"
-          class="sortings__add-context"
-          overflow-scroll
-          max-height-if-outside-viewport
-        >
-          <ul ref="items" class="context__menu">
-            <li
-              v-for="field in fields"
-              v-show="isFieldAvailable(field)"
+          {{ $t('viewSortContext.addSort') }}
+        </ButtonText>
+        <div class="sortings__add">
+          <Dropdown
+            ref="addDropdown"
+            :show-input="false"
+            :fixed-items="true"
+            @input="addSort"
+          >
+            <DropdownItem
+              v-for="field in availableFields"
               :key="field.id"
-              class="context__menu-item"
-            >
-              <a class="context__menu-item-link" @click="addSort(field)">
-                <i
-                  class="context__menu-item-icon"
-                  :class="field._.type.iconClass"
-                ></i>
-                {{ field.name }}
-              </a>
-            </li>
-          </ul>
-        </Context>
+              :name="field.name"
+              :value="field.id"
+              :icon="getFieldType(field).iconClass"
+            ></DropdownItem>
+          </Dropdown>
+        </div>
       </div>
     </div>
   </Context>
@@ -181,16 +171,19 @@ export default {
     },
   },
   computed: {
-    /**
-     * Calculates the total amount of available fields.
-     */
     availableFieldsLength() {
       return this.fields.filter(this.getCanSortInView).length
     },
+    availableFields() {
+      return this.fields.filter((f) => this.isFieldAvailable(f))
+    },
   },
   methods: {
+    getFieldType(field) {
+      return this.$registry.get('field', field.type)
+    },
     getCanSortInView(field) {
-      return this.$registry.get('field', field.type).getCanSortInView(field)
+      return this.getFieldType(field).getCanSortInView(field)
     },
     getField(fieldId) {
       for (const i in this.fields) {
@@ -204,14 +197,14 @@ export default {
       const allFieldIds = this.view.sortings.map((sort) => sort.field)
       return this.getCanSortInView(field) && !allFieldIds.includes(field.id)
     },
-    async addSort(field) {
-      this.$refs.addContext.hide()
+    async addSort(fieldId) {
+      this.$refs.addDropdown.hide()
 
       try {
         await this.$store.dispatch('view/createSort', {
           view: this.view,
           values: {
-            field: field.id,
+            field: fieldId,
             value: 'ASC',
           },
           readOnly: this.readOnly,
@@ -250,9 +243,9 @@ export default {
       }
     },
     getSortIndicator(field, index) {
-      return this.$registry
-        .get('field', field.type)
-        .getSortIndicator(field, this.$registry)[index]
+      return this.getFieldType(field).getSortIndicator(field, this.$registry)[
+        index
+      ]
     },
   },
 }

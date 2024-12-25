@@ -1,0 +1,7 @@
+{
+  "type": "bug",
+  "message": "Keep AI field field ID references when duplicating table.",
+  "issue_number": 2747,
+  "bullet_points": [],
+  "created_at": "2024-10-14"
+}

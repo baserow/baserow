@@ -57,10 +57,29 @@ from baserow.contrib.builder.workflow_actions.operations import (
     ReadBuilderWorkflowActionOperationType,
     UpdateBuilderWorkflowActionOperationType,
 )
+from baserow.contrib.dashboard.data_sources.operations import (
+    CreateDashboardDataSourceOperationType,
+    DeleteDashboardDataSourceOperationType,
+    DispatchDashboardDataSourceOperationType,
+    ListDashboardDataSourcesOperationType,
+    ReadDashboardDataSourceOperationType,
+    UpdateDashboardDataSourceOperationType,
+)
+from baserow.contrib.dashboard.widgets.operations import (
+    CreateWidgetOperationType,
+    DeleteWidgetOperationType,
+    ListWidgetsOperationType,
+    ReadWidgetOperationType,
+    UpdateWidgetOperationType,
+)
 from baserow.contrib.database.airtable.operations import (
     RunAirtableImportJobOperationType,
 )
-from baserow.contrib.database.data_sync.operations import SyncTableOperationType
+from baserow.contrib.database.data_sync.operations import (
+    GetIncludingPublicValuesOperationType,
+    ListPropertiesOperationType,
+    SyncTableOperationType,
+)
 from baserow.contrib.database.export.operations import ExportTableOperationType
 from baserow.contrib.database.fields.operations import (
     CreateFieldOperationType,
@@ -296,6 +315,11 @@ default_roles[VIEWER_ROLE_UID].extend(
         ListBuilderWorkflowActionsPageOperationType,
         ReadBuilderWorkflowActionOperationType,
         ReadViewFilterGroupOperationType,
+        ReadWidgetOperationType,
+        ListWidgetsOperationType,
+        ListDashboardDataSourcesOperationType,
+        ReadDashboardDataSourceOperationType,
+        DispatchDashboardDataSourceOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -433,6 +457,14 @@ default_roles[BUILDER_ROLE_UID].extend(
         UpdateBuilderWorkflowActionOperationType,
         OrderBuilderWorkflowActionOperationType,
         SyncTableOperationType,
+        ListPropertiesOperationType,
+        GetIncludingPublicValuesOperationType,
+        CreateWidgetOperationType,
+        UpdateWidgetOperationType,
+        DeleteWidgetOperationType,
+        CreateDashboardDataSourceOperationType,
+        DeleteDashboardDataSourceOperationType,
+        UpdateDashboardDataSourceOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(

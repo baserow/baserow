@@ -43,6 +43,7 @@ export class EnterpriseWithoutSupportLicenseType extends LicenseType {
       EnterpriseFeaturesObject.TEAMS,
       EnterpriseFeaturesObject.AUDIT_LOG,
       EnterpriseFeaturesObject.ENTERPRISE_SETTINGS,
+      EnterpriseFeaturesObject.DATA_SYNC,
     ]
   }
 

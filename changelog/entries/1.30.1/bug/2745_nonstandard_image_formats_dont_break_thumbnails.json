@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Non-standard image formats don't break thumbnails",
+    "issue_number": 2745,
+    "bullet_points": [],
+    "created_at": "2024-12-18"
+}

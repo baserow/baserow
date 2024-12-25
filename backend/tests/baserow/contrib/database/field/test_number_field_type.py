@@ -115,6 +115,29 @@ from baserow.core.registries import ImportExportConfig
                 "number_decimal_places": 10,
             },
         ),
+        (
+            [
+                9223372036854775807,
+                100,
+                100,
+                101,
+                0,
+                0,
+                0,
+                0,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+            {
+                "number_decimal_places": 0,
+                "number_negative": False,
+                "number_prefix": "$",
+                "number_suffix": "%",
+            },
+        ),
     ],
 )
 def test_alter_number_field_column_type(expected, field_kwargs, data_fixture):

@@ -742,3 +742,32 @@ def test_create_collection_element_with_non_unique_schema_properties(
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_ELEMENT_PROPERTY_OPTIONS_NOT_UNIQUE"
+
+
+@pytest.mark.django_db
+def test_create_collection_element_with_blank_property_option_schema_property(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_repeat_element(user=user, page=page)
+    url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
+    response = api_client.patch(
+        url,
+        {"property_options": [{"schema_property": ""}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "property_options": [
+                {
+                    "schema_property": [
+                        {"error": "This field may not be blank.", "code": "blank"}
+                    ]
+                }
+            ]
+        },
+    }

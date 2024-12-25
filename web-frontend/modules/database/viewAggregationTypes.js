@@ -676,11 +676,7 @@ export class AverageViewAggregationType extends ViewAggregationType {
     if (isNaN(value)) {
       return null
     }
-    if (fieldType.getType() === 'number') {
-      return NumberFieldType.formatNumber(field, value)
-    } else {
-      return value && value.toFixed(2)
-    }
+    return fieldType.toHumanReadableString(field, value)
   }
 
   getComponent() {
@@ -715,11 +711,7 @@ export class StdDevViewAggregationType extends ViewAggregationType {
     if (isNaN(value)) {
       return null
     }
-    if (fieldType.getType() === 'number') {
-      return NumberFieldType.formatNumber(field, value)
-    } else {
-      return value && value.toFixed(2)
-    }
+    return fieldType.toHumanReadableString(field, value)
   }
 
   getComponent() {
@@ -749,11 +741,7 @@ export class VarianceViewAggregationType extends ViewAggregationType {
     if (isNaN(value)) {
       return null
     }
-    if (fieldType.getType() === 'number') {
-      return NumberFieldType.formatNumber(field, value)
-    } else {
-      return value && value.toFixed(2)
-    }
+    return fieldType.toHumanReadableString(field, value)
   }
 
   getComponent() {
@@ -781,6 +769,13 @@ export class MedianViewAggregationType extends ViewAggregationType {
 
   getComponent() {
     return GenericViewAggregation
+  }
+
+  getValue(value, { field, fieldType }) {
+    if (isNaN(value)) {
+      return null
+    }
+    return fieldType.toHumanReadableString(field, value)
   }
 }
 

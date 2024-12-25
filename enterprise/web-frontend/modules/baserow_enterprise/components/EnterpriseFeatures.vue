@@ -22,6 +22,13 @@
       {{ $t('enterpriseFeatures.auditLogs') }}
     </li>
     <li
+      v-if="!hiddenFeatures.includes(enterpriseFeatures.DATA_SYNC)"
+      class="premium-features__feature"
+    >
+      <i class="iconoir-check premium-features__feature-icon"></i>
+      {{ $t('enterpriseFeatures.dataSync') }}
+    </li>
+    <li
       v-if="!hiddenFeatures.includes(enterpriseFeatures.ENTERPRISE_SETTINGS)"
       class="premium-features__feature"
     >

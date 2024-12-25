@@ -1,11 +1,11 @@
 from django.conf import settings
-from django.core.files.storage import default_storage
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.core.models import UserFile
+from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 
 
@@ -22,9 +22,10 @@ class UserFileURLAndThumbnailsSerializerMixin(serializers.Serializer):
 
     @extend_schema_field(OpenApiTypes.URI)
     def get_url(self, instance):
+        storage = get_default_storage()
         name = self.get_instance_attr(instance, "name")
         path = UserFileHandler().user_file_path(name)
-        url = default_storage.url(path)
+        url = storage.url(path)
         return url
 
     @extend_schema_field(OpenApiTypes.OBJECT)
@@ -33,10 +34,11 @@ class UserFileURLAndThumbnailsSerializerMixin(serializers.Serializer):
             return None
 
         name = self.get_instance_attr(instance, "name")
+        storage = get_default_storage()
 
         return {
             thumbnail_name: {
-                "url": default_storage.url(
+                "url": storage.url(
                     UserFileHandler().user_file_thumbnail_path(name, thumbnail_name)
                 ),
                 "width": size[0],

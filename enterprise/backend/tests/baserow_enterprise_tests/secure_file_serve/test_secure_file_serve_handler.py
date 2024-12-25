@@ -1,4 +1,5 @@
 from unittest import mock
+from unittest.mock import MagicMock
 
 from django.contrib.auth.models import AnonymousUser
 from django.core.signing import SignatureExpired
@@ -63,11 +64,14 @@ def test_secure_file_handler_get_file_path_exists():
     handler = SecureFileServeHandler()
 
     data = SecureFileServeSignerPayload(name="path/to/file.txt", workspace_id=None)
-
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
-    ) as mocked_default_storage:
-        mocked_default_storage.exists.return_value = True
+        "baserow_enterprise.secure_file_serve.handler.get_default_storage"
+    ) as get_storage_mock:
+        storage_mock = MagicMock()
+        storage_mock.exists.return_value = True
+
+        get_storage_mock.return_value = storage_mock
+
         file_path = handler.get_file_path(data=data)
         assert file_path == data.name
 
@@ -78,7 +82,7 @@ def test_secure_file_handler_get_file_path_does_not_exist():
     data = SecureFileServeSignerPayload(name="path/to/file.txt", workspace_id=None)
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
+        "baserow.core.storage.get_default_storage"
     ) as mocked_default_storage:
         mocked_default_storage.exists.return_value = False
         with pytest.raises(SecureFileServeException) as error:
@@ -116,7 +120,7 @@ def test_secure_file_handler_extract_file_info_or_raise_non_existing_file():
     handler = SecureFileServeHandler()
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
+        "baserow.core.storage.get_default_storage"
     ) as mocked_default_storage:
         mocked_default_storage.exists.return_value = False
 
@@ -137,9 +141,12 @@ def test_secure_file_handler_extract_file_info_or_raise_valid_data_disabled_perm
     signed_data = storage.sign_data(name="path/to/file.txt")
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
-    ) as mocked_default_storage:
-        mocked_default_storage.exists.return_value = True
+        "baserow_enterprise.secure_file_serve.handler.get_default_storage"
+    ) as get_storage_mock:
+        storage_mock = MagicMock()
+        storage_mock.exists.return_value = True
+
+        get_storage_mock.return_value = storage_mock
 
         secure_file = handler.extract_file_info_or_raise(
             user=AnonymousUser(), signed_data=signed_data
@@ -161,9 +168,12 @@ def test_secure_file_handler_extract_file_info_or_raise_valid_data_signed_in_wit
     signed_data = storage.sign_data(name="path/to/file.txt")
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
-    ) as mocked_default_storage:
-        mocked_default_storage.exists.return_value = True
+        "baserow_enterprise.secure_file_serve.handler.get_default_storage"
+    ) as get_storage_mock:
+        storage_mock = MagicMock()
+        storage_mock.exists.return_value = True
+
+        get_storage_mock.return_value = storage_mock
 
         with pytest.raises(SecureFileServeException) as error:
             handler.extract_file_info_or_raise(
@@ -188,9 +198,12 @@ def test_secure_file_handler_extract_file_info_or_raise_valid_data_signed_in_wit
     signed_data = storage.sign_data(name="path/to/file.txt")
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
-    ) as mocked_default_storage:
-        mocked_default_storage.exists.return_value = True
+        "baserow_enterprise.secure_file_serve.handler.get_default_storage"
+    ) as get_storage_mock:
+        storage_mock = MagicMock()
+        storage_mock.exists.return_value = True
+
+        get_storage_mock.return_value = storage_mock
 
         secure_file = handler.extract_file_info_or_raise(
             user=user, signed_data=signed_data
@@ -212,9 +225,12 @@ def test_secure_file_handler_extract_file_info_or_raise_valid_data_workspace_wit
     signed_data = storage.sign_data(name="path/to/file.txt")
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
-    ) as mocked_default_storage:
-        mocked_default_storage.exists.return_value = True
+        "baserow_enterprise.secure_file_serve.handler.get_default_storage"
+    ) as get_storage_mock:
+        storage_mock = MagicMock()
+        storage_mock.exists.return_value = True
+
+        get_storage_mock.return_value = storage_mock
 
         with pytest.raises(SecureFileServeException) as error:
             handler.extract_file_info_or_raise(
@@ -243,9 +259,12 @@ def test_secure_file_handler_extract_file_info_or_raise_valid_data_workspace_wro
     signed_data = storage.sign_data(name="path/to/file.txt")
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
-    ) as mocked_default_storage:
-        mocked_default_storage.exists.return_value = True
+        "baserow_enterprise.secure_file_serve.handler.get_default_storage"
+    ) as get_storage_mock:
+        storage_mock = MagicMock()
+        storage_mock.exists.return_value = True
+
+        get_storage_mock.return_value = storage_mock
 
         with pytest.raises(SecureFileServeException) as error:
             handler.extract_file_info_or_raise(user=user_1, signed_data=signed_data)
@@ -270,9 +289,12 @@ def test_secure_file_handler_extract_file_info_or_raise_valid_data_workspace_wit
     signed_data = storage.sign_data(name="path/to/file.txt")
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
-    ) as mocked_default_storage:
-        mocked_default_storage.exists.return_value = True
+        "baserow_enterprise.secure_file_serve.handler.get_default_storage"
+    ) as get_storage_mock:
+        storage_mock = MagicMock()
+        storage_mock.exists.return_value = True
+
+        get_storage_mock.return_value = storage_mock
 
         secure_file = handler.extract_file_info_or_raise(
             user=user, signed_data=signed_data
@@ -298,9 +320,12 @@ def test_secure_file_handler_extract_file_info_or_raise_staff_user_no_workspace(
     signed_data = storage.sign_data(name="path/to/file.txt")
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
-    ) as mocked_default_storage:
-        mocked_default_storage.exists.return_value = True
+        "baserow_enterprise.secure_file_serve.handler.get_default_storage"
+    ) as get_storage_mock:
+        storage_mock = MagicMock()
+        storage_mock.exists.return_value = True
+
+        get_storage_mock.return_value = storage_mock
 
         secure_file = handler.extract_file_info_or_raise(
             user=user, signed_data=signed_data
@@ -328,9 +353,12 @@ def test_secure_file_handler_extract_file_info_or_raise_staff_user_within_own_wo
     signed_data = storage.sign_data(name="path/to/file.txt")
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
-    ) as mocked_default_storage:
-        mocked_default_storage.exists.return_value = True
+        "baserow_enterprise.secure_file_serve.handler.get_default_storage"
+    ) as get_storage_mock:
+        storage_mock = MagicMock()
+        storage_mock.exists.return_value = True
+
+        get_storage_mock.return_value = storage_mock
 
         secure_file = handler.extract_file_info_or_raise(
             user=user, signed_data=signed_data
@@ -359,9 +387,12 @@ def test_secure_file_handler_extract_file_info_or_raise_staff_user_outside_own_w
     signed_data = storage.sign_data(name="path/to/file.txt")
 
     with mock.patch(
-        "baserow_enterprise.secure_file_serve.handler.default_storage"
-    ) as mocked_default_storage:
-        mocked_default_storage.exists.return_value = True
+        "baserow_enterprise.secure_file_serve.handler.get_default_storage"
+    ) as get_storage_mock:
+        storage_mock = MagicMock()
+        storage_mock.exists.return_value = True
+
+        get_storage_mock.return_value = storage_mock
 
         with pytest.raises(SecureFileServeException) as error:
             handler.extract_file_info_or_raise(user=user_1, signed_data=signed_data)

@@ -21,6 +21,14 @@ class GenerateFormulaWithAIRequestSerializer(serializers.Serializer):
     ai_model = serializers.CharField(
         help_text="The AI model that must be used when generating the formula."
     )
+    ai_temperature = serializers.FloatField(
+        required=False,
+        allow_null=True,
+        min_value=0,
+        max_value=2,
+        help_text="Between 0 and 2, adjusts response randomness—lower values yield "
+        "focused answers, while higher values increase creativity.",
+    )
     ai_prompt = serializers.CharField(
         help_text="The human readable input used to generate the formula.",
         max_length=1000,

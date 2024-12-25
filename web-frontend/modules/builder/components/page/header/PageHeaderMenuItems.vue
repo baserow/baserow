@@ -23,7 +23,7 @@
         :is="itemType.component"
         :ref="`component_${itemType.type}`"
         :data-item-type="itemType.type"
-        :page="page"
+        :page="currentPage"
       />
     </li>
   </ul>
@@ -32,7 +32,7 @@
 <script>
 export default {
   name: 'PageHeaderMenuItems',
-  inject: ['page'],
+  inject: ['currentPage'],
   computed: {
     pageHeaderItemTypes() {
       return this.$registry.getOrderedList('pageHeaderItem')

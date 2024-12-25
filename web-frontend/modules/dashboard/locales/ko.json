@@ -1,0 +1,11 @@
+{
+    "dashboard": {
+      "descriptionPlaceholder": "설명"
+    },
+    "dashboardHeader": {
+      "doneEditing": "편집 완료"
+    },
+    "dashboardHeaderMenuItems": {
+      "editMode": "편집 모드"
+    }
+  }

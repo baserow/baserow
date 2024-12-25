@@ -22,6 +22,7 @@ from baserow.contrib.builder.api.pages.errors import (
     ERROR_PAGE_PATH_NOT_UNIQUE,
     ERROR_PATH_PARAM_NOT_DEFINED,
     ERROR_PATH_PARAM_NOT_IN_PATH,
+    ERROR_SHARED_PAGE_READ_ONLY,
 )
 from baserow.contrib.builder.api.pages.serializers import (
     CreatePageSerializer,
@@ -38,6 +39,7 @@ from baserow.contrib.builder.pages.exceptions import (
     PagePathNotUnique,
     PathParamNotDefined,
     PathParamNotInPath,
+    SharedPageIsReadOnly,
 )
 from baserow.contrib.builder.pages.job_types import DuplicatePageJobType
 from baserow.contrib.builder.pages.service import PageService
@@ -45,12 +47,6 @@ from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-
-DuplicatePageJobTypeSerializer = job_type_registry.get(
-    DuplicatePageJobType.type
-).get_serializer_class(
-    base_class=JobSerializer, meta_ref_name="SingleDuplicatePageJobTypeSerializer"
-)
 
 
 class PagesView(APIView):
@@ -136,6 +132,7 @@ class PageView(APIView):
                     "ERROR_PAGE_PATH_NOT_UNIQUE",
                     "ERROR_PATH_PARAM_NOT_IN_PATH",
                     "ERROR_PATH_PARAM_NOT_DEFINED",
+                    "ERROR_SHARED_PAGE_READ_ONLY",
                 ]
             ),
             404: get_error_schema(
@@ -153,6 +150,7 @@ class PageView(APIView):
             PathParamNotInPath: ERROR_PATH_PARAM_NOT_IN_PATH,
             PathParamNotDefined: ERROR_PATH_PARAM_NOT_DEFINED,
             DuplicatePathParamsInPath: ERROR_DUPLICATE_PATH_PARAMS_IN_PATH,
+            SharedPageIsReadOnly: ERROR_SHARED_PAGE_READ_ONLY,
         }
     )
     @validate_body(UpdatePageSerializer, return_validated=True)
@@ -180,9 +178,7 @@ class PageView(APIView):
         responses={
             204: None,
             400: get_error_schema(
-                [
-                    "ERROR_REQUEST_BODY_VALIDATION",
-                ]
+                ["ERROR_REQUEST_BODY_VALIDATION", "ERROR_SHARED_PAGE_READ_ONLY"]
             ),
             404: get_error_schema(["ERROR_PAGE_DOES_NOT_EXIST"]),
         },
@@ -191,6 +187,7 @@ class PageView(APIView):
     @map_exceptions(
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
+            SharedPageIsReadOnly: ERROR_SHARED_PAGE_READ_ONLY,
         }
     )
     @transaction.atomic
@@ -268,7 +265,7 @@ class AsyncDuplicatePageView(APIView):
         ),
         request=None,
         responses={
-            202: DuplicatePageJobTypeSerializer,
+            202: DuplicatePageJobType().response_serializer_class,
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",

@@ -4,7 +4,7 @@
     },
     "sidebarComponentBuilder": {
         "settings": "Impostazioni",
-        "createPage": "Crea pagina"
+        "createPage": "Nuova pagina"
     },
     "builderSettingsModal": {
         "title": "Applicazione"
@@ -76,7 +76,9 @@
         "repeat": "Ripeti",
         "repeatDescription": "Un set di elementi ripetibile",
         "choice": "Scelta",
-        "choiceDescription": "Per valori singoli/multipli"
+        "choiceDescription": "Per valori singoli/multipli",
+        "recordSelector": "Seleziona record",
+        "recordSelectorDescription": "Selettore di un record collegato"
     },
     "addElementButton": {
         "label": "Elemento"
@@ -586,7 +588,8 @@
     "repeatElement": {
         "empty": "Nessun elemento trovato.",
         "showMore": "Mostra di più",
-        "missingDataSourceTooltip": "Scegli una sorgente di dati per cominciare ad aggiungere elementi."
+        "missingDataSourceTooltip": "Scegli una sorgente di dati per cominciare ad aggiungere elementi.",
+        "missingSchemaPropertyTooltip": "Scegli una proprietà per cominciare ad aggiungere elementi."
     },
     "repeatElementForm": {
         "dataSource": "Sorgente di dati",
@@ -629,7 +632,9 @@
         "page": "Pagina",
         "button": "Bottone",
         "link": "Link",
-        "image": "Immagine"
+        "image": "Immagine",
+        "input": "Input",
+        "table": "Tabella"
     },
     "colorThemeConfigBlock": {
         "primaryColor": "Primario",
@@ -637,7 +642,8 @@
         "borderColor": "Bordo",
         "errorColor": "Errore",
         "successColor": "Successo",
-        "warningColor": "Avvertimento"
+        "warningColor": "Avvertimento",
+        "transparent": "Trasparente"
     },
     "typographyThemeConfigBlock": {
         "headingValue": "Titolo <h{i}>",
@@ -724,11 +730,64 @@
         "primary": "Primario",
         "secondary": "Secondario",
         "success": "Successo",
-        "border": "Bordo"
+        "border": "Bordo",
+        "transparent": "Trasparente"
     },
     "pageThemeConfigBlock": {
         "backgroundColor": "Color di sfondo",
         "backgroundImage": "Immagine di sfonto",
         "backgroundMode": "Background"
+    },
+    "inputThemeConfigBlock": {
+        "textColor": "Colore testo",
+        "padding": "Padding",
+        "fontFamily": "Font",
+        "size": "Dimensione font",
+        "borderColor": "Colore bordo",
+        "borderSize": "Dimensione bordo",
+        "borderRadius": "Raggio del bordo",
+        "label": "Etichetta",
+        "input": "Input",
+        "backgroundColor": "Colore di background"
+    },
+    "tableThemeConfigBlock": {
+        "verticalSeparatorSize": "Dimensione verticale",
+        "horizontalSeparatorColor": "Colore orizzontale",
+        "horizontalSeparatorSize": "Dimensione orizzontale",
+        "separators": "Separatori",
+        "verticalSeparatorColor": "Colore verticale",
+        "borderRadius": "Raggio del bordo",
+        "padding": "Padding",
+        "fontFamily": "Font",
+        "borderColor": "Colore bordo",
+        "backgroundAlternateColor": "Colore righe pari",
+        "backgroundColor": "Colore di sfondo",
+        "textColor": "Colore del testo",
+        "borderSize": "Dimensione del bordo",
+        "size": "Dimensione",
+        "fontSize": "Dimensione testo",
+        "table": "Tabella",
+        "header": "Intestazione",
+        "alignment": "Allineamento",
+        "cells": "Celle"
+    },
+    "abTable": {
+        "loading": "Caricamento...",
+        "empty": "Nessuna riga trovata."
+    },
+    "dropdown": {
+        "empty": "Nessuna opzione disponibile"
+    },
+    "collectionElementForm": {
+        "noSchemaPropertyMessage": "Scegli una proprietà dentra",
+        "noDataSourceMessage": "Scegli una sorgente di dati a righe multiple per mostrare i risultati, o a riga singola per mostrare le proprietà della riga."
+    },
+    "serviceSchemaPropertySelector": {
+        "noProperties": "Nessuna proprietà disponibile",
+        "label": "Proprietà"
+    },
+    "dataSourceDropdown": {
+        "noDataSources": "Nessuna sorgente di dati disponibile",
+        "label": "Sorgente di dati"
     }
 }

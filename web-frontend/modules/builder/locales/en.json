@@ -1,4 +1,13 @@
 {
+  "common": {
+    "dateFormatTitle": "Date format",
+    "dateFormatEU": "European",
+    "dateFormatUS": "US",
+    "dateFormatISO": "ISO",
+    "timeFormatTitle": "Time format",
+    "timeFormat24Hour": "24 hour",
+    "timeFormat12Hour": "12 hour"
+  },
   "dataProviderType": {
     "dataSource": "Data records",
     "dataSourceContext": "Available options",
@@ -67,6 +76,7 @@
   },
   "elementsContext": {
     "searchPlaceholder": "Search elements",
+    "noPageElements": "No elements found for this page",
     "noElements": "No elements found"
   },
   "elementType": {
@@ -99,7 +109,20 @@
     "repeat": "Repeat",
     "repeatDescription": "A repeatable set of elements",
     "recordSelector": "Record selector",
-    "recordSelectorDescription": "A related record selector"
+    "recordSelectorDescription": "A related record selector",
+    "dateTimePicker": "Date time picker",
+    "dateTimePickerDescription": "A date and time input field",
+    "header": "Multi-page header",
+    "headerDescription": "A container shared across pages",
+    "footer": "Multi-page footer",
+    "footerDescription": "A container shared across pages",
+    "notAllowedUnlessTop": "This element is allowed only at the top of the page",
+    "notAllowedUnlessBottom": "This element is allowed only at the bottom of the page",
+    "notAllowedUnlessHeader": "This element is allowed only inside the page header",
+    "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
+    "notAllowedInsideContainer": "This element is not allowed inside a container",
+    "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
+    "notAllowedLocation": "This element is not allowed at this location"
   },
   "addElementButton": {
     "label": "Element"
@@ -107,7 +130,7 @@
   "addElementModal": {
     "title": "Add new element",
     "searchPlaceholder": "Search elements",
-    "disabledElementTooltip": "Unavailable inside this element"
+    "elementInProgress": "Adding element..."
   },
   "elementMenu": {
     "moveUp": "Move up",
@@ -131,7 +154,9 @@
     "message": "Click on one of the elements to see more details"
   },
   "pagePreview": {
-    "emptyMessage": "Click to create first element"
+    "emptyMessage": "Click to create an element",
+    "header": "HEADER",
+    "footer": "FOOTER"
   },
   "elementForms": {
     "textInputPlaceholder": "Enter text...",
@@ -139,7 +164,8 @@
     "invalidFormula": "The formula is invalid"
   },
   "headingElement": {
-    "noValue": "No title..."
+    "missingValue": "Missing title...",
+    "emptyValue": "Empty title..."
   },
   "headingElementForm": {
     "levelTitle": "Level",
@@ -149,7 +175,8 @@
     "textError": "The value is invalid."
   },
   "textElement": {
-    "noValue": "Empty text..."
+    "missingValue": "Missing text...",
+    "emptyValue": "Empty text..."
   },
   "textElementForm": {
     "textTitle": "Text",
@@ -160,7 +187,8 @@
     "textFormatTypeMarkdown": "Markdown"
   },
   "imageElement": {
-    "emptyState": "No alt text defined..."
+    "missingValue": "Missing alt text...",
+    "emptyValue": "Empty alt text..."
   },
   "generalForm": {
     "labelTitle": "Label",
@@ -187,6 +215,10 @@
     "inputTypePasswordLabel": "Password",
     "passwordTypeWarning": "Passwords are sensitive data. Please be careful how you handle and store passwords in your application."
   },
+  "dateTimePickerElementForm": {
+    "includeTime": "Include time",
+    "invalidDateError": "Invalid date. Please make sure the input date matches the given format."
+  },
   "imageElementForm": {
     "fileLabel": "Image",
     "invalidUrlError": "URL is invalid",
@@ -198,7 +230,8 @@
     "uploadFileButton": "Upload file"
   },
   "iframeElementForm": {
-    "empty": "Empty IFrame...",
+    "missingValue": "Missing IFrame source...",
+    "emptyValue": "Empty IFrame source...",
     "sourceTypeLabel": "Source type",
     "urlLabel": "URL",
     "urlPlaceholder": "Link to the external resource to be embedded",
@@ -224,9 +257,12 @@
   "userSourceSettings": {
     "titleAddUserSource": "New user source",
     "titleUpdateUserSource": "Edit user source",
-    "noUserSourceMessage": "You have not yet add a user source to this application. You must add a user source if you want users being able to authenticate your application.",
+    "noUserSourceMessage": "You have not yet added a user source to this application. You must add a user source if you want users being able to authenticate your application.",
     "titleOverview": "User sources",
     "addUserSource": "Add user source"
+  },
+  "themeSettings": {
+    "titleOverview": "Theme"
   },
   "generalSettings": {
     "titleOverview": "General",
@@ -267,7 +303,8 @@
     "subDomain": "Subdomain of {domain}"
   },
   "linkElement": {
-    "noValue": "Unnamed..."
+    "missingValue": "Missing link text...",
+    "emptyValue": "Empty link text..."
   },
   "linkNavigationSelection": {
     "navigateTo": "Navigate to",
@@ -318,17 +355,32 @@
   "pageSettingsTypes": {
     "pageName": "Page"
   },
+  "pageVisibilitySettingsTypes": {
+    "pageName": "Visibility",
+    "logInPageWarningTitle": "The Login Page is not set",
+    "logInPagewarningMessage": "When an anonymous user attempts to access this page, they will be redirected to a login page. Please set the Login Page in the Application's General settings.",
+    "logInPageInfoTitle": "Anonymous users will be redirected",
+    "logInPageInfoMessage": "Anonymous users attempting to access this page will be redirected to the {logInPageName} page."
+  },
   "pageSettings": {
     "title": "Page",
     "pageUpdatedTitle": "Changed",
     "pageUpdatedDescription": "The page settings have been updated."
   },
+  "pageVisibilitySettings": {
+    "title": "Visibility",
+    "allVisitors": "All visitors",
+    "loggedInVisitors": "Logged-in visitors",
+    "description": "Who can see this page"
+  },
   "pageForm": {
     "defaultName": "Page",
     "nameTitle": "Name",
     "nameSubtitle": "Unique name of the page",
+    "namePlaceholder": "Enter a name...",
     "pathTitle": "Path",
     "pathSubtitle": "A parameter can be added via :parameter",
+    "pathPlaceholder": "Enter a path...",
     "pathParamsTitle": "Path parameters",
     "pathParamsSubtitle": "Are defined by :parameter in the path",
     "pathParamsSubtitleTutorial": "Path parameters can be used to dynamically load data, depending on the provided parameter. Add :parameter to the path to add one."
@@ -336,6 +388,9 @@
   "pathParamTypes": {
     "textName": "Text",
     "numericName": "Numeric"
+  },
+  "pageEditor": {
+    "pageNotFound": "Page not found"
   },
   "publicPage": {
     "siteNotFound": "Site not found",
@@ -348,14 +403,33 @@
   },
   "dataSourceForm": {
     "namePlaceholder": "Source name",
+    "nameLabel": "Name",
+    "actionLabel": "Action",
+    "integrationLabel": "Integration",
     "servicePlaceholder": "Select a service",
     "integrationPlaceholder": "Select an integration",
     "errorUniqueName": "Data source name must be unique."
   },
   "dataSourceContext": {
     "addDataSource": "Add new data source",
-    "noDataSourceTitle": "This page has no data sources.",
-    "noDataSourceMessage": "Data sources can be used to fetch data from internal or external sources and display it on the page."
+    "noDataSourceTitle": "You have not yet added a data source.",
+    "noDataSourceMessage": "Data sources can be used to fetch data from internal or external sources and display it on the page.",
+    "sharedDataSourceTitle": "Shared between pages",
+    "pageDataSourceTitle": "For this page",
+    "sharedDataSourceDescription": "Accessible on every page and is fetched once on first page load.",
+    "pageDataSourceDescription": "Fetched when the user navigates to this page."
+  },
+  "dataSourceItem": {
+    "notConfigured": "Not configured"
+  },
+  "dataSourceItemContext": {
+    "shareBetweenPages": "Share between pages",
+    "unshareBetweenPages": "Unshare from other pages"
+  },
+  "dataSourceCreateEditModal": {
+    "editTitle": "Edit data source",
+    "createTitle": "Create data source",
+    "sharedWarning": "This data source is shared so your changes can affect multiple pages."
   },
   "defaultStyleForm": {
     "boxTop": "Top",
@@ -491,7 +565,8 @@
     "valuePlaceholder": "Enter text..."
   },
   "buttonElement": {
-    "noValue": "Unnamed..."
+    "missingValue": "Missing button text...",
+    "emptyValue": "Empty button text..."
   },
   "eventTypes": {
     "clickLabel": "On click",
@@ -545,11 +620,22 @@
     "empty": "No items have been found.",
     "showMore": "Show more",
     "missingDataSourceTooltip": "Choose a data source to begin adding elements.",
-    "missingSchemaPropertyTooltip": "Choose a property to begin adding elements."
+    "missingSchemaPropertyTooltip": "Choose a property to begin adding elements.",
+    "emptyState": "No records found."
   },
   "collectionElementForm": {
     "noDataSourceMessage": "Choose a data source with multiple rows to list all results, or a single row data source to choose a property inside this row.",
-    "noSchemaPropertyMessage": "Choose a property inside the data source to use as the list data of your element."
+    "noSchemaPropertyMessage": "Choose a property inside the data source to use as the list data of your element.",
+    "propertyOptionLabel": "User actions"
+  },
+  "propertyOptionForm": {
+    "fieldHeading": "Field",
+    "filterHeading": "Filter",
+    "sortHeading": "Sort",
+    "searchHeading": "Search",
+    "optionUnavailable": "Unavailable",
+    "noPropertiesAvailable": "No fields available.",
+    "formDescription": "Choose which properties within this element's data source external users can filter, sort and search upon."
   },
   "repeatElementForm": {
     "dataSource": "Data source",
@@ -563,6 +649,10 @@
     "buttonLoadMoreLabel": "Show more label",
     "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
     "propertySelectorMissingArrays": "No multiple valued fields found to repeat with."
+  },
+  "recordSelectorElement": {
+    "emptyAdhocState": "No records matching '{query}' found.",
+    "emptyState": "No records found."
   },
   "recordSelectorElementForm": {
     "selectRecordsFrom": "Select records from",
@@ -642,10 +732,17 @@
     "nameFieldLabel": "Name",
     "nameFieldPlaceholder": "Enter a name...",
     "authTitle": "Authentication",
-    "integrationFieldLabel": "Integration"
+    "integrationFieldLabel": "Integration",
+    "addProvider": "Add provider"
+  },
+  "builderLoginPageForm": {
+    "pageDropdownLabel": "Login Page",
+    "pageDropdownPlaceholder": "Select a page",
+    "pageDropdownDescription": "Select the Login Page that non-logged in users should be redirected to when they attempt to access a restricted page."
   },
   "formContainerElement": {
-    "submitDeactivatedText": "Complete all required fields to submit"
+    "submitDeactivatedText": "Complete all required fields to submit",
+    "defaultSubmitButtonLabel": "Submit"
   },
   "formContainerElementForm": {
     "submitButtonLabel": "Submit button",
@@ -762,6 +859,21 @@
   },
   "dataSourceDropdown": {
     "label": "Data source",
-    "noDataSources": "No data sources available"
+    "noDataSources": "No data sources available",
+    "noSharedDataSources": "No shared data sources available",
+    "shared": "shared",
+    "pageOnly": "this page"
+  },
+  "multiPageContainerElementForm": {
+    "pagePosition": "Position",
+    "behaviour": "Behaviour",
+    "display": "Display",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all"
+  },
+  "pageShareType": {
+    "all": "On all pages",
+    "only": "Only on selected pages",
+    "except": "Exclude selected pages"
   }
 }

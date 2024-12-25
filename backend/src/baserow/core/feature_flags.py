@@ -2,8 +2,7 @@ from django.conf import settings
 
 from baserow.core.exceptions import FeatureDisabledException
 
-FF_EXPORT_WORKSPACE = "export_workspace"
-FF_TIMELINE_VIEW = "timeline_view"
+FF_DASHBOARDS = "dashboards"
 FF_ENABLE_ALL = "*"
 
 

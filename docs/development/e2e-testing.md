@@ -16,6 +16,16 @@ tests you think make sense. Some ideas on what to test:
 
 ## Installation and running locally
 
+You'll need Node.js to run the end-to-end test suite locally. Using [nvm](https://github.com/nvm-sh/nvm),
+it can be installed with:
+```bash
+nvm install v<version>
+```
+
+Replace `<version>` with a supported Node.js version listed in
+`baserow/docs/installation/supported.md`.
+
+To run the end-to-end tests:
 ```bash
 # Startup your local env which will be tested
 $ ./dev.sh
@@ -26,9 +36,13 @@ $ ./run-e2e-tests-locally.sh
 # After which you can manually re-run the tests with various manual commands: 
 yarn test # headless
 yarn test-headed
+yarn test-ui # starts the UI mode. Best way to debug you tests.
+yarn codegen # Helps to generate tests directly in a browsers. Use it as inspiration; 
+             # the skeleton can be used, but some of its generated code is bad. 
+             # Tweak it yourself after use.
 ```
 
-`yarn test` and `yarn test-headed` will run all tests in Chrome.
+`yarn test` and `yarn test-*` will run all tests in Chrome.
 
 ## Configuration
 
@@ -36,13 +50,3 @@ Besides Playwright configuration defined in `e2e-tests/playwright.config.ts` you
 environment variables to target a Baserow instance on any URL
 with `PUBLIC_WEB_FRONTEND_URL` and `PUBLIC_BACKEND_URL`. You can also
 use `e2e-tests/.env` file to do so, see `e2e-tests/.env-example`.
-
-## E2E in CI
-
-To run E2E tests in CI to should:
-
-1. Go to your MR in Gitlab
-2. Click Pipelines
-3. Wait for the `build-backend-image` and `build-web-frontend-image` steps to complete
-4. Now you can manually start the `e2e-tests` job which will run e2e tests in both
-   chrome and firefox.

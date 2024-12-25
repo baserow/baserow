@@ -118,15 +118,6 @@ export const getters = {
     }
     return authProviders
   },
-  getCreatableTypes: (state) => {
-    const items = []
-    for (const authProviderType of Object.values(state.items)) {
-      if (authProviderType.canCreateNewProviders) {
-        items.push(authProviderType)
-      }
-    }
-    return items
-  },
   getNextProviderId: (state) => {
     return state.nextProviderId
   },

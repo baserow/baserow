@@ -97,14 +97,17 @@
         "addProvider": "Ajouter fournisseur"
     },
     "authProviderTypes": {
-        "password": "Authentification par e-mail et mot de passe"
+        "password": "Authentification par e-mail et mot de passe",
+        "ssoSamlProviderName": "SAML SSO : {domain}",
+        "saml": "Fournisseur SAML SSO",
+        "ssoSamlProviderNameUnconfigured": "SAML SSO non configuré"
     },
     "editAuthProviderMenuContext": {
         "delete": "Supprimer",
         "edit": "Modifier"
     },
     "samlSettingsForm": {
-        "domain": "Domaine",
+        "domain": "Domaine SAML",
         "domainPlaceholder": "Insérez le nom de domaine de l’entreprise...",
         "domainAlreadyExists": "Un fournisseur SAML existe déjà pour ce domaine",
         "metadata": "Métadonnées",
@@ -113,7 +116,16 @@
         "providerIsVerified": "Le fournisseur a été vérifié",
         "invalidDomain": "Nom de domaine invalide",
         "invalidMetadata": "Métadonnées XML non valides pour le fournisseur d'identité",
-        "relayStateUrl": "URL par défaut du relais d'état"
+        "relayStateUrl": "URL par défaut du relais d'état",
+        "defaultAttrs": "Par défaut",
+        "customAttrs": "Personnalisés",
+        "firstNameAttrKey": "Prénom",
+        "firstNameAttrKeyHelper": "Le prénom de l'utilisateur ou le nom complet si le \"Nom de famille\" n'est pas fourni.",
+        "lastNameAttrKeyHelper": "Nom de famille de l'utilisateur (facultatif). Effacez cette valeur pour fournir le nom complet via le champ « Prénom ».",
+        "emailAttrKeyHelper": "L'adresse électronique qui sera utilisée comme nom d'utilisateur.",
+        "samlResponseSettings": "Attributs de la réponse SAML",
+        "emailAttrKey": "Courriel",
+        "lastNameAttrKey": "Nom"
     },
     "createSettingsAuthProviderModal": {
         "title": "Ajouter un nouveau {type}"
@@ -269,7 +281,8 @@
         "rbac": "Contrôle d’accès basé sur les rôles",
         "coBranding": "Remplacement du logo de co-branding",
         "auditLogs": "Journaux d'audit",
-        "support": "Assistance en ligne"
+        "support": "Assistance en ligne",
+        "dataSync": "Synchronisation de données"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Assistance"
@@ -302,7 +315,8 @@
         "notConfigured": "Non configurée"
     },
     "appAuthProviderType": {
-        "localBaserowPassword": "Courriel/Mot de passe"
+        "localBaserowPassword": "Courriel/Mot de passe",
+        "commonSaml": "Saml SSO"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Sélectionner le champ du mot de passe",
@@ -335,5 +349,67 @@
         "userSource": "Source d'utilisateur",
         "loginButtonLabelPlaceholder": "Saisissez le libellé...",
         "loginButtonLabel": "Libéllé du bouton de connexion"
+    },
+    "enterpriseDataSyncType": {
+        "localBaserowTable": "Synchroniser la table Baserow",
+        "jiraIssues": "Synchroniser les tickets Jira",
+        "githubIssues": "Synchroniser les tickets GitHub",
+        "gitlabIssues": "Synchroniser les tickets GitLab",
+        "hubspotContacts": "Synchroniser les contacts HubSpot"
+    },
+    "localBaserowTableDataSync": {
+        "name": "ID table source",
+        "authorizing": "Vous autorisez votre compte à sélectionner les données de la table source.",
+        "workspace": "Projet",
+        "table": "Table",
+        "database": "Base de données"
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "Sachez qu'un export ne contiendra pas les autorisations définies pour l'application."
+    },
+    "jiraIssuesDataSync": {
+        "projectKey": "Clé du projet Jira (facultatif)",
+        "apiTokenHelper": "Le jeton d'API du compte Jira utilisé pour l'authentification. Il peut être créé à l'adresse https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "jiraUrl": "URL de l'instance Jira",
+        "urlHelper": "L'URL de base de votre instance Jira (par exemple, https://your-domain.atlassian.net).",
+        "projectKeyHelper": "La clé de projet du projet Jira (par exemple, PROJ). On peut la trouver en cliquant sur \"Paramètres du projet\" dans Jira. Si elle n'est pas fournie, touts les tickets seront renvoyés.",
+        "jiraUsername": "Nom d'utilisateur Jira",
+        "usernameHelper": "Le nom d'utilisateur du compte Jira utilisé pour l'authentification. Il s'agit de l'email que vous utilisez pour vous connecter.",
+        "apiToken": "Jeton d'API Jira"
+    },
+    "githubIssuesDataSync": {
+        "ownerHelper": "Nom d'utilisateur ou propriétaire du dépôt. Typiquement dans le coin supérieur gauche `Propriétaire / dépôt`",
+        "repo": "Dépôt",
+        "repoHelper": "Le nom du dépôt. Typiquement dans le coin supérieur gauche `propriétaire / dépôt`",
+        "apiToken": "Jeton d'API",
+        "apiTokenHelper": "Peut être généré ici https://github.com/settings/tokens en cliquant sur `Générer un nouveau jeton`, sélectionnez `Tous les dépôts`, puis sous `Autorisations du dépôt` mettez `Tickets` à `Lecture-seule`.",
+        "owner": "Propriétaire"
+    },
+    "gitlabIssuesDataSync": {
+        "url": "URL de base",
+        "urlHelper": "L'URL de base de votre instance GitLab. (par exemple https://gitlab.com)",
+        "accessTokenHelper": "Peut être généré ici https://gitlab.com/-/user_settings/personal_access_tokens en cliquant sur `Ajouter nouveau jeton`, sélectionnez `lire_api`.",
+        "projectIdHelper": "L'ID du projet à partir duquel vous souhaitez synchroniser les tickets. Vous pouvez le trouver en allant sur la page de votre projet (par exemple https://gitlab.com/baserow/baserow), en cliquant sur les trois points dans le coin supérieur droit, puis sur \"Copier l'ID du projet : 12345678'.",
+        "accessToken": "Jeton d'accès",
+        "projectId": "ID du projet"
+    },
+    "samlAuthLink": {
+        "placeholderWithSaml": "{login} avec SAML",
+        "provideEmail": "Indiquez l'adresse courriel de votre compte SAML",
+        "loginWithSaml": "Se connecter avec SAML",
+        "emailPlaceholder": "Saisissez votre courriel..."
+    },
+    "commonSamlSettingModal": {
+        "acsTitle": "URL d'authentification par domaine (Cliquez pour copier)",
+        "title": "Éditer le fournisseur d'identité",
+        "relayStateTitle": "Relay State URL par défaut par domaine (Cliquez pour copier)",
+        "preview": "Aperçu"
+    },
+    "hubspotContactsDataSync": {
+        "accessTokenHelper": "Pour générer un jeton d'accès à une application privée dans HubSpot, cliquez sur Paramètres dans la barre supérieure, naviguez vers Intégrations > Apps privées, et créez une nouvelle application privée. Attribuez les portées suivantes : crm.objects.contacts.read, crm.schemas.contacts.read, et crm.objects.custom.read. Enfin, cliquez sur Créer une application pour générer le jeton.",
+        "accessToken": "Jeton d'accès à l'application privée"
+    },
+    "commonSamlSettingForm": {
+        "authProviderInError": "Veuillez modifier ce fournisseur pour corriger l'erreur."
     }
 }

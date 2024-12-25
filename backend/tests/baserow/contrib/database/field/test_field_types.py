@@ -1,4 +1,5 @@
 import os
+from unittest.mock import Mock
 
 from django.core.exceptions import ValidationError
 from django.test.utils import override_settings
@@ -22,6 +23,7 @@ from baserow.contrib.database.fields.models import (
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.fields.utils import DeferredForeignKeyUpdater
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import setup_interesting_test_table
 
@@ -44,10 +46,31 @@ def test_import_export_text_field(data_fixture):
     )
     assert text_field.id != text_field_imported.id
     assert text_field.name == text_field_imported.name
+    assert text_field.description == text_field_imported.description
     assert text_field.order == text_field_imported.order
     assert text_field.primary == text_field_imported.primary
     assert text_field.text_default == text_field_imported.text_default
     assert id_mapping["database_fields"][text_field.id] == text_field_imported.id
+
+
+@pytest.mark.django_db
+def test_import_export_text_field_with_description(data_fixture):
+    id_mapping = {}
+
+    text_field = data_fixture.create_text_field(
+        name="Text name", text_default="", description="test"
+    )
+    text_field_type = field_type_registry.get_by_model(text_field)
+    text_serialized = text_field_type.export_serialized(text_field)
+    text_field_imported = text_field_type.import_serialized(
+        text_field.table,
+        text_serialized,
+        ImportExportConfig(include_permission_data=True),
+        id_mapping,
+        DeferredForeignKeyUpdater(),
+    )
+    assert text_field.id != text_field_imported.id
+    assert text_field.description == text_field_imported.description == "test"
 
 
 @pytest.mark.django_db
@@ -874,3 +897,44 @@ def test_tsv_not_created(data_fixture):
         DeferredForeignKeyUpdater(),
     )
     assert text_field_imported.tsvector_column_created is False
+
+
+@pytest.mark.django_db
+@pytest.mark.field_link_row
+def test_field_type_prepare_db_value_with_invalid_values(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    table = data_fixture.create_database_table(name="Example", database=database)
+    field_handler = FieldHandler()
+    # those fields require additional configuration or accept any text
+    # so they are not suitable for this test
+    excluded = ["ai", "text", "long_text", "boolean", "link_row", "password"]
+
+    test_payload = "invalid---"
+
+    for field_type in [
+        f
+        for f in field_type_registry.get_all()
+        if not f.read_only and f.type not in excluded
+    ]:
+        field_type_name = field_type.type
+        field_name = f"Field {field_type_name}"
+        field = field_handler.create_field(
+            user=user,
+            table=table,
+            type_name=field_type.type,
+            name=field_name,
+        )
+
+        with pytest.raises(ValidationError):
+            field_type.prepare_value_for_db(field, test_payload)
+
+
+@pytest.mark.parametrize("field_type", field_type_registry.get_all())
+def test_field_type_check_can_filter_by(field_type):
+    compatible_view_filters = [
+        vft
+        for vft in view_filter_type_registry.get_all()
+        if field_type.type in vft.compatible_field_types
+    ]
+    assert field_type.check_can_filter_by(Mock()) == (len(compatible_view_filters) > 0)

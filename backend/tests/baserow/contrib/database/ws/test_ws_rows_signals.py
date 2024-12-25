@@ -315,6 +315,7 @@ def test_rows_history_updated(mock_broadcast_channel_group, data_fixture):
                     ),
                 ],
                 "metadata": {},
+                "updated_field_ids": [field.id],
             },
             None,
             None,

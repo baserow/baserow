@@ -48,7 +48,9 @@
             "title": "Przestarzały typ zdarzenia",
             "description": "Ten webhook nie otrzymuje jednocześnie informacji o wszystkich zmienionych wierszach. Przekonwertuj go na typ zdarzenia w stylu wsadowym. Spowoduje to zmianę ładunku treści JSON na format, który zawiera wiele wierszy.",
             "convert": "Konwertuj"
-        }
+        },
+        "triggerWhenFieldsHaveChanged": "Wyzwalanie po zmianie pól",
+        "helpTriggerWhenFieldsHaveChanged": "Zostanie uruchomiona tylko wtedy, gdy wartość komórki wybranych pól ulegnie zmianie."
     },
     "webhook": {
         "details": "szczegóły",
@@ -63,11 +65,14 @@
     },
     "sidebar": {
         "viewAPI": "Wyświetl dokumentację API",
-        "createTable": "Utwórz tabelę"
+        "createTable": "Nowa tabela"
     },
     "sidebarItem": {
         "exportTable": "Eksportuj tabelę",
-        "webhooks": "Webhooki"
+        "webhooks": "Webhooki",
+        "lastSynced": "Ostatnia synchronizacja",
+        "notSynced": "niezsynchronizowany",
+        "sync": "Tabela synchronizacji"
     },
     "apiToken": {
         "create": "stwórz",
@@ -137,7 +142,7 @@
         "description": "Aby wyświetlić listę wierszy w tabeli *{name}* należy wykonać żądanie `GET` do punktu końcowego *{name}*. Odpowiedź jest paginowana i domyślnie zwracana jest pierwsza strona. Właściwa strona może zostać pobrana poprzez podanie parametrów zapytania `page` i `size`.",
         "page": "Określa, która strona wierszy powinna zostać zwrócona.",
         "size": "Określa ile wierszy powinno być zwróconych na stronę.",
-        "userFieldNames": "Jeśli podano jakąkolwiek wartość dla parametru `user_field_names` GET, wówczas nazwy pól zwrócone przez ten punkt końcowy będą rzeczywistymi nazwami pól.\n\n Jeśli `user_field_names` GET param nie jest podany, wtedy wszystkie zwrócone nazwy pól będą miały postać `field_` a następnie id pola. Na przykład `field_1` odnosi się do pola o id `1`.\n\n Dodatkowo, gdy `user_field_names` jest ustawione, wtedy zachowanie innych parametrów GET `order_by`, `include` i `exclude` zmienia się. Zamiast tego oczekują one listy rozdzielonych przecinkami nazw pól.",
+        "userFieldNames": "Gdy dostarczony jest parametr GET `user_field_names`, a jego wartość jest jedną z następujących: `y`, `yes`, `true`, `t`, `on`, `1` lub pusty ciąg znaków, nazwy pól zwrócone przez ten punkt końcowy będą rzeczywistymi nazwami pól.\n\nJeśli parametr GET `user_field_names` nie zostanie podany lub jeśli nie pasuje do żadnej z powyższych wartości, wówczas wszystkie zwrócone nazwy pól będą miały postać `field_`, po której nastąpi identyfikator pola. Na przykład `field_1` odnosi się do pola o identyfikatorze `1`.\n\n Dodatkowo, gdy ustawiona jest wartość `user_field_names`, zmienia się zachowanie innych parametrów GET `order_by`, `include` i `exclude`. Zamiast tego oczekują one rozdzielonych przecinkami list rzeczywistych nazw pól.",
         "search": "Jeśli zostanie podane, zostaną zwrócone tylko wiersze z danymi pasującymi do zapytania.",
         "orderBy": "Opcjonalnie wiersze mogą być uporządkowane według pól oddzielonych przecinkiem. Domyślnie lub po poprzedzeniu znakiem '+', pole jest uporządkowane rosnąco (A-Z), ale poprzedzeniu znakiem '-' może być uporządkowane malejąco (Z-A).\n\n #### Z `user_field_names`:\n\n `order_by` powinna być rozdzieloną przecinkami listą nazw pól, po których mają być zamawiane. Na przykład jeśli podasz następujący parametr GET `order_by=My Field,-My Field 2` wiersze zostaną uporządkowane według pola o nazwie `My Field` w porządku rosnącym. Jeśli niektóre pola mają tę samą wartość, ten podzbiór zostanie uporządkowany według pola o nazwie `My Field 2` w porządku malejącym.\n\n Upewnij się, że pola z nazwami zaczynającymi się od `+` lub `-` są wyraźnie poprzedzone innym `+` lub `-`. Np. `+-Name`.\n\n Nazwy pól zawierające przecinki muszą być otoczone cudzysłowami: `Name ,,`''. Jeśli nazwy pól zawierają cudzysłowy, to muszą one zostać usunięte przy użyciu znaku ``. Eg: `Name \\\"`. \n\n#### Bez `user_field_names`:\n\n `order_by` powinno być rozdzieloną przecinkami listą `field_`, po której następuje id pola, po którym ma być złożone zamówienie. Na przykład, jeśli podasz następujący parametr GET `order_by=field_1,-field_2` wiersze zostaną uporządkowane według `field_1` w porządku rosnącym. Jeśli niektóre pola mają tę samą wartość, ten podzbiór zostanie uporządkowany przez `field_2` w porządku malejącym.",
         "filter": "Wiersze mogą być opcjonalnie filtrowane przy użyciu tych samych filtrów widoku, które są dostępne dla widoków. Można zastosować wiele filtrów, jeśli mają one ten sam format. Zmienne `field` i `filter` wskazują odpowiednio jak i gdzie zastosować filtr.\n\n#### Z `user_field_names`:\n\nNa przykład, jeśli opcjonalnie podasz następujący parametr GET: `filter__Name__equal=test`, zwrócone zostaną tylko wiersze, w których wartość `Name` jest równa \"test\". Ta metoda jest kompatybilna wstecz i będzie sprawdzać `field_id`, jeśli nie powiedzie się na nazwie.\n\n#### Bez `user_field_names`:\n\nNa przykład, jeśli opcjonalnie podasz następujący parametr GET: `filter__field_1__equal=test`, zwrócone zostaną tylko wiersze, w których wartość `field_1` jest równa 'test'.\n\nNależy pamiętać, że jeśli podano parametr filters, ten parametr zostanie zignorowany. ",
@@ -147,7 +152,8 @@
         "exclude": "Wszystkie pola są domyślnie zawarte w odpowiedzi. Możesz wybrać podzbiór pól do wykluczenia poprzez podanie parametru zapytania exclude.\n\n #### Z `user_field_names`:\n\n `exclude` powinna być rozdzieloną przecinkami listą nazw pól, które mają być wykluczone z wyników. Na przykład, jeśli podasz następujący parametr GET: `exclude=My Field,-My Field 2` to te pola zostaną wykluczone.\n\n Nazwy pól zawierające przecinki muszą być otoczone cudzysłowami: `\"Name ,\"`. Jeśli nazwy pól zawierają cudzysłowy, to muszą one zostać usunięte przy użyciu znaku `\\`. Na przykład: `Name \\\"`.\n\n #### Bez `user_field_names`:\n\n `exclude` powinno być rozdzieloną przecinkami listą `field_`, po której następuje id pola do wykluczenia z wyników. Na przykład: Jeśli podasz następujący parametr GET `exclude=field_1,field_2` to pola o id `1` i id `2` zostaną wykluczone.",
         "viewId": "Domyślnie nie są stosowane filtry i sortowania poza tymi, które zostały zdefiniowane w parametrach zapytania. Możesz dodać filtry i sortowania widoku poprzez podanie jego `id` w parametrze `view_id` GET. Na przykład, jeśli podasz następujący parametr GET `view_id=1` to filtry i sortowania zdefiniowane w widoku o id `1` zostaną zastosowane. Możesz znaleźć `view_id` w menu kontekstowym dowolnego widoku. Jest to liczba w nawiasach za nazwą widoku. \n\n #### Z `filter__{field}__{filter}`. \n\n Zastosowany zostanie zarówno filtr podany w parametrze zapytania, jak i filtry zdefiniowane w widoku.\n\n #### Z `order_by` \n\n Jeśli `order_by` jest podane, sortowanie zdefiniowane w widoku zostanie zignorowane.",
         "filtersBuilder": "Otwórz kreator parametrów filtrów",
-        "filters": "Wiersze mogą być opcjonalnie filtrowane przy użyciu tych samych filtrów widoku, które są dostępne dla widoków. Ten parametr akceptuje serializowany ciąg JSON zawierający drzewo filtrów do zastosowania w tym widoku. Drzewo filtrów jest zagnieżdżoną strukturą zawierającą filtry, które należy zastosować. \n\n#### Z `user_field_names`:\n\nPrzykład prawidłowego drzewa filtrów jest następujący: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"}]}.\n\n#### Bez `user_field_names`:\n\nNa przykład, jeśli opcjonalnie podasz następujący parametr GET: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": 1, \"type\": \"equal\", \"value\": \"test\"}]}`.\n\nNależy pamiętać, że jeśli ten parametr zostanie podany, wszystkie inne `filter__{field}__{filter}` zostaną zignorowane, podobnie jak parametr filter_type."
+        "filters": "Wiersze mogą być opcjonalnie filtrowane przy użyciu tych samych filtrów widoku, które są dostępne dla widoków. Ten parametr akceptuje serializowany ciąg JSON zawierający drzewo filtrów do zastosowania w tym widoku. Drzewo filtrów jest zagnieżdżoną strukturą zawierającą filtry, które należy zastosować. \n\n#### Z `user_field_names`:\n\nPrzykład prawidłowego drzewa filtrów jest następujący: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"}]}.\n\n#### Bez `user_field_names`:\n\nNa przykład, jeśli opcjonalnie podasz następujący parametr GET: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": 1, \"type\": \"equal\", \"value\": \"test\"}]}`.\n\nNależy pamiętać, że jeśli ten parametr zostanie podany, wszystkie inne `filter__{field}__{filter}` zostaną zignorowane, podobnie jak parametr filter_type.",
+        "join": "Umożliwia zażądanie wyszukiwania wartości pól z tabeli docelowej poprzez istniejące pola wierszy linków. Nazwa parametru musi być nazwą istniejącego pola wiersza łącza, po którym następuje __join. Wartość powinna być listą nazw pól, dla których chcemy wyszukać dodatkowe wartości. Można podać jedno lub wiele pól docelowych. Nie jest możliwe wyszukanie wartości pola wiersza łącza w tabeli docelowej.\n\n #### Z `user_field_names`:\n\n `join` powinno być rozdzieloną przecinkami listą nazw pól, które mają być uwzględnione w wynikach. Na przykład: Jeśli podasz następujący parametr GET `LinkRowField__join=MyField,MyField2` to wartości `MyField` i `My Field2` w tabeli połączonej przez `LinkRowField` zostaną uwzględnione w odpowiedzi.\n\n#### Bez `user_field_names`:\n\n `join` powinno być rozdzieloną przecinkami listą `field_`, po której następuje identyfikator pola do uwzględnienia w wynikach. Na przykład: Jeśli podasz następujący parametr GET `field_1__join=field_2,field_3` to wartości `field_2` i `field_3` w tabeli połączonej przez `field_1` zostaną uwzględnione w odpowiedzi."
     },
     "apiDocsIntro": {
         "intro": "Baza danych {name} zapewnia łatwy sposób integracji danych z dowolnym systemem zewnętrznym. API podąża za semantyką REST, używa JSON do kodowania obiektów i opiera się na standardowych kodach HTTP, błędach odczytywanych maszynowo i przez człowieka, aby zasygnalizować wyniki operacji.",
@@ -166,7 +172,8 @@
         "primary": "Wskazuje czy pole jest polem głównym. Jeśli `true`, pole nie może być usunięte, a wartość powinna reprezentować cały wiersz.",
         "type": "Typ zdefiniowany dla tego pola.",
         "extraProps": "Niektóre dodatkowe właściwości nie zostały tu opisane, ponieważ są specyficzne dla danego typu.",
-        "readOnly": "Wskazuje, czy pole jest polem tylko do odczytu. Jeśli ma wartość true, nie można zaktualizować wartości komórki."
+        "readOnly": "Wskazuje, czy pole jest polem tylko do odczytu. Jeśli ma wartość true, nie można zaktualizować wartości komórki.",
+        "descriptionField": "Opis pola"
     },
     "apiDocsTableDeleteRow": {
         "description": "Usuwa istniejący wiersz {name}.",
@@ -206,7 +213,8 @@
         "filter": "Filtr",
         "exampleValue": "Przykładowa wartość",
         "example": "Pełny przykład",
-        "field": "pole {name}"
+        "field": "pole {name}",
+        "deprecated": "przestarzały"
     },
     "fieldTextSubForm": {
         "placeholder": "Tekst domyślny"
@@ -235,7 +243,9 @@
     "fieldLinkRowSubForm": {
         "noTable": "Potrzebujesz co najmniej jednej innej tabeli w tej samej bazie danych, aby połączyć się z nią.",
         "selectTableLabel": "Wybierz tabelę, do której chcesz utworzyć link",
-        "hasRelatedFieldLabel": "Utwórz powiązane pole w podlinkowanej tabeli"
+        "hasRelatedFieldLabel": "Utwórz powiązane pole w podlinkowanej tabeli",
+        "limitToView": "Ogranicz wybór do widoku",
+        "limitToViewDescription": "Należy pamiętać, że jest to tylko wizualne. Nadal możliwe jest tworzenie relacji poza widokiem za pośrednictwem powiązanej tabeli lub interfejsu API."
     },
     "fieldSelectOptions": {
         "add": "Dodaj opcję"
@@ -251,13 +261,16 @@
         "editField": "Edytuj pole",
         "deleteField": "Usuń pole",
         "hideField": "Ukryj pole",
-        "showField": "Pokaż pole"
+        "showField": "Pokaż pole",
+        "changePrimaryField": "Zmień pole podstawowe"
     },
     "fieldForm": {
         "name": "Nazwa",
         "fieldAlreadyExists": "Pole o tej nazwie już istnieje.",
         "nameNotAllowed": "Ta nazwa pola nie jest dozwolona.",
-        "nameTooLong": "Ta nazwa pola jest zbyt długa."
+        "nameTooLong": "Ta nazwa pola jest zbyt długa.",
+        "description": "Opis",
+        "addDescription": "Dodaj opis"
     },
     "fieldLookupSubForm": {
         "noTable": "Aby utworzyć pole odnośnika, potrzebujesz co najmniej jednego pola wiersza linku.",

@@ -80,9 +80,7 @@
       v-if="view.submit_action === 'REDIRECT'"
       small-label
       :error="$v.submit_action_redirect_url.$error"
-      :error-message="
-        $v.submit_action_redirect_url.$error ? $t('error.invalidURL') : ''
-      "
+      :error-message="redirectURLErrorMessage"
       :label="$t('formViewMetaControls.theURL')"
       :helper-text="$t('formViewMeta.includeRowId')"
       required
@@ -108,7 +106,11 @@
 </template>
 
 <script>
-import { required, url } from 'vuelidate/lib/validators'
+import { required, url, maxLength } from 'vuelidate/lib/validators'
+
+// Must be kept in sync with
+// `src/baserow/contrib/database/views/models.py::FormView::submit_action_redirect_url.max_length`
+const redirectUrlMaxLength = 2000
 
 export default {
   name: 'FormViewMetaControls',
@@ -132,6 +134,18 @@ export default {
       submit_action_redirect_url: '',
     }
   },
+  computed: {
+    redirectURLErrorMessage() {
+      return this.$v.submit_action_redirect_url.$dirty &&
+        !this.$v.submit_action_redirect_url.required
+        ? this.$t('error.requiredField')
+        : !this.$v.submit_action_redirect_url.url
+        ? this.$t('error.invalidURL')
+        : !this.$v.submit_action_redirect_url.maxLength
+        ? this.$t('error.maxLength', { max: redirectUrlMaxLength })
+        : ''
+    },
+  },
   watch: {
     'view.submit_action_message'(value) {
       this.submit_action_message = value
@@ -145,7 +159,11 @@ export default {
     this.submit_action_redirect_url = this.view.submit_action_redirect_url
   },
   validations: {
-    submit_action_redirect_url: { required, url },
+    submit_action_redirect_url: {
+      required,
+      url,
+      maxLength: maxLength(redirectUrlMaxLength),
+    },
   },
 }
 </script>

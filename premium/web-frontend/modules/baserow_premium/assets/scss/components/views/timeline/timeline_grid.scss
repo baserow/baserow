@@ -1,0 +1,111 @@
+%timeline-grid {
+  position: relative;
+  top: 0;
+}
+
+.timeline-grid {
+  @extend %timeline-grid;
+}
+
+%timeline-grid-column {
+  position: absolute;
+  height: 100%;
+}
+
+.timeline-grid__column {
+  @extend %timeline-grid-column;
+
+  border-right: 1px solid $palette-neutral-200;
+}
+
+.timeline-grid__header {
+  @extend %timeline-grid;
+
+  height: 100%;
+  font-size: 13px;
+  color: $palette-neutral-900;
+  border-top: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.timeline-grid__header-column {
+  @extend %timeline-grid-column;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timeline-grid__now-cursor {
+  position: sticky;
+  top: 0;
+  width: 1px;
+  border-left: 2px solid $palette-blue-500;
+  height: 100%;
+}
+
+.timeline-grid__now-cursor::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-60%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid $palette-blue-500;
+}
+
+.timeline-grid__column--alt {
+  background-color: $palette-neutral-25;
+}
+
+.timeline-grid__row-lane {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+}
+
+.timeline-grid__row-lane:hover {
+  border-top: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.timeline-grid__row {
+  position: absolute;
+  height: calc(100% - 5px);
+}
+
+.timeline-grid__show-row-button {
+  @include elevation($elevation-low);
+
+  height: 19px;
+  width: 19px;
+  background-color: white;
+  border: 1px solid $palette-neutral-400;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: sticky;
+
+  &:hover {
+    background-color: $palette-neutral-900;
+    color: white;
+    cursor: pointer;
+  }
+}
+
+.timeline-grid__show-row-button--goto-start,
+.timeline-grid__show-row-button--expand {
+  left: 2px;
+}
+
+.timeline-grid__show-row-button--goto-end {
+  margin-left: auto;
+  right: 4px;
+}

@@ -44,7 +44,10 @@ class WorkflowActionFixture:
         if "order" not in kwargs:
             kwargs["order"] = 0
 
-        if "page" not in kwargs and "element" in kwargs:
-            kwargs["page"] = kwargs["element"].page
+        if "page" not in kwargs:
+            if "element" in kwargs:
+                kwargs["page"] = kwargs["element"].page
+            else:
+                kwargs["page"] = self.create_builder_page(user=kwargs.get("user", None))
 
         return model_class.objects.create(**kwargs)

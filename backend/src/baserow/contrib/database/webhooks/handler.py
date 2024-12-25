@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import List
+from typing import List, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import User as DjangoUser
@@ -9,11 +9,16 @@ from django.db.models.query import QuerySet
 
 from requests import PreparedRequest, Response
 
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.core.handler import CoreHandler
 from baserow.core.utils import extract_allowed, set_allowed_attrs
 
-from .exceptions import TableWebhookDoesNotExist, TableWebhookMaxAllowedCountExceeded
+from .exceptions import (
+    TableWebhookDoesNotExist,
+    TableWebhookEventConfigFieldNotInTable,
+    TableWebhookMaxAllowedCountExceeded,
+)
 from .models import (
     TableWebhook,
     TableWebhookCall,
@@ -29,6 +34,7 @@ from .operations import (
     UpdateWebhookOperationType,
 )
 from .registries import webhook_event_type_registry
+from .typing import EventConfigItem
 from .validators import get_webhook_request_function
 
 
@@ -52,12 +58,15 @@ class WebhookHandler:
                 table_id=table_id,
                 active=True,
             )
-            .prefetch_related("headers")
+            .prefetch_related("headers", "events", "events__fields")
             .select_related("table__database")
         )
 
     def get_table_webhook(
-        self, user: DjangoUser, webhook_id: int, base_queryset: QuerySet = None
+        self,
+        user: DjangoUser,
+        webhook_id: int,
+        base_queryset: Optional[QuerySet] = None,
     ) -> TableWebhook:
         """
         Verifies that the calling user has access to the specified table and if so
@@ -83,7 +92,7 @@ class WebhookHandler:
         return webhook
 
     def _get_table_webhook(
-        self, webhook_id: int, base_queryset: QuerySet = None
+        self, webhook_id: int, base_queryset: Optional[QuerySet] = None
     ) -> TableWebhook:
         """
         Fetches a single webhook related to the provided id.
@@ -99,8 +108,10 @@ class WebhookHandler:
             base_queryset = TableWebhook.objects
 
         try:
-            webhook = base_queryset.select_related("table__database__workspace").get(
-                id=webhook_id
+            webhook = (
+                base_queryset.select_related("table__database__workspace")
+                .prefetch_related("events", "events__fields")
+                .get(id=webhook_id)
             )
         except TableWebhook.DoesNotExist:
             raise TableWebhookDoesNotExist(
@@ -130,12 +141,51 @@ class WebhookHandler:
             "events", "headers", "calls"
         ).filter(table_id=table.id)
 
+    def _update_webhook_event_config(
+        self,
+        webhook: TableWebhook,
+        event_config: List[EventConfigItem],
+        webhook_events: Optional[List[TableWebhookEvent]] = None,
+    ):
+        """
+        Updates the event config of the given by setting the field relationships of the
+        events.
+
+        :param webhook: The webhook for which the event config must be updated.
+        :param event_config: The event config can contain a list of objects that is used
+            to update details about an event.
+        :param webhook_events: If the existing webhook events have already been
+            fetched, they can be provided here.
+        """
+
+        if webhook_events is None:
+            webhook_events = TableWebhookEvent.objects.filter(webhook_id=webhook.id)
+
+        for event in event_config:
+            event_object = next(
+                (o for o in webhook_events if o.event_type == event["event_type"]),
+                None,
+            )
+            # Don't do anything if the related event type doesn't exist because it
+            # could have been deleted.
+            if not event_object:
+                continue
+            event_fields = Field.objects.filter(
+                table_id=webhook.table_id, id__in=event["fields"]
+            )
+            for field_id in event["fields"]:
+                if not next((f for f in event_fields if field_id == f.id), None):
+                    raise TableWebhookEventConfigFieldNotInTable(field_id)
+
+            event_object.fields.set(event_fields)
+
     def create_table_webhook(
         self,
         user: DjangoUser,
         table: Table,
-        events: List[str] = None,
-        headers: dict = None,
+        events: Optional[List[str]] = None,
+        event_config: Optional[List[EventConfigItem]] = None,
+        headers: Optional[dict] = None,
         **kwargs: dict,
     ) -> TableWebhook:
         """
@@ -145,8 +195,10 @@ class WebhookHandler:
         :param table: The table for which the webhook must be created.
         :param events: A list containing the event types related to the webhook. They
             will only be added if the provided `include_all_events` is False.
+        :param event_config: The event config object used for the update. This can be
+            used to select the related fields, for example.
         :param headers: An object containing the additional headers that must be sent
-            when the webhook triggers. The key is the name and the value the value.
+            when the webhook triggers. The key is the name and the value.
         :param kwargs: Additional arguments passed along to the webhook object.
         :return: The newly created webhook object.
         """
@@ -180,7 +232,10 @@ class WebhookHandler:
                 event_object.full_clean()
                 event_headers.append(event_object)
 
-            TableWebhookEvent.objects.bulk_create(event_headers)
+            webhook_events = TableWebhookEvent.objects.bulk_create(event_headers)
+
+        if event_config is not None and not values.get("include_all_events"):
+            self._update_webhook_event_config(webhook, event_config, webhook_events)
 
         if headers is not None:
             header_objects = []
@@ -199,8 +254,9 @@ class WebhookHandler:
         self,
         user: DjangoUser,
         webhook: TableWebhook,
-        events: List[str] = None,
-        headers: List[dict] = None,
+        events: Optional[List[str]] = None,
+        event_config: Optional[List[EventConfigItem]] = None,
+        headers: Optional[List[dict]] = None,
         **kwargs: dict,
     ) -> TableWebhook:
         """
@@ -210,6 +266,8 @@ class WebhookHandler:
         :param webhook: The webhook object that must be updated.
         :param events: A list containing the event types related to the webhook. They
             will only be added if the provided `include_all_events` is False.
+        :param event_config: The event config object used for the update. This can be
+            used to select the related fields, for example.
         :param headers: An object containing the additional headers that must be sent
             when the webhook triggers. The key is the name and the value the value.
         :param kwargs: Additional arguments passed along to the webhook object.
@@ -241,7 +299,11 @@ class WebhookHandler:
         webhook = set_allowed_attrs(kwargs, allowed_fields, webhook)
         webhook.save()
 
-        if kwargs.get("include_all_events", False) and not old_include_all_events:
+        should_update_events = not (
+            kwargs.get("include_all_events", False) and not old_include_all_events
+        )
+
+        if not should_update_events:
             TableWebhookEvent.objects.filter(webhook=webhook).delete()
         elif events is not None:
             existing_events = webhook.events.all()
@@ -266,6 +328,9 @@ class WebhookHandler:
 
             if len(events_to_create) > 0:
                 TableWebhookEvent.objects.bulk_create(events_to_create)
+
+        if event_config is not None and should_update_events:
+            self._update_webhook_event_config(webhook, event_config)
 
         if headers is not None:
             existing_headers = webhook.headers.all()
@@ -297,6 +362,10 @@ class WebhookHandler:
 
             if len(headers_to_create) > 0:
                 TableWebhookHeader.objects.bulk_create(headers_to_create)
+
+        # Invalidate the prefetch objects cache because the related object might have
+        # changed.
+        webhook._prefetched_objects_cache = {}
 
         return webhook
 
@@ -367,7 +436,7 @@ class WebhookHandler:
         user: DjangoUser,
         table: Table,
         event_type: str,
-        headers: dict = None,
+        headers: Optional[dict] = None,
         **kwargs: dict,
     ):
         """

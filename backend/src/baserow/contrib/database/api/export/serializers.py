@@ -1,14 +1,13 @@
-from django.core.files.storage import default_storage
 from django.utils.functional import lazy
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import fields, serializers
 
+from baserow.api.serializers import FileURLSerializerMixin
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.contrib.database.export.models import ExportJob
 from baserow.contrib.database.export.registries import table_exporter_registry
-from baserow.core.context import clear_current_workspace_id, set_current_workspace_id
 
 # This is a map from the front end supported charsets to the internal python supported
 # charset value as they do not always match up.
@@ -60,37 +59,14 @@ SUPPORTED_CSV_COLUMN_SEPARATORS = [
 ]
 
 
-class ExportedFileURLSerializerMixin(serializers.Serializer):
+class ExportedFileURLSerializerMixin(FileURLSerializerMixin):
     """
     When mixed in to a model serializer for an ExportJob this will add an url field
     with the actual usable url of the export job's file (if it has one).
     """
 
-    url = serializers.SerializerMethodField()
-
-    def get_instance_attr(self, instance, name):
-        return getattr(instance, name)
-
-    @extend_schema_field(OpenApiTypes.URI)
-    def get_url(self, instance):
-        if hasattr(instance, "workspace_id"):
-            # FIXME: Temporarily setting the current workspace ID for URL generation in
-            # storage backends, enabling permission checks at download time.
-            try:
-                set_current_workspace_id(instance.workspace_id)
-                return self._get_url(instance)
-            finally:
-                clear_current_workspace_id()
-        else:
-            return self._get_url(instance)
-
-    def _get_url(self, instance):
-        name = self.get_instance_attr(instance, "exported_file_name")
-        if name:
-            path = ExportHandler().export_file_path(name)
-            return default_storage.url(path)
-        else:
-            return None
+    def get_handler(self):
+        return ExportHandler()
 
 
 class ExportJobSerializer(ExportedFileURLSerializerMixin, serializers.ModelSerializer):

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-05-21 12:52+0200\n"
+"POT-Creation-Date: 2024-12-17 08:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,35 +18,35 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow_enterprise/audit_log/job_types.py:37
+#: src/baserow_enterprise/audit_log/job_types.py:36
 msgid "User Email"
 msgstr ""
 
-#: src/baserow_enterprise/audit_log/job_types.py:41
+#: src/baserow_enterprise/audit_log/job_types.py:40
 msgid "User ID"
 msgstr ""
 
-#: src/baserow_enterprise/audit_log/job_types.py:45
+#: src/baserow_enterprise/audit_log/job_types.py:44
 msgid "Group Name"
 msgstr ""
 
-#: src/baserow_enterprise/audit_log/job_types.py:49
+#: src/baserow_enterprise/audit_log/job_types.py:48
 msgid "Group ID"
 msgstr ""
 
-#: src/baserow_enterprise/audit_log/job_types.py:53
+#: src/baserow_enterprise/audit_log/job_types.py:52
 msgid "Action Type"
 msgstr ""
 
-#: src/baserow_enterprise/audit_log/job_types.py:57
+#: src/baserow_enterprise/audit_log/job_types.py:56
 msgid "Description"
 msgstr ""
 
-#: src/baserow_enterprise/audit_log/job_types.py:61
+#: src/baserow_enterprise/audit_log/job_types.py:60
 msgid "Timestamp"
 msgstr ""
 
-#: src/baserow_enterprise/audit_log/job_types.py:65
+#: src/baserow_enterprise/audit_log/job_types.py:64
 msgid "IP Address"
 msgstr ""
 
@@ -73,8 +73,9 @@ msgstr ""
 #: src/baserow_enterprise/role/actions.py:32
 #, python-format
 msgid ""
-"Role %(role_uid)s assigned to subject type \"%(subject_type_name)s\" "
-"(%(subject_id)s) on scope type \"%(scope_type_name)s\" (%(scope_id)s)."
+"Role %(role_uid)s assigned to subject type "
+"\"%(subject_type_name)s\" (%(subject_id)s) on scope type "
+"\"%(scope_type_name)s\" (%(scope_id)s)."
 msgstr ""
 
 #: src/baserow_enterprise/teams/actions.py:21

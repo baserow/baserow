@@ -8,12 +8,12 @@
     </Alert>
     <PageSettingsForm
       :builder="builder"
-      :page="page"
-      :default-values="page"
+      :page="currentPage"
+      :default-values="currentPage"
       @submitted="updatePage"
     >
       <div
-        v-if="$hasPermission('builder.page.update', page, workspace.id)"
+        v-if="$hasPermission('builder.page.update', currentPage, workspace.id)"
         class="actions actions--right"
       >
         <Button size="large" :loading="loading" :disabled="loading">
@@ -34,7 +34,7 @@ export default {
   name: 'PageSettings',
   components: { PageSettingsForm },
   mixins: [error],
-  inject: ['builder', 'page', 'workspace'],
+  inject: ['builder', 'currentPage', 'workspace'],
   data() {
     return {
       loading: false,
@@ -50,7 +50,7 @@ export default {
       try {
         await this.actionUpdatePage({
           builder: this.builder,
-          page: this.page,
+          page: this.currentPage,
           values: {
             name,
             path,
@@ -60,7 +60,7 @@ export default {
         await Promise.all(
           pathPrams.map(({ name, type }) =>
             this.$store.dispatch('pageParameter/setParameter', {
-              page: this.page,
+              page: this.currentPage,
               name,
               value: defaultValueForParameterType(type),
             })

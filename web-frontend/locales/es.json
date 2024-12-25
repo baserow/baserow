@@ -10,7 +10,12 @@
         "table": "Tabla",
         "billable": "Facturable",
         "all": "Todos",
-        "beta": "Beta"
+        "beta": "Beta",
+        "enabled": "Activado",
+        "disabled": "Desactivado",
+        "summarize": "Resumir",
+        "or": "o",
+        "and": "y"
     },
     "action": {
         "upload": "Subir",
@@ -42,7 +47,10 @@
         "reset": "Restablecer",
         "logout": "Cerrar la sesión",
         "set": "Establecer",
-        "backToHome": "Volver al inicio"
+        "backToHome": "Volver al inicio",
+        "getStarted": "Empezar",
+        "close": "Cerrar",
+        "hide": "Ocultar"
     },
     "adminType": {
         "settings": "Ajustes",
@@ -60,7 +68,11 @@
         "databaseDesc": "Crear una colección organizada de datos estructurados.",
         "builders": "Aplicaciones",
         "databases": "Bases de datos",
-        "builderDesc": "Crea fácilmente sitios web, aplicaciones web y portales sin código."
+        "builderDesc": "Crea fácilmente sitios web, aplicaciones web y portales sin código.",
+        "dashboards": "Paneles de control",
+        "dashboardDefaultName": "Tablero sin título",
+        "dashboard": "Tablero",
+        "dashboardDesc": "Visualice sus datos y métricas con gráficos, tablas o gráficos."
     },
     "settingType": {
         "account": "Cuenta",
@@ -90,7 +102,9 @@
         "invalidNumber": "El campo debe ser un número.",
         "email": "El campo debe ser un correo electrónico.",
         "invalidURL": "Por favor, introduce una URL válida.",
-        "alreadyInUse": "Este nombre de campo ya está en uso."
+        "alreadyInUse": "Este nombre de campo ya está en uso.",
+        "decimalField": "El campo debe ser un decimal.",
+        "invalidCharacters": "Este campo contiene caracteres inválidos."
     },
     "permission": {
         "admin": "Admin",
@@ -257,7 +271,9 @@
         "hasNotValueContains": "no contiene un valor",
         "hasNotValueContainsWord": "el valor no contiene una palabra",
         "hasValueLengthIsLowerThan": "tiene un valor inferior a",
-        "hasValueContainsWord": "el valor contiene una palabra"
+        "hasValueContainsWord": "el valor contiene una palabra",
+        "hasAnySelectOptionEqual": "tiene cualquier opción de selección igual",
+        "hasNoneSelectOptionEqual": "no tiene la opción de seleccionar una igual"
     },
     "viewType": {
         "grid": "Cuadrícula",
@@ -295,7 +311,13 @@
             "rowDeleted": "Cuando se elimina una fila",
             "rowsCreated": "Se crearon las filas",
             "rowsUpdated": "Las filas fueron actualizadas",
-            "rowsDeleted": "Se han eliminado las filas"
+            "rowsDeleted": "Se han eliminado las filas",
+            "fieldUpdated": "Campo actualizado",
+            "viewUpdated": "Vista actualizada",
+            "viewDeleted": "Vista borrada",
+            "viewCreated": "Vista creada",
+            "fieldDeleted": "Campo borrado",
+            "fieldCreated": "Campo creado"
         },
         "form": {
             "invalidURLTitle": "URL inválida.",
@@ -384,7 +406,9 @@
         "fieldIsAlreadyPrimaryTitle": "El campo ya es primario",
         "incompatiblePrimaryFieldTypeTitle": "El campo no es compatible",
         "fieldIsAlreadyPrimaryDescription": "El nuevo campo primario elegido ya es el campo primario.",
-        "incompatiblePrimaryFieldTypeDescription": "El campo elegido no puede ser el campo primario porque es incompatible."
+        "incompatiblePrimaryFieldTypeDescription": "El campo elegido no puede ser el campo primario porque es incompatible.",
+        "cannotCreateRowsInTableTitle": "No se pueden crear filas",
+        "cannotCreateRowsInTableDescription": "No es posible crear filas en esta tabla."
     },
     "importerType": {
         "csv": "Importar un archivo CSV",
@@ -419,7 +443,8 @@
         "uploadFileDescription": "La multiparte `archivo` que contiene el contenido del archivo.",
         "uploadFileViaUrl": "Subir el archivo a través de la URL",
         "uploadFileViaUrlDescription": "Sube un archivo a Baserow descargándolo de la URL proporcionada.",
-        "fileUploads": "Carga de archivos"
+        "fileUploads": "Carga de archivos",
+        "sendWebhookEventsDescription": "Un parámetro de consulta de bandera que activa los webhooks después de la operación, si se configura en `y`, `yes`, `true`, `t`, `on`, `1` o se deja vacío. El valor predeterminado es `true`"
     },
     "exporterType": {
         "csv": "Exportar a CSV"

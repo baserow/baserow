@@ -15,3 +15,19 @@ def test_can_duplicate_builder_application(data_fixture):
     assert builder.name in builder_clone.name
 
     assert Builder.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_duplicated_application_imports_integration(data_fixture):
+    """
+    Ensure that when duplicating an application, the integration is also
+    imported correctly.
+    """
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user)
+    data_fixture.create_local_baserow_integration(user=user, application=builder)
+
+    new_builder = CoreHandler().duplicate_application(user, builder)
+
+    assert new_builder.integrations.all()[0].specific.authorized_user == user

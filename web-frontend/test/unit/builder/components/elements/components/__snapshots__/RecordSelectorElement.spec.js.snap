@@ -1,0 +1,930 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`RecordSelectorElement does not paginate if API returns 400/404 1`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-dropdown choice-element"
+            tabindex="0"
+          >
+            <a
+              class="ab-dropdown__selected"
+            >
+              <!---->
+               
+              <span
+                class="ab-dropdown__selected-placeholder"
+              >
+                action.makeChoice
+              </span>
+               
+              <i
+                class="ab-dropdown__toggle-icon iconoir-nav-arrow-down"
+              />
+            </a>
+             
+            <div
+              class="ab-dropdown__items"
+            >
+              <!---->
+               
+              <ul
+                class="select__items"
+                style=""
+                tabindex="-1"
+              >
+                   
+                <section
+                  class="infinite-scroll"
+                >
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="First"
+                        >
+                          First
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Second"
+                        >
+                          Second
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Third"
+                        >
+                          Third
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Fourth"
+                        >
+                          Fourth
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Fifth"
+                        >
+                          Fifth
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                   
+                  <div
+                    class="infinite-scroll__loading-wrapper"
+                    style=""
+                  >
+                    <!---->
+                  </div>
+                   
+                  <!---->
+                </section>
+              </ul>
+               
+              <!---->
+               
+              <!---->
+            </div>
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`RecordSelectorElement does not paginate if API returns 400/404 2`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-dropdown choice-element"
+            tabindex="0"
+          >
+            <a
+              class="ab-dropdown__selected"
+            >
+              <!---->
+               
+              <span
+                class="ab-dropdown__selected-placeholder"
+              >
+                action.makeChoice
+              </span>
+               
+              <i
+                class="ab-dropdown__toggle-icon iconoir-nav-arrow-down"
+              />
+            </a>
+             
+            <div
+              class="ab-dropdown__items"
+            >
+              <!---->
+               
+              <ul
+                class="select__items"
+                style=""
+                tabindex="-1"
+              >
+                   
+                <section
+                  class="infinite-scroll"
+                >
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="First"
+                        >
+                          First
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Second"
+                        >
+                          Second
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Third"
+                        >
+                          Third
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Fourth"
+                        >
+                          Fourth
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Fifth"
+                        >
+                          Fifth
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                   
+                  <div
+                    class="infinite-scroll__loading-wrapper"
+                    style=""
+                  >
+                    <!---->
+                  </div>
+                   
+                  <!---->
+                </section>
+              </ul>
+               
+              <!---->
+               
+              <!---->
+            </div>
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`RecordSelectorElement does not paginate if API returns 400/404 3`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-dropdown choice-element"
+            tabindex="0"
+          >
+            <a
+              class="ab-dropdown__selected"
+            >
+              <!---->
+               
+              <span
+                class="ab-dropdown__selected-placeholder"
+              >
+                action.makeChoice
+              </span>
+               
+              <i
+                class="ab-dropdown__toggle-icon iconoir-nav-arrow-down"
+              />
+            </a>
+             
+            <div
+              class="ab-dropdown__items"
+            >
+              <!---->
+               
+              <ul
+                class="select__items"
+                style=""
+                tabindex="-1"
+              >
+                   
+                <section
+                  class="infinite-scroll"
+                >
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="First"
+                        >
+                          First
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Second"
+                        >
+                          Second
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Third"
+                        >
+                          Third
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Fourth"
+                        >
+                          Fourth
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Fifth"
+                        >
+                          Fifth
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                   
+                  <div
+                    class="infinite-scroll__loading-wrapper"
+                    style=""
+                  >
+                    <!---->
+                  </div>
+                   
+                  <!---->
+                </section>
+              </ul>
+               
+              <!---->
+               
+              <!---->
+            </div>
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`RecordSelectorElement resolves suffix formulas 1`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-dropdown choice-element"
+            tabindex="0"
+          >
+            <a
+              class="ab-dropdown__selected"
+            >
+              <!---->
+               
+              <span
+                class="ab-dropdown__selected-placeholder"
+              >
+                action.makeChoice
+              </span>
+               
+              <i
+                class="ab-dropdown__toggle-icon iconoir-nav-arrow-down"
+              />
+            </a>
+             
+            <div
+              class="ab-dropdown__items"
+            >
+              <!---->
+               
+              <ul
+                class="select__items"
+                style=""
+                tabindex="-1"
+              >
+                   
+                <section
+                  class="infinite-scroll"
+                >
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="First - Suffix"
+                        >
+                          First - Suffix
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Second - Suffix"
+                        >
+                          Second - Suffix
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                   
+                  <div
+                    class="infinite-scroll__loading-wrapper"
+                    style="display: none;"
+                  >
+                    <!---->
+                  </div>
+                   
+                  <!---->
+                </section>
+              </ul>
+               
+              <!---->
+               
+              <!---->
+            </div>
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`RecordSelectorElement resolves suffix formulas 2`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-dropdown choice-element"
+            tabindex="0"
+          >
+            <a
+              class="ab-dropdown__selected"
+            >
+              <!---->
+               
+              <span
+                class="ab-dropdown__selected-placeholder"
+              >
+                action.makeChoice
+              </span>
+               
+              <i
+                class="ab-dropdown__toggle-icon iconoir-nav-arrow-down"
+              />
+            </a>
+             
+            <div
+              class="ab-dropdown__items"
+            >
+              <!---->
+               
+              <ul
+                class="select__items"
+                style=""
+                tabindex="-1"
+              >
+                   
+                <section
+                  class="infinite-scroll"
+                >
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="First - One"
+                        >
+                          First - One
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  >
+                    <a
+                      class="ab-dropdownitem__item-link"
+                    >
+                      <div
+                        class="ab-dropdownitem__item-name"
+                      >
+                        <!---->
+                         
+                        <span
+                          class="ab-dropdownitem__item-name-text"
+                          title="Second - Two"
+                        >
+                          Second - Two
+                        </span>
+                      </div>
+                       
+                      <!---->
+                    </a>
+                     
+                    <i
+                      class="ab-dropdownitem__item-active-icon iconoir-check"
+                    />
+                  </li>
+                   
+                  <div
+                    class="infinite-scroll__loading-wrapper"
+                    style="display: none;"
+                  >
+                    <!---->
+                  </div>
+                   
+                  <!---->
+                </section>
+              </ul>
+               
+              <!---->
+               
+              <!---->
+            </div>
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;

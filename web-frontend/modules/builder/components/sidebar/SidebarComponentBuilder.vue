@@ -85,11 +85,10 @@ export default {
   computed: {
     ...mapGetters({
       isAppSelected: 'application/isSelected',
+      getVisiblePages: 'page/getVisiblePages',
     }),
     orderedPages() {
-      return this.application.pages
-        .map((page) => page)
-        .sort((a, b) => a.order - b.order)
+      return this.getVisiblePages(this.application)
     },
     pendingJobs() {
       return this.$store.getters['job/getAll'].filter((job) =>

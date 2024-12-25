@@ -1,6 +1,8 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.http import HttpRequest
+from django.shortcuts import reverse
 
 import pytest
 
@@ -16,7 +18,11 @@ from baserow.contrib.integrations.local_baserow.models import (
 )
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.services.registries import service_type_registry
+from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyStr
+from tests.baserow.contrib.builder.api.user_sources.helpers import (
+    create_user_table_and_role,
+)
 
 
 @pytest.mark.django_db
@@ -55,7 +61,8 @@ def test_get_data_source_does_not_exist(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_data_sources(data_fixture):
+@pytest.mark.parametrize("specific", [True, False])
+def test_get_data_sources(data_fixture, specific):
     page = data_fixture.create_builder_page()
     data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
         page=page
@@ -68,7 +75,7 @@ def test_get_data_sources(data_fixture):
     )
     data_source4 = data_fixture.create_builder_data_source(page=page)
 
-    data_sources = DataSourceHandler().get_data_sources(page)
+    data_sources = DataSourceHandler().get_data_sources(page, specific=specific)
 
     assert [e.id for e in data_sources] == [
         data_source1.id,
@@ -77,9 +84,49 @@ def test_get_data_sources(data_fixture):
         data_source4.id,
     ]
 
-    assert isinstance(data_sources[0].service, LocalBaserowGetRow)
-    assert isinstance(data_sources[2].service, LocalBaserowListRows)
+    if specific:
+        assert isinstance(data_sources[0].service, LocalBaserowGetRow)
+        assert isinstance(data_sources[2].service, LocalBaserowListRows)
+
     assert data_sources[3].service is None
+
+
+@pytest.mark.django_db
+def test_get_data_sources_with_shared(data_fixture):
+    page = data_fixture.create_builder_page()
+    shared_page = page.builder.shared_page
+    data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
+    data_source2 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
+    data_source3 = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+    data_source4 = data_fixture.create_builder_data_source(page=page)
+
+    shared_data_source = data_fixture.create_builder_data_source(page=shared_page)
+    shared_data_source2 = (
+        data_fixture.create_builder_local_baserow_list_rows_data_source(
+            page=shared_page
+        )
+    )
+
+    data_sources = DataSourceHandler().get_data_sources(page, with_shared=True)
+
+    assert [e.id for e in data_sources] == [
+        shared_data_source.id,
+        shared_data_source2.id,
+        data_source1.id,
+        data_source2.id,
+        data_source3.id,
+        data_source4.id,
+    ]
+
+    assert isinstance(data_sources[2].service, LocalBaserowGetRow)
+    assert isinstance(data_sources[4].service, LocalBaserowListRows)
+    assert data_sources[5].service is None
 
 
 @pytest.mark.django_db
@@ -134,6 +181,63 @@ def test_update_data_source_change_type(data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_data_source_change_page(data_fixture):
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        name="No conflict"
+    )
+    page_dest = data_fixture.create_builder_page(builder=data_source.page.builder)
+
+    data_source_updated = DataSourceHandler().update_data_source(
+        data_source, page=page_dest
+    )
+
+    data_source_updated.refresh_from_db()
+
+    assert data_source_updated.page_id == page_dest.id
+    assert data_source_updated.name == "No conflict"
+
+
+@pytest.mark.django_db
+def test_update_data_source_change_page_with_conflict(data_fixture):
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        name="Conflict"
+    )
+    page_dest = data_fixture.create_builder_page(builder=data_source.page.builder)
+    data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page_dest, name="Conflict"
+    )
+
+    data_source_updated = DataSourceHandler().update_data_source(
+        data_source, page=page_dest
+    )
+
+    data_source_updated.refresh_from_db()
+
+    assert data_source_updated.page_id == page_dest.id
+    assert data_source_updated.name == "Conflict 2"
+
+
+@pytest.mark.django_db
+def test_update_data_source_change_page_with_conflict_but_name(data_fixture):
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        name="Conflict"
+    )
+    page_dest = data_fixture.create_builder_page(builder=data_source.page.builder)
+    data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page_dest, name="Conflict"
+    )
+
+    data_source_updated = DataSourceHandler().update_data_source(
+        data_source, page=page_dest, name="Another name"
+    )
+
+    data_source_updated.refresh_from_db()
+
+    assert data_source_updated.page_id == page_dest.id
+    assert data_source_updated.name == "Another name"
+
+
+@pytest.mark.django_db
 def test_dispatch_data_source(data_fixture):
     user = data_fixture.create_user()
     table, fields, rows = data_fixture.build_table(
@@ -164,7 +268,9 @@ def test_dispatch_data_source(data_fixture):
         row_id="2",
     )
 
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page)
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
     result = DataSourceHandler().dispatch_data_source(data_source, dispatch_context)
 
     assert result == {
@@ -222,7 +328,9 @@ def test_dispatch_data_sources(data_fixture):
         row_id="b",
     )
 
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page)
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
     result = DataSourceHandler().dispatch_data_sources(
         [data_source, data_source2, data_source3], dispatch_context
     )
@@ -385,3 +493,109 @@ def test_recalculate_full_orders(data_fixture):
 
     assert data_sources[1].id == data_sourceB.id
     assert data_sources[1].order == Decimal("2.00300000000000000000")
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.builder.handler.get_builder_used_property_names")
+def test_dispatch_data_source_returns_formula_field_names(
+    mock_get_builder_used_property_names, data_fixture, api_request_factory
+):
+    """
+    Integration test to ensure get_builder_used_property_names() is called without
+    errors.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Food", "text"),
+            ("Spiciness", "number"),
+        ],
+        rows=[
+            ["Paneer Tikka", 5],
+            ["Gobi Manchurian", 8],
+        ],
+    )
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+
+    user_source, _ = create_user_table_and_role(
+        data_fixture,
+        user,
+        builder,
+        "foo_user_role",
+        integration=integration,
+    )
+    user_source_user = UserSourceUser(
+        user_source, None, 1, "foo_username", "foo@bar.com", role="foo_user_role"
+    )
+    user_source_user_token = user_source_user.get_refresh_token().access_token
+
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+    )
+    data_fixture.create_builder_table_element(
+        user=user,
+        page=page,
+        data_source=data_source,
+        fields=[
+            {
+                "name": "FieldA",
+                "type": "text",
+                "config": {
+                    "value": f"get('data_source.{data_source.id}.field_{fields[0].id}')"
+                },
+            },
+            {
+                "name": "FieldB",
+                "type": "text",
+                "config": {
+                    "value": f"get('data_source.{data_source.id}.field_{fields[1].id}')"
+                },
+            },
+        ],
+    )
+
+    builder.workspace = None
+    builder.save()
+    data_fixture.create_builder_custom_domain(published_to=builder)
+
+    fake_request = api_request_factory.post(
+        reverse("api:builder:domains:public_dispatch_all", kwargs={"page_id": page.id}),
+        {},
+        HTTP_USERSOURCEAUTHORIZATION=f"JWT {user_source_user_token}",
+    )
+    fake_request.user = user_source_user
+    dispatch_context = BuilderDispatchContext(fake_request, page)
+
+    mock_get_builder_used_property_names.return_value = {
+        "external": {data_source.service.id: [f"field_{field.id}" for field in fields]}
+    }
+
+    result = DataSourceHandler().dispatch_data_source(data_source, dispatch_context)
+
+    assert result == {
+        "has_next_page": False,
+        "results": [
+            {
+                "id": 1,
+                "order": "1.00000000000000000000",
+                f"field_{fields[0].id}": "Paneer Tikka",
+                f"field_{fields[1].id}": "5",
+            },
+            {
+                "id": 2,
+                "order": "2.00000000000000000000",
+                f"field_{fields[0].id}": "Gobi Manchurian",
+                f"field_{fields[1].id}": "8",
+            },
+        ],
+    }

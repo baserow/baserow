@@ -93,9 +93,7 @@
 }
 
 .control__label-right-icon {
-  margin-left: 6px;
   height: 16px;
-  top: 3px;
   position: relative;
 }
 
@@ -154,6 +152,11 @@
   }
 }
 
+.control__after-label {
+  margin-left: auto;
+  font-size: 12px;
+}
+
 .control__required {
   margin-left: auto;
   color: $palette-neutral-900;
@@ -163,6 +166,12 @@
   .control--horizontal & {
     display: none;
   }
+}
+
+.control__label-after {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .control__messages {

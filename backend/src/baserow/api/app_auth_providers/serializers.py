@@ -7,6 +7,7 @@ from rest_framework import serializers
 from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.core.app_auth_providers.models import AppAuthProvider
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
+from baserow.core.auth_provider.validators import validate_domain
 
 
 class AppAuthProviderSerializer(serializers.ModelSerializer):
@@ -44,6 +45,13 @@ class BaseAppAuthProviderSerializer(serializers.ModelSerializer):
         choices=lazy(app_auth_provider_type_registry.get_types, list)(),
         required=True,
         help_text="The type of the app_auth_provider.",
+    )
+
+    domain = serializers.CharField(
+        validators=[validate_domain],
+        required=False,
+        allow_null=True,
+        help_text=AppAuthProvider._meta.get_field("domain").help_text,
     )
 
     class Meta:

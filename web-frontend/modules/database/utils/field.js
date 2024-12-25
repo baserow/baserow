@@ -23,3 +23,10 @@ export function hasCompatibleFilterTypes(field, filterTypes) {
   }
   return false
 }
+
+/**
+ * Unique key used in combination with the `SelectRowModal`.
+ */
+export function getPersistentFieldOptionsKey(fieldId) {
+  return `link-row-${fieldId}`
+}

@@ -146,7 +146,7 @@ class FieldDependencyExtractingVisitor(
             # We don't have a target field so we are not a lookup and must be
             # a field() reference of a link row field.
 
-            primary_field_in_other_table = via_field.get_related_primary_field()
+            primary_field_in_other_table = via_field.link_row_table_primary_field
             if primary_field_in_other_table is None:
                 return []
             else:
@@ -289,7 +289,7 @@ class FormulaTypingVisitor(
                 )
             # If we are looking up a link row field we need to do an
             # extra relational jump to that primary field.
-            related_primary_field = target_field.get_related_primary_field()
+            related_primary_field = target_field.link_row_table_primary_field
             if related_primary_field is None:
                 return field_reference.with_invalid_type(
                     "references a deleted or unknown table"

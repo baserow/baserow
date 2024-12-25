@@ -165,6 +165,8 @@ def get_rows_grouped_by_date_field(
     offset: int = 0,
     model: Optional[GeneratedTableModel] = None,
     base_queryset: Optional[QuerySet] = None,
+    adhoc_filters: Optional[AdHocFilters] = None,
+    combine_filters: bool = False,
 ) -> Dict[str, Dict[str, Union[int, list]]]:
     """
     This method fetches the rows grouped into per day buckets given the row's values
@@ -187,6 +189,12 @@ def get_rows_grouped_by_date_field(
     :param base_queryset: Optionally an alternative base queryset can be provided
         that will be used to fetch the rows. This should be provided if additional
         filters and/or sorts must be added.
+    :param adhoc_filters: The optional ad hoc filters. Depending on `combine_filters`
+        they will be added on top of or replace view filters.
+    :param combine_filters: If set to `True`, both view filters and adhoc filters will
+        be applied. If set to `False` adhoc filters will be applied instead of view
+        filters, if present. This flag should be set by a caller depending on a view's
+        publicity status.
     :return: The fetched rows including the total count.
     """
 
@@ -207,7 +215,20 @@ def get_rows_grouped_by_date_field(
         )
     if search is not None:
         base_queryset = base_queryset.search_all_fields(search, search_mode=search_mode)
-    base_option_queryset = ViewHandler().apply_filters(view, base_queryset)
+
+    if combine_filters:
+        base_option_queryset = ViewHandler().apply_filters(view, base_queryset)
+        if adhoc_filters and adhoc_filters.has_any_filters:
+            base_option_queryset = adhoc_filters.apply_to_queryset(
+                model, base_option_queryset
+            )
+
+    else:
+        if adhoc_filters and adhoc_filters.has_any_filters:
+            base_option_queryset = adhoc_filters.apply_to_queryset(model, base_queryset)
+        else:
+            base_option_queryset = ViewHandler().apply_filters(view, base_queryset)
+
     all_filters = Q()
     count_aggregates = {}
 

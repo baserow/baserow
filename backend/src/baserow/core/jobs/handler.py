@@ -30,13 +30,13 @@ class JobHandler:
 
         :param job: The job to cancel.
         :return: The job that was marked for cancellation.
-        :raises JobNotCancellable: If the job is already finished and cannot be
-            cancelled.
+        :raises JobNotCancellable: If the job is already finished or failed, and
+            cannot be cancelled.
         """
 
         if job.cancelled:
             return
-        if job.finished:
+        elif job.ended:
             raise JobNotCancellable()
 
         job.set_state_cancelled()
@@ -226,9 +226,7 @@ class JobHandler:
         limit_date = now - timedelta(
             minutes=(settings.BASEROW_JOB_EXPIRATION_TIME_LIMIT)
         )
-        for job_to_delete in Job.objects.filter(
-            created_on__lte=limit_date
-        ).is_finished():
+        for job_to_delete in Job.objects.filter(created_on__lte=limit_date).is_ended():
             self.delete_job(job_to_delete.specific)
 
         # Expire non expired jobs

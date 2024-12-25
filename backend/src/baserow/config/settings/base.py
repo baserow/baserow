@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     "baserow.contrib.database",
     "baserow.contrib.integrations",
     "baserow.contrib.builder",
+    "baserow.contrib.dashboard",
     *BASEROW_BUILT_IN_PLUGINS,
 ]
 
@@ -139,6 +140,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "baserow.config.wsgi.application"
 ASGI_APPLICATION = "baserow.config.asgi.application"
+
+
+# `ASGI_HTTP_MAX_CONCURRENCY` sets max concurrent asgi requests to be processed by
+# the asgi application. It's configurable with `BASEROW_ASGI_HTTP_MAX_CONCURRENCY`
+# env variable.
+# The default is None - no concurrency limit
+ASGI_HTTP_MAX_CONCURRENCY = (
+    int(os.getenv("BASEROW_ASGI_HTTP_MAX_CONCURRENCY") or 0) or None
+)
 
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
@@ -304,6 +314,12 @@ CACHALOT_UNCACHABLE_TABLES = [
     "baserow_enterprise_auditlogentry",
 ]
 
+BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = int(
+    # Default TTL is 10 minutes: 60 seconds * 10
+    os.getenv("BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS")
+    or 600
+)
+
 
 def install_cachalot():
     global INSTALLED_APPS
@@ -369,6 +385,7 @@ LANGUAGES = [
     ("es", "Spanish"),
     ("it", "Italian"),
     ("pl", "Polish"),
+    ("ko", "Korean"),
 ]
 
 TIME_ZONE = "UTC"
@@ -476,7 +493,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.27.2",
+    "VERSION": "1.30.1",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -588,6 +605,13 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
+BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = int(
+    Decimal(os.getenv("BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB", 1024 * 1024)) * 1024 * 1024
+)  # ~1TB by default
+
+BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = int(
+    os.getenv("BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB", 512)
+)
 
 # Allows accessing and setting values on a dictionary like an object. Using this
 # we can pass plugin authors and other functions a `settings` object which can modify
@@ -625,6 +649,9 @@ if sum(ALL_STORAGE_ENABLED_VARS) > 1:
 if AWS_STORAGE_ENABLED:
     BASE_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
     AWS_S3_FILE_OVERWRITE = False
+    # This is needed to write the media file in a single call to `files_zip.writestr`
+    # as described here: https://github.com/kobotoolbox/kobocat/issues/475
+    AWS_S3_FILE_BUFFER_SIZE = BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
     set_settings_from_env_if_present(
         AttrDict(vars()),
         [
@@ -801,7 +828,7 @@ BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT = int(
     os.getenv("BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT", 100)
 )
 
-# The amount of rows that can be imported when creating a table.
+# The amount of rows that can be imported when creating a table or data sync.
 INITIAL_TABLE_DATA_LIMIT = None
 if "INITIAL_TABLE_DATA_LIMIT" in os.environ:
     INITIAL_TABLE_DATA_LIMIT = int(os.getenv("INITIAL_TABLE_DATA_LIMIT"))
@@ -817,17 +844,12 @@ MEDIA_ROOT = os.getenv("MEDIA_ROOT", "/baserow/media")
 # Indicates the directory where the user files and user thumbnails are stored.
 USER_FILES_DIRECTORY = "user_files"
 USER_THUMBNAILS_DIRECTORY = "thumbnails"
-BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = int(
-    Decimal(os.getenv("BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB", 1024 * 1024)) * 1024 * 1024
-)  # ~1TB by default
-
-BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = int(
-    os.getenv("BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB", 512)
-)
 
 EXPORT_FILES_DIRECTORY = "export_files"
 EXPORT_CLEANUP_INTERVAL_MINUTES = 5
 EXPORT_FILE_EXPIRE_MINUTES = 60
+
+IMPORT_FILES_DIRECTORY = "import_files"
 
 # The interval in minutes that the mentions cleanup job should run. This job will
 # remove mentions that are no longer used.
@@ -927,6 +949,13 @@ BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT = RateLimit.from_string(
     os.getenv("BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT", "5/h")
 )
 
+login_action_limit_from_env = os.getenv("BASEROW_LOGIN_ACTION_LOG_LIMIT")
+BASEROW_LOGIN_ACTION_LOG_LIMIT = (
+    RateLimit.from_string(login_action_limit_from_env)
+    if login_action_limit_from_env
+    else RateLimit(period_in_seconds=60 * 5, number_of_calls=1)
+)
+
 # Configurable thumbnails that are going to be generated when a user uploads an image
 # file.
 USER_THUMBNAILS = {"tiny": [None, 21], "small": [48, 48], "card_cover": [300, 160]}
@@ -1023,6 +1052,9 @@ BASEROW_WEBHOOKS_URL_REGEX_BLACKLIST = [
 BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS = int(
     os.getenv("BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS", "10")
 )
+BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK = (
+    int(os.getenv("BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK", "0")) or None
+)
 
 # ======== WARNING ========
 # Please read and understand everything at:
@@ -1082,6 +1114,18 @@ BASEROW_MAX_PENDING_WORKSPACE_INVITES = int(
     os.getenv("BASEROW_MAX_PENDING_WORKSPACE_INVITES", 0)
 )
 
+BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES = int(
+    os.getenv("BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES", 5)
+)
+BASEROW_IMPORT_EXPORT_RESOURCE_REMOVAL_AFTER_DAYS = int(
+    os.getenv("BASEROW_IMPORT_EXPORT_RESOURCE_REMOVAL_AFTER_DAYS", 5)
+)
+
+# The maximum number of rows that will be exported when exporting a table.
+# If `0` then all rows will be exported.
+BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT = int(
+    os.getenv("BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT", 0)
+)
 
 PERMISSION_MANAGERS = [
     "view_ownership",
@@ -1243,8 +1287,51 @@ BASEROW_OPENAI_MODELS = os.getenv("BASEROW_OPENAI_MODELS", "")
 BASEROW_OPENAI_MODELS = (
     BASEROW_OPENAI_MODELS.split(",") if BASEROW_OPENAI_MODELS else []
 )
+
+BASEROW_OPENROUTER_API_KEY = os.getenv("BASEROW_OPENROUTER_API_KEY", None)
+BASEROW_OPENROUTER_ORGANIZATION = (
+    os.getenv("BASEROW_OPENROUTER_ORGANIZATION", "") or None
+)
+BASEROW_OPENROUTER_MODELS = os.getenv("BASEROW_OPENROUTER_MODELS", "")
+BASEROW_OPENROUTER_MODELS = (
+    BASEROW_OPENROUTER_MODELS.split(",") if BASEROW_OPENROUTER_MODELS else []
+)
+
+BASEROW_ANTHROPIC_API_KEY = os.getenv("BASEROW_ANTHROPIC_API_KEY", None)
+BASEROW_ANTHROPIC_MODELS = os.getenv("BASEROW_ANTHROPIC_MODELS", "")
+BASEROW_ANTHROPIC_MODELS = (
+    BASEROW_ANTHROPIC_MODELS.split(",") if BASEROW_ANTHROPIC_MODELS else []
+)
+
+BASEROW_MISTRAL_API_KEY = os.getenv("BASEROW_MISTRAL_API_KEY", None)
+BASEROW_MISTRAL_MODELS = os.getenv("BASEROW_MISTRAL_MODELS", "")
+BASEROW_MISTRAL_MODELS = (
+    BASEROW_MISTRAL_MODELS.split(",") if BASEROW_MISTRAL_MODELS else []
+)
+
 BASEROW_OLLAMA_HOST = os.getenv("BASEROW_OLLAMA_HOST", None)
 BASEROW_OLLAMA_MODELS = os.getenv("BASEROW_OLLAMA_MODELS", "")
 BASEROW_OLLAMA_MODELS = (
     BASEROW_OLLAMA_MODELS.split(",") if BASEROW_OLLAMA_MODELS else []
+)
+
+BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE = str_to_bool(
+    os.getenv("BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE", "true")
+)
+BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST = os.getenv(
+    "BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST", ""
+)
+BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST = (
+    BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST.split(",")
+    if BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST
+    else []
+)
+
+# Default compression level for creating zip files. This setting balances the need to
+# save resources when compressing media files with the need to save space when
+# compressing text files.
+BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL = 5
+
+BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
+    os.getenv("BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE", "") or 10
 )

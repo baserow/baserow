@@ -43,7 +43,7 @@ export default {
     team: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => ({}),
     },
     workspace: {
       type: Object,

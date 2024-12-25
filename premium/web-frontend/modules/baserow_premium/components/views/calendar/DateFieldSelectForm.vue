@@ -24,9 +24,9 @@
       </FormGroup>
       <slot></slot>
     </form>
-    <div v-else class="warning">
+    <p v-else>
       {{ $t('dateFieldSelectForm.noCompatibleDateFields') }}
-    </div>
+    </p>
   </div>
 </template>
 

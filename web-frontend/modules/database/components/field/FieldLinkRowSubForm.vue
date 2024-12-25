@@ -9,10 +9,9 @@
     >
       <Dropdown
         v-model="values.link_row_table_id"
-        :class="{ 'dropdown--error': $v.values.link_row_table_id.$error }"
+        :error="$v.values.link_row_table_id.$error"
         :fixed-items="true"
         :disabled="!isSelectedFieldAccessible"
-        small
         @hide="$v.values.link_row_table_id.$touch()"
         @input="tableChange"
       >
@@ -50,7 +49,6 @@
           v-else
           v-model="values.link_row_limit_selection_view_id"
           class="margin-top-1"
-          small
           :fixed-items="true"
         >
           <DropdownItem
@@ -150,11 +148,6 @@ export default {
     'values.link_row_table_id'(newValueType, oldValue) {
       const table = this.tablesWhereFieldsCanBeCreated.find(
         (table) => table.id === newValueType
-      )
-      console.log(
-        newValueType,
-        oldValue,
-        this.values.link_row_limit_selection_view_id
       )
       if (newValueType !== oldValue) {
         this.loadViewsIfNeeded()

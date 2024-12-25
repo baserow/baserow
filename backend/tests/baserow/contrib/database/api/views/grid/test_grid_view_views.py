@@ -2567,30 +2567,62 @@ def test_public_view_aggregations_no_adhoc_filtering_uses_view_filters(
 
 
 @pytest.mark.django_db
-def test_public_view_aggregations_adhoc_filtering_overrides_existing_filters(
+def test_public_view_aggregations_adhoc_filtering_combineswith_existing_filters(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    text_field = data_fixture.create_text_field(table=table, name="text_field")
+    text_field_for_view_filter = data_fixture.create_text_field(
+        table=table, name="text_field"
+    )
+    text_field_for_adhoc_filter = data_fixture.create_text_field(
+        table=table, name="text_field_adhoc"
+    )
     grid_view = data_fixture.create_grid_view(
         table=table, user=user, public=True, create_options=False
     )
-    # in usual scenario this filter would filtered out all rows
-    equal_filter = data_fixture.create_view_filter(
-        view=grid_view, field=text_field, type="equal", value="y"
+    data_fixture.create_grid_view_field_option(
+        grid_view, text_field_for_view_filter, hidden=False
     )
-    RowHandler().create_row(
-        user, table, values={"text_field": "a"}, user_field_names=True
+    data_fixture.create_grid_view_field_option(
+        grid_view, text_field_for_adhoc_filter, hidden=False
     )
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=text_field_for_view_filter, type="not_equal", value="y"
+    )
+    # visible
     RowHandler().create_row(
-        user, table, values={"text_field": "b"}, user_field_names=True
+        user,
+        table,
+        values={"text_field": "a", "text_field_adhoc": "a"},
+        user_field_names=True,
+    )
+    # hidden by adhoc filter
+    RowHandler().create_row(
+        user,
+        table,
+        values={"text_field": "b", "text_field_adhoc": "b"},
+        user_field_names=True,
+    )
+    # hidden by view filter
+    RowHandler().create_row(
+        user,
+        table,
+        values={"text_field": "y", "text_field_adhoc": "a"},
+        user_field_names=True,
+    )
+    # hidden by view filter
+    RowHandler().create_row(
+        user,
+        table,
+        values={"text_field": "y", "text_field_adhoc": "a"},
+        user_field_names=True,
     )
     view_handler = ViewHandler()
     view_handler.update_field_options(
         view=grid_view,
         field_options={
-            text_field.id: {
+            text_field_for_view_filter.id: {
                 "hidden": False,
                 "aggregation_type": "unique_count",
                 "aggregation_raw_type": "unique_count",
@@ -2607,17 +2639,18 @@ def test_public_view_aggregations_adhoc_filtering_overrides_existing_filters(
         "filter_type": "AND",
         "filters": [
             {
-                "field": text_field.id,
+                "field": text_field_for_adhoc_filter.id,
                 "type": "equal",
                 "value": "a",
             },
         ],
     }
+
     get_params = [f"filters={json.dumps(advanced_filters)}"]
     response = api_client.get(f'{url}?{"&".join(get_params)}')
-    assert response.status_code == HTTP_200_OK
+    assert response.status_code == HTTP_200_OK, response.json()
     response_json = response.json()
-    assert response_json == {text_field.db_column: 1}
+    assert response_json == {text_field_for_view_filter.db_column: 1}
 
 
 @pytest.mark.django_db
@@ -3640,22 +3673,15 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
 def test_list_rows_with_query_param_order(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(database=table.database)
     text_field = data_fixture.create_text_field(table=table, name="text")
     hidden_field = data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
-    )
+    password_field = data_fixture.create_password_field(table=table, name="password")
     grid_view = data_fixture.create_grid_view(
         table=table, user=user, create_options=False
     )
     data_fixture.create_grid_view_field_option(grid_view, text_field, hidden=False)
     data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
-    data_fixture.create_grid_view_field_option(grid_view, link_row_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, password_field, hidden=False)
     first_row = RowHandler().create_row(
         user, table, values={"text": "a", "hidden": "a"}, user_field_names=True
     )
@@ -3688,7 +3714,7 @@ def test_list_rows_with_query_param_order(api_client, data_fixture):
 
     # sorting on unsupported field
     response = api_client.get(
-        f"{url}?order_by=field_{link_row_field.id}",
+        f"{url}?order_by=field_{password_field.id}",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()
@@ -3700,22 +3726,15 @@ def test_list_rows_with_query_param_order(api_client, data_fixture):
 def test_list_rows_public_with_query_param_order(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(database=table.database)
     public_field = data_fixture.create_text_field(table=table, name="public")
     hidden_field = data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
-    )
+    password_field = data_fixture.create_password_field(table=table, name="password")
     grid_view = data_fixture.create_grid_view(
         table=table, user=user, public=True, create_options=False
     )
     data_fixture.create_grid_view_field_option(grid_view, public_field, hidden=False)
     data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
-    data_fixture.create_grid_view_field_option(grid_view, link_row_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, password_field, hidden=False)
 
     first_row = RowHandler().create_row(
         user, table, values={"public": "a", "hidden": "y"}, user_field_names=True
@@ -3750,7 +3769,7 @@ def test_list_rows_public_with_query_param_order(api_client, data_fixture):
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     response = api_client.get(
-        f"{url}?order_by=field_{link_row_field.id}",
+        f"{url}?order_by=field_{password_field.id}",
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -3761,24 +3780,17 @@ def test_list_rows_public_with_query_param_order(api_client, data_fixture):
 def test_list_rows_public_with_query_param_group_by(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(database=table.database)
     public_field = data_fixture.create_text_field(table=table, name="public")
     public_field_2 = data_fixture.create_text_field(table=table, name="public2")
     hidden_field = data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
-    )
+    password_field = data_fixture.create_password_field(table=table, name="password")
     grid_view = data_fixture.create_grid_view(
         table=table, user=user, public=True, create_options=False
     )
     data_fixture.create_grid_view_field_option(grid_view, public_field, hidden=False)
     data_fixture.create_grid_view_field_option(grid_view, public_field_2, hidden=False)
     data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
-    data_fixture.create_grid_view_field_option(grid_view, link_row_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, password_field, hidden=False)
 
     first_row = RowHandler().create_row(
         user,
@@ -3847,7 +3859,7 @@ def test_list_rows_public_with_query_param_group_by(api_client, data_fixture):
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     response = api_client.get(
-        f"{url}?group_by=field_{link_row_field.id}",
+        f"{url}?group_by=field_{password_field.id}",
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -4201,7 +4213,6 @@ def test_grid_view_link_row_lookup_view(api_client, data_fixture):
     assert len(response_json["results"]) == 3
     assert response_json["results"][0]["id"] == i1.id
     assert response_json["results"][0]["value"] == "Test 1"
-    assert len(response_json["results"][0]) == 2
     assert response_json["results"][1]["id"] == i2.id
     assert response_json["results"][2]["id"] == i3.id
 

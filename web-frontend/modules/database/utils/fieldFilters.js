@@ -3,6 +3,8 @@
 // B: even if we removed the commas and compared filterValue against the concatted
 //    list of file names, we don't want the filterValue to accidentally match the end
 //    of one filename and the start of another.
+import _ from 'lodash'
+
 export function filenameContainsFilter(
   rowValue,
   humanReadableRowValue,
@@ -31,6 +33,7 @@ export function genericContainsFilter(
   }
   humanReadableRowValue = humanReadableRowValue.toString().toLowerCase().trim()
   filterValue = filterValue.toString().toLowerCase().trim()
+
   return humanReadableRowValue.includes(filterValue)
 }
 
@@ -47,7 +50,7 @@ export function genericContainsWordFilter(
   // check using regex to match whole words
   // make sure to escape the filterValue as it may contain regex special characters
   filterValue = filterValue.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&')
-  return humanReadableRowValue.match(new RegExp(`\\b${filterValue}\\b`))
+  return !!humanReadableRowValue.match(new RegExp(`\\b${filterValue}\\b`))
 }
 
 export function genericHasEmptyValueFilter(cellValue, filterValue) {
@@ -58,12 +61,23 @@ export function genericHasEmptyValueFilter(cellValue, filterValue) {
   for (let i = 0; i < cellValue.length; i++) {
     const value = cellValue[i].value
 
-    if (value === '') {
+    if (value === '' || value === null) {
       return true
     }
   }
 
   return false
+}
+
+export function genericHasAllValuesEqualFilter(cellValue, filterValue) {
+  if (!Array.isArray(cellValue)) {
+    return false
+  }
+
+  if (cellValue.length === 0) {
+    return false
+  }
+  return _.every(_.map(cellValue, 'value'), (inVal) => inVal === filterValue)
 }
 
 export function genericHasValueEqualFilter(cellValue, filterValue) {

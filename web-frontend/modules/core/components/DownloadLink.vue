@@ -1,10 +1,5 @@
 <template>
-  <a
-    v-if="!downloadXHR"
-    :href="`${url}?dl=${filename}`"
-    target="_blank"
-    :download="filename"
-  >
+  <a v-if="!downloadXHR" :href="href" target="_blank" :download="filename">
     <slot></slot>
   </a>
   <a
@@ -47,6 +42,12 @@ export default {
   computed: {
     downloadXHR() {
       return this.$config.DOWNLOAD_FILE_VIA_XHR === '1'
+    },
+    href() {
+      // Add the filename to the query string
+      const url = new URL(this.url)
+      url.searchParams.set('dl', this.filename)
+      return url.toString()
     },
   },
   methods: {

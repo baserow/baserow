@@ -70,7 +70,7 @@
           ref="field"
           :slug="view.slug"
           :workspace-id="database.workspace.id"
-          :field="field"
+          :field="preparedFieldForEditInputComponent"
           :value="value"
           :read-only="readOnly"
           :lazy-load="true"
@@ -105,6 +105,14 @@
             @input="$emit('updated-field-options', { required: $event })"
             >{{ $t('formViewField.required') }}</SwitchInput
           >
+          <component
+            :is="fieldOptionsComponent"
+            v-if="fieldOptionsComponent"
+            :field="field"
+            :field-options="fieldOptions"
+            :read-only="readOnly"
+            @updated-field-options="$emit('updated-field-options', $event)"
+          ></component>
           <SwitchInput
             v-if="allowedConditionalFields.length > 0"
             small
@@ -221,12 +229,21 @@ export default {
     }
   },
   computed: {
+    preparedFieldForEditInputComponent() {
+      return this.getFieldType().prepareFormViewFieldForFormEditInput(
+        this.field,
+        this.fieldOptions
+      )
+    },
     allowedConditionalFields() {
       const index = this.fields.findIndex((f) => f.id === this.field.id)
       return this.fields.slice(0, index)
     },
     fieldComponents() {
       return this.getFieldType().getFormViewFieldComponents(this.field, this)
+    },
+    fieldOptionsComponent() {
+      return this.getFieldType().getFormViewFieldOptionsComponent(this.field)
     },
     selectedFieldComponent() {
       const components = this.fieldComponents

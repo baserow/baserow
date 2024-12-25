@@ -1,5 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generator, List, Optional, Type, TypedDict, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypedDict,
+    TypeVar,
+    Union,
+)
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -9,17 +20,19 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.builder.formula_importer import import_formula
+from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.database.db.functions import RandomUUID
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
     Instance,
-    InstanceWithFormulaMixin,
     ModelInstanceMixin,
     ModelRegistryMixin,
     Registry,
 )
+from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.user_sources.handler import UserSourceHandler
@@ -33,7 +46,7 @@ EXISTING_USER_SOURCE_ROLES = "_existing_user_source_roles"
 
 
 class ElementType(
-    InstanceWithFormulaMixin,
+    BuilderInstanceWithFormulaMixin,
     EasyImportExportMixin[ElementSubClass],
     CustomFieldsInstanceMixin,
     ModelInstanceMixin[ElementSubClass],
@@ -45,6 +58,9 @@ class ElementType(
     SerializedDict: Type[ElementDictSubClass]
     parent_property_name = "page"
     id_mapping_name = BUILDER_PAGE_ELEMENTS
+
+    # Whether this element is a multi-page element and should be placed on shared page.
+    is_multi_page_element = False
 
     # The order in which this element type is imported in `import_elements`.
     # By default, the priority is `0`, the lowest value. If this property is
@@ -68,24 +84,61 @@ class ElementType(
         parent_element_id = values.get(
             "parent_element_id", getattr(instance, "parent_element_id", None)
         )
-        place_in_container = values.get("place_in_container", None)
 
+        if instance:
+            place_in_container = values.get(
+                "place_in_container", instance.place_in_container
+            )
+            page = values.get("page", instance.page)
+        else:
+            place_in_container = values.get("place_in_container", None)
+            page = values["page"]
+
+        parent_element = None
         if parent_element_id is not None:
             parent_element = ElementHandler().get_element(parent_element_id)
-            parent_element_type = element_type_registry.get_by_model(parent_element)
 
-            if self.type not in parent_element_type.child_types_allowed:
+        # Validate the place for this element
+        self.validate_place(page, parent_element, place_in_container)
+
+        return values
+
+    def validate_place(
+        self,
+        page: Page,
+        parent_element: Optional[ElementSubClass],
+        place_in_container: str,
+    ):
+        """
+        Validates the page/parent_element/place_in_container for this element.
+        Can be overridden to change the behaviour.
+
+        :param page: the page we want to add/move the element to.
+        :param parent_element: the parent_element if any.
+        :param place_in_container: the place in container in the parent.
+        :raises ValidationError: if the the element place is not allowed.
+        """
+
+        if parent_element:
+            if self.type not in [
+                e.type for e in parent_element.get_type().child_types_allowed
+            ]:
                 raise ValidationError(
-                    f"Container of type {parent_element_type.type} can't have child of "
+                    f"Container of type {parent_element.get_type().type} can't have child of "
                     f"type {self.type}"
                 )
 
-            if place_in_container is not None:
-                parent_element_type.validate_place_in_container(
-                    place_in_container, parent_element
+            # If we have a parent, we validate the place is accepted by this container.
+            parent_element.get_type().validate_place_in_container(
+                place_in_container, parent_element
+            )
+        else:
+            if self.is_multi_page_element != page.shared:
+                raise ValidationError(
+                    "This element type can't be added as root of a "
+                    f"{'an unshared' if self.is_multi_page_element else 'the shared'} "
+                    "page."
                 )
-
-        return values
 
     def after_create(self, instance: ElementSubClass, values: Dict):
         """
@@ -96,13 +149,20 @@ class ElementType(
             instance.
         """
 
-    def after_update(self, instance: ElementSubClass, values: Dict):
+    def after_update(
+        self,
+        instance: ElementSubClass,
+        values: Dict,
+        changes: Dict[str, Tuple],
+    ):
         """
         This hook is called right after the element has been updated.
 
         :param instance: The updated element instance.
         :param values: The values that were passed when creating the field
             instance.
+        :param changes: A dictionary containing all changes which were made to the
+            element prior to `after_update` being called.
         """
 
     def before_delete(self, instance: ElementSubClass):
@@ -112,16 +172,13 @@ class ElementType(
         :param instance: The to be deleted element instance.
         """
 
-    def import_context_addition(
-        self, instance: ElementSubClass, id_mapping
-    ) -> Dict[str, Any]:
+    def import_context_addition(self, instance: ElementSubClass) -> Dict[str, Any]:
         """
         This hook allow to specify extra context data when importing objects related
         to this one like child elements, collection fields or workflow actions.
         This extra context is then used as import context for these objects.
 
         :param instance: The instance we want the context for.
-        :param id_mapping: The import ID mapping object.
         :return: An object containing the extra context for the import process.
         """
 
@@ -153,7 +210,6 @@ class ElementType(
             ]
             import_context = ElementHandler().get_import_context_addition(
                 imported_parent_element_id,
-                id_mapping,
                 element_map=cache.get("imported_element_map", None),
             )
 
@@ -180,6 +236,7 @@ class ElementType(
             **(kwargs | import_context),
         )
 
+        # Update formulas of the current element
         updated_models = self.import_formulas(
             created_instance, id_mapping, import_formula, **(kwargs | import_context)
         )
@@ -229,7 +286,7 @@ class ElementType(
         self,
         element: Element,
         prop_name: str,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
     ):
@@ -339,7 +396,7 @@ element_type_registry = ElementTypeRegistry()
 
 
 class CollectionFieldType(
-    InstanceWithFormulaMixin,
+    BuilderInstanceWithFormulaMixin,
     CustomFieldsInstanceMixin,
     Instance,
     ABC,

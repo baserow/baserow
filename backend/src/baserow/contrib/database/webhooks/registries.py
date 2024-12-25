@@ -7,6 +7,7 @@ from django.dispatch.dispatcher import Signal
 from baserow.contrib.database.table.models import Table
 from baserow.core.registry import Instance, ModelRegistryMixin, Registry
 
+from .exceptions import SkipWebhookCall
 from .tasks import call_webhook
 
 
@@ -125,18 +126,23 @@ class WebhookEventType(Instance):
         webhooks = webhook_handler.find_webhooks_to_call(table.id, self.type)
         event_id = uuid.uuid4()
         for webhook in webhooks:
-            payload = self.get_payload(event_id, webhook, **kwargs)
-            headers = webhook.header_dict
-            headers.update(**webhook_handler.get_headers(self.type, event_id))
-            call_webhook.delay(
-                webhook_id=webhook.id,
-                event_id=str(event_id),
-                event_type=self.type,
-                method=webhook.request_method,
-                url=webhook.url,
-                headers=headers,
-                payload=payload,
-            )
+            try:
+                payload = self.get_payload(event_id, webhook, **kwargs)
+                headers = webhook.header_dict
+                headers.update(**webhook_handler.get_headers(self.type, event_id))
+                call_webhook.delay(
+                    webhook_id=webhook.id,
+                    event_id=str(event_id),
+                    event_type=self.type,
+                    method=webhook.request_method,
+                    url=webhook.url,
+                    headers=headers,
+                    payload=payload,
+                )
+            # Raised if the webhook should be skipped for whatever reason. In that case
+            # we don't want to fail, but rather don't do anything.
+            except SkipWebhookCall:
+                pass
 
 
 class WebhookEventTypeRegistry(ModelRegistryMixin, Registry):

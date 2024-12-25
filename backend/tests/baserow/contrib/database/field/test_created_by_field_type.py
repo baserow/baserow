@@ -292,6 +292,7 @@ def test_import_export_created_by_field(data_fixture):
     assert field_serialized == {
         "id": field.id,
         "name": "modified by",
+        "description": None,
         "order": field.order,
         "primary": False,
         "read_only": False,

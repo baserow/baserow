@@ -1,13 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.database.data_sync.export_serialized import (
     DataSyncExportSerializedStructure,
 )
 from baserow.contrib.database.data_sync.models import DataSync, DataSyncSyncedProperty
 from baserow.contrib.database.fields.models import Field
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -17,6 +19,7 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
+from baserow.core.utils import ChildProgressBuilder
 
 User = get_user_model()
 
@@ -39,14 +42,24 @@ class DataSyncProperty(ABC):
     formatted, but `False` for select options because those should be a fixed set.
     """
 
-    def __init__(self, key, name):
+    initially_selected = True
+    """
+    Indicates whether the property must automatically be toggled on before the users
+    creates the data sync. This can be used if there are many properties, the user must
+    be automatically use them all.
+    """
+
+    def __init__(self, key, name, initially_selected=True):
         """
         :param key: A unique key that must never be changed.
         :param name: Human-readable name of the property.
+        :param initially_selected: If true, then the property is suggested to be
+            enabled.
         """
 
         self.key = key
         self.name = name
+        self.initially_selected = initially_selected
 
     @abstractmethod
     def to_baserow_field(self) -> Field:
@@ -56,6 +69,21 @@ class DataSyncProperty(ABC):
 
         :return: An unsaved Baserow field model object.
         """
+
+    def get_metadata(
+        self, baserow_field: Field, existing_metadata: Optional[dict] = None
+    ) -> Optional[dict]:
+        """
+        Called after the field is created or updated. It can return metadata that's
+        going to be stored in the related DataSyncSyncedProperty. This can for
+        example to store a mapping that's needed when the data is synchronized.
+
+        :param baserow_field: The saved/created Baserow field in the synced table.
+        :param existing_metadata: Optionally already existing metadata can be provided.
+        :return: The mapping that must be stored in the `DataSyncSyncedProperty`.
+        """
+
+        return None
 
     def is_equal(self, baserow_row_value: Any, data_sync_row_value: Any) -> bool:
         """
@@ -74,6 +102,32 @@ class DataSyncProperty(ABC):
 class DataSyncType(
     ModelInstanceMixin, CustomFieldsInstanceMixin, ImportExportMixin, Instance, ABC
 ):
+    def prepare_values(self, user: AbstractUser, values: Dict) -> Dict:
+        """
+        A hook that can validate or changes the provided values.
+
+        :param user: The user on whose behalf the data sync is created or updated.
+        :param values: The values that were provided.
+        :return: The values that were validated and updates by the data sync type.
+        """
+
+        return values
+
+    def prepare_sync_job_values(self, instance: "DataSync"):
+        """
+        A hook that's called in the `prepare_values` of the job.
+
+        :param instance: The related data sync instance.
+        """
+
+    def before_sync_table(self, user: AbstractUser, instance: "DataSync"):
+        """
+        A hook that's called right before the table sync starts.
+
+        :param user: The user on whose behalf the table is synced.
+        :param instance: The related data sync instance.
+        """
+
     @abstractmethod
     def get_properties(self, instance: "DataSync") -> List[DataSyncProperty]:
         """
@@ -90,7 +144,11 @@ class DataSyncType(
         """
 
     @abstractmethod
-    def get_all_rows(self, instance: "DataSync") -> Iterable[Dict]:
+    def get_all_rows(
+        self,
+        instance: "DataSync",
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> Iterable[Dict]:
         """
         Should return a list with dicts containing the raw row values. The values will
         run through the `to_baserow_value` method of the related property to convert
@@ -117,10 +175,11 @@ class DataSyncType(
         type_specific = {
             field: getattr(instance, field) for field in self.allowed_fields
         }
+        last_sync_iso = instance.last_sync.isoformat() if instance.last_sync else None
         return DataSyncExportSerializedStructure.data_sync(
             id=instance.id,
             type_name=self.type,
-            last_sync=instance.last_sync.isoformat(),
+            last_sync=last_sync_iso,
             last_error=instance.last_error,
             properties=[
                 DataSyncExportSerializedStructure.property(
@@ -131,7 +190,13 @@ class DataSyncType(
             **type_specific,
         )
 
-    def import_serialized(self, table, serialized_values, id_mapping):
+    def import_serialized(
+        self,
+        table,
+        serialized_values,
+        id_mapping,
+        import_export_config: ImportExportConfig,
+    ):
         """
         Imports the data sync properties and the `allowed_fields`.
         """

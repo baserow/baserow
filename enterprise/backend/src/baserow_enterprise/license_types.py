@@ -7,6 +7,7 @@ from baserow_premium.license.registries import LicenseType, SeatUsageSummary
 from baserow.core.models import Workspace
 from baserow_enterprise.features import (
     AUDIT_LOG,
+    DATA_SYNC,
     ENTERPRISE_SETTINGS,
     RBAC,
     SECURE_FILE_SERVE,
@@ -30,6 +31,7 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
         AUDIT_LOG,
         SECURE_FILE_SERVE,
         ENTERPRISE_SETTINGS,
+        DATA_SYNC,
     ]
     instance_wide = True
     seats_manually_assigned = False

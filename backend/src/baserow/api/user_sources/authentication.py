@@ -3,6 +3,7 @@ from typing import Optional, Tuple, TypeVar
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework import HTTP_HEADER_ENCODING, exceptions
 from rest_framework.request import Request
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -157,3 +158,19 @@ class UserSourceJSONWebTokenAuthentication(JWTAuthentication):
             user,
             validated_token,
         )
+
+
+class UserSourceJSONWebTokenAuthenticationExtension(OpenApiAuthenticationExtension):
+    target_class = (
+        "baserow.api.user_sources.authentication.UserSourceJSONWebTokenAuthentication"
+    )
+    name = "UserSource JWT"
+    match_subclasses = True
+    priority = -1
+
+    def get_security_definition(self, auto_schema):
+        return {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT your_token",
+        }

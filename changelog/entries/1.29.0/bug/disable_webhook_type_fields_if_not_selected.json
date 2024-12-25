@@ -1,0 +1,7 @@
+{
+  "type": "bug",
+  "message": "Disable webhook type fields if not selected.",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2024-10-03"
+}

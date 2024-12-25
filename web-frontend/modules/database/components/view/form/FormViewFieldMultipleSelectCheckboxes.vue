@@ -1,5 +1,8 @@
 <template>
   <div class="control__elements">
+    <div v-if="field.select_options.length === 0" class="control--messages">
+      <p>{{ $t('formViewField.noSelectOptions') }}</p>
+    </div>
     <div v-for="option in field.select_options" :key="option.id">
       <Checkbox
         :checked="value.findIndex((o) => o.id === option.id) !== -1"

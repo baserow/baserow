@@ -67,7 +67,8 @@ export const getTimeHumanReadableFormat = (type) => {
  */
 export const getFieldTimezone = (field, guess = true) => {
   return field.date_include_time
-    ? field.date_force_timezone || (guess && moment.tz.guess())
+    ? field.date_force_timezone ||
+        (guess && !process.server && moment.tz.guess())
     : null
 }
 
@@ -97,25 +98,6 @@ export const getCellTimezoneAbbr = (
         .tz(timezone)
         .format(format)
     : 'UTC'
-}
-
-/**
- * Returns a moment object with the correct timezone set.
- *
- * @param {Object} field The field object
- * @param {String | moment} value The value to parse into a moment object
- * @param {Object} options
- * @param {String} options.format The format to parse the value with
- * @param {Boolean} options.replace Whether to replace the timezone or not
- * @returns {moment} The moment object
- */
-export const localizeMoment = (field, value, { format = undefined } = {}) => {
-  const timezone = getFieldTimezone(field)
-
-  const date = moment.utc(value, format, true /** strict */)
-  return timezone !== null
-    ? date.utcOffset(moment.tz(timezone)).tz(timezone, true)
-    : date
 }
 
 export const DATE_FILTER_VALUE_SEPARATOR = '?'

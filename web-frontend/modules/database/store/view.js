@@ -140,11 +140,15 @@ export const mutations = {
     if (!state.items.some((existingItem) => existingItem.id === item.id))
       state.items = [...state.items, item].sort((a, b) => a.order - b.order)
   },
-  UPDATE_ITEM(state, { id, values, repopulate }) {
-    const index = state.items.findIndex((item) => item.id === id)
-    Object.assign(state.items[index], state.items[index], values)
-    if (repopulate === true) {
-      populateView(state.items[index], this.$registry)
+  UPDATE_ITEM(state, { id, view, values, repopulate, readOnly }) {
+    if (!readOnly) {
+      const index = state.items.findIndex((item) => item.id === id)
+      Object.assign(state.items[index], state.items[index], values)
+      if (repopulate === true) {
+        populateView(state.items[index], this.$registry)
+      }
+    } else {
+      Object.assign(view, view, values)
     }
   },
   ORDER_ITEMS(state, { ownershipType, order }) {
@@ -404,7 +408,13 @@ export const actions = {
    */
   async update(
     { commit, dispatch },
-    { view, values, readOnly = false, refreshFromFetch = false }
+    {
+      view,
+      values,
+      readOnly = false,
+      refreshFromFetch = false,
+      optimisticUpdate = true,
+    }
   ) {
     commit('SET_ITEM_LOADING', { view, value: true })
     const oldValues = {}
@@ -433,7 +443,14 @@ export const actions = {
       })
     }
 
-    dispatch('forceUpdate', { view, values: newValues, repopulate: true })
+    if (optimisticUpdate) {
+      dispatch('forceUpdate', {
+        view,
+        values: newValues,
+        repopulate: true,
+        readOnly,
+      })
+    }
     try {
       if (!readOnly) {
         dispatch(
@@ -447,7 +464,7 @@ export const actions = {
         const newValues = (
           await ViewService(this.$client).update(view.id, values)
         ).data
-        if (refreshFromFetch) {
+        if (refreshFromFetch || !optimisticUpdate) {
           dispatch('forceUpdate', { view, values: newValues, repopulate: true })
         }
 
@@ -476,8 +493,17 @@ export const actions = {
   /**
    * Forcefully update an existing view without making a request to the backend.
    */
-  forceUpdate({ commit }, { view, values, repopulate = false }) {
-    commit('UPDATE_ITEM', { id: view.id, values, repopulate })
+  forceUpdate(
+    { commit },
+    { view, values, repopulate = false, readOnly = false }
+  ) {
+    commit('UPDATE_ITEM', {
+      id: view.id,
+      view,
+      values,
+      repopulate,
+      readOnly,
+    })
   },
   /**
    * Duplicates an existing view.

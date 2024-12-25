@@ -1,0 +1,83 @@
+{
+    "integrationsCommon": {
+        "singleRow": "단일 행",
+        "multipleRows": "다중 행"
+    },
+    "integrationType": {
+        "localBaserow": "로컬 Baserow"
+    },
+    "localBaserowIntegrationType": {
+        "localBaserowSummary": "로컬 Baserow - {name}, {username}",
+        "localBaserowNoUser": "로컬 Baserow - 구성되지 않음",
+        "localBaserowWarning": "귀하의 계정을 승인하면 애플리케이션에 편집 권한이 있는 모든 사용자가 귀하가 접근할 수 있는 데이터에 완전한 접근 권한을 갖게 됩니다. 두 번째 사용자를 생성하여 적절한 권한을 부여하고 그 사용자를 사용할 수 있습니다."
+    },
+    "serviceType": {
+        "localBaserowGetRow": "단일 행 가져오기",
+        "localBaserowListRows": "다중 행 목록",
+        "localBaserowAggregateRows": "필드 요약"
+    },
+    "userSourceType": {
+        "localBaserow": "Baserow 테이블 인증"
+    },
+    "localBaserowForm": {
+        "user": "사용자",
+        "userMessage": "이 연결을 생성함으로써, 귀하는 애플리케이션이 귀하의 계정을 사용하여 로컬 Baserow 작업공간에서 변경을 할 수 있도록 승인하는 것입니다."
+    },
+    "localBaserowGetRowForm": {
+        "rowFieldLabel": "행 ID",
+        "invalidFormula": "수식이 유효하지 않습니다",
+        "rowFieldPlaceHolder": "행 ID 선택",
+        "rowFieldHelpText": "첫 번째 행을 반환하려면 이 값을 비워 두세요.",
+        "searchFieldPlaceHolder": "검색어 입력...",
+        "noTableChosenForFiltering": "데이터 소스 필터를 사용하려면 테이블을 선택하세요.",
+        "filterTabTitle": "필터",
+        "searchTabTitle": "검색",
+        "noTableChosenForSorting": "데이터 소스 정렬을 사용하려면 테이블을 선택하세요."
+    },
+    "localBaserowListRowsForm": {
+        "filterTabTitle": "필터",
+        "sortTabTitle": "정렬",
+        "searchTabTitle": "검색",
+        "searchFieldPlaceHolder": "검색어 입력...",
+        "noTableChosenForFiltering": "데이터 소스 필터를 사용하려면 테이블을 선택하세요.",
+        "noTableChosenForSorting": "데이터 소스 정렬을 사용하려면 테이블을 선택하세요."
+    },
+    "localBaserowAggregateRowsForm": {
+        "filterTabTitle": "필터",
+        "searchTabTitle": "검색",
+        "aggregationFieldLabel": "필드",
+        "aggregationTypeLabel": "집계",
+        "searchFieldPlaceHolder": "검색어 입력...",
+        "noTableChosenForFiltering": "데이터 소스 필터를 사용하려면 테이블을 선택하세요."
+    },
+    "localBaserowTableServiceConditionalForm": {
+        "addFilter": "추가 필터 추가",
+        "noFilterTitle": "아직 데이터 소스 필터를 생성하지 않았습니다",
+        "noFilterText": "데이터 소스 필터를 사용하면 조건에 적용되는 Baserow 테이블 행을 표시할 수 있습니다.",
+        "relatedFieldNotFound": "관련 필드를 찾을 수 없습니다.",
+        "filterTypeNotFound": "필터 유형이 호환되지 않습니다.",
+        "noCompatibleFilterTypesErrorTitle": "호환 가능한 필터 유형 없음",
+        "noCompatibleFilterTypesErrorMessage": "필드 중 호환 가능한 필터 유형이 없습니다",
+        "formulaFilterInputPlaceholder": "텍스트 입력...",
+        "useFormulaForValue": "이 필터에 수식 사용",
+        "useDefaultForValue": "이 필드에 기본 필터 사용"
+    },
+    "localBaserowTableServiceSortForm": {
+        "noSortTitle": "아직 데이터 소스 정렬을 생성하지 않았습니다",
+        "noSortText": "정렬을 사용하면 필드별로 행을 정렬할 수 있습니다.",
+        "sortBy": "정렬 기준",
+        "thenBy": "다음 기준",
+        "addSort": "추가 정렬 추가",
+        "noTableChosenForSorting": "데이터 소스 정렬을 사용하려면 테이블을 선택하세요."
+    },
+    "dataProviderType": {
+        "dataSource": "데이터 소스",
+        "pageParameter": "매개변수"
+    },
+    "localBaserowTableSelector": {
+        "viewFieldLabel": "보기",
+        "tableFieldLabel": "테이블",
+        "chooseNoView": "선택되지 않음",
+        "databaseFieldLabel": "데이터베이스"
+    }
+}

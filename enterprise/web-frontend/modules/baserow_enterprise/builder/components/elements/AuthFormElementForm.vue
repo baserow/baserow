@@ -12,7 +12,7 @@
       required
       class="margin-bottom-2"
     >
-      <Dropdown v-model="values.user_source_id" :show-search="false" small>
+      <Dropdown v-model="values.user_source_id" :show-search="false">
         <DropdownItem
           v-for="userSource in userSources"
           :key="userSource.id"

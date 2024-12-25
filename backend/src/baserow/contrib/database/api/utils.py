@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
+from typing import List
 
 from django.db.models import QuerySet
 
 from rest_framework import serializers
 
 from baserow.config.settings.utils import str_to_bool
+from baserow.contrib.database.api.constants import NUMBER_SEPARATOR_MAPPING
 from baserow.contrib.database.api.rows.exceptions import InvalidJoinParameterException
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
@@ -115,6 +117,29 @@ def extract_field_names_from_string(value):
     return split_comma_separated_string(value)
 
 
+def extract_field_ids_from_list(
+    list_of_field_names: List[str], strict: bool = True
+) -> List[int]:
+    """
+    Given a list of `Field.db_column`, this function will return a list of field ids.
+    For example if you provide ['field_1', 'field_2'] then [1, 2] is returned.
+
+    :param list_of_field_names: A list of field names.
+    :param strict: If `true`, then the value must be a number or match the `field_3`
+        pattern. If false, then it tries to extract any number from the value.
+    :return: A list of field ids.
+    """
+
+    if not list_of_field_names:
+        return []
+
+    ids = [
+        get_field_id_from_field_key(field_name, strict)
+        for field_name in list_of_field_names
+    ]
+    return [_id for _id in ids if _id is not None]
+
+
 def extract_field_ids_from_string(value):
     """
     Extracts the field ids from a string. Multiple ids can be separated by a comma.
@@ -143,6 +168,20 @@ def extract_user_field_names_from_params(query_params):
 
     if value is False:
         return False
+
+    if value is None or value == "":
+        return True
+
+    return str_to_bool(value)
+
+
+def extract_send_webhook_events_from_params(query_params) -> bool:
+    """
+    Extracts the send_webhook_events parameter from the query_params and returns
+    boolean value. Defaults to true if not provided or empty.
+    """
+
+    value = query_params.get("send_webhook_events")
 
     if value is None or value == "":
         return True
@@ -252,3 +291,7 @@ def extract_link_row_joins_from_request(
                 raise FieldDoesNotExist() from ex
 
     return list(link_row_joins.values())
+
+
+def get_thousand_and_decimal_separator(value):
+    return NUMBER_SEPARATOR_MAPPING.get(value, None) or NUMBER_SEPARATOR_MAPPING[""]

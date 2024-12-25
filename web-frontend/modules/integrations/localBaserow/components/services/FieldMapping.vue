@@ -7,7 +7,7 @@
     />
     <template #after-input>
       <div ref="editFieldMappingOpener">
-        <Button
+        <ButtonIcon
           type="secondary"
           icon="iconoir-more-vert"
           @click="openContext"

@@ -28,16 +28,20 @@ from baserow.contrib.builder.api.data_sources.errors import (
     ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
     ERROR_DATA_SOURCE_DOES_NOT_EXIST,
     ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+    ERROR_DATA_SOURCE_NAME_NOT_UNIQUE,
     ERROR_DATA_SOURCE_NOT_IN_SAME_PAGE,
+    ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
 )
 from baserow.contrib.builder.api.data_sources.serializers import (
     BaseUpdateDataSourceSerializer,
     CreateDataSourceSerializer,
     DataSourceSerializer,
+    DispatchDataSourceRequestSerializer,
     GetRecordIdsSerializer,
     MoveDataSourceSerializer,
     UpdateDataSourceSerializer,
 )
+from baserow.contrib.builder.api.elements.errors import ERROR_ELEMENT_DOES_NOT_EXIST
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
@@ -45,12 +49,16 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
     DataSourceImproperlyConfigured,
+    DataSourceNameNotUniqueError,
     DataSourceNotInSamePage,
+    DataSourceRefinementForbidden,
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.service import DataSourceService
+from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.contrib.builder.pages.models import Page
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import (
     DoesNotExist,
@@ -154,6 +162,7 @@ class DataSourcesView(APIView):
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
             DataSourceNotInSamePage: ERROR_DATA_SOURCE_NOT_IN_SAME_PAGE,
+            DataSourceNameNotUniqueError: ERROR_DATA_SOURCE_NAME_NOT_UNIQUE,
             InvalidServiceTypeDispatchSource: ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
         }
     )
@@ -229,6 +238,7 @@ class DataSourceView(APIView):
     @map_exceptions(
         {
             DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
+            DataSourceNameNotUniqueError: ERROR_DATA_SOURCE_NAME_NOT_UNIQUE,
             InvalidServiceTypeDispatchSource: ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
         }
     )
@@ -243,6 +253,15 @@ class DataSourceView(APIView):
         service_type_from_service = None
         change_service_type = False
         service_type = None
+
+        page = None
+        if "page_id" in request.data:
+            page = PageHandler().get_page(
+                int(request.data["page_id"]),
+                base_queryset=Page.objects_with_shared.filter(
+                    builder=data_source.page.builder
+                ),
+            )
 
         # Do we have a service?
         if data_source.service is not None:
@@ -280,6 +299,9 @@ class DataSourceView(APIView):
 
         if change_service_type:
             data["new_service_type"] = service_type_from_query
+
+        if page is not None:
+            data["page"] = page
 
         data_source_updated = DataSourceService().update_data_source(
             request.user, data_source, service_type=service_type, **data
@@ -427,6 +449,7 @@ class DispatchDataSourceView(APIView):
             "Dispatches the service of the related data_source and returns "
             "the result."
         ),
+        request=DispatchDataSourceRequestSerializer,
         responses={
             404: get_error_schema(
                 [
@@ -442,7 +465,9 @@ class DispatchDataSourceView(APIView):
     @map_exceptions(
         {
             DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
+            ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
             DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+            DataSourceRefinementForbidden: ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
             ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
         }
@@ -454,7 +479,21 @@ class DispatchDataSourceView(APIView):
 
         data_source = DataSourceHandler().get_data_source(data_source_id)
 
-        dispatch_context = BuilderDispatchContext(request, data_source.page)
+        serializer = DispatchDataSourceRequestSerializer(
+            data=request.data, context={"data_source": data_source}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # If we've been provided with an element, we need to pass it to the dispatch
+        # context. This could be a collection element. If it is, it will be used for
+        # adhoc filtering and sorting if we have any filters in the querystring.
+        element = serializer.validated_data.get("data_source").get("element")
+        dispatch_context = BuilderDispatchContext(
+            request,
+            data_source.page,
+            element=element,
+            only_expose_public_allowed_properties=False,
+        )
 
         response = DataSourceService().dispatch_data_source(
             request.user, data_source, dispatch_context
@@ -504,9 +543,9 @@ class DispatchDataSourcesView(APIView):
         """
 
         page = PageHandler().get_page(page_id)
-
-        dispatch_context = BuilderDispatchContext(request, page)
-
+        dispatch_context = BuilderDispatchContext(
+            request, page, only_expose_public_allowed_properties=False
+        )
         service_contents = DataSourceService().dispatch_page_data_sources(
             request.user, page, dispatch_context
         )

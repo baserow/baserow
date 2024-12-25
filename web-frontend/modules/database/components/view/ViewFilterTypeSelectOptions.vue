@@ -4,8 +4,7 @@
     :options="field.select_options"
     :disabled="disabled"
     :fixed-items="true"
-    class="dropdown--floating dropdown--small filters__value-dropdown"
-    small
+    class="dropdown--floating filters__value-dropdown"
     @input="input"
   ></FieldSelectOptionsDropdown>
 </template>
@@ -21,7 +20,9 @@ export default {
   computed: {
     copy() {
       const value = this.filter.value
-      return value === '' ? null : parseInt(value) || null
+      return value === '' || value.includes(',')
+        ? null
+        : parseInt(value) || null
     },
   },
   methods: {

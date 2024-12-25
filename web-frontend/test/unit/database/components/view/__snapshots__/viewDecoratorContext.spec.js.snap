@@ -226,7 +226,7 @@ exports[`GridViewRows component with decoration View with decoration configured 
             class="decorator-context__decorator-header-select"
           >
             <div
-              class="dropdown dropdown--small"
+              class="dropdown"
             >
               <a
                 class="dropdown__selected"

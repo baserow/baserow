@@ -66,7 +66,8 @@ automatic style fixers to make your life as easy as possible.
 1. Now run `yarn install` (if you do not have yarn available check out and install a
    node version manager like [nvm](https://github.com/nvm-sh/nvm) and follow the
    [Yarn installation instructions](https://yarnpkg.com/getting-started/install)).
-   Baserow currently uses node 18
+   See `baserow/docs/installation/supported.md` to determine the supported version of
+   Node.js to use.
 1. Select "Trust Project" if you see an IntelliJ popup after running yarn install
 1. Open your settings, search for and open the `Node.js and NPM` category and ensure the
    Node interpreter is pointing to the desired node executable

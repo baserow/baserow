@@ -4,7 +4,7 @@
     },
     "sidebarComponentBuilder": {
         "settings": "Einstellungen",
-        "createPage": "Seite erstellen"
+        "createPage": "Neue Seite"
     },
     "builderSettingsModal": {
         "title": "Anwendung"
@@ -64,7 +64,11 @@
         "authForm": "Anmeldeformular",
         "authFormDescription": "Ein Benutzer-Anmeldeformular",
         "repeat": "Wiederholen",
-        "repeatDescription": "Eine wiederholbare Menge an Elementen"
+        "repeatDescription": "Eine wiederholbare Menge an Elementen",
+        "recordSelector": "Datensatz-Auswahl",
+        "recordSelectorDescription": "Eine Bezugs-Datensatz-Auswahl",
+        "choice": "Auswahl",
+        "choiceDescription": "Für die Auswahl einzelner/mehrerer Werte"
     },
     "addElementButton": {
         "label": "Element"
@@ -85,7 +89,8 @@
     },
     "addElementModal": {
         "title": "Neues Element hinzufügen",
-        "searchPlaceholder": "Elemente suchen"
+        "searchPlaceholder": "Elemente suchen",
+        "disabledElementTooltip": "Innerhalb dieses Elements nicht verfügbar"
     },
     "elementMenu": {
         "moveUp": "Nach oben verschieben",
@@ -128,10 +133,11 @@
     "dataProviderType": {
         "currentRecord": "Datenquelle",
         "pageParameter": "Parameter",
-        "dataSource": "Daten",
+        "dataSource": "Datensätze",
         "formData": "Formulardaten",
         "user": "Benutzer",
-        "previousAction": "Vorherige Aktion"
+        "previousAction": "Vorherige Aktion",
+        "dataSourceContext": "Verfügbare Optionen"
     },
     "pageErrors": {
         "errorStartingSlash": "Ein Pfad muss mit '/' beginnen",
@@ -250,7 +256,7 @@
     },
     "imageElementForm": {
         "fileSourceTypeURL": "URL",
-        "fileLabel": "Bilddatei",
+        "fileLabel": "Bild",
         "invalidUrlError": "URL ist ungültig",
         "fileSourceTypeUpload": "Hochladen",
         "altTextTitle": "Alternativer Text",
@@ -272,7 +278,8 @@
         "columnAmountTitle": "Layout",
         "columnGapPlaceholder": "Geben Sie den Abstand zwischen den Spalten ein...",
         "columnAmountName": "keine Spalten | 1 Spalte | {columnAmount} Spalten",
-        "columnGapTitle": "Abstand zwischen den Spalten"
+        "columnGapTitle": "Abstand zwischen den Spalten",
+        "verticalAlignment": "Vertikale Ausrichtung"
     },
     "linkElement": {
         "noValue": "Unbenannt..."
@@ -314,7 +321,9 @@
         "full": "Volle Breite",
         "normal": "Normal",
         "small": "Schmal",
-        "medium": "Mittel"
+        "medium": "Mittel",
+        "fullWidth": "Volle Breite",
+        "fullBleed": "Voller Beschnitt"
     },
     "pageSettingsTypes": {
         "pageName": "Seite"
@@ -335,11 +344,15 @@
         "boxTop": "Oben",
         "boxBottom": "Unten",
         "boxLeft": "Links",
-        "boxRight": "Rechts"
+        "boxRight": "Rechts",
+        "backgroundImage": "Bild",
+        "backgroundImageMode": "Füllmodus"
     },
     "styleBoxForm": {
-        "borderLabel": "Rahmen",
-        "paddingLabel": "Innenabstand"
+        "borderLabel": "Größe",
+        "paddingLabel": "Innenabstand",
+        "borderColor": "Rahmenfarbe",
+        "marginLabel": "Rand"
     },
     "mainThemeConfigBlock": {
         "colorsLabel": "Farben",
@@ -588,5 +601,45 @@
     "buttonFieldForm": {
         "infoMessage": "Um Aktionen für diese Schaltfläche zu konfigurieren, öffnen Sie die Registerkarte „Ereignisse“ des aktuellen Elements.",
         "labelPlaceholder": "Geben Sie eine Bezeichnung ein..."
+    },
+    "themeConfigBlockType": {
+        "color": "Farben",
+        "button": "Button",
+        "page": "Seite",
+        "typography": "Typografie",
+        "link": "Verknüpfung",
+        "image": "Bild",
+        "table": "Tabelle",
+        "input": "Eingabefeld"
+    },
+    "pageThemeConfigBlock": {
+        "backgroundImage": "Hintergrundbild",
+        "backgroundMode": "Hintergrundmodus",
+        "backgroundColor": "Hintergrundfarbe"
+    },
+    "colorThemeConfigBlockType": {
+        "primary": "Primär",
+        "secondary": "Sekundär",
+        "border": "Umrandung",
+        "transparent": "Transparent",
+        "warning": "Warnung",
+        "success": "Erfolgreich",
+        "error": "Fehler"
+    },
+    "colorThemeConfigBlock": {
+        "transparent": "Transparent",
+        "secondaryColor": "Sekundär",
+        "primaryColor": "Primär",
+        "warningColor": "Warnung",
+        "borderColor": "Umrandung",
+        "successColor": "Erfolgreich",
+        "errorColor": "Fehler"
+    },
+    "typographyThemeConfigBlock": {
+        "headingValue": "Überschrift <h{i}>",
+        "size": "Größe",
+        "headingLabel": "Überschrift {i} (h{i})",
+        "color": "Farbe",
+        "textAlignment": "Ausrichtung"
     }
 }

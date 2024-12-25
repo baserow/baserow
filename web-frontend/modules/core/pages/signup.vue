@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="auth__wrapper">
     <EmailNotVerified v-if="displayEmailNotVerified" :email="emailToVerify">
     </EmailNotVerified>
     <template v-if="!displayEmailNotVerified">
@@ -8,10 +8,15 @@
           <Logo />
         </nuxt-link>
       </div>
-      <div class="auth__head auth__head--more-margin">
-        <h1 class="auth__head-title">
-          {{ $t('signup.title') }}
-        </h1>
+
+      <h1 class="auth__head-title">{{ $t('signup.headTitle') }}</h1>
+      <div class="auth__head">
+        <span class="auth__head-text">
+          {{ $t('signup.loginText') }}
+          <nuxt-link :to="{ name: 'login' }">
+            {{ $t('action.login') }}
+          </nuxt-link></span
+        >
         <LangPicker />
       </div>
       <template v-if="shouldShowAdminSignupPage">
@@ -30,27 +35,46 @@
         >
       </template>
       <template v-else>
+        <template v-if="loginButtons.length">
+          <LoginButtons
+            :invitation="invitation"
+            :original="original"
+            :hide-if-no-buttons="true"
+          />
+
+          <div class="auth__separator">
+            {{ $t('common.or') }}
+          </div>
+        </template>
+
         <PasswordRegister
           v-if="passwordLoginEnabled"
           :invitation="invitation"
           @success="next"
         >
         </PasswordRegister>
-        <LoginButtons
-          show-border="top"
-          :hide-if-no-buttons="true"
-          :invitation="invitation"
-        />
+
         <LoginActions
           v-if="!shouldShowAdminSignupPage"
           :invitation="invitation"
         >
-          <li>
-            {{ $t('signup.loginText') }}
-            <nuxt-link :to="{ name: 'login' }">
-              {{ $t('action.login') }}
-            </nuxt-link>
-          </li>
+          <!-- <li class="auth__action-link">
+            <i18n path="signup.agreeTerms" tag="span">
+              <a
+                href="https://baserow.io/terms-and-conditions"
+                target="_blank"
+                @click.stop
+                >{{ $t('signup.terms') }}
+              </a>
+              {{ $t('common.and') }}
+              <a
+                href="https://baserow.io/privacy-policy"
+                target="_blank"
+                @click.stop
+                >{{ $t('signup.privacyPolicy') }}
+              </a>
+            </i18n>
+          </li> -->
         </LoginActions>
       </template>
     </template>
@@ -108,8 +132,14 @@ export default {
     ...mapGetters({
       settings: 'settings/get',
       loginActions: 'authProvider/getAllLoginActions',
+      loginButtons: 'authProvider/getAllLoginButtons',
       passwordLoginEnabled: 'authProvider/getPasswordLoginEnabled',
     }),
+    termsofServiceURL() {
+      return this.$nuxt.$router.resolve({
+        name: 'terms',
+      }).href
+    },
   },
   methods: {
     next(params) {

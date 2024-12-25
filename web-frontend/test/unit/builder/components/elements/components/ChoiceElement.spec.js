@@ -53,7 +53,8 @@ describe('ChoiceElement', () => {
       },
       provide: {
         builder,
-        page,
+        currentPage: page,
+        elementPage: page,
         mode,
         applicationContext: { builder, page, mode },
         element,

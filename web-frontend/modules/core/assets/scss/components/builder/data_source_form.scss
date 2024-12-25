@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 12px;
 
   .tabs__header {
     border-bottom: none;
@@ -11,23 +10,10 @@
 }
 
 .data-source-form__header-form {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.data-source-form__name-input {
-  width: 124px;
-  margin-bottom: 0;
-}
-
-.data-source-form__type-dropdown {
-  min-width: 160px;
-}
-
-.data-source-form__integration-dropdown {
-  min-width: 180px;
-  max-width: 200px;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .data-source-form__sort-form-tab {

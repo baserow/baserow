@@ -268,7 +268,17 @@ export default ({ service, customPopulateRow }) => {
     },
     UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
       const currentValue = row._.metadata[rowMetadataType]
-      Vue.set(row._.metadata, rowMetadataType, updateFunction(currentValue))
+      const newValue = updateFunction(currentValue)
+
+      if (
+        !Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)
+      ) {
+        const metaDataCopy = clone(row._.metadata)
+        metaDataCopy[rowMetadataType] = newValue
+        Vue.set(row._, 'metadata', metaDataCopy)
+      } else {
+        Vue.set(row._.metadata, rowMetadataType, newValue)
+      }
     },
     SET_ADHOC_FILTERING(state, adhocFiltering) {
       state.adhocFiltering = adhocFiltering
@@ -279,6 +289,12 @@ export default ({ service, customPopulateRow }) => {
   }
 
   const actions = {
+    /**
+     * Set the view id for the view.
+     */
+    setViewId({ commit }, { viewId }) {
+      commit('SET_VIEW_ID', viewId)
+    },
     /**
      * This action fetches the initial set of rows via the provided service. After
      * that it will fill the state with the newly fetched rows and the rest will be
@@ -690,27 +706,19 @@ export default ({ service, customPopulateRow }) => {
       commit('INSERT_ROW_AT_INDEX', { index, row })
     },
     /**
-     * Updates the value of a row and make the updates to the store accordingly.
+     * Updates a row with the prepared values and updates the store accordingly.
+     * Prepared values are `newRowValues`, `oldRowValues` and `updateRequestValues` that
+     * are prepared by the `prepareNewOldAndUpdateRequestValues` function.
      */
-    async updateRowValue(
+    async updatePreparedRowValues(
       { commit, dispatch },
-      { table, view, row, field, fields, value, oldValue }
+      { table, view, row, fields, values, oldValues, updateRequestValues }
     ) {
-      const { newRowValues, oldRowValues, updateRequestValues } =
-        prepareNewOldAndUpdateRequestValues(
-          row,
-          fields,
-          field,
-          value,
-          oldValue,
-          this.$registry
-        )
-
       await dispatch('afterExistingRowUpdated', {
         view,
         fields,
         row,
-        values: newRowValues,
+        values,
       })
       // There is a chance that the row is not in the buffer, but it does exist in
       // the view. In that case, the `afterExistingRowUpdated` action has not done
@@ -718,7 +726,7 @@ export default ({ service, customPopulateRow }) => {
       // modal, but then it won't be updated, so we have to update it forcefully.
       commit('UPDATE_ROW_VALUES', {
         row,
-        values: { ...newRowValues },
+        values: { ...values },
       })
 
       try {
@@ -743,15 +751,97 @@ export default ({ service, customPopulateRow }) => {
           view,
           fields,
           row,
-          values: oldRowValues,
+          values: oldValues,
         })
         commit('UPDATE_ROW_VALUES', {
           row,
-          values: { ...oldRowValues },
+          values: { ...oldValues },
         })
-        dispatch('fetchAllFieldAggregationData', { view })
         throw error
       }
+    },
+    /**
+     * Updates the value of a row and make the updates to the store accordingly.
+     */
+    async updateRowValue(
+      { dispatch },
+      { table, view, row, field, fields, value, oldValue }
+    ) {
+      const { newRowValues, oldRowValues, updateRequestValues } =
+        prepareNewOldAndUpdateRequestValues(
+          row,
+          fields,
+          field,
+          value,
+          oldValue,
+          this.$registry
+        )
+      await dispatch('updatePreparedRowValues', {
+        table,
+        view,
+        row,
+        fields,
+        values: newRowValues,
+        oldValues: oldRowValues,
+        updateRequestValues,
+      })
+    },
+    /**
+     * Prepares the values of multiple row fields and returns the new and old values
+     * that can be used to update the store and the values that can be used to update
+     * the row in the backend.
+     */
+    prepareMultipleRowValues(context, { row, fields, values, oldValues }) {
+      let preparedValues = {}
+      let preparedOldValues = {}
+      let updateRequestValues = {}
+
+      Object.entries(values).forEach(([fieldId, value]) => {
+        const oldValue = oldValues[fieldId]
+        const field = fields.find((f) => parseInt(f.id) === parseInt(fieldId))
+        const {
+          newRowValues,
+          oldRowValues,
+          updateRequestValues: requestValues,
+        } = prepareNewOldAndUpdateRequestValues(
+          row,
+          fields,
+          field,
+          value,
+          oldValue,
+          this.$registry
+        )
+        preparedValues = { ...preparedValues, ...newRowValues }
+        preparedOldValues = { ...preparedOldValues, ...oldRowValues }
+        updateRequestValues = { ...updateRequestValues, ...requestValues }
+      })
+      return { preparedValues, preparedOldValues, updateRequestValues }
+    },
+    /**
+     * Updates the values of multiple row fields and make the updates to the store accordingly.
+     */
+    async updateRowValues(
+      { dispatch },
+      { table, view, row, fields, values, oldValues }
+    ) {
+      const { preparedValues, preparedOldValues, updateRequestValues } =
+        await dispatch('prepareMultipleRowValues', {
+          table,
+          view,
+          row,
+          fields,
+          values,
+          oldValues,
+        })
+      await dispatch('updatePreparedRowValues', {
+        table,
+        view,
+        row,
+        fields,
+        values: preparedValues,
+        oldValues: preparedOldValues,
+        updateRequestValues,
+      })
     },
     /**
      * When an existing row is updated, the state in the store must also be updated.

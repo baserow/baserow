@@ -12,6 +12,7 @@ describe('resolveElementUrl tests', () => {
     const result = resolveElementUrl(
       element,
       builder,
+      builder.pages,
       resolveFormula,
       'preview'
     )
@@ -31,6 +32,7 @@ describe('resolveElementUrl tests', () => {
     const result = resolveElementUrl(
       element,
       builder,
+      builder.pages,
       resolveFormula,
       'preview'
     )
@@ -56,6 +58,7 @@ describe('resolveElementUrl tests', () => {
     const result = resolveElementUrl(
       element,
       builder,
+      builder.pages,
       resolveFormula,
       'preview'
     )
@@ -71,6 +74,7 @@ describe('resolveElementUrl tests', () => {
     const result = resolveElementUrl(
       element,
       builder,
+      builder.pages,
       resolveFormula,
       'preview'
     )
@@ -86,6 +90,7 @@ describe('resolveElementUrl tests', () => {
     const result = resolveElementUrl(
       element,
       builder,
+      builder.pages,
       resolveFormula,
       'preview'
     )

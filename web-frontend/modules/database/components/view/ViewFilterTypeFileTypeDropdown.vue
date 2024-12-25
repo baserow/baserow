@@ -4,7 +4,6 @@
     :show-search="false"
     :fixed-items="true"
     class="filters__value-dropdown"
-    small
     @input="$emit('input', $event)"
   >
     <DropdownItem

@@ -1,4 +1,6 @@
-from datetime import datetime, timedelta, timezone
+import json
+import typing
+from datetime import date, datetime, timedelta, timezone
 from functools import partial
 from unittest import mock
 from urllib.parse import urlencode
@@ -1690,9 +1692,6 @@ def test_calendar_view_ical_no_date_field(
     req_patch = partial(
         api_client.patch, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
     )
-    req_post = partial(
-        api_client.post, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
-    )
 
     resp = req_get(
         reverse(
@@ -1723,3 +1722,692 @@ def test_calendar_view_ical_no_date_field(
     assert resp.status_code == HTTP_400_BAD_REQUEST
 
     assert resp.data["error"] == "ERROR_CALENDAR_VIEW_HAS_NO_DATE_FIELD"
+
+
+def do_calendar_view_request(
+    requester: typing.Callable,
+    url_name: str,
+    params: dict,
+    view_id: str | int,
+    expected_status: int,
+    expected_payload: list[dict] | dict,
+) -> dict:
+    """
+    Performs a request to a view with a specific url name. Checks for expected status
+     and payload.
+
+    If the status is HTTP_200_OK then the payload is a list of items from per-day items.
+
+    If the status is not HTTP_200_OK, the `expected_payload` means the whole
+     response payload.
+
+    :param requester: requester callable
+    :param url_name: full url name
+    :param params: query params
+    :param view_id: view identificator (id or slug)
+    :param expected_status:
+    :param expected_payload:
+    :return:
+    """
+
+    resp = requester(reverse(url_name, args=(view_id,)), params)
+    assert resp.status_code == expected_status, (
+        resp.status_code,
+        resp.json(),
+    )
+    rdata = resp.json()
+    if expected_status == HTTP_200_OK:
+        assert isinstance(rdata, dict)
+        assert isinstance(rdata.get("rows"), dict)
+        actual_events = []
+        total_count = 0
+        expected_count = len(expected_payload)
+        for r_date, r_data in rdata["rows"].items():
+            total_count += r_data["count"]
+            actual_events.extend(r_data["results"])
+        assert len(actual_events) == total_count, actual_events
+        assert total_count == expected_count
+        for expected_item, actual_item in zip(expected_payload, actual_events):
+            assert is_dict_subset(expected_item, actual_item), (
+                expected_item,
+                actual_item,
+            )
+    else:
+        assert rdata == expected_payload, rdata
+    return rdata
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_calendar_view_persistent_filters(
+    premium_data_fixture,
+    api_client,
+    data_fixture,
+    alternative_per_workspace_license_service,
+):
+    """
+    Test calendar view with persistent filters
+    """
+
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    workspace = premium_data_fixture.create_workspace(name="Workspace 1", user=user)
+    database = premium_data_fixture.create_database_application(
+        user=user, workspace=workspace
+    )
+    table = premium_data_fixture.create_database_table(user=user, database=database)
+
+    alternative_per_workspace_license_service.restrict_user_premium_to(
+        user, [workspace.id]
+    )
+    field_title = data_fixture.create_text_field(table=table, user=user, name="title")
+    field_description = data_fixture.create_text_field(
+        table=table, user=user, name="description"
+    )
+    field_extra = data_fixture.create_text_field(table=table, user=user, name="extra")
+    field_num = data_fixture.create_number_field(table=table, user=user, name="num")
+    field_bool = data_fixture.create_boolean_field(table=table, user=user, name="bool")
+    date_field = premium_data_fixture.create_date_field(
+        table=table,
+        date_include_time=False,
+    )
+    all_fields = [
+        field_title,
+        field_description,
+        field_extra,
+        field_num,
+        date_field,
+        field_bool,
+    ]
+
+    view_handler = ViewHandler()
+
+    calendar_view: CalendarView = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="calendar",
+        date_field=date_field,
+    )
+    NUM_EVENTS = 10
+
+    start = date.today()
+
+    def make_values(num):
+        curr = 0
+        field_names = [f"field_{f.id}" for f in all_fields]
+
+        while curr < num:
+            values = [
+                f"title {curr}",
+                f"description {curr}",
+                f"extra {curr}",
+                curr,
+                start + timedelta(days=1 + curr),
+                bool(curr % 2),
+            ]
+            curr += 1
+            row = dict(zip(field_names, values))
+            RowHandler().create_row(user, table, values=row)
+
+    make_values(NUM_EVENTS)
+
+    vf_bool = view_handler.create_filter(
+        user=user, view=calendar_view, field=field_bool, type_name="boolean", value="1"
+    )
+
+    req_get = partial(api_client.get, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    params = {
+        "from_timestamp": f"{start.isoformat()}",
+        "to_timestamp": f"{(start + timedelta(days=2+NUM_EVENTS)).isoformat()}",
+    }
+    field_title_name = f"field_{field_title.id}"
+
+    expected_payload = [
+        {field_title_name: "title 1"},
+        {field_title_name: "title 3"},
+        {field_title_name: "title 5"},
+        {field_title_name: "title 7"},
+        {field_title_name: "title 9"},
+    ]
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:list",
+        params,
+        calendar_view.id,
+        HTTP_200_OK,
+        expected_payload,
+    )
+
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:public_rows",
+        params,
+        calendar_view.slug,
+        HTTP_200_OK,
+        expected_payload,
+    )
+
+    vf_title = view_handler.create_filter(
+        user=user,
+        view=calendar_view,
+        field=field_title,
+        type_name="contains",
+        value="title 3",
+    )
+
+    expected_payload = [
+        {field_title_name: "title 3"},
+    ]
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:list",
+        params,
+        calendar_view.id,
+        HTTP_200_OK,
+        expected_payload,
+    )
+
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:public_rows",
+        params,
+        calendar_view.slug,
+        HTTP_200_OK,
+        expected_payload,
+    )
+
+    vf_title.delete()
+    vf_bool.delete()
+
+    expected_payload = [
+        {field_title_name: "title 0"},
+        {field_title_name: "title 1"},
+        {field_title_name: "title 2"},
+        {field_title_name: "title 3"},
+        {field_title_name: "title 4"},
+        {field_title_name: "title 5"},
+        {field_title_name: "title 6"},
+        {field_title_name: "title 7"},
+        {field_title_name: "title 8"},
+        {field_title_name: "title 9"},
+    ]
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:list",
+        params,
+        calendar_view.id,
+        HTTP_200_OK,
+        expected_payload,
+    )
+
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:public_rows",
+        params,
+        calendar_view.slug,
+        HTTP_200_OK,
+        expected_payload,
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_calendar_view_adhoc_filters_invalid(
+    premium_data_fixture,
+    api_client,
+    data_fixture,
+    alternative_per_workspace_license_service,
+):
+    """
+    Test calendar view with invalid filters
+    """
+
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    workspace = premium_data_fixture.create_workspace(name="Workspace 1", user=user)
+    database = premium_data_fixture.create_database_application(
+        user=user, workspace=workspace
+    )
+    table = premium_data_fixture.create_database_table(user=user, database=database)
+
+    alternative_per_workspace_license_service.restrict_user_premium_to(
+        user, [workspace.id]
+    )
+    field_title = data_fixture.create_text_field(table=table, user=user, name="title")
+    field_description = data_fixture.create_text_field(
+        table=table, user=user, name="description"
+    )
+    field_extra = data_fixture.create_text_field(table=table, user=user, name="extra")
+    field_num = data_fixture.create_number_field(table=table, user=user, name="num")
+    field_bool = data_fixture.create_boolean_field(table=table, user=user, name="bool")
+    date_field = premium_data_fixture.create_date_field(
+        table=table,
+        date_include_time=False,
+    )
+    all_fields = [
+        field_title,
+        field_description,
+        field_extra,
+        field_num,
+        date_field,
+        field_bool,
+    ]
+
+    view_handler = ViewHandler()
+
+    calendar_view: CalendarView = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="calendar",
+        date_field=date_field,
+    )
+    NUM_EVENTS = 10
+
+    start = date.today()
+
+    def make_values(num):
+        curr = 0
+        field_names = [f"field_{f.id}" for f in all_fields]
+
+        while curr < num:
+            values = [
+                f"title {curr}",
+                f"description {curr}",
+                f"extra {curr}",
+                curr,
+                start + timedelta(days=1 + curr),
+                bool(curr % 2),
+            ]
+            curr += 1
+            row = dict(zip(field_names, values))
+            RowHandler().create_row(user, table, values=row)
+
+    make_values(NUM_EVENTS)
+
+    req_get = partial(api_client.get, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    params = {
+        "from_timestamp": f"{start.isoformat()}",
+        "to_timestamp": f"{(start + timedelta(days=2+NUM_EVENTS)).isoformat()}",
+    }
+
+    params_filter_invalid = {
+        **params,
+        **{"filters": json.dumps({"filter_type": "invalid", "filters": []})},
+    }
+
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:list",
+        params_filter_invalid,
+        calendar_view.id,
+        HTTP_400_BAD_REQUEST,
+        {
+            "detail": {
+                "filter_type": [
+                    {
+                        "code": "invalid_choice",
+                        "error": '"invalid" is not a valid choice.',
+                    }
+                ]
+            },
+            "error": "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+        },
+    )
+
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:public_rows",
+        params_filter_invalid,
+        calendar_view.slug,
+        HTTP_400_BAD_REQUEST,
+        {
+            "detail": {
+                "filter_type": [
+                    {
+                        "code": "invalid_choice",
+                        "error": '"invalid" is not a valid choice.',
+                    }
+                ]
+            },
+            "error": "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+        },
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_calendar_view_adhoc_filters(
+    premium_data_fixture,
+    api_client,
+    data_fixture,
+    alternative_per_workspace_license_service,
+):
+    """
+    Test calendar view with adhoc filters
+    """
+
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    workspace = premium_data_fixture.create_workspace(name="Workspace 1", user=user)
+    database = premium_data_fixture.create_database_application(
+        user=user, workspace=workspace
+    )
+    table = premium_data_fixture.create_database_table(user=user, database=database)
+
+    alternative_per_workspace_license_service.restrict_user_premium_to(
+        user, [workspace.id]
+    )
+    field_title = data_fixture.create_text_field(table=table, user=user, name="title")
+    field_description = data_fixture.create_text_field(
+        table=table, user=user, name="description"
+    )
+    field_extra = data_fixture.create_text_field(table=table, user=user, name="extra")
+    field_num = data_fixture.create_number_field(table=table, user=user, name="num")
+    field_bool = data_fixture.create_boolean_field(table=table, user=user, name="bool")
+    date_field = premium_data_fixture.create_date_field(
+        table=table,
+        date_include_time=False,
+    )
+    all_fields = [
+        field_title,
+        field_description,
+        field_extra,
+        field_num,
+        date_field,
+        field_bool,
+    ]
+
+    view_handler = ViewHandler()
+
+    calendar_view: CalendarView = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="calendar",
+        date_field=date_field,
+    )
+
+    NUM_EVENTS = 10
+
+    start = date.today()
+
+    view_handler.update_field_options(
+        view=calendar_view,
+        field_options={
+            field_title.id: {"hidden": False},
+            field_num.id: {"hidden": False},
+            field_extra.id: {"hidden": False},
+            field_description.id: {"hidden": False},
+        },
+    )
+
+    def make_values(num):
+        curr = 0
+        field_names = [f"field_{f.id}" for f in all_fields]
+
+        while curr < num:
+            values = [
+                f"title {curr}",
+                f"description {curr}",
+                f"extra {curr}",
+                curr,
+                start + timedelta(days=1 + curr),
+                bool(curr % 2),
+            ]
+            curr += 1
+            row = dict(zip(field_names, values))
+            RowHandler().create_row(user, table, values=row)
+
+    make_values(NUM_EVENTS)
+
+    vf_bool = view_handler.create_filter(
+        user=user, view=calendar_view, field=field_bool, type_name="boolean", value="1"
+    )
+
+    req_get = partial(api_client.get, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    params = {
+        "from_timestamp": f"{start.isoformat()}",
+        "to_timestamp": f"{(start + timedelta(days=2+NUM_EVENTS)).isoformat()}",
+    }
+    field_title_name = f"field_{field_title.id}"
+    field_description_name = f"field_{field_description.id}"
+
+    params_filter_simple = {
+        **params,
+        **{f"filter__field_{field_title.id}__contains": "title 4"},
+    }
+
+    # adhoc should should replace view filters in internal view
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:list",
+        params_filter_simple,
+        calendar_view.id,
+        HTTP_200_OK,
+        [{f"field_{field_title.id}": "title 4"}],
+    )
+
+    # here adhoc should be applied on top of view filters, so no result
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:public_rows",
+        params_filter_simple,
+        calendar_view.slug,
+        HTTP_200_OK,
+        [],
+    )
+
+    # remove internal filter, so title 4 may be returned
+    vf_bool.delete()
+
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:list",
+        params_filter_simple,
+        calendar_view.id,
+        HTTP_200_OK,
+        [{field_title_name: "title 4"}],
+    )
+
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:public_rows",
+        params_filter_simple,
+        calendar_view.slug,
+        HTTP_200_OK,
+        [{field_title_name: "title 4"}],
+    )
+
+    filter_group = {
+        "filter_type": "OR",
+        "filters": [
+            {
+                "field": field_description.id,
+                "type": "contains",
+                "value": "description 3",
+            },
+            {"field": field_title.id, "type": "contains", "value": "title 4"},
+        ],
+    }
+    params_filter_fgroup = {**params, **{"filters": json.dumps(filter_group)}}
+
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:public_rows",
+        params_filter_fgroup,
+        calendar_view.slug,
+        HTTP_200_OK,
+        [{field_description_name: "description 3"}, {field_title_name: "title 4"}],
+    )
+
+    do_calendar_view_request(
+        req_get,
+        "api:database:views:calendar:list",
+        params_filter_fgroup,
+        calendar_view.id,
+        HTTP_200_OK,
+        [{field_description_name: "description 3"}, {field_title_name: "title 4"}],
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_calendar_view_ical_filters(premium_data_fixture, api_client, data_fixture):
+    """
+    Test ical feed with calendar with view filters
+    """
+
+    workspace = premium_data_fixture.create_workspace(name="Workspace 1")
+    user, token = premium_data_fixture.create_user_and_token(workspace=workspace)
+    table = premium_data_fixture.create_database_table(user=user)
+    field_title = data_fixture.create_text_field(table=table, user=user)
+    field_description = data_fixture.create_text_field(table=table, user=user)
+    field_extra = data_fixture.create_text_field(table=table, user=user)
+    field_num = data_fixture.create_number_field(table=table, user=user)
+    field_bool = data_fixture.create_boolean_field(table=table, user=user)
+    date_field = premium_data_fixture.create_date_field(
+        table=table,
+        date_include_time=False,
+    )
+    all_fields = [
+        field_title,
+        field_description,
+        field_extra,
+        field_num,
+        date_field,
+        field_bool,
+    ]
+
+    view_handler = ViewHandler()
+
+    calendar_view: CalendarView = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="calendar",
+        date_field=date_field,
+    )
+    tmodel = table.get_model()
+    NUM_EVENTS = 6
+
+    start = date.today()
+
+    def make_values(num):
+        curr = 0
+        field_names = [f"field_{f.id}" for f in all_fields]
+
+        while curr < num:
+            values = [
+                f"title {curr}",
+                f"description {curr}",
+                f"extra {curr}",
+                curr,
+                start + timedelta(days=1 + curr),
+                bool(curr % 2),
+            ]
+            curr += 1
+            row = dict(zip(field_names, values))
+            tmodel.objects.create(**row)
+
+    view_handler.update_field_options(
+        view=calendar_view,
+        field_options={
+            field_title.id: {"hidden": False},
+            field_num.id: {"hidden": False},
+            field_extra.id: {"hidden": False},
+            field_description.id: {"hidden": False},
+        },
+    )
+
+    make_values(NUM_EVENTS)
+
+    vf_bool = view_handler.create_filter(
+        user=user, view=calendar_view, field=field_bool, type_name="boolean", value="1"
+    )
+
+    assert not calendar_view.ical_public
+    assert not calendar_view.ical_feed_url
+    req_get = partial(api_client.get, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    req_patch = partial(
+        api_client.patch, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    # make ical feed public
+    resp: Response = req_patch(
+        reverse("api:database:views:item", kwargs={"view_id": calendar_view.id}),
+        {"ical_public": True},
+    )
+    assert resp.status_code == HTTP_200_OK
+    assert resp.data["ical_feed_url"]
+    calendar_view.refresh_from_db()
+    resp = req_get(
+        reverse(
+            "api:database:views:calendar:calendar_ical_feed",
+            kwargs={"ical_slug": calendar_view.ical_slug},
+        )
+    )
+
+    assert resp.status_code == HTTP_200_OK
+    assert resp.headers.get("content-type") == "text/calendar", resp.headers
+    assert resp.content
+
+    feed = Calendar.from_ical(resp.content)
+    assert feed
+    assert feed.get("PRODID") == "Baserow / baserow.io"
+    evsummary = [ev.get("SUMMARY") for ev in feed.walk("VEVENT")]
+
+    assert len(evsummary) == 3  # NUM_EVENTS/ 2
+    titles = ["title 1 - ", "title 3 - ", "title 5 -"]
+    for tstart, summary in zip(titles, evsummary):
+        assert summary.startswith(tstart), (
+            summary,
+            tstart,
+        )
+
+    view_handler.create_filter(
+        user=user,
+        view=calendar_view,
+        field=field_title,
+        type_name="equal",
+        value="title 4",
+    )
+
+    resp = req_get(
+        reverse(
+            "api:database:views:calendar:calendar_ical_feed",
+            kwargs={"ical_slug": calendar_view.ical_slug},
+        )
+    )
+
+    assert resp.status_code == HTTP_200_OK
+    assert resp.headers.get("content-type") == "text/calendar", resp.headers
+    assert resp.content
+
+    feed = Calendar.from_ical(resp.content)
+    assert feed
+    evsummary = [ev.get("SUMMARY") for ev in feed.walk("VEVENT")]
+
+    assert len(evsummary) == 0  # both filters in effect, they exclude any row
+
+    vf_bool.delete()
+
+    resp = req_get(
+        reverse(
+            "api:database:views:calendar:calendar_ical_feed",
+            kwargs={"ical_slug": calendar_view.ical_slug},
+        )
+    )
+
+    assert resp.status_code == HTTP_200_OK
+    assert resp.headers.get("content-type") == "text/calendar", resp.headers
+    assert resp.content
+
+    feed = Calendar.from_ical(resp.content)
+    assert feed
+    evsummary = [ev.get("SUMMARY") for ev in feed.walk("VEVENT")]
+
+    assert len(evsummary) == 1  # just one title
+    titles = ["title 4 - "]
+    for tstart, summary in zip(titles, evsummary):
+        assert summary.startswith(tstart)

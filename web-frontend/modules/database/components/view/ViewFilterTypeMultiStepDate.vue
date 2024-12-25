@@ -5,10 +5,9 @@
       :disabled="disabled"
       :value="operatorValue"
       :fixed-items="true"
-      small
       @input="setOperator($event)"
     >
-      <template #value>
+      <template #selectedValue>
         <span
           class="dropdown__selected-text"
           :title="$t(selectedOperatorLabel)"
@@ -49,7 +48,7 @@
           @focus="$refs.dateContext.toggle($refs.date, 'bottom', 'left', 0)"
           @blur="$refs.dateContext.hide()"
           @input="setCopyFromDateString(dateString, 'dateString')"
-          @keydown.enter="delayedUpdate(copy, truel)"
+          @keydown.enter="delayedUpdate(copy, true)"
         />
       </span>
 

@@ -10,7 +10,9 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('page_updated', ({ store }, data) => {
     const builder = store.getters['application/get'](data.page.builder_id)
     if (builder !== undefined) {
-      const page = builder.pages.find((p) => p.id === data.page.id)
+      const page = store.getters['page/getAllPages'](builder).find(
+        (p) => p.id === data.page.id
+      )
       if (page !== undefined) {
         store.dispatch('page/forceUpdate', {
           builder,
@@ -24,7 +26,9 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('page_deleted', ({ store }, data) => {
     const builder = store.getters['application/get'](data.builder_id)
     if (builder !== undefined) {
-      const page = builder.pages.find((p) => p.id === data.page_id)
+      const page = store.getters['page/getAllPages'](builder).find(
+        (p) => p.id === data.page_id
+      )
       if (page !== undefined) {
         store.dispatch('page/forceDelete', {
           builder,

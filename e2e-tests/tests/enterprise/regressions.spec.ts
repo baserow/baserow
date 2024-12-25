@@ -1,37 +1,36 @@
-import {expect, test} from '@playwright/test'
-import {DashboardPage} from '../../pages/dashboardPage'
-import {createUser} from '../../fixtures/user'
-import {createLicense, deleteLicense, ENTERPRISE_LICENSE} from "../../fixtures/licence";
+import { expect, test } from "../baserowTest";
+import {
+  createLicense,
+  deleteLicense,
+  ENTERPRISE_LICENSE,
+  License,
+} from "../../fixtures/licence";
 
+test.describe("Enterprise regression tests", () => {
+  let license: License;
 
-test.describe('Enterprise regression tests', () => {
+  test.beforeEach(async ({ page, workspacePage }) => {
+    // Create a new Enterprise license.
+    license = await createLicense(ENTERPRISE_LICENSE);
+    await workspacePage.goto();
+  });
 
-    let license = null
+  test("#1606: a non-staff user with an enterprise licence can login and view templates @enterprise", async ({
+    workspacePage,
+  }) => {
+    // Click "Create new" > "From template".
+    const templateModal =
+      await workspacePage.sidebar.openCreateAppFromTemplateModal();
 
-    test.beforeEach(async ({page}) => {
-        // Create a new Enterprise license.
-        license = await createLicense(ENTERPRISE_LICENSE)
-    })
+    const templatesLoadingSpinner = templateModal.getLoadingSpinner();
 
-    test('#1606: a non-staff user with an enterprise licence can login and view templates @enterprise', async ({page}) => {
-        // Create a new user which we'll navigate with.
-        const user = await createUser()
+    await expect(
+      templatesLoadingSpinner,
+      "Checking that the templates modal spinner is hidden."
+    ).toBeHidden();
+  });
 
-        // Pass our user's token to the dashboard page's middleware, visit it.
-        const dashboardPage = new DashboardPage(page)
-        await dashboardPage.authWithMiddleware(user)
-        await dashboardPage.goto()
-        await dashboardPage.checkOnPage()
-
-        // Click "Create new" > "From template".
-        const templateModal = await dashboardPage.sidebar.openCreateAppFromTemplateModal()
-        await templateModal.waitUntilLoaded()
-
-        const templatesLoadingSpinner = templateModal.loadingSpinner()
-        await expect(templatesLoadingSpinner, 'Checking that the templates modal spinner is hidden.').toBeHidden()
-    })
-
-    test.afterEach(async () => {
-        await deleteLicense(license)
-    })
-})
+  test.afterEach(async () => {
+    await deleteLicense(license);
+  });
+});

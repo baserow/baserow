@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fix Aggregations do not filter records in public shared views",
+    "issue_number": 2760,
+    "bullet_points": [],
+    "created_at": "2024-10-01"
+}

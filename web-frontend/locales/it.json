@@ -9,7 +9,11 @@
         "table": "Tabella",
         "link": "Collegamento",
         "all": "Tutti",
-        "billable": "Fatturabile"
+        "billable": "Fatturabile",
+        "beta": "Beta",
+        "summarize": "Aggrega",
+        "enabled": "Abilitato",
+        "disabled": "Disabilitato"
     },
     "action": {
         "upload": "Carica",
@@ -40,7 +44,8 @@
         "copyToClipboard": "Copia nella clipboard",
         "reset": "Reset",
         "set": "Imposta",
-        "logout": "Esci"
+        "logout": "Esci",
+        "backToHome": "Pagina principale"
     },
     "adminType": {
         "settings": "Impostazioni",
@@ -54,7 +59,15 @@
         "builder": "Applicazione",
         "builderDefaultName": "Applicazione senza nome",
         "cantSelectPageTitle": "Non è possibile selezionare l'applicazione.",
-        "cantSelectPageDescription": "L'application builder non può essere selezionato perché non ci sono pagine. Utilizza il menu laterale per crearne una."
+        "cantSelectPageDescription": "L'application builder non può essere selezionato perché non ci sono pagine. Utilizza il menu laterale per crearne una.",
+        "databases": "Database",
+        "databaseDesc": "Crea una collezione di dati strutturati.",
+        "builders": "Applicazioni",
+        "builderDesc": "Crea facilmente siti web, applicazioni e portali senza codice.",
+        "dashboards": "Dashboards",
+        "dashboardDefaultName": "Dashboard senza titolo",
+        "dashboardDesc": "Visualizza i tuoi dati e le tue metriche con grafici e tabelle.",
+        "dashboard": "Dashboard"
     },
     "settingType": {
         "account": "Account",
@@ -82,7 +95,11 @@
         "maxValueField": "Il campo deve essere minore o uguale a {max}.",
         "minMaxValueField": "Il valore del campo deve essere fra {min} e {max}.",
         "invalidNumber": "Il campo deve essere numerico.",
-        "email": "Il campo deve essere di tipo email."
+        "email": "Il campo deve essere di tipo email.",
+        "invalidURL": "Inserisci un URL valido.",
+        "alreadyInUse": "Questo campo è già in uso",
+        "invalidCharacters": "Questo campo contiene caratteri non validi.",
+        "decimalField": "Il campo deve essere un decimale."
     },
     "permission": {
         "admin": "Admin",
@@ -240,7 +257,16 @@
         "isAfter": "è dopo",
         "isOnOrBefore": "è lo stesso giorno o prima",
         "isOnOrAfter": "è lo stesso giorno o dopo",
-        "isWithin": "è entro"
+        "isWithin": "è entro",
+        "hasEmptyValue": "Ha un valore vuoto",
+        "hasNotEmptyValue": "Non ha un valore vuoro",
+        "hasValueEqual": "Ha un valore uguale",
+        "hasNotValueEqual": "Non ha un valore uguale",
+        "hasValueContains": "Contiene un valore",
+        "hasNotValueContains": "Non contiene un valore",
+        "hasValueContainsWord": "Contiene una parola",
+        "hasNotValueContainsWord": "Non contiene una parola",
+        "hasValueLengthIsLowerThan": "Ha un valore più corto di"
     },
     "viewType": {
         "grid": "Griglia",
@@ -278,7 +304,13 @@
             "rowDeleted": "Quando una riga viene eliminata",
             "rowsDeleted": "Righe eliminate",
             "rowsUpdated": "Righe aggiornate",
-            "rowsCreated": "Righe create"
+            "rowsCreated": "Righe create",
+            "fieldCreated": "Campo creato",
+            "fieldUpdated": "Campo aggiornato",
+            "fieldDeleted": "Campo cancellato",
+            "viewCreated": "Vista creata",
+            "viewUpdated": "Vista aggiornata",
+            "viewDeleted": "Vista cancellata"
         },
         "form": {
             "invalidURLTitle": "URL invalido.",
@@ -363,7 +395,13 @@
         "outputParserDescription": "Il modello ha risposto in un formato errato. Si prega di riprovare più tardi.",
         "generateAIPromptDescription": "Qualcosa è andato storto con l'AI.",
         "maxNumberOfPendingWorkspaceInvitesReachedTitle": "Massimo numero di inviti raggiunto",
-        "maxNumberOfPendingWorkspaceInvitesReachedDescription": "Hai raggiunto il massimo numero di inviti in attesa per questo progetto. Per favore, attendi che le persone accettino gli inviti o cancellane alcuni per continuare."
+        "maxNumberOfPendingWorkspaceInvitesReachedDescription": "Hai raggiunto il massimo numero di inviti in attesa per questo progetto. Per favore, attendi che le persone accettino gli inviti o cancellane alcuni per continuare.",
+        "fieldIsAlreadyPrimaryTitle": "Il campo è già un campo primario",
+        "cannotCreateRowsInTableTitle": "Non è possibile creare righe",
+        "cannotCreateRowsInTableDescription": "Non è possible creare righe in questa tabella",
+        "fieldIsAlreadyPrimaryDescription": "Il campo è già il campo primario.",
+        "incompatiblePrimaryFieldTypeTitle": "Il campo non è compatibile",
+        "incompatiblePrimaryFieldTypeDescription": "Questo campo non può essere impostato come campo primario."
     },
     "importerType": {
         "csv": "Importa un file CSV",

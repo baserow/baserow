@@ -1,7 +1,7 @@
 import abc
 from typing import TYPE_CHECKING, List, Type, TypeVar
 
-from django.db.models import Expression, F, Value
+from django.db.models import Expression, F, Model, Value
 from django.utils.functional import classproperty
 
 from baserow.contrib.database.fields.expressions import (
@@ -15,6 +15,7 @@ from baserow.contrib.database.formula.types.exceptions import InvalidFormulaType
 T = TypeVar("T", bound="BaserowFormulaType")
 
 if TYPE_CHECKING:
+    from baserow.contrib.database.fields.registries import FieldType
     from baserow.contrib.database.formula.types.formula_types import (
         BaserowFormulaBooleanType,
     )
@@ -127,6 +128,18 @@ class BaserowFormulaType(abc.ABC):
 
         return cls.user_overridable_formatting_option_fields + cls.get_internal_fields()
 
+    @classmethod
+    def get_request_serializer_field_names(cls) -> List[str]:
+        return cls.all_fields()
+
+    @classmethod
+    def get_serializer_field_names(cls) -> List[str]:
+        return cls.all_fields()
+
+    @classmethod
+    def get_serializer_field_overrides(cls) -> List[str]:
+        return {}
+
     @property
     @abc.abstractmethod
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -190,7 +203,7 @@ class BaserowFormulaType(abc.ABC):
         pass
 
     def get_order(
-        self, field, field_name, order_direction
+        self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         """
         Returns OptionallyAnnotatedOrderBy with desired order and optional
@@ -240,6 +253,14 @@ class BaserowFormulaType(abc.ABC):
 
     @property
     def can_represent_date(self) -> bool:
+        return False
+
+    @property
+    def can_represent_files(self) -> bool:
+        return False
+
+    @property
+    def can_represent_select_options(self) -> bool:
         return False
 
     @property
@@ -309,6 +330,7 @@ class BaserowFormulaType(abc.ABC):
         :param formula_field: The formula field to store the type information onto.
         """
 
+        from baserow.contrib.database.fields.models import FormulaField
         from baserow.contrib.database.formula.types.formula_types import (
             BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
         )
@@ -323,9 +345,11 @@ class BaserowFormulaType(abc.ABC):
             elif attr in self.get_internal_fields():
                 setattr(formula_field, attr, getattr(self, attr))
             else:
-                setattr(formula_field, attr, None)
+                field_attr = getattr(FormulaField, attr).field
+                default_value = None if field_attr.null else field_attr.default
+                setattr(formula_field, attr, default_value)
 
-    def get_baserow_field_instance_and_type(self):
+    def get_baserow_field_instance_and_type(self) -> "tuple[Model, FieldType]":
         from baserow.contrib.database.fields.registries import field_type_registry
 
         baserow_field_type = field_type_registry.get(self.baserow_field_type)

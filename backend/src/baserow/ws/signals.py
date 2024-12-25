@@ -3,7 +3,6 @@ from django.db import transaction
 from django.dispatch import receiver
 
 from baserow.api.applications.serializers import (
-    ApplicationSerializer,
     PolymorphicApplicationResponseSerializer,
 )
 from baserow.api.user.serializers import PublicUserSerializer
@@ -264,7 +263,9 @@ def application_updated(sender, application: Application, user: AbstractUser, **
             {
                 "type": "application_updated",
                 "application_id": application.id,
-                "application": ApplicationSerializer(application).data,
+                "application": PolymorphicApplicationResponseSerializer(
+                    application
+                ).data,
             },
             getattr(user, "web_socket_id", None),
         )

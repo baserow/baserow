@@ -53,7 +53,13 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
     applicationContext: { builder, mode },
     resolveFormula,
   }) {
-    const url = resolveElementUrl(workflowAction, builder, resolveFormula, mode)
+    const url = resolveElementUrl(
+      workflowAction,
+      builder,
+      this.app.store.getters['page/getVisiblePages'](builder),
+      resolveFormula,
+      mode
+    )
 
     if (mode === 'editing' || !url) {
       return
@@ -122,9 +128,11 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
   }
 
   async execute({ workflowAction, applicationContext }) {
-    applicationContext.page.elements
+    const {
+      workflowActionContext: { dataSourcePage },
+    } = applicationContext
+    dataSourcePage.elements
       .filter((element) => {
-        // Only refresh elements that use the data source
         return element.data_source_id === workflowAction.data_source_id
       })
       .map(async (element) => {
@@ -142,9 +150,10 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
     await this.app.store.dispatch(
       'dataSourceContent/fetchPageDataSourceContentById',
       {
-        page: applicationContext.page,
+        page: dataSourcePage,
         dataSourceId: workflowAction.data_source_id,
         dispatchContext,
+        mode: applicationContext.mode,
         replace: true,
       }
     )

@@ -12,7 +12,12 @@
           :error-message="getError('table_border_size')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.table_border_size" />
+          <PixelValueSelector
+            v-model="values.table_border_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`table_border_size`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.table_border_size"
@@ -47,7 +52,12 @@
           :error-message="getError('table_border_radius')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.table_border_radius" />
+          <PixelValueSelector
+            v-model="values.table_border_radius"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`table_border_radius`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.table_border_radius"
@@ -106,7 +116,12 @@
           :error-message="getError('table_header_font_size')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.table_header_font_size" />
+          <PixelValueSelector
+            v-model="values.table_header_font_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`table_header_font_size`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.table_header_font_size"
@@ -219,7 +234,10 @@
           :error-message="getPaddingError()"
           class="margin-bottom-2"
         >
-          <PaddingSelector v-model="padding" />
+          <PaddingSelector
+            v-model="padding"
+            :default-values-when-empty="paddingDefaults"
+          />
           <template #after-input>
             <ResetButton
               v-model="padding"
@@ -272,6 +290,9 @@
         >
           <PixelValueSelector
             v-model="values.table_horizontal_separator_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`table_horizontal_separator_size`]
+            "
           />
           <template #after-input>
             <ResetButton
@@ -306,7 +327,12 @@
           :error-message="getError('table_vertical_separator_size')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.table_vertical_separator_size" />
+          <PixelValueSelector
+            v-model="values.table_vertical_separator_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`table_vertical_separator_size`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.table_vertical_separator_size"
@@ -331,6 +357,7 @@ import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySe
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
 import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
 
 const minMax = {
   table_border_size: {
@@ -385,6 +412,14 @@ export default {
         { 'Header 1': 'Row 1 cell 1', 'Header 2': 'Row 1 cell 2' },
         { 'Header 1': 'Row 2 cell 1', 'Header 2': 'Row 2 cell 2' },
       ],
+      defaultValuesWhenEmpty: {
+        table_border_size: minMax.table_border_size.min,
+        table_border_radius: minMax.table_border_radius.min,
+        table_header_font_size: DEFAULT_FONT_SIZE_PX,
+        table_horizontal_separator_size:
+          minMax.table_horizontal_separator_size.min,
+        table_vertical_separator_size: minMax.table_vertical_separator_size.min,
+      },
     }
   },
   computed: {
@@ -402,6 +437,12 @@ export default {
     },
     onlyCell() {
       return this.extraArgs?.onlyCell
+    },
+    paddingDefaults() {
+      return {
+        vertical: minMax.table_cell_vertical_padding.min,
+        horizontal: minMax.table_cell_horizontal_padding.min,
+      }
     },
   },
   methods: {

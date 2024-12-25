@@ -48,10 +48,12 @@ def test_delete_page_user_not_in_workspace(data_fixture):
 
     page = PageService().create_page(user, builder, "test", "/test")
 
+    previous_count = Page.objects.count()
+
     with pytest.raises(UserNotInWorkspace):
         PageService().delete_page(user_unrelated, page)
 
-    assert Page.objects.count() == 1
+    assert Page.objects.count() == previous_count
 
 
 @pytest.mark.django_db

@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Fix bug when dispatching a data source with a deleted field",
+    "issue_number": null,
+    "bullet_points": [],
+    "created_at": "2024-11-13"
+}

@@ -5,7 +5,7 @@
     </p>
     <Dropdown
       :value="value"
-      :small="small"
+      :size="small ? 'regular' : 'large'"
       :placeholder="placeholder"
       :show-search="true"
       @input="$emit('input', $event)"

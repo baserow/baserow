@@ -47,7 +47,7 @@ import Copied from '@baserow/modules/core/components/Copied'
 import ViewRotateSlugModal from '@baserow/modules/database/components/view/ViewRotateSlugModal'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
-import CalendarService from '@baserow_premium/services/views/calendar.js'
+import CalendarService from '@baserow_premium/services/views/calendar'
 
 export default {
   name: 'CalendarSharingIcalSlugSection',

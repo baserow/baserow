@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser  # noqa: F401
 
     from baserow.contrib.builder.models import Builder
+    from baserow.contrib.dashboard.models import Dashboard
     from baserow.contrib.database.models import Database, Table
 
 # A scope object needs to have a related registered ScopeObjectType
@@ -20,7 +21,7 @@ Subject = Any
 Actor = Any
 
 # Objects which can be exported and imported in a `SerializationProcessorType`.
-SerializationProcessorScope = Union["Database", "Table", "Builder"]
+SerializationProcessorScope = Union["Database", "Table", "Builder", "Dashboard"]
 
 
 class PermissionCheck(NamedTuple):

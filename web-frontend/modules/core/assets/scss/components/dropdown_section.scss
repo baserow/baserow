@@ -1,0 +1,22 @@
+.dropdown-section {
+  margin-bottom: 4px;
+  display: none;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:has(.select__item.visible) {
+    display: block;
+  }
+}
+
+.dropdown-section__title {
+  padding: 12px 0 8px 12px;
+  color: $palette-neutral-900;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 11px;
+  letter-spacing: 0.22px;
+}

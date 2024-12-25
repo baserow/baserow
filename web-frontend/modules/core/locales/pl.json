@@ -19,14 +19,21 @@
     "sidebar": {
         "createWorkspace": "Utwórz obszar roboczy",
         "inviteOthers": "Zaproś innych",
-        "logoff": "Wyloguj",
+        "logoff": "Wylogowanie",
         "errorNoWorkspace": "Nie masz żadnych grup.",
         "admin": "Admin",
         "dashboard": "Pulpit",
         "trash": "Śmieci",
-        "settings": "Ustawienia",
+        "settings": "Moje ustawienia",
         "members": "Członkowie",
-        "notifications": "Powiadomienia"
+        "notifications": "Powiadomienia",
+        "addNewWorkspace": "Dodaj nowy obszar roboczy",
+        "adminTools": "Narzędzia administracyjne",
+        "home": "Strona główna",
+        "adminSettings": "Ustawienia administratora",
+        "general": "Ogólne",
+        "people": "Ludzie",
+        "licenses": "Licencje"
     },
     "accountForm": {
         "nameLabel": "Twoje imię",
@@ -39,7 +46,7 @@
         "submitButton": "Aktualizacja konta"
     },
     "settingsModal": {
-        "title": "Ustawienia"
+        "title": "Moje ustawienia"
     },
     "passwordSettings": {
         "title": "Zmień hasło",
@@ -205,10 +212,14 @@
         "retry": "Ponów próbę"
     },
     "createApplicationContext": {
-        "fromTemplate": "Z szablonu"
+        "fromTemplate": "Z szablonu",
+        "fromTemplateDesc": "Szybki start z jednym z naszych polecanych szablonów",
+        "tableDesc": "Utwórz nowe miejsce do zarządzania danymi w bazie danych.",
+        "table": "Tabela"
     },
     "applicationForm": {
-        "nameLabel": "Nazwa"
+        "nameLabel": "Nazwa",
+        "namePlaceholder": "Wprowadź nazwę..."
     },
     "connectingNotification": {
         "title": "Ponowne łączenie",
@@ -265,7 +276,7 @@
     "dashboard": {
         "title": "Pulpit",
         "alertTitle": "Potrzebujemy Twojej pomocy!",
-        "alertText": "Jeśli uważasz, że Baserow jest przydatny, to podzielenie się z nami gwiazdką jest bardzo cenne. Udzielając Baserow pomagasz nam ulepszać produkt i czynić go bardziej użytecznym dla Ciebie.",
+        "alertText": "Udostępniając Baserow, pomagasz nam ulepszać produkt i czynić go bardziej użytecznym dla Ciebie.",
         "tweetContent": "Sprawdź @baserow, narzędzie open source do bazy danych typu no-code i alternatywę dla Airtable!",
         "redditTitle": "'Baserow - Baza danych open source bez kodu",
         "noWorkspaceTitle": "Nie znaleziono grup",
@@ -277,7 +288,20 @@
         "shareOnReddit": "Udostępnij na Reddicie",
         "shareOnFacebook": "Udostępnij na Facebooku",
         "shareOnLinkedIn": "Udostępnij na LinkedIn",
-        "noWorkspaceTextWithoutCreatePermission": "Nie jesteś członkiem żadnej grupy. Aplikacje takie jak bazy danych należą do grupy, więc aby je stworzyć, musisz najpierw zostać zaproszony do grupy przez administratora."
+        "noWorkspaceTextWithoutCreatePermission": "Nie jesteś członkiem żadnej grupy. Aplikacje takie jak bazy danych należą do grupy, więc aby je stworzyć, musisz najpierw zostać zaproszony do grupy przez administratora.",
+        "apiDocumentation": "Dokumentacja API",
+        "noWorkspace": "Brak obszaru roboczego",
+        "tutorialsMessage": "Odkryj potencjał Baserow",
+        "addNew": "Dodaj nowy...",
+        "suggestedTemplates": "Sugerowane szablony",
+        "resources": "Zasoby",
+        "knowledgeBase": "Baza wiedzy",
+        "knowledgeBaseMessage": "Znajdź odpowiedzi na wszystkie swoje pytania",
+        "tutorials": "Samouczki",
+        "apiDocumentationMessage": "Dowiedz się więcej o naszym kodzie",
+        "emptyWorkspace": "Ten obszar roboczy jest pusty",
+        "emptyWorkspaceMessage": "Zacznij od utworzenia nowej bazy danych lub aplikacji.",
+        "noWorkspaceDescription": "Rozpocznij od utworzenia nowego obszaru roboczego"
     },
     "dashboardSidebar": {
         "workspaces": "Grupy",
@@ -347,7 +371,7 @@
         "settingAllowSignupsViaWorkspaceInvitationsName": "Zezwalaj na rejestracje za pomocą zaproszeń grupowych",
         "settingAllowSignupsViaWorkspaceInvitationDescription": "Nawet jeśli tworzenie nowych kont jest wyłączone, ta opcja pozwala bezpośrednio zaproszonym użytkownikom nadal tworzyć konta.",
         "userDeletionGraceDelay": "Usuwanie użytkowników",
-        "settingUserDeletionGraceDelay": "Okres karencji",
+        "settingUserDeletionGraceDelay": "Usuń opóźnienie karencji",
         "settingUserDeletionGraceDelayDescription": "Jest to liczba dni bez logowania, po których konto zaplanowane do usunięcia zostaje trwale usunięte.",
         "invalidAccountDeletionGraceDelay": "Ta wartość jest wymagana i musi być dodatnią liczbą całkowitą mniejszą niż 32000",
         "enabled": "włączony",
@@ -356,7 +380,15 @@
         "settingAllowNonStaffCreateWorkspaceOperation": "Pozwól każdemu na tworzenie nowych grup",
         "settingTrackWorkspaceUsage": "Śledź użycie grupy",
         "settingTrackWorkspaceUsageDescription": "Włącza nocne zadanie zliczające użycie wierszy i plików dla grupy, wyświetlane na stronie administratora grupy premium.",
-        "maintenance": "Konserwacja"
+        "maintenance": "Konserwacja",
+        "emailVerification": "Weryfikacja adresu e-mail",
+        "emailVerificationDescription": "Kontroluje, czy adresy e-mail muszą być weryfikowane.",
+        "emailVerificationNoVerification": "Brak weryfikacji",
+        "emailVerificationRecommended": "Zalecane",
+        "emailVerificationEnforced": "Wymuszony",
+        "baserowVersion": "Wersja podstawowa",
+        "baserowVersionDescription": "Numer wersji tej instancji.",
+        "userSettings": "Użytkownik"
     },
     "formSidebar": {
         "actions": {
@@ -432,7 +464,9 @@
         "stateFinished": "Gotowe",
         "stateFailed": "Nie udało się",
         "errorJobAlreadyRunningTitle": "Już działa",
-        "errorJobAlreadyRunningDescription": "Kolejne zadanie importu jest już uruchomione. Musisz poczekać, aż ono się skończy, zanim zaczniesz kolejne."
+        "errorJobAlreadyRunningDescription": "Kolejne zadanie importu jest już uruchomione. Musisz poczekać, aż ono się skończy, zanim zaczniesz kolejne.",
+        "errorJobCannotBeCancelledTitle": "Nie można anulować",
+        "errorJobCannotBeCancelledDescription": "Nie można anulować zadania, ponieważ zostało ono już ukończone.\nUsuń pierwszą Migawkę z poniższej listy, aby ją usunąć."
     },
     "datetime": {
         "daysAgo": "0 dni temu | 1 dzień temu | {n} dni temu",
@@ -651,7 +685,7 @@
         "errorInvalidFormula": "Formuła jest nieprawidłowa."
     },
     "dataExplorer": {
-        "noMatchingNodesText": "Nie znaleziono pasujących dostawców danych.",
+        "noMatchingNodesText": "Nie znaleziono pasujących wyników.",
         "noProvidersText": "Nie znaleziono dostawców danych. Aby rozpocząć, możesz na przykład dodać źródło danych lub parametr strony."
     },
     "workspaceSettingsModal": {
@@ -710,5 +744,193 @@
         "bold": "Pogrubienie",
         "italic": "Kursywa",
         "underline": "Podkreślenie"
+    },
+    "dashboardVerifyEmail": {
+        "title": "Sprawdź swoją skrzynkę pocztową i kliknij link, aby zweryfikować swój adres e-mail.",
+        "resendConfirmationEmail": "Wyślij ponownie wiadomość e-mail z potwierdzeniem"
+    },
+    "resendEmailVerification": {
+        "confirmationEmailSentTitle": "Wysłano wiadomość e-mail z potwierdzeniem",
+        "confirmationEmailSentDescription": "Wiadomość e-mail z potwierdzeniem została wysłana."
+    },
+    "verifyEmailAddress": {
+        "goToDashboard": "Przejdź do pulpitu nawigacyjnego",
+        "invalidToken": "Nieprawidłowy token potwierdzenia.",
+        "confirmation": "Twój adres e-mail został zweryfikowany.",
+        "disabledPasswordProvider": "Dostawca uwierzytelniania hasłem został wyłączony.",
+        "emailMismatchWarning": "Zwróć uwagę, że zweryfikowany adres e-mail nie należy do konta, z którego aktualnie korzystasz."
+    },
+    "emailNotVerified": {
+        "title": "Wymagana weryfikacja adresu e-mail",
+        "description": "Sprawdź swoją skrzynkę pocztową i kliknij link w celu weryfikacji. Po weryfikacji konto zostanie aktywowane.",
+        "resend": "Wyślij ponownie wiadomość e-mail z potwierdzeniem"
+    },
+    "selectAIModelForm": {
+        "AIType": "Typ AI",
+        "AIModel": "Model AI",
+        "fileField": "Pole pliku"
+    },
+    "onboarding": {
+        "title": "Onboarding",
+        "creating": "Tworzenie pierwszego obszaru roboczego",
+        "cancel": "Nie chcę pomocy w konfiguracji",
+        "failedTitle": "Coś poszło nie tak",
+        "skip": "Na razie pomiń",
+        "failedTryAgain": "Spróbuj ponownie",
+        "continue": "Kontynuuj",
+        "failedDescription": "Onboarding nie został w pełni zakończony, choć niektóre jego elementy mogły zostać ukończone.",
+        "failedSkip": "Pomiń wdrożenie"
+    },
+    "moreStep": {
+        "people": "Ile osób liczy twój zespół?",
+        "share": "Nie mam nic przeciwko podzieleniu się tym z zespołem Baserow",
+        "roleOrJob": "Rola lub stanowisko...",
+        "title": "Powiedz nam trochę więcej",
+        "country": "Kraj"
+    },
+    "teamStep": {
+        "description": "Do której drużyny należysz?",
+        "marketingTeam": "Marketing",
+        "itAndSupportTeam": "IT i wsparcie",
+        "hrAndLegalTeam": "Kadry i prawo",
+        "financeTeam": "Finanse",
+        "title": "Zbudujmy razem Twoją pierwszą przestrzeń roboczą!",
+        "productAndDesignTeam": "Produkt i projekt",
+        "engineeringTeam": "Inżynieria",
+        "operationsTeam": "Operacje",
+        "creativeProductionTeam": "Produkcja kreatywna",
+        "salesAndAccountManagementTeam": "Sprzedaż i zarządzanie kontem",
+        "customerServiceTeam": "Obsługa klienta",
+        "manufacturingTeam": "Produkcja",
+        "otherPersonalTeam": "Inne / Osobiste"
+    },
+    "workspaceStep": {
+        "title": "Utwórz swój obszar roboczy",
+        "workspaceLabel": "Nazwa obszaru roboczego"
+    },
+    "dashboardApplication": {
+        "createdAt": "stworzony"
+    },
+    "templateCard": {
+        "viewMore": "Zobacz więcej"
+    },
+    "inviteStep": {
+        "title": "Zapraszanie współpracowników",
+        "description": "Zawsze możesz dodać więcej później.",
+        "collaboratorsLabel": "Współpracownicy"
+    },
+    "colorInput": {
+        "default": "Domyślny"
+    },
+    "imageInput": {
+        "labelDescription": "Wybierz obraz do przesłania...",
+        "labelButton": "Przesyłanie"
+    },
+    "dataExplorerNode": {
+        "showMore": "Pokaż więcej powtórzeń"
+    },
+    "user": {
+        "isStaff": "Personel",
+        "isWorkspaceAdmin": "Jest administratorem grupy",
+        "active": "Aktywny",
+        "deactivated": "Dezaktywowany"
+    },
+    "adminType": {
+        "dashboard": "Dashboard",
+        "users": "Użytkownicy",
+        "workspaces": "Grupy"
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "Wszystkie grupy",
+        "id": "ID",
+        "name": "Nazwa",
+        "members": "Członkowie",
+        "applications": "Aplikacje",
+        "created": "Utworzony",
+        "seatsTaken": "Zajęte miejsca",
+        "storageUsage": "Wykorzystana pamięć (MB)",
+        "freeUsers": "Bezpłatni użytkownicy",
+        "rowCount": "Liczba wierszy",
+        "usageHelpText": "Obliczane co noc, gdy włączone jest ustawienie śledzenia wykorzystania grupy"
+    },
+    "editWorkspaceContext": {
+        "delete": "Usunąć na stałe"
+    },
+    "deleteWorkspaceModal": {
+        "title": "Usuń {name}",
+        "confirmation": "Czy na pewno chcesz usunąć grupę: {name}?",
+        "comment": "Grupa zostanie trwale usunięta, wraz z powiązanymi z nią aplikacjami. Nie ma możliwości cofnięcia tej akcji.",
+        "delete": "Usuń grupę {name}"
+    },
+    "activeUsers": {
+        "newUsers": "Nowi użytkownicy",
+        "activeUsers": "Aktywni użytkownicy"
+    },
+    "usersAdminTable": {
+        "allUsers": "Wszystkich użytkowników",
+        "id": "ID",
+        "username": "Nazwa użytkownika",
+        "name": "Nazwa",
+        "workspaces": "Grupy",
+        "lastLogin": "Ostatnie logowanie",
+        "dateJoined": "Zapisany",
+        "active": "Aktywny"
+    },
+    "editUserContext": {
+        "changePassword": "Zmiana hasła",
+        "delete": "Trwałe usuwanie",
+        "impersonate": "Podszywać się pod"
+    },
+    "changePasswordForm": {
+        "newPassword": "Nowe hasło",
+        "repeatPassword": "Powtórz hasło",
+        "changePassword": "Zmień hasło",
+        "error": {
+            "doesntMatch": "To pole musi być zgodne z Twoim hasłem."
+        }
+    },
+    "userForm": {
+        "fullName": "Pełne imię i nazwisko",
+        "email": "E-mail",
+        "isActive": "Jest aktywny",
+        "warning": {
+            "changeEmail": "Zmiana adresu e-mail użytkownika oznacza, że kiedy zaloguje się on do systemu, będzie musiał użyć nowego adresu e-mail. Musi to zostać zakomunikowane temu użytkownikowi.",
+            "inactiveUser": "Kiedy użytkownik jest oznaczony jako nieaktywny, nie może się zalogować.",
+            "userStaff": "Nadanie użytkownikowi statusu pracownika daje mu dostęp administratora do wszystkich użytkowników, wszystkich obszarów roboczych i możliwość odebrania uprawnień pracownikom."
+        },
+        "error": {
+            "invalidName": "Podaj prawidłowe imię i nazwisko, musi mieć więcej niż 2 litery i mniej niż 150.",
+            "invalidEmail": "Proszę wpisać prawidłowy adres e-mail."
+        }
+    },
+    "changeUserPasswordModal": {
+        "changePassword": "Zmień hasło dla {username}"
+    },
+    "deleteUserModal": {
+        "title": "Usuń {username}",
+        "confirmation": "Czy na pewno chcesz usunąć użytkownika: {name}?",
+        "comment1": "Konto użytkownika zostanie usunięte, jednak obszary robocze, których użytkownik jest członkiem, będą nadal istnieć. Obszar roboczy użytkownika nie zostanie usunięty, nawet jeśli ten użytkownik jest ostatnim użytkownikiem w obszarze roboczym. Usunięcie ostatniego użytkownika w obszarze roboczym uniemożliwia każdemu dostęp do tego obszaru roboczego.",
+        "comment2": "Po usunięciu użytkownika możliwe jest, że nowy użytkownik zarejestruje się ponownie używając adresu e-mail usuniętego użytkownika. Aby uniemożliwić im ponowne zarejestrowanie się, należy dezaktywować użytkownika i nie usuwać go.",
+        "delete": "Usuń użytkownika {username}"
+    },
+    "editUserModal": {
+        "delete": "Usuń użytkownika",
+        "edit": "Edytuj { username }"
+    },
+    "adminDashboard": {
+        "title": "Pulpit",
+        "totals": "Ogółem",
+        "totalUsers": "Użytkownicy ogółem",
+        "totalWorkspaces": "Grupy ogółem",
+        "totalApplications": "Aplikacje ogółem",
+        "newUsers": "Nowi użytkownicy",
+        "newUsers24h": "Nowi użytkownicy w ciągu ostatnich 24 godzin",
+        "newUsers7days": "Nowi użytkownicy w ciągu ostatnich 7 dni",
+        "newUsers30days": "Nowi użytkownicy w ciągu ostatnich 30 dni",
+        "activeUsers": "Aktywni użytkownicy",
+        "activeUsers24h": "Aktywni użytkownicy w ciągu ostatnich 24 godzin",
+        "activeUsers7days": "Aktywni użytkownicy w ciągu ostatnich 7 dni",
+        "activeUsers30days": "Aktywni użytkownicy w ciągu ostatnich 30 dni",
+        "viewAll": "Zobacz wszystkie"
     }
 }

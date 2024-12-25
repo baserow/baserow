@@ -103,7 +103,9 @@
         "providerIsVerified": "Il provider è stato verificato",
         "domain": "Dominio",
         "domainAlreadyExists": "Un provider SAML per questo dominio esiste giá",
-        "acsUrl": "Single Sign On URL"
+        "acsUrl": "Single Sign On URL",
+        "samlResponseSettings": "Attributi risposta SAML",
+        "defaultAttrs": "Default"
     },
     "createSettingsAuthProviderModal": {
         "title": "Aggiungi un nuovo {type}"
@@ -273,7 +275,8 @@
         "rbac": "Role-based access control",
         "coBranding": "Sostituzione logo co-branding",
         "auditLogs": "Registro attività",
-        "support": "Supporto diretto"
+        "support": "Supporto diretto",
+        "dataSync": "Sync dei dati"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Supporto diretto"
@@ -323,5 +326,27 @@
         "enterprise": "Enterprise",
         "premium": "Premium",
         "description": "Il tuo account non ha accesso alle funzionalità advanced/enterprise. Effettua l'upgrade per iniziare ad utilizzare {name}. Clicca per vedere i prezzi delle licenze."
+    },
+    "authFormElementForm": {
+        "userSource": "Sorgente utenti",
+        "loginButtonLabel": "Etichetta pulsante di login",
+        "loginButtonLabelPlaceholder": "Inserisci l'etichetta..."
+    },
+    "authFormElement": {
+        "password": "Password",
+        "passwordPlaceholder": "Inserisci la tua password...",
+        "email": "Email",
+        "emailPlaceholder": "Inserisci la tua email...",
+        "selectOrConfigureUserSourceFirst": "Scegli una sorgente utenti per iniziare ad usare questo elemento."
+    },
+    "enterpriseDataSyncType": {
+        "localBaserowTable": "Sincronizza con una tabella Baserow"
+    },
+    "localBaserowTableDataSync": {
+        "name": "ID della tabella sorgente",
+        "table": "Tabella",
+        "authorizing": "Stai abilitando il tuo account per prelevare i dati dalla tabella sorgente.",
+        "workspace": "Workspace",
+        "database": "Database"
     }
 }

@@ -127,6 +127,30 @@ def test_get_workflow_actions(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_builder_workflow_actions(data_fixture):
+    page = data_fixture.create_builder_page()
+    page2 = data_fixture.create_builder_page(builder=page.builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    element2 = data_fixture.create_builder_button_element(page=page2)
+
+    event = EventTypes.CLICK
+    workflow_action_one = data_fixture.create_notification_workflow_action(
+        page=page, element=element, event=event
+    )
+    workflow_action_two = data_fixture.create_notification_workflow_action(
+        page=page, element=element2, event=event
+    )
+
+    data_fixture.create_notification_workflow_action(event=event)
+
+    workflow_actions = BuilderWorkflowActionHandler().get_workflow_actions(page)
+
+    assert sorted([w.id for w in workflow_actions]) == sorted(
+        [workflow_action_one.id, workflow_action_two.id]
+    )
+
+
+@pytest.mark.django_db
 def test_order_workflow_actions(data_fixture):
     element = data_fixture.create_builder_button_element()
     workflow_action_one = data_fixture.create_notification_workflow_action(

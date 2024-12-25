@@ -4,14 +4,14 @@ import os
 import sys
 import threading
 from contextlib import contextmanager
+from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from unittest.mock import patch
 
 from django.conf import settings as django_settings
 from django.core import cache
-from django.core.files.storage import Storage
 from django.core.management import call_command
 from django.db import DEFAULT_DB_ALIAS, OperationalError, connection
 from django.db.migrations.executor import MigrationExecutor
@@ -33,7 +33,9 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.permission_manager import CorePermissionManagerType
 from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.trash.trash_types import WorkspaceTrashableItemType
+from baserow.core.user_sources.registries import UserSourceCount
 from baserow.core.utils import get_value_at_path
 
 SKIP_FLAGS = ["disabled-in-ci", "once-per-day-in-ci"]
@@ -229,6 +231,9 @@ def stub_user_source_registry(data_fixture, mutable_user_source_registry, fake):
         get_user_return=None,
         list_users_return=None,
         gen_uid_return=None,
+        get_user_count_return=None,
+        update_user_count_return=None,
+        properties_requiring_user_recount_return=None,
     ):
         """
         Replace first user_source type with the stub class
@@ -241,6 +246,19 @@ def stub_user_source_registry(data_fixture, mutable_user_source_registry, fake):
         class StubbedUserSourceType(UserSourceType):
             type = user_source_type.type
             model_class = user_source_type.model_class
+            properties_requiring_user_recount = properties_requiring_user_recount_return
+
+            def get_user_count(self, user_source, force_recount=False):
+                if get_user_count_return:
+                    if callable(get_user_count_return):
+                        return get_user_count_return(user_source, force_recount)
+                    return UserSourceCount(count=5, last_updated=datetime.now())
+
+            def update_user_count(self, user_source=None):
+                if update_user_count_return:
+                    if callable(update_user_count_return):
+                        return update_user_count_return(user_source)
+                    return None
 
             def gen_uid(self, user_source):
                 if gen_uid_return:
@@ -263,6 +281,9 @@ def stub_user_source_registry(data_fixture, mutable_user_source_registry, fake):
                     if callable(get_user_return):
                         return get_user_return(user_source, **kwargs)
                     return get_user_return
+                return data_fixture.create_user_source_user(user_source=user_source)
+
+            def create_user(self, user_source, email, name):
                 return data_fixture.create_user_source_user(user_source=user_source)
 
             def authenticate(self, user_source, **kwargs):
@@ -719,20 +740,6 @@ def enable_locmem_testing(settings):
         cache.cache.clear()
 
 
-@pytest.fixture
-def stubbed_storage(monkeypatch):
-    class StubbedStorage(Storage):
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def save(self, name, content, **kwargs):
-            return name
-
-    storage_instance = StubbedStorage()
-    monkeypatch.setattr("django.core.files.storage.default_storage", storage_instance)
-    return storage_instance
-
-
 @pytest.fixture(autouse=True)
 def mutable_generative_ai_model_type_registry():
     from baserow.core.generative_ai.registries import generative_ai_model_type_registry
@@ -758,14 +765,32 @@ class FakeDispatchContext(DispatchContext):
     def __init__(self, **kwargs):
         super().__init__()
         self.context = kwargs.pop("context", {})
+        self._public_allowed_properties = kwargs.pop("public_allowed_properties", None)
+        self._searchable_fields = kwargs.pop("searchable_fields", [])
+        self._search_query = kwargs.pop("search_query", None)
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    @property
+    def is_publicly_searchable(self):
+        return True
+
     def search_query(self):
-        return None
+        return self._search_query
+
+    def searchable_fields(self):
+        return self._searchable_fields
+
+    @property
+    def is_publicly_filterable(self):
+        return True
 
     def filters(self):
         return None
+
+    @property
+    def is_publicly_sortable(self):
+        return True
 
     def sortings(self):
         return None
@@ -784,6 +809,15 @@ class FakeDispatchContext(DispatchContext):
             return "999"
 
         return get_value_at_path(self.context, key)
+
+    @property
+    def public_allowed_properties(self) -> Optional[Dict[str, Dict[int, List[str]]]]:
+        return self._public_allowed_properties
+
+    def validate_filter_search_sort_fields(
+        self, fields: List[str], refinement: ServiceAdhocRefinements
+    ):
+        pass
 
 
 @pytest.fixture()
@@ -856,3 +890,8 @@ def test_thread():
             sys.setswitchinterval(orig_switch_interval)
 
     yield run_callable
+
+
+@pytest.fixture()
+def use_tmp_media_root(tmpdir, settings):
+    settings.MEDIA_ROOT = tmpdir

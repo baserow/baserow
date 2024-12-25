@@ -11,7 +11,6 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
-from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
 
@@ -721,10 +720,7 @@ def test_create_gallery_view_invalid_card_card_cover_image_field(
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert (
-        response_json["detail"]["card_cover_image_field"][0]["code"] == "does_not_exist"
-    )
+    assert response_json["error"] == "ERROR_INCOMPATIBLE_FIELD"
 
     response = api_client.post(
         reverse("api:database:views:list", kwargs={"table_id": table.id}),
@@ -973,16 +969,9 @@ def test_list_rows_public_with_query_param_filter(api_client, data_fixture):
 def test_list_rows_public_with_query_param_order(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(database=table.database)
     public_field = data_fixture.create_text_field(table=table, name="public")
     hidden_field = data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
-    )
+    password_field = data_fixture.create_password_field(table=table, name="password")
     gallery_view = data_fixture.create_gallery_view(table=table, user=user, public=True)
     data_fixture.create_gallery_view_field_option(
         gallery_view, public_field, hidden=False
@@ -991,7 +980,7 @@ def test_list_rows_public_with_query_param_order(api_client, data_fixture):
         gallery_view, hidden_field, hidden=True
     )
     data_fixture.create_gallery_view_field_option(
-        gallery_view, link_row_field, hidden=False
+        gallery_view, password_field, hidden=False
     )
 
     first_row = RowHandler().create_row(
@@ -1027,7 +1016,7 @@ def test_list_rows_public_with_query_param_order(api_client, data_fixture):
         "api:database:views:gallery:public_rows", kwargs={"slug": gallery_view.slug}
     )
     response = api_client.get(
-        f"{url}?order_by=field_{link_row_field.id}",
+        f"{url}?order_by=field_{password_field.id}",
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -1316,16 +1305,10 @@ def test_list_rows_public_only_searches_by_visible_columns(
 def test_list_rows_with_query_param_order(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(database=table.database)
     text_field = data_fixture.create_text_field(table=table, name="text")
     hidden_field = data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
-    )
+    password_field = data_fixture.create_password_field(table=table, name="password")
+
     gallery_view = data_fixture.create_gallery_view(
         table=table, user=user, create_options=False
     )
@@ -1336,7 +1319,7 @@ def test_list_rows_with_query_param_order(api_client, data_fixture):
         gallery_view, hidden_field, hidden=True
     )
     data_fixture.create_gallery_view_field_option(
-        gallery_view, link_row_field, hidden=False
+        gallery_view, password_field, hidden=False
     )
     first_row = RowHandler().create_row(
         user, table, values={"text": "a", "hidden": "a"}, user_field_names=True
@@ -1372,9 +1355,55 @@ def test_list_rows_with_query_param_order(api_client, data_fixture):
 
     # sorting on unsupported field
     response = api_client.get(
-        f"{url}?order_by=field_{link_row_field.id}",
+        f"{url}?order_by=field_{password_field.id}",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE"
+
+
+@pytest.mark.django_db
+def test_create_gallery_view_with_lookup_as_card_card_cover_image_field(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table_a, table_b, link = data_fixture.create_two_linked_tables(user=user)
+    file_field = data_fixture.create_file_field(table=table_b)
+    lookup_field = data_fixture.create_lookup_field(
+        name="lookup",
+        table=table_a,
+        through_field=link,
+        target_field=file_field,
+        through_field_name=link.name,
+        target_field_name=file_field.name,
+    )
+    formula_single_field = data_fixture.create_formula_field(
+        table=table_a,
+        formula="index(field('lookup'), 0)",
+    )
+
+    response = api_client.post(
+        reverse("api:database:views:list", kwargs={"table_id": table_a.id}),
+        {
+            "name": "Test 2",
+            "type": "gallery",
+            "card_cover_image_field": lookup_field.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    gallery_id = response.json()["id"]
+
+    response = api_client.patch(
+        reverse("api:database:views:item", kwargs={"view_id": gallery_id}),
+        {
+            "name": "Test 2",
+            "type": "gallery",
+            "card_cover_image_field": formula_single_field.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK

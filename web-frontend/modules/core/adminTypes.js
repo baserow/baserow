@@ -88,6 +88,85 @@ export class AdminType extends Registerable {
   }
 }
 
+export class DashboardAdminType extends AdminType {
+  static getType() {
+    return 'dashboard'
+  }
+
+  getIconClass() {
+    return 'iconoir-home-simple'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('adminType.dashboard')
+  }
+
+  getRouteName() {
+    return 'admin-dashboard'
+  }
+
+  getOrder() {
+    return 1
+  }
+}
+
+export class UsersAdminType extends AdminType {
+  static getType() {
+    return 'users'
+  }
+
+  getIconClass() {
+    return 'iconoir-community'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('adminType.users')
+  }
+
+  getCategory() {
+    const { i18n } = this.app
+    return i18n.t('sidebar.people')
+  }
+
+  getRouteName() {
+    return 'admin-users'
+  }
+
+  getOrder() {
+    return 2
+  }
+}
+
+export class WorkspacesAdminType extends AdminType {
+  static getType() {
+    return 'workspaces'
+  }
+
+  getIconClass() {
+    return 'baserow-icon-groups'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('adminType.workspaces')
+  }
+
+  getCategory() {
+    const { i18n } = this.app
+    return i18n.t('sidebar.people')
+  }
+
+  getRouteName() {
+    return 'admin-workspaces'
+  }
+
+  getOrder() {
+    return 3
+  }
+}
+
 export class SettingsAdminType extends AdminType {
   static getType() {
     return 'settings'

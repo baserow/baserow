@@ -5,7 +5,12 @@
     :style="getStyleOverride(element.variant)"
   >
     <ABLink :target="element.target" :url="url" :variant="element.variant">
-      {{ resolvedValue || $t('linkElement.noValue') }}
+      {{
+        element.value
+          ? resolvedValue ||
+            (mode === 'editing' ? $t('linkElement.emptyValue') : '&nbsp;')
+          : $t('linkElement.missingValue')
+      }}
     </ABLink>
   </div>
 </template>
@@ -42,6 +47,9 @@ export default {
     resolvedValue() {
       return ensureString(this.resolveFormula(this.element.value))
     },
+    pages() {
+      return this.$store.getters['page/getVisiblePages'](this.builder)
+    },
     classes() {
       return {
         'element--no-value': !this.resolvedValue,
@@ -52,6 +60,7 @@ export default {
         return resolveElementUrl(
           this.element,
           this.builder,
+          this.pages,
           this.resolveFormula,
           this.mode
         )

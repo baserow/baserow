@@ -16,6 +16,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.test_utils.helpers import AnyStr
 
 
 @pytest.mark.django_db
@@ -363,8 +364,8 @@ def test_can_update_rollup_field_value(data_fixture, api_client):
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{link_row_field.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{rollup_field.id}": "3",
                 "id": table_row.id,
@@ -395,8 +396,8 @@ def test_can_update_rollup_field_value(data_fixture, api_client):
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{link_row_field.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{rollup_field.id}": "7",
                 "id": table_row.id,
@@ -459,7 +460,9 @@ def test_can_create_rollup_field_value(data_fixture, api_client):
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"field_{table_primary_field.id}": "row 1",
-                f"field_{link_row_field.id}": [{"id": 1, "value": "row A"}],
+                f"field_{link_row_field.id}": [
+                    {"id": 1, "value": "row A", "order": AnyStr()}
+                ],
                 f"field_{rollup_field.id}": "5",
             }
         ]
@@ -520,7 +523,9 @@ def test_can_create_rollup_field_with_formula_properties(data_fixture, api_clien
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"field_{table_primary_field.id}": "row 1",
-                f"field_{link_row_field.id}": [{"id": 1, "value": "row A"}],
+                f"field_{link_row_field.id}": [
+                    {"id": 1, "value": "row A", "order": AnyStr()}
+                ],
                 f"field_{rollup_field.id}": "5.00",
             }
         ]

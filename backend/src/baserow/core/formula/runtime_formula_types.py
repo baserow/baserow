@@ -4,13 +4,14 @@ from baserow.core.formula.argument_types import (
 )
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArgs, FormulaContext
+from baserow.core.formula.validator import ensure_string
 
 
 class RuntimeConcat(RuntimeFormulaFunction):
     type = "concat"
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return "".join([str(a) for a in args])
+        return "".join([ensure_string(a) for a in args])
 
     def validate_number_of_args(self, args):
         return len(args) >= 2

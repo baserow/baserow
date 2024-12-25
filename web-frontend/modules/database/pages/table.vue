@@ -182,7 +182,13 @@ export default {
           return error({ statusCode: 400, message: type.getDeactivatedText() })
         }
 
-        await type.fetch({ store }, data.database, view, data.fields, 'page/')
+        await type.fetch(
+          { store, app },
+          data.database,
+          view,
+          data.fields,
+          'page/'
+        )
       } catch (e) {
         // In case of a network error we want to fail hard.
         if (e.response === undefined && !(e instanceof StoreItemLookupError)) {

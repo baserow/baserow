@@ -24,7 +24,7 @@ export default {
     defaultValues: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => ({}),
     },
     theme: { type: Object, required: false, default: null },
     themeConfigBlockType: {

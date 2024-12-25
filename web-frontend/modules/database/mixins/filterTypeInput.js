@@ -16,17 +16,18 @@ export default {
     }
   },
   watch: {
-    'filter.value'(value) {
-      const oldValue = this.copy
-      this.copy = value
-      clearTimeout(delayTimeout)
-      if (oldValue !== value) {
-        this.afterValueChanged(value, oldValue)
+    'filter.value'(value, oldValue) {
+      if (!this.focused) {
+        this.copy = this.prepareCopy(this.filter.value)
+        if (oldValue !== value) {
+          this.afterValueChanged(value, oldValue)
+        }
       }
+      clearTimeout(delayTimeout)
     },
   },
   created() {
-    this.copy = this.filter.value
+    this.copy = this.prepareCopy(this.filter.value)
     if (this.copy) {
       this.$v.$touch()
     }
@@ -34,6 +35,9 @@ export default {
   methods: {
     isInputValid() {
       return !this.$v.copy.$error
+    },
+    prepareCopy(value) {
+      return value
     },
     afterValueChanged(value, oldValue) {},
     delayedUpdate(value, immediately = false) {

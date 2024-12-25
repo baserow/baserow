@@ -6,7 +6,7 @@
       small-label
       :label="$t('columnElementForm.columnAmountTitle')"
     >
-      <Dropdown v-model="values.column_amount" :show-search="false" small>
+      <Dropdown v-model="values.column_amount" :show-search="false">
         <DropdownItem
           v-for="columnAmount in columnAmounts"
           :key="columnAmount.value"

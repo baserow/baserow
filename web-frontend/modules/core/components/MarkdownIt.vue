@@ -19,7 +19,7 @@ export default {
     rules: {
       required: false,
       type: Object,
-      default: () => {},
+      default: () => ({}),
     },
   },
   data() {

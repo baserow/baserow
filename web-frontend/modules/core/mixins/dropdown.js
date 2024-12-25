@@ -20,46 +20,77 @@ export default {
     }
   },
   props: {
+    /**
+     * The size of the dropdown.
+     */
+    size: {
+      type: String,
+      required: false,
+      validator: function (value) {
+        return ['regular', 'large'].includes(value)
+      },
+      default: 'regular',
+    },
+    /**
+     * The value of the dropdown. This can be a single value or an array of values if
+     * the multiple property is set to true.
+     */
     value: {
       type: [String, Number, Boolean, Object, Array],
       required: false,
       default: null,
     },
+    /**
+     * A string that is used to filter the dropdown items.
+     */
     searchText: {
       type: [String, null],
       required: false,
       default: null,
     },
+    /**
+     * The dropdown placeholder that is shown when no value is selected.
+     */
     placeholder: {
       type: [String, null],
       required: false,
       default: null,
     },
+    /**
+     * Wether or not to show the search input field.
+     */
     showSearch: {
       type: Boolean,
       required: false,
       default: true,
     },
+    /**
+     * Wether or not to show the input field. This is different from the search input.
+     */
     showInput: {
       type: Boolean,
       required: false,
       default: true,
     },
+    /**
+     * Wether or not to show the footer in the dropdown.
+     */
     showFooter: {
       type: Boolean,
       required: false,
       default: false,
     },
+    /**
+     * Wether or not the dropdown is disabled.
+     */
     disabled: {
       type: Boolean,
       required: false,
       default: false,
     },
-    small: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
+    /**
+     * The tabindex of the dropdown.
+     */
     tabindex: {
       type: Number,
       required: false,
@@ -84,6 +115,9 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * If true, the dropdown will allow multiple values to be selected.
+     */
     multiple: {
       type: Boolean,
       required: false,
@@ -99,6 +133,13 @@ export default {
       type: Function,
       required: false,
       default: null,
+    },
+    /* Error prop is used to show the dropdown in error state.
+     */
+    error: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   data() {
@@ -184,14 +225,22 @@ export default {
               : [...items, ...traverse(child.$children)],
           []
         )
-      return traverse(this.$children)
+      const components = traverse(this.$children)
+      this.hasDropdownItem = components.length > 0
+      return components
     },
     focusout(event) {
       // Hide only if we loose focus in favor of another element which is not a
       // child of this one. This will make sure the `show` and `hide` will not be
       // called multiple times when the search of being focussed on immediately
       // after opening.
-      if (event.relatedTarget && !isElement(this.$el, event.relatedTarget)) {
+      if (
+        event.relatedTarget &&
+        !isElement(this.$el, event.relatedTarget) &&
+        // no need to hide the dropdown if it loses focus if the input is not visible
+        // because you can't tab to the next item anyway.
+        this.showInput
+      ) {
         this.hide()
       }
     },
@@ -229,8 +278,6 @@ export default {
       this.hover = this.value
       this.opener = isElementOrigin ? target : null
       this.$emit('show')
-
-      this.hasDropdownItem = this.getDropdownItemComponents().length > 0
 
       this.$nextTick(() => {
         // We have to wait for the input to be visible before we can focus.

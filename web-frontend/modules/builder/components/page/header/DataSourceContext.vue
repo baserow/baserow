@@ -4,49 +4,58 @@
     max-height-if-outside-viewport
     @shown="shown"
   >
-    <div class="data-source-context__container">
+    <div
+      v-if="sharedDataSources.length > 0 || dataSources.length > 0"
+      class="data-source-context__container"
+    >
       <div
         v-if="state === 'loaded'"
         v-auto-overflow-scroll
-        class="data-source-context__content data-source-context__content--scrollable"
+        class="data-source-context__content"
       >
-        <div v-if="dataSources.length > 0" class="data-source-context__forms">
-          <ReadOnlyForm
-            v-for="dataSource in dataSources"
-            :key="dataSource.id"
-            :read-only="
-              !$hasPermission(
-                'builder.page.data_source.update',
-                dataSource,
-                workspace.id
-              )
-            "
-          >
-            <DataSourceForm
-              :id="dataSource.id"
-              :ref="`dataSourceForm_${dataSource.id}`"
-              :builder="builder"
-              :data-source="dataSource"
-              :page="page"
-              :default-values="dataSource"
-              :integrations="integrations"
-              :loading="dataSourcesLoading.includes(dataSource.id)"
-              @delete="deleteDataSource(dataSource)"
-              @values-changed="updateDataSource(dataSource, $event)"
-            />
-          </ReadOnlyForm>
-        </div>
-
-        <template v-else>
-          <div class="data-source-context__none">
-            <div class="data-source-context__none-title">
-              {{ $t('dataSourceContext.noDataSourceTitle') }}
-            </div>
-            <div class="data-source-context__none-description">
-              {{ $t('dataSourceContext.noDataSourceMessage') }}
-            </div>
+        <div
+          v-if="sharedDataSources.length > 0"
+          class="data-source-context__content-section"
+        >
+          <div class="data-source-context__content-section-title">
+            {{ $t('dataSourceContext.sharedDataSourceTitle') }}
           </div>
-        </template>
+          <div class="data-source-context__content-section-description">
+            {{ $t('dataSourceContext.sharedDataSourceDescription') }}
+          </div>
+          <div class="data-source-context__items">
+            <DataSourceItem
+              v-for="dataSource in sharedDataSources"
+              :key="dataSource.id"
+              :data-source="dataSource"
+              shared
+              @delete="deleteDataSource($event)"
+              @edit="editDataSource($event)"
+              @share="moveDataSourceToPage($event, sharedPage, page)"
+            />
+          </div>
+        </div>
+        <div
+          v-if="dataSources.length > 0"
+          class="data-source-context__content-section"
+        >
+          <div class="data-source-context__content-section-title">
+            {{ $t('dataSourceContext.pageDataSourceTitle') }}
+          </div>
+          <div class="data-source-context__content-section-description">
+            {{ $t('dataSourceContext.pageDataSourceDescription') }}
+          </div>
+          <div class="data-source-context__items">
+            <DataSourceItem
+              v-for="dataSource in dataSources"
+              :key="dataSource.id"
+              :data-source="dataSource"
+              @delete="deleteDataSource($event)"
+              @edit="editDataSource($event)"
+              @share="moveDataSourceToPage($event, page, sharedPage)"
+            />
+          </div>
+        </div>
       </div>
       <div class="context__footer">
         <ButtonText
@@ -65,20 +74,53 @@
         </ButtonText>
       </div>
     </div>
+
+    <template v-else>
+      <div class="data-source-context__none">
+        <div class="data-source-context__none-title">
+          {{ $t('dataSourceContext.noDataSourceTitle') }}
+        </div>
+        <div class="data-source-context__none-description">
+          {{ $t('dataSourceContext.noDataSourceMessage') }}
+        </div>
+        <Button
+          v-if="
+            $hasPermission(
+              'builder.page.create_data_source',
+              page,
+              workspace.id
+            )
+          "
+          icon="iconoir-plus"
+          type="secondary"
+          :loading="creationInProgress"
+          @click="createDataSource()"
+        >
+          {{ $t('dataSourceContext.addDataSource') }}
+        </Button>
+      </div>
+    </template>
+    <DataSourceCreateEditModal
+      v-if="editModalVisible"
+      :key="currentDataSourceId"
+      ref="dataSourceCreateEditModal"
+      :data-source-id="currentDataSourceId"
+      @hidden="onHide"
+    />
   </Context>
 </template>
 
 <script>
 import context from '@baserow/modules/core/mixins/context'
-import DataSourceForm from '@baserow/modules/builder/components/dataSource/DataSourceForm'
+import DataSourceCreateEditModal from '@baserow/modules/builder/components/dataSource/DataSourceCreateEditModal'
+import DataSourceItem from '@baserow/modules/builder/components/dataSource/DataSourceItem'
 import { mapActions } from 'vuex'
-import _ from 'lodash'
-import { clone } from '@baserow/modules/core/utils/object'
+import { ELEMENT_EVENTS } from '@baserow/modules/builder/enums'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'DataSourceContext',
-  components: { DataSourceForm },
+  components: { DataSourceItem, DataSourceCreateEditModal },
   mixins: [context],
   inject: ['workspace', 'builder'],
   props: {
@@ -91,8 +133,8 @@ export default {
     return {
       state: 'loaded',
       creationInProgress: false,
-      onGoingUpdate: {},
-      dataSourcesLoading: [],
+      currentDataSourceId: null,
+      editModalVisible: false,
     }
   },
   computed: {
@@ -102,18 +144,37 @@ export default {
     dataSources() {
       return this.$store.getters['dataSource/getPageDataSources'](this.page)
     },
+    sharedPage() {
+      return this.$store.getters['page/getSharedPage'](this.builder)
+    },
+    sharedDataSources() {
+      return this.$store.getters['dataSource/getPageDataSources'](
+        this.sharedPage
+      )
+    },
+    allDataSources() {
+      return [...this.dataSources, ...this.sharedDataSources]
+    },
+    currentDataSource() {
+      return this.allDataSources.find(
+        ({ id }) => id === this.currentDataSourceId
+      )
+    },
+    elements() {
+      return this.$store.getters['element/getElementsOrdered'](this.page)
+    },
   },
   methods: {
     ...mapActions({
       actionFetchIntegrations: 'integration/fetch',
       actionCreateDataSource: 'dataSource/create',
-      actionUpdateDataSource: 'dataSource/debouncedUpdate',
+      actionMoveDataSourceToPage: 'dataSource/moveToPage',
       actionDeleteDataSource: 'dataSource/delete',
-      actionFetchDataSources: 'dataSource/fetch',
-      clearElementContent: 'elementContent/clearElementContent',
     }),
     async shown() {
       try {
+        // We fetch the integrations on load to make sure we have the last version
+        // of the database/table/fields.
         await Promise.all([
           this.actionFetchIntegrations({
             application: this.builder,
@@ -123,59 +184,57 @@ export default {
         notifyIf(error)
       }
     },
+    onHide() {
+      this.editModalVisible = false
+      this.currentDataSourceId = null
+    },
     async createDataSource() {
-      this.creationInProgress = true
+      this.currentDataSourceId = null
+      this.editModalVisible = true
+      await this.$nextTick()
+      this.$refs.dataSourceCreateEditModal.show()
+    },
+    async deleteDataSource(dataSource) {
+      const page =
+        dataSource.page_id === this.page.id ? this.page : this.sharedPage
       try {
-        await this.actionCreateDataSource({
-          page: this.page,
-          values: {},
+        await this.actionDeleteDataSource({
+          page,
+          dataSourceId: dataSource.id,
+        })
+        this.$store.dispatch('dataSourceContent/clearDataSourceContent', {
+          page,
+          dataSourceId: dataSource.id,
+        })
+        // Trigger element event listener
+        this.$store.dispatch('element/emitElementEvent', {
+          event: ELEMENT_EVENTS.DATA_SOURCE_REMOVED,
+          elements: this.elements,
+          dataSourceId: dataSource.id,
+          builder: this.builder,
         })
       } catch (error) {
         notifyIf(error)
       }
-      this.creationInProgress = false
     },
-    async updateDataSource(dataSource, newValues) {
-      // We only need to set the loading state if the integration is updated
-      if (
-        newValues.integration_id !== null &&
-        newValues.integration_id !== undefined
-      ) {
-        this.dataSourcesLoading.push(dataSource.id)
-      }
-
-      const differences = Object.fromEntries(
-        Object.entries(newValues).filter(
-          ([key, value]) => !_.isEqual(value, dataSource[key])
-        )
-      )
-
-      if (Object.keys(differences).length > 0) {
-        try {
-          await this.actionUpdateDataSource({
-            page: this.page,
-            dataSourceId: dataSource.id,
-            values: clone(differences),
-          })
-          if (differences.type) {
-            this.$refs[`dataSourceForm_${dataSource.id}`][0].reset()
-          }
-        } catch (error) {
-          // Restore the previously saved values from the store
-          this.$refs[`dataSourceForm_${dataSource.id}`][0].reset()
-          notifyIf(error)
-        }
-      }
-
-      this.dataSourcesLoading = this.dataSourcesLoading.filter(
-        (id) => id !== dataSource.id
-      )
+    async editDataSource(dataSource) {
+      this.currentDataSourceId = dataSource.id
+      this.editModalVisible = true
+      await this.$nextTick()
+      this.$refs.dataSourceCreateEditModal.show()
     },
-    async deleteDataSource(dataSource) {
+    async moveDataSourceToPage(dataSource, pageSource, pageDest) {
       try {
-        await this.actionDeleteDataSource({
-          page: this.page,
+        await this.actionMoveDataSourceToPage({
+          pageSource,
+          pageDest,
           dataSourceId: dataSource.id,
+        })
+        this.$store.dispatch('element/emitElementEvent', {
+          event: ELEMENT_EVENTS.DATA_SOURCE_AFTER_UPDATE,
+          elements: this.elements,
+          dataSourceId: dataSource.id,
+          builder: this.builder,
         })
       } catch (error) {
         notifyIf(error)

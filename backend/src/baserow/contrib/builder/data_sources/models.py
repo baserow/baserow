@@ -1,6 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
+from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.mixins import (
     FractionOrderableMixin,
@@ -18,6 +19,7 @@ class DataSource(
     HierarchicalModelMixin,
     TrashableModelMixin,
     FractionOrderableMixin,
+    BuilderInstanceWithFormulaMixin,
     models.Model,
 ):
     """
@@ -46,7 +48,7 @@ class DataSource(
     )
 
     class Meta:
-        ordering = ("order", "id")
+        ordering = ("page_id", "order", "id")
         unique_together = [["page", "name"]]
 
     def get_parent(self):
@@ -57,7 +59,7 @@ class DataSource(
         """
         Returns the last order for the given page.
 
-        :param Page: The page we want the order for.
+        :param page: The page we want the order for.
         :return: The last order.
         """
 
@@ -79,3 +81,18 @@ class DataSource(
 
         queryset = DataSource.objects.filter(page=before.page)
         return cls.get_unique_orders_before_item(before, queryset)[0]
+
+    def formula_generator(self, instance: "DataSource"):
+        """
+        Yield the formulas from the current data source instance and from the underlying
+        service if it exists.
+        """
+
+        yield from super().formula_generator(instance)
+
+        service = instance.service.specific if instance.service else None
+
+        # The Data Source's service can be None if the user created a Data
+        # Source but didn't finish configuring it.
+        if service:
+            yield from service.get_type().formula_generator(service)

@@ -7,13 +7,14 @@ import math
 import os
 import random
 import re
+import socket
 import string
 from collections import defaultdict, namedtuple
 from decimal import Decimal
 from fractions import Fraction
-from itertools import islice
+from itertools import chain, islice
 from numbers import Number
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
 
 from django.conf import settings
 from django.db import transaction
@@ -305,7 +306,7 @@ def to_path(path):
     return result
 
 
-def get_value_at_path(obj: Any, path: Union[str | List[str]]) -> Any:
+def get_value_at_path(obj: Any, path: Union[str | List[str]], default=None) -> Any:
     """Get the value at `path` of `obj`, similar to Lodash `get` function.
 
     Example:
@@ -328,6 +329,7 @@ def get_value_at_path(obj: Any, path: Union[str | List[str]]) -> Any:
 
     :param obj: The object that holds the value
     :param path: The path to the value or a list with the path parts
+    :param default: The value that must be returning if the path is not found.
     :return: The value held by the path
     """
 
@@ -355,7 +357,7 @@ def get_value_at_path(obj: Any, path: Union[str | List[str]]) -> Any:
             # Remove empty results and return None in case there are no results
             # Note: Don't exclude false values such as booleans, empty strings, etc.
             return [result for result in results if result is not None] or None
-        return None
+        return default
 
     keys = to_path(path) if isinstance(path, str) else path
     return _get_value_at_path(obj, keys)
@@ -1112,3 +1114,62 @@ def remove_duplicates(input_list):
 
     seen = set()
     return [x for x in input_list if not (x in seen or seen.add(x))]
+
+
+def merge_dicts_no_duplicates(*dicts):
+    """
+    Merges multiple dictionaries by combining the lists of values for any shared keys,
+    removing duplicate elements.
+
+    Parameters:
+        *dicts (dict): Multiple dictionaries with lists as values.
+
+    Returns:
+        dict: A new dictionary with merged values for shared keys, without duplicates.
+    """
+
+    merged_dict = {}
+
+    for dictionary in dicts:
+        for key in dictionary:
+            # Combine the lists and remove duplicates by converting to a set,
+            # then back to a list
+            if key in merged_dict:
+                merged_dict[key] = list(set(chain(merged_dict[key], dictionary[key])))
+            else:
+                merged_dict[key] = dictionary[key]
+
+    return merged_dict
+
+
+def get_all_ips(hostname: str) -> Set:
+    """
+    Returns a set of all IP addresses of the provided hostname.
+
+    :param hostname: The hostname where to get the IP addresses from.
+    :return: A set containing the IP addresses of the hostname.
+    """
+
+    try:
+        addr_info = socket.getaddrinfo(hostname, None)
+        # Extract unique IP addresses from addr_info (both IPv4 and IPv6)
+        ips = {info[4][0] for info in addr_info}
+        return ips
+    except socket.gaierror:
+        return set()
+
+
+def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
+    """
+    Resolves the IP addresses of both hostnames, and checks they resolve to the same IP
+    address. In this case, `are_hostnames_same("localhost", "localhost") == True`
+    because they're both resolving to the same IP.
+
+    :param hostname1: First hostname to compare.
+    :param hostname2: Second hostname to compare
+    :return: True if the hostnames point to the same IP.
+    """
+
+    ips1 = get_all_ips(hostname1)
+    ips2 = get_all_ips(hostname2)
+    return not ips1.isdisjoint(ips2)

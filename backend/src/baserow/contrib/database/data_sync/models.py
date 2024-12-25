@@ -69,6 +69,11 @@ class DataSyncSyncedProperty(models.Model):
         help_text="Indicates whether the data sync property is used for unique "
         "identification when syncing.",
     )
+    metadata = models.JSONField(
+        null=True,
+        default=None,
+        help_text="Private metadata needed to help keep the data in sync.",
+    )
 
 
 class SyncDataSyncTableJob(Job):
@@ -83,3 +88,25 @@ class SyncDataSyncTableJob(Job):
 
 class ICalCalendarDataSync(DataSync):
     ical_url = models.URLField(max_length=2000)
+
+
+class PostgreSQLDataSync(DataSync):
+    postgresql_host = models.CharField(max_length=255)
+    postgresql_username = models.CharField(max_length=255)
+    postgresql_password = models.CharField(max_length=255)
+    postgresql_port = models.PositiveSmallIntegerField(default=5432)
+    postgresql_database = models.CharField(max_length=255)
+    postgresql_schema = models.CharField(max_length=255, default="public")
+    postgresql_table = models.CharField(max_length=255)
+    postgresql_sslmode = models.CharField(
+        max_length=12,
+        default="prefer",
+        choices=(
+            ("disable", "disable"),
+            ("allow", "allow"),
+            ("prefer", "prefer"),
+            ("require", "require"),
+            ("verify-ca", "verify-ca"),
+            ("verify-full", "verify-full"),
+        ),
+    )

@@ -1,5 +1,5 @@
 <template>
-  <Context class="color-picker-context">
+  <Context class="color-picker-context" @shown="onShown">
     <ColorPicker
       :value="hexColorIncludingAlpha"
       :allow-opacity="allowOpacity"
@@ -10,7 +10,6 @@
         v-model="type"
         class="dropdown--floating color-picker-context__color-type"
         :show-search="false"
-        small
       >
         <DropdownItem name="Hex" :value="COLOR_NOTATIONS.HEX"></DropdownItem>
         <DropdownItem name="RGB" :value="COLOR_NOTATIONS.RGB"></DropdownItem>
@@ -65,11 +64,7 @@
       v-if="Object.keys(variables).length > 0"
       class="color-picker-context__variables"
     >
-      <Dropdown
-        :value="selectedVariable?.name || ''"
-        small
-        @input="setVariable"
-      >
+      <Dropdown :value="selectedVariable?.name || ''" @input="setVariable">
         <DropdownItem name="Custom" value=""></DropdownItem>
         <DropdownItem
           v-for="variable in variables"
@@ -175,6 +170,16 @@ export default {
     },
   },
   methods: {
+    /**
+     * When the user deletes the input field and closes the color picker, upon
+     * re-opening the color picker we should display the original persisted
+     * value.
+     */
+    onShown() {
+      if (this.value !== this.fakeHexExcludingAlpha) {
+        this.fakeHexExcludingAlpha = this.value
+      }
+    },
     setColorFromPicker(value) {
       if (this.selectedVariable) {
         // If we come from a variable before we reset the alpha channel to 1 otherwise
@@ -240,12 +245,18 @@ export default {
     hexChanged(event) {
       const value = event.target.value
 
-      if (!isValidHexColor(value)) {
+      // Prefix hash if it isn't present
+      let convertedValue = value
+      if (!value.startsWith('#')) {
+        convertedValue = '#' + convertedValue
+      }
+
+      if (!isValidHexColor(convertedValue)) {
         return
       }
 
       const rgba = convertHexToRgb(this.hexColorIncludingAlpha)
-      const newRgba = convertHexToRgb(value)
+      const newRgba = convertHexToRgb(convertedValue)
       rgba.r = newRgba.r
       rgba.g = newRgba.g
       rgba.b = newRgba.b

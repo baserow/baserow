@@ -83,59 +83,6 @@ def test_find_webhooks_to_call(data_fixture):
     assert webhook_5.id in webhook_ids
 
 
-@pytest.mark.django_db
-def test_find_webhooks_to_call_deprecated_event_types(data_fixture):
-    table_1 = data_fixture.create_database_table()
-    new_webhook_all_events = data_fixture.create_table_webhook(
-        table=table_1, include_all_events=True, active=True
-    )
-    deprecated_webhook = data_fixture.create_table_webhook(
-        table=table_1,
-        include_all_events=False,
-        events=["row.created", "row.updated", "row.deleted"],
-        active=True,
-    )
-    handler = WebhookHandler()
-
-    webhooks = handler.find_webhooks_to_call(table_1.id, "rows.created")
-    webhook_ids = [webhook.id for webhook in webhooks]
-    assert len(webhook_ids) == 1
-    assert new_webhook_all_events.id in webhook_ids
-    assert deprecated_webhook.id not in webhook_ids
-
-    webhooks = handler.find_webhooks_to_call(table_1.id, "rows.updated")
-    webhook_ids = [webhook.id for webhook in webhooks]
-    assert len(webhook_ids) == 1
-    assert new_webhook_all_events.id in webhook_ids
-    assert deprecated_webhook.id not in webhook_ids
-
-    webhooks = handler.find_webhooks_to_call(table_1.id, "rows.deleted")
-    webhook_ids = [webhook.id for webhook in webhooks]
-    assert len(webhook_ids) == 1
-    assert new_webhook_all_events.id in webhook_ids
-    assert deprecated_webhook.id not in webhook_ids
-
-    # deprecated event types
-
-    webhooks = handler.find_webhooks_to_call(table_1.id, "row.created")
-    webhook_ids = [webhook.id for webhook in webhooks]
-    assert len(webhook_ids) == 1
-    assert new_webhook_all_events.id not in webhook_ids
-    assert deprecated_webhook.id in webhook_ids
-
-    webhooks = handler.find_webhooks_to_call(table_1.id, "row.updated")
-    webhook_ids = [webhook.id for webhook in webhooks]
-    assert len(webhook_ids) == 1
-    assert new_webhook_all_events.id not in webhook_ids
-    assert deprecated_webhook.id in webhook_ids
-
-    webhooks = handler.find_webhooks_to_call(table_1.id, "row.deleted")
-    webhook_ids = [webhook.id for webhook in webhooks]
-    assert len(webhook_ids) == 1
-    assert new_webhook_all_events.id not in webhook_ids
-    assert deprecated_webhook.id in webhook_ids
-
-
 @pytest.mark.django_db()
 def test_get_webhook(data_fixture):
     user = data_fixture.create_user()

@@ -94,7 +94,10 @@
         "noProviders": "Aún no hay proveedores de autenticación configurados."
     },
     "authProviderTypes": {
-        "password": "Autenticación de correo electrónico y contraseña"
+        "password": "Autenticación de correo electrónico y contraseña",
+        "saml": "Proveedor SAML SSO",
+        "ssoSamlProviderName": "SSO SAML: {domain}",
+        "ssoSamlProviderNameUnconfigured": "SSO SAML no configurado"
     },
     "editAuthProviderMenuContext": {
         "edit": "Editar",
@@ -108,9 +111,18 @@
         "relayStateUrl": "URL de estado de retransmisión por defecto",
         "acsUrl": "URL de inicio de sesión único",
         "providerIsVerified": "El proveedor ha sido verificado",
-        "domain": "Dominio",
+        "domain": "Dominio SAML",
         "metadata": "Metadatos",
-        "metadataPlaceholder": "Pegue los metadatos del proveedor de identidad..."
+        "metadataPlaceholder": "Pegue los metadatos del proveedor de identidad...",
+        "defaultAttrs": "Por defecto",
+        "customAttrs": "A medida",
+        "emailAttrKey": "Correo electrónico",
+        "firstNameAttrKey": "Nombre",
+        "firstNameAttrKeyHelper": "El nombre del usuario o el nombre completo si no se indica «Apellidos».",
+        "samlResponseSettings": "Atributos de respuesta SAML",
+        "emailAttrKeyHelper": "El correo electrónico que se utilizará como nombre de usuario para el usuario.",
+        "lastNameAttrKey": "Apellido",
+        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borre este valor para proporcionar el nombre completo a través de «Nombre»."
     },
     "createSettingsAuthProviderModal": {
         "title": "Añadir un nuevo {tipo}"
@@ -270,7 +282,8 @@
         "rbac": "Control de acceso basado en funciones",
         "auditLogs": "Registros de auditoría",
         "coBranding": "Sustitución del logotipo de marca compartida",
-        "support": "Apoyo directo"
+        "support": "Apoyo directo",
+        "dataSync": "Sincronizar datos"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Apoyo directo"
@@ -302,7 +315,8 @@
         "notConfigured": "No configurado"
     },
     "appAuthProviderType": {
-        "localBaserowPassword": "Correo electrónico/contraseña"
+        "localBaserowPassword": "Correo electrónico/contraseña",
+        "commonSaml": "SAML SSO"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Seleccionar campo de contraseña",
@@ -335,5 +349,67 @@
         "emailPlaceholder": "Introduce tu correo electrónico...",
         "passwordPlaceholder": "Introduce tu contraseña...",
         "selectOrConfigureUserSourceFirst": "Elige un origen de usuario para empezar a utilizar este elemento de inicio de sesión."
+    },
+    "localBaserowTableDataSync": {
+        "name": "ID de la tabla de origen",
+        "authorizing": "Está autorizando a su cuenta a seleccionar los datos de la tabla de origen.",
+        "database": "Base de datos",
+        "table": "Tabla",
+        "workspace": "Espacio de trabajo"
+    },
+    "enterpriseDataSyncType": {
+        "localBaserowTable": "Sincronizar tabla Baserow",
+        "jiraIssues": "Sincronizar incidencias de Jira",
+        "githubIssues": "Sincronizar incidencias de GitHub",
+        "gitlabIssues": "Sincronizar incidencias de GitLab",
+        "hubspotContacts": "Sincronizar contactos de HubSpot"
+    },
+    "jiraIssuesDataSync": {
+        "urlHelper": "La URL base de tu instancia de Jira (por ejemplo, https://your-domain.atlassian.net).",
+        "projectKey": "Clave del proyecto Jira (opcional)",
+        "jiraUrl": "URL de instancia de Jira",
+        "projectKeyHelper": "La clave del proyecto de Jira (por ejemplo, PROJ). Se puede encontrar haciendo clic en `Configuración del proyecto` en Jira. Si no se proporciona, se devolverán todas las incidencias.",
+        "jiraUsername": "Nombre de usuario de Jira",
+        "usernameHelper": "El nombre de usuario de la cuenta de Jira utilizada para autenticarse. Este es el correo electrónico que se utiliza para iniciar sesión.",
+        "apiToken": "Token API de Jira",
+        "apiTokenHelper": "El token de API de la cuenta de Jira utilizada para la autenticación. Puede crearse en https://id.atlassian.com/manage-profile/security/api-tokens."
+    },
+    "githubIssuesDataSync": {
+        "repo": "Repositorio",
+        "repoHelper": "El nombre del repositorio. Típicamente en la esquina superior izquierda `owner / repo`",
+        "apiTokenHelper": "Se puede generar aquí https://github.com/settings/tokens haciendo clic en `Generate new token`, seleccione `All repositories`, luego en `Repository permissions` ponga `Issues` en `read-only`.",
+        "owner": "Propietario",
+        "ownerHelper": "Nombre de usuario o propietario del repositorio. Típicamente en la esquina superior izquierda `owner / repo`",
+        "apiToken": "Token API"
+    },
+    "gitlabIssuesDataSync": {
+        "url": "URL base",
+        "urlHelper": "La URL base de tu instancia de GitLab. (por ejemplo, https://gitlab.com)",
+        "projectId": "ID del proyecto",
+        "accessToken": "Clave de acceso",
+        "projectIdHelper": "El ID del proyecto desde el que quieres sincronizar las incidencias. Puedes encontrarlo yendo a la página de tu proyecto (por ejemplo, https://gitlab.com/baserow/baserow), haz clic en los tres puntos de la esquina superior derecha y, a continuación, en 'Copiar ID de proyecto: 12345678'.",
+        "accessTokenHelper": "Se puede generar aquí https://gitlab.com/-/user_settings/personal_access_tokens haciendo clic en `Add new token`, seleccione `read_api`."
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "Ten en cuenta que una exportación no incluirá ningún permiso establecido en la aplicación y sus tablas."
+    },
+    "samlAuthLink": {
+        "provideEmail": "Proporciona el correo electrónico de tu cuenta SAML",
+        "emailPlaceholder": "Introduce tu correo electrónico...",
+        "loginWithSaml": "Inicio de sesión con SAML",
+        "placeholderWithSaml": "{login} con SAML"
+    },
+    "hubspotContactsDataSync": {
+        "accessToken": "Token de acceso a la aplicación privada",
+        "accessTokenHelper": "Para generar un token de acceso a una app privada en HubSpot, haz clic en Configuración en la barra superior, navega hasta Integraciones > Apps privadas y crea una nueva app privada. Asigna los siguientes ámbitos: crm.objects.contacts.read, crm.schemas.contacts.read y crm.objects.custom.read. Por último, haz clic en Crear aplicación para generar el token."
+    },
+    "commonSamlSettingModal": {
+        "relayStateTitle": "URL de estado de retransmisión predeterminada por dominio (Haz clic para copiar)",
+        "preview": "Previsualizar",
+        "title": "Editar proveedor",
+        "acsTitle": "URL de inicio de sesión único por dominio (Haz clic para copiar)"
+    },
+    "commonSamlSettingForm": {
+        "authProviderInError": "Por favor, edita este proveedor para corregir el error."
     }
 }

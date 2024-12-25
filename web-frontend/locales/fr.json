@@ -10,7 +10,12 @@
         "table": "Table",
         "all": "Tous",
         "billable": "Facturable",
-        "beta": "Bêta"
+        "beta": "Bêta",
+        "disabled": "Désactivé·e",
+        "enabled": "Activé·e",
+        "summarize": "Résumer",
+        "or": "ou",
+        "and": "et"
     },
     "action": {
         "upload": "Envoyer",
@@ -42,7 +47,10 @@
         "reset": "Réinitialiser",
         "logout": "Déconnexion",
         "set": "Définir",
-        "backToHome": "Retour à l'accueil"
+        "backToHome": "Retour à l'accueil",
+        "close": "Fermer",
+        "hide": "Cacher",
+        "getStarted": "Commencer"
     },
     "adminType": {
         "settings": "Paramètres",
@@ -60,7 +68,11 @@
         "databases": "Bases de données",
         "databaseDesc": "Créer une collection organisée de données structurées.",
         "builderDesc": "Créez facilement des sites web, des applications web et des portails sans code.",
-        "builders": "Applications"
+        "builders": "Applications",
+        "dashboardDesc": "Visualisez vos données et vos indicateurs à l'aide de diagrammes, de tableaux ou de graphiques.",
+        "dashboard": "Tableau de bord",
+        "dashboards": "Tableaux de bord",
+        "dashboardDefaultName": "Tableau de bord sans titre"
     },
     "settingType": {
         "account": "Informations personnelles",
@@ -90,7 +102,9 @@
         "invalidNumber": "Le champ doit être un nombre.",
         "email": "La valeur doit être un email.",
         "invalidURL": "Veuillez saisir une URL valide.",
-        "alreadyInUse": "Ce nom de champ est déjà utilisé."
+        "alreadyInUse": "Ce nom de champ est déjà utilisé.",
+        "decimalField": "Le champ doit être une valeur décimal.",
+        "invalidCharacters": "Ce champ contient des caractères invalides."
     },
     "permission": {
         "admin": "Admin",
@@ -257,7 +271,9 @@
         "hasNotEmptyValue": "n'a pas de valeur vide",
         "hasValueContainsWord": "a une valeur contenant le mot",
         "hasValueLengthIsLowerThan": "a une longueur de valeur inférieure à",
-        "hasNotValueContainsWord": "n'a pas de valeur contenant le mot"
+        "hasNotValueContainsWord": "n'a pas de valeur contenant le mot",
+        "hasNoneSelectOptionEqual": "n'a pas d'option égale à",
+        "hasAnySelectOptionEqual": "à l'une des options égales à"
     },
     "viewType": {
         "grid": "Tableau",
@@ -295,7 +311,13 @@
             "rowDeleted": "Suppression d'une ligne",
             "rowsCreated": "Des lignes sont créées",
             "rowsUpdated": "Des lignes sont mises à jour",
-            "rowsDeleted": "Des lignes sont supprimées"
+            "rowsDeleted": "Des lignes sont supprimées",
+            "fieldCreated": "Champs ajouté",
+            "fieldUpdated": "Champs mis à jour",
+            "fieldDeleted": "Champs supprimé",
+            "viewCreated": "Vue créée",
+            "viewUpdated": "Vue mise à jour",
+            "viewDeleted": "Vue supprimée"
         },
         "form": {
             "invalidURLTitle": "URL invalide.",
@@ -384,7 +406,9 @@
         "fieldIsAlreadyPrimaryTitle": "Le champ est déjà primaire",
         "fieldIsAlreadyPrimaryDescription": "Le champ choisi est déjà le champ primaire.",
         "incompatiblePrimaryFieldTypeTitle": "Le champ n'est pas compatible",
-        "incompatiblePrimaryFieldTypeDescription": "Le champ choisi ne peut pas être le champ primaire car il est incompatible."
+        "incompatiblePrimaryFieldTypeDescription": "Le champ choisi ne peut pas être le champ primaire car il est incompatible.",
+        "cannotCreateRowsInTableTitle": "Impossible de créer les lignes",
+        "cannotCreateRowsInTableDescription": "Impossible de créer les lignes dans cette table."
     },
     "importerType": {
         "csv": "Importer un fichier CSV",
@@ -419,7 +443,8 @@
         "uploadFile": "Téléverser un fichier",
         "uploadFileViaUrl": "Téléverser un fichier via une URL",
         "uploadFileDescription": "La section multipart `file` contenant le contenu du fichier.",
-        "uploadFileViaUrlDescription": "Téléverse un fichier sur Baserow en le récupérant depuis l'URL fournie."
+        "uploadFileViaUrlDescription": "Téléverse un fichier sur Baserow en le récupérant depuis l'URL fournie.",
+        "sendWebhookEventsDescription": "Un paramètre de requête qui déclenche des webhooks après l'opération, s'il vaut `y`, `yes`, `true`, `t`, `on`, `1`, `or` et s'il est vide. La valeur par défaut est `true`"
     },
     "exporterType": {
         "csv": "Exporter vers CSV"

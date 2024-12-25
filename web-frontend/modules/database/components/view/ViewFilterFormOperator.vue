@@ -8,7 +8,6 @@
       :value="filterType"
       :show-search="false"
       :fixed-items="true"
-      small
       @input="$emit('updateFilterType', $event)"
     >
       <DropdownItem

@@ -15,7 +15,7 @@ from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import connection
 from django.db import models as django_models
 from django.db.models import Count, Q
-from django.db.models.expressions import F, OrderBy
+from django.db.models.expressions import OrderBy
 from django.db.models.query import QuerySet
 
 import jwt
@@ -32,7 +32,7 @@ from baserow.contrib.database.fields.field_filters import (
     FilterBuilder,
 )
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.operations import ReadFieldOperationType
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
@@ -290,7 +290,7 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
 
     @classmethod
     def get_index(
-        cls, view: View, model: Optional[GeneratedTableModel]
+        cls, view: View, model: Optional[GeneratedTableModel] = None
     ) -> Optional[django_models.Index]:
         """
         Returns the model and the best possible index for the requested view.
@@ -311,7 +311,10 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         for view_sort_or_group_by in view.get_all_sorts():
             field_object = model._field_objects[view_sort_or_group_by.field_id]
             annotated_order_by = field_object["type"].get_order(
-                field_object["field"], field_object["name"], view_sort_or_group_by.order
+                field_object["field"],
+                field_object["name"],
+                view_sort_or_group_by.order,
+                table_model=model,
             )
 
             # It's enough to have one field that cannot be indexed to make the DB
@@ -321,7 +324,7 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
 
             field_order_bys.append(annotated_order_by)
 
-        index_fields = [order_by.order for order_by in field_order_bys]
+        index_fields = [o for ob in field_order_bys for o in ob.order_bys]
 
         if not index_fields:
             return None
@@ -1315,6 +1318,19 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             if deleted_count > 0:
                 ViewIndexingHandler.after_field_changed_or_deleted(field)
 
+            # If it's a primary field, we also need to remove any sortings on the
+            # link row fields pointing to this table.
+            if field.primary:
+                related_fields = LinkRowField.objects.filter(
+                    link_row_table_id=field.table_id
+                )
+                deleted_count, _ = ViewSort.objects.filter(
+                    field__in=related_fields
+                ).delete()
+                if deleted_count > 0:
+                    for field in related_fields:
+                        ViewIndexingHandler.after_field_changed_or_deleted(field)
+
         # If the new field type does not support grouping then all group bys will be
         # removed.
         if not field_type.check_can_group_by(field):
@@ -1829,18 +1845,21 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             field_type = model._field_objects[view_sort_or_group_by.field_id]["type"]
 
             field_annotated_order_by = field_type.get_order(
-                field, field_name, view_sort_or_group_by.order
+                field,
+                field_name,
+                view_sort_or_group_by.order,
+                table_model=queryset.model,
             )
             field_annotation = field_annotated_order_by.annotation
-            field_order_by = field_annotated_order_by.order
+            field_order_bys = field_annotated_order_by.order_bys
 
             if field_annotation is not None:
                 queryset = queryset.annotate(**field_annotation)
 
-            order_by.append(field_order_by)
+            for fob in field_order_bys:
+                order_by.append(fob)
 
-        order_by.append(F("order").asc(nulls_first=True))
-        order_by.append(F("id").asc(nulls_first=True))
+        order_by.extend(("order", "id"))
 
         return order_by, queryset
 
@@ -1975,6 +1994,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             provided view's table.
         :return: The created view sort instance.
         """
+
+        field = field.specific
 
         workspace = view.table.database.workspace
         CoreHandler().check_permissions(
@@ -2763,6 +2784,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         model: Union[GeneratedTableModel, None] = None,
         with_total: bool = False,
         adhoc_filters: Optional[AdHocFilters] = None,
+        combine_filters: bool = False,
         search: Optional[str] = None,
         search_mode: Optional[SearchModes] = None,
         skip_perm_check: bool = False,
@@ -2782,8 +2804,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             automatically.
         :param with_total: Whether the total row count should be returned in the
             result.
-        :param adhoc_filters: The filters that can be optionally applied
-            instead of the view's own filters.
+        :param adhoc_filters: The filters that can be optionally applied.
+        :param combine_filters: If set to True, the adhoc filters will be used
+            together with the view filters. Otherwise ad hoc filters will be
+            used if provided.
         :param search: the search string to considerate. If the search parameter is
             defined, we don't use the cache so we recompute aggregation on the fly.
         :param search_mode: the search mode that the search is using.
@@ -2866,6 +2890,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 model,
                 with_total=with_total,
                 adhoc_filters=adhoc_filters,
+                combine_filters=combine_filters,
                 search=search,
                 search_mode=search_mode,
                 skip_perm_check=skip_perm_check,
@@ -2906,6 +2931,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         model: Union[GeneratedTableModel, None] = None,
         with_total: bool = False,
         adhoc_filters: Optional[AdHocFilters] = None,
+        combine_filters: bool = False,
         search: Optional[str] = None,
         search_mode: Optional[SearchModes] = None,
         skip_perm_check: bool = False,
@@ -2924,8 +2950,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             automatically.
         :param with_total: Whether the total row count should be returned in the
             result.
-        :param adhoc_filters: The filters that can be optionally applied
-            instead of the view's own filters.
+        :param adhoc_filters: The filters that can be optionally applied.
+        :param combine_filters: If set to True, the adhoc filters will be used
+            together with the view filters. Otherwise ad hoc filters will be
+            used if provided.
         :param search: the search string to consider.
         :param search: the mode that the search is in.
         :param skip_perm_check: Skips the permission check if not necessary.
@@ -2964,11 +2992,15 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Apply filters and search to have accurate aggregations
         if view_type.can_filter:
-            queryset = (
-                adhoc_filters.apply_to_queryset(model, queryset)
-                if adhoc_filters.has_any_filters
-                else self.apply_filters(view, queryset)
-            )
+            if combine_filters:
+                queryset = self.apply_filters(view, queryset)
+                queryset = adhoc_filters.apply_to_queryset(model, queryset)
+            else:
+                queryset = (
+                    adhoc_filters.apply_to_queryset(model, queryset)
+                    if adhoc_filters.has_any_filters
+                    else self.apply_filters(view, queryset)
+                )
 
         if search is not None:
             queryset = queryset.search_all_fields(

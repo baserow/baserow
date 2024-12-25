@@ -40,6 +40,16 @@
               :content="$t('apiDocs.userFieldNamesDescription')"
             />
           </APIDocsParameter>
+          <APIDocsParameter
+            name="send_webhook_events"
+            :optional="true"
+            type="any"
+          >
+            <MarkdownIt
+              class="api-docs__content"
+              :content="$t('apiDocs.sendWebhookEventsDescription')"
+            />
+          </APIDocsParameter>
         </ul>
         <h4 class="api-docs__heading-4">
           {{ $t('apiDocs.requestBodySchema') }}
@@ -66,6 +76,16 @@
             <MarkdownIt
               class="api-docs__content"
               :content="$t('apiDocs.userFieldNamesDescription')"
+            />
+          </APIDocsParameter>
+          <APIDocsParameter
+            name="send_webhook_events"
+            :optional="true"
+            type="any"
+          >
+            <MarkdownIt
+              class="api-docs__content"
+              :content="$t('apiDocs.sendWebhookEventsDescription')"
             />
           </APIDocsParameter>
         </ul>

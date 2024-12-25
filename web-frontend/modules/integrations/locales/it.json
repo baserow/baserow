@@ -44,8 +44,9 @@
         "localBaserowWarning": "L'autorizzazione del tuo account fornisce a chiunque abbia autorizzazioni di modifica per l'applicazione l'accesso completo ai dati a cui hai accesso. È possibile creare un secondo utente, fornire i permessi corretti e utilizzare quest'ultimo."
     },
     "serviceType": {
-        "localBaserowGetRow": "Riga singola",
-        "localBaserowListRows": "Righe multiple"
+        "localBaserowGetRow": "Leggi {singleRow}",
+        "localBaserowListRows": "Elenca {multiple rows}",
+        "localBaserowAggregateRows": "Aggrega campo"
     },
     "userSourceType": {
         "localBaserow": "Autenticazione tramite tabella di Baserow"
@@ -68,5 +69,17 @@
         "localBaserowSummary": "Baserow Locale - {name}, {username}",
         "localBaserowNoUser": "Baserow Locale - Non configurato",
         "localBaserowWarning": "Autorizzare il tuo account consente a chiunque abbia i permessi di modifica sull'applicazione di avere pieno accesso ai dati a cui hai accesso tu. È possibile creare un secondo utente, assegnare i permessi appropriati e utilizzare quello."
+    },
+    "integrationsCommon": {
+        "singleRow": "Singola riga",
+        "multipleRows": "Più righe"
+    },
+    "localBaserowAggregateRowsForm": {
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Aggregazione",
+        "searchFieldPlaceHolder": "Inserisci un termine per la ricerca...",
+        "noTableChosenForFiltering": "Scegli una tabella per iniziare ad usare i filtri.",
+        "filterTabTitle": "Filtri",
+        "searchTabTitle": "Cerca"
     }
 }

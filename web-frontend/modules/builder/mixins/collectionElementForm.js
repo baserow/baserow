@@ -1,9 +1,10 @@
 import { mapGetters } from 'vuex'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
 import { CurrentRecordDataProviderType } from '@baserow/modules/builder/dataProviderTypes'
+import elementForm from '@baserow/modules/builder/mixins/elementForm'
 
 export default {
-  mixins: [applicationContextMixin],
+  mixins: [elementForm, applicationContextMixin],
   computed: {
     /**
      * Returns the schema which the service schema property selector
@@ -38,7 +39,17 @@ export default {
     hasCollectionAncestor() {
       const { element } = this.applicationContext
       const elementType = this.$registry.get('element', element.type)
-      return elementType.hasCollectionAncestor(this.page, element)
+      return elementType.hasCollectionAncestor(this.elementPage, element)
+    },
+    /**
+     * In collection element forms, the ability to configure property options
+     * (e.g. allowing properties to be filterable, sortable and/or searchable)
+     * is dependent on whether the selected data source returns a list, and if
+     * the feature flag is enabled.
+     * @returns {boolean} - Whether the property options are available.
+     */
+    propertyOptionsAvailable() {
+      return this.selectedDataSource && this.selectedDataSourceReturnsList
     },
     /**
      * In collection element forms, the ability to view paging options
@@ -82,21 +93,53 @@ export default {
       }
       return true
     },
+    sharedPage() {
+      return this.$store.getters['page/getSharedPage'](this.builder)
+    },
     /**
-     * Returns all data sources that are available to the current page.
+     * Returns all data sources that are available not on shared page.
+     * The data source will need a `type` and a valid schema.
      * @returns {Array} - The data sources the page designer can choose from.
      */
+    localDataSources() {
+      if (this.elementPage.id === this.sharedPage.id) {
+        // If the element is on the shared page they are no local page but only
+        // shared page.
+        return null
+      } else {
+        return this.$store.getters['dataSource/getPagesDataSources']([
+          this.elementPage,
+        ]).filter((dataSource) => {
+          const serviceType =
+            dataSource.type && this.$registry.get('service', dataSource.type)
+          return serviceType?.getDataSchema(dataSource)
+        })
+      }
+    },
+    /**
+     * Returns the shared data sources.
+     * @returns {Array} - The shared data sources the page designer can choose from.
+     */
+    sharedDataSources() {
+      // We keep only data sources that have a type and a schema.
+      return this.$store.getters['dataSource/getPagesDataSources']([
+        this.sharedPage,
+      ]).filter((dataSource) => {
+        const serviceType =
+          dataSource.type && this.$registry.get('service', dataSource.type)
+        return serviceType?.getDataSchema(dataSource)
+      })
+    },
     dataSources() {
-      return this.$store.getters['dataSource/getPageDataSources'](
-        this.page
-      ).filter((dataSource) => dataSource.type)
+      return [...(this.localDataSources || []), ...this.sharedDataSources]
     },
     selectedDataSource() {
       if (!this.values.data_source_id) {
         return null
       }
-      return this.$store.getters['dataSource/getPageDataSourceById'](
-        this.page,
+      const pages = [this.sharedPage, this.currentPage]
+      return this.$store.getters['dataSource/getPagesDataSourceById'](
+        pages,
         this.values.data_source_id
       )
     },
@@ -144,6 +187,10 @@ export default {
         ) {
           // Remove the data_source_id if the related dataSource has been deleted.
           this.values.data_source_id = null
+          // And delete element content (not handled by the element event)
+          this.$store.dispatch('elementContent/clearElementContent', {
+            element: this.element,
+          })
         }
       }
     },

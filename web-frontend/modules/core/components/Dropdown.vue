@@ -4,7 +4,8 @@
     :class="{
       'dropdown--floating': !showInput,
       'dropdown--disabled': disabled,
-      'dropdown--small': small,
+      'dropdown--large': size === 'large',
+      'dropdown--error': error,
     }"
     :tabindex="realTabindex"
     @focusin="show()"
@@ -12,7 +13,7 @@
   >
     <a v-if="showInput" class="dropdown__selected" @click="show()">
       <template v-if="hasValue()">
-        <slot name="value">
+        <slot name="selectedValue">
           <template v-if="multiple">
             <span
               class="dropdown__selected-text"

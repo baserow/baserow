@@ -19,14 +19,21 @@
     "sidebar": {
         "createWorkspace": "Arbeitsbereich erstellen",
         "inviteOthers": "Andere einladen",
-        "logoff": "Abmeldung",
+        "logoff": "Abmelden",
         "errorNoWorkspace": "Sie haben keine Arbeitsbereiche.",
         "admin": "Administrator",
         "dashboard": "Dashboard",
         "trash": "Papierkorb",
-        "settings": "Einstellungen",
+        "settings": "Meine Einstellungen",
         "members": "Mitglieder",
-        "notifications": "Benachrichtigungen"
+        "notifications": "Benachrichtigungen",
+        "addNewWorkspace": "Neuen Arbeitsbereich hinzufügen",
+        "adminTools": "Administrations-Tools",
+        "home": "Startseite",
+        "adminSettings": "Administrations-Einstellungen",
+        "general": "Allgemein",
+        "people": "Personen",
+        "licenses": "Lizenzen"
     },
     "accountForm": {
         "nameLabel": "Ihr Name",
@@ -39,7 +46,7 @@
         "submitButton": "Konto aktualisieren"
     },
     "settingsModal": {
-        "title": "Einstellungen"
+        "title": "Meine Einstellungen"
     },
     "passwordSettings": {
         "title": "Passwort ändern",
@@ -185,10 +192,14 @@
         "retry": "Erneut versuchen"
     },
     "createApplicationContext": {
-        "fromTemplate": "Von Vorlage"
+        "fromTemplate": "Von Vorlage",
+        "fromTemplateDesc": "Starten Sie zügig mit einer unserer empfohlenen Vorlagen",
+        "table": "Tabelle",
+        "tableDesc": "Erstellen Sie einen neuen Ort, um die Daten in Ihrer Datenbank zu verwalten."
     },
     "applicationForm": {
-        "nameLabel": "Name"
+        "nameLabel": "Name",
+        "namePlaceholder": "Geben Sie den Namen ein..."
     },
     "connectingNotification": {
         "title": "Wiederverbindung",
@@ -221,7 +232,7 @@
     "dashboard": {
         "title": "Dashboard",
         "alertTitle": "Wir benötigen Ihre Hilfe!",
-        "alertText": "Wenn Sie Baserow nützlich finden, dann sind Sie herzlich eingeladen, uns einen Stern auf GitLab zu geben oder von uns zu erzählen. Indem Sie Baserow teilen helfen Sie uns, das Produkt zu verbessern und es für Ihre Zwecke nützlicher zu machen.",
+        "alertText": "Indem Sie Baserow teilen, helfen Sie uns, das Produkt weiter zu verbessern und für Ihre Zwecke nützlicher zu machen.",
         "tweetContent": "Entdecken Sie @baserow, ein Open-Source-Datenbank-Tool ohne Code und eine Alternative zu Airtable!",
         "redditTitle": "Baserow - Eine Open-Source No-Code-Datenbank",
         "noWorkspaceTitle": "Keine Arbeitsbereiche gefunden",
@@ -233,7 +244,20 @@
         "shareOnReddit": "Teilen auf Reddit",
         "shareOnFacebook": "Teilen auf Facebook",
         "shareOnLinkedIn": "Teilen auf LinkedIn",
-        "noWorkspaceTextWithoutCreatePermission": "Sie sind kein Mitglied eines Arbeitsbereichs. Anwendungen wie Datenbanken gehören zu einer Arbeitsbereich. Um sie zu erstellen, müssen Sie also zuerst von einem Administrator in einen Arbeitsbereich eingeladen werden."
+        "noWorkspaceTextWithoutCreatePermission": "Sie sind kein Mitglied eines Arbeitsbereichs. Anwendungen wie Datenbanken gehören zu einer Arbeitsbereich. Um sie zu erstellen, müssen Sie also zuerst von einem Administrator in einen Arbeitsbereich eingeladen werden.",
+        "tutorialsMessage": "Erkunden Sie das Potential von Baserow",
+        "tutorials": "Tutorials",
+        "apiDocumentationMessage": "Erfahren Sie mehr über unseren Quelltext",
+        "apiDocumentation": "API-Dokumentation",
+        "emptyWorkspace": "Dieser Arbeitsbereich ist leer",
+        "emptyWorkspaceMessage": "Starten Sie, indem Sie eine neue Datenbank oder Anwendung erstellen.",
+        "addNew": "Neu hinzufügen...",
+        "noWorkspace": "Kein Arbeitsbereich",
+        "noWorkspaceDescription": "Legen Sie los, indem Sie einen neuen Arbeitsbereich anlegen",
+        "suggestedTemplates": "Vorgeschlagene Vorlagen",
+        "resources": "Ressourcen",
+        "knowledgeBase": "Wissensdatenbank",
+        "knowledgeBaseMessage": "Finden Sie Antworten auf all Ihre Fragen"
     },
     "login": {
         "title": "Anmeldung",
@@ -784,5 +808,115 @@
     "workspaceStep": {
         "title": "Erstellen Sie Ihren Arbeitsbereich",
         "workspaceLabel": "Name des Arbeitsbereichs"
+    },
+    "dashboardApplication": {
+        "createdAt": "erstellt"
+    },
+    "templateCard": {
+        "viewMore": "Mehr anzeigen"
+    },
+    "user": {
+        "isStaff": "Ist Personal",
+        "isWorkspaceAdmin": "Ist Arbeitsbereichadministrator",
+        "active": "Aktiv",
+        "deactivated": "Deaktiviert"
+    },
+    "adminType": {
+        "dashboard": "Dashboard",
+        "users": "Benutzer",
+        "workspaces": "Arbeitsbereiche"
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "Alle Arbeitsbereiche",
+        "id": "ID",
+        "name": "Name",
+        "members": "Mitglieder",
+        "applications": "Anwendungen",
+        "created": "Erstellt",
+        "rowCount": "Anzahl der Zeilen",
+        "freeUsers": "Kostenlose Benutzer",
+        "seatsTaken": "Sitze besetzt",
+        "storageUsage": "Verwendeter Speicherplatz (MB)",
+        "usageHelpText": "Wird nachts berechnet, wenn die Einstellung \"Arbeitsbereichsnutzung verfolgen\" aktiviert ist"
+    },
+    "editWorkspaceContext": {
+        "delete": "Dauerhaft löschen"
+    },
+    "deleteWorkspaceModal": {
+        "title": "Löschen {name}",
+        "confirmation": "Sind Sie sicher, dass Sie den Arbeitsbereich löschen wollen: {name}?",
+        "comment": "Der Arbeitsbereich wird dauerhaft gelöscht, einschließlich der zugehörigen Anwendungen. Es ist nicht möglich, diese Aktion rückgängig zu machen.",
+        "delete": "Arbeitsbereich {name} löschen"
+    },
+    "activeUsers": {
+        "newUsers": "Neuer Benutzer",
+        "activeUsers": "Aktive Nutzer"
+    },
+    "usersAdminTable": {
+        "allUsers": "Alle Benutzer",
+        "id": "ID",
+        "username": "Benutzername",
+        "name": "Name",
+        "workspaces": "Arbeitsbereiche",
+        "lastLogin": "Zuletzt angemeldet",
+        "dateJoined": "Angemeldet",
+        "active": "Aktiv"
+    },
+    "editUserContext": {
+        "changePassword": "Passwort ändern",
+        "delete": "Dauerhaft löschen",
+        "impersonate": "Imitieren"
+    },
+    "changePasswordForm": {
+        "newPassword": "Neues Passwort",
+        "repeatPassword": "Passwort wiederholen",
+        "changePassword": "Passwort ändern",
+        "error": {
+            "doesntMatch": "Dieses Feld muss mit Ihrem Passwortfeld übereinstimmen."
+        }
+    },
+    "userForm": {
+        "fullName": "Vollständiger Name",
+        "email": "Email",
+        "isActive": "Ist aktiv",
+        "warning": {
+            "changeEmail": "Die Änderung der E-Mail-Adresse des Benutzers bedeutet, dass er sich mit der neuen E-Mail-Adresse anmelden muss, wenn er sich anmeldet. Dies muss dem Benutzer mitgeteilt werden.",
+            "inactiveUser": "Wenn ein Benutzer als inaktiv markiert ist, kann er sich nicht mehr anmelden.",
+            "userStaff": "Wenn Sie einen Benutzer zu einem Mitarbeiter machen, erhält dieser Administratorenzugriff auf alle Benutzer und Arbeitsbereiche sowie die Möglichkeit, Ihren eigenen Mitarbeitern die Berechtigungen zu entziehen."
+        },
+        "error": {
+            "invalidName": "Bitte geben Sie einen gültigen vollständigen Namen ein. Er muss länger als 2 Buchstaben und kürzer als 150 sein.",
+            "invalidEmail": "Bitte geben Sie eine gültige E-Mail Adresse ein."
+        }
+    },
+    "changeUserPasswordModal": {
+        "changePassword": "Passwort für {Benutzername} ändern"
+    },
+    "deleteUserModal": {
+        "title": "Löschen {username}",
+        "confirmation": "Sind Sie sicher, dass Sie den Benutzer löschen möchten: {name}?",
+        "comment1": "Das Benutzerkonto wird gelöscht, aber die Arbeitsbereiche, in denen der Benutzer Mitglied ist, bleiben bestehen. Die Benutzergruppe wird nicht gelöscht, auch wenn dieser Benutzer der letzte Benutzer in dem Arbeitsbereich ist. Durch das Löschen des letzten Benutzers in einem Arbeitsbereich wird verhindert, dass jemand auf diesen Arbeitsbereich zugreifen kann.",
+        "comment2": "Nach dem Löschen eines Benutzers ist es möglich, dass sich ein neuer Benutzer mit der E-Mail-Adresse des gelöschten Benutzers erneut anmeldet. Um sicherzustellen, dass sie sich nicht erneut anmelden können, deaktivieren Sie den Benutzer und löschen Sie ihn nicht.",
+        "delete": "Benutzer {username} löschen"
+    },
+    "editUserModal": {
+        "delete": "Benutzer löschen",
+        "edit": "Bearbeiten { username }"
+    },
+    "adminDashboard": {
+        "title": "Dashboard",
+        "totals": "Summen",
+        "totalUsers": "Anzahl der Benutzer",
+        "totalWorkspaces": "Gesamtzahl der Arbeitsbereiche",
+        "totalApplications": "Gesamtanzahl der Anträge",
+        "newUsers": "Neue Benutzer",
+        "newUsers24h": "Neue Benutzer in den letzten 24 Stunden",
+        "newUsers7days": "Neue Benutzer in den letzten 7 Tagen",
+        "newUsers30days": "Neue Benutzer in den letzten 30 Tagen",
+        "activeUsers": "Aktive Benutzer",
+        "activeUsers24h": "Aktive Benutzer in den letzten 24 Stunden",
+        "activeUsers7days": "Aktive Benutzer in den letzten 7 Tagen",
+        "activeUsers30days": "Aktive Benutzer in den letzten 30 Tagen",
+        "viewAll": "Alle anzeigen"
     }
 }

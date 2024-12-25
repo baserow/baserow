@@ -105,6 +105,9 @@ import {
   HasValueContainsWordViewFilterType,
   HasNotValueContainsWordViewFilterType,
   HasValueLengthIsLowerThanViewFilterType,
+  HasAllValuesEqualViewFilterType,
+  HasAnySelectOptionEqualViewFilterType,
+  HasNoneSelectOptionEqualViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
 import {
   CSVImporterType,
@@ -112,11 +115,20 @@ import {
   XMLImporterType,
   JSONImporterType,
 } from '@baserow/modules/database/importerTypes'
-import { ICalCalendarDataSyncType } from '@baserow/modules/database/dataSyncTypes'
+import {
+  ICalCalendarDataSyncType,
+  PostgreSQLDataSyncType,
+} from '@baserow/modules/database/dataSyncTypes'
 import {
   RowsCreatedWebhookEventType,
   RowsUpdatedWebhookEventType,
   RowsDeletedWebhookEventType,
+  FieldCreatedWebhookEventType,
+  FieldUpdatedWebhookEventType,
+  FieldDeletedWebhookEventType,
+  ViewCreatedWebhookEventType,
+  ViewUpdatedWebhookEventType,
+  ViewDeletedWebhookEventType,
 } from '@baserow/modules/database/webhookEventTypes'
 import {
   ImageFilePreview,
@@ -303,6 +315,7 @@ import de from '@baserow/modules/database/locales/de.json'
 import es from '@baserow/modules/database/locales/es.json'
 import it from '@baserow/modules/database/locales/it.json'
 import pl from '@baserow/modules/database/locales/pl.json'
+import ko from '@baserow/modules/database/locales/ko.json'
 import {
   DatabaseScratchTrackCampaignFieldsOnboardingType,
   DatabaseScratchTrackCustomFieldsOnboardingType,
@@ -324,6 +337,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('es', es)
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
+    i18n.mergeLocaleMessage('ko', ko)
   }
 
   store.registerModule('table', tableStore)
@@ -479,6 +493,19 @@ export default (context) => {
     'viewFilter',
     new HasValueLengthIsLowerThanViewFilterType(context)
   )
+  app.$registry.register(
+    'viewFilter',
+
+    new HasAllValuesEqualViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasAnySelectOptionEqualViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNoneSelectOptionEqualViewFilterType(context)
+  )
   app.$registry.register('viewFilter', new ContainsViewFilterType(context))
   app.$registry.register('viewFilter', new ContainsNotViewFilterType(context))
   app.$registry.register('viewFilter', new ContainsWordViewFilterType(context))
@@ -593,6 +620,7 @@ export default (context) => {
   app.$registry.register('importer', new XMLImporterType(context))
   app.$registry.register('importer', new JSONImporterType(context))
   app.$registry.register('dataSync', new ICalCalendarDataSyncType(context))
+  app.$registry.register('dataSync', new PostgreSQLDataSyncType(context))
   app.$registry.register('settings', new APITokenSettingsType(context))
   app.$registry.register('exporter', new CSVTableExporterType(context))
   app.$registry.register(
@@ -606,6 +634,30 @@ export default (context) => {
   app.$registry.register(
     'webhookEvent',
     new RowsDeletedWebhookEventType(context)
+  )
+  app.$registry.register(
+    'webhookEvent',
+    new FieldCreatedWebhookEventType(context)
+  )
+  app.$registry.register(
+    'webhookEvent',
+    new FieldUpdatedWebhookEventType(context)
+  )
+  app.$registry.register(
+    'webhookEvent',
+    new FieldDeletedWebhookEventType(context)
+  )
+  app.$registry.register(
+    'webhookEvent',
+    new ViewCreatedWebhookEventType(context)
+  )
+  app.$registry.register(
+    'webhookEvent',
+    new ViewUpdatedWebhookEventType(context)
+  )
+  app.$registry.register(
+    'webhookEvent',
+    new ViewDeletedWebhookEventType(context)
   )
 
   // Text functions

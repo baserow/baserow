@@ -212,7 +212,12 @@ class GenerateFormulaWithAIView(APIView):
         )
 
         formula = action_type_registry.get(GenerateFormulaWithAIActionType.type).do(
-            request.user, table, data["ai_type"], data["ai_model"], data["ai_prompt"]
+            request.user,
+            table,
+            data["ai_type"],
+            data["ai_model"],
+            data["ai_prompt"],
+            ai_temperature=data.get("ai_temperature", None),
         )
 
         return Response({"formula": formula}, status=status.HTTP_200_OK)

@@ -95,14 +95,17 @@
     "addProvider": "Add provider"
   },
   "authProviderTypes": {
-    "password": "Email and password authentication"
+    "password": "Email and password authentication",
+    "saml": "SSO SAML provider",
+    "ssoSamlProviderName": "SSO SAML: {domain}",
+    "ssoSamlProviderNameUnconfigured": "Unconfigured SSO SAML"
   },
   "editAuthProviderMenuContext": {
     "edit": "Edit",
     "delete": "Delete"
   },
   "samlSettingsForm": {
-    "domain": "Domain",
+    "domain": "SAML Domain",
     "domainPlaceholder": "Insert the company domain name...",
     "invalidDomain": "Invalid domain name",
     "domainAlreadyExists": "A SAML provider for this domain already exists",
@@ -111,7 +114,16 @@
     "invalidMetadata": "Invalid XML metadata for the Identity Provider",
     "relayStateUrl": "Default Relay State URL",
     "acsUrl": "Single Sign On URL",
-    "providerIsVerified": "The provider has been verified"
+    "providerIsVerified": "The provider has been verified",
+    "samlResponseSettings": "SAML Response Attributes",
+    "defaultAttrs": "Default",
+    "customAttrs": "Custom",
+    "emailAttrKey": "Email",
+    "emailAttrKeyHelper": "The email address that will be used as username for the user.",
+    "firstNameAttrKey": "First name",
+    "firstNameAttrKeyHelper": "The first name of the user or the full name if 'Last name' is not provided.",
+    "lastNameAttrKey": "Last name",
+    "lastNameAttrKeyHelper": "Last name of the user (optional). Clear this value to provide the full name via 'First name'."
   },
   "createSettingsAuthProviderModal": {
     "title": "Add a new {type}"
@@ -269,6 +281,7 @@
     "sso": "Single Sign On",
     "rbac": "Role-based access control",
     "auditLogs": "Audit logs",
+    "dataSync": "Data sync",
     "coBranding": "Co-branding logo replacement",
     "support": "Direct support"
   },
@@ -280,6 +293,9 @@
   },
   "snapshotModalWarning": {
     "message": "Please be aware that a snapshot will include any permissions set on the application and its tables."
+  },
+  "exportWorkspaceModalWarning": {
+    "message": "Please be aware that an export will not include any permissions set on the application and its tables."
   },
   "auditLogSidebarWorkspace": {
     "title": "Audit log"
@@ -298,11 +314,21 @@
     "roleFieldPlaceholder": "Select a field..."
   },
   "appAuthProviderType": {
-    "localBaserowPassword": "Email/Password"
+    "localBaserowPassword": "Email/Password",
+    "commonSaml": "Saml SSO"
   },
   "localBaserowPasswordAppAuthProviderForm": {
     "passwordFieldLabel": "Select password field",
     "noFields": "No compatible fields"
+  },
+  "commonSamlSettingModal": {
+    "title": "Edit provider",
+    "relayStateTitle": "Default Relay State URL per domain (Click to copy)",
+    "acsTitle": "Single Sign On URL per domain (Click to copy)",
+    "preview": "Preview"
+  },
+  "commonSamlSettingForm": {
+    "authProviderInError": "Please edit this provider to fix the error."
   },
   "enterpriseSettings": {
     "branding": "Branding",
@@ -331,5 +357,55 @@
     "emailPlaceholder": "Enter your email...",
     "passwordPlaceholder": "Enter your password...",
     "selectOrConfigureUserSourceFirst": "Choose a user source to begin using this login element."
+  },
+  "enterpriseDataSyncType": {
+    "localBaserowTable": "Sync Baserow table",
+    "jiraIssues": "Sync Jira issues",
+    "githubIssues": "Sync GitHub issues",
+    "gitlabIssues": "Sync GitLab issues",
+    "hubspotContacts": "Sync HubSpot contacts"
+  },
+  "localBaserowTableDataSync": {
+    "name": "Source table ID",
+    "authorizing": "You're authorizing your account to select the data from the source table.",
+    "workspace": "Workspace",
+    "database": "Database",
+    "table": "Table"
+  },
+  "jiraIssuesDataSync": {
+    "jiraUrl": "Jira instance URL",
+    "urlHelper": "The base URL of your Jira instance (e.g., https://your-domain.atlassian.net).",
+    "projectKey": "Jira project key (optional)",
+    "projectKeyHelper": "The project key of the Jira project (e.g., PROJ). Can be found by clicking on `Project settings` in Jira. If not provided, all the issues will be returned.",
+    "jiraUsername": "Jira username",
+    "usernameHelper": "The username of the Jira account used to authenticate. This is the email that you use to sign in.",
+    "apiToken": "Jira API token",
+    "apiTokenHelper": "The API token of the Jira account used for authentication. Can be created at https://id.atlassian.com/manage-profile/security/api-tokens."
+  },
+  "githubIssuesDataSync": {
+    "owner": "Owner",
+    "ownerHelper": "Username or owner of the repository. Typically in the top left corner `owner / repo`",
+    "repo": "Repository",
+    "repoHelper": "The name of the repository. Typically in the top left corner `owner / repo`",
+    "apiToken": "API token",
+    "apiTokenHelper": "Can be generated here https://github.com/settings/tokens by clicking on `Generate new token`, select `All repositories`, then under `Repository permissions` set `Issues` to `read-only`."
+  },
+  "gitlabIssuesDataSync": {
+    "url": "Base URL",
+    "urlHelper": "The base URL of your GitLab instance. (e.g. https://gitlab.com)",
+    "projectId": "Project ID",
+    "projectIdHelper": "The ID of the project where you want to sync the issues from. Can be found by going to your project page (e.g. https://gitlab.com/baserow/baserow), click on the three dots in the top right corner, and then on 'Copy project ID: 12345678'.",
+    "accessToken": "Access token",
+    "accessTokenHelper": "Can be generated here https://gitlab.com/-/user_settings/personal_access_tokens by clicking on `Add new token`, select `read_api`."
+  },
+  "hubspotContactsDataSync": {
+    "accessToken": "Private app access token",
+    "accessTokenHelper": "To generate a private app access token in HubSpot, click on Settings in the top bar, navigate to Integrations > Private Apps, and create a new private app. Assign the following scopes: crm.objects.contacts.read, crm.schemas.contacts.read, and crm.objects.custom.read. Finally, click Create app to generate the token."
+  },
+  "samlAuthLink": {
+    "loginWithSaml": "Login with SAML",
+    "placeholderWithSaml": "{login} with SAML",
+    "provideEmail": "Provide your SAML account email",
+    "emailPlaceholder": "Enter your email..."
   }
 }

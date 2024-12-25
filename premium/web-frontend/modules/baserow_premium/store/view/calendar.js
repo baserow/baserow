@@ -10,6 +10,7 @@ import {
   getRowSortFunction,
   matchSearchFilters,
   calculateSingleRowSearchMatches,
+  getFilters,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import {
@@ -75,6 +76,7 @@ export const state = () => ({
   // entirely out. When false no server filter will be applied and rows which do not
   // have any matching cells will still be displayed.
   hideRowsNotMatchingSearch: true,
+  adhocFiltering: false,
 })
 
 export const mutations = {
@@ -86,6 +88,7 @@ export const mutations = {
     state.dateStacks = {}
     state.activeSearchTerm = ''
     state.hideRowsNotMatchingSearch = true
+    state.adhocFiltering = false
   },
   SET_SEARCH(state, { activeSearchTerm, hideRowsNotMatchingSearch }) {
     state.activeSearchTerm = activeSearchTerm.trim()
@@ -210,7 +213,20 @@ export const mutations = {
   },
   UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
     const currentValue = row._.metadata[rowMetadataType]
-    Vue.set(row._.metadata, rowMetadataType, updateFunction(currentValue))
+    const newValue = updateFunction(currentValue)
+
+    if (
+      !Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)
+    ) {
+      const metaDataCopy = clone(row._.metadata)
+      metaDataCopy[rowMetadataType] = newValue
+      Vue.set(row._, 'metadata', metaDataCopy)
+    } else {
+      Vue.set(row._.metadata, rowMetadataType, newValue)
+    }
+  },
+  SET_ADHOC_FILTERING(state, adhocFiltering) {
+    state.adhocFiltering = adhocFiltering
   },
 }
 
@@ -228,7 +244,13 @@ export const actions = {
    */
   async resetAndFetchInitial(
     { dispatch, commit, getters },
-    { calendarId, dateFieldId, fields, includeFieldOptions = true }
+    {
+      calendarId,
+      dateFieldId,
+      fields,
+      includeFieldOptions = true,
+      adhocFiltering,
+    }
   ) {
     commit('RESET')
     await dispatch('refreshAndFetchInitial', {
@@ -236,6 +258,7 @@ export const actions = {
       dateFieldId,
       fields,
       includeFieldOptions,
+      adhocFiltering,
     })
   },
   /**
@@ -244,10 +267,17 @@ export const actions = {
    */
   async refreshAndFetchInitial(
     { dispatch, commit, getters },
-    { calendarId, dateFieldId, fields, includeFieldOptions = true }
+    {
+      calendarId,
+      dateFieldId,
+      fields,
+      includeFieldOptions = true,
+      adhocFiltering,
+    }
   ) {
     commit('SET_DATE_FIELD_ID', dateFieldId)
     commit('SET_LAST_CALENDAR_ID', calendarId)
+    commit('SET_ADHOC_FILTERING', adhocFiltering)
     await dispatch('fetchInitial', {
       includeFieldOptions,
       fields,
@@ -296,6 +326,9 @@ export const actions = {
 
     commit('SET_LOADING_ROWS', true)
     const { fromTimestamp, toTimestamp } = getMonthlyTimestamps(dateTime)
+    const view = rootGetters['view/get'](getters.getLastCalendarId)
+    const filters = getFilters(view, getters.getAdhocFiltering)
+
     try {
       const { data } = await CalendarService(this.$client).fetchRows({
         calendarId: getters.getLastCalendarId,
@@ -307,6 +340,7 @@ export const actions = {
         userTimeZone: getUserTimeZone(),
         search: getters.getServerSearchTerm,
         searchMode: getDefaultSearchModeFromEnv(this.$config),
+        filters,
         publicUrl: rootGetters['page/view/public/getIsPublic'],
         publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       })
@@ -343,13 +377,16 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { date, fields }
   ) {
+    const calendarId = getters.getLastCalendarId
     const stack = getters.getDateStack(date)
     const rows = stack.results
     const timezone = getters.getTimeZone(fields)
     const fromTimestamp = moment.tz(date, timezone)
     const toTimestamp = moment.tz(fromTimestamp, timezone).add(1, 'day')
+    const view = rootGetters['view/get'](calendarId)
+    const filters = getFilters(view, getters.getAdhocFiltering)
     const { data } = await CalendarService(this.$client).fetchRows({
-      calendarId: getters.getLastCalendarId,
+      calendarId,
       limit: getters.getBufferRequestSize,
       offset: rows.length,
       includeFieldOptions: false,
@@ -360,6 +397,7 @@ export const actions = {
       searchMode: getDefaultSearchModeFromEnv(this.$config),
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+      filters,
     })
     const newRows = data.rows[date].results
     const newCount = data.rows[date].count
@@ -971,6 +1009,9 @@ export const getters = {
   },
   getCalendarTimezoneAndDateLoaded: (state, getters) => (fields) => {
     return getters.getSelectedDate(fields) != null
+  },
+  getAdhocFiltering(state) {
+    return state.adhocFiltering
   },
 }
 

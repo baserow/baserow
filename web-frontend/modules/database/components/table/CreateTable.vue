@@ -183,7 +183,6 @@ export default {
   },
   methods: {
     hide() {
-      console.log('hiding')
       this.stopPollIfRunning()
     },
     getDefaultName() {

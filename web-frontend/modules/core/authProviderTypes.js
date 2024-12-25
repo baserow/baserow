@@ -2,10 +2,9 @@ import { Registerable } from '@baserow/modules/core/registry'
 import PasswordAuthIcon from '@baserow/modules/core/assets/images/providers/Key.svg'
 
 /**
- * The authorization provider type base class that can be extended when creating
- * a plugin for the frontend.
+ * Base class for authorization provider types
  */
-export class AuthProviderType extends Registerable {
+export class BaseAuthProviderType extends Registerable {
   /**
    * The icon for the provider
    */
@@ -14,14 +13,14 @@ export class AuthProviderType extends Registerable {
   }
 
   /**
-   * A human readable name of the application type.
+   * A human readable name of the authentication provider.
    */
   getName() {
     return null
   }
 
   /**
-   * A human readable name of the application type.
+   * A human readable name of the authentication provider.
    */
   getProviderName(provider) {
     return null
@@ -81,6 +80,35 @@ export class AuthProviderType extends Registerable {
     }
   }
 
+  /**
+   * Whether we can create new providers on this type. Sometimes providers can't be
+   * created because of permissions reasons or because of unicity constraints.
+   * @returns a boolean saying if you can create new providers of this type.
+   */
+  canCreateNew(authProviders) {
+    return true
+  }
+
+  /**
+   *
+   * @param {Object} err to handle
+   * @param {VueInstance} vueComponentInstance the vue component instance
+   * @returns true if the error is handled else false.
+   */
+  handleServerError(vueComponentInstance, error) {
+    return false
+  }
+
+  getOrder() {
+    throw new Error('The order of the authentication provider must be set.')
+  }
+}
+
+/**
+ * The authorization provider type base class that can be extended when creating
+ * a plugin for the frontend.
+ */
+export class AuthProviderType extends BaseAuthProviderType {
   constructor(...args) {
     super(...args)
     this.type = this.getType()
@@ -108,10 +136,6 @@ export class AuthProviderType extends Registerable {
       routeName: this.routeName,
     }
   }
-
-  getOrder() {
-    throw new Error('The order of an application type must be set.')
-  }
 }
 
 export class PasswordAuthProviderType extends AuthProviderType {
@@ -137,6 +161,16 @@ export class PasswordAuthProviderType extends AuthProviderType {
 
   getAdminSettingsFormComponent() {
     return null
+  }
+
+  /**
+   * We can create only one password provider.
+   */
+  canCreateNew(authProviders) {
+    return (
+      !authProviders[this.getType()] ||
+      authProviders[this.getType()].length === 0
+    )
   }
 
   getOrder() {

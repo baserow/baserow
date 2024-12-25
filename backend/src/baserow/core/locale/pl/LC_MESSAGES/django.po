@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2024-04-10 06:57+0000\n"
+"PO-Revision-Date: 2024-12-16 15:08+0000\n"
 "Last-Translator: PiotrEsse <piotr.esse@spero.click>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/baserow/"
 "backend-core/pl/>\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 5.5-dev\n"
+"X-Generator: Weblate 5.9\n"
 
 #: src/baserow/core/action/scopes.py:9
 #, python-format
@@ -48,8 +48,8 @@ msgid ""
 "Group (%(group_id)s) name changed from \"%(original_group_name)s\" to "
 "\"%(group_name)s.\""
 msgstr ""
-"Zmieniono nazwę grupy (%(group_id)s) z \"%(original_group_name)s\" na "
-"\"%(group_name)s.\""
+"Zmieniono nazwę grupy (%(group_id)s) z \"%(original_group_name)s\" na \""
+"%(group_name)s.\""
 
 #: src/baserow/core/actions.py:237
 msgid "Order groups"
@@ -101,8 +101,8 @@ msgid ""
 "Application (%(application_id)s) of type %(application_type)s renamed from "
 "\"%(original_application_name)s\" to \"%(application_name)s\""
 msgstr ""
-"Zmiana nazwy aplikacji (%(application_id)s) typu %(application_type)s z "
-"\"%(original_application_name)s\" na \"%(application_name)s\""
+"Zmiana nazwy aplikacji (%(application_id)s) typu %(application_type)s z \""
+"%(original_application_name)s\" na \"%(application_name)s\""
 
 #: src/baserow/core/actions.py:579
 msgid "Duplicate application"
@@ -116,8 +116,8 @@ msgid ""
 "\" (%(original_application_id)s)"
 msgstr ""
 "Aplikacja \"%(application_name)s\" (%(application_id)s) typu "
-"%(application_type)s powielona z \"%(original_application_name)s"
-"\" (%(original_application_id)s)"
+"%(application_type)s powielona z \"%(original_application_name)s\" "
+"(%(original_application_id)s)"
 
 #: src/baserow/core/actions.py:658
 msgid "Install template"
@@ -243,8 +243,8 @@ msgid ""
 "Snapshot \"%(snapshot_name)s\" (%(snapshot_id)s) created for application "
 "\"%(application_name)s\" (%(application_id)s)."
 msgstr ""
-"Migawka \"%(snapshot_name)s\" (%(snapshot_id)s) utworzona dla aplikacji "
-"\"%(application_name)s\" (%(application_id)s)."
+"Migawka \"%(snapshot_name)s\" (%(snapshot_id)s) utworzona dla aplikacji \""
+"%(application_name)s\" (%(application_id)s)."
 
 #: src/baserow/core/snapshots/actions.py:68
 msgid "Restore Snapshot"
@@ -285,8 +285,8 @@ msgid ""
 "<strong>%(first_name)s</strong> has invited you to collaborate on <strong>"
 "%(group_name)s</strong>."
 msgstr ""
-"<strong>%(first_name)s</strong> zaprosił cię do współpracy w <strong>"
-"%(group_name)s</strong>."
+"<strong>%(first_name)s</strong> zaprosił cię do współpracy w "
+"<strong>%(group_name)s</strong>."
 
 #: src/baserow/core/templates/baserow/core/group_invitation.html:163
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:167

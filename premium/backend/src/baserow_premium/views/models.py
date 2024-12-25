@@ -150,6 +150,12 @@ class CalendarViewFieldOptions(HierarchicalModelMixin, models.Model):
 
 
 class TimelineView(View):
+    class TIMESCALE_OPTIONS(models.TextChoices):
+        DAY = "day"
+        WEEK = "week"
+        MONTH = "month"
+        YEAR = "year"
+
     field_options = models.ManyToManyField(Field, through="TimelineViewFieldOptions")
     start_date_field = models.ForeignKey(
         Field,
@@ -168,6 +174,13 @@ class TimelineView(View):
         related_name="timeline_views_end_date_field",
         help_text="One of the supported date fields that "
         "the timeline view will be use as end date.",
+    )
+    timescale = models.CharField(
+        max_length=32,
+        choices=TIMESCALE_OPTIONS.choices,
+        default=TIMESCALE_OPTIONS.MONTH,
+        db_default=TIMESCALE_OPTIONS.MONTH,
+        help_text="The timescale that the timeline should be displayed in.",
     )
 
     class Meta:

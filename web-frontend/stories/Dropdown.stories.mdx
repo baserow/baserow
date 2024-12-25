@@ -1,0 +1,160 @@
+import { Meta, Story, Props, Canvas } from '@storybook/addon-docs/blocks'
+import { config, withDesign } from 'storybook-addon-designs'
+import { action } from '@storybook/addon-actions'
+import { useArgs } from '@storybook/client-api'
+
+import Dropdown from '@baserow/modules/core/components/Dropdown'
+import DropdownItem from '@baserow/modules/core/components/DropdownItem'
+
+<Meta
+    title="Baserow/Form Elements/Dropdown"
+    component={Dropdown}
+    parameters={{
+        backgrounds: {
+            default: 'white',
+            values: [
+                { name: 'white', value: '#ffffff' },
+                { name: 'light', value: '#eeeeee' },
+                { name: 'dark', value: '#222222' },
+            ],
+        },
+    }}
+    decorators={[
+        withDesign,
+        (story, context) => {
+            const [_, updateArgs] = useArgs()
+            return story({ ...context, updateArgs })
+        },
+    ]}
+    argTypes={{
+        searchText: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: '',
+        },
+        placeholder: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: '',
+        },
+        showSearch: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        showInput: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: true,
+        },
+        showFooter: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        disabled: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        size: {
+            control: {
+                type: 'select',
+                options: ['regular', 'large'],
+            },
+            defaultValue: 'regular',
+        },
+        tabindex: {
+            control: {
+                type: 'number',
+            },
+            defaultValue: 0,
+        },
+        fixedItems: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        maxWidth: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        multiple: {
+            control: { type: null },
+        },
+        error: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+    }}
+/>
+
+# Dropdown
+
+The dropdown component is a basic native select input. It can be used to select a single or multiple options from a list.
+
+export const Template = (args, { argTypes, updateArgs }) => ({
+    methods: {
+        action,
+        handleInput(value) {
+            updateArgs({ ...args, value })
+            action('handleInput')(value)
+        },
+    },
+    components: { Dropdown, DropdownItem },
+    props: Object.keys(argTypes),
+    template: `
+    <Dropdown @input="handleInput" v-bind="$props">
+        <DropdownItem name="France" value="france"></DropdownItem>
+        <DropdownItem name="Italy" value="italy"></DropdownItem>
+        <DropdownItem name="Netherlands" value="netherlands"></DropdownItem>
+        <DropdownItem name="Belgium" value="belgium"></DropdownItem>
+    </Dropdown>
+    `,
+})
+
+<Canvas>
+    <Story name="Default">{Template.bind({})}</Story>
+    <Story
+        name="Multiple selection"
+        args={{
+            multiple: true,
+            value: [],
+        }}
+    >
+        {Template.bind({})}
+    </Story>
+</Canvas>
+
+## Example
+
+```javascript
+<Dropdown>
+    <DropdownItem name="France" value="france"></DropdownItem>
+    <DropdownItem name="Italy" value="italy"></DropdownItem>
+    <DropdownItem name="Netherlands" value="netherlands"></DropdownItem>
+    <DropdownItem name="Belgium" value="belgium"></DropdownItem>
+</Dropdown>
+```
+
+## Props
+
+<Props of={Dropdown} />

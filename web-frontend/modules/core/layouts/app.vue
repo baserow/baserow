@@ -8,6 +8,8 @@
           :selected-workspace="selectedWorkspace"
           :applications="applications"
           :collapsed="isCollapsed"
+          :width="col1Width"
+          @set-col1-width="col1Width = $event"
         ></Sidebar>
       </div>
       <div class="layout__col-2" :style="{ left: col1Width + 'px' }">

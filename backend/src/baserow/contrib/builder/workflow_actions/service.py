@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import TYPE_CHECKING, Any, List
 
 from django.contrib.auth.models import AbstractUser
 
@@ -40,6 +40,9 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     BuilderWorkflowActionType,
 )
 from baserow.core.handler import CoreHandler
+
+if TYPE_CHECKING:
+    from baserow.contrib.builder.models import Builder
 
 
 class BuilderWorkflowActionService:
@@ -99,6 +102,28 @@ class BuilderWorkflowActionService:
         return self.handler.get_workflow_actions(
             page, base_queryset=user_workflow_actions
         )
+
+    def get_builder_workflow_actions(
+        self,
+        user: AbstractUser,
+        builder: "Builder",
+    ) -> List[WorkflowAction]:
+        """
+        Gets all the workflow_actions of a given builder visible to the given user.
+
+        :param user: The user trying to get the workflow_actions.
+        :param builder: The builder instance that holds the workflow_actions.
+        :return: The workflow_actions of that builder.
+        """
+
+        user_workflow_actions = CoreHandler().filter_queryset(
+            user,
+            ListBuilderWorkflowActionsPageOperationType.type,
+            BuilderWorkflowAction.objects.all(),
+            workspace=builder.workspace,
+        )
+
+        return self.handler.get_builder_workflow_actions(builder, user_workflow_actions)
 
     def create_workflow_action(
         self,

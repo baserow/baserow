@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Ensure that database applications are imported before builder applications. Resolved an issue where a nested repeat element's field was not migrated properly when imported into a new workspace.",
+    "issue_number": 3057,
+    "bullet_points": [],
+    "created_at": "2024-09-27"
+}

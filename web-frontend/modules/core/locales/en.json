@@ -127,6 +127,47 @@
     "message": "Are you sure you want to leave the workspace {workspace}? You won't be able to access the related applications anymore and if you want to regain access, one of the admins must invite you again. If you leave the workspace, it will not be deleted. All the other members will still have access to it. It is not possible to leave a workspace if you're the last admin because that will leave it unmaintained.",
     "leave": "Leave workspace"
   },
+  "exportWorkspaceModal": {
+    "title": "Export",
+    "description": "Your data will be exported as a ZIP file, which can be imported into other Baserow instance.",
+    "exportSettings": "Export settings",
+    "export": "Export data",
+    "reset": "Start new",
+    "cancel": "Cancel",
+    "download":  "Download",
+    "importingState": "Importing",
+    "noExports": "No exports for this workspace yet.",
+    "created": "created"
+  },
+  "exportWorkspaceForm": {
+    "exportSettingsLabel": "Export settings",
+    "onlyStructureLabel": "Export structure only",
+    "onlyStructureDescription": "If enabled, only the structure of the applications will be exported. The data will not be included."
+  },
+  "importWorkspaceModal": {
+    "title": "Import Baserow data",
+    "description": "You can import an existing Baserow data by uploading the .zip file from other Baserow instance.",
+    "import": "Import data",
+    "upload": "Upload",
+    "cancel": "Cancel",
+    "done": "Done",
+    "close": "Close",
+    "retry": "Retry",
+    "uploading": "uploading...",
+    "chooseFile": "Choose file",
+    "selectApplications": "Select data to import",
+    "deselectAll": "Deselect all",
+    "selectAll": "Select all",
+    "databases": "Databases",
+    "applications": "Applications",
+    "successTitle": "Successfully imported the Baserow data",
+    "successMessage": "Imported {count} applications",
+    "signatureVerificationNote": "It's not possible to import a zip file from an untrusted source.",
+    "invalidResourceTitle": "Invalid resource",
+    "invalidResourceMessage": "The provided file is not a valid Baserow export.",
+    "untrustedPublicKeyTitle": "Untrusted signature",
+    "untrustedPublicKeyMessage": "The provided file is signed with an untrusted public key. Ask your administrator to add the public key to the list of trusted keys or disable the signature verification to be able to import this file."
+  },
   "dashboardWorkspace": {
     "createApplication": "Create new"
   },
@@ -165,6 +206,8 @@
   },
   "workspaceContext": {
     "renameWorkspace": "Rename workspace",
+    "exportWorkspace": "Export data",
+    "importWorkspace": "Import data",
     "settings": "Settings",
     "members": "Members",
     "auditLog": "Audit log",
@@ -185,18 +228,36 @@
     "openaiOrganization": "Organization (optional)",
     "openaiModelsLabel": "Enabled Models",
     "openaiModelsDescription": "Provide a list of comma separated [OpenAI models](https://platform.openai.com/docs/models/continuous-model-upgrades) that can be used in Baserow. (e.g. `gpt-3.5-turbo,gpt-4`)",
+    "anthropic": "Anthropic",
+    "anthropicApiKeyLabel": "API Key",
+    "anthropicApiKeyDescription": "Provide an Anthropic API key if you would like to enable the integration. [Instructions on getting an API key](https://docs.anthropic.com/en/api/getting-started).",
+    "anthropicModelsLabel": "Enabled Models",
+    "anthropicModelsDescription": "Provide a list of comma separated [Anthropic models](https://docs.anthropic.com/en/docs/about-claude/models) that can be used in Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+    "mistral": "Mistral",
+    "mistralApiKeyLabel": "API Key",
+    "mistralApiKeyDescription": "Provide a Mistral API key if you would like to enable the integration. [Instructions on getting an API key](https://docs.mistral.ai/getting-started/quickstart/).",
+    "mistralModelsLabel": "Enabled Models",
+    "mistralModelsDescription": "Provide a list of comma separated [Mistral models](https://docs.mistral.ai/getting-started/models/models_overview/) that can be used in Baserow. (e.g. `mistral-large-latest,mistral-small-latest`)",
     "ollama": "Ollama",
     "ollamaHostLabel": "Host",
     "ollamaHostDescription": "Provide the hostname to your [Ollama](https://ollama.com/) server. This typically runs locally on your own device.",
     "ollamaModelsLabel": "Enabled Models",
-    "ollamaModelsDescription": "Provide a list of comma separated [Ollama installed models](https://ollama.com/library). Note that the model must be downloaded and installed before it can be used. (e.g. `llama2,mistral`)"
+    "ollamaModelsDescription": "Provide a list of comma separated [Ollama installed models](https://ollama.com/library). Note that the model must be downloaded and installed before it can be used. (e.g. `llama2,mistral`)",
+    "openRouter": "OpenRouter",
+    "openRouterApiKeyLabel": "API Key",
+    "openRouterApiKeyDescription": "Provide an OpenRouter API key if you would like to enable the integration. [get an API key](https://openrouter.ai/settings/keys).",
+    "openRouterOrganization": "Organization (optional)",
+    "openRouterModelsLabel": "Enabled Models",
+    "openRouterModelsDescription": "Provide a list of comma separated [OpenRouter models](https://openrouter.ai/models) that can be used in Baserow. (e.g. `openai/gpt-4o,anthropic/claude-3-haiku`)"
   },
   "generativeAIWorkspaceSettings": {
     "title": "Generative AI settings",
     "description": "These settings can be used to optionally set generative AI configuration on workspace level. Features like the AI field can be disabled because they lack an API key for one of the supported models. By providing the settings here, you can enable those features. Leaving a value blank defaults back to the global instance settings. Note that everyone in the workspace will share these settings.",
     "changedTitle": "Settings updated correctly",
     "changedDescription": "The settings have been updated and they will be now used in this workspace.",
-    "submitButton": "Update settings"
+    "submitButton": "Update settings",
+    "openSettings": "Open settings",
+    "hideSettings": "Hide settings"
   },
   "createWorkspaceModal": {
     "createNew": "Create new workspace",
@@ -270,7 +331,9 @@
     "fromTemplate": "From template",
     "fromTemplateDesc": "Quickly start with one of our recommended templates",
     "table": "Table",
-    "tableDesc": "Create a new place to manage data in your database."
+    "tableDesc": "Create a new place to manage data in your database.",
+    "importWorkspace": "Import data",
+    "importWorkspaceDesc": "Add existing data from a Baserow instance."
   },
   "applicationForm": {
     "nameLabel": "Name",
@@ -374,12 +437,12 @@
     "viewMore": "View more"
   },
   "login": {
-    "title": "Login",
+    "title": "Welcome back",
     "emailPlaceholder": "Enter your email address..",
     "passwordPlaceholder": "Enter your password..",
-    "forgotPassword": "Forgot password?",
-    "signUpText": "Don't have an account?",
-    "signUp": "Sign Up",
+    "forgotPassword": "Forgot?",
+    "signUpText": "New to Baserow?",
+    "signUp": "Sign up",
     "displayPasswordLogin": "Log in using email and password",
     "redirecting": "Redirecting to authentication provider..."
   },
@@ -389,6 +452,7 @@
     "repeatNewPassword": "Repeat new password",
     "submit": "Change password",
     "changed": "Password changed",
+    "message": "You can now login to Baserow using your new password.",
     "errorInvalidLinkTitle": "Invalid link",
     "errorInvalidLinkMessage": "Could not reset the password because the link is invalid.",
     "errorLinkExpiredTitle": "Link expired",
@@ -397,7 +461,7 @@
     "disabledMessage": "It's not possible to reset the password because it has been disabled."
   },
   "signup": {
-    "headTitle": "Create new account",
+    "headTitle": "Create account",
     "title": "Sign up",
     "disabled": "Sign up is disabled",
     "disabledMessage": "It's not possible to create an account because it has been disabled.",
@@ -408,16 +472,21 @@
     "passwordPlaceholder": "Enter your password..",
     "passwordRepeatPlaceholder": "Confirm your password..",
     "loginText": "Already have an account?",
-    "login": "Login"
+    "login": "Login",
+    "agreeTerms": "By creating an account, you agree to the {0} {1} {2}",
+    "terms": "Terms of Service",
+    "privacyPolicy": "Privacy Policy"
   },
   "forgotPassword": {
     "title": "Forgot password",
-    "message": "Please enter your e-mail address in the form. If we find an account then we will send an e-mail with a link to reset your password.",
+    "message": "Enter your email address and we’ll send you a link to reset your password.",
     "submit": "Send link",
-    "confirmation": "If your email address exists in our database, you will receive a password reset link at your email address in a few minutes.",
+    "confirmationTitle": "Check your email",
+    "confirmation": "We sent an email to {email}, which contains a link to reset your Baserow password.",
     "disabled": "Forgot password is disabled",
     "disabledMessage": "It's not possible to reset the password because it has been disabled.",
-    "loginText": "Already have account and password?"
+    "loginText": "Already have account and password?",
+    "goBack": "Go back"
   },
   "settings": {
     "settingsTitle": "Admin settings",
@@ -448,7 +517,9 @@
     "emailVerificationDescription": "Controls whether email addresses have to be verified.",
     "emailVerificationNoVerification": "No verification",
     "emailVerificationRecommended": "Recommended",
-    "emailVerificationEnforced": "Enforced"
+    "emailVerificationEnforced": "Enforced",
+    "settingsVerifyImportSignature": "Verify import signature",
+    "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with."
   },
   "formSidebar": {
     "actions": {
@@ -533,7 +604,9 @@
     "hoursAgo": "0 hours ago | 1 hour ago | {n} hours ago",
     "daysAgo": "0 days ago | 1 day ago | {n} days ago",
     "monthsAgo": "0 months ago | 1 month ago | {n} months ago",
-    "yearsAgo": "0 years ago | 1 year ago | {n} years ago"
+    "yearsAgo": "0 years ago | 1 year ago | {n} years ago",
+    "lessThanMinuteAgo": "less than minute ago",
+    "justNow": "just now"
   },
   "crudTableSearch": {
     "search": "Search"
@@ -679,7 +752,9 @@
   "selectAIModelForm": {
     "AIType": "AI Type",
     "AIModel": "AI Model",
-    "fileField": "File field"
+    "fileField": "File field",
+    "temperatureLabel": "Temperature",
+    "temperatureDescription": "The temperature of an LLM, a parameter set between 0 and {max}, adjusts response randomness—lower values yield focused answers, while higher values increase creativity."
   },
   "onboarding": {
     "title": "Onboarding",
@@ -733,5 +808,115 @@
   },
   "dataExplorerNode": {
     "showMore": "Show more repetitions"
+  },
+  "user": {
+    "isStaff": "Is staff",
+    "isWorkspaceAdmin": "Is workspace admin",
+    "active": "Active",
+    "deactivated": "Deactivated"
+  },
+  "adminType": {
+    "dashboard": "Dashboard",
+    "users": "Users",
+    "workspaces": "Workspaces"
+  },
+  "workspacesAdminTable": {
+    "allWorkspaces": "All workspaces",
+    "id": "ID",
+    "name": "Name",
+    "members": "Members",
+    "applications": "Applications",
+    "created": "Created",
+    "rowCount": "Row count",
+    "freeUsers": "Free users",
+    "seatsTaken": "Seats taken",
+    "storageUsage": "Storage Used (MB)",
+    "usageHelpText": "Calculated nightly when the track workspace usage setting is enabled"
+  },
+  "editWorkspaceContext": {
+    "delete": "Permanently delete"
+  },
+  "deleteWorkspaceModal": {
+    "title": "Delete {name}",
+    "confirmation": "Are you sure you want to delete the workspace: {name}?",
+    "comment": "The workspace will be permanently deleted, including the related applications. It is not possible to undo this action.",
+    "delete": "Delete workspace {name}"
+  },
+  "activeUsers": {
+    "newUsers": "New users",
+    "activeUsers": "Active users"
+  },
+  "usersAdminTable": {
+    "allUsers": "All users",
+    "username": "Username",
+    "name": "Name",
+    "workspaces": "Workspaces",
+    "lastLogin": "Last login",
+    "dateJoined": "Signed up",
+    "active": "Active"
+  },
+  "editUserContext": {
+    "changePassword": "Change password",
+    "delete": "Permanently delete",
+    "impersonate": "Impersonate"
+  },
+  "changePasswordForm": {
+    "newPassword": "New password",
+    "repeatPassword": "Repeat password",
+    "changePassword": "Change password",
+    "error": {
+      "doesntMatch": "This field must match your password field."
+    }
+  },
+  "userForm": {
+    "fullName": "Full name",
+    "email": "Email",
+    "isActive": "Is active",
+    "warning": {
+      "changeEmail": "Changing this users email address means when they sign in they must use the new email address to do so. This must be communicated with that user.",
+      "inactiveUser": "When a user is marked as inactive they are prevented from signing in.",
+      "userStaff": "Making the user staff gives them admin access to all users, all workspaces and the ability to revoke your own staff permissions."
+    },
+    "error": {
+      "invalidName": "Please enter a valid full name, it must be longer than 2 letters and less than 150.",
+      "invalidEmail": "Please enter a valid e-mail address."
+    }
+  },
+  "changeUserPasswordModal": {
+    "changePassword": "Change password for {username}"
+  },
+  "deleteUserModal": {
+    "title": "Delete {username}",
+    "confirmation": "Are you sure you want to delete the user: {name}?",
+    "comment1": "The user account will be deleted, however the workspaces that user is a member of will continue existing. The users workspace will not be deleted, even if this user is the last user in the workspace. Deleting the last user in a workspace prevents anyone being able to access that workspace.",
+    "comment2": "After deleting a user it is possible for a new user to sign up again using the deleted users email address. To ensure they cannot sign up again instead deactivate the user and do not delete them.",
+    "delete": "Delete user {username}"
+  },
+  "editUserModal": {
+    "delete": "Delete user",
+    "edit": "Edit { username }"
+  },
+  "adminDashboard": {
+    "title": "Dashboard",
+    "totals": "Totals",
+    "totalUsers": "Total users",
+    "totalWorkspaces": "Total workspaces",
+    "totalApplications": "Total applications",
+    "newUsers": "New users",
+    "newUsers24h": "New users last 24 hours",
+    "newUsers7days": "New users last 7 days",
+    "newUsers30days": "New users last 30 days",
+    "activeUsers": "Active users",
+    "activeUsers24h": "Active users last 24 hours",
+    "activeUsers7days": "Active users last 7 days",
+    "activeUsers30days": "Active users last 30 days",
+    "viewAll": "View all"
+  },
+  "formGroup": {
+    "protectedField": "This field is protected. Click to change.",
+    "cancelProtectedField": "Cancel change"
+  },
+  "userSourceType": {
+    "userCountSummary": "{count} users ({lastUpdated})"
   }
 }

@@ -24,6 +24,7 @@
 .presentation__subtitle {
   color: $color-neutral-500;
   font-size: 12px;
+  line-height: 15px;
 
   @extend %ellipsis;
 }

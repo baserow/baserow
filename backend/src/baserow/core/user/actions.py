@@ -1,6 +1,7 @@
 import dataclasses
 from typing import Any, Optional
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
@@ -15,6 +16,7 @@ from baserow.core.auth_provider.models import AuthProviderModel
 from baserow.core.models import Template, User
 from baserow.core.registries import auth_provider_type_registry
 from baserow.core.user.handler import UserHandler
+from baserow.throttling import rate_limit
 
 
 class CreateUserActionType(ActionType):
@@ -288,15 +290,22 @@ class SignInUserActionType(ActionType):
         auth_provider_type = auth_provider_type_registry.get_by_model(
             auth_provider
         ).type
-        handler.user_signed_in_via_provider(user, auth_provider)
 
-        cls.register_action(
-            user=user,
-            params=cls.Params(
-                user.id, user.email, auth_provider_id, auth_provider_type
-            ),
-            scope=cls.scope(),
-        )
+        def log_signin_action():
+            handler.user_signed_in_via_provider(user, auth_provider)
+            cls.register_action(
+                user=user,
+                params=cls.Params(
+                    user.id, user.email, auth_provider_id, auth_provider_type
+                ),
+                scope=cls.scope(),
+            )
+
+        rate_limit(
+            rate=settings.BASEROW_LOGIN_ACTION_LOG_LIMIT,
+            key=f"{user.username}:{type(auth_provider).__name__}",
+            raise_exception=False,
+        )(log_signin_action)()
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

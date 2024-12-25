@@ -686,7 +686,8 @@ class PublicViewFilterSerializer(serializers.Serializer):
 
         from baserow.contrib.database.views.filters import sanitize_adhoc_filter_value
 
-        data["value"] = sanitize_adhoc_filter_value(data["value"])
+        if value := data.get("value"):
+            data["value"] = sanitize_adhoc_filter_value(value)
         return super().to_internal_value(data)
 
 

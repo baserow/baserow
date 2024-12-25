@@ -1,9 +1,7 @@
 .radio {
   display: inline-flex;
-  align-items: center;
   cursor: pointer;
-  height: 28px;
-  line-height: 28px;
+  line-height: 19px;
 }
 
 .radio__label {
@@ -34,6 +32,7 @@
   width: 16px;
   height: 16px;
   margin-right: 8px;
+  top: 1px;
 }
 
 .radio__input input[type='radio'] {

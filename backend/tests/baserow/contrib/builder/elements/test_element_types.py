@@ -2,13 +2,16 @@ import json
 from collections import defaultdict
 from io import BytesIO
 from tempfile import tempdir
+from unittest.mock import Mock
 from zipfile import ZIP_DEFLATED, ZipFile
 
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import FileSystemStorage
 from django.http import HttpRequest
 
 import pytest
+import zipstream
 from rest_framework.exceptions import ValidationError
 
 from baserow.api.exceptions import RequestBodyValidationException
@@ -23,6 +26,7 @@ from baserow.contrib.builder.elements.element_types import (
     CheckboxElementType,
     ChoiceElementType,
     ColumnElementType,
+    DateTimePickerElementType,
     FormContainerElementType,
     HeadingElementType,
     IFrameElementType,
@@ -44,6 +48,7 @@ from baserow.contrib.builder.elements.models import (
     ChoiceElement,
     ChoiceElementOption,
     CollectionField,
+    DateTimePickerElement,
     Element,
     FormContainerElement,
     HeadingElement,
@@ -62,6 +67,9 @@ from baserow.contrib.builder.elements.registries import (
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.core.handler import CoreHandler
+from baserow.core.registries import ImportExportConfig
+from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_sources.registries import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.utils import MirrorDict
@@ -285,10 +293,13 @@ def test_form_container_element_import_export_formula(data_fixture):
         element_type.type
         for element_type in element_type_registry.get_all()
         if element_type.type != FormContainerElementType.type
+        and not element_type.is_multi_page_element
     ],
 )
 def test_form_container_child_types_allowed(allowed_element_type):
-    assert allowed_element_type in FormContainerElementType().child_types_allowed
+    assert allowed_element_type in [
+        e.type for e in FormContainerElementType().child_types_allowed
+    ]
 
 
 @pytest.mark.django_db
@@ -624,12 +635,26 @@ def test_choice_element_is_valid_formula_data_source(data_fixture):
     )
 
     # Call is_valid with an option that is not present in the list raises an exception
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page, offset=0, count=20)
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(),
+        page,
+        offset=0,
+        count=20,
+        only_expose_public_allowed_properties=False,
+    )
+
     with pytest.raises(FormDataProviderChunkInvalidException):
         ChoiceElementType().is_valid(choice, "Invalid", dispatch_context)
 
     # Call is_valid with a valid option simply returns its value
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page, offset=0, count=20)
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(),
+        page,
+        offset=0,
+        count=20,
+        only_expose_public_allowed_properties=False,
+    )
+
     assert ChoiceElementType().is_valid(choice, "BMW", dispatch_context) == "BMW"
 
 
@@ -834,10 +859,17 @@ def test_image_element_import_export(data_fixture, fake, storage):
         image_url=f"get('data_source.{data_source_1.id}.field_1')",
     )
 
-    with ZipFile(zip_buffer, "a", ZIP_DEFLATED, False) as zip_file:
-        serialized = element_type.export_serialized(
-            element_to_export, files_zip=zip_file, storage=storage
-        )
+    zip_file = ExportZipFile(
+        compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+        compress_type=zipstream.ZIP_DEFLATED,
+    )
+
+    serialized = element_type.export_serialized(
+        element_to_export, files_zip=zip_file, storage=storage
+    )
+
+    for chunk in zip_file:
+        zip_buffer.write(chunk)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
@@ -1058,6 +1090,71 @@ def test_sanitize_element_roles_fixes_default_user_role(
     assert result == cleaned_roles
 
 
+@pytest.mark.parametrize("collection_element_type", collection_element_types())
+def test_collection_element_type_publicly_searchable_sortable_filterable(
+    collection_element_type,
+):
+    expected_results = {
+        "repeat": {
+            "is_publicly_sortable": True,
+            "is_publicly_searchable": True,
+            "is_publicly_filterable": True,
+        },
+        "table": {
+            "is_publicly_sortable": True,
+            "is_publicly_searchable": True,
+            "is_publicly_filterable": True,
+        },
+        "record_selector": {
+            "is_publicly_sortable": False,
+            "is_publicly_searchable": True,
+            "is_publicly_filterable": False,
+        },
+    }
+    expected_result = expected_results.get(collection_element_type.type)
+    if not expected_result:
+        # A new collection element type has been implemented and
+        # needs to be added to the expected results.
+        pytest.fail(
+            f"Missing expected result for collection element type {collection_element_type.type}"
+        )
+    assert (
+        collection_element_type.is_publicly_sortable
+        == expected_result["is_publicly_sortable"]
+    )
+    assert (
+        collection_element_type.is_publicly_searchable
+        == expected_result["is_publicly_searchable"]
+    )
+    assert (
+        collection_element_type.is_publicly_filterable
+        == expected_result["is_publicly_filterable"]
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("collection_element_type", collection_element_types())
+def test_collection_element_type_after_update(collection_element_type, data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = collection_element_type.model_class.objects.create(page=page)
+    element.property_options.create(schema_property="field_123")
+
+    # The `after_update` method drops all property options, and creates
+    # only what is provided into the method in its `values`.
+    collection_element_type.after_update(
+        element, {"property_options": [{"schema_property": "field_456"}]}, {}
+    )
+    assert element.property_options.count() == 1
+    assert element.property_options.filter(schema_property="field_456").exists()
+
+    # The `after_update` method drops all property options if the data source
+    # has changed.
+    collection_element_type.after_update(element, {}, {"data_source": (Mock(), Mock())})
+    assert element.property_options.count() == 0
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize("collection_element_type", collection_element_types())
 def test_collection_element_type_prepare_value_for_db(
@@ -1243,7 +1340,15 @@ def test_choice_element_integer_option_values(data_fixture):
     )
 
     expected_choices = [row.id for row in rows]
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page, offset=0, count=20)
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(),
+        page,
+        offset=0,
+        count=20,
+        only_expose_public_allowed_properties=False,
+    )
+
     for value in expected_choices:
         dispatch_context.reset_call_stack()
         assert ChoiceElementType().is_valid(choice, value, dispatch_context) is value
@@ -1255,10 +1360,13 @@ def test_choice_element_integer_option_values(data_fixture):
         element_type.type
         for element_type in element_type_registry.get_all()
         if element_type.type != ColumnElementType.type
+        and not element_type.is_multi_page_element
     ],
 )
 def test_column_container_child_types_allowed(allowed_element_type):
-    assert allowed_element_type in ColumnElementType().child_types_allowed
+    assert allowed_element_type in [
+        e.type for e in ColumnElementType().child_types_allowed
+    ]
 
 
 @pytest.mark.django_db
@@ -1289,7 +1397,9 @@ def test_record_element_is_valid(data_fixture):
         table=table,
     )
 
-    dispatch_context = BuilderDispatchContext(HttpRequest(), page)
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
 
     # Record selector with no data sources is invalid
     with pytest.raises(FormDataProviderChunkInvalidException):
@@ -1366,3 +1476,95 @@ def test_record_element_is_valid(data_fixture):
     )
     with pytest.raises(FormDataProviderChunkInvalidException):
         RecordSelectorElementType().is_valid(element, "-1", dispatch_context)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_repeat_element_import_export(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    table = data_fixture.create_database_table(database=database)
+    multiple_select_field = data_fixture.create_multiple_select_field(
+        table=table, name="option_field", order=1, primary=True
+    )
+    data_fixture.create_select_option(
+        field=multiple_select_field, value="A", color="blue", order=0
+    )
+
+    page = data_fixture.create_builder_page(builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+
+    outer_repeat = data_fixture.create_builder_repeat_element(
+        data_source=data_source, page=page
+    )
+    data_fixture.create_builder_repeat_element(
+        page=page,
+        data_source=None,
+        parent_element_id=outer_repeat.id,
+        schema_property=multiple_select_field.db_column,
+    )
+
+    config = ImportExportConfig(include_permission_data=False)
+    exported_applications = CoreHandler().export_workspace_applications(
+        workspace, BytesIO(), config
+    )
+
+    # Ensure the values are json serializable
+    try:
+        json.dumps(exported_applications)
+    except Exception as e:
+        pytest.fail(f"Exported applications are not json serializable: {e}")
+
+    imported_applications, _ = CoreHandler().import_applications_to_workspace(
+        workspace, exported_applications, BytesIO(), config, None
+    )
+    imported_database, imported_builder = imported_applications
+
+    # Pluck out the imported database records.
+    imported_table = imported_database.table_set.get()
+    imported_field = imported_table.field_set.get()
+
+    # Pluck out the imported builder records.
+    imported_page = imported_builder.page_set.all()[0]
+    imported_data_source = imported_page.datasource_set.get()
+    imported_root_repeat = imported_page.element_set.get(
+        parent_element_id=None
+    ).specific
+    imported_nested_repeat = imported_root_repeat.children.get().specific
+
+    assert imported_root_repeat.data_source_id == imported_data_source.id
+    assert imported_nested_repeat.schema_property == imported_field.db_column
+
+
+@pytest.mark.parametrize(
+    "required,date_format,include_time,time_format,value,expected",
+    [
+        (False, "ISO", False, "24", None, "None"),
+        (True, "ISO", False, "24", None, FormDataProviderChunkInvalidException),
+        (True, "ISO", False, "24", "2024-04-25T00:00:00.000Z", "2024-04-25"),
+        (True, "ISO", True, "24", "2024-04-25T14:30:00.000Z", "2024-04-25 14:30"),
+        (True, "EU", False, "24", "2024-04-25T00:00:00.000Z", "25/04/2024"),
+        (True, "US", False, "24", "2024-04-25T00:00:00.000Z", "04/25/2024"),
+        (True, "EU", True, "12", "2024-04-25T14:30:00.000Z", "25/04/2024 02:30 PM"),
+        (True, "US", True, "12", "2024-04-25T14:30:00.000Z", "04/25/2024 02:30 PM"),
+    ],
+)
+def test_datetime_picker_element_is_valid(
+    required, date_format, include_time, time_format, value, expected
+):
+    element_type = DateTimePickerElementType()
+    element = DateTimePickerElement(
+        required=required,
+        date_format=date_format,
+        include_time=include_time,
+        time_format=time_format,
+    )
+    if expected is FormDataProviderChunkInvalidException:
+        with pytest.raises(FormDataProviderChunkInvalidException):
+            element_type.is_valid(element, value, {})
+    else:
+        assert str(element_type.is_valid(element, value, {})) == expected

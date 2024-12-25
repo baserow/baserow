@@ -5,7 +5,12 @@
     :style="getStyleOverride('image')"
   >
     <ABImage
-      :alt="resolvedAltText || $t('imageElement.emptyState')"
+      :alt="
+        element.alt_text
+          ? resolvedAltText ||
+            (mode === 'editing' ? $t('imageElement.emptyValue') : '')
+          : $t('imageElement.missingValue')
+      "
       :src="imageSource"
     />
   </div>
@@ -46,7 +51,7 @@ export default {
     },
     classes() {
       return {
-        'element--no-value': !this.imageSource && !this.element.alt_text,
+        'element--no-value': !this.imageSource && !this.resolvedAltText,
       }
     },
   },

@@ -4,7 +4,6 @@
       :value="workflowActionType.getType()"
       :show-search="false"
       :disabled="disabled"
-      small
       @change="$emit('change', $event)"
     >
       <DropdownItem

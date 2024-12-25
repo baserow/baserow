@@ -90,9 +90,9 @@ class IntegrationType(
             cache=cache,
         )
 
-    def after_template_install(self, user: AbstractUser, instance: Integration):
+    def after_import(self, user: AbstractUser, instance: Integration) -> None:
         """
-        Hook to trigger some post template installation logic.
+        Hook to trigger any post import logic.
         """
 
     def get_context_data(self, instance: Integration) -> Optional[Dict]:

@@ -20,6 +20,7 @@ from baserow.core.registry import (
 )
 from baserow.core.services.dispatch_context import DispatchContext
 
+from .exceptions import ServiceTypeDoesNotExist
 from .models import Service
 from .types import ServiceDictSubClass, ServiceSubClass
 
@@ -288,6 +289,20 @@ class ServiceType(
 
         return created_instance
 
+    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+        return []
+
+    def import_property_name(
+        self, property_name: str, id_mapping: Dict[str, Any]
+    ) -> Optional[str]:
+        """
+        Allows to hook into the property name import resolution.
+
+        If not implemented, returns the property name as it is.
+        """
+
+        return property_name
+
 
 ServiceTypeSubClass = TypeVar("ServiceTypeSubClass", bound=ServiceType)
 
@@ -296,6 +311,29 @@ class ListServiceTypeMixin:
     """A mixin for services that return lists."""
 
     returns_list = True
+
+    def get_id_property(self, service: Service) -> str:
+        """
+        Returns the property name that contains the unique `ID` of a row for this
+        service.
+
+        :param service: the instance of the service.
+        :return: a string identifying the ID property name.
+        """
+
+        # Sane default
+        return "id"
+
+    def get_name_property(self, service: Service) -> Optional[str]:
+        """
+        We need the name of the records for some elements (like the record selector).
+        This method returns it depending on the service.
+
+        :param service: the instance of the service.
+        :return: a string identifying the name property name.
+        """
+
+        return None
 
     @abstractmethod
     def get_record_names(
@@ -326,6 +364,7 @@ class ServiceTypeRegistry(
     """
 
     name = "integration_service"
+    does_not_exist_exception_class = ServiceTypeDoesNotExist
 
 
 service_type_registry: ServiceTypeRegistry = ServiceTypeRegistry()

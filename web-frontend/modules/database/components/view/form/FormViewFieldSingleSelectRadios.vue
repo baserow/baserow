@@ -1,13 +1,16 @@
 <template>
-  <div class="control__elements">
-    <div v-for="option in field.select_options" :key="option.id">
-      <Radio
-        :model-value="valueId"
-        :value="option.id"
-        @input=";[touch(), updateValue($event, value)]"
-        >{{ option.value }}</Radio
-      >
+  <div>
+    <div v-if="field.select_options.length === 0" class="control--messages">
+      <p>{{ $t('formViewField.noSelectOptions') }}</p>
     </div>
+    <RadioGroup
+      :model-value="valueId"
+      :options="options"
+      vertical-layout
+      @input=";[touch(), updateValue($event, value)]"
+    >
+    </RadioGroup>
+
     <div v-if="!required" class="margin-top-1">
       <a @click=";[touch(), updateValue(null, value)]">clear value</a>
     </div>
@@ -24,5 +27,14 @@ import singleSelectField from '@baserow/modules/database/mixins/singleSelectFiel
 export default {
   name: 'FormViewSingleSelectRadios',
   mixins: [rowEditField, singleSelectField],
+
+  computed: {
+    options() {
+      return this.field.select_options.map((option) => ({
+        label: option.value,
+        value: option.id,
+      }))
+    },
+  },
 }
 </script>

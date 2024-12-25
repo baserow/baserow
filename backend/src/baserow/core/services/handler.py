@@ -14,6 +14,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
 
 from .dispatch_context import DispatchContext
@@ -217,7 +218,7 @@ class ServiceHandler:
     def export_service(
         self,
         service,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
     ):

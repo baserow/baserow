@@ -10,6 +10,19 @@
   user-select: none;
 }
 
+.repeat-element--container {
+  .loading {
+    top: 50%;
+    left: 50%;
+  }
+}
+
+.repeat-element__empty-message {
+  text-align: center;
+  padding: 50px 0;
+  font-weight: 600;
+}
+
 .repeat-element__footer {
   display: flex;
   flex-direction: column;

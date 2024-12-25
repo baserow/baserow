@@ -5,6 +5,7 @@ from functools import partial
 from typing import Any, Dict, List, Optional, Set, Tuple
 from zipfile import ZipFile
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.core.management.color import no_style
@@ -30,6 +31,7 @@ from baserow.core.registries import (
     ImportExportConfig,
     serialization_processor_registry,
 )
+from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder, grouper
 
@@ -60,6 +62,9 @@ class DatabaseApplicationType(ApplicationType):
     # the polymorphic request serializer will try and serialize tables.
     request_serializer_field_names = []
 
+    # Database applications are imported first.
+    import_application_priority = 2
+
     def pre_delete(self, database):
         """
         When a database is deleted we must also delete the related tables via the table
@@ -89,7 +94,7 @@ class DatabaseApplicationType(ApplicationType):
         self,
         tables: List[Table],
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -118,29 +123,33 @@ class DatabaseApplicationType(ApplicationType):
                     view_type.export_serialized(view, table_cache, files_zip, storage)
                 )
 
-            model = table.get_model(fields=fields, add_dependencies=False)
             serialized_rows = []
-            row_queryset = model.objects.all()
-            if table.created_by_column_added:
-                row_queryset = row_queryset.select_related("created_by")
-            if table.last_modified_by_column_added:
-                row_queryset = row_queryset.select_related("last_modified_by")
-            for row in row_queryset:
-                serialized_row = DatabaseExportSerializedStructure.row(
-                    id=row.id,
-                    order=str(row.order),
-                    created_on=row.created_on.isoformat(),
-                    updated_on=row.updated_on.isoformat(),
-                    created_by=getattr(row, "created_by", None),
-                    last_modified_by=getattr(row, "last_modified_by", None),
-                )
-                for field_object in model._field_objects.values():
-                    field_name = field_object["name"]
-                    field_type = field_object["type"]
-                    serialized_row[field_name] = field_type.get_export_serialized_value(
-                        row, field_name, table_cache, files_zip, storage
+            row_count_limit = settings.BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT
+            if not import_export_config.only_structure:
+                model = table.get_model(fields=fields, add_dependencies=False)
+                row_queryset = model.objects.all()[: row_count_limit or None]
+                if table.created_by_column_added:
+                    row_queryset = row_queryset.select_related("created_by")
+                if table.last_modified_by_column_added:
+                    row_queryset = row_queryset.select_related("last_modified_by")
+                for row in row_queryset:
+                    serialized_row = DatabaseExportSerializedStructure.row(
+                        id=row.id,
+                        order=str(row.order),
+                        created_on=row.created_on.isoformat(),
+                        updated_on=row.updated_on.isoformat(),
+                        created_by=getattr(row, "created_by", None),
+                        last_modified_by=getattr(row, "last_modified_by", None),
                     )
-                serialized_rows.append(serialized_row)
+                    for field_object in model._field_objects.values():
+                        field_name = field_object["name"]
+                        field_type = field_object["type"]
+                        serialized_row[
+                            field_name
+                        ] = field_type.get_export_serialized_value(
+                            row, field_name, table_cache, files_zip, storage
+                        )
+                    serialized_rows.append(serialized_row)
 
             serialized_data_sync = None
             if hasattr(table, "data_sync"):
@@ -171,7 +180,7 @@ class DatabaseApplicationType(ApplicationType):
         self,
         database: Database,
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Dict[str, Any]:
         """
@@ -530,7 +539,7 @@ class DatabaseApplicationType(ApplicationType):
         # metadata is imported too.
         self._import_extra_metadata(serialized_tables, id_mapping, import_export_config)
 
-        self._import_data_sync(serialized_tables, id_mapping)
+        self._import_data_sync(serialized_tables, id_mapping, import_export_config)
 
         return imported_tables
 
@@ -549,14 +558,16 @@ class DatabaseApplicationType(ApplicationType):
                     source_workspace, table, serialized_table, import_export_config
                 )
 
-    def _import_data_sync(self, serialized_tables, id_mapping):
+    def _import_data_sync(self, serialized_tables, id_mapping, import_export_config):
         for serialized_table in serialized_tables:
             if not serialized_table.get("data_sync", None):
                 continue
             table = serialized_table["_object"]
             serialized_data_sync = serialized_table["data_sync"]
             data_sync_type = data_sync_type_registry.get(serialized_data_sync["type"])
-            data_sync_type.import_serialized(table, serialized_data_sync, id_mapping)
+            data_sync_type.import_serialized(
+                table, serialized_data_sync, id_mapping, import_export_config
+            )
 
     def _import_table_rows(
         self,

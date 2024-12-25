@@ -7,6 +7,7 @@ from drf_spectacular.utils import extend_schema_field, extend_schema_serializer
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.api.user_files.serializers import UserFileField
 from baserow.contrib.builder.api.validators import image_file_validation
 from baserow.contrib.builder.api.workflow_actions.serializers import (
@@ -356,7 +357,15 @@ class ChoiceOptionSerializer(serializers.ModelSerializer):
         fields = ["id", "value", "name"]
 
 
-class CollectionElementPropertyOptionsSerializer(serializers.ModelSerializer):
+class CollectionElementPropertyOptionsSerializer(
+    UnknownFieldRaisesExceptionSerializerMixin, serializers.ModelSerializer
+):
+    schema_property = serializers.CharField(
+        required=True,
+        max_length=225,
+        help_text="The name of the property in the schema this option belongs to.",
+    )
+
     class Meta:
         model = CollectionElementPropertyOptions
         fields = ["schema_property", "filterable", "sortable", "searchable"]

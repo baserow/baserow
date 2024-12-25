@@ -175,7 +175,7 @@ def test_run_task_with_exception_mapping(mock_get_by_model, data_fixture):
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.database.export.handler.default_storage")
+@patch("baserow.core.storage.get_default_storage")
 def test_cleanup_file_import_job(storage_mock, data_fixture, settings):
     now = datetime.now(tz=timezone.utc)
     time_before_expiration = now - timedelta(
@@ -197,7 +197,7 @@ def test_cleanup_file_import_job(storage_mock, data_fixture, settings):
 
     assert Job.objects.count() == 10
     assert Job.objects.is_running().count() == 4
-    assert Job.objects.is_finished().count() == 4
+    assert Job.objects.is_ended().count() == 4
     assert Job.objects.is_pending_or_running().count() == 6
 
     # Should keep the job that has just expired as the soft time limit is exceeded
@@ -206,7 +206,7 @@ def test_cleanup_file_import_job(storage_mock, data_fixture, settings):
 
     assert Job.objects.count() == 8
     assert Job.objects.is_running().count() == 2
-    assert Job.objects.is_finished().count() == 5
+    assert Job.objects.is_ended().count() == 5
     assert Job.objects.is_pending_or_running().count() == 3
 
     # Should delete the job that has been automatically expired by the previous cleanup
@@ -215,5 +215,5 @@ def test_cleanup_file_import_job(storage_mock, data_fixture, settings):
 
     assert Job.objects.count() == 5
     assert Job.objects.is_running().count() == 2
-    assert Job.objects.is_finished().count() == 2
+    assert Job.objects.is_ended().count() == 2
     assert Job.objects.is_pending_or_running().count() == 3

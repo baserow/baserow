@@ -1,0 +1,29 @@
+.view-date-selector {
+  display: flex;
+  justify-content: space-between;
+  margin-right: 24px;
+  margin-top: 14px;
+  margin-bottom: 14px;
+  font-size: 18px;
+}
+
+.view-date-selector__prev {
+  color: $color-neutral-900;
+  height: 44px;
+  vertical-align: middle;
+  margin-right: 20px;
+  line-height: 44px;
+}
+
+.view-date-selector__next {
+  color: $color-neutral-900;
+  height: 44px;
+  vertical-align: middle;
+  margin-right: 20px;
+  line-height: 44px;
+}
+
+.view-date-selector > * {
+  cursor: pointer;
+  user-select: none;
+}

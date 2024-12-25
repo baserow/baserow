@@ -1,0 +1,7 @@
+{
+    "type": "feature",
+    "message": "[Builder] Only return Data Source field data when used by a formula in a Page.",
+    "issue_number": 2063,
+    "bullet_points": [],
+    "created_at": "2024-10-10"
+}

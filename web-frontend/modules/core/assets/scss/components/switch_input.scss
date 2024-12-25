@@ -97,12 +97,12 @@
 }
 
 .switch__label {
+  flex: 1;
   margin-left: 8px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
   font-weight: 500;
   color: $palette-neutral-900;
+
+  @extend %ellipsis;
 
   i {
     font-size: 16px;

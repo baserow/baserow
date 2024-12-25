@@ -1,0 +1,7 @@
+{
+  "type": "feature",
+  "message": "Introduced the ability to sync with a local Baserow table.",
+  "issue_number": 2278,
+  "bullet_points": [],
+  "created_at": "2024-09-26"
+}

@@ -1,0 +1,7 @@
+{
+    "type": "refactor",
+    "message": "[Builder] Improve how Element placeholder text is displayed in Editor, Preview, and Published views.",
+    "issue_number": 2916,
+    "bullet_points": [],
+    "created_at": "2024-10-22"
+}

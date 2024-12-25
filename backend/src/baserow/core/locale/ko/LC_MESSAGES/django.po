@@ -1,0 +1,592 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-07-16 13:47+0000\n"
+"PO-Revision-Date: 2024-12-16 15:08+0000\n"
+"Last-Translator: 0v0 <0v0tvs@gmail.com>\n"
+"Language-Team: Korean <https://hosted.weblate.org/projects/baserow/"
+"backend-core/ko/>\n"
+"Language: ko\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 5.9\n"
+
+#: src/baserow/core/action/scopes.py:9
+#, python-format
+msgid "in group \"%(group_name)s\" (%(group_id)s)."
+msgstr "그룹 \"%(group_name)s\" (%(group_id)s)에서."
+
+#: src/baserow/core/actions.py:35
+msgid "Delete group"
+msgstr "그룹 삭제"
+
+#: src/baserow/core/actions.py:36
+#, python-format
+msgid "Group \"%(group_name)s\" (%(group_id)s) deleted."
+msgstr "그룹 \"%(group_name)s\" (%(group_id)s)가 삭제되었습니다."
+
+#: src/baserow/core/actions.py:99
+msgid "Create group"
+msgstr "그룹 생성"
+
+#: src/baserow/core/actions.py:100
+#, python-format
+msgid "Group \"%(group_name)s\" (%(group_id)s) created."
+msgstr "그룹 \"%(group_name)s\" (%(group_id)s)가 생성되었습니다."
+
+#: src/baserow/core/actions.py:161
+msgid "Update group"
+msgstr "그룹 업데이트"
+
+#: src/baserow/core/actions.py:163
+#, python-format
+msgid ""
+"Group (%(group_id)s) name changed from \"%(original_group_name)s\" to "
+"\"%(group_name)s.\""
+msgstr ""
+"그룹 (%(group_id)s)의 이름이 \"%(original_group_name)s\"에서 \"%(group_name)"
+"s\"(으)로 변경되었습니다"
+
+#: src/baserow/core/actions.py:245
+msgid "Order groups"
+msgstr "그룹 정렬"
+
+#: src/baserow/core/actions.py:246
+msgid "Groups order changed."
+msgstr "그룹 순서가 변경되었습니다."
+
+#: src/baserow/core/actions.py:305
+msgid "Order applications"
+msgstr "애플리케이션 정렬"
+
+#: src/baserow/core/actions.py:305
+msgid "Applications reordered"
+msgstr "애플리케이션이 재정렬되었습니다"
+
+#: src/baserow/core/actions.py:371
+msgid "Create application"
+msgstr "애플리케이션 생성"
+
+#: src/baserow/core/actions.py:372
+#, python-format
+msgid ""
+"\"%(application_name)s\" (%(application_id)s) %(application_type)s created"
+msgstr ""
+"\"%(application_name)s\" (%(application_id)s) %(application_type)s가 "
+"생성되었습니다"
+
+#: src/baserow/core/actions.py:453
+msgid "Delete application"
+msgstr "애플리케이션 삭제"
+
+#: src/baserow/core/actions.py:455
+#, python-format
+msgid ""
+"Application \"%(application_name)s\" (%(application_id)s) of type "
+"%(application_type)s deleted"
+msgstr ""
+"애플리케이션 \"%(application_name)s\" (%(application_id)s) 유형 "
+"%(application_type)s가 삭제되었습니다"
+
+#: src/baserow/core/actions.py:522
+msgid "Update application"
+msgstr "애플리케이션 업데이트"
+
+#: src/baserow/core/actions.py:524
+#, python-format
+msgid ""
+"Application (%(application_id)s) of type %(application_type)s renamed from "
+"\"%(original_application_name)s\" to \"%(application_name)s\""
+msgstr ""
+"애플리케이션 (%(application_id)s) 유형 %(application_type)s의 이름이 \""
+"%(original_application_name)s\"에서 \"%(application_name)s\"(으)로 "
+"변경되었습니다"
+
+#: src/baserow/core/actions.py:606
+msgid "Duplicate application"
+msgstr "애플리케이션 복제"
+
+#: src/baserow/core/actions.py:608
+#, python-format
+msgid ""
+"Application \"%(application_name)s\" (%(application_id)s) of type "
+"%(application_type)s duplicated from "
+"\"%(original_application_name)s\" (%(original_application_id)s)"
+msgstr ""
+"애플리케이션 \"%(application_name)s\" (%(application_id)s) 유형 "
+"%(application_type)s가 \"%(original_application_name)s\" "
+"(%(original_application_id)s)에서 복제되었습니다"
+
+#: src/baserow/core/actions.py:691
+msgid "Install template"
+msgstr "템플릿 설치"
+
+#: src/baserow/core/actions.py:693
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) installed into application "
+"IDs %(installed_application_ids)s"
+msgstr ""
+"템플릿 \"%(template_name)s\" (%(template_id)s)가 애플리케이션 IDs "
+"%(installed_application_ids)s에 설치되었습니다"
+
+#: src/baserow/core/actions.py:776
+msgid "Create group invitation"
+msgstr "그룹 초대 생성"
+
+#: src/baserow/core/actions.py:778
+#, python-format
+msgid ""
+"Group invitation created for \"%(email)s\" to join "
+"\"%(group_name)s\" (%(group_id)s) as %(permissions)s."
+msgstr ""
+"\"%(email)s\"에게 그룹 \"%(group_name)s\" (%(group_id)s)에 %(permissions)s "
+"권한으로 참여하도록 그룹 초대가 생성되었습니다."
+
+#: src/baserow/core/actions.py:833
+msgid "Delete group invitation"
+msgstr "그룹 초대 삭제"
+
+#: src/baserow/core/actions.py:835
+#, python-format
+msgid ""
+"Group invitation (%(invitation_id)s) deleted for \"%(email)s\" to join "
+"\"%(group_name)s\" (%(group_id)s) as %(permissions)s."
+msgstr ""
+"\"%(email)s\"에게 그룹 \"%(group_name)s\" (%(group_id)s)에 %(permissions)s "
+"권한으로 참여하도록 한 그룹 초대 (%(invitation_id)s)가 삭제되었습니다."
+
+#: src/baserow/core/actions.py:893
+msgid "Accept group invitation"
+msgstr "그룹 초대 수락"
+
+#: src/baserow/core/actions.py:895
+#, python-format
+msgid ""
+"Invitation (%(invitation_id)s) sent by \"%(sender)s\" to join "
+"\"%(group_name)s\" (%(group_id)s) as %(permissions)s was accepted."
+msgstr ""
+"\"%(sender)s\"가 보낸 그룹 \"%(group_name)s\" (%(group_id)s)에 %(permissions)"
+"s 권한으로 참여하도록 한 초대 (%(invitation_id)s)가 수락되었습니다."
+
+#: src/baserow/core/actions.py:953
+msgid "Reject group invitation"
+msgstr "그룹 초대 거절"
+
+#: src/baserow/core/actions.py:955
+#, python-format
+msgid ""
+"Invitation (%(invitation_id)s) sent by \"%(sender)s\" to join "
+"\"%(group_name)s\" (%(group_id)s) as %(permissions)s was rejected."
+msgstr ""
+"\"%(sender)s\"가 보낸 그룹 \"%(group_name)s\" (%(group_id)s)에 %(permissions)"
+"s 권한으로 참여하도록 한 초대 (%(invitation_id)s)가 거절되었습니다."
+
+#: src/baserow/core/actions.py:1013
+msgid "Update group invitation permissions"
+msgstr "그룹 초대 권한 업데이트"
+
+#: src/baserow/core/actions.py:1015
+#, python-format
+msgid ""
+"Invitation (%(invitation_id)s) permissions changed from "
+"%(original_permissions)s to %(permissions)s for %(email)s  on group "
+"\"%(group_name)s\" (%(group_id)s)."
+msgstr ""
+"그룹 \"%(group_name)s\" (%(group_id)s)에 대한 %(email)s의 초대 "
+"(%(invitation_id)s) 권한이 %(original_permissions)s에서 %(permissions)s로 "
+"변경되었습니다."
+
+#: src/baserow/core/actions.py:1078
+msgid "Leave group"
+msgstr "그룹 탈퇴"
+
+#: src/baserow/core/actions.py:1079
+#, python-format
+msgid "Group \"%(group_name)s\" (%(group_id)s) left."
+msgstr "그룹 \"%(group_name)s\" (%(group_id)s)에서 탈퇴하였습니다."
+
+#: src/baserow/core/actions.py:1114
+msgid "Create initial workspace"
+msgstr "초기 작업공간 생성"
+
+#: src/baserow/core/actions.py:1115
+msgid "Initial workspace created"
+msgstr "초기 작업공간이 생성되었습니다"
+
+#: src/baserow/core/emails.py:97
+#: src/baserow/core/templates/baserow/core/user/email_pending_verification.html:176
+msgid "Please confirm email"
+msgstr "이메일을 확인해 주세요"
+
+#: src/baserow/core/emails.py:115
+#, python-format
+msgid "%(by)s invited you to %(workspace_name)s - Baserow"
+msgstr "%(by)s님이 당신을 %(workspace_name)s로 초대했습니다 - Baserow"
+
+#: src/baserow/core/emails.py:148
+msgid "You have 1 new notification - Baserow"
+msgstr "새로운 알림이 1개 있습니다 - Baserow"
+
+#: src/baserow/core/emails.py:150
+#, python-format
+msgid "You have %(count)d new notifications - Baserow"
+msgstr "새로운 알림이 %(count)d 개 있습니다 - Baserow"
+
+#: src/baserow/core/fields.py:114
+#, python-format
+msgid "“%(value)s” value must be a decimal number."
+msgstr "\"%(value)s\" 값은 소수여야 합니다."
+
+#: src/baserow/core/fields.py:116
+msgid "Decimal number"
+msgstr "소수"
+
+#: src/baserow/core/handler.py:2053 src/baserow/core/user/handler.py:268
+#, python-format
+msgid "%(name)s's workspace"
+msgstr "%(name)s의 작업공간"
+
+#: src/baserow/core/notification_types.py:92
+#, python-format
+msgid "%(user)s accepted your invitation to collaborate to %(workspace_name)s."
+msgstr "%(user)s님이 %(workspace_name)s에 대한 당신의 초대를 수락했습니다."
+
+#: src/baserow/core/notification_types.py:133
+#, python-format
+msgid "%(user)s rejected your invitation to collaborate to %(workspace_name)s."
+msgstr "%(user)s님이 %(workspace_name)s에 대한 당신의 초대를 거절했습니다."
+
+#: src/baserow/core/snapshots/actions.py:21
+msgid "Create Snapshot"
+msgstr "스냅샷 생성"
+
+#: src/baserow/core/snapshots/actions.py:23
+#, python-format
+msgid ""
+"Snapshot \"%(snapshot_name)s\" (%(snapshot_id)s) created for application "
+"\"%(application_name)s\" (%(application_id)s)."
+msgstr ""
+"애플리케이션 \"%(application_name)s\" (%(application_id)s)에 대한 스냅샷 \""
+"%(snapshot_name)s\" (%(snapshot_id)s)가 생성되었습니다."
+
+#: src/baserow/core/snapshots/actions.py:72
+msgid "Restore Snapshot"
+msgstr "스냅샷 복원"
+
+#: src/baserow/core/snapshots/actions.py:74
+#, python-format
+msgid ""
+"Snapshot \"%(snapshot_name)s\" (%(snapshot_id)s) restored from application "
+"\"%(original_application_name)s\" (%(original_application_id)s) to "
+"application \"%(application_name)s\" (%(application_id)s)."
+msgstr ""
+"애플리케이션 \"%(original_application_name)s\" (%(original_application_id)s)"
+"에서 \"%(snapshot_name)s\" (%(snapshot_id)s) 스냅샷이 애플리케이션 \""
+"%(application_name)s\" (%(application_id)s)로 복원되었습니다."
+
+#: src/baserow/core/snapshots/actions.py:133
+msgid "Delete Snapshot"
+msgstr "스냅샷 삭제"
+
+#: src/baserow/core/snapshots/actions.py:135
+#, python-format
+msgid ""
+"Snapshot \"%(snapshot_name)s\" (%(snapshot_id)s) deleted for application "
+"\"%(application_name)s\" (%(application_id)s)."
+msgstr ""
+"애플리케이션 \"%(application_name)s\" (%(application_id)s)에 대한 스냅샷 \""
+"%(snapshot_name)s\" (%(snapshot_id)s)가 삭제되었습니다."
+
+#: src/baserow/core/templates/baserow/core/notifications_summary.html:176
+#, python-format
+msgid "You have %(counter)s new notification"
+msgid_plural "You have %(counter)s new notifications"
+msgstr[0] "새로운 알림이 %(counter)s개 있습니다"
+
+#: src/baserow/core/templates/baserow/core/notifications_summary.html:228
+#, python-format
+msgid "Plus %(counter)s more notification."
+msgid_plural "Plus %(counter)s more notifications."
+msgstr[0] "추가로 %(counter)s개의 알림이 더 있습니다."
+
+#: src/baserow/core/templates/baserow/core/notifications_summary.html:239
+msgid "View in Baserow"
+msgstr "Baserow에서 보기"
+
+#: src/baserow/core/templates/baserow/core/notifications_summary.html:253
+#: src/baserow/core/templates/baserow/core/user/account_deleted.html:186
+#: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:186
+#: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:191
+#: src/baserow/core/templates/baserow/core/user/reset_password.html:209
+#: src/baserow/core/templates/baserow/core/workspace_invitation.html:213
+msgid ""
+"Baserow is an open source no-code database tool which allows you to "
+"collaborate on projects, customers and more. It gives you the powers of a "
+"developer without leaving your browser."
+msgstr ""
+"Baserow는 오픈 소스 노코드 데이터베이스 도구로, 프로젝트, 고객 등에서 협업할 "
+"수 있도록 도와줍니다. 브라우저를 벗어나지 않고도 개발자의 능력을 제공합니다."
+
+#: src/baserow/core/templates/baserow/core/user/account_deleted.html:176
+msgid "Account permanently deleted"
+msgstr "계정이 영구적으로 삭제되었습니다"
+
+#: src/baserow/core/templates/baserow/core/user/account_deleted.html:181
+#, python-format
+msgid ""
+"Your account (%(username)s) on Baserow (%(baserow_embedded_share_hostname)s) "
+"has been permanently deleted."
+msgstr ""
+"Baserow (%(baserow_embedded_share_hostname)s)에서 귀하의 계정 (%(username)s)"
+"이 영구적으로 삭제되었습니다."
+
+#: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:176
+msgid "Account deletion cancelled"
+msgstr "계정 삭제가 취소되었습니다"
+
+#: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:181
+#, python-format
+msgid ""
+"Your account (%(username)s) on Baserow (%(baserow_embedded_share_hostname)s) "
+"was pending deletion, but you've logged in so this operation has been "
+"cancelled."
+msgstr ""
+"Baserow (%(baserow_embedded_share_hostname)s)의 귀하의 계정 (%(username)s)이 "
+"삭제 예정이었으나, 로그인하셨으므로 이 작업이 취소되었습니다."
+
+#: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:176
+msgid "Account pending deletion"
+msgstr "계정 삭제 예정"
+
+#: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:181
+#, python-format
+msgid ""
+"Your account (%(username)s) on Baserow (%(baserow_embedded_share_hostname)s) "
+"will be permanently deleted in %(days_left)s days."
+msgstr ""
+"Baserow (%(baserow_embedded_share_hostname)s)의 귀하의 계정 (%(username)s)이 "
+"%(days_left)s일 후에 영구적으로 삭제됩니다."
+
+#: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:186
+msgid ""
+"If you've changed your mind and want to cancel your account deletion, you "
+"just have to login again."
+msgstr "마음이 바뀌어 계정 삭제를 취소하고 싶으시다면, 다시 로그인하시면 됩니다."
+
+#: src/baserow/core/templates/baserow/core/user/email_pending_verification.html:181
+msgid "Thank you for using Baserow"
+msgstr "Baserow를 이용해 주셔서 감사합니다"
+
+#: src/baserow/core/templates/baserow/core/user/email_pending_verification.html:186
+msgid ""
+"To keep your account secure, please take a moment to verify your email by "
+"clicking the button below. Your email address will be used to assist you in "
+"changing your Baserow password should you ever need to in the future."
+msgstr "계정의 안전을 위해 아래 버튼을 클릭하여 이메일을 확인해 주세요. 이메일 "
+"주소는 향후 비밀번호 변경 시 도움이 될 것입니다."
+
+#: src/baserow/core/templates/baserow/core/user/email_pending_verification.html:195
+msgid "Confirm"
+msgstr "확인"
+
+#: src/baserow/core/templates/baserow/core/user/reset_password.html:176
+#: src/baserow/core/templates/baserow/core/user/reset_password.html:195
+msgid "Reset password"
+msgstr "비밀번호 재설정"
+
+#: src/baserow/core/templates/baserow/core/user/reset_password.html:181
+#, python-format
+msgid ""
+"A password reset was requested for your account (%(username)s) on Baserow "
+"(%(baserow_embedded_share_hostname)s). If you did not authorize this, you "
+"may simply ignore this email."
+msgstr ""
+"Baserow (%(baserow_embedded_share_hostname)s)의 귀하의 계정 (%(username)s)에 "
+"대한 비밀번호 재설정이 요청되었습니다. 본인이 요청하지 않으셨다면 이 "
+"이메일을 무시하시면 됩니다."
+
+#: src/baserow/core/templates/baserow/core/user/reset_password.html:186
+#, python-format
+msgid ""
+"To continue with your password reset, simply click the button below, and you "
+"will be able to change your password. This link will expire in %(hours)s "
+"hours."
+msgstr "비밀번호 재설정을 계속하려면 아래 버튼을 클릭하시면 됩니다. 이 링크는 "
+"%(hours)s시간 후에 만료됩니다."
+
+#: src/baserow/core/templates/baserow/core/workspace_invitation.html:176
+msgid "Invitation"
+msgstr "초대"
+
+#: src/baserow/core/templates/baserow/core/workspace_invitation.html:181
+#, python-format
+msgid ""
+"<strong>%(first_name)s</strong> has invited you to collaborate on "
+"<strong>%(workspace_name)s</strong>."
+msgstr ""
+"<strong>%(first_name)s</strong>님이 <strong>%(workspace_name)s</strong>에 "
+"협업하도록 초대했습니다."
+
+#: src/baserow/core/templates/baserow/core/workspace_invitation.html:199
+msgid "Accept invitation"
+msgstr "초대 수락"
+
+#: src/baserow/core/trash/actions.py:20
+msgid "Empty trash"
+msgstr "휴지통 비우기"
+
+#: src/baserow/core/trash/actions.py:22
+#, python-format
+msgid ""
+"Trash for application \"%(application_name)s\" (%(application_id)s) has been "
+"emptied"
+msgstr "애플리케이션 \"%(application_name)s\" (%(application_id)s)의 휴지통이 "
+"비워졌습니다"
+
+#: src/baserow/core/trash/actions.py:83
+#, python-format
+msgid ""
+"Trash for workspace \"%(workspace_name)s\" (%(workspace_id)s) has been "
+"emptied."
+msgstr "작업공간 \"%(workspace_name)s\" (%(workspace_id)s)의 휴지통이 비워졌습니다."
+
+#: src/baserow/core/trash/actions.py:94
+msgid "Restore from trash"
+msgstr "휴지통에서 복원"
+
+#: src/baserow/core/trash/actions.py:95
+#, python-format
+msgid ""
+"Item of type \"%(item_type)s\" (%(item_id)s) has been restored from trash"
+msgstr "\"%(item_type)s\" 유형의 항목 (%(item_id)s)이 휴지통에서 복원되었습니다"
+
+#: src/baserow/core/user/actions.py:23
+msgid "Create User"
+msgstr "사용자 생성"
+
+#: src/baserow/core/user/actions.py:25
+#, python-format
+msgid ""
+"User \"%(user_email)s\" (%(user_id)s) created via "
+"\"%(auth_provider_type)s\" (%(auth_provider_id)s) auth provider (invitation: "
+"%(with_invitation_token)s)"
+msgstr ""
+"사용자 \"%(user_email)s\" (%(user_id)s)이 인증 제공자 \"%(auth_provider_type)"
+"s\" (%(auth_provider_id)s)를 통해 생성되었습니다 (초대: "
+"%(with_invitation_token)s)"
+
+#: src/baserow/core/user/actions.py:117
+msgid "Update User"
+msgstr "사용자 업데이트"
+
+#: src/baserow/core/user/actions.py:118
+#, python-format
+msgid "User \"%(user_email)s\" (%(user_id)s) updated"
+msgstr "사용자 \"%(user_email)s\" (%(user_id)s)가 업데이트되었습니다"
+
+#: src/baserow/core/user/actions.py:178
+msgid "Schedule user deletion"
+msgstr "사용자 삭제 예약"
+
+#: src/baserow/core/user/actions.py:180
+#, python-format
+msgid ""
+"User \"%(user_email)s\" (%(user_id)s) scheduled to be deleted after grace "
+"time"
+msgstr "사용자 \"%(user_email)s\" (%(user_id)s)이 유예 기간 후 삭제되도록 "
+"예약되었습니다"
+
+#: src/baserow/core/user/actions.py:214
+msgid "Cancel user deletion"
+msgstr "사용자 삭제 취소"
+
+#: src/baserow/core/user/actions.py:216
+#, python-format
+msgid ""
+"User \"%(user_email)s\" (%(user_id)s) logged in cancelling the deletion "
+"process"
+msgstr "사용자 \"%(user_email)s\" (%(user_id)s)이 로그인하여 삭제 프로세스를 "
+"취소했습니다"
+
+#: src/baserow/core/user/actions.py:250
+msgid "Sign In User"
+msgstr "사용자 로그인"
+
+#: src/baserow/core/user/actions.py:252
+#, python-format
+msgid ""
+"User \"%(user_email)s\" (%(user_id)s) signed in via "
+"\"%(auth_provider_type)s\" (%(auth_provider_id)s) auth provider"
+msgstr ""
+"사용자 \"%(user_email)s\" (%(user_id)s)이 인증 제공자 \"%(auth_provider_type)"
+"s\" (%(auth_provider_id)s)를 통해 로그인했습니다"
+
+#: src/baserow/core/user/actions.py:309
+msgid "Send reset user password"
+msgstr "사용자 비밀번호 재설정 이메일 발송"
+
+#: src/baserow/core/user/actions.py:310
+#, python-format
+msgid "User \"%(user_email)s\" (%(user_id)s) requested to reset password"
+msgstr "사용자 \"%(user_email)s\" (%(user_id)s)이 비밀번호 재설정을 요청했습니다"
+
+#: src/baserow/core/user/actions.py:343
+msgid "Change user password"
+msgstr "사용자 비밀번호 변경"
+
+#: src/baserow/core/user/actions.py:344
+#, python-format
+msgid "User \"%(user_email)s\" (%(user_id)s) changed password"
+msgstr "사용자 \"%(user_email)s\" (%(user_id)s)이 비밀번호를 변경했습니다"
+
+#: src/baserow/core/user/actions.py:383
+msgid "Reset user password"
+msgstr "사용자 비밀번호 재설정"
+
+#: src/baserow/core/user/actions.py:384
+#, python-format
+msgid "User \"%(user_email)s\" (%(user_id)s) reset password"
+msgstr "사용자 \"%(user_email)s\" (%(user_id)s)이 비밀번호를 재설정했습니다"
+
+#: src/baserow/core/user/actions.py:420
+msgid "Send verify email"
+msgstr "이메일 인증 발송"
+
+#: src/baserow/core/user/actions.py:421
+#, python-format
+msgid "User \"%(user_email)s\" (%(user_id)s) requested to verify email"
+msgstr "사용자 \"%(user_email)s\" (%(user_id)s)이 이메일 인증을 요청했습니다"
+
+#: src/baserow/core/user/actions.py:454
+msgid "Verify email"
+msgstr "이메일 인증"
+
+#: src/baserow/core/user/actions.py:455
+#, python-format
+msgid "User \"%(user_email)s\" (%(user_id)s) verify email"
+msgstr "사용자 \"%(user_email)s\" (%(user_id)s)이 이메일을 인증했습니다"
+
+#: src/baserow/core/user/emails.py:16
+msgid "Reset password - Baserow"
+msgstr "비밀번호 재설정 - Baserow"
+
+#: src/baserow/core/user/emails.py:37
+msgid "Account deletion scheduled - Baserow"
+msgstr "계정 삭제 예약됨 - Baserow"
+
+#: src/baserow/core/user/emails.py:56
+msgid "Account permanently deleted - Baserow"
+msgstr "계정 영구 삭제됨 - Baserow"
+
+#: src/baserow/core/user/emails.py:74
+msgid "Account deletion cancelled - Baserow"
+msgstr "계정 삭제 취소됨 - Baserow"

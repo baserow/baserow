@@ -77,7 +77,7 @@ export default {
     width() {
       return (
         this.allVisibleFields.reduce(
-          (value, field) => this.getFieldWidth(field.id) + value,
+          (value, field) => this.getFieldWidth(field) + value,
           0
         ) + this.gridViewRowDetailsWidth
       )

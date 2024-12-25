@@ -40,7 +40,7 @@
       :disabled="readOnly"
       :show-input="false"
       :show-empty-value="false"
-      :class="{ 'dropdown--error': touched && !valid }"
+      :error="touched && !valid"
       @input="updateValue($event, value)"
       @hide="touch()"
     ></FieldCollaboratorDropdown>

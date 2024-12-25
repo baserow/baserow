@@ -126,6 +126,9 @@ x-backend-variables: &backend-variables
   BASEROW_ROW_HISTORY_RETENTION_DAYS:
   BASEROW_USER_LOG_ENTRY_CLEANUP_INTERVAL_MINUTES:
   BASEROW_USER_LOG_ENTRY_RETENTION_DAYS:
+  BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES:
+  BASEROW_IMPORT_EXPORT_RESOURCE_REMOVAL_AFTER_DAYS:
+  BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT:
   BASEROW_MAX_ROW_REPORT_ERROR_COUNT:
   BASEROW_JOB_SOFT_TIME_LIMIT:
   BASEROW_FRONTEND_JOBS_POLLING_TIMEOUT_MS:
@@ -152,6 +155,7 @@ x-backend-variables: &backend-variables
   BASEROW_MAX_CONCURRENT_USER_REQUESTS:
   BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT:
   BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT:
+  BASEROW_LOGIN_ACTION_LOG_LIMIT:
   BASEROW_OSS_ONLY:
   OTEL_TRACES_SAMPLER:
   OTEL_TRACES_SAMPLER_ARG:
@@ -161,6 +165,7 @@ x-backend-variables: &backend-variables
   BASEROW_CACHALOT_ONLY_CACHABLE_TABLES:
   BASEROW_CACHALOT_UNCACHABLE_TABLES:
   BASEROW_CACHALOT_TIMEOUT:
+  BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS:
   BASEROW_AUTO_INDEX_VIEW_ENABLED:
   BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED:
   BASEROW_DISABLE_LOCKED_MIGRATIONS:
@@ -171,7 +176,7 @@ x-backend-variables: &backend-variables
 
 services:
   backend:
-    image: baserow/backend:1.27.2
+    image: baserow/backend:1.30.1
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
@@ -186,7 +191,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:1.27.2
+    image: baserow/web-frontend:1.30.1
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
@@ -221,7 +226,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:1.27.2
+    image: baserow/backend:1.30.1
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -238,7 +243,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:1.27.2
+    image: baserow/backend:1.30.1
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -255,7 +260,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:1.27.2
+    image: baserow/backend:1.30.1
     restart: unless-stopped
     command: celery-beat
     environment:

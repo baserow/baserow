@@ -49,7 +49,7 @@ export class ImageFilePreview extends FilePreviewType {
   }
 
   isCompatible(mimeType, fileName) {
-    return mimeType.startsWith('image/')
+    return mimeType.startsWith('image/') && mimeType !== 'image/psd'
   }
 
   getPreviewComponent() {

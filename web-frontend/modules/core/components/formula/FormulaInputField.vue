@@ -13,6 +13,7 @@
     <EditorContent
       ref="editor"
       class="form-input formula-input-field"
+      role="textbox"
       :class="classes"
       :editor="editor"
       @data-component-clicked="dataComponentClicked"

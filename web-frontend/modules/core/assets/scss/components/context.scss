@@ -2,7 +2,6 @@
 %context {
   position: absolute;
   z-index: $z-index-context;
-  white-space: nowrap;
   background-color: $white;
   border: 1px solid $palette-neutral-400;
 
@@ -264,6 +263,7 @@
 }
 
 .context__footer {
+  position: relative;
   padding: 0 14px;
   height: 52px;
   display: flex;

@@ -33,10 +33,11 @@
               <span class="header__filter-name header__filter-name--forced">
                 <EditableViewName ref="rename" :view="view"></EditableViewName>
               </span>
+              <i class="header__sub-icon iconoir-nav-arrow-down"></i>
             </template>
             <template v-else-if="view !== null">
-              <i class="header__filter-icon iconoir-nav-arrow-down"></i>
               {{ $t('table.chooseView') }}
+              <i class="header__sub-icon iconoir-nav-arrow-down"></i>
             </template>
           </a>
           <ViewsContext
@@ -493,7 +494,7 @@ export default {
       const type = this.$registry.get('view', this.view.type)
       try {
         await type.refresh(
-          { store: this.$store },
+          { store: this.$store, app: this },
           this.database,
           this.view,
           fieldsToRefresh,

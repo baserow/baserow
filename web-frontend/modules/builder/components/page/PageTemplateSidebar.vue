@@ -2,7 +2,6 @@
   <li
     class="tree__item"
     :class="{
-      active: application._.selected,
       'tree__item--loading': application._.loading,
     }"
   >
@@ -49,9 +48,7 @@ export default {
   },
   computed: {
     orderedPages() {
-      return this.application.pages
-        .map((page) => page)
-        .sort((a, b) => a.order - b.order)
+      return this.$store.getters['page/getVisiblePages'](this.application)
     },
   },
   methods: {

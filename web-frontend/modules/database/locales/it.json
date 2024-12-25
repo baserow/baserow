@@ -48,7 +48,9 @@
             "convert": "Converti",
             "title": "Tipo di evento deprecato",
             "description": "Questo webhook non viene richiamato se più righe vengono modificate contemporaneamente tramite chiamata batch. Per favore, utilizza l'evento di tipo batch opportuno. Questo tipo di evento utilizza un formato adatto per inviare righe multiple nel corpo del messaggio."
-        }
+        },
+        "helpTriggerWhenFieldsHaveChanged": "Verrà attivato solamente se uno dei campi cambia.",
+        "triggerWhenFieldsHaveChanged": "Attivato quando un campo cambia"
     },
     "webhook": {
         "details": "dettagli",
@@ -67,7 +69,10 @@
     },
     "sidebarItem": {
         "exportTable": "Esporta tabella",
-        "webhooks": "Webhooks"
+        "webhooks": "Webhooks",
+        "notSynced": "Non sincronizzato",
+        "lastSynced": "Ultima sincronizzazione",
+        "sync": "Sincronizza tabella"
     },
     "apiToken": {
         "create": "crea",
@@ -225,7 +230,9 @@
     "fieldLinkRowSubForm": {
         "noTable": "Serve almeno un'altra tabella nello stesso database a cui collegarsi.",
         "selectTableLabel": "Seleziona una tabella a cui collegarsi",
-        "hasRelatedFieldLabel": "Crea relazione nella tabella collegata"
+        "hasRelatedFieldLabel": "Crea relazione nella tabella collegata",
+        "limitToView": "Limita la selezione ad una vista",
+        "limitToViewDescription": "Nota che questo è solo visuale. E' ancora possibile creare relazioni al di fuori della vista tramite API."
     },
     "fieldSelectOptions": {
         "add": "Aggiungi un'opzione"
@@ -241,7 +248,8 @@
         "editField": "Modifica campo",
         "deleteField": "Elimina campo",
         "hideField": "Nascondi campo",
-        "showField": "Mostra campo"
+        "showField": "Mostra campo",
+        "changePrimaryField": "Cambia la chiave primaria"
     },
     "fieldForm": {
         "name": "Nome",
@@ -417,15 +425,18 @@
     },
     "shareViewLink": {
         "shareView": "Condividi {viewTypeSharingLinkName}",
-        "shareViewTitle": "Crea un link condivisibile privato a {viewTypeSharingLinkName}",
+        "shareViewTitle": "Non hai ancora condiviso questa vista",
         "sharedViewTitle": "Questo {viewTypeSharingLinkName} è attualmente condiviso tramite un link privato",
         "sharedViewDescription": "Le persone che hanno il link possono vedere il {viewTypeSharingLinkName}.",
-        "disableLink": "disabilita link condiviso",
+        "disableLink": "Disabilita link condiviso",
         "generateNewUrl": "genera nuovo url",
         "copyURL": "copia URL",
         "EnablePassword": "Limita l'accesso con una password",
         "DisablePassword": "L'accesso è protetto da password",
-        "ChangePassword": "Modifica"
+        "ChangePassword": "Modifica",
+        "shareViewText": "Un link pubblico permette a chiunque di vedere i dati in questa vista.",
+        "createPrivateLink": "Crea un link pubblico",
+        "notSharedYetText": "Permetti a chiunque di vedere i dati in questa vista o sincornizza gli eventi con una applicazione esterna"
     },
     "viewSortContext": {
         "noSortTitle": "Non hai ancora creato un ordinamento",
@@ -697,7 +708,9 @@
         "importingState": "Creando",
         "reset": "Creane un'altro",
         "descriptionLimits": "Puoi avere un massimo di {n} snapshot per progetto. | Puoi avere un massimo di {n} snapshot per progetto. | Puoi avere un massimo di {n} snapshot per progetto.",
-        "create": "Crea uno snapshot"
+        "create": "Crea uno snapshot",
+        "cancel": "Cancella",
+        "noSnapshots": "Nessuno snapshot per questa applicazione."
     },
     "deleteSnapshotModal": {
         "title": "Elimina snapshot",
@@ -904,5 +917,95 @@
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Usa i nuovi filtri per le date",
         "migrateButtonTooltip": "Abbiamo introdotto nuovi filtri per le date. Clicca per aggiornare. Il risultato è lo stesso, le potenzialità sono molte di più."
+    },
+    "createTableModal": {
+        "defaultName": "Tabella",
+        "newTable": "Inizia con una nuova tabella",
+        "title": "Crea una nuova tabella",
+        "importLabel": "Vuoi importare dati esistenti?"
+    },
+    "createTable": {
+        "showTable": "mostra tabella",
+        "importError": "Qualcosa é andato storto durante l'import",
+        "stateRowCreation": "Importando...",
+        "statePreValidation": "Validando i dati...",
+        "addButton": "Aggiungi tabella",
+        "uploading": "Caricamento...",
+        "preparing": "Preparando i dati...",
+        "stateCreateTable": "Creando la tabella..."
+    },
+    "importErrorReport": {
+        "reportTitleFailure": "Righe con errori",
+        "reportTitleSuccess": "Import riuscito con successo ma...",
+        "reportMessage": "Le seguenti righe non sono state importate a causa di errori:"
+    },
+    "createViewLink": {
+        "inCompatibleWithDataSync": "Questa vista non è compatibile con una tabella sincronizzata."
+    },
+    "databaseScratchTrackFieldsStep": {
+        "fieldDate": "Data",
+        "fieldBoolean": "Finito",
+        "fieldRating": "Rating",
+        "fieldKickoffDate": "Data di inizio",
+        "fieldBudget": "Budget",
+        "fieldNotes": "Note",
+        "fieldRole": "Ruolo",
+        "fieldEstimatedDays": "Giorni stimati",
+        "fieldStartDate": "Data di inizio",
+        "fieldEndDate": "Data di fine",
+        "projectsCategoryDesign": "Design",
+        "projectsCategoryDevelopment": "Sviluppo",
+        "projectsCategoryMarketing": "Marketing",
+        "teamsRoleDesigner": "Designer",
+        "teamsRoleDeveloper": "Sviluppatore",
+        "teamsRoleMarketer": "Marketer",
+        "customFieldsDescriptionRow1": "Turpis massa tincidunt dui ut ornare lectus sit amet est.",
+        "customFieldsDescriptionRow2": "Vitae justo eget magna fermentum iaculis eu non diam.",
+        "customFieldsDescriptionRow3": "Convallis tellus id interdum velit laoreet id donec ultrices tincidunt.",
+        "fieldDuration": "Durata",
+        "fieldPhone": "Telefono",
+        "fieldActive": "Attivo",
+        "fieldUrl": "URL",
+        "fieldEmail": "Email",
+        "fieldDueDate": "Data di fine",
+        "fieldCompleted": "Completato",
+        "fieldDetails": "Dettagli",
+        "fieldNumber": "Numero",
+        "title": "Scegli i campi per ogni riga",
+        "fieldName": "Nome",
+        "fieldType": "Tipo di campo",
+        "fieldDescription": "Descrizione",
+        "fieldCategory": "categoria"
+    },
+    "dataSyncType": {
+        "icalCalendar": "Sincronizza iCal"
+    },
+    "iCalCalendarDataSync": {
+        "name": "URL iCal",
+        "description": "La sincronizzazione iCal importerà automaticamente tutti gli eventi dal tuo calendario in Baserow. Supporta solo il formato ICS (Internet Calendar and Scheduling)."
+    },
+    "createDataSync": {
+        "next": "Avanti",
+        "create": "Crea e sincronizza la tabella",
+        "error": "Qualcosa è andato storto durante l'importazione",
+        "fields": "Seleziona i campi che vuoi importare"
+    },
+    "syncTableModal": {
+        "title": "Sincronizza {name}",
+        "sync": "Sincronizza tabella",
+        "hide": "Nascondi",
+        "description": "Questa tabella viene sincronizzata automaticamente quando clicchi sul pulsante apposito. Durante il processo, le chiamate API per questa tabella potrebbero subire rallentamenti."
+    },
+    "gridViewRowHeight": {
+        "name": "Altezza",
+        "large": "Grande",
+        "small": "Piccolo",
+        "medium": "Medio"
+    },
+    "changePrimaryFieldModal": {
+        "change": "Cambia",
+        "primaryFieldLabel": "Campo primario",
+        "title": "Cambia il campo primario",
+        "existingPrimary": "\"{name}\" è ora usato come campo primario."
     }
 }

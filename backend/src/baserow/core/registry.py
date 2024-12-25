@@ -34,6 +34,7 @@ from baserow.api.utils import (
     get_serializer_class,
     map_exceptions,
 )
+from baserow.core.storage import ExportZipFile
 
 from .exceptions import InstanceTypeAlreadyRegistered, InstanceTypeDoesNotExist
 
@@ -275,12 +276,94 @@ class CustomFieldsInstanceMixin:
         return None
 
 
+class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
+    """
+    A mixin for instance with custom fields but some field should remains private
+    when used in some APIs.
+    """
+
+    public_serializer_field_names = None
+    """The field names that must be added to the serializer if it's public."""
+
+    public_request_serializer_field_names = None
+    """
+    The field names that must be added to the public request serializer if different
+    from the `public_serializer_field_names`.
+    """
+
+    request_serializer_field_overrides = None
+    """
+    The fields that must be added to the request serializer if different from the
+    `serializer_field_overrides` property.
+    """
+
+    public_serializer_field_overrides = None
+    """The fields that must be added to the public serializer."""
+
+    public_request_serializer_field_overrides = None
+    """
+    The fields that must be added to the public request serializer if different from the
+    `public_serializer_field_overrides` property.
+    """
+
+    def get_field_overrides(
+        self, request_serializer: bool, extra_params=None, **kwargs
+    ) -> Dict:
+        public = extra_params.get("public", False)
+
+        if public:
+            if (
+                request_serializer is not None
+                and self.public_request_serializer_field_overrides is not None
+            ):
+                return self.public_request_serializer_field_overrides
+            if self.public_serializer_field_overrides is not None:
+                return self.public_serializer_field_overrides
+
+        return super().get_field_overrides(request_serializer, extra_params, **kwargs)
+
+    def get_field_names(
+        self, request_serializer: bool, extra_params=None, **kwargs
+    ) -> List[str]:
+        public = extra_params.get("public", False)
+
+        if public:
+            if (
+                request_serializer is not None
+                and self.public_request_serializer_field_names is not None
+            ):
+                return self.public_request_serializer_field_names
+            if self.public_serializer_field_names is not None:
+                return self.public_serializer_field_names
+
+        return super().get_field_names(request_serializer, extra_params, **kwargs)
+
+    def get_meta_ref_name(
+        self,
+        request_serializer: bool,
+        extra_params=None,
+        **kwargs,
+    ) -> Optional[str]:
+        meta_ref_name = super().get_meta_ref_name(
+            request_serializer, extra_params, **kwargs
+        )
+
+        public = extra_params.get("public", False)
+
+        if public:
+            meta_ref_name = f"Public{meta_ref_name}"
+
+        return meta_ref_name
+
+
 class APIUrlsInstanceMixin:
-    def get_api_urls(self):
+    def get_api_urls(self) -> List:
         """
         If needed custom api related urls to the instance can be added here.
 
         Example:
+
+            from django.urls import include, path
 
             def get_api_urls(self):
                 from . import api_urls
@@ -297,7 +380,6 @@ class APIUrlsInstanceMixin:
             ]
 
         :return: A list containing the urls.
-        :rtype: list
         """
 
         return []
@@ -385,6 +467,10 @@ class EasyImportExportMixin(Generic[T], ABC):
     # Describe the properties to serialize
     SerializedDict: Type[TypedDict]
 
+    # List of fields that are potentially sensitive and shouldn't be included
+    # when exporting the application.
+    sensitive_fields: List[str] = []
+
     # The parent property name for the model
     parent_property_name: str
 
@@ -399,7 +485,7 @@ class EasyImportExportMixin(Generic[T], ABC):
         self,
         instance: T,
         prop_name: str,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
     ) -> Any:
@@ -430,7 +516,8 @@ class EasyImportExportMixin(Generic[T], ABC):
     def export_serialized(
         self,
         instance: T,
-        files_zip: Optional[ZipFile] = None,
+        import_export_config: Optional[Any] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
     ) -> Dict[str, Any]:
@@ -438,22 +525,27 @@ class EasyImportExportMixin(Generic[T], ABC):
         Exports the instance to a serialized dict that can be imported by the
         `import_serialized` method. This dict is also JSON serializable.
 
-        :param element: The instance that must be serialized.
+        :param instance: The instance that must be serialized.
+        :param files_zip: The zip file where the files must be stored.
+        :param storage: The storage where the files must be stored.
+        :param cache: The cache instance that is used to cache the files.
         :return: The exported instance as serialized dict.
         """
 
-        serialized = dict(
-            **{
-                key: self.serialize_property(
-                    instance,
-                    key,
-                    files_zip=files_zip,
-                    storage=storage,
-                    cache=cache,
-                )
-                for key in self.get_property_names()
-            }
+        exclude_sensitive_data = getattr(
+            import_export_config, "exclude_sensitive_data", False
         )
+
+        serialized = {
+            key: (
+                None
+                if exclude_sensitive_data and key in self.sensitive_fields
+                else self.serialize_property(
+                    instance, key, files_zip=files_zip, storage=storage, cache=cache
+                )
+            )
+            for key in self.get_property_names()
+        }
 
         return serialized
 
@@ -521,6 +613,9 @@ class EasyImportExportMixin(Generic[T], ABC):
         :param serialized_values: The dict containing the serialized values.
         :param id_mapping: Used to mapped object ids from export to newly created
           instances.
+        :param files_zip: The zip file containing the files.
+        :param storage: The storage instance that is used to store the files.
+        :param cache: The cache instance that is used to cache the files.
         :return: The created instance.
         """
 
@@ -541,7 +636,7 @@ class EasyImportExportMixin(Generic[T], ABC):
                 )
 
         # Remove id key
-        originale_instance_id = deserialized_properties.pop("id", 0)
+        original_instance_id = deserialized_properties.pop("id", 0)
 
         # Remove type if any
         if "type" in deserialized_properties:
@@ -561,9 +656,7 @@ class EasyImportExportMixin(Generic[T], ABC):
 
         if self.id_mapping_name:
             # Add the created instance to the mapping
-            id_mapping[self.id_mapping_name][
-                originale_instance_id
-            ] = created_instance.id
+            id_mapping[self.id_mapping_name][original_instance_id] = created_instance.id
 
         return created_instance
 

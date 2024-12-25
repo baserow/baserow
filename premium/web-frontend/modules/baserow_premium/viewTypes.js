@@ -1,17 +1,24 @@
 import {
+  BaseBufferedRowViewTypeMixin,
   maxPossibleOrderValue,
   ViewType,
 } from '@baserow/modules/database/viewTypes'
 import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
 import KanbanView from '@baserow_premium/components/views/kanban/KanbanView'
 import CalendarView from '@baserow_premium/components/views/calendar/CalendarView'
+import TimelineView from '@baserow_premium/components/views/timeline/TimelineView'
 import KanbanViewHeader from '@baserow_premium/components/views/kanban/KanbanViewHeader'
 import CalendarViewHeader from '@baserow_premium/components/views/calendar/CalendarViewHeader'
+import TimelineViewHeader from '@baserow_premium/components/views/timeline/TimelineViewHeader'
 import PremiumModal from '@baserow_premium/components/PremiumModal'
 import PremiumFeatures from '@baserow_premium/features'
 import { isAdhocFiltering } from '@baserow/modules/database/utils/view'
 import CalendarCreateIcalSharedViewLink from '@baserow_premium/components/views/calendar/CalendarCreateIcalSharedViewLink'
 import CalendarSharingIcalSlugSection from '@baserow_premium/components/views/calendar/CalendarSharingIcalSlugSection'
+import {
+  getDateField,
+  dateSettinsAreValid,
+} from '@baserow_premium/utils/timeline'
 
 class PremiumViewType extends ViewType {
   getDeactivatedText() {
@@ -173,6 +180,7 @@ export class KanbanViewType extends PremiumViewType {
     row,
     values,
     metadata,
+    updatedFieldIds,
     storePrefix = ''
   ) {
     if (this.isCurrentView(store, tableId)) {
@@ -260,7 +268,7 @@ export class CalendarViewType extends PremiumViewType {
   }
 
   canFilter() {
-    return false
+    return true
   }
 
   canSort() {
@@ -288,10 +296,19 @@ export class CalendarViewType extends PremiumViewType {
   }
 
   async fetch({ store }, database, view, fields, storePrefix = '') {
+    const isPublic = store.getters[storePrefix + 'view/public/getIsPublic']
+    const adhocFiltering = isAdhocFiltering(
+      this.app,
+      database.workspace,
+      view,
+      isPublic
+    )
+
     await store.dispatch(storePrefix + 'view/calendar/resetAndFetchInitial', {
       calendarId: view.id,
       dateFieldId: view.date_field,
       fields,
+      adhocFiltering,
     })
   }
 
@@ -316,11 +333,19 @@ export class CalendarViewType extends PremiumViewType {
     ) {
       return
     }
+    const isPublic = store.getters[storePrefix + 'view/public/getIsPublic']
+    const adhocFiltering = isAdhocFiltering(
+      this.app,
+      database.workspace,
+      view,
+      isPublic
+    )
     await store.dispatch(storePrefix + 'view/calendar/refreshAndFetchInitial', {
       calendarId: view.id,
       dateFieldId: view.date_field,
       fields,
       includeFieldOptions,
+      adhocFiltering,
     })
   }
 
@@ -362,6 +387,7 @@ export class CalendarViewType extends PremiumViewType {
     row,
     values,
     metadata,
+    updatedFieldIds,
     storePrefix = ''
   ) {
     if (this.isCurrentView(store, tableId)) {
@@ -485,3 +511,62 @@ export class CalendarViewType extends PremiumViewType {
     return view
   }
 }
+
+export class TimelineViewType extends BaseBufferedRowViewTypeMixin(
+  PremiumViewType
+) {
+  static getType() {
+    return 'timeline'
+  }
+
+  canFetch({ app }, databse, view, fields) {
+    const startFieldId = view.start_date_field
+    const endFieldId = view.end_date_field
+    const startField = getDateField(app.$registry, fields, startFieldId)
+    const endField = getDateField(app.$registry, fields, endFieldId)
+    return dateSettinsAreValid(startField, endField)
+  }
+
+  getIconClass() {
+    return 'baserow-icon-timeline'
+  }
+
+  getColorClass() {
+    return 'color-error'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('premium.viewType.timeline')
+  }
+
+  canFilter() {
+    return true
+  }
+
+  canSort() {
+    return true
+  }
+
+  canShare() {
+    return true
+  }
+
+  canShowRowModal() {
+    return true
+  }
+
+  getPublicRoute() {
+    return 'database-public-timeline-view'
+  }
+
+  getHeaderComponent() {
+    return TimelineViewHeader
+  }
+
+  getComponent() {
+    return TimelineView
+  }
+}
+
+Object.assign(TimelineViewType.prototype, PremiumViewType)

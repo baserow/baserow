@@ -6,7 +6,7 @@ from datetime import timedelta, timezone
 from decimal import Decimal
 from ipaddress import ip_network
 from socket import AF_INET, AF_INET6, IPPROTO_TCP, SOCK_STREAM
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, Generator, List, Optional, Type, Union
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -151,6 +151,7 @@ def setup_interesting_test_table(
         primary=True,
     )
     handler = FieldHandler()
+    fields = {}
     for field_type_name, all_possible_kwargs in all_possible_kwargs_per_type.items():
         for kwargs in all_possible_kwargs:
             field = handler.create_field(
@@ -162,6 +163,7 @@ def setup_interesting_test_table(
             )
             i += 1
             name_to_field_id[kwargs["name"]] = field.id
+            fields[field.id] = field
     row_handler = RowHandler()
 
     datetime = _parse_datetime("2020-02-01 01:23")
@@ -171,8 +173,6 @@ def setup_interesting_test_table(
         .order_by("id")
         .values_list("id", flat=True)
     )
-
-    file_suffix = file_suffix or ""
 
     values = {
         "text": "text",
@@ -250,6 +250,9 @@ def setup_interesting_test_table(
         "phone_number": "+4412345678",
         "password": "test",
         "ai": "I'm an AI.",
+        "ai_choice": SelectOption.objects.get(
+            value="Object", field_id=name_to_field_id["ai_choice"]
+        ).id,
     }
 
     with freeze_time("2020-02-01 01:23"):
@@ -386,7 +389,7 @@ def setup_interesting_test_table(
             },
         )
 
-    context = {"user2": user2, "user3": user3}
+    context = {"user2": user2, "user3": user3, "fields": fields}
 
     return table, user, row, blank_row, context
 
@@ -565,3 +568,65 @@ def load_test_cases(name: str) -> Union[List, Dict]:
 
     with open(file_path, "r") as file:
         return json.load(file)
+
+
+def counter_int(init: int = 0) -> Generator[int, None, None]:
+    current = init
+    while True:
+        yield current
+        current += 1
+
+
+class ReplayValues:
+    """
+    Helper class to test replayability of values. When we do a copy of a structure,
+    some fields may keep identifiers that should be unique per structure. When a copy
+    is being created, those identifiers are replaced with other values.
+
+    In such case we can't compare values directly, but we know that there's a certain
+    patter of values. This class helps to match the pattern.
+
+    >>> r = ReplayValues()
+    >>> r.record(None)
+    >>> r.record(1)
+    >>> r.record('B')
+    >>> r.record('C')
+    >>> r.record('A')
+    >>> r.record('A')
+    >>> r.record('B')
+    >>> assert r.stored == [0,1,2,3,1,1,2]
+    >>> r.reset()
+    >>> assert r.stored == []
+    """
+
+    def __init__(self):
+        self.reset()
+
+    def record(self, value: Any) -> Any:
+        """
+        Record a specific value. If a value wasn't recorded previously a new
+        placeholder value is generated. If a value has been recorded, existing value
+        is reused.
+
+        :param value:
+        :return: value
+        """
+
+        try:
+            prev_idx = self.recorded.index(value)
+            stored = self.stored[prev_idx]
+        except ValueError:
+            stored = next(self.i)
+        self.stored.append(stored)
+        self.recorded.append(value)
+        return value
+
+    def reset(self):
+        """
+        Resets the state.
+        :return:
+        """
+
+        self.stored = []
+        self.recorded = []
+        self.i = iter(counter_int())

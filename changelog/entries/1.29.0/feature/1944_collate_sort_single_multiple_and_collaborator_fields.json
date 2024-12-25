@@ -1,0 +1,7 @@
+{
+  "type": "feature",
+  "message": "Use backend and frontend matching collate sort for single select, multiple select, and multiple collaborators field types.",
+  "issue_number": 1944,
+  "bullet_points": [],
+  "created_at": "2024-10-22"
+}

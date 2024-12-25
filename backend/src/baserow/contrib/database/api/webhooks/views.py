@@ -14,6 +14,7 @@ from baserow.api.schemas import get_error_schema
 from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
 from baserow.contrib.database.api.webhooks.errors import (
     ERROR_TABLE_WEBHOOK_DOES_NOT_EXIST,
+    ERROR_TABLE_WEBHOOK_EVENT_CONFIG_FIELD_NOT_IN_TABLE,
     ERROR_TABLE_WEBHOOK_MAX_LIMIT_EXCEEDED,
 )
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
@@ -25,6 +26,7 @@ from baserow.contrib.database.webhooks.actions import (
 )
 from baserow.contrib.database.webhooks.exceptions import (
     TableWebhookDoesNotExist,
+    TableWebhookEventConfigFieldNotInTable,
     TableWebhookMaxAllowedCountExceeded,
 )
 from baserow.contrib.database.webhooks.handler import WebhookHandler
@@ -103,7 +105,11 @@ class TableWebhooksView(APIView):
         responses={
             200: TableWebhookSerializer(),
             400: get_error_schema(
-                ["ERROR_USER_NOT_IN_GROUP", "ERROR_TABLE_WEBHOOK_MAX_LIMIT_EXCEEDED"]
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_TABLE_WEBHOOK_MAX_LIMIT_EXCEEDED",
+                    "ERROR_TABLE_WEBHOOK_EVENT_CONFIG_FIELD_NOT_IN_TABLE",
+                ]
             ),
             404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
         },
@@ -114,6 +120,7 @@ class TableWebhooksView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             TableWebhookMaxAllowedCountExceeded: ERROR_TABLE_WEBHOOK_MAX_LIMIT_EXCEEDED,
+            TableWebhookEventConfigFieldNotInTable: ERROR_TABLE_WEBHOOK_EVENT_CONFIG_FIELD_NOT_IN_TABLE,
         }
     )
     @validate_body(TableWebhookCreateRequestSerializer)

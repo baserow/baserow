@@ -172,10 +172,19 @@
         <li class="context__menu-item">
           <a
             class="context__menu-item-link"
-            @click=";[copySelection($event), $refs.rowContext.hide()]"
+            @click=";[copySelection($event, false), $refs.rowContext.hide()]"
           >
             <i class="context__menu-item-icon iconoir-copy"></i>
             {{ $t('gridView.copyCells') }}
+          </a>
+        </li>
+        <li class="context__menu-item">
+          <a
+            class="context__menu-item-link"
+            @click=";[copySelection($event, true), $refs.rowContext.hide()]"
+          >
+            <i class="context__menu-item-icon iconoir-copy"></i>
+            {{ $t('gridView.copyCellsWithHeader') }}
           </a>
         </li>
         <li
@@ -483,7 +492,7 @@ export default {
     },
     leftFieldsWidth() {
       return this.leftFields.reduce(
-        (value, field) => this.getFieldWidth(field.id) + value,
+        (value, field) => this.getFieldWidth(field) + value,
         0
       )
     },
@@ -1330,14 +1339,18 @@ export default {
             }
             continue
           }
-          elementRight += this.getFieldWidth(fieldOption[0])
+
+          const matchedField = this.fields.find(
+            (field) => field.id === fieldOption[0]
+          )
+          elementRight += this.getFieldWidth(matchedField)
           if (fieldOption[0] === fieldId) {
             break
           }
         }
         const rowHeight =
           this.$store.getters[this.storePrefix + 'view/grid/getRowHeight']
-        const elementLeft = elementRight - this.getFieldWidth(fieldId)
+        const elementLeft = elementRight - this.getFieldWidth(field)
         const elementBottom =
           -verticalContainer.scrollTop + rowHeight + rowIndex * rowHeight
         const elementTop = elementBottom - rowHeight
@@ -1372,7 +1385,7 @@ export default {
      * Prepare and copy the multi-select cells into the clipboard,
      * formatted as TSV
      */
-    async copySelection(event) {
+    async copySelection(event, includeHeader = false) {
       const gridStore = this.storePrefix + 'view/grid'
       if (!this.$store.getters[`${gridStore}/isMultiSelectActive`]) {
         return
@@ -1382,7 +1395,8 @@ export default {
         await this.copySelectionToClipboard(
           this.$store.dispatch(`${gridStore}/getCurrentSelection`, {
             fields: this.allVisibleFields,
-          })
+          }),
+          includeHeader
         )
       } catch (error) {
         notifyIf(error, 'view')
@@ -1544,7 +1558,7 @@ export default {
       const primary = this.allVisibleFields.find((f) => f.primary)
       const maxWidth =
         this.gridViewRowDetailsWidth +
-        (primary ? this.getFieldWidth(primary.id) : 0) +
+        (primary ? this.getFieldWidth(primary) : 0) +
         300
 
       this.canFitInTwoColumns = this.$el.clientWidth > maxWidth

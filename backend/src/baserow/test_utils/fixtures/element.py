@@ -10,6 +10,7 @@ from baserow.contrib.builder.elements.models import (
     ImageElement,
     InputTextElement,
     LinkElement,
+    RecordSelectorElement,
     RepeatElement,
     TableElement,
     TextElement,
@@ -103,6 +104,16 @@ class ElementFixtures:
                 "data_source"
             ] = self.create_builder_local_baserow_list_rows_data_source(page=page)
         element = self.create_builder_element(RepeatElement, user, page, **kwargs)
+        return element
+
+    def create_builder_record_selector_element(self, user=None, page=None, **kwargs):
+        if "data_source" not in kwargs:
+            kwargs[
+                "data_source"
+            ] = self.create_builder_local_baserow_list_rows_data_source(page=page)
+        element = self.create_builder_element(
+            RecordSelectorElement, user, page, **kwargs
+        )
         return element
 
     def create_builder_element(self, model_class, user=None, page=None, **kwargs):

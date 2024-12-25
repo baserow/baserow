@@ -4,13 +4,18 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
+from functools import reduce
 from math import ceil, floor
+from types import MappingProxyType
 from typing import Any, Dict, NamedTuple, Optional, Tuple, Union
 
-from django.db.models import DateField, DateTimeField, IntegerField, Q, Value
+from django.contrib.postgres.expressions import ArraySubquery
+from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import ValidationError
+from django.db.models import DateField, DateTimeField, IntegerField, OuterRef, Q, Value
 from django.db.models.expressions import F, Func
 from django.db.models.fields.json import JSONField
-from django.db.models.functions import Extract, Length, Mod, TruncDate
+from django.db.models.functions import Cast, Extract, Length, Mod, TruncDate
 
 from dateutil import parser
 from dateutil.relativedelta import MO, relativedelta
@@ -59,7 +64,10 @@ from baserow.contrib.database.formula import (
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaDateIntervalType,
     BaserowFormulaDurationType,
+    BaserowFormulaMultipleSelectType,
     BaserowFormulaSingleFileType,
+    BaserowFormulaSingleSelectType,
+    BaserowFormulaURLType,
 )
 from baserow.core.datetime import get_timezones
 from baserow.core.models import WorkspaceUser
@@ -103,6 +111,8 @@ class EqualViewFilterType(ViewFilterType):
             BaserowFormulaTextType.type,
             BaserowFormulaCharType.type,
             BaserowFormulaNumberType.type,
+            BaserowFormulaDurationType.type,
+            BaserowFormulaURLType.type,
         ),
     ]
 
@@ -239,11 +249,13 @@ class ContainsViewFilterType(ViewFilterType):
             BaserowFormulaCharType.type,
             BaserowFormulaNumberType.type,
             BaserowFormulaDateType.type,
+            BaserowFormulaURLType.type,
+            BaserowFormulaSingleSelectType.type,
+            BaserowFormulaMultipleSelectType.type,
         ),
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        # Check if the model_field accepts the value.
         try:
             field_type = field_type_registry.get_by_model(field)
             return field_type.contains_query(field_name, value, model_field, field)
@@ -269,6 +281,9 @@ class ContainsWordViewFilterType(ViewFilterType):
         FormulaFieldType.compatible_with_formula_types(
             BaserowFormulaTextType.type,
             BaserowFormulaCharType.type,
+            BaserowFormulaURLType.type,
+            BaserowFormulaSingleSelectType.type,
+            BaserowFormulaMultipleSelectType.type,
         ),
     ]
 
@@ -304,6 +319,9 @@ class LengthIsLowerThanViewFilterType(ViewFilterType):
         URLFieldType.type,
         EmailFieldType.type,
         PhoneNumberFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaURLType.type,
+        ),
     ]
 
     def get_filter(self, field_name, value, model_field, field):
@@ -357,7 +375,7 @@ class NumericComparisonViewFilterType(ViewFilterType):
         AutonumberFieldType.type,
         DurationFieldType.type,
         FormulaFieldType.compatible_with_formula_types(
-            BaserowFormulaNumberType.type,
+            BaserowFormulaNumberType.type, BaserowFormulaDurationType.type
         ),
     ]
 
@@ -1059,19 +1077,37 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
     """
 
     type = "single_select_equal"
-    compatible_field_types = [SingleSelectFieldType.type]
+    compatible_field_types = [
+        SingleSelectFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaSingleSelectType.type
+        ),
+    ]
+
+    def _get_filter(field_name, value, model_field, field):
+        return Q(**{f"{field_name}_id": value})
+
+    def _get_formula_filter(field_name, value, model_field, field):
+        return Q(**{f"{field_name}__id": value})
+
+    filter_functions = MappingProxyType(
+        {
+            SingleSelectFieldType.type: _get_filter,
+            FormulaFieldType.type: _get_formula_filter,
+        }
+    )
 
     def get_filter(self, field_name, value, model_field, field):
         value = value.strip()
 
-        if value == "":
-            return Q()
-
         try:
             int(value)
-            return Q(**{f"{field_name}_id": value})
-        except Exception:
+        except ValueError:
             return Q()
+
+        field_type = field_type_registry.get_by_model(field)
+        filter_function = self.filter_functions[field_type.type]
+        return filter_function(field_name, value, model_field, field)
 
     def set_import_serialized_value(self, value, id_mapping):
         try:
@@ -1096,15 +1132,46 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
     """
 
     type = "single_select_is_any_of"
-    compatible_field_types = [SingleSelectFieldType.type]
+    compatible_field_types = [
+        SingleSelectFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaSingleSelectType.type
+        ),
+    ]
+
+    def _get_filter(field_name, option_ids, model_field, field):
+        return Q(**{f"{field_name}_id__in": option_ids})
+
+    def _get_formula_filter(field_name, option_ids, model_field, field):
+        return reduce(
+            lambda x, y: x | y,
+            [Q(**{f"{field_name}__id": str(option_id)}) for option_id in option_ids],
+        )
+
+    filter_functions = MappingProxyType(
+        {
+            SingleSelectFieldType.type: _get_filter,
+            FormulaFieldType.type: _get_formula_filter,
+        }
+    )
+
+    def parse_option_ids(self, value):
+        try:
+            return [int(v) for v in value.split(",") if v.isdigit()]
+        except ValueError:
+            return []
 
     def get_filter(self, field_name, value: str, model_field, field):
+        value = value.strip()
         if not value:
             return Q()
 
-        option_ids = [int(v) for v in value.split(",") if v.isdigit()]
+        if not (option_ids := self.parse_option_ids(value)):
+            return self.default_filter_on_exception()
 
-        return Q(**{f"{field_name}_id__in": option_ids})
+        field_type = field_type_registry.get_by_model(field)
+        filter_function = self.filter_functions[field_type.type]
+        return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value, id_mapping):
         splitted = value.split(",")
@@ -1217,6 +1284,8 @@ class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
 
         if related_row_id:
             field = view_filter.field.specific
+            # TODO: use field.get_related_primary_field() and
+            # model_field.remote_field.model here instead
             table = field.link_row_table
             primary_field = table.field_set.get(primary=True)
             model = table.get_model(
@@ -1257,7 +1326,9 @@ class LinkRowContainsViewFilterType(ViewFilterType):
     compatible_field_types = [LinkRowFieldType.type]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        related_primary_field = field.get_related_primary_field().specific
+        related_primary_field = field.link_row_table_primary_field.specific
+        if related_primary_field is None:
+            return Q()
         related_primary_field_type = field_type_registry.get_by_model(
             related_primary_field
         )
@@ -1266,19 +1337,22 @@ class LinkRowContainsViewFilterType(ViewFilterType):
             related_primary_field
         )
 
-        subquery = (
-            FilterBuilder(FILTER_TYPE_AND)
-            .filter(
-                related_primary_field_type.contains_query(
-                    f"{field_name}__{related_primary_field.db_column}",
-                    value,
-                    related_primary_field_model_field,
-                    related_primary_field,
+        try:
+            subquery = (
+                FilterBuilder(FILTER_TYPE_AND)
+                .filter(
+                    related_primary_field_type.contains_query(
+                        f"{field_name}__{related_primary_field.db_column}",
+                        value,
+                        related_primary_field_model_field,
+                        related_primary_field,
+                    )
                 )
+                .apply_to_queryset(model.objects)
+                .values_list("id", flat=True)
             )
-            .apply_to_queryset(model.objects)
-            .values_list("id", flat=True)
-        )
+        except (ValueError, ValidationError):
+            subquery = []
 
         return Q(
             **{f"id__in": subquery},
@@ -1304,7 +1378,75 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
     """
 
     type = "multiple_select_has"
-    compatible_field_types = [MultipleSelectFieldType.type]
+    compatible_field_types = [
+        MultipleSelectFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaMultipleSelectType.type
+        ),
+    ]
+
+    def _get_filter(field_name, option_ids, model_field, field):
+        try:
+            remote_field = model_field.remote_field
+            remote_model = remote_field.model
+            return Q(
+                id__in=remote_model.objects.filter(id__in=option_ids).values(
+                    f"{remote_field.related_name}__id"
+                )
+            )
+        except ValueError:
+            return Q()
+
+    def _get_formula_filter(field_name, option_ids, model_field, field):
+        model = model_field.model
+        subq = (
+            model.objects.filter(id=OuterRef("id"))
+            .annotate(
+                res=Cast(
+                    Func(
+                        Func(field_name, function="jsonb_array_elements"),
+                        Value("id"),
+                        function="jsonb_extract_path",
+                    ),
+                    output_field=IntegerField(),
+                )
+            )
+            .values("res")
+        )
+        annotation_name = f"{field_name}_has"
+        return AnnotatedQ(
+            annotation={
+                annotation_name: ArraySubquery(
+                    subq, output_field=ArrayField(IntegerField())
+                )
+            },
+            q=Q(**{f"{annotation_name}__overlap": option_ids}),
+        )
+
+    def parse_option_ids(self, value):
+        try:
+            return [int(v) for v in value.split(",") if v.isdigit()]
+        except ValueError:
+            return []
+
+    filter_functions = MappingProxyType(
+        {
+            MultipleSelectFieldType.type: _get_filter,
+            FormulaFieldType.type: _get_formula_filter,
+        }
+    )
+
+    def get_filter(self, field_name, value: str, model_field, field):
+        value = value.strip()
+        if not value:
+            return Q()
+
+        if not (option_ids := self.parse_option_ids(value)):
+            return self.default_filter_on_exception()
+
+        field_type = field_type_registry.get_by_model(field)
+        filter_function = self.filter_functions[field_type.type]
+        return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value, id_mapping):
         try:
@@ -1400,7 +1542,10 @@ class UserIsViewFilterType(ViewFilterType):
         if not value:
             return Q()
         value = value.strip()
-        return Q(**{f"{field_name}__id": int(value)})
+        try:
+            return Q(**{f"{field_name}__id": int(value)})
+        except ValueError:
+            return Q()
 
     def get_export_serialized_value(self, value, id_mapping):
         if self.USER_KEY not in id_mapping:
@@ -1481,7 +1626,11 @@ class EmptyViewFilterType(ViewFilterType):
             BaserowFormulaBooleanType.type,
             BaserowFormulaDateIntervalType.type,
             BaserowFormulaDurationType.type,
+            BaserowFormulaURLType.type,
+            BaserowFormulaSingleSelectType.type,
+            BaserowFormulaMultipleSelectType.type,
             FormulaFieldType.array_of(BaserowFormulaSingleFileType.type),
+            FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
         ),
     ]
 

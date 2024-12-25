@@ -61,7 +61,7 @@ export default {
     value: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => undefined,
     },
     variant: {
       required: false,

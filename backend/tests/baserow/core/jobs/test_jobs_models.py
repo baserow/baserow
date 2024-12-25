@@ -31,12 +31,12 @@ def test_is_finished_queryset(data_fixture):
     data_fixture.create_fake_job(state=JOB_STARTED)
     data_fixture.create_fake_job(state="whatever")
 
-    assert Job.objects.is_finished().count() == 0
+    assert Job.objects.is_ended().count() == 0
 
     data_fixture.create_fake_job(state=JOB_FAILED)
     data_fixture.create_fake_job(state=JOB_FINISHED)
 
-    assert Job.objects.is_finished().count() == 2
+    assert Job.objects.is_ended().count() == 2
 
 
 @pytest.mark.django_db

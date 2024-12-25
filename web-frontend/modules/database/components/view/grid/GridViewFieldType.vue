@@ -328,7 +328,7 @@ export default {
   },
   computed: {
     width() {
-      return this.getFieldWidth(this.field.id)
+      return this.getFieldWidth(this.field)
     },
     canFilter() {
       const filters = Object.values(this.$registry.getAll('viewFilter'))

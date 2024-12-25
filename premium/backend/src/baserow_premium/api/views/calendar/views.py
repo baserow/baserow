@@ -35,7 +35,15 @@ from baserow.api.schemas import (
     get_error_schema,
 )
 from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
-from baserow.contrib.database.api.constants import SEARCH_MODE_API_PARAM
+from baserow.contrib.database.api.constants import (
+    ADHOC_FILTERS_API_PARAMS,
+    ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
+    SEARCH_MODE_API_PARAM,
+)
+from baserow.contrib.database.api.fields.errors import (
+    ERROR_FIELD_DOES_NOT_EXIST,
+    ERROR_FILTER_FIELD_NOT_FOUND,
+)
 from baserow.contrib.database.api.rows.serializers import (
     RowSerializer,
     get_row_serializer_class,
@@ -44,16 +52,25 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_CANNOT_SHARE_VIEW_TYPE,
     ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
     ERROR_VIEW_DOES_NOT_EXIST,
+    ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+    ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
 from baserow.contrib.database.api.views.serializers import ViewSerializer
 from baserow.contrib.database.api.views.utils import get_public_view_authorization_token
+from baserow.contrib.database.fields.exceptions import (
+    FieldDoesNotExist,
+    FilterFieldNotFound,
+)
 from baserow.contrib.database.rows.registries import row_metadata_registry
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
 from baserow.contrib.database.views.exceptions import (
     CannotShareViewTypeError,
     NoAuthorizationToPubliclySharedView,
     ViewDoesNotExist,
+    ViewFilterTypeDoesNotExist,
+    ViewFilterTypeNotAllowedForField,
 )
+from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.signals import view_loaded
@@ -92,7 +109,9 @@ class CalendarViewView(APIView):
                 name="limit",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.INT,
-                description="Defines how many rows should be returned by default.",
+                description="Defines how many rows per day should be returned by"
+                " default. This value can be overwritten per select"
+                " option.",
             ),
             OpenApiParameter(
                 name="offset",
@@ -135,6 +154,7 @@ class CalendarViewView(APIView):
                 required=False,
             ),
             SEARCH_MODE_API_PARAM,
+            *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
         ],
         tags=["Database table calendar view"],
         operation_id="list_database_table_calendar_view_rows",
@@ -151,6 +171,10 @@ class CalendarViewView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_CALENDAR_VIEW_HAS_NO_DATE_FIELD",
                     "ERROR_FEATURE_NOT_AVAILABLE",
+                    "ERROR_FILTER_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
+                    "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
                 ]
             ),
             404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
@@ -161,6 +185,10 @@ class CalendarViewView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             CalendarViewHasNoDateField: (ERROR_CALENDAR_VIEW_HAS_NO_DATE_FIELD),
+            FilterFieldNotFound: ERROR_FILTER_FIELD_NOT_FOUND,
+            ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+            ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
+            FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
         }
     )
     @allowed_includes("field_options", "row_metadata")
@@ -195,6 +223,7 @@ class CalendarViewView(APIView):
             )
 
         model = view.table.get_model()
+        adhoc_filters = AdHocFilters.from_request(request)
 
         grouped_rows = get_rows_grouped_by_date_field(
             view=view,
@@ -205,8 +234,10 @@ class CalendarViewView(APIView):
             limit=query_params.get("limit"),
             offset=query_params.get("offset"),
             model=model,
+            adhoc_filters=adhoc_filters,
             search=query_params.get("search"),
             search_mode=query_params.get("search_mode"),
+            combine_filters=False,
         )
 
         serializer_class = get_row_serializer_class(
@@ -267,8 +298,9 @@ class PublicCalendarViewView(APIView):
                 name="limit",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.INT,
-                description="Defines how many rows should be returned by default. "
-                "This value can be overwritten per select option.",
+                description="Defines how many rows per day should be returned by"
+                " default. This value can be overwritten per select"
+                " option.",
             ),
             OpenApiParameter(
                 name="offset",
@@ -302,6 +334,7 @@ class PublicCalendarViewView(APIView):
                 default="UTC",
                 required=False,
             ),
+            *ADHOC_FILTERS_API_PARAMS,
         ],
         tags=["Database table calendar view"],
         operation_id="public_list_database_table_calendar_view_rows",
@@ -317,6 +350,10 @@ class PublicCalendarViewView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_CALENDAR_VIEW_HAS_NO_DATE_FIELD",
+                    "ERROR_FILTER_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
+                    "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
                 ]
             ),
             404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
@@ -329,6 +366,10 @@ class PublicCalendarViewView(APIView):
             NoAuthorizationToPubliclySharedView: (
                 ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW
             ),
+            FilterFieldNotFound: ERROR_FILTER_FIELD_NOT_FOUND,
+            ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+            ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
+            FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
         }
     )
     @allowed_includes("field_options")
@@ -351,9 +392,12 @@ class PublicCalendarViewView(APIView):
             )
 
         model = view.table.get_model()
+
+        adhoc_filters = AdHocFilters.from_request(request)
+
         view_type = view_type_registry.get_by_model(view)
         (
-            queryset,
+            _,  # fields queryset, not used
             field_ids,
             publicly_visible_field_options,
         ) = ViewHandler().get_public_rows_queryset_and_field_ids(
@@ -371,6 +415,8 @@ class PublicCalendarViewView(APIView):
             limit=query_params.get("limit"),
             offset=query_params.get("offset"),
             model=model,
+            adhoc_filters=adhoc_filters,
+            combine_filters=True,
         )
 
         serializer_class = get_row_serializer_class(

@@ -21,7 +21,9 @@
         "pathParamsTitle": "Paramètres de chemin",
         "pathParamsSubtitle": "Sont définis par - :parameter - dans le chemin",
         "pathParamsSubtitleTutorial": "Les paramètres de chemin peuvent être utilisés pour charger dynamiquement les données, en fonction du paramètre fourni. Ajoutez - :parameter - au chemin pour en ajouter un.",
-        "pathTitle": "Chemin"
+        "pathTitle": "Chemin",
+        "namePlaceholder": "Saisir un nom...",
+        "pathPlaceholder": "Entrez un chemin..."
     },
     "builderSettingTypes": {
         "integrationsName": "Intégrations",
@@ -44,7 +46,8 @@
     },
     "elementsContext": {
         "searchPlaceholder": "Chercher des éléments",
-        "noElements": "Aucun élément trouvé"
+        "noElements": "Aucun élément trouvé",
+        "noPageElements": "Aucun élément trouvé pour cette page"
     },
     "elementType": {
         "heading": "Titre",
@@ -76,7 +79,22 @@
         "repeat": "Répétition",
         "repeatDescription": "Répète des éléments",
         "choice": "Sélecteur",
-        "choiceDescription": "Pour la sélection d'une ou plusieurs valeurs"
+        "choiceDescription": "Pour la sélection d'une ou plusieurs valeurs",
+        "recordSelector": "Sélecteur d'enregistrement",
+        "recordSelectorDescription": "Pour sélectionner les enregistrements d'une source",
+        "dateTimePicker": "Sélecteur de date",
+        "dateTimePickerDescription": "Un champ de saisie de la date et de l'heure",
+        "headerDescription": "Un conteneur partagé entre plusieurs pages",
+        "footer": "Pied de page multi-page",
+        "footerDescription": "Un conteneur partagé entre plusieurs pages",
+        "notAllowedUnlessTop": "Cet élément n'est autorisé qu'en haut de la page",
+        "notAllowedUnlessBottom": "Cet élément n'est autorisé qu'en bas de page",
+        "notAllowedUnlessHeader": "Cet élément n'est autorisé qu'à l'intérieur de l'en-tête de la page",
+        "notAllowedUnlessFooter": "Cet élément n'est autorisé qu'à l'intérieur du pied de page",
+        "notAllowedInsideSameType": "Cet élément n'est pas autorisé dans un conteneur du même type",
+        "header": "En-tête multi-pages",
+        "notAllowedInsideContainer": "Cet élément n'est pas autorisé à l'intérieur d'un conteneur",
+        "notAllowedLocation": "Cet élément n'est pas autorisé à cet endroit"
     },
     "elementMenu": {
         "moveDown": "Descendre",
@@ -91,7 +109,8 @@
     "addElementModal": {
         "title": "Ajouter un élément",
         "searchPlaceholder": "Chercher des éléments",
-        "disabledElementTooltip": "Non disponible à l'intérieur de cet élément"
+        "disabledElementTooltip": "Non disponible à l'intérieur de cet élément",
+        "elementInProgress": "Ajout d'un élément..."
     },
     "duplicatePageJobType": {
         "duplicating": "Duplication",
@@ -108,7 +127,9 @@
         "message": "Cliquez sur l'un des éléments pour obtenir plus de détails"
     },
     "headingElement": {
-        "noValue": "Aucun titre..."
+        "noValue": "Aucun titre...",
+        "emptyValue": "Titre vide...",
+        "missingValue": "Titre manquant..."
     },
     "headingElementForm": {
         "levelTitle": "Niveau",
@@ -118,7 +139,9 @@
         "textError": "La valeur est invalide."
     },
     "textElement": {
-        "noValue": "texte vide..."
+        "noValue": "texte vide...",
+        "missingValue": "Texte manquant...",
+        "emptyValue": "Texte vide..."
     },
     "textElementForm": {
         "textTitle": "Texte",
@@ -161,7 +184,9 @@
         "invalidFormula": "La formule est invalide"
     },
     "imageElement": {
-        "emptyState": "Aucun texte alternatif défini..."
+        "emptyState": "Aucun texte alternatif défini...",
+        "missingValue": "Texte alternatif manquant...",
+        "emptyValue": "Texte alternitf vide..."
     },
     "imageElementForm": {
         "fileLabel": "Image",
@@ -210,7 +235,9 @@
         "subDomainName": "Sous-domaine"
     },
     "linkElement": {
-        "noValue": "Sans nom..."
+        "noValue": "Sans nom...",
+        "missingValue": "Texte du lien manquant...",
+        "emptyValue": "Texte du lien vide..."
     },
     "linkElementForm": {
         "text": "Texte",
@@ -266,12 +293,19 @@
         "selectTypeFirst": "Sélectionnez d'abord le service",
         "servicePlaceholder": "Sélectionnez un service",
         "errorUniqueName": "Le nom de la source de données doit être unique.",
-        "integrationPlaceholder": "Sélectionnez une intégration"
+        "integrationPlaceholder": "Sélectionnez une intégration",
+        "actionLabel": "Action",
+        "integrationLabel": "Intégration",
+        "nameLabel": "Nom"
     },
     "dataSourceContext": {
         "addDataSource": "Ajouter une source de données",
         "noDataSourceMessage": "Les source de données peuvent être utilisées pour récupérer des données à partir de sources internes ou externes et les afficher sur la page.",
-        "noDataSourceTitle": "Vous n’avez pas encore ajouté de source de données."
+        "noDataSourceTitle": "Vous n’avez pas encore ajouté de source de données.",
+        "pageDataSourceTitle": "Pour cette page",
+        "sharedDataSourceTitle": "Partagée entre les pages",
+        "sharedDataSourceDescription": "Accessible sur toutes les pages et récupérée une fois lors du premier chargement de la page.",
+        "pageDataSourceDescription": "Récupérée lorsque l'utilisateur navigue vers cette page."
     },
     "pageSettingsTypes": {
         "pageName": "Page"
@@ -327,14 +361,15 @@
         "fields": "Colonnes",
         "fieldType": "Type",
         "fieldDefaultName": "Colonne",
-        "selectSourceFirst": "Choisissez une source de données de type liste pour commencer à configurer vos champs.",
+        "selectSourceFirst": "Choisissez une source de données et/ou une propriété pour commencer à configurer vos champs.",
         "buttonColor": "Couleur du bouton",
         "refreshFieldsFromDataSource": "Réinitialiser les champs à partir de la source de données",
         "name": "Nom",
         "orientation": "Orientation",
         "orientationHorizontal": "Horizontale",
         "orientationVertical": "Verticale",
-        "buttonLoadMoreLabel": "Libellé « afficher plus »"
+        "buttonLoadMoreLabel": "Libellé « afficher plus »",
+        "propertySelectorMissingArrays": "Aucun champ à valeurs multiples n'a été trouvé pour être utilisé comme données."
     },
     "mainThemeConfigBlock": {
         "colorsLabel": "Couleurs",
@@ -377,7 +412,8 @@
     },
     "currentRecordDataProviderType": {
         "index": "Index",
-        "firstPartName": "Source de données : {nom}"
+        "firstPartName": "Source de données : {nom}",
+        "schemaProperty": "{prefixName} : {schemaProperty}"
     },
     "domainForm": {
         "notUniqueDomain": "Le domaine fourni est déjà utilisé",
@@ -401,7 +437,9 @@
         "addAction": "ajouter une action"
     },
     "buttonElement": {
-        "noValue": "Sans nom..."
+        "noValue": "Sans nom...",
+        "missingValue": "Texte du bouton manquant...",
+        "emptyValue": "Texte du bouton vide..."
     },
     "tableElement": {
         "empty": "Aucun résultat n'a été trouvée.",
@@ -449,7 +487,8 @@
         "nameFieldLabel": "Nom",
         "nameFieldPlaceholder": "Saisir un nom...",
         "integrationFieldLabel": "Intégration",
-        "authTitle": "Authentification"
+        "authTitle": "Authentification",
+        "addProvider": "Ajouter un fournisseur"
     },
     "widthTypes": {
         "full": "Pleine largeur",
@@ -483,7 +522,9 @@
         "text": "Texte",
         "link": "Lien",
         "boolean": "Booléen",
-        "tags": "Étiquettes"
+        "tags": "Étiquettes",
+        "button": "Bouton",
+        "image": "Image"
     },
     "createUserSourceForm": {
         "userSourceName": "Nom",
@@ -502,7 +543,9 @@
         "none": "Aucun"
     },
     "pagePreview": {
-        "emptyMessage": "Cliquez pour créer le premier élément"
+        "emptyMessage": "Cliquez pour créer un élément",
+        "header": "EN-TÊTE",
+        "footer": "PIED DE PAGE"
     },
     "formContainerElementForm": {
         "submitButtonLabel": "Bouton de soumission",
@@ -533,7 +576,9 @@
         "embedLabel": "Embarquer",
         "embedPlaceholder": "Contenu HTML brut à intégrer",
         "heightLabel": "Hauteur (px)",
-        "heightPlaceholder": "Hauteur en pixels"
+        "heightPlaceholder": "Hauteur en pixels",
+        "emptyValue": "Source vide...",
+        "missingValue": "Source manquante..."
     },
     "linkNavigationSelection": {
         "paramPlaceholder": "Saisir une valeur...",
@@ -584,7 +629,8 @@
         "userSource": "Source d'utilisateur"
     },
     "formContainerElement": {
-        "submitDeactivatedText": "Veuillez remplir tous les champs requis pour soumettre le formulaire"
+        "submitDeactivatedText": "Veuillez remplir tous les champs requis pour soumettre le formulaire",
+        "defaultSubmitButtonLabel": "Valider"
     },
     "visibilityForm": {
         "allVisitors": "Tous les visiteurs",
@@ -624,7 +670,9 @@
     "repeatElement": {
         "showMore": "Afficher plus",
         "empty": "Aucun résultat n'a été trouvée.",
-        "missingDataSourceTooltip": "Choisissez une source de données pour commencer à ajouter des éléments."
+        "missingDataSourceTooltip": "Choisissez une source de données pour commencer à ajouter des éléments.",
+        "missingSchemaPropertyTooltip": "Choisissez une propriété pour commencer à ajouter des éléments.",
+        "emptyState": "Aucun enregistrement n'a été trouvé."
     },
     "repeatElementForm": {
         "dataSource": "Source de données",
@@ -636,7 +684,8 @@
         "orientationVertical": "Verticale",
         "orientationHorizontal": "Horizontale",
         "buttonLoadMoreLabel": "Libellé « afficher plus »",
-        "toggleEditorRepetitionsLabel": "Désactiver temporairement les répétitions"
+        "toggleEditorRepetitionsLabel": "Désactiver temporairement les répétitions",
+        "propertySelectorMissingArrays": "Aucun champ à valeurs multiples n'a été trouvé pour créer les répétitions."
     },
     "userDataProviderType": {
         "isAuthenticated": "Est authentifié",
@@ -818,6 +867,115 @@
         "empty": "Aucune option disponible"
     },
     "abTable": {
-        "empty": "Aucun résultat n'a été trouvée."
+        "empty": "Aucun résultat n'a été trouvée.",
+        "loading": "Chargement..."
+    },
+    "collectionElementForm": {
+        "noDataSourceMessage": "Choisissez une source de données retournant plusieurs lignes pour lister tous les résultats, ou une source de données retournant une seule ligne pour choisir une propriété à l'intérieur de cette ligne.",
+        "noSchemaPropertyMessage": "Choisissez une propriété de la source de données à utiliser comme source de données pour votre élément.",
+        "propertyOptionLabel": "Actions possibles"
+    },
+    "imageFieldForm": {
+        "fieldSrcLabel": "Source de l'image",
+        "fieldSrcPlaceholder": "Saisir la valeur",
+        "fieldAltPlaceholder": "Saisir la valeur...",
+        "fieldAltLabel": "Texte Alt",
+        "fieldAltHelp": "Est utilisé par les lecteurs d'écran et affiché si l'image ne peut pas être chargée"
+    },
+    "dataSourceDropdown": {
+        "noDataSources": "Aucune source de données disponible",
+        "label": "Source des données",
+        "shared": "partagée",
+        "pageOnly": "cette page",
+        "noSharedDataSources": "Aucune source de données partagée disponible"
+    },
+    "serviceSchemaPropertySelector": {
+        "label": "Propriété",
+        "noProperties": "Aucune propriété disponible"
+    },
+    "recordSelectorElementForm": {
+        "selectRecordsFrom": "Sélectionner les enregistrements de...",
+        "record": "Option {id}",
+        "noDataSourceMessage": "Choisir une source de données avec plusieurs lignes pour lister tous les résultats.",
+        "optionNameSuffix": "Suffixe des options",
+        "optionNameSuffixPlaceholder": "Saisir un suffixe...",
+        "optionNameSuffixHelper": "Ce suffixe est ajouté à chaque nom d'option lorsque vous ouvrez la liste déroulante et permet de les distinguer.",
+        "itemsPerPage": "Éléments par page",
+        "itemsPerPagePlaceholder": "Saisir une valeur...",
+        "multipleLabel": "Autoriser plusieurs valeurs"
+    },
+    "dataSourceItemContext": {
+        "shareBetweenPages": "Partager entre les pages",
+        "unshareBetweenPages": "Arréter le partage"
+    },
+    "dataSourceCreateEditModal": {
+        "editTitle": "Modifier la source de données",
+        "createTitle": "Créer une source de données",
+        "sharedWarning": "Cette source de données est partagée, de sorte que vos modifications peuvent affecter plusieurs pages."
+    },
+    "propertyOptionForm": {
+        "fieldHeading": "Colonne",
+        "filterHeading": "Filtre",
+        "sortHeading": "Trier",
+        "searchHeading": "Chercher",
+        "optionUnavailable": "Non disponible",
+        "noPropertiesAvailable": "Aucun champ disponible.",
+        "formDescription": "Choisissez les propriétés de la source de données que les utilisateurs externes peuvent filtrer, trier et rechercher."
+    },
+    "dataSourceItem": {
+        "notConfigured": "Non configurée"
+    },
+    "recordSelectorElement": {
+        "emptyAdhocState": "Aucun enregistrement correspondant à '{query}' n'a été trouvé.",
+        "emptyState": "Aucun enregistrement n'a été trouvé."
+    },
+    "common": {
+        "dateFormatTitle": "Format de date",
+        "dateFormatEU": "Européen",
+        "dateFormatUS": "Américain",
+        "dateFormatISO": "ISO",
+        "timeFormatTitle": "Format de l'heure",
+        "timeFormat24Hour": "24 heures",
+        "timeFormat12Hour": "12 heures"
+    },
+    "pageVisibilitySettingsTypes": {
+        "pageName": "Visibilité",
+        "logInPageInfoTitle": "Les utilisateurs anonymes seront redirigés",
+        "logInPageInfoMessage": "Les utilisateurs anonymes qui tentent d'accéder à cette page seront redirigés vers la page « {logInPageName} ».",
+        "logInPageWarningTitle": "La page de connexion n'est pas définie",
+        "logInPagewarningMessage": "Lorsqu'un utilisateur anonyme tente d'accéder à cette page, il est redirigé vers la page de connexion. Veuillez définir la page de connexion dans les paramètres généraux de l'application."
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "Inclure l'heure",
+        "invalidDateError": "Date non valide. Veuillez vous assurer que la date saisie correspond au format indiqué."
+    },
+    "themeSettings": {
+        "titleOverview": "Thème"
+    },
+    "pageVisibilitySettings": {
+        "title": "Visibilité",
+        "allVisitors": "Tous les visiteurs",
+        "loggedInVisitors": "Visiteurs connectés",
+        "description": "Qui peut consulter cette page ?"
+    },
+    "pageEditor": {
+        "pageNotFound": "Page non trouvée"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownLabel": "Page de connexion",
+        "pageDropdownPlaceholder": "Sélectionner une page",
+        "pageDropdownDescription": "Sélectionnez la page de connexion vers laquelle les utilisateurs non connectés doivent être redirigés lorsqu'ils tentent d'accéder à une page restreinte."
+    },
+    "multiPageContainerElementForm": {
+        "display": "Affichage",
+        "pagePosition": "Position",
+        "behaviour": "Comportement",
+        "selectAll": "Sélectionner tout",
+        "deselectAll": "Désélectionner tout"
+    },
+    "pageShareType": {
+        "all": "Sur toutes les pages",
+        "except": "Exclure les pages sélectionnées",
+        "only": "Uniquement les pages sélectionnées"
     }
 }

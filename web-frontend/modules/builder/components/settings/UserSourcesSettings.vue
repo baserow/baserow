@@ -53,7 +53,6 @@
     <UpdateUserSourceForm
       ref="userSourceForm"
       :builder="builder"
-      :integrations="integrations"
       :user-source-type="getUserSourceType(editedUserSource)"
       :default-values="editedUserSource"
       @submitted="updateUserSource"
@@ -71,7 +70,7 @@
         :disabled="actionInProgress || invalidForm"
         :loading="actionInProgress"
         size="large"
-        @click="$refs.userSourceForm.submit()"
+        @click="$refs.userSourceForm.submit(true)"
       >
         {{ $t('action.save') }}
       </Button>
@@ -86,7 +85,6 @@
     <CreateUserSourceForm
       ref="userSourceForm"
       :builder="builder"
-      :integrations="integrations"
       @submitted="createUserSource"
       @values-changed="onValueChange"
     />
@@ -122,6 +120,9 @@ export default {
   name: 'UserSourceSettings',
   components: { CreateUserSourceForm, UpdateUserSourceForm },
   mixins: [error],
+  provide() {
+    return { builder: this.builder }
+  },
   props: {
     builder: {
       type: Object,
@@ -169,7 +170,7 @@ export default {
       return this.$registry.get('userSource', userSource.type)
     },
     onValueChange() {
-      this.invalidForm = !this.$refs.userSourceForm.isFormValid()
+      this.invalidForm = !this.$refs.userSourceForm.isFormValid(true)
     },
     async showForm(userSourceToEdit) {
       if (userSourceToEdit) {
@@ -205,19 +206,24 @@ export default {
       this.actionInProgress = false
     },
     async updateUserSource(newValues) {
+      if (!this.$refs.userSourceForm.isFormValid(true)) {
+        return
+      }
+
       this.actionInProgress = true
       try {
         await this.actionUpdateUserSource({
           application: this.builder,
-          page: this.page,
           userSourceId: this.editedUserSource.id,
           values: clone(newValues),
         })
         this.hideForm()
       } catch (error) {
         // Restore the previously saved values from the store
-        this.$refs.userSourceForm.reset()
-        this.handleError(error)
+        if (!this.$refs.userSourceForm.handleServerError(error)) {
+          this.$refs.userSourceForm.reset()
+          this.handleError(error)
+        }
       }
       this.actionInProgress = false
     },

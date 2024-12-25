@@ -3,7 +3,7 @@ import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockT
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
-  inject: ['workspace', 'builder', 'page', 'mode'],
+  inject: ['workspace', 'builder', 'currentPage', 'elementPage', 'mode'],
   mixins: [form],
   computed: {
     themeConfigBlocks() {

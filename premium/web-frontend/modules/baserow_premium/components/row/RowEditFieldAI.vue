@@ -1,15 +1,12 @@
 <template>
-  <div class="control__elements">
-    <FormTextarea
-      ref="input"
-      v-model="value"
-      type="text"
-      class="margin-bottom-2"
-      :rows="6"
-      :disabled="true"
-    />
-
-    <template v-if="!readOnly">
+  <div>
+    <component
+      :is="outputRowEditFieldComponent"
+      ref="field"
+      v-bind="$props"
+      :read-only="true"
+    ></component>
+    <div v-if="!readOnly" class="margin-top-2">
       <Button
         v-if="isDeactivated && rowIsCreated"
         type="secondary"
@@ -19,7 +16,7 @@
         {{ $t('rowEditFieldAI.generate') }}
       </Button>
       <Button
-        v-if="rowIsCreated"
+        v-else-if="rowIsCreated"
         type="secondary"
         :loading="generating"
         @click="generate()"
@@ -33,7 +30,7 @@
         :workspace="workspace"
         :name="fieldName"
       ></component>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -47,6 +44,12 @@ export default {
   computed: {
     fieldName() {
       return this.$registry.get('field', this.field.type).getName()
+    },
+    outputRowEditFieldComponent() {
+      return this.$registry
+        .get('aiFieldOutputType', this.field.ai_output_type)
+        .getBaserowFieldType()
+        .getRowEditFieldComponent(this.field)
     },
   },
 }

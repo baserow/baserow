@@ -92,6 +92,10 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                   my public grid view name
                 </span>
               </span>
+               
+              <i
+                class="header__sub-icon iconoir-nav-arrow-down"
+              />
             </a>
              
             <!---->
@@ -226,7 +230,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                     tabindex="-1"
                   >
                     <li
-                      class="select__item select__item--no-options"
+                      class="select__item select__item--no-options visible"
                     >
                       <a
                         class="select__item-link"
@@ -257,7 +261,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                     </li>
                      
                     <li
-                      class="select__item select__item--no-options"
+                      class="select__item select__item--no-options visible"
                     >
                       <a
                         class="select__item-link"
@@ -288,7 +292,7 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                     </li>
                      
                     <li
-                      class="select__item select__item--no-options"
+                      class="select__item select__item--no-options visible"
                     >
                       <a
                         class="select__item-link"
@@ -709,7 +713,16 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                   <div
                     class="grid-view-aggregation"
                   >
-                    <!---->
+                    <div
+                      class="grid-view-aggregation__empty"
+                    >
+                      <i
+                        class="grid-view-aggregation__empty-icon iconoir-plus"
+                      />
+                      
+    common.summarize
+  
+                    </div>
                      
                   </div>
                 </div>
@@ -719,7 +732,16 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                   <div
                     class="grid-view-aggregation"
                   >
-                    <!---->
+                    <div
+                      class="grid-view-aggregation__empty"
+                    >
+                      <i
+                        class="grid-view-aggregation__empty-icon iconoir-plus"
+                      />
+                      
+    common.summarize
+  
+                    </div>
                      
                   </div>
                 </div>
@@ -729,7 +751,16 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                   <div
                     class="grid-view-aggregation"
                   >
-                    <!---->
+                    <div
+                      class="grid-view-aggregation__empty"
+                    >
+                      <i
+                        class="grid-view-aggregation__empty-icon iconoir-plus"
+                      />
+                      
+    common.summarize
+  
+                    </div>
                      
                   </div>
                 </div>
@@ -739,7 +770,16 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                   <div
                     class="grid-view-aggregation"
                   >
-                    <!---->
+                    <div
+                      class="grid-view-aggregation__empty"
+                    >
+                      <i
+                        class="grid-view-aggregation__empty-icon iconoir-plus"
+                      />
+                      
+    common.summarize
+  
+                    </div>
                      
                   </div>
                 </div>

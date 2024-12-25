@@ -1,3 +1,5 @@
+import typing
+
 from django.contrib.postgres.aggregates.mixins import OrderableAggMixin
 from django.db import NotSupportedError
 from django.db.models import (
@@ -123,6 +125,8 @@ class BaserowFilterExpression(Expression):
     define the template.
     """
 
+    template: typing.ClassVar[str]
+
     def __init__(self, field_name: F, value: Value, output_field: Field):
         super().__init__(output_field=output_field)
         self.field_name = field_name
@@ -176,7 +180,7 @@ class JSONArrayContainsValueExpr(BaserowFilterExpression):
         EXISTS(
             SELECT filtered_field ->> 'value'
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE UPPER(filtered_field ->> 'value') LIKE UPPER(%(value)s)
+            WHERE UPPER(filtered_field ->> 'value') LIKE UPPER(%(value)s::text)
         )
         """  # nosec B608
     )
@@ -205,6 +209,61 @@ class JSONArrayContainsValueLengthLowerThanExpr(BaserowFilterExpression):
             SELECT filtered_field ->> 'value'
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE LENGTH(filtered_field ->> 'value') < %(value)s
+        )
+        """  # nosec B608 %(value)s
+    )
+    # fmt: on
+
+
+class JSONArrayAllAreExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        upper(%(value)s::text) =ALL(
+            SELECT upper(filtered_field ->> 'value')
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+        ) AND JSONB_ARRAY_LENGTH(%(field_name)s) > 0
+                """  # nosec B608 %(value)s
+    )
+    # fmt: on
+
+
+class JSONArrayEqualSelectOptionIdExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT filtered_field -> 'value' ->> 'id'
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE (filtered_field -> 'value' ->> 'id') LIKE (%(value)s)
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayContainsSelectOptionValueExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT filtered_field -> 'value' ->> 'value'
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE UPPER(filtered_field -> 'value' ->> 'value') LIKE UPPER(%(value)s)
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayContainsSelectOptionValueSimilarToExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        r"""
+        EXISTS(
+            SELECT filtered_field -> 'value' ->> 'value'
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE filtered_field -> 'value' ->> 'value' ~* ('\y' || %(value)s || '\y')
         )
         """  # nosec B608 %(value)s
     )

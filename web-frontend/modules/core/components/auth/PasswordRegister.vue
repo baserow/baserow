@@ -18,7 +18,7 @@
         :label="$t('field.emailAddress')"
         :error="$v.account.email.$error"
         required
-        class="margin-bottom-2"
+        class="mb-24"
       >
         <FormInput
           v-if="invitation !== null"
@@ -52,7 +52,7 @@
         :label="$t('field.name')"
         :error="$v.account.name.$error"
         required
-        class="margin-bottom-2"
+        class="mb-24"
       >
         <FormInput
           v-model="account.name"
@@ -74,7 +74,7 @@
         small-label
         :label="$t('field.password')"
         required
-        class="margin-bottom-2"
+        class="mb-24"
       >
         <PasswordInput
           v-model="account.password"
@@ -85,30 +85,6 @@
         />
       </FormGroup>
 
-      <FormGroup
-        small-label
-        :label="$t('field.passwordRepeat')"
-        required
-        :error="$v.account.passwordConfirm.$error"
-        class="margin-bottom-2"
-      >
-        <FormInput
-          v-model="account.passwordConfirm"
-          :error="$v.account.passwordConfirm.$error"
-          type="password"
-          size="large"
-          :placeholder="$t('signup.passwordRepeatPlaceholder')"
-          @blur="$v.account.passwordConfirm.$touch()"
-        ></FormInput>
-
-        <template #error>
-          <span>
-            <i class="iconoir-warning-triangle"></i>
-            {{ $t('error.notMatchingPassword') }}
-          </span>
-        </template>
-      </FormGroup>
-
       <component
         :is="component"
         v-for="(component, index) in registerComponents"
@@ -116,7 +92,7 @@
         :key="index"
         @updated-account="updatedAccount"
       ></component>
-      <div class="auth__action">
+      <div class="auth__action mt-32 mb-32">
         <Button
           type="primary"
           size="large"
@@ -124,7 +100,7 @@
           full-width
           :disabled="loading"
         >
-          {{ $t('action.signUp') }}
+          {{ $t('action.getStarted') }}
         </Button>
       </div>
       <div>
@@ -135,13 +111,7 @@
 </template>
 
 <script>
-import {
-  email,
-  maxLength,
-  minLength,
-  required,
-  sameAs,
-} from 'vuelidate/lib/validators'
+import { email, maxLength, minLength, required } from 'vuelidate/lib/validators'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
@@ -170,7 +140,6 @@ export default {
         email: '',
         name: '',
         password: '',
-        passwordConfirm: '',
       },
     }
   },
@@ -265,9 +234,6 @@ export default {
         maxLength: maxLength(150),
       },
       password: passwordValidation,
-      passwordConfirm: {
-        sameAsPassword: sameAs('password'),
-      },
     },
   },
 }

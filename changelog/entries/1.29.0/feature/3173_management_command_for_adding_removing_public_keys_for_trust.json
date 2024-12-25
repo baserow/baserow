@@ -1,0 +1,7 @@
+{
+    "type": "feature",
+    "message": "Add CLI command for managing public keys for trusted sources",
+    "issue_number": 3173,
+    "bullet_points": [],
+    "created_at": "2024-11-08"
+}

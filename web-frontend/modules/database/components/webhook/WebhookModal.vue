@@ -77,6 +77,7 @@ export default {
   methods: {
     show(...args) {
       this.getRootModal().show(...args)
+      this.hideError()
       this.fetchInitial()
     },
     async fetchInitial() {

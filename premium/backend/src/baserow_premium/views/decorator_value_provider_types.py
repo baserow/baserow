@@ -128,9 +128,18 @@ class ConditionalColorValueProviderType(PremiumDecoratorValueProviderType):
             if "id" not in color:
                 color["id"] = str(uuid4())
 
-            for filter in color["filters"]:
-                new_field_id = id_mapping["database_fields"][filter["field"]]
-                filter["field"] = new_field_id
+            for color_filter in color["filters"]:
+                new_value = (
+                    id_mapping["database_field_select_options"].get(
+                        int(color_filter["value"])
+                    )
+                    if "database_field_select_options" in id_mapping
+                    and str(color_filter["value"]).isdigit()
+                    else color_filter["value"]
+                )
+                color_filter["value"] = new_value
+                new_field_id = id_mapping["database_fields"][color_filter["field"]]
+                color_filter["field"] = new_field_id
 
         return value
 

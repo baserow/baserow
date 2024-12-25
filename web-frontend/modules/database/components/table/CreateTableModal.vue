@@ -28,10 +28,7 @@
                 ></i>
               </a>
             </li>
-            <li
-              v-for="instance in importerAndDataSyncTypes"
-              :key="instance.type"
-            >
+            <li v-for="instance in importerTypes" :key="instance.type">
               <a
                 class="choice-items__link"
                 :class="{ active: chosenType === instance.type }"
@@ -45,6 +42,14 @@
                 ></i>
               </a>
             </li>
+            <DataSyncTypeChoice
+              v-for="instance in dataSyncTypes"
+              :key="instance.type"
+              :active="chosenType === instance.type"
+              :data-sync-type="instance"
+              :database="database"
+              @selected="setChosenType(instance.type)"
+            ></DataSyncTypeChoice>
           </ul>
         </FormGroup>
       </div>
@@ -71,10 +76,11 @@
 import modal from '@baserow/modules/core/mixins/modal'
 import CreateTable from '@baserow/modules/database/components/table/CreateTable'
 import CreateDataSync from '@baserow/modules/database/components/table/CreateDataSync'
+import DataSyncTypeChoice from '@baserow/modules/database/components/dataSync/DataSyncTypeChoice.vue'
 
 export default {
   name: 'CreateTableModal',
-  components: { CreateTable, CreateDataSync },
+  components: { DataSyncTypeChoice, CreateTable, CreateDataSync },
   mixins: [modal],
   props: {
     database: {
@@ -93,15 +99,6 @@ export default {
     },
     dataSyncTypes() {
       return this.$registry.getAll('dataSync')
-    },
-    importerAndDataSyncTypes() {
-      if (!this.$featureFlagIsEnabled('data_sync')) {
-        return this.importerTypes
-      }
-
-      return Object.values(this.importerTypes).concat(
-        Object.values(this.dataSyncTypes)
-      )
     },
     isImporter() {
       return (

@@ -82,18 +82,6 @@ from .serializers import (
     TableUpdateSerializer,
 )
 
-FileImportJobSerializerClass = job_type_registry.get(
-    FileImportJobType.type
-).get_serializer_class(
-    base_class=JobSerializer, meta_ref_name="SingleFileImportJobSerializerClass"
-)
-
-DuplicateTableJobTypeSerializer = job_type_registry.get(
-    DuplicateTableJobType.type
-).get_serializer_class(
-    base_class=JobSerializer, meta_ref_name="SingleDuplicateTableJobTypeSerializer"
-)
-
 
 class TablesView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -272,7 +260,7 @@ class AsyncCreateTableView(APIView):
         ),
         request=TableCreateSerializer,
         responses={
-            202: FileImportJobSerializerClass,
+            202: FileImportJobType().response_serializer_class,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
@@ -476,7 +464,7 @@ class AsyncTableImportView(APIView):
         ),
         request=TableImportSerializer,
         responses={
-            202: FileImportJobSerializerClass,
+            202: FileImportJobType().response_serializer_class,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
             404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
         },
@@ -590,7 +578,7 @@ class AsyncDuplicateTableView(APIView):
         ),
         request=None,
         responses={
-            202: DuplicateTableJobTypeSerializer,
+            202: DuplicateTableJobType().response_serializer_class,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",

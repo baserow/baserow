@@ -6,9 +6,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from baserow.api.app_auth_providers.serializers import (
-    ReadPolymorphicAppAuthProviderSerializer,
-)
+from baserow.api.app_auth_providers.serializers import AppAuthProviderSerializer
 from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.api.services.serializers import PublicServiceSerializer
 from baserow.api.user_files.serializers import UserFileField, UserFileSerializer
@@ -24,7 +22,9 @@ from baserow.contrib.builder.domains.registries import domain_type_registry
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
+from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import user_source_type_registry
@@ -109,8 +109,10 @@ class PublicElementSerializer(serializers.ModelSerializer):
         model = Element
         fields = (
             "id",
+            "page_id",
             "type",
             "order",
+            "page_id",
             "parent_element_id",
             "place_in_container",
             "visibility",
@@ -141,6 +143,7 @@ class PublicElementSerializer(serializers.ModelSerializer):
         )
         extra_kwargs = {
             "id": {"read_only": True},
+            "page_id": {"read_only": True},
             "type": {"read_only": True},
         }
 
@@ -154,12 +157,31 @@ class PublicPageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Page
-        fields = ("id", "name", "path", "path_params")
+        fields = (
+            "id",
+            "name",
+            "path",
+            "path_params",
+            "shared",
+            "visibility",
+            "role_type",
+            "roles",
+        )
         extra_kwargs = {
             "id": {"read_only": True},
             "builder_id": {"read_only": True},
             "order": {"help_text": "Lowest first."},
         }
+
+
+class PublicPolymorphicAppAuthProviderSerializer(PolymorphicSerializer):
+    """
+    Polymorphic serializer for App Auth providers.
+    """
+
+    base_class = AppAuthProviderSerializer
+    registry = app_auth_provider_type_registry
+    extra_params = {"public": True}
 
 
 class BasePublicUserSourceSerializer(serializers.ModelSerializer):
@@ -173,7 +195,7 @@ class BasePublicUserSourceSerializer(serializers.ModelSerializer):
     def get_type(self, instance):
         return user_source_type_registry.get_by_model(instance.specific_class).type
 
-    auth_providers = ReadPolymorphicAppAuthProviderSerializer(
+    auth_providers = PublicPolymorphicAppAuthProviderSerializer(
         required=False,
         many=True,
         help_text="Auth providers related to this user source.",
@@ -235,6 +257,10 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
         "the favicon settings."
     )
 
+    login_page_id = serializers.IntegerField(
+        help_text=Builder._meta.get_field("login_page").help_text
+    )
+
     class Meta:
         model = Builder
         fields = (
@@ -245,6 +271,7 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
             "theme",
             "user_sources",
             "favicon_file",
+            "login_page_id",
         )
 
     @extend_schema_field(PublicPageSerializer(many=True))
@@ -256,7 +283,7 @@ class PublicBuilderSerializer(serializers.ModelSerializer):
         :return: A list of serialized pages that belong to this instance.
         """
 
-        pages = instance.page_set.all()
+        pages = PageHandler().get_pages(instance)
 
         return PublicPageSerializer(pages, many=True).data
 

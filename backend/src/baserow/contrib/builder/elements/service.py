@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.utils import translation
@@ -29,6 +29,9 @@ from baserow.contrib.builder.elements.types import (
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.handler import CoreHandler
+
+if TYPE_CHECKING:
+    from baserow.contrib.builder.models import Builder
 
 
 class ElementService:
@@ -79,6 +82,26 @@ class ElementService:
         )
 
         return self.handler.get_elements(page, base_queryset=user_elements)
+
+    def get_builder_elements(
+        self, user: AbstractUser, builder: "Builder"
+    ) -> List[Element]:
+        """
+        Gets all the elements of a given page visible to the given user.
+
+        :param user: The user trying to get the elements.
+        :param page: The page that holds the elements.
+        :return: The elements of that page.
+        """
+
+        user_elements = CoreHandler().filter_queryset(
+            user,
+            ListElementsPageOperationType.type,
+            Element.objects.all(),
+            workspace=builder.workspace,
+        )
+
+        return self.handler.get_builder_elements(builder, base_queryset=user_elements)
 
     def create_element(
         self,

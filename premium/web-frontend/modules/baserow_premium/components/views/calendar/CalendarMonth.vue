@@ -2,13 +2,13 @@
   <div class="calendar-month-wrapper">
     <div v-if="timezoneAndDateLoaded(fields)" class="calendar-month">
       <div class="calendar-month__header">
-        <CalendarDateIndicator
-          :selected-date="selectedDate(fields)"
+        <ViewDateIndicator
+          :date="selectedDate(fields)"
           class="calendar-month__header-selected-month"
         />
-        <CalendarDateSelector
+        <ViewDateSelector
           :selected-date="selectedDate(fields)"
-          :current-date="today"
+          unit="month"
           @date-selected="selectDate"
         />
       </div>
@@ -42,8 +42,8 @@
 
 <script>
 import moment from '@baserow/modules/core/moment'
-import CalendarDateIndicator from '@baserow_premium/components/views/calendar/CalendarDateIndicator'
-import CalendarDateSelector from '@baserow_premium/components/views/calendar/CalendarDateSelector'
+import ViewDateIndicator from '@baserow_premium/components/views/ViewDateIndicator'
+import ViewDateSelector from '@baserow_premium/components/views/ViewDateSelector'
 import CalendarMonthDay from '@baserow_premium/components/views/calendar/CalendarMonthDay'
 import {
   getMonthlyTimestamps,
@@ -57,8 +57,8 @@ import debounce from 'lodash/debounce'
 export default {
   name: 'CalendarMonth',
   components: {
-    CalendarDateIndicator,
-    CalendarDateSelector,
+    ViewDateIndicator,
+    ViewDateSelector,
     CalendarMonthDay,
   },
   props: {

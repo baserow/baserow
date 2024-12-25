@@ -1,0 +1,256 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36" version="24.7.16" pages="3">
+  <diagram id="SNPpvVatbumqbXz_JlMH" name="job creation &amp; execution">
+    <mxGraphModel dx="2413" dy="2210" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="U9UPEVszhjLRej5C-PAp-1" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Frontend&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;fillStyle=hachure;" parent="1" vertex="1">
+          <mxGeometry x="-320" y="240" width="320" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-2" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Backend&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fontSize=19;fillColor=#E1D5E7;fontColor=#333333;strokeColor=#666666;fillStyle=hachure;" parent="1" vertex="1">
+          <mxGeometry x="240" y="160" width="300" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-29" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=1;strokeWidth=4;" parent="1" source="U9UPEVszhjLRej5C-PAp-6" target="U9UPEVszhjLRej5C-PAp-8" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-33" value="Frontend sends job-type specific request to create a job" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;" parent="1" vertex="1">
+          <mxGeometry x="40" y="130" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-8" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;job creation endpoint&lt;br&gt;(depends on a job type)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#FFD966;fontSize=19;align=center;labelPosition=center;verticalLabelPosition=middle;" parent="1" vertex="1">
+          <mxGeometry x="260" y="220" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-10" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;job cancellation endpoint&lt;br&gt;/api/jobs/:id/cancel&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=none;fontSize=19;align=center;labelPosition=center;verticalLabelPosition=middle;strokeColor=#E1D5E7;fontColor=#999999;" parent="1" vertex="1">
+          <mxGeometry x="260" y="310" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-11" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;jobs list endpoint&lt;br&gt;/api/jobs&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=none;fontSize=19;align=center;labelPosition=center;verticalLabelPosition=middle;strokeColor=#E1D5E7;fontColor=#999999;" parent="1" vertex="1">
+          <mxGeometry x="260" y="400" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-34" value="Backend saves job and context data to db" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;" parent="1" vertex="1">
+          <mxGeometry x="530" y="490" width="170" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-38" value="Backend queues run_async_job in Celery" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;" parent="1" vertex="1">
+          <mxGeometry x="820" y="-40" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-64" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.724;entryY=0.009;entryDx=0;entryDy=0;curved=1;strokeWidth=4;fillColor=#fad7ac;strokeColor=#006633;entryPerimeter=0;" parent="1" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="921.6799999999994" y="771.0799999999999" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="1113" y="1005" />
+              <mxPoint x="1113" y="660" />
+              <mxPoint x="922" y="660" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-65" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;curved=1;strokeWidth=4;fillColor=#fad7ac;strokeColor=#006633;" parent="1" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1210" y="1005.090909090909" as="sourcePoint" />
+            <Array as="points">
+              <mxPoint x="1065" y="1005" />
+              <mxPoint x="1065" y="1230" />
+              <mxPoint x="835" y="1230" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-66" value="run_async_job reads job data when executing and marks it as started" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;" parent="1" vertex="1">
+          <mxGeometry x="1015" y="430" width="170" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-6" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;component&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=middle;fillColor=#FFD966;fontSize=19;align=right;labelPosition=left;verticalLabelPosition=middle;textDirection=vertical-rl;strokeColor=#10739e;" parent="1" vertex="1">
+          <mxGeometry x="-280" y="280" width="240" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-14" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Celery&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="1120" y="190" width="320" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-18" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;run_async_job&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#FFD966;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="1160" y="240" width="260" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-16" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;JobType&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;strokeColor=#E1D5E7;fontColor=#999999;" parent="1" vertex="1">
+          <mxGeometry x="1205" y="280" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-20" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;DB&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="690" y="370" width="320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-5" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;store/job&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fontSize=19;fillColor=#E1D5E7;fillStyle=hachure;strokeColor=#E1D5E7;fontColor=#999999;" parent="1" vertex="1">
+          <mxGeometry x="-235" y="320" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-98" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;curved=1;strokeWidth=4;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" parent="1" source="U9UPEVszhjLRej5C-PAp-8" target="U9UPEVszhjLRej5C-PAp-14" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="500" y="255" as="sourcePoint" />
+            <mxPoint x="1120" y="220" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="630" y="255" />
+              <mxPoint x="630" y="60" />
+              <mxPoint x="1200" y="60" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-97" value="&lt;font style=&quot;font-size: 19px;&quot; face=&quot;Comic Sans MS&quot;&gt;Cache&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;fontColor=#999999;strokeColor=#999999;" parent="1" vertex="1">
+          <mxGeometry x="690" y="160" width="320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-25" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;jobs table&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#FFD966;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="765" y="420" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.25;entryDx=0;entryDy=0;curved=1;strokeWidth=4;" parent="1" source="U9UPEVszhjLRej5C-PAp-8" target="U9UPEVszhjLRej5C-PAp-25" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="U9UPEVszhjLRej5C-PAp-31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=1;strokeWidth=4;strokeColor=#006600;" parent="1" source="U9UPEVszhjLRej5C-PAp-25" target="U9UPEVszhjLRej5C-PAp-18" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="YViHMDbbW1R1TfANQcqi" name="job state update">
+    <mxGraphModel dx="3664" dy="1998" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-1" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Frontend&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;fillStyle=hachure;arcSize=7;" parent="1" vertex="1">
+          <mxGeometry x="-320" y="950" width="320" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-2" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Backend&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fontSize=19;fillColor=#E1D5E7;fontColor=#333333;strokeColor=#666666;fillStyle=hachure;" parent="1" vertex="1">
+          <mxGeometry x="240" y="910" width="300" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-3" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;job creation endpoint&lt;br&gt;(depends on a job type)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;align=center;labelPosition=center;verticalLabelPosition=middle;fontColor=#999999;strokeColor=#E6D0DE;" parent="1" vertex="1">
+          <mxGeometry x="260" y="970" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-4" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;job cancellation endpoint&lt;br&gt;/api/jobs/:id/cancel&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=none;fontSize=19;align=center;labelPosition=center;verticalLabelPosition=middle;strokeColor=#E1D5E7;fontColor=#999999;" parent="1" vertex="1">
+          <mxGeometry x="260" y="1060" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-5" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;jobs list endpoint&lt;br&gt;/api/jobs&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#FFD966;fontSize=19;align=center;labelPosition=center;verticalLabelPosition=middle;strokeColor=#030303;fontColor=#030303;" parent="1" vertex="1">
+          <mxGeometry x="260" y="1150" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-6" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;component&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=middle;fillColor=#FFD966;fontSize=19;align=right;labelPosition=left;verticalLabelPosition=middle;textDirection=vertical-rl;strokeColor=#10739e;" parent="1" vertex="1">
+          <mxGeometry x="-280" y="1000" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-7" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Celery&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="1120" y="920" width="320" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-8" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;run_async_job&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#FFD966;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="1160" y="960" width="260" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-10" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;JobType&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;strokeColor=#030303;fontColor=#030303;" parent="1" vertex="1">
+          <mxGeometry x="1210" y="1000" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-11" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;DB&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="690" y="1120" width="320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-13" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;store/job&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fontSize=19;fillColor=#E1D5E7;fillStyle=hachure;strokeColor=#030303;fontColor=#030303;" parent="1" vertex="1">
+          <mxGeometry x="-245" y="1030" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-14" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Cache&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="690" y="910" width="320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=4;strokeColor=#006600;curved=1;" parent="1" source="Qt7KoJpnQCcHyGszDrJn-10" target="Qt7KoJpnQCcHyGszDrJn-14" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1295" y="1090" />
+              <mxPoint x="1110" y="1090" />
+              <mxPoint x="1110" y="820" />
+              <mxPoint x="850" y="820" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-16" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;jobs table&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#FFD966;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="765" y="1170" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=4;curved=1;exitX=0.039;exitY=1.037;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="Qt7KoJpnQCcHyGszDrJn-16" target="Qt7KoJpnQCcHyGszDrJn-5" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="765" y="1211" />
+              <mxPoint x="765" y="1260" />
+              <mxPoint x="640" y="1260" />
+              <mxPoint x="640" y="1185" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=4;curved=1;" parent="1" source="Qt7KoJpnQCcHyGszDrJn-5" target="Qt7KoJpnQCcHyGszDrJn-13" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=4;curved=1;" parent="1" source="Qt7KoJpnQCcHyGszDrJn-14" target="Qt7KoJpnQCcHyGszDrJn-5" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-20" value="Store collects active jobs states periodically" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;shadow=0;glass=0;" parent="1" vertex="1">
+          <mxGeometry x="40" y="970" width="170" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-21" value="Backend collects started jobs from the database" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;" parent="1" vertex="1">
+          <mxGeometry x="560" y="1270" width="170" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-22" value="For each active job, the backend gets current state/progress from cache" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;" parent="1" vertex="1">
+          <mxGeometry x="520" y="830" width="170" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="Qt7KoJpnQCcHyGszDrJn-23" value="JobType updates Job&#39;s state/progress to cache in key moments" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;" parent="1" vertex="1">
+          <mxGeometry x="1080" y="770" width="170" height="120" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="5e9AQAaavL6Ex44RL0SW" name="job cancellation">
+    <mxGraphModel dx="1820" dy="689" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-1" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Frontend&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;fillStyle=hachure;" parent="1" vertex="1">
+          <mxGeometry x="-320" y="955" width="320" height="215" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-2" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Backend&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fontSize=19;fillColor=#E1D5E7;fontColor=#333333;strokeColor=#666666;fillStyle=hachure;" parent="1" vertex="1">
+          <mxGeometry x="240" y="910" width="300" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-3" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;job creation endpoint&lt;br&gt;(depends on a job type)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;align=center;labelPosition=center;verticalLabelPosition=middle;fontColor=#999999;strokeColor=#E6D0DE;" parent="1" vertex="1">
+          <mxGeometry x="260" y="970" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="rL3Z0i3iYxP3RM-W7o0_-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=4;curved=1;" parent="1" source="8gXEbNu-GLMcrQQ-IkVC-4" target="8gXEbNu-GLMcrQQ-IkVC-14" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rL3Z0i3iYxP3RM-W7o0_-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=4;curved=1;" parent="1" source="8gXEbNu-GLMcrQQ-IkVC-4" target="8gXEbNu-GLMcrQQ-IkVC-11" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-4" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;job cancellation endpoint&lt;br&gt;/api/jobs/:id/cancel&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#FFD966;fontSize=19;align=center;labelPosition=center;verticalLabelPosition=middle;strokeColor=#030303;fontColor=#030303;" parent="1" vertex="1">
+          <mxGeometry x="260" y="1060" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-5" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;jobs list endpoint&lt;br&gt;/api/jobs&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=none;fontSize=19;align=center;labelPosition=center;verticalLabelPosition=middle;strokeColor=#E6D0DE;fontColor=#E6D0DE;" parent="1" vertex="1">
+          <mxGeometry x="260" y="1150" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-6" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;component&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=middle;fillColor=#FFD966;fontSize=19;align=right;labelPosition=left;verticalLabelPosition=middle;textDirection=vertical-rl;strokeColor=#10739e;" parent="1" vertex="1">
+          <mxGeometry x="-280" y="1000" width="240" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-7" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Celery&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="1120" y="960" width="320" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-8" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;run_async_job&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#FFD966;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="1160" y="1000" width="250" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-10" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;JobType&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;strokeColor=#030303;fontColor=#030303;" parent="1" vertex="1">
+          <mxGeometry x="1205" y="1040" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-11" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;DB&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="690" y="1120" width="320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="rL3Z0i3iYxP3RM-W7o0_-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=4;curved=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" parent="1" source="79Okkao5t2Ras9QTgKPH-2" target="8gXEbNu-GLMcrQQ-IkVC-4" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-50" y="1125" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rL3Z0i3iYxP3RM-W7o0_-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=4;curved=1;strokeColor=#006600;" parent="1" source="8gXEbNu-GLMcrQQ-IkVC-14" target="8gXEbNu-GLMcrQQ-IkVC-10" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-14" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;Cache&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#E1D5E7;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="690" y="910" width="320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="8gXEbNu-GLMcrQQ-IkVC-16" value="&lt;font face=&quot;Comic Sans MS&quot; style=&quot;font-size: 19px;&quot;&gt;jobs table&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fillColor=#FFD966;fontSize=19;" parent="1" vertex="1">
+          <mxGeometry x="765" y="1170" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="KWU035rj8NGL99qbEJxj-1" value="backend sets job&#39;s state to &#39;CANCELLED&#39; to db and to cache" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;shadow=0;glass=0;" parent="1" vertex="1">
+          <mxGeometry x="520" y="830" width="170" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="KWU035rj8NGL99qbEJxj-2" value="Job checks for cancellation in cache and abort the task if the job was cancelled" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;shadow=0;glass=0;" parent="1" vertex="1">
+          <mxGeometry x="1050" y="830" width="170" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="79Okkao5t2Ras9QTgKPH-2" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;store/job&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;curveFitting=1;jiggle=2;verticalAlign=top;fontSize=19;fillColor=#E1D5E7;fillStyle=hachure;strokeColor=#030303;fontColor=#030303;" vertex="1" parent="1">
+          <mxGeometry x="-240" y="1040" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="O9f2-xnR2qJCmB4ePbfd-1" value="Component calls the store to cancel, the store sends cancellation request, receives new job state" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;shadow=0;glass=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="920" width="170" height="130" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

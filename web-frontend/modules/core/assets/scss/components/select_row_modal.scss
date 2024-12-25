@@ -1,6 +1,7 @@
 .select-row-modal {
   .modal__box {
     padding: 0;
+    max-width: 848px;
   }
 
   .modal__close {
@@ -35,13 +36,38 @@
   }
 }
 
+.select-row-modal__head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  border-bottom: solid 2px $color-neutral-200;
+}
+
 .select-row-modal__search {
   position: relative;
   z-index: 1;
-  border-bottom: solid 2px $color-neutral-200;
+  border-right: solid 1px $color-neutral-200;
   padding: 0 0 0 15px;
+  min-width: 0;
+  flex-grow: 1;
+  flex-shrink: 1;
 
   @include flex-align-items(15px);
+}
+
+.select-row-modal__fields {
+  position: relative;
+  padding: 0 64px 0 16px;
+  flex-grow: 0;
+  flex-shrink: 0;
+
+  &::after {
+    content: '';
+    background-color: $color-neutral-200;
+    width: 1px;
+
+    @include absolute(8px, 48px, 6px, auto);
+  }
 }
 
 .select-row-modal__search-icon {

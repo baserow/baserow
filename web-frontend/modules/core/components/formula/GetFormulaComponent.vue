@@ -22,7 +22,7 @@
 
         {{ part }}
       </template>
-      <a class="get-formula-component__remove" @click="deleteNode">
+      <a class="get-formula-component__remove" @click.stop="deleteNode">
         <i class="iconoir-cancel"></i>
       </a>
     </div>

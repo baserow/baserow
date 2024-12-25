@@ -2,6 +2,9 @@
   <div class="padding-selector">
     <FormInput
       :value="value.horizontal"
+      :default-value-when-empty="
+        defaultValuesWhenEmpty ? defaultValuesWhenEmpty[`horizontal`] : null
+      "
       type="number"
       remove-number-input-controls
       :to-value="(value) => (value ? parseInt(value) : null)"
@@ -12,6 +15,9 @@
     />
     <FormInput
       :value="value.vertical"
+      :default-value-when-empty="
+        defaultValuesWhenEmpty ? defaultValuesWhenEmpty[`vertical`] : null
+      "
       type="number"
       remove-number-input-controls
       :to-value="(value) => (value ? parseInt(value) : null)"
@@ -32,6 +38,11 @@ export default {
     value: {
       type: Object,
       required: true,
+    },
+    defaultValuesWhenEmpty: {
+      type: Object,
+      required: false,
+      default: null,
     },
   },
 }

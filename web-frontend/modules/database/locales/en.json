@@ -44,11 +44,8 @@
       "content": "This webhook has been deactivated because there have been too many consecutive failures. Please check the call log for more details. Click on the button below to activate it again. Don't forgot to save the webhook after activating.",
       "activate": "Activate"
     },
-    "deprecatedEventType": {
-      "title": "Deprecated event type",
-      "description": "This webhook doesn't receive information about all changed rows at once. Please convert it to batch-style event type. This changes the JSON body payload to a format that contains multiple rows.",
-      "convert": "Convert"
-    }
+    "triggerWhenFieldsHaveChanged": "Trigger when fields have changed",
+    "helpTriggerWhenFieldsHaveChanged": "Will only be triggered if the cell value of the chosen fields changes."
   },
   "webhook": {
     "details": "details",
@@ -70,7 +67,8 @@
     "webhooks": "Webhooks",
     "lastSynced": "Last synced",
     "notSynced": "not synced",
-    "sync": "Sync table"
+    "sync": "Sync table",
+    "updateSyncConfig": "Update sync configuration"
   },
   "duplicateTableJobType": {
     "duplicating": "Duplicating",
@@ -274,7 +272,16 @@
     "integer": "Integer",
     "decimal": "Decimal",
     "decimalPlacesLabel": "Decimal places",
-    "allowNegative": "Allow negative"
+    "allowNegative": "Allow negative",
+    "separatorLabel": "Thousand and decimal separator",
+    "prefixPlaceholder": "Prefix",
+    "suffixPlaceholder": "Suffix",
+    "prefixAndSuffixLabel": "Prefix / suffix",
+    "spaceComma": "Space, comma (1 000 000,00)",
+    "spacePeriod": "Space, period (1 000 000.00)",
+    "commaPeriod": "Comma, period (1,000,000.00)",
+    "periodComma": "Period, comma (1.000.000,00)",
+    "noFormatting": "No formatting"
   },
   "fieldDurationSubForm": {
     "durationFormatLabel": "Duration format"
@@ -321,7 +328,8 @@
     "addField": "Add field"
   },
   "selectRowContent": {
-    "search": "Search rows"
+    "search": "Search rows",
+    "hideFields": "Hide fields"
   },
   "rowEditModal": {
     "addField": "Add field",
@@ -571,7 +579,8 @@
     "selected": "Selected"
   },
   "viewFilter": {
-    "filter": "Filter | 1 Filter | {count} Filters"
+    "filter": "Filter | 1 Filter | {count} Filters",
+    "hasAllValuesEqual": "has all values equal"
   },
   "viewContext": {
     "exportView": "Export view",
@@ -628,6 +637,7 @@
     "deleteRow": "Delete row",
     "deleteRows": "Delete rows",
     "copyCells": "Copy cells",
+    "copyCellsWithHeader": "Copy cells with header",
     "generateCellsValues": "Generate values with AI",
     "rowCount": "No rows | 1 row | {count} rows",
     "hiddenRowsInsertedTitle": "Rows added",
@@ -666,6 +676,7 @@
     "externalWarning": "Opening your file via an external service exposes your file to their servers."
   },
   "exportTableModal": {
+    "title": "Export {name}",
     "failedTitle": "Export Failed",
     "failedDescription": "The export failed due to a server error.",
     "cancelledTitle": "Export Cancelled",
@@ -690,7 +701,7 @@
     "recordSeparator": "record separator",
     "unitSeparator": "unit separator",
     "encodingLabel": "Encoding",
-    "firstRowIsHeaderLabel": "First row is header"
+    "includeHeader": "Include field names as header"
   },
   "apiDocsDatabase": {
     "pageTitle": "{name} database API documentation",
@@ -767,10 +778,13 @@
   "formViewField": {
     "required": "required",
     "descriptionPlaceholder": "Description",
+    "includeAllSelectOptions": "include all select options",
+    "includeAllSelectOptionsHelper": "Choose the select options that must be included in the form using this dropdown",
     "showWhenMatchingConditions": "show when conditions are met",
     "addCondition": "Add condition",
     "addConditionGroup": "Add condition group",
-    "showFieldAs": "Show field as"
+    "showFieldAs": "Show field as",
+    "noSelectOptions": "There are no select options available."
   },
   "duplicateFieldContext": {
     "duplicate": "Duplicate field",
@@ -972,11 +986,24 @@
     "migrateButtonTooltip": "New filter available. Click to upgrade. It works the same."
   },
   "dataSyncType": {
-    "icalCalendar": "Sync iCal feed"
+    "syncError": "Sync error",
+    "icalCalendar": "Sync iCal feed",
+    "postgresql": "Sync PostgreSQL table"
   },
   "iCalCalendarDataSync": {
     "name": "iCal URL",
     "description": "The iCal calendar sync, synchronizes automatically with the entries in the calendar file of the URL. It only supports the ICS (Internet Calendar and Scheduling) file type."
+  },
+  "postgreSQLDataSync": {
+    "description": "Synchronizes a PostgreSQL table with a Baserow table matching the provided details below. Note that when the synchronization starts, it will select all the rows in the provided table. Even though Baserow only selects data, we strongly recommend limiting the user to a read-only connection.",
+    "host": "Host",
+    "username": "Username",
+    "password": "Password",
+    "database": "Database",
+    "schema": "Schema",
+    "table": "Table",
+    "port": "Port",
+    "sslMode": "SSL Mode"
   },
   "createDataSync": {
     "next": "Next",
@@ -995,5 +1022,19 @@
     "small": "Small",
     "medium": "Medium",
     "large": "Large"
+  },
+  "configureDataSyncModal": {
+    "title": "Data sync",
+    "syncedFields": "Synced fields",
+    "syncSettings": "Sync settings"
+  },
+  "configureDataSyncVisibleFields": {
+    "title": "Change synced fields",
+    "fields": "Synced fields",
+    "syncTable": "Sync when save"
+  },
+  "configureDataSyncSettings": {
+    "title": "Change data sync",
+    "syncTable": "Sync when save"
   }
 }

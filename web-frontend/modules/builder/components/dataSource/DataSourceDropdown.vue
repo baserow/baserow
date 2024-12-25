@@ -5,20 +5,36 @@
     </p>
     <Dropdown
       :value="value"
-      small
       class="data-source-dropdown"
       @input="$emit('input', $event)"
     >
       <DropdownItem
-        v-for="dataSource in dataSources"
+        v-for="dataSource in sharedDataSources"
         :key="dataSource.id"
         :name="getDataSourceLabel(dataSource)"
         :value="dataSource.id"
+        icon="iconoir-multiple-pages-empty"
+        :icon-tooltip="$t('dataSourceDropdown.shared')"
       >
       </DropdownItem>
+      <template v-if="localDataSources">
+        <DropdownItem
+          v-for="dataSource in localDataSources"
+          :key="dataSource.id"
+          :name="getDataSourceLabel(dataSource)"
+          :value="dataSource.id"
+          icon="iconoir-empty-page"
+          :icon-tooltip="$t('dataSourceDropdown.pageOnly')"
+        >
+        </DropdownItem
+      ></template>
       <template #emptyState>
-        <slot name="emptyState"
-          >{{ $t('dataSourceDropdown.noDataSources') }}
+        <slot name="emptyState">
+          {{
+            isOnSharedPage
+              ? $t('dataSourceDropdown.noSharedDataSources')
+              : $t('dataSourceDropdown.noDataSources')
+          }}
         </slot>
       </template>
     </Dropdown>
@@ -34,14 +50,24 @@ export default {
       required: false,
       default: null,
     },
-    dataSources: {
+    sharedDataSources: {
       type: Array,
       required: true,
+    },
+    localDataSources: {
+      type: Array,
+      required: false,
+      default: null,
     },
     small: {
       type: Boolean,
       required: false,
       default: false,
+    },
+  },
+  computed: {
+    isOnSharedPage() {
+      return this.localDataSources === null
     },
   },
   methods: {

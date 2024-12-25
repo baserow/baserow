@@ -203,7 +203,6 @@ def test_workspace_audit_log_user_filter_returns_only_workspace_users(
 def test_staff_member_can_access_audit_log_for_their_own_workspace(
     api_client,
     enterprise_data_fixture,
-    stubbed_storage,
     alternative_per_workspace_license_service,
     url_name,
 ):
@@ -252,7 +251,6 @@ def test_staff_member_can_access_audit_log_for_any_workspace(
 def test_staff_member_cant_access_audit_log_for_own_workspace_without_license(
     api_client,
     enterprise_data_fixture,
-    stubbed_storage,
     alternative_per_workspace_license_service,
     url_name,
 ):
@@ -276,7 +274,6 @@ def test_workspace_audit_log_can_export_to_csv_filtered_entries(
     enterprise_data_fixture,
     synced_roles,
     django_capture_on_commit_callbacks,
-    stubbed_storage,
 ):
     enterprise_data_fixture.enable_enterprise()
 

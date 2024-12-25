@@ -104,15 +104,24 @@
   }
 }
 
-.webhook__types {
+.webhook__type {
   display: flex;
-  flex-wrap: wrap;
-  width: 100%;
-  padding: 0 0 0 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 24px;
+  height: 32px;
+  margin-bottom: 4px;
 }
 
-.webhook__type {
-  flex: 0 0 33.33%;
+.webhook__type-dropdown-container {
+  width: 262px;
+  display: flex;
+  align-items: center;
+}
+
+.webhook__type-dropdown {
+  min-width: 0;
+  width: 100%;
 }
 
 .webhook__header {

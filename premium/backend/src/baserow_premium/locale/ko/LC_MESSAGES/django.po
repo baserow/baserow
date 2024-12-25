@@ -1,0 +1,66 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-05-01 19:55+0000\n"
+"PO-Revision-Date: 2024-12-04 17:00+0000\n"
+"Last-Translator: 0v0 <0v0tvs@gmail.com>\n"
+"Language-Team: Korean <https://hosted.weblate.org/projects/baserow/"
+"premium-backend/ko/>\n"
+"Language: ko\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 5.9-dev\n"
+
+#: src/baserow_premium/fields/actions.py:19
+msgid "Generate Formula With AI"
+msgstr "AI로 수식 생성"
+
+#: src/baserow_premium/fields/actions.py:20
+#, python-format
+msgid "Generate formula with AI using \"%(ai_type)s\" and \"%(ai_model)s\""
+msgstr "\"%(ai_type)s\"와 \"%(ai_model)s\"를 사용하여 AI로 수식 생성"
+
+#: src/baserow_premium/row_comments/actions.py:23
+msgid "Create row comment"
+msgstr "행 주석 만들기"
+
+#: src/baserow_premium/row_comments/actions.py:24
+#, python-format
+msgid "Comment (%(comment_id)s) has been added to row (%(row_id)s)"
+msgstr "주석(%(comment_id)s)이 행(%(row_id)s)에 추가되었습니다"
+
+#: src/baserow_premium/row_comments/actions.py:108
+msgid "Update row comment"
+msgstr "행 주석 업데이트"
+
+#: src/baserow_premium/row_comments/actions.py:109
+#, python-format
+msgid "Comment (%(comment_id)s) has been updated in row (%(row_id)s)"
+msgstr "댓글(%(comment_id)s)이 행(%(row_id)s)에서 업데이트되었습니다"
+
+#: src/baserow_premium/row_comments/actions.py:203
+msgid "Delete row comment"
+msgstr "행 주석 삭제"
+
+#: src/baserow_premium/row_comments/actions.py:204
+#, python-format
+msgid "Comment (%(comment_id)s) has been deleted from row (%(row_id)s)"
+msgstr "주석(%(comment_id)s)이 행(%(row_id)s)에서 삭제되었습니다"
+
+#: src/baserow_premium/row_comments/notification_types.py:76
+#, python-format
+msgid "%(user)s mentioned you in row %(row_name)s in %(table_name)s."
+msgstr "%(user)s %(table_name)s %(row_name)s행에서 당신을 언급했습니다."
+
+#: src/baserow_premium/row_comments/notification_types.py:129
+#, python-format
+msgid "%(user)s posted a comment in row %(row_name)s in %(table_name)s."
+msgstr "%(user)s %(table_name)s %(row_name)s 행에 댓글을 게시했습니다."

@@ -1,0 +1,10 @@
+.view-date-indicator {
+  @extend %ellipsis;
+
+  font-size: 18px;
+  font-weight: 600;
+  margin-left: 24px;
+  margin-top: 24px;
+  margin-bottom: 24px;
+  text-transform: capitalize;
+}

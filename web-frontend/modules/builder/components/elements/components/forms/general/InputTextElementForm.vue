@@ -54,7 +54,7 @@
       required
       class="margin-bottom-2"
     >
-      <Dropdown v-model="values.validation_type" :show-search="true" small>
+      <Dropdown v-model="values.validation_type" :show-search="true">
         <DropdownItem
           v-for="validationType in validationTypes"
           :key="validationType.name"
@@ -113,7 +113,7 @@
       required
       class="margin-bottom-2"
     >
-      <Dropdown v-model="values.input_type" :show-search="false" small>
+      <Dropdown v-model="values.input_type" :show-search="false">
         <DropdownItem
           v-for="inputType in inputTypes"
           :key="inputType.name"

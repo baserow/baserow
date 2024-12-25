@@ -21,9 +21,9 @@
             v-if="!jobHasSucceeded"
             type="primary"
             size="large"
-            :disabled="creatingJob || jobIsRunning"
-            :loading="creatingJob || jobIsRunning"
-            @click="sync"
+            :disabled="jobIsRunning"
+            :loading="jobIsRunning"
+            @click="syncTable(table)"
           >
             {{ $t('syncTableModal.sync') }}
           </Button>
@@ -38,14 +38,11 @@
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
-import error from '@baserow/modules/core/mixins/error'
-import jobProgress from '@baserow/modules/core/mixins/jobProgress'
-import DataSyncService from '@baserow/modules/database/services/dataSync'
-import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
+import dataSync from '@baserow/modules/database/mixins/dataSync'
 
 export default {
   name: 'SyncTableModal',
-  mixins: [modal, error, jobProgress],
+  mixins: [modal, dataSync],
   props: {
     table: {
       type: Object,
@@ -57,9 +54,6 @@ export default {
       creatingJob: false,
     }
   },
-  beforeDestroy() {
-    this.stopPollIfRunning()
-  },
   methods: {
     show() {
       this.job = null
@@ -67,40 +61,6 @@ export default {
     },
     hidden() {
       this.stopPollIfRunning()
-    },
-    async sync() {
-      if (this.jobIsRunning) {
-        return
-      }
-
-      this.hideError()
-      this.job = null
-      this.creatingJob = true
-
-      try {
-        const { data: job } = await DataSyncService(this.$client).syncTable(
-          this.table.data_sync.id
-        )
-        this.startJobPoller(job)
-      } catch (error) {
-        this.handleError(error)
-      } finally {
-        this.creatingJob = false
-      }
-    },
-    onJobFailed() {
-      const error = new ResponseErrorMessage(
-        this.$t('createDataSync.error'),
-        this.job.human_readable_error
-      )
-      this.stopPollAndHandleError(error)
-    },
-    onJobPollingError(error) {
-      this.stopPollAndHandleError(error)
-    },
-    stopPollAndHandleError(error) {
-      this.stopPollIfRunning()
-      error.handler ? this.handleError(error) : this.showError(error)
     },
   },
 }

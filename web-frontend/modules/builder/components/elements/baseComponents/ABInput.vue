@@ -9,6 +9,8 @@
     :rows="rows"
     @blur="$emit('blur', $event)"
     @input="$emit('input', $event.target.value)"
+    @focus="$emit('focus', $event)"
+    @click="$emit('click', $event)"
   ></textarea>
   <input
     v-else
@@ -19,6 +21,8 @@
     :placeholder="placeholder"
     @blur="$emit('blur', $event)"
     @input="$emit('input', $event.target.value)"
+    @focus="$emit('focus', $event)"
+    @click="$emit('click', $event)"
   />
 </template>
 

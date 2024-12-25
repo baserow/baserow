@@ -48,6 +48,10 @@ export default {
       type: Array,
       required: true,
     },
+    readOnly: {
+      type: Boolean,
+      required: true,
+    },
     storePrefix: {
       type: String,
       required: true,
@@ -88,6 +92,11 @@ export default {
       this.lastHide = this.hideRowsNotMatchingSearch
     },
     search() {
+      if (this.readOnly) {
+        this.$emit('refresh', { activeSearchTerm: this.activeSearchTerm })
+        return
+      }
+
       this.loading = true
 
       // When the user toggles from hiding rows to not hiding rows we still
@@ -114,6 +123,7 @@ export default {
       )
       this.$emit('refresh', {
         callback: this.finishedLoading,
+        activeSearchTerm: this.activeSearchTerm,
       })
     }, 400),
     // Debounce even the client side only refreshes as otherwise spamming the keyboard

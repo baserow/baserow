@@ -55,7 +55,6 @@
 </template>
 
 <script>
-import { FileFieldType } from '@baserow/modules/database/fieldTypes'
 import RecursiveWrapper from '@baserow/modules/database/components/RecursiveWrapper'
 
 export default {
@@ -69,12 +68,12 @@ export default {
     decorationsByPlace: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => undefined,
     },
     row: {
       type: Object,
       required: false,
-      default: () => {},
+      default: () => undefined,
     },
     workspaceId: {
       type: Number,
@@ -93,17 +92,20 @@ export default {
   },
   computed: {
     coverImageUrl() {
-      if (
-        this.coverImageField === null ||
-        this.coverImageField.type !== FileFieldType.getType()
-      ) {
+      const field = this.coverImageField
+      if (field === null) {
+        return null
+      }
+      const fieldType = this.$registry.get('field', field.type)
+      if (!fieldType.canRepresentFiles(field)) {
         return null
       }
 
-      const value = this.row[`field_${this.coverImageField.id}`]
+      const value = this.row[`field_${field.id}`]
 
       if (!Array.isArray(value)) {
-        return null
+        // might be a single file
+        return value?.is_image ? value.thumbnails.card_cover.url : null
       }
 
       const image = value.find((file) => file.is_image)

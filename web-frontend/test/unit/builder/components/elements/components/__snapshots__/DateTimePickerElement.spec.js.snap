@@ -1,0 +1,520 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DateTimePickerElement placeholder corresponds to date and time formats 1`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-datetime-picker__wrapper"
+          >
+            <i
+              class="button-icon__icon iconoir-calendar"
+            />
+             
+            <input
+              class="ab-input ab-datetime-picker__input"
+              placeholder="DD/MM/YYYY"
+              type="text"
+            />
+             
+            <div>
+              <!---->
+            </div>
+             
+             
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`DateTimePickerElement placeholder corresponds to date and time formats 2`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-datetime-picker__wrapper"
+          >
+            <i
+              class="button-icon__icon iconoir-calendar"
+            />
+             
+            <input
+              class="ab-input ab-datetime-picker__input"
+              placeholder="MM/DD/YYYY"
+              type="text"
+            />
+             
+            <div>
+              <!---->
+            </div>
+             
+             
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`DateTimePickerElement placeholder corresponds to date and time formats 3`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-datetime-picker__wrapper"
+          >
+            <i
+              class="button-icon__icon iconoir-calendar"
+            />
+             
+            <input
+              class="ab-input ab-datetime-picker__input"
+              placeholder="YYYY-MM-DD"
+              type="text"
+            />
+             
+            <div>
+              <!---->
+            </div>
+             
+             
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`DateTimePickerElement placeholder corresponds to date and time formats 4`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-datetime-picker__wrapper"
+          >
+            <i
+              class="button-icon__icon iconoir-calendar"
+            />
+             
+            <input
+              class="ab-input ab-datetime-picker__input"
+              placeholder="DD/MM/YYYY"
+              type="text"
+            />
+             
+            <div>
+              <input
+                class="ab-input ab-datetime-picker__input"
+                placeholder="HH:mm"
+                type="text"
+              />
+            </div>
+             
+             
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`DateTimePickerElement placeholder corresponds to date and time formats 5`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-datetime-picker__wrapper"
+          >
+            <i
+              class="button-icon__icon iconoir-calendar"
+            />
+             
+            <input
+              class="ab-input ab-datetime-picker__input"
+              placeholder="DD/MM/YYYY"
+              type="text"
+            />
+             
+            <div>
+              <input
+                class="ab-input ab-datetime-picker__input"
+                placeholder="hh:mm A"
+                type="text"
+              />
+            </div>
+             
+             
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`DateTimePickerElement placeholder corresponds to date and time formats 6`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-datetime-picker__wrapper"
+          >
+            <i
+              class="button-icon__icon iconoir-calendar"
+            />
+             
+            <input
+              class="ab-input ab-datetime-picker__input"
+              placeholder="MM/DD/YYYY"
+              type="text"
+            />
+             
+            <div>
+              <input
+                class="ab-input ab-datetime-picker__input"
+                placeholder="HH:mm"
+                type="text"
+              />
+            </div>
+             
+             
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`DateTimePickerElement placeholder corresponds to date and time formats 7`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-datetime-picker__wrapper"
+          >
+            <i
+              class="button-icon__icon iconoir-calendar"
+            />
+             
+            <input
+              class="ab-input ab-datetime-picker__input"
+              placeholder="MM/DD/YYYY"
+              type="text"
+            />
+             
+            <div>
+              <input
+                class="ab-input ab-datetime-picker__input"
+                placeholder="hh:mm A"
+                type="text"
+              />
+            </div>
+             
+             
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`DateTimePickerElement placeholder corresponds to date and time formats 8`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-datetime-picker__wrapper"
+          >
+            <i
+              class="button-icon__icon iconoir-calendar"
+            />
+             
+            <input
+              class="ab-input ab-datetime-picker__input"
+              placeholder="YYYY-MM-DD"
+              type="text"
+            />
+             
+            <div>
+              <input
+                class="ab-input ab-datetime-picker__input"
+                placeholder="HH:mm"
+                type="text"
+              />
+            </div>
+             
+             
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;
+
+exports[`DateTimePickerElement placeholder corresponds to date and time formats 9`] = `
+<div
+  class="control ab-form-group"
+>
+  <!---->
+   
+  <!---->
+   
+  <div
+    class="control__wrapper"
+  >
+    <div
+      class="control__elements"
+    >
+      <div
+        class="flex-grow-1"
+      >
+        <!---->
+         
+        <div
+          class="ab-form-group__children"
+        >
+          <div
+            class="ab-datetime-picker__wrapper"
+          >
+            <i
+              class="button-icon__icon iconoir-calendar"
+            />
+             
+            <input
+              class="ab-input ab-datetime-picker__input"
+              placeholder="YYYY-MM-DD"
+              type="text"
+            />
+             
+            <div>
+              <input
+                class="ab-input ab-datetime-picker__input"
+                placeholder="hh:mm A"
+                type="text"
+              />
+            </div>
+             
+             
+          </div>
+           
+          <!---->
+        </div>
+      </div>
+       
+      <!---->
+       
+    </div>
+     
+    <!---->
+  </div>
+</div>
+`;

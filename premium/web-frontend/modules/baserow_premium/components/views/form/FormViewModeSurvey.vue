@@ -136,6 +136,24 @@ export default {
       return this.visibleFields.filter((field) => field._.hiddenViaQueryParam)
     },
   },
+  mounted() {
+    // Intercept Tab key to navigate through questions instead of default browser
+    // behavior
+    const navigateOnTab = (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        if (e.shiftKey) {
+          this.previous()
+        } else {
+          this.next()
+        }
+      }
+    }
+    document.addEventListener('keydown', navigateOnTab)
+    this.$once('hook:beforeDestroy', () => {
+      document.removeEventListener('keydown', navigateOnTab)
+    })
+  },
   methods: {
     previous() {
       if (!this.canPrevious) {

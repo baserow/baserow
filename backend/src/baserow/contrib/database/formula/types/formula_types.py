@@ -1,15 +1,27 @@
+import re
 from abc import ABC
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, List, Optional, Set, Type, Union
 
+from django.contrib.postgres.expressions import ArraySubquery
 from django.contrib.postgres.fields import ArrayField, JSONField
-from django.core.files.storage import default_storage
+from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Expression, F, Func, Q, QuerySet, TextField, Value
+from django.db.models import (
+    Expression,
+    F,
+    Func,
+    OuterRef,
+    Q,
+    QuerySet,
+    TextField,
+    Value,
+)
 from django.db.models.functions import Cast, Concat
 
 from dateutil import parser
+from loguru import logger
 from rest_framework import serializers
 from rest_framework.fields import Field
 
@@ -18,14 +30,25 @@ from baserow.contrib.database.fields.expressions import (
     extract_jsonb_list_values_to_array,
     json_extract_path,
 )
+from baserow.contrib.database.fields.field_filters import (
+    AnnotatedQ,
+    OptionallyAnnotatedQ,
+)
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
-from baserow.contrib.database.fields.filter_support import (
-    FilterNotSupportedException,
+from baserow.contrib.database.fields.filter_support.base import (
+    HasAllValuesEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
+    get_array_json_filter_expression,
+)
+from baserow.contrib.database.fields.filter_support.exceptions import (
+    FilterNotSupportedException,
+)
+from baserow.contrib.database.fields.filter_support.single_select import (
+    SingleSelectFormulaTypeFilterSupport,
 )
 from baserow.contrib.database.fields.mixins import get_date_time_format
 from baserow.contrib.database.fields.utils.duration import (
@@ -41,6 +64,9 @@ from baserow.contrib.database.formula.ast.tree import (
     BaserowIntegerLiteral,
     BaserowStringLiteral,
 )
+from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    JSONArrayContainsValueExpr,
+)
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.formula.types.exceptions import UnknownFormulaType
 from baserow.contrib.database.formula.types.formula_type import (
@@ -50,6 +76,7 @@ from baserow.contrib.database.formula.types.formula_type import (
     BaserowFormulaValidType,
     UnTyped,
 )
+from baserow.core.storage import get_default_storage
 from baserow.core.utils import list_to_comma_separated_string
 
 
@@ -305,14 +332,29 @@ class BaserowFormulaNumberType(
 ):
     type = "number"
     baserow_field_type = "number"
-    user_overridable_formatting_option_fields = ["number_decimal_places"]
+    user_overridable_formatting_option_fields = [
+        "number_decimal_places",
+        "number_prefix",
+        "number_suffix",
+        "number_separator",
+    ]
     MAX_DIGITS = 50
     can_order_by_in_array = True
     can_group_by = True
 
-    def __init__(self, number_decimal_places: int, **kwargs):
+    def __init__(
+        self,
+        number_decimal_places: int,
+        number_prefix: str = "",
+        number_suffix: str = "",
+        number_separator: str = "",
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.number_decimal_places = number_decimal_places
+        self.number_prefix = number_prefix
+        self.number_suffix = number_suffix
+        self.number_separator = number_separator
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -423,7 +465,10 @@ class BaserowFormulaNumberType(
 
 
 class BaserowFormulaBooleanType(
-    BaserowFormulaTypeHasEmptyBaserowExpression, BaserowFormulaValidType
+    HasAllValuesEqualFilterSupport,
+    HasValueFilterSupport,
+    BaserowFormulaTypeHasEmptyBaserowExpression,
+    BaserowFormulaValidType,
 ):
     type = "boolean"
     baserow_field_type = "boolean"
@@ -455,6 +500,26 @@ class BaserowFormulaBooleanType(
     ):
         return expr
 
+    def _get_prep_value(self, value: str):
+        from baserow.contrib.database.fields.registries import field_type_registry
+
+        baserow_field_type = field_type_registry.get(self.baserow_field_type)
+        # boolean field type doesn't expect instance value
+        field_instance = baserow_field_type.get_model_field(None)
+        try:
+            # get_prep_value can return None
+            return field_instance.get_prep_value(value) or False
+        except ValidationError:
+            return False
+
+    def get_in_array_is_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        value = self._get_prep_value(value)
+        return get_array_json_filter_expression(
+            JSONArrayContainsValueExpr, field_name, value
+        )
+
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
         return JSONBSingleKeyArrayExpression(
             field_name,
@@ -463,6 +528,14 @@ class BaserowFormulaBooleanType(
             output_field=ArrayField(
                 base_field=models.DecimalField(max_digits=50, decimal_places=0)
             ),
+        )
+
+    def get_has_all_values_equal_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        value = self._get_prep_value(value)
+        return super().get_has_all_values_equal_query(
+            field_name, value, model_field, field
         )
 
 
@@ -868,6 +941,7 @@ class BaserowFormulaSingleFileType(BaserowJSONBObjectBaseType):
     can_order_by_in_array = False
     baserow_field_type = None
     item_is_in_nested_value_object_when_in_array = False
+    can_represent_files = True
 
     def is_searchable(self, field):
         return True
@@ -921,8 +995,10 @@ class BaserowFormulaSingleFileType(BaserowJSONBObjectBaseType):
         elif "name" in file:
             from baserow.core.user_files.handler import UserFileHandler
 
+            storage = get_default_storage()
+
             path = UserFileHandler().user_file_path(file["name"])
-            url = default_storage.url(path)
+            url = storage.url(path)
         else:
             url = None
 
@@ -986,6 +1062,7 @@ class BaserowFormulaSingleFileType(BaserowJSONBObjectBaseType):
 
 
 class BaserowFormulaArrayType(
+    HasAllValuesEqualFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueFilterSupport,
     HasValueContainsFilterSupport,
@@ -1161,7 +1238,6 @@ class BaserowFormulaArrayType(
     def get_in_array_is_query(self, field_name, value, model_field, field):
         if not isinstance(self.sub_type, HasValueFilterSupport):
             raise FilterNotSupportedException()
-
         return self.sub_type.get_in_array_is_query(
             field_name, value, model_field, field
         )
@@ -1195,6 +1271,18 @@ class BaserowFormulaArrayType(
             raise FilterNotSupportedException()
 
         return self.sub_type.get_in_array_length_is_lower_than_query(
+            field_name, value, model_field, field
+        )
+
+    def get_has_all_values_equal_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> "OptionallyAnnotatedQ":
+        if not isinstance(self.sub_type, HasAllValuesEqualFilterSupport):
+            logger.warning(
+                f"field {field} is not from {HasAllValuesEqualFilterSupport} hierarchy"
+            )
+            raise FilterNotSupportedException()
+        return self.sub_type.get_has_all_values_equal_query(
             field_name, value, model_field, field
         )
 
@@ -1252,7 +1340,7 @@ class BaserowFormulaArrayType(
         return self.sub_type.can_order_by_in_array
 
     def get_order(
-        self, field, field_name, order_direction
+        self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         expr = self.sub_type.get_order_by_in_array_expr(
             field, field_name, order_direction
@@ -1286,8 +1374,35 @@ class BaserowFormulaArrayType(
     def formula_array_type_as_str(cls, sub_type):
         return f"array({sub_type})"
 
+    def can_represent_files(self, field):
+        return self.sub_type.can_represent_files(field)
 
-class BaserowFormulaSingleSelectType(BaserowJSONBObjectBaseType):
+    def can_represent_select_options(self, field) -> bool:
+        return self.sub_type.can_represent_select_options(field)
+
+    @classmethod
+    def get_serializer_field_overrides(cls):
+        from baserow.contrib.database.api.fields.serializers import (
+            SelectOptionSerializer,
+        )
+        from baserow.contrib.database.api.formula.serializers import (
+            BaserowFormulaSelectOptionsSerializer,
+        )
+
+        return {
+            "select_options": BaserowFormulaSelectOptionsSerializer(
+                child=SelectOptionSerializer(),
+                required=False,
+                allow_null=True,
+                read_only=True,
+            )
+        }
+
+
+class BaserowFormulaSingleSelectType(
+    SingleSelectFormulaTypeFilterSupport,
+    BaserowJSONBObjectBaseType,
+):
     type = "single_select"
     baserow_field_type = "single_select"
     can_order_by = True
@@ -1300,6 +1415,10 @@ class BaserowFormulaSingleSelectType(BaserowJSONBObjectBaseType):
             type(self),
             BaserowFormulaTextType,
         ]
+
+    @property
+    def can_represent_select_options(self) -> bool:
+        return True
 
     @property
     def limit_comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -1334,6 +1453,14 @@ class BaserowFormulaSingleSelectType(BaserowJSONBObjectBaseType):
         if value == "":
             return Q()
         return Q(**{f"{field_name}__value__icontains": value})
+
+    def contains_word_query(self, field_name, value, model_field, field):
+        value = value.strip()
+        # If an empty value has been provided we do not want to filter at all.
+        if value == "":
+            return Q()
+        value = re.escape(value)
+        return Q(**{f"{field_name}__value__iregex": rf"\m{value}\M"})
 
     def get_alter_column_prepare_old_value(self, connection, from_field, to_field):
         sql = f"""
@@ -1375,7 +1502,7 @@ class BaserowFormulaSingleSelectType(BaserowJSONBObjectBaseType):
         return True
 
     def get_order(
-        self, field, field_name, order_direction
+        self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         field_expr = F(f"{field_name}__value")
 
@@ -1401,6 +1528,28 @@ class BaserowFormulaSingleSelectType(BaserowJSONBObjectBaseType):
             ),
         )
 
+    @classmethod
+    def get_serializer_field_names(cls) -> List[str]:
+        return super().all_fields() + ["select_options"]
+
+    @classmethod
+    def get_serializer_field_overrides(cls):
+        from baserow.contrib.database.api.fields.serializers import (
+            SelectOptionSerializer,
+        )
+        from baserow.contrib.database.api.formula.serializers import (
+            BaserowFormulaSelectOptionsSerializer,
+        )
+
+        return {
+            "select_options": BaserowFormulaSelectOptionsSerializer(
+                child=SelectOptionSerializer(),
+                required=False,
+                allow_null=True,
+                read_only=True,
+            )
+        }
+
 
 class BaserowFormulaMultipleSelectType(BaserowJSONBObjectBaseType):
     type = "multiple_select"
@@ -1422,6 +1571,10 @@ class BaserowFormulaMultipleSelectType(BaserowJSONBObjectBaseType):
 
     def get_alter_column_prepare_old_value(self, connection, from_field, to_field):
         return "p_in = '';"
+
+    @property
+    def can_represent_select_options(self) -> bool:
+        return True
 
     @property
     def db_column_fields(self) -> Set[str]:
@@ -1510,6 +1663,76 @@ class BaserowFormulaMultipleSelectType(BaserowJSONBObjectBaseType):
     ) -> BaserowExpression[BaserowFormulaType]:
         return formula_function_registry.get("multiple_select_count")(arg)
 
+    def contains_query(self, field_name, value, model_field, field):
+        value = value.strip()
+        # If an empty value has been provided we do not want to filter at all.
+        if value == "":
+            return Q()
+        model = model_field.model
+        subq = (
+            model.objects.filter(id=OuterRef("id"))
+            .annotate(
+                res=Func(
+                    Func(
+                        field_name,
+                        function="jsonb_array_elements",
+                        output_field=JSONField(),
+                    ),
+                    Value("value"),
+                    function="jsonb_extract_path",
+                    output_field=TextField(),
+                )
+            )
+            .values("res")
+        )
+        annotation_name = f"{field_name}_contains"
+        return AnnotatedQ(
+            annotation={
+                annotation_name: Func(
+                    ArraySubquery(subq, output_field=ArrayField(TextField())),
+                    Value(","),
+                    function="array_to_string",
+                    output_field=TextField(),
+                )
+            },
+            q=Q(**{f"{annotation_name}__icontains": value}),
+        )
+
+    def contains_word_query(self, field_name, value, model_field, field):
+        value = value.strip()
+        # If an empty value has been provided we do not want to filter at all.
+        if value == "":
+            return Q()
+        model = model_field.model
+        subq = (
+            model.objects.filter(id=OuterRef("id"))
+            .annotate(
+                res=Func(
+                    Func(
+                        field_name,
+                        function="jsonb_array_elements",
+                        output_field=JSONField(),
+                    ),
+                    Value("value"),
+                    function="jsonb_extract_path",
+                    output_field=TextField(),
+                )
+            )
+            .values("res")
+        )
+        annotation_name = f"{field_name}_contains"
+        return AnnotatedQ(
+            annotation={
+                annotation_name: Func(
+                    ArraySubquery(subq, output_field=ArrayField(TextField())),
+                    Value(","),
+                    function="array_to_string",
+                    output_field=TextField(),
+                )
+            },
+            q=Q(**{f"{annotation_name}__iregex": rf"\m{re.escape(value)}\M"}),
+        )
+
 
 BASEROW_FORMULA_TYPES = [
     BaserowFormulaInvalidType,
@@ -1541,6 +1764,29 @@ BASEROW_FORMULA_ARRAY_TYPE_CHOICES = [
     for f in BASEROW_FORMULA_TYPES
     if f.type != BaserowFormulaArrayType.type
 ]
+
+BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES = list(
+    set(
+        allowed_field
+        for f in BASEROW_FORMULA_TYPES
+        for allowed_field in f.get_serializer_field_names()
+    )
+)
+BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES = list(
+    set(
+        allowed_field
+        for f in BASEROW_FORMULA_TYPES
+        for allowed_field in f.get_request_serializer_field_names()
+    )
+)
+
+
+def get_baserow_formula_type_serializer_field_overrides():
+    return {
+        key: value
+        for f in BASEROW_FORMULA_TYPES
+        for key, value in f.get_serializer_field_overrides().items()
+    }
 
 
 def calculate_number_type(

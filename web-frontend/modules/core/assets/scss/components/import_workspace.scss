@@ -1,0 +1,74 @@
+.import-workspace__file {
+  display: flex;
+  list-style: none;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 10px;
+
+  @include rounded($rounded-md);
+}
+
+.import-workspace__file-wrapper {
+  display: flex;
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+  align-items: center;
+}
+
+.import-workspace__file-icon {
+  display: flex;
+  border: 1px solid $palette-neutral-200;
+  background: $white;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+
+  @include rounded($rounded-md);
+  @include elevation($elevation-low);
+}
+
+.import-workspace__file-name {
+  font-size: 13px;
+  height: 16px;
+  font-weight: 500;
+  display: block;
+}
+
+.import-workspace__file-name-text {
+  @extend %ellipsis;
+}
+
+.import-workspace__file-details {
+  min-width: 0;
+}
+
+.import-workspace__file-size {
+  @extend %ellipsis;
+
+  color: $palette-neutral-900;
+  font-size: 11px;
+  padding-top: 8px;
+  font-weight: 500;
+}
+
+.import-workspace-separator {
+  height: 1px;
+  background: $palette-neutral-200;
+  width: 100%;
+  margin: 20px 0 6px auto;
+}
+
+.import-workspace__actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  align-items: center;
+  gap: 16px;
+}
+
+.import-workspace__progress {
+  width: 100%;
+}

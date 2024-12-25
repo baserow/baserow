@@ -1,21 +1,31 @@
 <template>
-  <FormGroup :error="(touched && !valid) || isInvalidNumber">
+  <FormGroup :error="touched && !valid">
     <FormInput
       ref="input"
-      v-model="copy"
+      :value="focused ? copy : formattedValue"
       size="large"
-      :error="(touched && !valid) || isInvalidNumber"
+      :error="touched && !valid"
       :disabled="readOnly"
-      @keyup.enter="$refs.input.blur()"
-      @focus="select()"
-      @blur="unselect()"
+      @keypress="onKeyPress"
+      @keyup.enter="
+        onBlur()
+        $refs.input.blur()
+      "
+      @focus="
+        onFocus()
+        select()
+      "
+      @blur="
+        onBlur()
+        unselect()
+      "
+      @input="handleInput"
     />
 
     <template #error>
       <span v-show="touched && !valid">
         {{ error }}
       </span>
-      <span v-show="isInvalidNumber">Invalid Number</span>
     </template>
   </FormGroup>
 </template>
@@ -27,9 +37,28 @@ import numberField from '@baserow/modules/database/mixins/numberField'
 
 export default {
   mixins: [rowEditField, rowEditFieldInput, numberField],
-  computed: {
-    isInvalidNumber() {
-      return this.copy === 'NaN'
+  watch: {
+    field: {
+      handler() {
+        this.initCopy(this.value)
+      },
+    },
+    value: {
+      handler(newValue) {
+        this.initCopy(newValue)
+      },
+      immediate: true,
+    },
+  },
+  methods: {
+    initCopy(value) {
+      this.copy = this.prepareCopy(value ?? '')
+      this.updateCopy(this.field, this.copy)
+      this.updateFormattedValue(this.field, this.copy)
+    },
+    handleInput(value) {
+      this.updateCopy(this.field, value)
+      this.$emit('input', this.copy)
     },
   },
 }

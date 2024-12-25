@@ -145,7 +145,7 @@ export default {
           // filled with initial data, so we're going to call the fetch function here.
           const type = this.$registry.get('view', view.type)
           await type.fetch(
-            { store: this.$store },
+            { store: this.$store, app: this },
             this.database,
             view,
             this.fields,

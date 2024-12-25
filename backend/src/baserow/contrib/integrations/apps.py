@@ -14,6 +14,7 @@ class IntegrationsConfig(AppConfig):
         integration_type_registry.register(LocalBaserowIntegrationType())
 
         from baserow.contrib.integrations.local_baserow.service_types import (
+            LocalBaserowAggregateRowsUserServiceType,
             LocalBaserowDeleteRowServiceType,
             LocalBaserowGetRowUserServiceType,
             LocalBaserowListRowsUserServiceType,
@@ -22,6 +23,7 @@ class IntegrationsConfig(AppConfig):
 
         service_type_registry.register(LocalBaserowGetRowUserServiceType())
         service_type_registry.register(LocalBaserowListRowsUserServiceType())
+        service_type_registry.register(LocalBaserowAggregateRowsUserServiceType())
         service_type_registry.register(LocalBaserowUpsertRowServiceType())
         service_type_registry.register(LocalBaserowDeleteRowServiceType())
 

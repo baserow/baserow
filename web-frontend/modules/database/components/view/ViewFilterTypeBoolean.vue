@@ -13,7 +13,7 @@ export default {
   mixins: [viewFilter],
   computed: {
     copy() {
-      const value = this.filter.value.toString().toLowerCase().trim()
+      const value = (this.filter.value || '').toString().toLowerCase().trim()
       return trueValues.includes(value)
     },
   },

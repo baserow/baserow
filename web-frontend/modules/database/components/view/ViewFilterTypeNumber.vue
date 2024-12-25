@@ -1,30 +1,55 @@
 <template>
   <FormInput
     ref="input"
-    v-model="copy"
+    :value="focused ? copy : formattedValue"
     :error="$v.copy.$error"
     :disabled="disabled"
-    @input="delayedUpdate($event)"
-    @keydown.enter="delayedUpdate($event.target.value, true)"
+    @blur="onBlur()"
+    @keypress="onKeyPress($event)"
+    @input="setCopyAndDelayedUpdate($event)"
+    @keydown.enter="setCopyAndDelayedUpdate($event.target.value, true)"
+    @focus="onFocus()"
   >
   </FormInput>
 </template>
 
 <script>
-import { decimal } from 'vuelidate/lib/validators'
-
 import filterTypeInput from '@baserow/modules/database/mixins/filterTypeInput'
+import numberField from '@baserow/modules/database/mixins/numberField'
 
 export default {
   name: 'ViewFilterTypeNumber',
-  mixins: [filterTypeInput],
+  mixins: [filterTypeInput, numberField],
+  watch: {
+    field: {
+      handler() {
+        if (!this.focused) {
+          this.copy = this.prepareCopy(this.filter.value)
+          this.updateFormattedValue(this.field, this.filter.value)
+        }
+      },
+    },
+  },
+  created() {
+    this.copy = this.prepareCopy(this.filter.value)
+    this.updateFormattedValue(this.field, this.copy)
+  },
   methods: {
-    focus() {
-      this.$refs.input.focus()
+    afterValueChanged() {
+      if (!this.focused) {
+        this.updateFormattedValue(this.field, this.copy)
+      }
+    },
+    setCopyAndDelayedUpdate(value, immediately = false) {
+      this.updateCopy(this.field, value)
+      const newValue = String(this.prepareValue(this.copy) ?? '')
+      if (newValue !== this.filter.value) {
+        this.delayedUpdate(newValue, immediately)
+      }
     },
   },
   validations: {
-    copy: { decimal },
+    copy: {},
   },
 }
 </script>

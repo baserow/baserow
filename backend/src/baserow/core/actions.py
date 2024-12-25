@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -17,14 +17,16 @@ from baserow.core.action.scopes import (
     WorkspaceActionScopeType,
 )
 from baserow.core.handler import CoreHandler, WorkspaceForUpdate
+from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.models import (
     Application,
+    ImportExportResource,
     Template,
     Workspace,
     WorkspaceInvitation,
     WorkspaceUser,
 )
-from baserow.core.registries import application_type_registry
+from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder
 
@@ -540,6 +542,8 @@ class UpdateApplicationActionType(UndoableActionType):
         application_id: int
         application_name: Optional[str]
         original_application_name: str
+        data: Dict[str, Any]
+        original_data: Dict[str, Any]
 
     @classmethod
     def do(cls, user: AbstractUser, application: Application, **kwargs) -> Application:
@@ -557,7 +561,11 @@ class UpdateApplicationActionType(UndoableActionType):
 
         original_name = application.name
 
-        application = CoreHandler().update_application(user, application, **kwargs)
+        app_updated_result = CoreHandler().update_application(
+            user, application, **kwargs
+        )
+        application = app_updated_result.updated_application_instance
+
         application_type = application_type_registry.get_by_model(
             application.specific_class
         )
@@ -567,6 +575,11 @@ class UpdateApplicationActionType(UndoableActionType):
         # At the moment, the builder application doesn't use actions and need
         # to bypass registering.
         if application_type.supports_actions:
+            # name is stored separately so it will be removed here from
+            # others allowed_values
+            app_updated_result.updated_app_allowed_values.pop("name", None)
+            app_updated_result.original_app_allowed_values.pop("name", None)
+
             params = cls.Params(
                 workspace.id,
                 workspace.name,
@@ -574,6 +587,8 @@ class UpdateApplicationActionType(UndoableActionType):
                 application.id,
                 kwargs.get("name", original_name),
                 original_name,
+                app_updated_result.updated_app_allowed_values,
+                app_updated_result.original_app_allowed_values,
             )
             cls.register_action(
                 user, params, scope=cls.scope(workspace.id), workspace=workspace
@@ -589,14 +604,17 @@ class UpdateApplicationActionType(UndoableActionType):
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
         application = CoreHandler().get_application(params.application_id).specific
         CoreHandler().update_application(
-            user, application, name=params.original_application_name
+            user,
+            application,
+            name=params.original_application_name,
+            **params.original_data,
         )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         application = CoreHandler().get_application(params.application_id).specific
         CoreHandler().update_application(
-            user, application, name=params.application_name
+            user, application, name=params.application_name, **params.data
         )
 
 
@@ -1135,3 +1153,147 @@ class CreateInitialWorkspaceActionType(ActionType):
     @classmethod
     def scope(cls) -> ActionScopeStr:
         return RootActionScopeType.value()
+
+
+class ExportApplicationsActionType(ActionType):
+    type = "export_applications"
+    description = ActionTypeDescription(
+        _("Export applications"),
+        _('Applications "%(application_names)s" (%(application_ids)s) exported'),
+        WORKSPACE_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "workspace_id",
+        "application_ids",
+        "resource_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        workspace_id: int
+        workspace_name: str
+        application_ids: List[int]
+        application_names: List[str]
+        resource_id: str
+        resource_file_name: str
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        workspace: Workspace,
+        applications: List[Application],
+        only_structure: bool = False,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> ImportExportResource:
+        """
+        Export provided Applications set from the given workspace.
+        This action is readonly and is not undoable.
+
+        :param user: The user on whose behalf the application is exported.
+        :param workspace: Workspace instance from which applications are exported.
+        :param applications: List of application instances to be exported
+        :param only_structure: If True, only the structure of the applications
+            will be exported.
+        :param progress_builder: A progress builder instance that can be used to
+            track the progress of the export.
+        :return: The created ImportExportResource instance.
+        """
+
+        cli_import_export_config = ImportExportConfig(
+            include_permission_data=False,
+            reduce_disk_space_usage=False,
+            only_structure=only_structure,
+        )
+
+        resource = ImportExportHandler().export_workspace_applications(
+            applications=applications,
+            import_export_config=cli_import_export_config,
+            progress_builder=progress_builder,
+        )
+
+        params = cls.Params(
+            workspace_id=workspace.id,
+            workspace_name=workspace.name,
+            application_ids=[application.id for application in applications],
+            application_names=[application.name for application in applications],
+            resource_id=str(resource.uuid),
+            resource_file_name=resource.get_archive_name(),
+        )
+
+        cls.register_action(user, params, cls.scope(workspace.id), workspace=workspace)
+        return resource
+
+    @classmethod
+    def scope(cls, workspace_id: int) -> ActionScopeStr:
+        return WorkspaceActionScopeType.value(workspace_id)
+
+
+class ImportApplicationsActionType(ActionType):
+    type = "import_applications"
+    description = ActionTypeDescription(
+        _("Import applications"),
+        _('Applications "%(application_names)s" (%(application_ids)s) imported'),
+        WORKSPACE_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "workspace_id",
+        "resource_id",
+        "application_ids",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        workspace_id: int
+        workspace_name: str
+        resource_id: int
+        resource_file_name: str
+        application_ids: List[int]
+        application_names: List[str]
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        workspace: Workspace,
+        resource: ImportExportResource,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> List[Application]:
+        """
+        Imports applications from the provided file into the specified workspace.
+
+        This method handles the import process, including reading the file,
+        validating its contents, and creating the necessary application instances
+        within the workspace. The import process can be tracked using the optional
+        progress builder.
+
+        :param user: The user performing the import.
+        :param workspace: The workspace where the applications will be imported.
+        :param resource: The resource containing the applications to import.
+        :param progress_builder: An optional progress builder to track the import
+            progress.
+        :return: A list of the imported Application instances.
+        """
+
+        applications = ImportExportHandler().import_workspace_applications(
+            user=user,
+            workspace=workspace,
+            resource=resource,
+            progress_builder=progress_builder,
+        )
+
+        params = cls.Params(
+            workspace_id=workspace.id,
+            workspace_name=workspace.name,
+            application_ids=[app.id for app in applications],
+            application_names=[app.name for app in applications],
+            resource_id=resource.id,
+            resource_file_name=resource.get_archive_name(),
+        )
+
+        cls.register_action(user, params, cls.scope(workspace.id), workspace=workspace)
+        return applications
+
+    @classmethod
+    def scope(cls, workspace_id: int) -> ActionScopeStr:
+        return WorkspaceActionScopeType.value(workspace_id)

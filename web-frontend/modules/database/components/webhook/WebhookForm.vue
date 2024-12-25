@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent="submit" @input="$emit('formchange')">
-    <div v-if="!isDeprecated">
+    <div>
       <Alert v-if="!values.active" type="info-primary">
         <template #title> {{ $t('webhookForm.deactivated.title') }} </template>
         <p>{{ $t('webhookForm.deactivated.content') }}</p>
@@ -53,7 +53,7 @@
             required
             class="margin-bottom-2"
           >
-            <Dropdown v-model="values.request_method" small>
+            <Dropdown v-model="values.request_method">
               <DropdownItem name="GET" value="GET"></DropdownItem>
               <DropdownItem name="POST" value="POST"></DropdownItem>
               <DropdownItem name="PATCH" value="PATCH"></DropdownItem>
@@ -113,25 +113,55 @@
         </RadioGroup>
       </FormGroup>
 
-      <div
-        v-if="!values.include_all_events"
-        class="webhook__types margin-bottom-2"
-      >
-        <Checkbox
+      <div v-if="!values.include_all_events" class="margin-bottom-2">
+        <div
           v-for="webhookEvent in webhookEventTypes"
           :key="webhookEvent.type"
-          :checked="values.events.includes(webhookEvent.type)"
           class="webhook__type"
-          @input="
-            $event
-              ? values.events.push(webhookEvent.type)
-              : values.events.splice(
-                  values.events.indexOf(webhookEvent.type),
-                  1
-                )
-          "
-          >{{ webhookEvent.getName() }}</Checkbox
         >
+          <Checkbox
+            :checked="values.events.includes(webhookEvent.type)"
+            @input="
+              $event
+                ? values.events.push(webhookEvent.type)
+                : values.events.splice(
+                    values.events.indexOf(webhookEvent.type),
+                    1
+                  )
+            "
+            >{{ webhookEvent.getName() }}</Checkbox
+          >
+          <div
+            v-if="webhookEvent.getHasRelatedFields()"
+            class="webhook__type-dropdown-container"
+          >
+            <Dropdown
+              :value="
+                values.events.includes(webhookEvent.type)
+                  ? getEventFields(webhookEvent)
+                  : []
+              "
+              :placeholder="webhookEvent.getRelatedFieldsPlaceholder()"
+              :multiple="true"
+              :disabled="!values.events.includes(webhookEvent.type)"
+              class="dropdown--tiny webhook__type-dropdown"
+              @input="setEventFields(webhookEvent, $event)"
+            >
+              <DropdownItem
+                v-for="field in fields"
+                :key="field.id"
+                :name="field.name"
+                :value="field.id"
+              >
+              </DropdownItem>
+            </Dropdown>
+            <HelpIcon
+              v-if="webhookEvent.getRelatedFieldsHelpText()"
+              class="margin-left-1"
+              :tooltip="webhookEvent.getRelatedFieldsHelpText()"
+            />
+          </div>
+        </div>
       </div>
 
       <FormGroup
@@ -199,7 +229,6 @@
             <Dropdown
               v-model="exampleWebhookEventType"
               class="dropdown--floating-left"
-              small
             >
               <DropdownItem
                 v-for="webhookEvent in webhookEventTypes"
@@ -222,22 +251,6 @@
       }}</Button>
       <slot></slot>
       <TestWebhookModal ref="testModal" />
-    </div>
-    <div v-else>
-      <Alert type="error">
-        <template #title>
-          {{ $t('webhookForm.deprecatedEventType.title') }}</template
-        >
-        <p>{{ $t('webhookForm.deprecatedEventType.description') }}</p>
-        <template #actions>
-          <button
-            class="alert__actions-button-text"
-            @click="convertFromDeprecated"
-          >
-            {{ $t('webhookForm.deprecatedEventType.convert') }}
-          </button>
-        </template>
-      </Alert>
     </div>
   </form>
 </template>
@@ -282,6 +295,7 @@ export default {
         'use_user_field_names',
         'headers',
         'events',
+        'event_config',
         'active',
       ],
       values: {
@@ -292,6 +306,7 @@ export default {
         request_method: 'POST',
         include_all_events: true,
         events: [],
+        event_config: [],
       },
       headers: [],
       exampleWebhookEventType: '',
@@ -304,11 +319,6 @@ export default {
   computed: {
     webhookEventTypes() {
       return this.$registry.getAll('webhookEvent')
-    },
-    isDeprecated() {
-      return this.values.events.some((eventName) =>
-        ['row.created', 'row.updated', 'row.deleted'].includes(eventName)
-      )
     },
     /**
      * Generates an example payload of the webhook event based on the chosen webhook
@@ -380,6 +390,29 @@ export default {
     },
   },
   methods: {
+    getEventFields(event) {
+      const eventConfig = this.values.event_config.find(
+        (e) => e.event_type === event.type
+      )
+      if (eventConfig === undefined) {
+        return []
+      }
+      return eventConfig.fields
+    },
+    setEventFields(event, fields) {
+      const eventConfig = this.values.event_config.find(
+        (e) => e.event_type === event.type
+      )
+      if (eventConfig === undefined) {
+        this.values.event_config.push({
+          event_type: event.type,
+          fields: [],
+        })
+        return this.setEventFields(event, fields)
+      }
+
+      eventConfig.fields = fields
+    },
     prepareHeaders(headers) {
       const preparedHeaders = {}
       headers.forEach((header) => {
@@ -414,12 +447,6 @@ export default {
     },
     lastHeader(index) {
       return index === this.headers.length
-    },
-    convertFromDeprecated() {
-      this.values.events = this.values.events.map((eventName) =>
-        eventName.replace('row.', 'rows.')
-      )
-      this.submit()
     },
   },
 }

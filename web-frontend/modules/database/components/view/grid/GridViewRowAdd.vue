@@ -42,7 +42,7 @@ export default {
   computed: {
     width() {
       let width = this.visibleFields.reduce(
-        (value, field) => this.getFieldWidth(field.id) + value,
+        (value, field) => this.getFieldWidth(field) + value,
         0
       )
       if (this.includeRowDetails) {

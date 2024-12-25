@@ -4,19 +4,30 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from itertools import cycle
 from random import randint, randrange, sample
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
-from django.contrib.postgres.aggregates import StringAgg
+from django.contrib.postgres.aggregates import ArrayAgg, StringAgg
 from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
-from django.core.files.storage import Storage, default_storage
+from django.core.files.storage import Storage
 from django.db import OperationalError, connection, models
 from django.db.models import (
     Case,
@@ -64,6 +75,7 @@ from baserow.contrib.database.api.fields.serializers import (
     FileFieldRequestSerializer,
     FileFieldResponseSerializer,
     IntegerOrStringField,
+    LinkRowFieldSerializerMixin,
     LinkRowRequestSerializer,
     LinkRowValueSerializer,
     ListOrStringField,
@@ -71,23 +83,23 @@ from baserow.contrib.database.api.fields.serializers import (
     PasswordSerializer,
     SelectOptionSerializer,
 )
-from baserow.contrib.database.api.utils import LinkRowJoin
+from baserow.contrib.database.api.utils import (
+    LinkRowJoin,
+    get_thousand_and_decimal_separator,
+)
 from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_DOES_NOT_EXIST,
     ERROR_VIEW_NOT_IN_TABLE,
 )
 from baserow.contrib.database.db.functions import RandomUUID
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
-from baserow.contrib.database.fields.filter_support import (
-    FilterNotSupportedException,
-    HasValueContainsFilterSupport,
-    HasValueContainsWordFilterSupport,
-    HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
-    HasValueLengthIsLowerThanFilterSupport,
+from baserow.contrib.database.fields.filter_support.formula import (
+    FormulaArrayFilterSupport,
 )
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
+    BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES,
+    BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES,
     BaserowExpression,
     BaserowFormulaBooleanType,
     BaserowFormulaCharType,
@@ -100,6 +112,13 @@ from baserow.contrib.database.formula import (
     FormulaHandler,
 )
 from baserow.contrib.database.formula.registries import formula_function_registry
+from baserow.contrib.database.formula.types.formula_types import (
+    BaserowFormulaArrayType,
+    BaserowFormulaDurationType,
+    BaserowFormulaMultipleSelectType,
+    BaserowFormulaSingleFileType,
+    BaserowFormulaURLType,
+)
 from baserow.contrib.database.models import Table
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.types import SerializedRowHistoryFieldMetadata
@@ -109,26 +128,26 @@ from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE, 
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
     collate_expression,
+    specific_queryset,
 )
 from baserow.core.expressions import DateTrunc
 from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
+from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
+from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import list_to_comma_separated_string
 
-from ..formula.types.formula_types import (
-    BaserowFormulaArrayType,
-    BaserowFormulaDurationType,
-    BaserowFormulaMultipleSelectType,
-    BaserowFormulaSingleFileType,
-    BaserowFormulaURLType,
+from .constants import (
+    BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
+    UPSERT_OPTION_DICT_KEY,
+    DeleteFieldStrategyEnum,
 )
-from .constants import BASEROW_BOOLEAN_FIELD_TRUE_VALUES, UPSERT_OPTION_DICT_KEY
 from .dependencies.exceptions import (
     CircularFieldDependencyError,
     SelfReferenceFieldDependencyError,
@@ -157,7 +176,6 @@ from .expressions import extract_jsonb_array_values_to_single_string
 from .field_cache import FieldCache
 from .field_filters import (
     AnnotatedQ,
-    OptionallyAnnotatedQ,
     contains_filter,
     contains_word_filter,
     filename_contains_filter,
@@ -232,7 +250,7 @@ if TYPE_CHECKING:
 
 class CollationSortMixin:
     def get_order(
-        self, field, field_name, order_direction
+        self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         field_expr = collate_expression(F(field_name))
 
@@ -513,8 +531,21 @@ class NumberFieldType(FieldType):
 
     type = "number"
     model_class = NumberField
-    allowed_fields = ["number_decimal_places", "number_negative"]
-    serializer_field_names = ["number_decimal_places", "number_negative", "number_type"]
+    allowed_fields = [
+        "number_decimal_places",
+        "number_negative",
+        "number_prefix",
+        "number_suffix",
+        "number_separator",
+    ]
+    serializer_field_names = [
+        "number_decimal_places",
+        "number_negative",
+        "number_type",
+        "number_prefix",
+        "number_suffix",
+        "number_separator",
+    ]
     serializer_field_overrides = {
         "number_type": MustBeEmptyField(
             "The number_type option has been removed and can no longer be provided. "
@@ -526,11 +557,34 @@ class NumberFieldType(FieldType):
     _can_group_by = True
     _db_column_fields = ["number_decimal_places"]
 
-    def prepare_value_for_db(self, instance, value):
-        if value is not None:
-            value = Decimal(value)
+    def prepare_value_for_db(self, instance: NumberField, value):
+        if value is None:
+            return value
 
-        if value is not None and not instance.number_negative and value < 0:
+        if isinstance(value, str):
+            if instance.number_prefix is not None:
+                value = value.lstrip(instance.number_prefix)
+            if instance.number_suffix is not None:
+                value = value.rstrip(instance.number_suffix)
+
+            thousand_sep, decimal_sep = get_thousand_and_decimal_separator(
+                instance.number_separator
+            )
+
+            value = value.replace(thousand_sep, "").replace(decimal_sep, ".").strip()
+
+            if value in ["", "NaN"]:
+                return None
+
+        try:
+            value = Decimal(value)
+        except (InvalidOperation, ValueError, TypeError):
+            raise ValidationError(
+                f"The value for field {instance.id} is not a valid number",
+                code="invalid",
+            )
+
+        if not instance.number_negative and value < 0:
             raise ValidationError(
                 f"The value for field {instance.id} cannot be negative.",
                 code="negative_not_allowed",
@@ -558,16 +612,61 @@ class NumberFieldType(FieldType):
         if value is None:
             return value if rich_value else ""
 
-        # If the number is an integer we want it to be a literal json number and so
-        # don't convert it to a string. However if a decimal to preserve any precision
-        # we keep it as a string.
         instance = field_object["field"]
-        if instance.number_decimal_places == 0:
-            return int(value)
 
-        # DRF's Decimal Serializer knows how to quantize and format the decimal
-        # correctly so lets use it instead of trying to do it ourselves.
-        return self.get_serializer_field(instance).to_representation(value)
+        apply_formatting = (
+            instance.number_prefix
+            or instance.number_suffix
+            or instance.number_separator
+        )
+
+        # Old export that doesn't require formatting
+        if not apply_formatting:
+            # If the number is an integer we want it to be a literal json number and so
+            # don't convert it to a string. However, if a decimal to preserve any
+            # precision we keep it as a string.
+            instance = field_object["field"]
+            if instance.number_decimal_places == 0:
+                return int(value)
+
+            # DRF's Decimal Serializer knows how to quantize and format the decimal
+            # correctly so lets use it instead of trying to do it ourselves.
+            return self.get_serializer_field(instance).to_representation(value)
+
+        formatted_value = self.get_serializer_field(instance).to_representation(value)
+        fractional_part = ""
+        if instance.number_decimal_places == 0:
+            integer_part = formatted_value.split(".")[0]
+        elif "." in formatted_value:
+            integer_part, fractional_part = formatted_value.split(".")
+        else:
+            integer_part = formatted_value
+
+        thousand_separator, decimal_separator = get_thousand_and_decimal_separator(
+            instance.number_separator
+        )
+
+        minus_sign = ""
+        if integer_part.startswith("-"):
+            minus_sign = "-"
+            integer_part = integer_part[1:]
+
+        # Format integer part with thousand separator
+        integer_part_with_sep = f"{int(integer_part):,}".replace(
+            ",", thousand_separator
+        )
+
+        # Add fractional part with decimal_separator if needed
+        if fractional_part:
+            fractional_part = f"{decimal_separator}{fractional_part}"
+
+        # Add prefix and suffix
+        return (
+            f"{minus_sign}"
+            f"{instance.number_prefix}"
+            f"{integer_part_with_sep}{fractional_part}"
+            f"{instance.number_suffix}".strip()
+        )
 
     def get_model_field(self, instance, **kwargs):
         kwargs["decimal_places"] = instance.number_decimal_places
@@ -622,7 +721,11 @@ class NumberFieldType(FieldType):
 
     def to_baserow_formula_type(self, field: NumberField) -> BaserowFormulaType:
         return BaserowFormulaNumberType(
-            number_decimal_places=field.number_decimal_places, nullable=True
+            number_decimal_places=field.number_decimal_places,
+            number_prefix=field.number_prefix,
+            number_suffix=field.number_suffix,
+            number_separator=field.number_separator,
+            nullable=True,
         )
 
     def from_baserow_formula_type(
@@ -631,6 +734,9 @@ class NumberFieldType(FieldType):
         return NumberField(
             number_decimal_places=formula_type.number_decimal_places,
             number_negative=True,
+            number_prefix=formula_type.number_prefix,
+            number_suffix=formula_type.number_suffix,
+            number_separator=formula_type.number_separator,
         )
 
     def should_backup_field_data_for_same_type_update(
@@ -642,8 +748,22 @@ class NumberFieldType(FieldType):
         new_number_negative = new_field_attrs.get(
             "number_negative", old_field.number_negative
         )
-        return (old_field.number_decimal_places > new_number_decimal_places) or (
-            old_field.number_negative and not new_number_negative
+        new_number_prefix = new_field_attrs.get(
+            "number_prefix", old_field.number_prefix
+        )
+        new_number_suffix = new_field_attrs.get(
+            "number_suffix", old_field.number_suffix
+        )
+        new_number_separator = new_field_attrs.get(
+            "number_separator", old_field.number_separator
+        )
+        return (
+            old_field.number_decimal_places > new_number_decimal_places
+            or old_field.number_negative
+            and not new_number_negative
+            or old_field.number_prefix != new_number_prefix
+            or old_field.number_suffix != new_number_suffix
+            or old_field.number_separator != new_number_separator
         )
 
     def serialize_metadata_for_row_history(
@@ -658,6 +778,9 @@ class NumberFieldType(FieldType):
             **base,
             "number_decimal_places": field.number_decimal_places,
             "number_negative": field.number_negative,
+            "number_prefix": field.number_prefix,
+            "number_suffix": field.number_suffix,
+            "number_separator": field.number_separator,
         }
 
 
@@ -673,8 +796,14 @@ class RatingFieldType(FieldType):
         if not value:
             return 0
 
-        # Ensure the value is an int
-        value = int(value)
+        try:
+            # Ensure the value is an int
+            value = int(value)
+        except (ValueError, TypeError):
+            raise ValidationError(
+                f"The value for field {instance.id} is not a valid number",
+                code="invalid",
+            )
 
         if value < 0:
             raise ValidationError(
@@ -1419,7 +1548,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         row: "GeneratedTableModel",
         field_name: str,
         cache: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Any:
         """
@@ -1462,15 +1591,16 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         return user.email if user else None
 
     def get_order(
-        self, field, field_name, order_direction
+        self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         """
         If the user wants to sort the results they expect them to be ordered
         alphabetically based on the user's name.
         """
 
-        name = f"{field_name}__first_name"
-        order = collate_expression(F(name))
+        order = collate_expression(
+            self.get_sortable_column_expression(field, field_name)
+        )
 
         if order_direction == "ASC":
             order = order.asc(nulls_first=True)
@@ -1534,6 +1664,11 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         return super().get_alter_column_prepare_old_value(
             connection, from_field, to_field
         )
+
+    def get_sortable_column_expression(
+        self, field: Field, field_name: str
+    ) -> Expression | F:
+        return F(f"{field_name}__first_name")
 
 
 class CreatedByFieldType(ReadOnlyFieldType):
@@ -1624,7 +1759,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
         row: "GeneratedTableModel",
         field_name: str,
         cache: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Any:
         """
@@ -1667,15 +1802,16 @@ class CreatedByFieldType(ReadOnlyFieldType):
         return user.email if user else None
 
     def get_order(
-        self, field, field_name, order_direction
+        self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         """
         If the user wants to sort the results they expect them to be ordered
         alphabetically based on the user's name.
         """
 
-        name = f"{field_name}__first_name"
-        order = collate_expression(F(name))
+        order = collate_expression(
+            self.get_sortable_column_expression(field, field_name)
+        )
 
         if order_direction == "ASC":
             order = order.asc(nulls_first=True)
@@ -1739,6 +1875,11 @@ class CreatedByFieldType(ReadOnlyFieldType):
         return super().get_alter_column_prepare_old_value(
             connection, from_field, to_field
         )
+
+    def get_sortable_column_expression(
+        self, field: Field, field_name: str
+    ) -> Expression | F:
+        return F(f"{field_name}__first_name")
 
 
 class DurationFieldType(FieldType):
@@ -1869,7 +2010,7 @@ class DurationFieldType(FieldType):
         row: "GeneratedTableModel",
         field_name: str,
         cache: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Any:
         duration = self.get_internal_value_from_db(row, field_name)
@@ -1894,8 +2035,15 @@ class DurationFieldType(FieldType):
 
         setattr(row, field_name, value)
 
+    def get_sortable_column_expression(
+        self, field: Field, field_name: str
+    ) -> Expression | F:
+        return F(f"{field_name}")
 
-class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType):
+
+class LinkRowFieldType(
+    ManyToManyFieldTypeSerializeToInputValueMixin, ManyToManyGroupByMixin, FieldType
+):
     """
     The link row field can be used to link a field to a row of another table. Because
     the user should also be able to see which rows are linked to the related table,
@@ -1918,7 +2066,9 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
         "link_row_table",
         "link_row_related_field",
         "link_row_limit_selection_view_id",
+        "link_row_table_primary_field",
     ]
+    serializer_mixins = [LinkRowFieldSerializerMixin]
     serializer_field_overrides = {
         "link_row_table_id": serializers.IntegerField(
             required=False,
@@ -1987,11 +2137,144 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
         ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
         ViewNotInTable: ERROR_VIEW_NOT_IN_TABLE,
     }
-    _can_order_by = False
     _can_be_primary_field = False
     can_get_unique_values = False
     is_many_to_many_field = True
     can_be_target_of_adhoc_lookup = False
+
+    def _get_related_table_primary_field(
+        self, field: Field, table_model: Optional["GeneratedTableModel"] = None
+    ) -> Optional[Field]:
+        # If provided, use the table_model to find the related_primary_field to avoid
+        # potential unnecessary queries.
+        if table_model is not None:
+            model_field_name = table_model.get_field_object_by_id(field.id)["name"]
+            model_field = getattr(table_model, model_field_name).field
+            remote_table_model = model_field.remote_field.model
+            return remote_table_model.get_primary_field()
+        else:
+            return field.specific.link_row_table_primary_field
+
+    def _check_related_field_can_order_by(
+        self, related_primary_field: Type[Field]
+    ) -> bool:
+        related_primary_field_type = field_type_registry.get_by_model(
+            related_primary_field.specific_class
+        )
+        return related_primary_field_type.check_can_order_by(
+            related_primary_field.specific
+        )
+
+    def check_can_group_by(self, field):
+        related_primary_field = self._get_related_table_primary_field(field)
+        if related_primary_field is None:
+            return False
+        related_primary_field = related_primary_field.specific
+        related_primary_field_type = field_type_registry.get_by_model(
+            related_primary_field
+        )
+        return related_primary_field_type.check_can_group_by(related_primary_field)
+
+    def _get_group_by_agg_expression(self, field_name: str) -> dict:
+        return ArrayAgg(
+            f"{field_name}__id",
+            filter=Q(
+                **{
+                    f"{field_name}__isnull": False,
+                    f"{field_name}__trashed": False,
+                }
+            ),
+            distinct=True,
+        )
+
+    def check_can_order_by(self, field: Field) -> bool:
+        related_primary_field = self._get_related_table_primary_field(field)
+        if related_primary_field is None:
+            return False
+        return self._check_related_field_can_order_by(related_primary_field.specific)
+
+    def get_value_for_filter(self, row: "GeneratedTableModel", field):
+        related_primary_field = self._get_related_table_primary_field(
+            field, row._meta.model
+        )
+        if related_primary_field is None:
+            return None
+        related_primary_field = related_primary_field.specific
+        related_primary_field_type = field_type_registry.get_by_model(
+            related_primary_field
+        )
+        return related_primary_field_type.get_value_for_filter(
+            row, related_primary_field
+        )
+
+    def get_order(self, field, field_name, order_direction, table_model=None):
+        related_primary_field = self._get_related_table_primary_field(
+            field, table_model
+        )
+        if related_primary_field is None:
+            raise ValueError("Cannot find the related primary field.")
+
+        related_primary_field = related_primary_field.specific
+        if not self._check_related_field_can_order_by(related_primary_field):
+            raise ValueError(
+                "The primary field for the related table cannot be ordered by."
+            )
+        related_primary_field_type = field_type_registry.get_by_model(
+            related_primary_field
+        )
+        sortable_column_expr = (
+            related_primary_field_type.get_sortable_column_expression(
+                related_primary_field,
+                f"{field_name}__{related_primary_field.db_column}",
+            )
+        )
+
+        def get_array_agg(expr):
+            return ArrayAgg(
+                expr,
+                filter=Q(
+                    **{f"{field_name}__isnull": False, f"{field_name}__trashed": False}
+                ),
+                ordering=(f"{field_name}__order", f"{field_name}__id"),
+            )
+
+        value_query = get_array_agg(sortable_column_expr)
+        order_query = get_array_agg(F(f"{field_name}__order"))
+        id_query = get_array_agg(F(f"{field_name}__id"))
+
+        linked_value_column_name = f"{field_name}_{related_primary_field.db_column}"
+        # If the value are the same for multiple rows, we don't want Postgres to return
+        # them randomly, so we add the order and id of the rows in the linked table to
+        # make the ordering deterministic.
+        linked_order_column_name = (
+            f"{field_name}_{related_primary_field.db_column}_order"
+        )
+        linked_id_column_name = f"{field_name}_{related_primary_field.db_column}_id"
+        annotation = {
+            linked_value_column_name: value_query,
+            linked_order_column_name: order_query,
+            linked_id_column_name: id_query,
+        }
+
+        linked_value = F(linked_value_column_name)
+        linked_order = F(linked_order_column_name)
+        linked_id = F(linked_id_column_name)
+        if isinstance(related_primary_field_type, CollationSortMixin):
+            linked_value = collate_expression(linked_value)
+
+        if order_direction == "DESC":
+            linked_value = linked_value.desc(nulls_first=True)
+            linked_order = linked_order.desc()
+            linked_id = linked_id.desc()
+        else:
+            linked_value = linked_value.asc(nulls_first=True)
+            linked_order = linked_order.asc()
+            linked_id = linked_id.asc()
+
+        return OptionallyAnnotatedOrderBy(
+            annotation=annotation,
+            order=[linked_value, linked_order, linked_id],
+        )
 
     def get_search_expression(self, field: Field, queryset: QuerySet) -> Expression:
         remote_field = queryset.model._meta.get_field(field.db_column).remote_field
@@ -2063,7 +2346,7 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
             ]
 
         if len(target_field_names) > 0:
-            related_queryset = related_queryset.only(*target_field_names)
+            related_queryset = related_queryset.only("order", *target_field_names)
             for target_field_name in target_field_names:
                 field_obj = remote_model.get_field_object(target_field_name)
                 related_queryset = field_obj["type"].enhance_queryset(
@@ -2074,6 +2357,21 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
 
         return queryset.prefetch_related(
             models.Prefetch(name, queryset=related_queryset)
+        )
+
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.prefetch_related(
+            models.Prefetch(
+                "link_row_table__field_set",
+                queryset=specific_queryset(
+                    Field.objects.filter(primary=True)
+                    .select_related("content_type")
+                    .prefetch_related("select_options")
+                ),
+                to_attr=LinkRowField.RELATED_PPRIMARY_FIELD_ATTR,
+            )
         )
 
     def prepare_value_for_db(self, instance, value):
@@ -2724,7 +3022,7 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
                 field=from_field.link_row_related_field,
                 # Prevent the deletion of from_field itself as normally both link row
                 # fields are deleted together.
-                permanently_delete_field=True,
+                delete_strategy=DeleteFieldStrategyEnum.DELETE_OBJECT,
             )
             if to_instance:
                 to_field.link_row_related_field = None
@@ -2952,7 +3250,9 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
             through_model_fields = through_model._meta.get_fields()
             current_field_name = through_model_fields[1].name
             relation_field_name = through_model_fields[2].name
-            for relation in through_model.objects.all():
+            for relation in through_model.objects.filter(
+                Q(**{f"{relation_field_name}__trashed": False})
+            ):
                 cache[cache_entry][
                     getattr(relation, f"{current_field_name}_id")
                 ].append(getattr(relation, f"{relation_field_name}_id"))
@@ -2984,7 +3284,7 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
         return fields
 
     def to_baserow_formula_type(self, field) -> BaserowFormulaType:
-        primary_field = field.get_related_primary_field()
+        primary_field = field.link_row_table_primary_field
         if primary_field is None:
             return BaserowFormulaInvalidType("references unknown or deleted table")
         else:
@@ -2995,7 +3295,7 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
     def to_baserow_formula_expression(
         self, field
     ) -> BaserowExpression[BaserowFormulaType]:
-        primary_field = field.get_related_primary_field()
+        primary_field = field.link_row_table_primary_field
         return FormulaHandler.get_lookup_field_reference_expression(
             field, primary_field, self.to_baserow_formula_type(field)
         )
@@ -3003,7 +3303,7 @@ class LinkRowFieldType(ManyToManyFieldTypeSerializeToInputValueMixin, FieldType)
     def get_field_dependencies(
         self, field_instance: LinkRowField, field_cache: "FieldCache"
     ) -> FieldDependencies:
-        primary_related_field = field_instance.get_related_primary_field()
+        primary_related_field = field_instance.link_row_table_primary_field
         if primary_related_field is not None:
             return [
                 FieldDependency(
@@ -3169,6 +3469,7 @@ class FileFieldType(FieldType):
     model_class = FileField
     can_be_in_form_view = True
     can_get_unique_values = False
+    _can_order_by = False
 
     def to_baserow_formula_type(self, field) -> BaserowFormulaType:
         return BaserowFormulaArrayType(BaserowFormulaSingleFileType(nullable=True))
@@ -3189,11 +3490,16 @@ class FileFieldType(FieldType):
             ],
         )
 
+    def can_represent_files(self, field):
+        return True
+
     def _extract_file_names(self, value):
         # Validates the provided object and extract the names from it. We need the name
         # to validate if the file actually exists and to get the 'real' properties
         # from it.
         provided_files = []
+        if not value:
+            return provided_files
         for o in value:
             provided_files.append(o)
         return provided_files
@@ -3248,6 +3554,11 @@ class FileFieldType(FieldType):
                 name_map[name].append(row_index)
 
         if not name_map:
+            # ensure we're not returning None for any row
+            for k, v in values_by_row.items():
+                if v is None:
+                    values_by_row[k] = []
+
             return values_by_row
 
         unique_names = set(name_map.keys())
@@ -3295,11 +3606,12 @@ class FileFieldType(FieldType):
         )
 
     def get_export_value(self, value, field_object, rich_value=False):
+        storage = get_default_storage()
         files = []
         for file in value:
             if "name" in file:
                 path = UserFileHandler().user_file_path(file["name"])
-                url = default_storage.url(path)
+                url = storage.url(path)
             else:
                 url = None
 
@@ -3390,7 +3702,7 @@ class FileFieldType(FieldType):
         row: "GeneratedTableModel",
         field_name: str,
         cache: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> List[Dict[str, Any]]:
         file_names = []
@@ -3398,16 +3710,18 @@ class FileFieldType(FieldType):
 
         for file in self.get_internal_value_from_db(row, field_name):
             # Check if the user file object is already in the cache and if not,
-            # it must be fetched and added to to it.
+            # it must be fetched and added to it.
             cache_entry = f"user_file_{file['name']}"
             if cache_entry not in cache:
-                if files_zip is not None and file["name"] not in files_zip.namelist():
-                    # Load the user file from the content and write it to the zip file
-                    # because it might not exist in the environment that it is going
-                    # to be imported in.
+                if files_zip is not None and file["name"] not in [
+                    item["name"] for item in files_zip.info_list()
+                ]:
                     file_path = user_file_handler.user_file_path(file["name"])
-                    with storage.open(file_path, mode="rb") as storage_file:
-                        files_zip.writestr(file["name"], storage_file.read())
+                    # Create chunk generator for the file content and add it to the zip
+                    # stream. That file will be read when zip stream is being
+                    # written to final zip file
+                    chunk_generator = file_chunk_generator(storage, file_path)
+                    files_zip.add(chunk_generator, file["name"])
 
                 # This is just used to avoid writing the same file twice.
                 cache[cache_entry] = True
@@ -3535,8 +3849,13 @@ class SelectOptionBaseFieldType(FieldType):
 
         return queryset
 
+    def get_sortable_column_expression(
+        self, field: Field, field_name: str
+    ) -> Expression | F:
+        return F(f"{field_name}__value")
 
-class SingleSelectFieldType(SelectOptionBaseFieldType):
+
+class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     type = "single_select"
     model_class = SingleSelectField
 
@@ -3793,7 +4112,7 @@ class SingleSelectFieldType(SelectOptionBaseFieldType):
         )
 
     def get_order(
-        self, field, field_name, order_direction
+        self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         """
         If the user wants to sort the results they expect them to be ordered
@@ -3802,8 +4121,9 @@ class SingleSelectFieldType(SelectOptionBaseFieldType):
         to the correct position.
         """
 
-        name = f"{field_name}__value"
-        order = F(name)
+        order = collate_expression(
+            self.get_sortable_column_expression(field, field_name)
+        )
 
         if order_direction == "ASC":
             order = order.asc(nulls_first=True)
@@ -3871,6 +4191,7 @@ class SingleSelectFieldType(SelectOptionBaseFieldType):
 
 
 class MultipleSelectFieldType(
+    CollationSortMixin,
     ManyToManyFieldTypeSerializeToInputValueMixin,
     ManyToManyGroupByMixin,
     SelectOptionBaseFieldType,
@@ -4224,22 +4545,28 @@ class MultipleSelectFieldType(
             q={f"select_option_value_{field_name}__iregex": rf"\m{value}\M"},
         )
 
-    def get_order(self, field, field_name, order_direction):
+    def get_order(self, field, field_name, order_direction, table_model=None):
         """
-        If the user wants to sort the results they expect them to be ordered
-        alphabetically based on the select option value and not in the id which is
-        stored in the table. This method generates a Case expression which maps the id
-        to the correct position.
+        Order by the concatenated values of the select options, separated by a comma.
         """
 
+        # FIXME: this is broken because the field sort items by insertion order with the
+        # id in the through table. It's fixable here using a subquery on the m2m table
+        # instead of a `StringAgg`, but it will be very difficult to fix in the formula
+        # language. Also the frontend is not matching exactly the backend sorting and we
+        # should also consider the possibility that a comma can be part of the value.
         sort_column_name = f"{field_name}_agg_sort"
         query = Coalesce(
-            StringAgg(f"{field_name}__value", ",", output_field=models.TextField()),
+            StringAgg(
+                self.get_sortable_column_expression(field, field_name),
+                ",",
+                output_field=models.TextField(),
+            ),
             Value(""),
             output_field=models.TextField(),
         )
         annotation = {sort_column_name: query}
-        order = F(sort_column_name)
+        order = collate_expression(F(sort_column_name))
 
         if order_direction == "DESC":
             order = order.desc(nulls_first=True)
@@ -4347,14 +4674,7 @@ class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
         return collate_expression(Value(value))
 
 
-class FormulaFieldType(
-    HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
-    HasValueContainsFilterSupport,
-    HasValueContainsWordFilterSupport,
-    HasValueLengthIsLowerThanFilterSupport,
-    ReadOnlyFieldType,
-):
+class FormulaFieldType(FormulaArrayFilterSupport, ReadOnlyFieldType):
     type = "formula"
     model_class = FormulaField
     _db_column_fields = []
@@ -4369,11 +4689,27 @@ class FormulaFieldType(
         "formula_type",
     ]
     allowed_fields = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + CORE_FORMULA_FIELDS
-    serializer_field_names = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + CORE_FORMULA_FIELDS
-    serializer_field_overrides = {
+    request_serializer_field_names = (
+        BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES + CORE_FORMULA_FIELDS
+    )
+    request_serializer_field_overrides = {
         "error": serializers.CharField(required=False, read_only=True),
         "nullable": serializers.BooleanField(required=False, read_only=True),
     }
+    serializer_field_names = (
+        BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES + CORE_FORMULA_FIELDS
+    )
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.contrib.database.formula.types.formula_types import (
+            get_baserow_formula_type_serializer_field_overrides,
+        )
+
+        return {
+            **self.request_serializer_field_overrides,
+            **get_baserow_formula_type_serializer_field_overrides(),
+        }
 
     @staticmethod
     def _stack_error_mapper(e):
@@ -4516,83 +4852,6 @@ class FormulaFieldType(
             rich_value=rich_value,
         )
 
-    def get_in_array_empty_query(self, field_name, model_field, field: FormulaField):
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        if not isinstance(field_type, HasValueEmptyFilterSupport):
-            raise FilterNotSupportedException()
-
-        return field_type.get_in_array_empty_query(
-            field_name, model_field, field_instance
-        )
-
-    def get_in_array_is_query(
-        self,
-        field_name: str,
-        value: str,
-        model_field: models.Field,
-        field: FormulaField,
-    ) -> Q | OptionallyAnnotatedQ:
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        if not isinstance(field_type, HasValueFilterSupport):
-            raise FilterNotSupportedException()
-
-        return field_type.get_in_array_is_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_in_array_contains_query(
-        self, field_name, value, model_field, field: FormulaField
-    ):
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        if not isinstance(field_type, HasValueContainsFilterSupport):
-            raise FilterNotSupportedException()
-
-        return field_type.get_in_array_contains_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_in_array_contains_word_query(
-        self, field_name, value, model_field, field: FormulaField
-    ):
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        if not isinstance(field_type, HasValueContainsWordFilterSupport):
-            raise FilterNotSupportedException()
-
-        return field_type.get_in_array_contains_word_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_in_array_length_is_lower_than_query(
-        self, field_name, value, model_field, field: FormulaField
-    ):
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        if not isinstance(field_type, HasValueLengthIsLowerThanFilterSupport):
-            raise FilterNotSupportedException()
-
-        return field_type.get_in_array_length_is_lower_than_query(
-            field_name, value, model_field, field_instance
-        )
-
     def contains_query(self, field_name, value, model_field, field: FormulaField):
         (
             field_instance,
@@ -4711,12 +4970,12 @@ class FormulaFieldType(
                 update_collector.apply_updates_and_get_updated_fields(field_cache)
             )
 
-        all_dependent_fields_grouped_by_depth = (
-            FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
-                fields,
-                field_cache,
-                associated_relations_changed=False,
-            )
+        all_dependent_fields_grouped_by_depth = FieldDependencyHandler.group_all_dependent_fields_by_level_from_fields(
+            fields,
+            field_cache,
+            associated_relations_changed=False,
+            # We can't provide the `database_id_prefilter` here because the fields
+            # can belong in different databases.
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
             for table_id, dependant_field in dependant_fields_group:
@@ -4923,10 +5182,10 @@ class FormulaFieldType(
         return self.to_baserow_formula_type(field.specific).can_group_by
 
     def get_order(
-        self, field, field_name, order_direction
+        self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         return self.to_baserow_formula_type(field.specific).get_order(
-            field, field_name, order_direction
+            field, field_name, order_direction, table_model=table_model
         )
 
     def get_value_for_filter(self, row: "GeneratedTableModel", field):
@@ -4941,6 +5200,12 @@ class FormulaFieldType(
 
     def can_represent_date(self, field: "Field") -> bool:
         return self.to_baserow_formula_type(field.specific).can_represent_date
+
+    def can_represent_files(self, field):
+        return self.to_baserow_formula_type(field.specific).can_represent_files
+
+    def can_represent_select_options(self, field):
+        return self.to_baserow_formula_type(field.specific).can_represent_select_options
 
     def get_permission_error_when_user_changes_field_to_depend_on_forbidden_field(
         self, user: AbstractUser, changed_field: Field, forbidden_field: Field
@@ -4998,6 +5263,14 @@ class CountFieldType(FormulaFieldType):
         ),
         "nullable": serializers.BooleanField(required=False, read_only=True),
     }
+
+    @property
+    def request_serializer_field_names(self):
+        return self.serializer_field_names
+
+    @property
+    def request_serializer_field_overrides(self):
+        return self.serializer_field_overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
@@ -5148,6 +5421,14 @@ class RollupFieldType(FormulaFieldType):
         ),
         "nullable": serializers.BooleanField(required=False, read_only=True),
     }
+
+    @property
+    def request_serializer_field_names(self):
+        return self.serializer_field_names
+
+    @property
+    def request_serializer_field_overrides(self):
+        return self.serializer_field_overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
@@ -5304,14 +5585,24 @@ class LookupFieldType(FormulaFieldType):
         "target_field_id",
         "target_field_name",
     ]
-    serializer_field_names = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + [
+    request_serializer_field_names = (
+        BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES
+        + [
+            "through_field_id",
+            "through_field_name",
+            "target_field_id",
+            "target_field_name",
+            "formula_type",
+        ]
+    )
+    serializer_field_names = BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES + [
         "through_field_id",
         "through_field_name",
         "target_field_id",
         "target_field_name",
         "formula_type",
     ]
-    serializer_field_overrides = {
+    request_serializer_field_overrides = {
         "through_field_name": serializers.CharField(
             required=False,
             allow_blank=True,
@@ -5344,6 +5635,7 @@ class LookupFieldType(FormulaFieldType):
             "parameter if both are provided, however only one is required.",
         ),
         "nullable": serializers.BooleanField(required=False, read_only=True),
+        "error": serializers.CharField(required=False, read_only=True),
     }
 
     def before_create(
@@ -5556,7 +5848,7 @@ class LookupFieldType(FormulaFieldType):
 
 
 class MultipleCollaboratorsFieldType(
-    ManyToManyFieldTypeSerializeToInputValueMixin, FieldType
+    CollationSortMixin, ManyToManyFieldTypeSerializeToInputValueMixin, FieldType
 ):
     type = "multiple_collaborators"
     model_class = MultipleCollaboratorsField
@@ -5613,6 +5905,19 @@ class MultipleCollaboratorsFieldType(
         )
 
     def prepare_value_for_db(self, instance, value):
+        if not isinstance(
+            value,
+            (
+                list,
+                set,
+                tuple,
+            ),
+        ) or not all([isinstance(v, dict) for v in value]):
+            raise ValidationError(
+                f"The value for field {instance.id} is not a valid list of dictionaries",
+                code="invalid",
+            )
+
         if value is None:
             return []
 
@@ -5861,7 +6166,7 @@ class MultipleCollaboratorsFieldType(
     def random_to_input_value(self, field, value):
         return [{"id": user_id} for user_id in value]
 
-    def get_order(self, field, field_name, order_direction):
+    def get_order(self, field, field_name, order_direction, table_model=None):
         """
         If the user wants to sort the results they expect them to be ordered
         alphabetically based on the user's name and not in the id which is
@@ -5871,13 +6176,17 @@ class MultipleCollaboratorsFieldType(
 
         sort_column_name = f"{field_name}_agg_sort"
         query = Coalesce(
-            StringAgg(f"{field_name}__first_name", "", output_field=models.TextField()),
+            StringAgg(
+                self.get_sortable_column_expression(field, field_name),
+                "",
+                output_field=models.TextField(),
+            ),
             Value(""),
             output_field=models.TextField(),
         )
         annotation = {sort_column_name: query}
 
-        order = F(sort_column_name)
+        order = collate_expression(F(sort_column_name))
 
         if order_direction == "DESC":
             order = order.desc(nulls_first=True)
@@ -5891,6 +6200,11 @@ class MultipleCollaboratorsFieldType(
         values = [related_object.first_name for related_object in related_objects.all()]
         value = list_to_comma_separated_string(values)
         return value
+
+    def get_sortable_column_expression(
+        self, field: Field, field_name: str
+    ) -> Expression | F:
+        return F(f"{field_name}__first_name")
 
 
 class UUIDFieldType(ReadOnlyFieldType):
@@ -5946,7 +6260,7 @@ class UUIDFieldType(ReadOnlyFieldType):
         row: "GeneratedTableModel",
         field_name: str,
         cache: Dict[str, Any],
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> None:
         return str(
@@ -6256,3 +6570,7 @@ class PasswordFieldType(FieldType):
         # We don't want to expose the hash of the password, so we just show `True` or
         # `False` as string depending on whether the value is set.
         return bool(value)
+
+    def is_searchable(self, field: Field) -> bool:
+        # passwords shouldn't be searchable!
+        return False

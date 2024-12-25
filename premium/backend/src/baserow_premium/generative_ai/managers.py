@@ -1,6 +1,5 @@
-from django.core.files.storage import default_storage
-
 from baserow.core.generative_ai.types import FileId
+from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 
 
@@ -20,6 +19,8 @@ class AIFileManager:
         :param workspace: Optional workspace of the file field.
         """
 
+        storage = get_default_storage()
+
         all_cell_files = getattr(row, f"field_{ai_field.ai_file_field.id}")
         if not isinstance(all_cell_files, list):
             # just a single file
@@ -34,7 +35,7 @@ class AIFileManager:
         for file in compatible_files:
             file_path = UserFileHandler().user_file_path(file["name"])
             try:
-                file_size = default_storage.size(file_path)
+                file_size = storage.size(file_path)
                 if file_size > max_file_size:
                     # skip files too large
                     continue
@@ -43,7 +44,7 @@ class AIFileManager:
                 return []
             except FileNotFoundError:
                 continue
-            with default_storage.open(file_path, mode="rb") as storage_file:
+            with storage.open(file_path, mode="rb") as storage_file:
                 file_ids.append(
                     generative_ai_model_type.upload_file(
                         storage_file.name, storage_file.read(), workspace=workspace

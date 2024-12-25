@@ -79,9 +79,10 @@ class FieldDependencyHandler:
         field_ids: Iterable[int],
         field_cache: FieldCache,
         associated_relations_changed: bool,
+        database_id_prefilter=None,
     ) -> Tuple[QuerySet[FieldDependency], Dict[int, Field]]:
         """
-        # Recursively fetches field dependants and retrieves specific field types in a
+        Recursively fetches field dependants and retrieves specific field types in a
         query-efficient and performant manner.
 
         :param table_id: The table that the provided field_ids are all part of.
@@ -92,6 +93,10 @@ class FieldDependencyHandler:
         :param associated_relations_changed: If true any relations associated with any
            provided field ids will be treated as having changed also and dependants on
            the relations themselves will be additionally returned.
+        :param database_id_prefilter: Optionally prefilter the dependencies for a
+            specific database. Providing it brings a significant performance
+            improvement but limits dependencies to the database. This can only be done
+            if all the provided fields are in the same database.
         :return: A tuple containing the queryset of the dependencies and a dictionary of
             the specific fields.
         """
@@ -103,6 +108,7 @@ class FieldDependencyHandler:
             "pks": tuple(field_ids),
             "max_depth": settings.MAX_FIELD_REFERENCE_DEPTH,
             "table_id": table_id,
+            "database_id": database_id_prefilter,
         }
         relationship_table = FieldDependency._meta.db_table
         linkrowfield_table = LinkRowField._meta.db_table
@@ -121,10 +127,35 @@ class FieldDependencyHandler:
         else:
             associated_relations_changed_query = ""
 
+        if database_id_prefilter:
+            # Override the `relationship_table` with a CTE that only selects the
+            # dependencies within the provided database. This will significantly speed
+            # up performance because it doesn't need to filter through all the
+            # dependencies. This improvement is noticeable on large Baserow instances
+            # with many users.
+            database_prefilter_query = f"""
+            WITH {relationship_table} AS (
+                SELECT database_fielddependency.id,
+                       database_fielddependency.dependant_id,
+                       database_fielddependency.dependency_id,
+                       database_fielddependency.via_id
+                FROM   database_fielddependency
+                           INNER JOIN database_field
+                                      ON ( database_fielddependency.dependant_id =
+                                           database_field.id )
+                           INNER JOIN database_table
+                                      ON ( database_field.table_id = database_table.id )
+                WHERE  database_table.database_id = %(database_id)s
+            )
+            """  # nosec b608
+        else:
+            database_prefilter_query = ""
+
         # Raw query that traverses through the dependencies, and will find the
         # dependants of the provided fields ids recursively.
         raw_query = f"""
             WITH RECURSIVE traverse(id, dependency_ids, via_ids, depth) AS (
+                {database_prefilter_query}
                 SELECT
                     first.dependant_id,
                     first.dependency_id::text,
@@ -191,6 +222,7 @@ class FieldDependencyHandler:
         """  # nosec b608
 
         queryset = FieldDependency.objects.raw(raw_query, query_parameters)
+
         link_row_field_content_type = ContentType.objects.get_for_model(LinkRowField)
         fields_to_fetch = set()
         fields_in_cache = {}
@@ -327,6 +359,7 @@ class FieldDependencyHandler:
         fields: Iterable[Field],
         field_cache: FieldCache,
         associated_relations_changed: bool,
+        database_id_prefilter=None,
     ) -> List[List[Tuple[int, Field]]]:
         """
         Given a list of fields, even from different tables, this method will return a
@@ -342,6 +375,10 @@ class FieldDependencyHandler:
         :param associated_relations_changed: If true any relations associated with any
             provided field ids will be treated as having changed also and dependants on
             the relations themselves will be additionally returned.
+        :param database_id_prefilter: Optionally prefilter the dependencies for a
+            specific database. Providing it brings a significant performance
+            improvement but limits dependencies to the database. This can only be done
+            if all the provided fields are in the same database.
         :return: An iterable of lists where each list represents all the fields that can
             be updated together.
         """
@@ -360,7 +397,11 @@ class FieldDependencyHandler:
                 continue
 
             dependencies_queryset, specific_fields = cls._get_all_dependent_fields(
-                starting_table_id, field_ids, field_cache, associated_relations_changed
+                starting_table_id,
+                field_ids,
+                field_cache,
+                associated_relations_changed,
+                database_id_prefilter=database_id_prefilter,
             )
 
             for dependency in dependencies_queryset:
@@ -396,6 +437,7 @@ class FieldDependencyHandler:
         field_ids: Iterable[int],
         field_cache: FieldCache,
         associated_relations_changed: bool,
+        database_id_prefilter=None,
     ) -> List[FieldDependants]:
         """
         Recursively fetches field dependants, and fetches the specific types in a query
@@ -410,6 +452,10 @@ class FieldDependencyHandler:
         :param associated_relations_changed: If true any relations associated
            with any provided field ids will be treated as having changed also and
            dependants on the relations themselves will be additionally returned.
+        :param database_id_prefilter: Optionally prefilter the dependencies for a
+            specific database. Providing it brings a significant performance
+            improvement but limits dependencies to the database. This can only be done
+            if all the provided fields are in the same database.
         :return: A list for every depth containing the dependant fields, their field
             type and the path to starting table.
         """
@@ -418,7 +464,11 @@ class FieldDependencyHandler:
             return []
 
         dependencies_queryset, specific_fields = cls._get_all_dependent_fields(
-            table_id, field_ids, field_cache, associated_relations_changed
+            table_id,
+            field_ids,
+            field_cache,
+            associated_relations_changed,
+            database_id_prefilter=database_id_prefilter,
         )
 
         dependencies = defaultdict(set)
@@ -476,6 +526,7 @@ class FieldDependencyHandler:
         field_ids: Iterable[int],
         field_cache: FieldCache,
         associated_relations_changed: bool,
+        database_id_prefilter=None,
     ) -> FieldDependants:
         """
         Fetches field dependants recursive, and fetches the specific types in a query
@@ -489,6 +540,10 @@ class FieldDependencyHandler:
         :param associated_relations_changed: If true any relations associated
            with any provided field ids will be treated as having changed also and
            dependants on the relations themselves will be additionally returned.
+        :param database_id_prefilter: Optionally prefilter the dependencies for a
+            specific database. Providing it brings a significant performance
+            improvement but limits dependencies to the database. This can only be done
+            if all the provided fields are in the same database.
         :return: A list containing the dependant fields, their field type and the
             path to starting table.
         """
@@ -497,7 +552,11 @@ class FieldDependencyHandler:
             return []
 
         dependencies, specific_fields = cls._get_all_dependent_fields(
-            table_id, field_ids, field_cache, associated_relations_changed
+            table_id,
+            field_ids,
+            field_cache,
+            associated_relations_changed,
+            database_id_prefilter=database_id_prefilter,
         )
 
         result: FieldDependants = []
