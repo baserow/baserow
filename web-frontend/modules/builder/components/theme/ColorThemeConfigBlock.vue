@@ -56,13 +56,25 @@
     <ThemeConfigBlockSection :title="$t('colorThemeConfigBlock.customColors')">
       <template #default>
         <FormGroup
+          v-for="(customColor, index) in values.custom_colors" :key="customColor.name"
           horizontal-narrow
           small-label
           class="margin-bottom-2"
-          :label="$t('colorThemeConfigBlock.primaryColor')"
+          :label="customColor.name"
         >
-          <ColorInput v-model="values.primary_color" small />
+          <ColorInput
+            :value="values.custom_colors[index].color"
+            @input="(newValue) => updateExistingColor(index, newValue)"
+          />
+          <template #after-input>
+            <ButtonIcon icon="iconoir-bin" @click="deleteCustomColor(index)" />
+          </template>
         </FormGroup>
+          <div class="color-theme-config-block__custom_color_container">
+            <a class="color-theme-config-block__custom_color_link" @click="addCustomColor"">
+              <i class="baserow-icon-plus"></i>
+            </a>
+          </div>
       </template>
     </ThemeConfigBlockSection>
   </div>
@@ -71,6 +83,10 @@
 <script>
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
+
+const CUSTOM_COLOR_PREFIX = 'Custom color'
+// The same as the Primary color
+const DEFAULT_CUSTOM_COLOR = '#5190efff'
 
 export default {
   name: 'ColorThemeConfigBlock',
@@ -89,6 +105,33 @@ export default {
         ['primary_color', 'secondary_color', 'border_color'].includes(key)
       )
     },
+    addCustomColor() {
+      let newColorId = this.values.custom_colors.length + 1
+      const existingNames = this.values.custom_colors.map(color => color.name)
+    
+      // If an earlier custom color is deleted, the size of the array has changed.
+      // This ensures that the new name will never collide with an existing name.
+      while (existingNames.includes(`${CUSTOM_COLOR_PREFIX} ${newColorId}`)) {
+        newColorId++
+      }
+
+      const newCustomColor = {
+        name: `${CUSTOM_COLOR_PREFIX} ${newColorId}`,
+        color: DEFAULT_CUSTOM_COLOR,
+      }
+      const updatedCustomColors = [...this.values.custom_colors, newCustomColor]
+      this.values.custom_colors = updatedCustomColors
+    },
+    deleteCustomColor(index) {
+      const updatedCustomColors = [...this.values.custom_colors]
+      updatedCustomColors.splice(index, 1)
+      this.values.custom_colors = updatedCustomColors
+    },
+    updateExistingColor(index, newValue) {
+      const updatedCustomColors = structuredClone(this.values.custom_colors)
+      updatedCustomColors[index].color = newValue
+      this.values.custom_colors = updatedCustomColors
+    }
   },
 }
 </script>
