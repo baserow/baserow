@@ -1,56 +1,71 @@
 <template>
-  <ThemeConfigBlockSection>
-    <template #default>
-      <FormGroup
-        horizontal-narrow
-        small-label
-        class="margin-bottom-2"
-        :label="$t('colorThemeConfigBlock.primaryColor')"
-      >
-        <ColorInput v-model="values.primary_color" small />
-      </FormGroup>
-      <FormGroup
-        horizontal-narrow
-        small-label
-        class="margin-bottom-2"
-        :label="$t('colorThemeConfigBlock.secondaryColor')"
-      >
-        <ColorInput v-model="values.secondary_color" small />
-      </FormGroup>
-      <FormGroup
-        horizontal-narrow
-        small-label
-        class="margin-bottom-2"
-        :label="$t('colorThemeConfigBlock.borderColor')"
-      >
-        <ColorInput v-model="values.border_color" small />
-      </FormGroup>
-      <FormGroup
-        horizontal-narrow
-        small-label
-        class="margin-bottom-2"
-        :label="$t('colorThemeConfigBlock.successColor')"
-      >
-        <ColorInput v-model="values.main_success_color" small />
-      </FormGroup>
-      <FormGroup
-        horizontal-narrow
-        small-label
-        class="margin-bottom-2"
-        :label="$t('colorThemeConfigBlock.warningColor')"
-      >
-        <ColorInput v-model="values.main_warning_color" small />
-      </FormGroup>
-      <FormGroup
-        horizontal-narrow
-        small-label
-        class="margin-bottom-2"
-        :label="$t('colorThemeConfigBlock.errorColor')"
-      >
-        <ColorInput v-model="values.main_error_color" small />
-      </FormGroup>
-    </template>
-  </ThemeConfigBlockSection>
+  <div>
+    <ThemeConfigBlockSection>
+      <template #default>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('colorThemeConfigBlock.primaryColor')"
+        >
+          <ColorInput v-model="values.primary_color" small />
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('colorThemeConfigBlock.secondaryColor')"
+        >
+          <ColorInput v-model="values.secondary_color" small />
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('colorThemeConfigBlock.borderColor')"
+        >
+          <ColorInput v-model="values.border_color" small />
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('colorThemeConfigBlock.successColor')"
+        >
+          <ColorInput v-model="values.main_success_color" small />
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('colorThemeConfigBlock.warningColor')"
+        >
+          <ColorInput v-model="values.main_warning_color" small />
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('colorThemeConfigBlock.errorColor')"
+        >
+          <ColorInput v-model="values.main_error_color" small />
+        </FormGroup>
+      </template>
+    </ThemeConfigBlockSection>
+
+    <ThemeConfigBlockSection :title="$t('colorThemeConfigBlock.customColors')">
+      <template #default>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('colorThemeConfigBlock.primaryColor')"
+        >
+          <ColorInput v-model="values.primary_color" small />
+        </FormGroup>
+      </template>
+    </ThemeConfigBlockSection>
+  </div>
 </template>
 
 <script>
