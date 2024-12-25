@@ -59,8 +59,8 @@ Baserow by following one the guides below:
 
 * [Understanding Baserow Formulas](tutorials/understanding-baserow-formulas.md): A
   tutorial explaining how to use the formula field in Baserow.
-* [Debugging Connection Issues](tutorials/debugging-connection-issues.md): A tutorial
-  explaining how to use the formula field in Baserow.
+* [Debugging Connection Issues](tutorials/debugging-connection-issues.md): A guide
+  to help you troubleshoot and resolve common connection issues in Baserow.
 
 ## API Usage
 
