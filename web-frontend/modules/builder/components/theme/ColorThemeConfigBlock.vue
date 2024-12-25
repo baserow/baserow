@@ -89,6 +89,10 @@ import {
 
 const COLOR_ID_LENGTH = 5
 
+const CUSTOM_COLOR_PREFIX = 'Custom color'
+// The same as the Primary color
+const DEFAULT_CUSTOM_COLOR = '#5190efff'
+
 export default {
   name: 'ColorThemeConfigBlock',
 
