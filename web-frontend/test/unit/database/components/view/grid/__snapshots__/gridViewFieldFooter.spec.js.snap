@@ -137,7 +137,7 @@ exports[`Field footer component Change type 1`] = `
           <span
             class="select__item-name-text"
           >
-            Distribution
+            viewAggregationType.distribution
           </span>
         </div>
       </a>
