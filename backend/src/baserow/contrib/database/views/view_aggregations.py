@@ -426,8 +426,6 @@ class DistributionViewAggregationType(ViewAggregationType):
 
     def get_aggregation(self, field_name, model_field, field):
         field_type = field_type_registry.get_by_model(field)
-        if isinstance(field_type, SingleSelectFieldType):
-            group_by = f"{field_name}__value"
-        else:
-            group_by = field_name
-        return DistributionAggregation(group_by)
+        return DistributionAggregation(
+            field_type.get_distribution_group_by_value(field_name)
+        )

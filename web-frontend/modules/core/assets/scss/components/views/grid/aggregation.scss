@@ -53,11 +53,15 @@
 
   flex: 1;
   color: $color-neutral-500;
-  padding-right: 5px;
+  margin-right: 5px;
+  margin-left: 6px;
 }
 
 .grid-view-aggregation__generic-value {
+  @extend %ellipsis;
+
   position: relative;
+  display: inline-block;
 }
 
 .grid-view-aggregation__generic-value--loading {

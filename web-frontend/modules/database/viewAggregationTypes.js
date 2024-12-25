@@ -1,10 +1,7 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import GenericViewAggregation from '@baserow/modules/database/components/aggregation/GenericViewAggregation'
 import DistributionAggregation from '@baserow/modules/database/components/aggregation/DistributionAggregation'
-import {
-  FormulaFieldType,
-  NumberFieldType,
-} from '@baserow/modules/database/fieldTypes'
+import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 
 export class ViewAggregationType extends Registerable {
   /**
@@ -785,7 +782,8 @@ export class DistributionViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    return 'Distribution'
+    const { i18n } = this.app
+    return i18n.t('viewAggregationType.distribution')
   }
 
   getShortName() {
@@ -846,11 +844,7 @@ export class DistributionViewAggregationType extends ViewAggregationType {
       return null
     }
 
-    const { i18n } = this.app
-
     const results = value.map(([label, count]) => {
-      if (['', null, undefined].includes(label))
-        label = i18n.t('viewAggregationType.emptyCount')
       const percentage = Math.round((count / rowCount) * 100)
       return [label, `(${Number(count).toLocaleString()})`, `${percentage}%`]
     })
@@ -865,7 +859,7 @@ export class DistributionViewAggregationType extends ViewAggregationType {
     if (othersCount > 0) {
       const percentage = Math.round((othersCount / rowCount) * 100)
       results.push([
-        'Others',
+        null,
         `(${othersCount.toLocaleString()})`,
         `${percentage}%`,
       ])

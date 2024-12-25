@@ -19,7 +19,7 @@
 </template>
 
 <script>
-import { escape } from 'lodash'
+import { escape, truncate } from 'lodash'
 
 export default {
   props: {
@@ -36,6 +36,10 @@ export default {
       required: false,
       default: () => [],
     },
+    field: {
+      type: Object,
+      required: true,
+    },
   },
   computed: {
     topItem() {
@@ -46,8 +50,27 @@ export default {
     },
     tooltipContent() {
       if (this.value) {
+        console.log('>> this.value', this.value)
         const tableRows = this.value.map((items) => {
-          const rowCells = items.map((item) => `<td>${escape(item)}</td>`)
+          const rowCells = items.map((item, index) => {
+            let displayValue
+            if (index === 0) {
+              if (item) {
+                displayValue = this.fieldType.toHumanReadableString(
+                  this.field,
+                  item
+                )
+              } else {
+                displayValue = this.othersCount
+              }
+            } else {
+              displayValue = item
+            }
+            return `<td>${truncate(escape(displayValue), {
+              length: 30,
+              omission: '…',
+            })}</td>`
+          })
           return `<tr>${rowCells.join('')}</tr>`
         })
         return `<table>${tableRows.join('')}</table>`
@@ -59,6 +82,12 @@ export default {
         contentIsHtml: true,
         contentClasses: 'tooltip__content--expandable',
       }
+    },
+    fieldType() {
+      return this.$registry.get('field', this.field.type)
+    },
+    othersCount() {
+      return this.$i18n.t('viewAggregationType.othersCount')
     },
   },
 }

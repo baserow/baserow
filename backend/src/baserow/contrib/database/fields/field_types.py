@@ -4189,6 +4189,9 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             }
         )
 
+    def get_distribution_group_by_value(self, field_name: str):
+        return f"{field_name}__value"
+
 
 class MultipleSelectFieldType(
     CollationSortMixin,
