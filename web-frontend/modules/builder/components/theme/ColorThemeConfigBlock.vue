@@ -56,7 +56,8 @@
     <ThemeConfigBlockSection :title="$t('colorThemeConfigBlock.customColors')">
       <template #default>
         <FormGroup
-          v-for="(customColor, index) in values.custom_colors" :key="customColor.name"
+          v-for="(customColor, index) in values.custom_colors"
+          :key="customColor.name"
           horizontal-narrow
           small-label
           class="margin-bottom-2"
@@ -64,18 +65,21 @@
         >
           <ColorInput
             :value="values.custom_colors[index].color"
-            @input="(newValue) => updateExistingColor(index, newValue)"
             small
+            @input="(newValue) => updateExistingColor(index, newValue)"
           />
           <template #after-input>
             <ButtonIcon icon="iconoir-bin" @click="deleteCustomColor(index)" />
           </template>
         </FormGroup>
-          <div class="color-theme-config-block__custom_color_container">
-            <a class="color-theme-config-block__custom_color_link" @click="addCustomColor"">
-              <i class="baserow-icon-plus"></i>
-            </a>
-          </div>
+        <div class="color-theme-config-block__custom_color_container">
+          <a
+            class="color-theme-config-block__custom_color_link"
+            @click="addCustomColor"
+          >
+            <i class="baserow-icon-plus"></i>
+          </a>
+        </div>
       </template>
     </ThemeConfigBlockSection>
   </div>
@@ -108,8 +112,8 @@ export default {
     },
     addCustomColor() {
       let newColorId = this.values.custom_colors.length + 1
-      const existingNames = this.values.custom_colors.map(color => color.name)
-    
+      const existingNames = this.values.custom_colors.map((color) => color.name)
+
       // If an earlier custom color is deleted, the size of the array has changed.
       // This ensures that the new name will never collide with an existing name.
       while (existingNames.includes(`${CUSTOM_COLOR_PREFIX} ${newColorId}`)) {
@@ -134,7 +138,7 @@ export default {
       const updatedCustomColors = structuredClone(this.values.custom_colors)
       updatedCustomColors[index].color = newValue
       this.values.custom_colors = updatedCustomColors
-    }
+    },
   },
 }
 </script>
