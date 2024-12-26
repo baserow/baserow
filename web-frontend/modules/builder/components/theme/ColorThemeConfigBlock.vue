@@ -72,9 +72,9 @@
             <ButtonIcon icon="iconoir-bin" @click="deleteCustomColor(index)" />
           </template>
         </FormGroup>
-        <div class="color-theme-config-block__custom_color_container">
+        <div class="color-theme-config-block__custom-color-container">
           <a
-            class="color-theme-config-block__custom_color_link"
+            class="color-theme-config-block__custom-color-link"
             @click="addCustomColor"
           >
             <i class="baserow-icon-plus"></i>
