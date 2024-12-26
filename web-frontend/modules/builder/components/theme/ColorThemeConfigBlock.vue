@@ -90,8 +90,6 @@ import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 
 const CUSTOM_COLOR_PREFIX = 'Custom '
-// The same as the Primary color
-const DEFAULT_CUSTOM_COLOR = '#5190efff'
 
 export default {
   name: 'ColorThemeConfigBlock',
@@ -124,7 +122,7 @@ export default {
       const newCustomColor = {
         name: colorName,
         value: colorName,
-        color: DEFAULT_CUSTOM_COLOR,
+        color: this.values.primary_color,
       }
       const updatedCustomColors = [...this.values.custom_colors, newCustomColor]
       this.values.custom_colors = updatedCustomColors
