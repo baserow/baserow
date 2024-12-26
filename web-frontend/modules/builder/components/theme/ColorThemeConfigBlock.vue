@@ -110,14 +110,14 @@ export default {
     },
     /**
      * Create a new custom color.
-     * 
+     *
      * A new custom color object is generated and added to the custom_colors
      * array.
-     * 
+     *
      * The color name is a short name like "Custom 1", "Custom 2", etc. To
      * derive the correct number to use, `1` is added to the size of the
      * current array of custom colors.
-     * 
+     *
      * There is some additional logic that ensures a new custom color's name
      * doesn't duplicate the name of an existing custom color.
      */
@@ -145,7 +145,7 @@ export default {
 
     /**
      * Delete a specific custom color.
-     * 
+     *
      * When a custom color is deleted, we need to remove it from the array of
      * custom colors.
      */
