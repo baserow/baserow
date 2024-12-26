@@ -8,6 +8,24 @@ from baserow.contrib.database.views.models import View
 User = get_user_model()
 
 
+DATA_SYNC_INTERVAL_MANUAL = "MANUAL"
+DATA_SYNC_INTERVAL_DAILY = "DAILY"
+DATA_SYNC_INTERVAL_HOURLY = "HOURLY"
+
+
+class AutoDataSyncInterval(models.Model):
+    data_sync = models.OneToOneField(DataSync, on_delete=models.CASCADE)
+    interval = models.CharField(
+        choices=(
+            (DATA_SYNC_INTERVAL_MANUAL, DATA_SYNC_INTERVAL_MANUAL),
+            (DATA_SYNC_INTERVAL_DAILY, DATA_SYNC_INTERVAL_DAILY),
+            (DATA_SYNC_INTERVAL_HOURLY, DATA_SYNC_INTERVAL_HOURLY),
+        ),
+        default=DATA_SYNC_INTERVAL_MANUAL,
+    )
+    when = models.TimeField()
+
+
 class LocalBaserowTableDataSync(DataSync):
     source_table = models.ForeignKey(
         Table,
