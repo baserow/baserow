@@ -65,6 +65,7 @@
           <ColorInput
             :value="values.custom_colors[index].color"
             @input="(newValue) => updateExistingColor(index, newValue)"
+            small
           />
           <template #after-input>
             <ButtonIcon icon="iconoir-bin" @click="deleteCustomColor(index)" />
