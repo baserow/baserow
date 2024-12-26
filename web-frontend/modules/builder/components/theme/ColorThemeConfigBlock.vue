@@ -108,12 +108,25 @@ export default {
         ['primary_color', 'secondary_color', 'border_color'].includes(key)
       )
     },
+    /**
+     * Create a new custom color.
+     * 
+     * A new custom color object is generated and added to the custom_colors
+     * array.
+     * 
+     * The color name is a short name like "Custom 1", "Custom 2", etc. To
+     * derive the correct number to use, `1` is added to the size of the
+     * current array of custom colors.
+     * 
+     * There is some additional logic that ensures a new custom color's name
+     * doesn't duplicate the name of an existing custom color.
+     */
     addCustomColor() {
       let newColorId = this.values.custom_colors.length + 1
-      const existingNames = this.values.custom_colors.map((color) => color.name)
 
-      // If an earlier custom color is deleted, the size of the array has changed.
-      // This ensures that the new name will never collide with an existing name.
+      // To avoid duplicating names, newColorId is incremented until an unused
+      // value is found.
+      const existingNames = this.values.custom_colors.map((color) => color.name)
       while (existingNames.includes(`${CUSTOM_COLOR_PREFIX} ${newColorId}`)) {
         newColorId++
       }
@@ -122,16 +135,29 @@ export default {
       const newCustomColor = {
         name: colorName,
         value: colorName,
+        // Initializes the color to a predictable default.
         color: this.values.primary_color,
       }
+
       const updatedCustomColors = [...this.values.custom_colors, newCustomColor]
       this.values.custom_colors = updatedCustomColors
     },
+
+    /**
+     * Delete a specific custom color.
+     * 
+     * When a custom color is deleted, we need to remove it from the array of
+     * custom colors.
+     */
     deleteCustomColor(index) {
       const updatedCustomColors = [...this.values.custom_colors]
       updatedCustomColors.splice(index, 1)
       this.values.custom_colors = updatedCustomColors
     },
+
+    /**
+     * Update a specific custom color's hex value.
+     */
     updateExistingColor(index, newValue) {
       const updatedCustomColors = structuredClone(this.values.custom_colors)
       updatedCustomColors[index].color = newValue
