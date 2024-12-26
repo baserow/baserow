@@ -198,6 +198,7 @@ export class ColorThemeConfigBlockType extends ThemeConfigBlockType {
 
   getColorVariables(theme) {
     const { i18n } = this.app
+    const customColors = theme.custom_colors ? [...theme.custom_colors] : []
     return [
       {
         name: i18n.t('colorThemeConfigBlockType.transparent'),
@@ -234,7 +235,7 @@ export class ColorThemeConfigBlockType extends ThemeConfigBlockType {
         value: 'error',
         color: theme.main_error_color,
       },
-      ...theme.custom_colors,
+      ...customColors,
     ]
   }
 
