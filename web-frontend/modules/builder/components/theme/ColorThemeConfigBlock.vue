@@ -89,7 +89,7 @@ import {
 
 const COLOR_ID_LENGTH = 5
 
-const CUSTOM_COLOR_PREFIX = 'Custom color'
+const CUSTOM_COLOR_PREFIX = 'Custom '
 // The same as the Primary color
 const DEFAULT_CUSTOM_COLOR = '#5190efff'
 
@@ -138,6 +138,7 @@ export default {
         existingNames
       )
 
+      const colorName = `${CUSTOM_COLOR_PREFIX} ${newColorId}`
       const newCustomColor = {
         name: colorName,
         value: smallUID(COLOR_ID_LENGTH),
