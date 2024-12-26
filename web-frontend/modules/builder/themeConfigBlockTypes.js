@@ -234,6 +234,7 @@ export class ColorThemeConfigBlockType extends ThemeConfigBlockType {
         value: 'error',
         color: theme.main_error_color,
       },
+      ...theme.custom_colors,
     ]
   }
 
