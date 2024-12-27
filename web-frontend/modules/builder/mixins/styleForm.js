@@ -57,10 +57,22 @@ export default {
     },
     borderRadiuses() {
       return [
-        { name: 'top_left', label: this.$t('borderStyleForm.borderRadiusTopLeft') },
-        { name: 'top_right', label: this.$t('borderStyleForm.borderRadiusTopRight') },
-        { name: 'bottom_left', label: this.$t('borderStyleForm.borderRadiusBottomLeft') },
-        { name: 'bottom_right', label: this.$t('borderStyleForm.borderRadiusBottomRight') },
+        {
+          name: 'top_left',
+          label: this.$t('borderStyleForm.borderRadiusTopLeft'),
+        },
+        {
+          name: 'top_right',
+          label: this.$t('borderStyleForm.borderRadiusTopRight'),
+        },
+        {
+          name: 'bottom_left',
+          label: this.$t('borderStyleForm.borderRadiusBottomLeft'),
+        },
+        {
+          name: 'bottom_right',
+          label: this.$t('borderStyleForm.borderRadiusBottomRight'),
+        },
       ]
     },
   },
