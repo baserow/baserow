@@ -28,6 +28,12 @@ export default {
       boxStyles: Object.fromEntries(
         borderNames.map((pos) => [pos, this.getBoxStyleValue(pos)])
       ),
+      borderRadiusStyles: {
+        top_left: this.defaultValues['style_border_radius_top_left'],
+        top_right: this.defaultValues['style_border_radius_top_right'],
+        bottom_left: this.defaultValues['style_border_radius_bottom_left'],
+        bottom_right: this.defaultValues['style_border_radius_bottom_right'],
+      }
     }
   },
   computed: {
@@ -51,6 +57,14 @@ export default {
         { name: 'right', label: this.$t('defaultStyleForm.boxRight') },
       ]
     },
+    borderRadiuses() {
+      return [
+        { name: 'top_left', label: this.$t('borderStyleForm.borderRadiusTopLeft') },
+        { name: 'top_right', label: this.$t('borderStyleForm.borderRadiusTopRight') },
+        { name: 'bottom_left', label: this.$t('borderStyleForm.borderRadiusBottomLeft') },
+        { name: 'bottom_right', label: this.$t('borderStyleForm.borderRadiusBottomRight') },
+      ]
+    },
   },
   watch: {
     boxStyles: {
@@ -58,6 +72,14 @@ export default {
       handler(newValue) {
         Object.entries(newValue).forEach(([prop, value]) => {
           this.setBoxStyleValue(prop, value)
+        })
+      },
+    },
+    borderRadiusStyles: {
+      deep: true,
+      handler(newValue) {
+        Object.entries(newValue).forEach(([prop, value]) => {
+          this.setBorderRadiusStyleValue(prop, value)
         })
       },
     },
@@ -81,6 +103,9 @@ export default {
         this.values[`style_border_${pos}_color`] = newValue.border_color
         this.values[`style_border_${pos}_size`] = newValue.border_size
       }
+    },
+    setBorderRadiusStyleValue(pos, newValue) {
+      this.values[`style_border_radius_${pos}`] = newValue
     },
     getAllowedStyles() {
       const elementType = this.$registry.get('element', this.element.type)
