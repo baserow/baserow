@@ -36,8 +36,7 @@
     var(--element-padding-bottom, 0) var(--element-padding-left, 0);
   margin: 0 auto;
   max-width: $builder-page-max-width;
-  border-radius:
-    var(--element-border-radius-top-left, 0)
+  border-radius: var(--element-border-radius-top-left, 0)
     var(--element-border-radius-top-right, 0)
     var(--element-border-radius-bottom-right, 0)
     var(--element-border-radius-bottom-left, 0);
