@@ -133,7 +133,8 @@ class DatabaseApplicationType(ApplicationType):
 
             serialized_rows = []
             row_count_limit = settings.BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT
-            if not import_export_config.only_structure:
+            export_all_table_rows = not import_export_config.only_structure
+            if export_all_table_rows:
                 model = table.get_model(fields=fields, add_dependencies=False)
                 row_queryset = model.objects.all()[: row_count_limit or None]
 
@@ -163,6 +164,8 @@ class DatabaseApplicationType(ApplicationType):
                     row_progress.increment(
                         state=EXPORT_SERIALIZED_EXPORTING_TABLE + str(table.name)
                     )
+            else:
+                progress.increment()
 
             serialized_data_sync = None
             if hasattr(table, "data_sync"):
@@ -188,8 +191,6 @@ class DatabaseApplicationType(ApplicationType):
                     structure.update(**extra_data)
             serialized_tables.append(structure)
 
-        if import_export_config.only_structure:
-            progress.increment()
         return serialized_tables
 
     def export_serialized(

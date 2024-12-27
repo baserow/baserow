@@ -1,4 +1,4 @@
-from typing import Optional, cast
+from typing import cast
 
 from django.core.files.storage import Storage
 from django.db import transaction
@@ -50,9 +50,9 @@ class DashboardApplicationType(ApplicationType):
         self,
         dashboard: Dashboard,
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ExportZipFile] = None,
-        storage: Optional[Storage] = None,
-        progress_builder: Optional[ChildProgressBuilder] = None,
+        files_zip: ExportZipFile | None = None,
+        storage: Storage | None = None,
+        progress_builder: ChildProgressBuilder | None = None,
     ) -> DashboardDict:
         """
         Exports the dashboard application type to a serialized format that can later
@@ -94,7 +94,7 @@ class DashboardApplicationType(ApplicationType):
             import_export_config,
             files_zip=files_zip,
             storage=storage,
-            progress_builder=None,
+            progress_builder=progress_builder,
         )
 
         return DashboardDict(

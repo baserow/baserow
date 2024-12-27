@@ -5,7 +5,6 @@ import os
 import uuid
 import zipfile
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 from io import IOBase
 from os.path import join
 from typing import Any, Dict, List, Optional, Tuple
@@ -260,10 +259,12 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         exported_applications = []
+        progress = ChildProgressBuilder.build(progress_builder, len(applications))
 
         for app in applications:
+            child_builder = progress.create_child_builder(represents_progress=1)
             exported_application = self.export_application(
-                app, zip_file, import_export_config, storage, progress_builder
+                app, zip_file, import_export_config, storage, child_builder
             )
             exported_applications.append(exported_application)
         return exported_applications
@@ -481,8 +482,6 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         storage = storage or get_default_storage()
         applications = applications or []
 
-        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
-
         export_file_path = self.get_export_storage_path(file_name)
 
         zip_file = ExportZipFile(
@@ -490,16 +489,13 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             compress_type=zipstream.ZIP_DEFLATED,
         )
 
-        total_applications = len(applications) or 1
-
+        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
         exported_applications = self.export_multiple_applications(
             applications,
             zip_file,
             import_export_config,
             storage,
-            progress.create_child_builder(
-                represents_progress=Decimal(90 / total_applications)
-            ),
+            progress.create_child_builder(represents_progress=90),
         )
 
         manifest_data = self.create_manifest(
@@ -508,7 +504,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         self.create_manifest_signature(manifest_data, zip_file)
 
-        progress.set_progress(95, state=EXPORT_WORKSPACE_CREATE_ARCHIVE)
+        progress.set_progress(90, state=EXPORT_WORKSPACE_CREATE_ARCHIVE)
         with _create_storage_dir_if_missing_and_open(
             export_file_path, storage
         ) as files_buffer:

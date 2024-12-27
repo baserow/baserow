@@ -277,17 +277,15 @@ def test_nested_progress():
 
     assert mock_event.call_count == 21
     args = mock_event.call_args
-    # called only once everyt time the percentange or the state change
+    # called only once everytime the percentange or the state change
     assert [arg[0][0] for arg in mock_event.call_args_list] == list(range(20, 41))
     assert args[0][0] == 40
     assert args[0][1] == "Sub progress 2 second"
 
-    sub_progress_3_builder = progress.create_child_builder(
-        40
-    )  # 40% of the main progress
+    sub_progress_3_builder = progress.create_child_builder(40)
     sub_progress_3 = ChildProgressBuilder.build(sub_progress_3_builder, 100)
 
-    # 4% of the main progress incrementing by 4
+    # 10% of 40% -> 4%
     sub_progress_3_1 = sub_progress_3.create_child(10, 4)
     sub_progress_3_1.increment(by=2)
     sub_progress_3_1.increment()
@@ -299,6 +297,7 @@ def test_nested_progress():
     assert args[0][0] == 44
     assert args[0][1] is None
 
+    # 10% of 40% -> 4%
     sub_progress_3_2 = sub_progress_3.create_child(10, 11)
     for i in range(0, 11):
         sub_progress_3_2.increment()
@@ -309,12 +308,14 @@ def test_nested_progress():
     assert args[0][0] == 48
     assert args[0][1] is None
 
+    # 10% of 40% -> 4%
     sub_progress_3.create_child(10, 0)
     assert mock_event.call_count == 29
     args = mock_event.call_args
     assert args[0][0] == 52
     assert args[0][1] is None
 
+    # 10% of 40% -> 4%
     sub_progress_3_4_builder = sub_progress_3.create_child_builder(10)
     ChildProgressBuilder.build(sub_progress_3_4_builder, 0)
     assert mock_event.call_count == 30
@@ -322,6 +323,7 @@ def test_nested_progress():
     assert args[0][0] == 56
     assert args[0][1] is None
 
+    # 55% of 40% -> 22%
     sub_progress_3_5 = sub_progress_3.create_child(55, 5 * 100)
     for i in range(0, 5):
         sub_progress_3_5_1 = sub_progress_3_5.create_child(75, 100)
@@ -333,6 +335,7 @@ def test_nested_progress():
     assert args[0][0] == 78
     assert args[0][1] is None
 
+    # 5% of 40% -> 2%
     sub_progress_3_6 = sub_progress_3.create_child(5, 1)
     sub_progress_3_6.increment()
 

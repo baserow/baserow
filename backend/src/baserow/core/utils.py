@@ -814,8 +814,7 @@ class Progress:
                 self.last_parent_progress = new_parent_progress
                 self.parent.increment(diff, state)
 
-        # Only update the parent and call the updated events if the percentage or the
-        # state has actually changed
+        # Run all the callbacks only if something has changed.
         if new_progress_perc > last_progress_perc or state != last_state:
             self._last_progress = last_progress
             self._last_state = state
