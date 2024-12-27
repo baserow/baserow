@@ -81,11 +81,20 @@
       :border-is-allowed="isStyleAllowed(`style_border_${name}`)"
       :margin-is-allowed="isStyleAllowed(`style_margin_${name}`)"
     />
+
+    <BorderRadiusForm
+      v-model="borderRadiusStyles" :border-radiuses="borderRadiuses"
+      :top-left-is-allowed="isStyleAllowed(`style_border_radius_top_left`)"
+      :top-right-is-allowed="isStyleAllowed(`style_border_radius_top_right`)"
+      :bottom-left-is-allowed="isStyleAllowed(`style_border_radius_bottom_left`)"
+      :bottom-right-is-allowed="isStyleAllowed(`style_border_radius_bottom_right`)"
+    />
   </form>
 </template>
 
 <script>
 import StyleBoxForm from '@baserow/modules/builder/components/elements/components/forms/style/StyleBoxForm'
+import BorderRadiusForm from '@baserow/modules/builder/components/elements/components/forms/style/BorderRadiusForm'
 import styleForm from '@baserow/modules/builder/mixins/styleForm'
 import {
   BACKGROUND_TYPES,
@@ -95,7 +104,7 @@ import {
 import { IMAGE_FILE_TYPES } from '@baserow/modules/core/enums'
 
 export default {
-  components: { StyleBoxForm },
+  components: { StyleBoxForm, BorderRadiusForm },
   mixins: [styleForm],
   computed: {
     BACKGROUND_TYPES: () => BACKGROUND_TYPES,
