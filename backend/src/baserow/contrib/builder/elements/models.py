@@ -203,6 +203,19 @@ class Element(
         help_text="Margin size of the right border.",
     )
 
+    style_border_radius_top_left = models.SmallIntegerField(
+        default=0, db_default=0, help_text="Top-left border radius."
+    )
+    style_border_radius_top_right = models.SmallIntegerField(
+        default=0, db_default=0,  help_text="Top-right border radius."
+    )
+    style_border_radius_bottom_left = models.SmallIntegerField(
+        default=0, db_default=0, help_text="Bottom-left border radius."
+    )
+    style_border_radius_bottom_right = models.SmallIntegerField(
+        default=0, db_default=0, help_text="Bottom-right border radius."
+    )
+
     style_background = models.CharField(
         choices=BackgroundTypes.choices,
         default=BackgroundTypes.NONE,
