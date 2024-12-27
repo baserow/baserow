@@ -190,6 +190,11 @@ export default {
         '--element-margin-right': `${this.element.style_margin_right || 0}px`,
 
         '--element-padding-right': `${this.element.style_padding_right || 0}px`,
+
+        '--element-border-radius-top-left': `${this.element.style_border_radius_top_left || 0}px`,
+        '--element-border-radius-top-right': `${this.element.style_border_radius_top_right || 0}px`,
+        '--element-border-radius-bottom-left': `${this.element.style_border_radius_bottom_left || 0}px`,
+        '--element-border-radius-bottom-right': `${this.element.style_border_radius_bottom_right || 0}px`,
       }
 
       if (this.element.style_background_file !== null) {

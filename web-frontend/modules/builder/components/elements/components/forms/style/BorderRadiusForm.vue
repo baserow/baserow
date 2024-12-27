@@ -113,7 +113,6 @@ export default {
     getBorderRadiusError(name) {
       // Convert name to title-case, e.g. "Top right" to "Top Right"
       const title = _.startCase(name).replace(/ /g, '')
-      console.log('checking error: ', title)
       return this[`borderRadius${title}Error`];
     },
     styleIsAllowed(name) {
