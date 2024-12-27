@@ -30,6 +30,7 @@ from loguru import logger
 from opentelemetry import trace
 
 from baserow.config.settings.base import BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL
+from baserow.contrib.database.constants import EXPORT_WORKSPACE_CREATE_ARCHIVE
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
     ImportExportResourceDoesNotExist,
@@ -196,7 +197,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         zip_file: ExportZipFile,
         import_export_config: ImportExportConfig,
         storage: Storage,
-        progress: Progress,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> Dict:
         """
         Exports a single application (structure, content and assets) to a zip file.
@@ -206,7 +207,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         :param import_export_config: provides configuration options for the
             import/export process to customize how it works.
         :param storage: The storage where the export will be stored.
-        :param progress: Progress instance that allows tracking of the export progress.
+        :param progress_builder: A progress builder that allows for publishing progress.
         :return: The exported and serialized application.
         """
 
@@ -218,7 +219,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         with application_type.export_safe_transaction_context(application):
             exported_application = application_type.export_serialized(
-                application, import_export_config, zip_file, storage
+                application, import_export_config, zip_file, storage, progress_builder
             )
 
         data_file_content = json.dumps(exported_application, indent=INDENT)
@@ -234,10 +235,6 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             "total_files": 1,
             "files": {"schema": base_schema_path},
         }
-
-        # TODO: Pass the progress instance to the export_serialized method of the
-        # application type and handle a more granular progress tracking there.
-        progress.increment()
         return application_data
 
     def export_multiple_applications(
@@ -246,7 +243,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         zip_file: ExportZipFile,
         import_export_config: ImportExportConfig,
         storage: Storage,
-        progress: Progress,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Dict]:
         """
         Exports multiple applications (structure, content, and assets) to a zip file.
@@ -257,15 +254,17 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         :param import_export_config: Configuration options for the import/export
             process.
         :param storage: The storage instance where the export will be stored.
-        :param progress: Progress instance to track the export progress.
+        :param progress_builder: A progress builder that allows for publishing progress.
         :return: A list of dictionaries representing the exported applications.
         """
 
         exported_applications = []
+        progress = ChildProgressBuilder.build(progress_builder, len(applications))
 
         for app in applications:
+            child_builder = progress.create_child_builder(represents_progress=1)
             exported_application = self.export_application(
-                app, zip_file, import_export_config, storage, progress
+                app, zip_file, import_export_config, storage, child_builder
             )
             exported_applications.append(exported_application)
         return exported_applications
@@ -483,9 +482,6 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         storage = storage or get_default_storage()
         applications = applications or []
 
-        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
-        export_app_progress = progress.create_child(90, len(applications))
-
         export_file_path = self.get_export_storage_path(file_name)
 
         zip_file = ExportZipFile(
@@ -493,12 +489,13 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             compress_type=zipstream.ZIP_DEFLATED,
         )
 
+        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
         exported_applications = self.export_multiple_applications(
             applications,
             zip_file,
             import_export_config,
             storage,
-            export_app_progress,
+            progress.create_child_builder(represents_progress=90),
         )
 
         manifest_data = self.create_manifest(
@@ -507,13 +504,12 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         self.create_manifest_signature(manifest_data, zip_file)
 
+        progress.set_progress(90, state=EXPORT_WORKSPACE_CREATE_ARCHIVE)
         with _create_storage_dir_if_missing_and_open(
             export_file_path, storage
         ) as files_buffer:
             for chunk in zip_file:
                 files_buffer.write(chunk)
-
-        progress.increment(by=8)
 
         with storage.open(export_file_path, "rb") as zip_file_handle:
             with ZipFile(zip_file_handle, "r") as zip_file:
@@ -523,7 +519,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         resource.is_valid = True
         resource.save()
 
-        progress.increment(by=2)
+        progress.set_progress(100)
         return resource
 
     def list_exports(self, performed_by: AbstractUser, workspace_id: int) -> QuerySet:
@@ -819,8 +815,8 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             id_mapping,
             zip_file,
             storage,
+            progress_builder=progress.create_child_builder(represents_progress=1),
         )
-        progress.increment()
         return imported_application
 
     def import_multiple_applications(
@@ -965,6 +961,8 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         if storage.exists(import_tmp_path):
             self.clean_storage(import_tmp_path, storage)
 
+        progress.set_progress(2)
+
         if not storage.exists(import_file_path):
             raise ImportExportResourceDoesNotExist(
                 f"The file {import_file_path} does not exist."
@@ -975,7 +973,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                 f"The file {import_file_path} is invalid or corrupted."
             )
 
-        progress.increment(by=5)
+        progress.set_progress(5)
 
         with storage.open(import_file_path, "rb") as zip_file_handle:
             with ZipFile(zip_file_handle, "r") as zip_file:
@@ -986,6 +984,8 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                     raise
 
                 self.extract_files_from_zip(import_tmp_path, zip_file, storage)
+
+                progress.set_progress(15)
 
                 try:
                     self.validate_checksums(manifest_data, import_tmp_path, storage)
@@ -1026,9 +1026,10 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                             type_name=application_type.type,
                         )
 
+        progress.set_progress(95)
         self.clean_storage(import_tmp_path, storage)
         self.clean_storage(import_file_path, storage)
-        progress.increment(by=95)
+        progress.set_progress(100)
 
         return imported_applications
 

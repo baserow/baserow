@@ -35,7 +35,11 @@ from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder, grouper
 
-from .constants import IMPORT_SERIALIZED_IMPORTING, IMPORT_SERIALIZED_IMPORTING_TABLE
+from .constants import (
+    EXPORT_SERIALIZED_EXPORTING_TABLE,
+    IMPORT_SERIALIZED_IMPORTING,
+    IMPORT_SERIALIZED_IMPORTING_TABLE,
+)
 from .data_sync.registries import data_sync_type_registry
 from .db.atomic import read_repeatable_single_database_atomic_transaction
 from .export_serialized import DatabaseExportSerializedStructure
@@ -96,13 +100,17 @@ class DatabaseApplicationType(ApplicationType):
         import_export_config: ImportExportConfig,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Exports the tables provided  to a serialized format that can later be
+        Exports the tables provided  to a serialized format that can later
         be imported via the `import_tables_serialized`.
         """
 
+        progress = ChildProgressBuilder.build(progress_builder, child_total=len(tables))
+
         serialized_tables: List[Dict[str, Any]] = []
+
         for table in tables:
             fields = table.field_set.all()
             serialized_fields = []
@@ -125,9 +133,12 @@ class DatabaseApplicationType(ApplicationType):
 
             serialized_rows = []
             row_count_limit = settings.BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT
-            if not import_export_config.only_structure:
+            export_all_table_rows = not import_export_config.only_structure
+            if export_all_table_rows:
                 model = table.get_model(fields=fields, add_dependencies=False)
                 row_queryset = model.objects.all()[: row_count_limit or None]
+
+                row_progress = progress.create_child(1, row_queryset.count())
                 if table.created_by_column_added:
                     row_queryset = row_queryset.select_related("created_by")
                 if table.last_modified_by_column_added:
@@ -150,6 +161,11 @@ class DatabaseApplicationType(ApplicationType):
                             row, field_name, table_cache, files_zip, storage
                         )
                     serialized_rows.append(serialized_row)
+                    row_progress.increment(
+                        state=EXPORT_SERIALIZED_EXPORTING_TABLE + str(table.name)
+                    )
+            else:
+                progress.increment()
 
             serialized_data_sync = None
             if hasattr(table, "data_sync"):
@@ -174,6 +190,7 @@ class DatabaseApplicationType(ApplicationType):
                 if extra_data is not None:
                     structure.update(**extra_data)
             serialized_tables.append(structure)
+
         return serialized_tables
 
     def export_serialized(
@@ -182,6 +199,7 @@ class DatabaseApplicationType(ApplicationType):
         import_export_config: ImportExportConfig,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> Dict[str, Any]:
         """
         Exports the database application type to a serialized format that can later
@@ -210,7 +228,7 @@ class DatabaseApplicationType(ApplicationType):
         )
 
         serialized_tables = self.export_tables_serialized(
-            tables, import_export_config, files_zip, storage
+            tables, import_export_config, files_zip, storage, progress_builder
         )
 
         serialized = super().export_serialized(

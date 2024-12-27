@@ -404,6 +404,7 @@ class ApplicationType(
         import_export_config: ImportExportConfig,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ):
         """
         Exports the application to a serialized dict that can be imported by the
@@ -418,9 +419,13 @@ class ApplicationType(
         :type storage: Storage or None
         :param import_export_config: provides configuration options for the
             import/export process to customize how it works.
+        :param progress_builder: If provided will be used to build a child progress bar
+            and report on this methods progress to the parent of the progress_builder.
         :return: The exported and serialized application.
         :rtype: dict
         """
+
+        progress = ChildProgressBuilder.build(progress_builder, child_total=1)
 
         structure = CoreExportSerializedStructure.application(
             id=application.id,
@@ -432,6 +437,7 @@ class ApplicationType(
         structure = self.export_serialized_structure_with_registry(
             application.get_root(), application, structure, import_export_config
         )
+        progress.increment()
         return structure
 
     def import_serialized(
