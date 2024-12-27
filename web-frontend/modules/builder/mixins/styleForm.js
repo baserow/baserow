@@ -29,11 +29,11 @@ export default {
         borderNames.map((pos) => [pos, this.getBoxStyleValue(pos)])
       ),
       borderRadiusStyles: {
-        top_left: this.defaultValues['style_border_radius_top_left'],
-        top_right: this.defaultValues['style_border_radius_top_right'],
-        bottom_left: this.defaultValues['style_border_radius_bottom_left'],
-        bottom_right: this.defaultValues['style_border_radius_bottom_right'],
-      }
+        top_left: this.defaultValues.style_border_radius_top_left,
+        top_right: this.defaultValues.style_border_radius_top_right,
+        bottom_left: this.defaultValues.style_border_radius_bottom_left,
+        bottom_right: this.defaultValues.style_border_radius_bottom_right,
+      },
     }
   },
   computed: {
@@ -59,10 +59,22 @@ export default {
     },
     borderRadiuses() {
       return [
-        { name: 'top_left', label: this.$t('borderStyleForm.borderRadiusTopLeft') },
-        { name: 'top_right', label: this.$t('borderStyleForm.borderRadiusTopRight') },
-        { name: 'bottom_left', label: this.$t('borderStyleForm.borderRadiusBottomLeft') },
-        { name: 'bottom_right', label: this.$t('borderStyleForm.borderRadiusBottomRight') },
+        {
+          name: 'top_left',
+          label: this.$t('borderStyleForm.borderRadiusTopLeft'),
+        },
+        {
+          name: 'top_right',
+          label: this.$t('borderStyleForm.borderRadiusTopRight'),
+        },
+        {
+          name: 'bottom_left',
+          label: this.$t('borderStyleForm.borderRadiusBottomLeft'),
+        },
+        {
+          name: 'bottom_right',
+          label: this.$t('borderStyleForm.borderRadiusBottomRight'),
+        },
       ]
     },
   },

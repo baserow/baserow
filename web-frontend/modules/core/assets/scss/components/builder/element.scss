@@ -37,10 +37,10 @@
   margin: 0 auto;
   max-width: $builder-page-max-width;
   border-radius:
-    var(--element-border-radius-top-left, 0px)
-    var(--element-border-radius-top-right, 0px)
-    var(--element-border-radius-bottom-right, 0px)
-    var(--element-border-radius-bottom-left, 0px);
+    var(--element-border-radius-top-left, 0)
+    var(--element-border-radius-top-right, 0)
+    var(--element-border-radius-bottom-right, 0)
+    var(--element-border-radius-bottom-left, 0);
 
   .element__wrapper--full-width & {
     max-width: 100%;

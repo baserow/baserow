@@ -5,8 +5,7 @@
       class="margin-bottom-2"
     >
       <FormGroup
-        v-for="{name, label} in borderRadiuses"
-        v-if="styleIsAllowed(name)"
+        v-for="{ name, label } in allowedBorderRadiuses"
         :key="name"
         :label="label"
         class="margin-bottom-2"
@@ -74,6 +73,12 @@ export default {
     }
   },
   computed: {
+    allowedBorderRadiuses() {
+      return this.borderRadiuses.filter((item) => {
+        const computedMethodName = `${_.camelCase(item.name)}IsAllowed`
+        return this[computedMethodName]
+      })
+    },
     borderRadiusTopLeftError() {
       if (this.$v.values.top_left.$invalid) {
         return this.$t('error.minMaxValueField', { min: 0, max: 100 })
@@ -113,7 +118,7 @@ export default {
     getBorderRadiusError(name) {
       // Convert name to title-case, e.g. "Top right" to "Top Right"
       const title = _.startCase(name).replace(/ /g, '')
-      return this[`borderRadius${title}Error`];
+      return this[`borderRadius${title}Error`]
     },
     styleIsAllowed(name) {
       const camelCase = _.camelCase(name)

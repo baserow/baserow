@@ -83,11 +83,16 @@
     />
 
     <BorderRadiusForm
-      v-model="borderRadiusStyles" :border-radiuses="borderRadiuses"
+      v-model="borderRadiusStyles"
+      :border-radiuses="borderRadiuses"
       :top-left-is-allowed="isStyleAllowed(`style_border_radius_top_left`)"
       :top-right-is-allowed="isStyleAllowed(`style_border_radius_top_right`)"
-      :bottom-left-is-allowed="isStyleAllowed(`style_border_radius_bottom_left`)"
-      :bottom-right-is-allowed="isStyleAllowed(`style_border_radius_bottom_right`)"
+      :bottom-left-is-allowed="
+        isStyleAllowed(`style_border_radius_bottom_left`)
+      "
+      :bottom-right-is-allowed="
+        isStyleAllowed(`style_border_radius_bottom_right`)
+      "
     />
   </form>
 </template>
