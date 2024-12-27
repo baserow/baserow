@@ -449,6 +449,13 @@
     "paddingLabel": "Padding",
     "marginLabel": "Margin"
   },
+  "borderStyleForm": {
+    "borderRadiusLabel": "Border radius",
+    "borderRadiusTopLeft": "Top left",
+    "borderRadiusTopRight": "Top right",
+    "borderRadiusBottomLeft": "Bottom left",
+    "borderRadiusBottomRight": "Bottom right"
+  },
   "themeConfigBlockType": {
     "color": "Colors",
     "page": "Page",
