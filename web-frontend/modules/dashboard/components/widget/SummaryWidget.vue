@@ -70,9 +70,10 @@ export default {
       return this.getDataSourceById(this.widget.data_source_id)
     },
     result() {
-      const data = this.getDataForDataSource(this.dataSource?.id)
-      if (data && data.result !== undefined) {
-        return data.result
+      if (this.dataSource) {
+        const data = this.getDataForDataSource(this.dataSource.id)
+        const serviceType = this.$registry.get('service', this.dataSource.type)
+        return serviceType.getResult(this.dataSource, data)
       }
       return 0
     },
