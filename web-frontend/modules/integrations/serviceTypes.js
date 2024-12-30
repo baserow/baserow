@@ -55,7 +55,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
       'integration/getIntegrationById'
     ](application, service.integration_id)
 
-    const databases = integration.context_data?.databases
+    const databases = integration?.context_data?.databases || []
 
     const tableSelected = databases
       .map((database) => database.tables)
@@ -268,7 +268,7 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
       'integration/getIntegrationById'
     ](application, service.integration_id)
 
-    const databases = integration.context_data?.databases
+    const databases = integration?.context_data?.databases || []
 
     const tableSelected = databases
       .map((database) => database.tables)
