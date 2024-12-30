@@ -65,6 +65,32 @@
       />
     </FormGroup>
 
+    <FormSection
+      :title="$t('repeatElementForm.gapLabel')"
+      class="margin-bottom-2"
+    >
+      <FormGroup
+        :label="$t('repeatElementForm.gapVerticalLabel')"
+        class="margin-bottom-2"
+        small-label
+        required
+        horizontal-narrow
+        :error-message="gapVerticalError"
+      >
+        <PixelValueSelector v-model="values.repeat_vertical_gap" />
+      </FormGroup>
+      <FormGroup
+        :label="$t('repeatElementForm.gapHorizontalLabel')"
+        class="margin-bottom-2"
+        small-label
+        required
+        horizontal-narrow
+        :error-message="gapHorizontalError"
+      >
+        <PixelValueSelector v-model="values.repeat_horizontal_gap" />
+      </FormGroup>
+    </FormSection>
+
     <CustomStyle
       v-show="values.data_source_id"
       v-model="values.styles"
@@ -149,7 +175,7 @@
 
 <script>
 import _ from 'lodash'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import { between, required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import { mapActions, mapGetters } from 'vuex'
@@ -158,6 +184,9 @@ import InjectedFormulaInput from '@baserow/modules/core/components/formula/Injec
 import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector.vue'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
+import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
+
+const MAX_GAP_PX = 2000
 
 export default {
   name: 'RepeatElementForm',
@@ -168,6 +197,7 @@ export default {
     CustomStyle,
     InjectedFormulaInput,
     ServiceSchemaPropertySelector,
+    PixelValueSelector,
   },
   mixins: [collectionElementForm],
   inject: ['applicationContext'],
@@ -178,6 +208,8 @@ export default {
         'schema_property',
         'items_per_page',
         'items_per_row',
+        'repeat_vertical_gap',
+        'repeat_horizontal_gap',
         'orientation',
         'button_load_more_label',
         'styles',
@@ -188,6 +220,8 @@ export default {
         items_per_page: 1,
         items_per_row: {},
         orientation: 'vertical',
+        repeat_vertical_gap: 0,
+        repeat_horizontal_gap: 0,
         button_load_more_label: '',
         styles: {},
       },
@@ -218,6 +252,26 @@ export default {
         }
       }
       return ''
+    },
+    gapVerticalError() {
+      if (this.$v.values.repeat_vertical_gap.$invalid) {
+        return this.$t('error.minMaxValueField', {
+          min: 0,
+          max: MAX_GAP_PX,
+        })
+      } else {
+        return ''
+      }
+    },
+    gapHorizontalError() {
+      if (this.$v.values.repeat_horizontal_gap.$invalid) {
+        return this.$t('error.minMaxValueField', {
+          min: 0,
+          max: MAX_GAP_PX,
+        })
+      } else {
+        return ''
+      }
     },
     orientationOptions() {
       return [
@@ -277,6 +331,16 @@ export default {
           }
           return acc
         }, {}),
+        repeat_vertical_gap: {
+          required,
+          integer,
+          between: between(0, MAX_GAP_PX),
+        },
+        repeat_horizontal_gap: {
+          required,
+          integer,
+          between: between(0, MAX_GAP_PX),
+        },
       },
     }
   },
