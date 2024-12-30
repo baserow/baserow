@@ -175,7 +175,13 @@
 
 <script>
 import _ from 'lodash'
-import { between, required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import {
+  between,
+  required,
+  integer,
+  minValue,
+  maxValue,
+} from 'vuelidate/lib/validators'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import { mapActions, mapGetters } from 'vuex'
