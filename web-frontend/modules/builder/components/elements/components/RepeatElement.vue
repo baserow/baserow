@@ -19,7 +19,7 @@
         >
           <!-- Iterate over each content -->
           <div v-for="(content, index) in elementContent" :key="content.id">
-            <!-- If the container has an children -->
+            <!-- If the container has any children -->
             <template v-if="children.length > 0">
               <!-- Iterate over each child -->
               <template v-for="child in children">
