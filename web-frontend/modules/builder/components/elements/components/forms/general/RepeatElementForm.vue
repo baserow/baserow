@@ -77,7 +77,10 @@
         horizontal-narrow
         :error-message="gapVerticalError"
       >
-        <PixelValueSelector v-model="values.repeat_vertical_gap" :default-value-when-empty="0" />
+        <PixelValueSelector
+          v-model="values.repeat_vertical_gap"
+          :default-value-when-empty="0"
+        />
       </FormGroup>
       <FormGroup
         :label="$t('repeatElementForm.gapHorizontalLabel')"
@@ -87,7 +90,10 @@
         horizontal-narrow
         :error-message="gapHorizontalError"
       >
-        <PixelValueSelector v-model="values.repeat_horizontal_gap" :default-value-when-empty="0" />
+        <PixelValueSelector
+          v-model="values.repeat_horizontal_gap"
+          :default-value-when-empty="0"
+        />
       </FormGroup>
     </FormSection>
 
