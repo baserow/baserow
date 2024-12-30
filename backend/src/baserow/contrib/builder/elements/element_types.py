@@ -331,6 +331,8 @@ class RepeatElementType(
         return super().allowed_fields + [
             "orientation",
             "items_per_row",
+            "repeat_horizontal_gap",
+            "repeat_vertical_gap",
         ]
 
     @property
@@ -338,6 +340,8 @@ class RepeatElementType(
         return super().serializer_field_names + [
             "orientation",
             "items_per_row",
+            "repeat_horizontal_gap",
+            "repeat_vertical_gap",
         ]
 
     class SerializedDict(
@@ -346,6 +350,8 @@ class RepeatElementType(
     ):
         orientation: str
         items_per_row: dict
+        repeat_horizontal_gap: int
+        repeat_vertical_gap: int
 
     @property
     def serializer_field_overrides(self):
