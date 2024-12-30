@@ -65,6 +65,32 @@
       />
     </FormGroup>
 
+    <FormSection
+      :title="$t('repeatElementForm.gapLabel')"
+      class="margin-bottom-2"
+    >
+      <FormGroup
+        :label="$t('repeatElementForm.gapVerticalLabel')"
+        class="margin-bottom-2"
+        small-label
+        required
+        horizontal-narrow
+        :error-message="gapVerticalError"
+      >
+        <PixelValueSelector v-model="values.repeat_vertical_gap" />
+      </FormGroup>
+      <FormGroup
+        :label="$t('repeatElementForm.gapHorizontalLabel')"
+        class="margin-bottom-2"
+        small-label
+        required
+        horizontal-narrow
+        :error-message="gapHorizontalError"
+      >
+        <PixelValueSelector v-model="values.repeat_horizontal_gap" />
+      </FormGroup>
+    </FormSection>
+
     <CustomStyle
       v-show="values.data_source_id"
       v-model="values.styles"
