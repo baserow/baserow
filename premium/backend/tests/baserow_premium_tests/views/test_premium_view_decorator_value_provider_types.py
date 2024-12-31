@@ -50,6 +50,7 @@ def test_import_export_grid_view_w_decorator(data_fixture):
                 {
                     "filter_groups": [{"id": 1}],
                     "filters": [
+                        # no filter type, so it will be ignored in imported value
                         {"field": field.id, "group": 1, "value": ""},
                         {
                             "type": "single_select_equal",
@@ -59,6 +60,7 @@ def test_import_export_grid_view_w_decorator(data_fixture):
                         },
                     ],
                 },
+                # no filter type, so it will be ignored in imported value
                 {"filters": [{"field": field.id, "value": ""}]},
             ]
         },
@@ -140,7 +142,8 @@ def test_import_export_grid_view_w_decorator(data_fixture):
         {
             "id": AnyStr(),  # a new id is generated for every inserted color
             "filters": [
-                {"field": imported_field.id, "group": 1, "value": ""},
+                # first filter will be ignored, because it's missing
+                # proper type value
                 {
                     "type": "single_select_equal",
                     "field": imported_single_select.id,
@@ -153,7 +156,8 @@ def test_import_export_grid_view_w_decorator(data_fixture):
         },
         {
             "id": AnyStr(),
-            "filters": [{"field": imported_field.id, "value": ""}],
+            # empty list because filter def is missing proper type value
+            "filters": [],
         },
     ]
 
@@ -186,13 +190,7 @@ def test_import_export_grid_view_w_decorator(data_fixture):
                     # it's not in the mapping
                     "value": "true",
                 },
-                # invalid filter will be an empty string
-                {
-                    "type": "invalid_filter",
-                    "field": imported_single_select.id,
-                    "group": 1,
-                    "value": "",
-                },
+                # no invalid_filter
                 {
                     "type": "single_select_is_any_of",
                     "field": imported_single_select.id,

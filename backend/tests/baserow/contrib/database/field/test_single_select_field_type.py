@@ -1749,7 +1749,7 @@ def test_single_select_is_any_of_filter_type_export_import():
     assert view_filter_type.set_import_serialized_value("1", id_mapping) == "2"
     assert view_filter_type.set_import_serialized_value("", id_mapping) == ""
     assert view_filter_type.set_import_serialized_value("wrong", id_mapping) == ""
-    assert view_filter_type.set_import_serialized_value("1,invalid", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("1,invalid", id_mapping) == "2"
     assert view_filter_type.set_import_serialized_value("1,100", id_mapping) == "2,200"
     assert view_filter_type.set_import_serialized_value("2,100", id_mapping) == "200"
     assert view_filter_type.set_import_serialized_value(None, id_mapping) == ""

@@ -129,36 +129,22 @@ class ConditionalColorValueProviderType(PremiumDecoratorValueProviderType):
             if "id" not in color:
                 color["id"] = str(uuid4())
 
+            new_filters = []
             for color_filter in color["filters"]:
-                if color_filter["value"]:
-                    try:
-                        filter_type = view_filter_type_registry.get(
-                            color_filter.get("type")
-                        )
-
-                        # Filter value may be a more complex data (a list of IDs or
-                        # non-ID values), so we let specific filter type to handle
-                        # mapping, as it should understand better data it can handle.
-                        new_values = filter_type.set_import_serialized_value(
-                            color_filter["value"], id_mapping
-                        )
-                        color_filter["value"] = new_values
-                    except (
-                        view_filter_type_registry.does_not_exist_exception_class
-                    ) as err:
-                        logger.warning(
-                            f"Cannot get filter type for a decoration "
-                            f"condition definition: {color_filter}: {err}"
-                        )
-                        color_filter["value"] = ""
-                    except Exception as err:
-                        logger.warning(
-                            f"Cannot import filter value: {color_filter}: {err}"
-                        )
-                        color_filter["value"] = ""
-
                 new_field_id = id_mapping["database_fields"][color_filter["field"]]
                 color_filter["field"] = new_field_id
+                try:
+                    filter_type = view_filter_type_registry.get(
+                        color_filter.get("type")
+                    )
+                    imported_value = filter_type.set_import_serialized_value(
+                        color_filter["value"], id_mapping
+                    )
+                    color_filter["value"] = imported_value
+                    new_filters.append(color_filter)
+                except Exception as err:
+                    logger.warning(f"Cannot import filter value: {color_filter}: {err}")
+            color["filters"] = new_filters
 
         return value
 
