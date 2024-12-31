@@ -670,9 +670,22 @@ def test_convert_rollup_to_text_field_via_api(data_fixture, api_client):
 
 
 # test for https://gitlab.com/baserow/baserow/-/issues/3309
+@pytest.mark.parametrize(
+    "field_type,field_kwargs",
+    [
+        (
+            "rollup",
+            {"rollup_function": "sum"},
+        ),
+        (
+            "count",
+            {},
+        ),
+    ],
+)
 @pytest.mark.django_db
-def test_remove_dependent_rollup_through_field(
-    data_fixture, api_client, django_assert_num_queries
+def test_remove_dependent_count_rollup_field_through_field(
+    data_fixture, api_client, field_type, field_kwargs
 ):
     user, token = data_fixture.create_user_and_token()
     fhandler = FieldHandler()
@@ -703,78 +716,23 @@ def test_remove_dependent_rollup_through_field(
         name="number", table=referenced_table
     )
 
-    rollup_field: RollupField = fhandler.create_field(
+    test_field: "CountField|RollupField" = fhandler.create_field(
         user,
         table,
-        "rollup",
-        name="rollup_field",
+        field_type,
+        name="test_field",
         through_field_name=linkrowfield.name,
         target_field_id=other_field.id,
-        rollup_function="sum",
+        **field_kwargs,
     )
 
-    assert rollup_field.through_field_id == linkrowfield.id
+    assert test_field.through_field_id == linkrowfield.id
 
-    # before the fix, this would raise DoesNotExist for rollup_field.through_field
+    # before the fix, this would raise DoesNotExist for test_field.through_field
     fhandler.update_field(
         user=user, field=linkrowfield.link_row_related_field, has_related_field=False
     )
 
-    rollup_field.refresh_from_db()
-    assert rollup_field.through_field_id is None
-    assert rollup_field.error == "references the deleted or unknown field "
-
-
-# test for https://gitlab.com/baserow/baserow/-/issues/3309
-@pytest.mark.django_db
-def test_remove_dependent_count_through_field(
-    data_fixture, api_client, django_assert_num_queries
-):
-    user, token = data_fixture.create_user_and_token()
-    fhandler = FieldHandler()
-    table = data_fixture.create_database_table(user=user)
-    referenced_table = data_fixture.create_database_table(
-        user=user, database=table.database
-    )
-
-    data_fixture.create_text_field(name="primaryfield", table=table, primary=True)
-    data_fixture.create_text_field(
-        name="primaryfield", table=referenced_table, primary=True
-    )
-
-    linkrowfield: LinkRowField = fhandler.create_field(
-        user,
-        table,
-        "link_row",
-        name="linkrowfield",
-        link_row_table=referenced_table,
-        has_related_field=True,
-    )
-
-    # backref
-    assert linkrowfield.link_row_related_field
-    assert linkrowfield.link_row_related_field.table == referenced_table
-
-    other_field = data_fixture.create_number_field(
-        name="number", table=referenced_table
-    )
-
-    count_field: CountField = fhandler.create_field(
-        user,
-        table,
-        "count",
-        name="count_field",
-        through_field_name=linkrowfield.name,
-        target_field_id=other_field.id,
-    )
-
-    assert count_field.through_field_id == linkrowfield.id
-
-    # before the fix, this would raise DoesNotExist for count_field.through_field
-    fhandler.update_field(
-        user=user, field=linkrowfield.link_row_related_field, has_related_field=False
-    )
-
-    count_field.refresh_from_db()
-    assert count_field.through_field_id is None
-    assert count_field.error == "references the deleted or unknown field "
+    test_field.refresh_from_db()
+    assert test_field.through_field_id is None
+    assert test_field.error == "references the deleted or unknown field "
