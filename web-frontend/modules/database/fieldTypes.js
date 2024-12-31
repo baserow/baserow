@@ -15,7 +15,7 @@ import {
   isValidEmail,
   isValidURL,
 } from '@baserow/modules/core/utils/string'
-import { formulaFielArrayFilterMixin } from '@baserow/modules/database/arrayFilterMixins'
+import { formulaFieldArrayFilterMixin } from '@baserow/modules/database/arrayFilterMixins'
 import {
   parseNumberValue,
   formatNumberValue,
@@ -3762,7 +3762,7 @@ export class PhoneNumberFieldType extends FieldType {
 }
 
 export class FormulaFieldType extends mix(
-  formulaFielArrayFilterMixin,
+  formulaFieldArrayFilterMixin,
   FieldType
 ) {
   static getType() {

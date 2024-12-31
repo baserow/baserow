@@ -4,18 +4,18 @@ from django.db import models
 from django.db.models import Q
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
+from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    ComparisonOperator,
+)
 
 from .base import (
     HasAllValuesEqualFilterSupport,
+    HasNumericValueComparableToFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueEqualFilterSupport,
-    HasValueHigherOrEqualThanFilterSupport,
-    HasValueHigherThanFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
-    HasValueLowerOrEqualThanFilterSupport,
-    HasValueLowerThanFilterSupport,
 )
 
 if typing.TYPE_CHECKING:
@@ -29,16 +29,29 @@ class FormulaFieldTypeArrayFilterSupport(
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
-    HasValueLowerOrEqualThanFilterSupport,
-    HasValueLowerThanFilterSupport,
-    HasValueHigherThanFilterSupport,
-    HasValueHigherOrEqualThanFilterSupport,
+    HasNumericValueComparableToFilterSupport,
 ):
     """
     A mixin that acts as a proxy between the formula field and the specific array
     formula function to call. Every method needs to be implemented here and forwarded
     to the right array formula subtype method.
     """
+
+    def get_in_array_is_query(
+        self,
+        field_name: str,
+        value: str,
+        model_field: models.Field,
+        field: "FormulaField",
+    ) -> Q | OptionallyAnnotatedQ:
+        (
+            field_instance,
+            field_type,
+        ) = self.get_field_instance_and_type_from_formula_field(field)
+
+        return field_type.get_in_array_is_query(
+            field_name, value, model_field, field_instance
+        )
 
     def get_in_array_empty_value(self, field: "Field") -> typing.Any:
         (
@@ -56,22 +69,6 @@ class FormulaFieldTypeArrayFilterSupport(
 
         return field_type.get_in_array_empty_query(
             field_name, model_field, field_instance
-        )
-
-    def get_in_array_is_query(
-        self,
-        field_name: str,
-        value: str,
-        model_field: models.Field,
-        field: "FormulaField",
-    ) -> Q | OptionallyAnnotatedQ:
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        return field_type.get_in_array_is_query(
-            field_name, value, model_field, field_instance
         )
 
     def get_in_array_contains_query(
@@ -122,50 +119,19 @@ class FormulaFieldTypeArrayFilterSupport(
             field_name, value, model_field, field_instance
         )
 
-    def get_has_value_higher_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    def get_has_numeric_value_comparable_to_filter_query(
+        self,
+        field_name: str,
+        value: str,
+        model_field: models.Field,
+        field: "Field",
+        comparison_op: ComparisonOperator,
     ) -> OptionallyAnnotatedQ:
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(field)
 
-        return field_type.get_has_value_higher_filter_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_has_value_higher_or_equal_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> OptionallyAnnotatedQ:
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        return field_type.get_has_value_higher_or_equal_filter_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_has_value_lower_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> OptionallyAnnotatedQ:
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        return field_type.get_has_value_lower_filter_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_has_value_lower_or_equal_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> OptionallyAnnotatedQ:
-        (
-            field_instance,
-            field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field)
-
-        return field_type.get_has_value_lower_or_equal_filter_query(
-            field_name, value, model_field, field_instance
+        return field_type.get_has_numeric_value_comparable_to_filter_query(
+            field_name, value, model_field, field_instance, comparison_op
         )

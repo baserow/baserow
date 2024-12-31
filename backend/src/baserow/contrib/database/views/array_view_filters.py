@@ -5,20 +5,20 @@ from django.db.models import Q
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.filter_support.base import (
+    HasNumericValueComparableToFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueEqualFilterSupport,
-    HasValueHigherOrEqualThanFilterSupport,
-    HasValueHigherThanFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
-    HasValueLowerOrEqualThanFilterSupport,
-    HasValueLowerThanFilterSupport,
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import (
     BaserowFormulaNumberType,
     BaserowFormulaTextType,
+)
+from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    ComparisonOperator,
 )
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaBooleanType,
@@ -283,7 +283,7 @@ class HasNoneSelectOptionEqualViewFilterType(
     type = "has_none_select_option_equal"
 
 
-class HasValueHigherThanFilter(ComparisonHasValueFilter):
+class hasValueComparableToFilter(ComparisonHasValueFilter):
     type = "has_value_higher"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
@@ -292,12 +292,18 @@ class HasValueHigherThanFilter(ComparisonHasValueFilter):
     ]
 
     def get_filter_expression(self, field_name, value, model_field, field):
-        field_type: HasValueHigherThanFilterSupport = field_type_registry.get_by_model(
-            field
+        field_type: HasNumericValueComparableToFilterSupport = (
+            field_type_registry.get_by_model(field)
         )
-        return field_type.get_has_value_higher_filter_query(
-            field_name, value, model_field, field
+        return field_type.get_has_numeric_value_comparable_to_filter_query(
+            field_name, value, model_field, field, ComparisonOperator.HIGHER_THAN
         )
+
+
+class HasNotValueHigherThanFilterType(
+    NotViewFilterTypeMixin, hasValueComparableToFilter
+):
+    type = "has_not_value_higher"
 
 
 class HasValueHigherOrEqualThanFilter(ComparisonHasValueFilter):
@@ -309,12 +315,22 @@ class HasValueHigherOrEqualThanFilter(ComparisonHasValueFilter):
     ]
 
     def get_filter_expression(self, field_name, value, model_field, field):
-        field_type: HasValueHigherOrEqualThanFilterSupport = (
+        field_type: HasNumericValueComparableToFilterSupport = (
             field_type_registry.get_by_model(field)
         )
-        return field_type.get_has_value_higher_or_equal_filter_query(
-            field_name, value, model_field, field
+        return field_type.get_has_numeric_value_comparable_to_filter_query(
+            field_name,
+            value,
+            model_field,
+            field,
+            ComparisonOperator.HIGHER_THAN_OR_EQUAL,
         )
+
+
+class HasNotValueHigherOrEqualTHanFilterType(
+    NotViewFilterTypeMixin, HasValueHigherOrEqualThanFilter
+):
+    type = "has_not_value_higher_or_equal"
 
 
 class HasValueLowerThanFilter(ComparisonHasValueFilter):
@@ -326,12 +342,16 @@ class HasValueLowerThanFilter(ComparisonHasValueFilter):
     ]
 
     def get_filter_expression(self, field_name, value, model_field, field):
-        field_type: HasValueLowerThanFilterSupport = field_type_registry.get_by_model(
-            field
+        field_type: HasNumericValueComparableToFilterSupport = (
+            field_type_registry.get_by_model(field)
         )
-        return field_type.get_has_value_lower_filter_query(
-            field_name, value, model_field, field
+        return field_type.get_has_numeric_value_comparable_to_filter_query(
+            field_name, value, model_field, field, ComparisonOperator.LOWER_THAN
         )
+
+
+class HasNotValueLowerThanFilterType(NotViewFilterTypeMixin, HasValueLowerThanFilter):
+    type = "has_not_value_lower"
 
 
 class HasValueLowerOrEqualThanFilter(ComparisonHasValueFilter):
@@ -343,29 +363,19 @@ class HasValueLowerOrEqualThanFilter(ComparisonHasValueFilter):
     ]
 
     def get_filter_expression(self, field_name, value, model_field, field):
-        field_type: HasValueLowerOrEqualThanFilterSupport = (
+        field_type: HasNumericValueComparableToFilterSupport = (
             field_type_registry.get_by_model(field)
         )
-        return field_type.get_has_value_lower_or_equal_filter_query(
-            field_name, value, model_field, field
+        return field_type.get_has_numeric_value_comparable_to_filter_query(
+            field_name,
+            value,
+            model_field,
+            field,
+            ComparisonOperator.LOWER_THAN_OR_EQUAL,
         )
-
-
-class HasNotValueHigherOrEqualTHanFilterType(
-    NotViewFilterTypeMixin, HasValueHigherOrEqualThanFilter
-):
-    type = "has_not_value_higher_or_equal"
-
-
-class HasNotValueHigherThanFilterType(NotViewFilterTypeMixin, HasValueHigherThanFilter):
-    type = "has_not_value_higher"
 
 
 class HasNotValueLowerOrEqualTHanFilterType(
     NotViewFilterTypeMixin, HasValueLowerOrEqualThanFilter
 ):
     type = "has_not_value_lower_or_equal"
-
-
-class HasNotValueLowerThanFilterType(NotViewFilterTypeMixin, HasValueLowerThanFilter):
-    type = "has_not_value_lower"

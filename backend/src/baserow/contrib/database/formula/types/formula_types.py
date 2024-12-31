@@ -35,15 +35,13 @@ from baserow.contrib.database.fields.field_filters import (
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
 from baserow.contrib.database.fields.filter_support.base import (
     HasAllValuesEqualFilterSupport,
+    HasNumericValueComparableToFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueEqualFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
     get_array_json_filter_expression,
-)
-from baserow.contrib.database.fields.filter_support.number import (
-    FormulaNumberTypeFilterSupport,
 )
 from baserow.contrib.database.fields.filter_support.single_select import (
     SingleSelectFormulaTypeFilterSupport,
@@ -63,6 +61,8 @@ from baserow.contrib.database.formula.ast.tree import (
     BaserowStringLiteral,
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    ComparisonOperator,
+    JSONArrayCompareNumericValueExpr,
     JSONArrayContainsValueExpr,
 )
 from baserow.contrib.database.formula.registries import formula_function_registry
@@ -336,7 +336,10 @@ class BaserowFormulaButtonType(BaserowFormulaLinkType):
 
 
 class BaserowFormulaNumberType(
-    FormulaNumberTypeFilterSupport,
+    HasValueEmptyFilterSupport,
+    HasValueEqualFilterSupport,
+    HasValueContainsFilterSupport,
+    HasNumericValueComparableToFilterSupport,
     BaserowFormulaTypeHasEmptyBaserowExpression,
     BaserowFormulaValidType,
 ):
@@ -468,6 +471,19 @@ class BaserowFormulaNumberType(
             output_field=ArrayField(
                 base_field=models.DecimalField(max_digits=50, decimal_places=0)
             ),
+        )
+
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return None
+
+    def get_in_array_is_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        return get_array_json_filter_expression(
+            JSONArrayCompareNumericValueExpr,
+            field_name,
+            value,
+            comparison_op=ComparisonOperator.EQUAL,
         )
 
     def __str__(self) -> str:

@@ -4,11 +4,15 @@ from django.db import models
 
 from baserow.contrib.database.fields.filter_support.base import (
     HasAllValuesEqualFilterSupport,
+    HasNumericValueComparableToFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueEqualFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
+)
+from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    ComparisonOperator,
 )
 
 if typing.TYPE_CHECKING:
@@ -23,6 +27,7 @@ class BaserowFormulaArrayFilterSupportMixin(
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
+    HasNumericValueComparableToFilterSupport,
 ):
     """
     This mixin proxies all the array formula filters methods to the formula subtype.
@@ -72,34 +77,15 @@ class BaserowFormulaArrayFilterSupportMixin(
             field_name, value, model_field, field_instance
         )
 
-    def get_has_value_higher_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    def get_has_numeric_value_comparable_to_filter_query(
+        self,
+        field_name: str,
+        value: str,
+        model_field: models.Field,
+        field: "Field",
+        comparison_op: ComparisonOperator,
     ) -> "OptionallyAnnotatedQ":
         field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
-        return self.sub_type.get_has_value_higher_filter_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_has_value_higher_or_equal_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> "OptionallyAnnotatedQ":
-        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
-        return self.sub_type.get_has_value_higher_or_equal_filter_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_has_value_lower_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> "OptionallyAnnotatedQ":
-        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
-        return self.sub_type.get_has_value_lower_filter_query(
-            field_name, value, model_field, field_instance
-        )
-
-    def get_has_value_lower_or_equal_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> "OptionallyAnnotatedQ":
-        field_instance, _ = self.sub_type.get_baserow_field_instance_and_type()
-        return self.sub_type.get_has_value_lower_or_equal_filter_query(
-            field_name, value, model_field, field_instance
+        return self.sub_type.get_has_numeric_value_comparable_to_filter_query(
+            field_name, value, model_field, field_instance, comparison_op
         )

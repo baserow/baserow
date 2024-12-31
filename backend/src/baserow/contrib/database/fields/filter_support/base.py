@@ -13,7 +13,9 @@ from baserow.contrib.database.fields.field_filters import (
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
     BaserowFilterExpression,
+    ComparisonOperator,
     JSONArrayAllAreExpr,
+    JSONArrayCompareNumericValueExpr,
     JSONArrayContainsValueExpr,
     JSONArrayContainsValueLengthLowerThanExpr,
     JSONArrayContainsValueSimilarToExpr,
@@ -187,34 +189,21 @@ class HasAllValuesEqualFilterSupport:
             return self.default_filter_on_exception()
 
 
-# Single method interfaces for array filters that provide comparison operators.
-# They're most likely to be used together, but can be used separately if needed.
-class HasValueHigherThanFilterSupport:
-    def get_has_value_higher_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+class HasNumericValueComparableToFilterSupport:
+    def get_has_numeric_value_comparable_to_filter_query(
+        self,
+        field_name: str,
+        value: str,
+        model_field: models.Field,
+        field: "Field",
+        comparison_op: ComparisonOperator,
     ) -> OptionallyAnnotatedQ:
-        raise NotImplementedError("should be overriden in a subclass")
-
-
-class HasValueHigherOrEqualThanFilterSupport:
-    def get_has_value_higher_or_equal_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> OptionallyAnnotatedQ:
-        raise NotImplementedError("should be overriden in a subclass")
-
-
-class HasValueLowerThanFilterSupport:
-    def get_has_value_lower_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> OptionallyAnnotatedQ:
-        raise NotImplementedError("should be overriden in a subclass")
-
-
-class HasValueLowerOrEqualThanFilterSupport:
-    def get_has_value_lower_or_equal_filter_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> OptionallyAnnotatedQ:
-        raise NotImplementedError("should be overriden in a subclass")
+        return get_array_json_filter_expression(
+            JSONArrayCompareNumericValueExpr,
+            field_name,
+            value,
+            comparison_op=comparison_op,
+        )
 
 
 def get_array_json_filter_expression(

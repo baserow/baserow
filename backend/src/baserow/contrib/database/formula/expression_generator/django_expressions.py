@@ -1,4 +1,5 @@
 import typing
+from enum import Enum
 
 from django.contrib.postgres.aggregates.mixins import OrderableAggMixin
 from django.db import NotSupportedError
@@ -288,6 +289,19 @@ class JSONArrayContainsSelectOptionValueSimilarToExpr(BaserowFilterExpression):
     # fmt: on
 
 
+class ComparisonOperator(Enum):
+    """
+    An enumeration of the comparison operators that can be used to compare a number
+    field value.
+    """
+
+    EQUAL = "="
+    LOWER_THAN = "<"
+    LOWER_THAN_OR_EQUAL = "<="
+    HIGHER_THAN = ">"
+    HIGHER_THAN_OR_EQUAL = ">="
+
+
 class JSONArrayCompareNumericValueExpr(BaserowFilterExpression):
     """
     Base class for expressions that compare a numeric value in a JSON array.
@@ -296,9 +310,17 @@ class JSONArrayCompareNumericValueExpr(BaserowFilterExpression):
     """
 
     def __init__(
-        self, field_name: F, value: Value, comparison_op: str, output_field: Field
+        self,
+        field_name: F,
+        value: Value,
+        comparison_op: ComparisonOperator,
+        output_field: Field,
     ):
         super().__init__(field_name, value, output_field)
+        if not isinstance(comparison_op, ComparisonOperator):
+            raise ValueError(
+                f"comparison_op must be a ComparisonOperator, not {type(comparison_op)}"
+            )
         self.comparison_op = comparison_op
 
     # fmt: off
@@ -315,5 +337,5 @@ class JSONArrayCompareNumericValueExpr(BaserowFilterExpression):
 
     def get_template_data(self, sql_value) -> dict:
         data = super().get_template_data(sql_value)
-        data["comparison_op"] = self.comparison_op
+        data["comparison_op"] = self.comparison_op.value
         return data

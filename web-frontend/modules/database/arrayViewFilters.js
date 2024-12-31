@@ -5,6 +5,7 @@ import { ViewFilterType } from '@baserow/modules/database/viewFilters'
 import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
 import { BaserowFormulaNumberType } from '@baserow/modules/database/formula/formulaTypes'
+import { ComparisonOperator } from '@baserow/modules/database//utils/fieldFilters'
 
 export class HasEmptyValueViewFilterType extends ViewFilterType {
   static getType() {
@@ -371,7 +372,39 @@ export class HasValueHigherThanViewFilterType extends ViewFilterType {
 
   matches(cellValue, filterValue, field, fieldType) {
     filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasValueHigherThanFilter(cellValue, filterValue, field)
+    return (
+      filterValue === '' ||
+      fieldType.hasValueComparableToFilter(
+        cellValue,
+        filterValue,
+        field,
+        ComparisonOperator.HIGHER_THAN
+      )
+    )
+  }
+}
+
+export class HasNotValueHigherThanViewFilterType extends HasValueHigherThanViewFilterType {
+  static getType() {
+    return 'has_not_value_higher'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotValueHigherThan')
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    return (
+      filterValue === '' ||
+      !fieldType.hasValueComparableToFilter(
+        cellValue,
+        filterValue,
+        field,
+        ComparisonOperator.HIGHER_THAN
+      )
+    )
   }
 }
 
@@ -399,10 +432,38 @@ export class HasValueHigherThanOrEqualViewFilterType extends ViewFilterType {
 
   matches(cellValue, filterValue, field, fieldType) {
     filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasValueHigherThanOrEqualFilter(
-      cellValue,
-      filterValue,
-      field
+    return (
+      filterValue === '' ||
+      fieldType.hasValueComparableToFilter(
+        cellValue,
+        filterValue,
+        field,
+        ComparisonOperator.HIGHER_THAN_OR_EQUAL
+      )
+    )
+  }
+}
+
+export class HasNotValueHigherThanOrEqualViewFilterType extends HasValueHigherThanOrEqualViewFilterType {
+  static getType() {
+    return 'has_not_value_higher_or_equal'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotValueHigherThanOrEqual')
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    return (
+      filterValue === '' ||
+      !fieldType.hasValueComparableToFilter(
+        cellValue,
+        filterValue,
+        field,
+        ComparisonOperator.HIGHER_THAN_OR_EQUAL
+      )
     )
   }
 }
@@ -431,7 +492,39 @@ export class HasValueLowerThanViewFilterType extends ViewFilterType {
 
   matches(cellValue, filterValue, field, fieldType) {
     filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasValueLowerThanFilter(cellValue, filterValue, field)
+    return (
+      filterValue === '' ||
+      fieldType.hasValueComparableToFilter(
+        cellValue,
+        filterValue,
+        field,
+        ComparisonOperator.LOWER_THAN
+      )
+    )
+  }
+}
+
+export class HasNotValueLowerThanViewFilterType extends HasValueLowerThanViewFilterType {
+  static getType() {
+    return 'has_not_value_lower'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotValueLowerThan')
+  }
+
+  matches(cellValue, filterValue, field, fieldType) {
+    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    return (
+      filterValue === '' ||
+      !fieldType.hasValueComparableToFilter(
+        cellValue,
+        filterValue,
+        field,
+        ComparisonOperator.LOWER_THAN
+      )
+    )
   }
 }
 
@@ -459,103 +552,19 @@ export class HasValueLowerThanOrEqualViewFilterType extends ViewFilterType {
 
   matches(cellValue, filterValue, field, fieldType) {
     filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasValueLowerThanOrEqualFilter(
-      cellValue,
-      filterValue,
-      field
+    return (
+      filterValue === '' ||
+      fieldType.hasValueComparableToFilter(
+        cellValue,
+        filterValue,
+        field,
+        ComparisonOperator.LOWER_THAN_OR_EQUAL
+      )
     )
   }
 }
 
-export class HasNotValueHigherThanOrEqualViewFilterType extends ViewFilterType {
-  static getType() {
-    return 'has_not_value_higher_or_equal'
-  }
-
-  getName() {
-    const { i18n } = this.app
-    return i18n.t('viewFilter.hasNotValueHigherThanOrEqual')
-  }
-
-  getInputComponent(field) {
-    return ViewFilterTypeNumber
-  }
-
-  getCompatibleFieldTypes() {
-    return [
-      FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
-      ),
-    ]
-  }
-
-  matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasNotValueHigherThanOrEqualFilter(
-      cellValue,
-      filterValue,
-      field
-    )
-  }
-}
-
-export class HasNotValueHigherThanViewFilterType extends ViewFilterType {
-  static getType() {
-    return 'has_not_value_higher'
-  }
-
-  getName() {
-    const { i18n } = this.app
-    return i18n.t('viewFilter.hasNotValueHigherThan')
-  }
-
-  getInputComponent(field) {
-    return ViewFilterTypeNumber
-  }
-
-  getCompatibleFieldTypes() {
-    return [
-      FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
-      ),
-    ]
-  }
-
-  matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasNotValueHigherThanFilter(cellValue, filterValue, field)
-  }
-}
-
-export class HasNotValueLowerThanViewFilterType extends ViewFilterType {
-  static getType() {
-    return 'has_not_value_lower'
-  }
-
-  getName() {
-    const { i18n } = this.app
-    return i18n.t('viewFilter.hasNotValueLowerThan')
-  }
-
-  getInputComponent(field) {
-    return ViewFilterTypeNumber
-  }
-
-  getCompatibleFieldTypes() {
-    return [
-      FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
-      ),
-    ]
-  }
-
-  matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasNotValueLowerThanFilter(cellValue, filterValue, field)
-  }
-}
-
-export class HasNotValueLowerThanOrEqualViewFilterType extends ViewFilterType {
+export class HasNotValueLowerThanOrEqualViewFilterType extends HasValueLowerThanOrEqualViewFilterType {
   static getType() {
     return 'has_not_value_lower_or_equal'
   }
@@ -565,24 +574,16 @@ export class HasNotValueLowerThanOrEqualViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasNotValueLowerThanOrEqual')
   }
 
-  getInputComponent(field) {
-    return ViewFilterTypeNumber
-  }
-
-  getCompatibleFieldTypes() {
-    return [
-      FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
-      ),
-    ]
-  }
-
   matches(cellValue, filterValue, field, fieldType) {
     filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasNotValueLowerThanOrEqualFilter(
-      cellValue,
-      filterValue,
-      field
+    return (
+      filterValue === '' ||
+      !fieldType.hasValueComparableToFilter(
+        cellValue,
+        filterValue,
+        field,
+        ComparisonOperator.LOWER_THAN_OR_EQUAL
+      )
     )
   }
 }

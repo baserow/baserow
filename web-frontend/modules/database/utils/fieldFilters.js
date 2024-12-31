@@ -153,7 +153,15 @@ export function genericHasValueLengthLowerThanFilter(cellValue, filterValue) {
   return false
 }
 
-function doArrayNumberComparison(cellValue, filterValue, compareFunc) {
+export const ComparisonOperator = {
+  EQUAL: '=',
+  HIGHER_THAN: '>',
+  HIGHER_THAN_OR_EQUAL: '>=',
+  LOWER_THAN: '<',
+  LOWER_THAN_OR_EQUAL: '<=',
+}
+
+function doNumericArrayComparison(cellValue, filterValue, compareFunc) {
   const filterNr = new BigNumber(filterValue)
   if (!Array.isArray(cellValue) || filterNr.isNaN()) {
     return false
@@ -163,51 +171,34 @@ function doArrayNumberComparison(cellValue, filterValue, compareFunc) {
   )
 }
 
-export function numericHasValueHigherThanFilterFunction(
-  cellValue,
-  filterValue
-) {
-  return doArrayNumberComparison(
-    cellValue,
-    filterValue,
-    (arrayItemNr, filterNr) => arrayItemNr.isGreaterThan(filterNr)
-  )
-}
+export function numericHasValueComparableToFilterFunction(comparisonOp) {
+  return (cellValue, filterValue) => {
+    let compareFunc
+    switch (comparisonOp) {
+      case ComparisonOperator.EQUAL:
+        compareFunc = (a, b) => a.isEqualTo(b)
+        break
+      case ComparisonOperator.HIGHER_THAN:
+        compareFunc = (a, b) => a.isGreaterThan(b)
+        break
+      case ComparisonOperator.HIGHER_THAN_OR_EQUAL:
+        compareFunc = (a, b) => a.isGreaterThanOrEqualTo(b)
+        break
+      case ComparisonOperator.LOWER_THAN:
+        compareFunc = (a, b) => a.isLessThan(b)
+        break
+      case ComparisonOperator.LOWER_THAN_OR_EQUAL:
+        compareFunc = (a, b) => a.isLessThanOrEqualTo(b)
+        break
+    }
+    if (compareFunc === undefined) {
+      throw new Error('Invalid comparison operator')
+    }
 
-export function numericHasValueHigherThanOrEqualFilterFunction(
-  cellValue,
-  filterValue
-) {
-  return doArrayNumberComparison(
-    cellValue,
-    filterValue,
-    (arrayItemNr, filterNr) => arrayItemNr.isGreaterThanOrEqualTo(filterNr)
-  )
-}
-
-export function numericHasValueLowerThanFilterFunction(cellValue, filterValue) {
-  return doArrayNumberComparison(
-    cellValue,
-    filterValue,
-    (arrayItemNr, filterNr) => arrayItemNr.isLessThan(filterNr)
-  )
-}
-
-export function numericHasValueLowerThanOrEqualFilterFunction(
-  cellValue,
-  filterValue
-) {
-  return doArrayNumberComparison(
-    cellValue,
-    filterValue,
-    (arrayItemNr, filterNr) => arrayItemNr.isLessThanOrEqualTo(filterNr)
-  )
-}
-
-export function numericHasValueEqualToFilterFunction(cellValue, filterValue) {
-  return doArrayNumberComparison(
-    cellValue,
-    filterValue,
-    (arrayItemNr, filterNr) => arrayItemNr.isEqualTo(filterNr)
-  )
+    return doNumericArrayComparison(
+      cellValue,
+      filterValue,
+      (arrayItemNr, filterNr) => compareFunc(arrayItemNr, filterNr)
+    )
+  }
 }

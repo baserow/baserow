@@ -5,11 +5,8 @@ import {
   genericHasEmptyValueFilter,
   genericHasValueLengthLowerThanFilter,
   genericHasAllValuesEqualFilter,
-  numericHasValueEqualToFilterFunction,
-  numericHasValueLowerThanFilterFunction,
-  numericHasValueLowerThanOrEqualFilterFunction,
-  numericHasValueHigherThanFilterFunction,
-  numericHasValueHigherThanOrEqualFilterFunction,
+  numericHasValueComparableToFilterFunction,
+  ComparisonOperator,
 } from '@baserow/modules/database/utils/fieldFilters'
 
 export const hasEmptyValueFilterMixin = {
@@ -97,10 +94,10 @@ export const hasValueLengthIsLowerThanFilterMixin = {
   },
 }
 
-export const hasNumericValueHigherOrLowerThanFilterMixin = {
+export const hasNumericValueComparableToFilterMixin = {
   // equal to
   getHasValueEqualFilterFunction(field) {
-    return numericHasValueEqualToFilterFunction
+    return numericHasValueComparableToFilterFunction(ComparisonOperator.EQUAL)
   },
 
   hasValueEqualFilter(cellValue, filterValue, field) {
@@ -117,91 +114,18 @@ export const hasNumericValueHigherOrLowerThanFilterMixin = {
     )
   },
 
-  // lower than
-  getHasValueLowerThanFilterFunction(field) {
-    return numericHasValueLowerThanFilterFunction
-  },
-
-  hasValueLowerThanFilter(cellValue, filterValue, field) {
-    return (
-      filterValue === '' ||
-      this.getHasValueLowerThanFilterFunction(field)(cellValue, filterValue)
-    )
-  },
-
-  hasNotValueLowerThanFilter(cellValue, filterValue, field) {
-    return (
-      filterValue === '' ||
-      !this.getHasValueLowerThanFilterFunction(field)(cellValue, filterValue)
-    )
-  },
-
-  // lower than or equal to
-  getHasValueLowerThanOrEqualFilterFunction(field) {
-    return numericHasValueLowerThanOrEqualFilterFunction
-  },
-
-  hasValueLowerThanOrEqualFilter(cellValue, filterValue, field) {
-    return (
-      filterValue === '' ||
-      this.getHasValueLowerThanOrEqualFilterFunction(field)(
-        cellValue,
-        filterValue
-      )
-    )
-  },
-
-  hasNotValueLowerThanOrEqualFilter(cellValue, filterValue, field) {
-    return (
-      filterValue === '' ||
-      !this.getHasValueLowerThanOrEqualFilterFunction(field)(
-        cellValue,
-        filterValue
-      )
-    )
-  },
-
-  // higher than
-  getHasValueHigherThanFilterFunction(field) {
-    return numericHasValueHigherThanFilterFunction
-  },
-
-  hasValueHigherThanFilter(cellValue, filterValue, field) {
-    return (
-      filterValue === '' ||
-      this.getHasValueHigherThanFilterFunction(field)(cellValue, filterValue)
-    )
-  },
-
-  hasNotValueHigherThanFilter(cellValue, filterValue, field) {
-    return (
-      filterValue === '' ||
-      !this.getHasValueHigherThanFilterFunction(field)(cellValue, filterValue)
-    )
-  },
-
-  // higher than or equal to
-  getHasValueHigherThanOrEqualFilterFunction(field) {
-    return numericHasValueHigherThanOrEqualFilterFunction
-  },
-
-  hasValueHigherThanOrEqualFilter(cellValue, filterValue, field) {
-    return (
-      filterValue === '' ||
-      this.getHasValueHigherThanOrEqualFilterFunction(field)(
-        cellValue,
-        filterValue
-      )
-    )
-  },
-
-  hasNotValueHigherThanOrEqualFilter(cellValue, filterValue, field) {
-    return (
-      filterValue === '' ||
-      !this.getHasValueHigherThanOrEqualFilterFunction(field)(
-        cellValue,
-        filterValue
-      )
+  /**
+   * All other comparison operators: higher_than, lower_than, etc.
+   */
+  hasValueComparableToFilter(
+    cellValue,
+    filterValue,
+    field,
+    comparisonOperator
+  ) {
+    return numericHasValueComparableToFilterFunction(comparisonOperator)(
+      cellValue,
+      filterValue
     )
   },
 }
@@ -209,7 +133,7 @@ export const hasNumericValueHigherOrLowerThanFilterMixin = {
 /*
  * Mixin for the FormulaField to handle the array formula filters for number fields.
  */
-export const formulaFielArrayFilterMixin = Object.assign(
+export const formulaFieldArrayFilterMixin = Object.assign(
   {},
   hasAllValuesEqualFilterMixin,
   hasEmptyValueFilterMixin,
@@ -250,67 +174,17 @@ export const formulaFielArrayFilterMixin = Object.assign(
       )?.getHasValueLengthIsLowerThanFilterFunction(field)
     },
 
-    hasValueHigherThanFilter(cellValue, filterValue, field) {
-      return this.getFormulaType(field)?.hasValueHigherThanFilter(
+    hasValueComparableToFilter(
+      cellValue,
+      filterValue,
+      field,
+      comparisonOperator
+    ) {
+      return this.getFormulaType(field)?.hasValueComparableToFilter(
         cellValue,
         filterValue,
-        field
-      )
-    },
-
-    hasNotValueHigherThanFilter(cellValue, filterValue, field) {
-      return this.getFormulaType(field)?.hasNotValueHigherThanFilter(
-        cellValue,
-        filterValue,
-        field
-      )
-    },
-
-    hasValueHigherThanOrEqualFilter(cellValue, filterValue, field) {
-      return this.getFormulaType(field)?.hasValueHigherThanOrEqualFilter(
-        cellValue,
-        filterValue,
-        field
-      )
-    },
-
-    hasNotValueHigherThanOrEqualFilter(cellValue, filterValue, field) {
-      return this.getFormulaType(field)?.hasNotValueHigherThanOrEqualFilter(
-        cellValue,
-        filterValue,
-        field
-      )
-    },
-
-    hasValueLowerThanFilter(cellValue, filterValue, field) {
-      return this.getFormulaType(field)?.hasValueLowerThanFilter(
-        cellValue,
-        filterValue,
-        field
-      )
-    },
-
-    hasNotValueLowerThanFilter(cellValue, filterValue, field) {
-      return this.getFormulaType(field)?.hasNotValueLowerThanFilter(
-        cellValue,
-        filterValue,
-        field
-      )
-    },
-
-    hasValueLowerThanOrEqualFilter(cellValue, filterValue, field) {
-      return this.getFormulaType(field)?.hasValueLowerThanOrEqualFilter(
-        cellValue,
-        filterValue,
-        field
-      )
-    },
-
-    hasNotValueLowerThanOrEqualFilter(cellValue, filterValue, field) {
-      return this.getFormulaType(field)?.hasNotValueLowerThanOrEqualFilter(
-        cellValue,
-        filterValue,
-        field
+        field,
+        comparisonOperator
       )
     },
   }
@@ -369,63 +243,18 @@ export const baserowFormulaArrayTypeFilterMixin = {
   getHasAllValuesEqualFilterFunction(field) {
     return this.getSubType(field)?.getHasAllValuesEqualFilterFunction(field)
   },
-  hasValueHigherThanFilter(cellValue, filterValue, field) {
-    return this.getSubType(field)?.hasValueHigherThanFilter(
-      cellValue,
-      filterValue,
-      field
-    )
-  },
-  hasValueHigherThanOrEqualFilter(cellValue, filterValue, field) {
-    return this.getSubType(field)?.hasValueHigherThanOrEqualFilter(
-      cellValue,
-      filterValue,
-      field
-    )
-  },
 
-  hasValueLowerThanFilter(cellValue, filterValue, field) {
-    return this.getSubType(field)?.hasValueLowerThanFilter(
+  hasValueComparableToFilter(
+    cellValue,
+    filterValue,
+    field,
+    comparisonOperator
+  ) {
+    return this.getSubType(field)?.hasValueComparableToFilter(
       cellValue,
       filterValue,
-      field
-    )
-  },
-  hasValueLowerThanOrEqualFilter(cellValue, filterValue, field) {
-    return this.getSubType(field)?.hasValueLowerThanOrEqualFilter(
-      cellValue,
-      filterValue,
-      field
-    )
-  },
-
-  hasNotValueHigherThanFilter(cellValue, filterValue, field) {
-    return this.getSubType(field)?.hasNotValueHigherThanFilter(
-      cellValue,
-      filterValue,
-      field
-    )
-  },
-  hasNotValueHigherThanOrEqualFilter(cellValue, filterValue, field) {
-    return this.getSubType(field)?.hasNotValueHigherThanOrEqualFilter(
-      cellValue,
-      filterValue,
-      field
-    )
-  },
-
-  hasNotValueLowerThanFilter(cellValue, filterValue, field) {
-    return this.getSubType(field)?.hasNotValueLowerThanFilter(
-      cellValue,
-      filterValue,
-      field
-    )
-  },
-  hasNotValueLowerThanOrEqualFilter(cellValue, filterValue, field) {
-    return this.getSubType(field)?.hasNotValueLowerThanOrEqualFilter(
-      cellValue,
-      filterValue,
-      field
+      field,
+      comparisonOperator
     )
   },
 }
