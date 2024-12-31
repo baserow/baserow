@@ -5,12 +5,12 @@
       :key="widget.id"
       :widget="widget"
       :dashboard="dashboard"
+      :store-prefix="storePrefix"
     />
   </div>
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
 import DashboardWidget from '@baserow/modules/dashboard/components/widget/DashboardWidget'
 
 export default {
@@ -21,12 +21,23 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   computed: {
-    ...mapGetters({
-      isEditMode: 'dashboardApplication/isEditMode',
-      widgets: 'dashboardApplication/getWidgets',
-    }),
+    isEditMode() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isEditMode`
+      ]
+    },
+    widgets() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getWidgets`
+      ]
+    },
   },
 }
 </script>

@@ -14,13 +14,12 @@
       :is="widgetComponent(widget.type)"
       :dashboard="dashboard"
       :widget="widget"
+      :store-prefix="storePrefix"
     />
   </div>
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex'
-
 export default {
   name: 'DashboardWidget',
   props: {
@@ -32,12 +31,13 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   computed: {
-    ...mapGetters({
-      selectedWidgetId: 'dashboardApplication/getSelectedWidgetId',
-      isEditMode: 'dashboardApplication/isEditMode',
-    }),
     isSelected() {
       return this.selectedWidgetId === this.widget.id && this.isEditMode
     },
@@ -47,18 +47,28 @@ export default {
     widgetType() {
       return this.$registry.get('dashboardWidget', this.widget.type)
     },
+    selectedWidgetId() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getSelectedWidgetId`
+      ]
+    },
+    isEditMode() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isEditMode`
+      ]
+    },
   },
   methods: {
-    ...mapActions({
-      selectWidget: 'dashboardApplication/selectWidget',
-    }),
     widgetComponent(type) {
       const widgetType = this.$registry.get('dashboardWidget', type)
       return widgetType.component
     },
     selectWidgetIfAllowed(widgetId) {
       if (this.canSelectWidget()) {
-        this.selectWidget(widgetId)
+        this.$store.dispatch(
+          `${this.storePrefix}dashboardApplication/selectWidget`,
+          widgetId
+        )
       }
     },
     canSelectWidget() {

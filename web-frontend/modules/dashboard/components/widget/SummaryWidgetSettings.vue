@@ -6,6 +6,7 @@
     :widget="widget"
     :data-source="dataSource"
     :default-values="dataSource"
+    :store-prefix="storePrefix"
     @values-changed="onDataSourceValuesChanged"
   />
 </template>
@@ -13,7 +14,6 @@
 <script>
 import AggregateRowsDataSourceForm from '@baserow/modules/dashboard/components/data_source/AggregateRowsDataSourceForm'
 import error from '@baserow/modules/core/mixins/error'
-import { mapActions } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
@@ -29,6 +29,11 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   data() {
     return {
@@ -37,27 +42,27 @@ export default {
   },
   computed: {
     dataSource() {
-      return this.$store.getters['dashboardApplication/getDataSourceById'](
-        this.widget.data_source_id
-      )
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getDataSourceById`
+      ](this.widget.data_source_id)
     },
     integration() {
-      return this.$store.getters['dashboardApplication/getIntegrationById'](
-        this.dataSource.integration_id
-      )
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getIntegrationById`
+      ](this.dataSource.integration_id)
     },
   },
   methods: {
-    ...mapActions({
-      updateDataSource: 'dashboardApplication/updateDataSource',
-    }),
     async onDataSourceValuesChanged(changedDataSourceValues) {
       if (this.$refs.dataSourceForm.isFormValid()) {
         try {
-          await this.updateDataSource({
-            dataSourceId: this.dataSource.id,
-            values: changedDataSourceValues,
-          })
+          await this.$store.dispatch(
+            `${this.storePrefix}dashboardApplication/updateDataSource`,
+            {
+              dataSourceId: this.dataSource.id,
+              values: changedDataSourceValues,
+            }
+          )
         } catch (error) {
           this.$refs.dataSourceForm.reset()
           this.$refs.dataSourceForm.touch()

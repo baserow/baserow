@@ -6,18 +6,25 @@
           class="dashboard-app__layout-scrollable"
           :style="{ width: `calc(100% - ${sidebarWidth}px)` }"
         >
-          <div class="dashboard-app__content">
-            <DashboardContentHeader :dashboard="dashboard" />
+          <div
+            class="dashboard-app__content"
+            :class="{ 'dashboard-app__content--small': isInTemplate }"
+          >
+            <DashboardContentHeader
+              :dashboard="dashboard"
+              :store-prefix="storePrefix"
+            />
             <EmptyDashboard
               v-if="isEmpty"
               :dashboard="dashboard"
               @widget-type-selected="createWidget($event)"
             />
             <template v-else>
-              <WidgetBoard :dashboard="dashboard" />
+              <WidgetBoard :dashboard="dashboard" :store-prefix="storePrefix" />
               <CreateWidgetButton
                 v-if="isEditMode && canCreateWidget"
                 :dashboard="dashboard"
+                :store-prefix="storePrefix"
                 @widget-type-selected="createWidget($event)"
               />
             </template>
@@ -26,6 +33,7 @@
         <DashboardSidebar
           v-if="isEditMode"
           :dashboard="dashboard"
+          :store-prefix="storePrefix"
           :style="{ width: `${sidebarWidth}px` }"
         />
       </div>
@@ -39,7 +47,6 @@ import CreateWidgetButton from '@baserow/modules/dashboard/components/CreateWidg
 import DashboardSidebar from '@baserow/modules/dashboard/components/DashboardSidebar'
 import DashboardContentHeader from '@baserow/modules/dashboard/components/DashboardContentHeader'
 import WidgetBoard from '@baserow/modules/dashboard/components/WidgetBoard'
-import { mapGetters, mapActions } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
@@ -56,6 +63,11 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   data() {
     return {
@@ -63,23 +75,42 @@ export default {
     }
   },
   computed: {
-    ...mapGetters({
-      isEditMode: 'dashboardApplication/isEditMode',
-      isEmpty: 'dashboardApplication/isEmpty',
-      isLoading: 'dashboardApplication/isLoading',
-    }),
     sidebarWidth() {
       if (this.isEditMode) {
         return 352
       }
       return 0
     },
+    isEditMode() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isEditMode`
+      ]
+    },
+    isEmpty() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isEmpty`
+      ]
+    },
+    isLoading() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isLoading`
+      ]
+    },
+    isInTemplate() {
+      return this.storePrefix === 'template/'
+    },
   },
   methods: {
-    ...mapActions({
-      toggleEditMode: 'dashboardApplication/toggleEditMode',
-      enterEditMode: 'dashboardApplication/enterEditMode',
-    }),
+    toggleEditMode() {
+      return this.$store.dispatch(
+        `${this.storePrefix}dashboardApplication/toggleEditMode`
+      )
+    },
+    enterEditMode() {
+      return this.$store.dispatch(
+        `${this.storePrefix}dashboardApplication/enterEditMode`
+      )
+    },
     canCreateWidget() {
       return this.$hasPermission(
         'dashboard.create_widget',
