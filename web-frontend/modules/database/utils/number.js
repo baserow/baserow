@@ -12,6 +12,8 @@ const DECIMAL_SEPARATORS = {
   PERIOD: '.',
 }
 
+const NUMBER_MAX_DECIMAL_PLACES = 10
+
 const DEFAULT_THOUSAND_SEPARATOR = THOUSAND_SEPARATORS.NONE
 const DEFAULT_DECIMAL_SEPARATOR = DECIMAL_SEPARATORS.PERIOD
 
@@ -122,8 +124,10 @@ export const formatNumberValue = (
   // Format the number, but keep all decimal places if roundDecimals is false.
   // For example, filter values are not rounded since the backend doesn't round them.
   const formatter = new Intl.NumberFormat(locale, {
-    minimumFractionDigits: roundDecimals ? decimalPlaces : undefined,
-    maximumFractionDigits: roundDecimals ? decimalPlaces : 10, // NUMBER_MAX_DECIMAL_PLACES
+    minimumFractionDigits: decimalPlaces,
+    maximumFractionDigits: roundDecimals
+      ? decimalPlaces
+      : NUMBER_MAX_DECIMAL_PLACES,
     useGrouping: true,
   })
   let formatted = formatter.format(numericValue)
