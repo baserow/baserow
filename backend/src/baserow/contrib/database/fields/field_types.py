@@ -5302,6 +5302,24 @@ class CountFieldType(FormulaFieldType):
                 from_field.table, to_field_values, kwargs
             )
 
+    def field_dependency_deleted(
+        self,
+        field: CountField,
+        deleted_field: Field,
+        update_collector: FieldUpdateCollector,
+        field_cache: "FieldCache",
+        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+    ):
+        if field.through_field_id == deleted_field.id:
+            field.through_field_id = None
+        return super().field_dependency_deleted(
+            field,
+            deleted_field,
+            update_collector,
+            field_cache,
+            via_path_to_starting_table,
+        )
+
     def _validate_through_field_values(
         self,
         table,
@@ -5516,6 +5534,24 @@ class RollupFieldType(FormulaFieldType):
 
         values["through_field_id"] = through_field.id
         values["target_field_id"] = target_field.id
+
+    def field_dependency_deleted(
+        self,
+        field: RollupField,
+        deleted_field: Field,
+        update_collector: FieldUpdateCollector,
+        field_cache: "FieldCache",
+        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+    ):
+        if field.through_field_id == deleted_field.id:
+            field.through_field_id = None
+        return super().field_dependency_deleted(
+            field,
+            deleted_field,
+            update_collector,
+            field_cache,
+            via_path_to_starting_table,
+        )
 
     def import_serialized(
         self,
