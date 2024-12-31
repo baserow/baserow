@@ -154,11 +154,14 @@ export class EventsPageSidePanelType extends pageSidePanelType {
    * @returns {boolean}
    */
   isInError({ page, element, builder }) {
-    const workflowActions =
-      this.app.store.getters['workflowAction/getElementWorkflowActions'](
-        page,
-        element?.id // Not all elements support Events
-      ) || []
+    if (!element) {
+      // If we don't have an element, then this element type
+      // doesn't support events, so it can't be in-error.
+      return false
+    }
+    const workflowActions = this.app.store.getters[
+      'workflowAction/getElementWorkflowActions'
+    ](page, element.id)
     return workflowActions.some((workflowAction) => {
       const workflowActionType = this.app.$registry.get(
         'workflowAction',
