@@ -40,7 +40,7 @@ def test_get_dashboard_data_sources(api_client, data_fixture):
     assert response_json[0] == {
         "aggregation_type": "",
         "field_id": None,
-        "context_data": None,
+        "context_data": {},
         "context_data_schema": None,
         "dashboard_id": dashboard.id,
         "filter_type": "AND",
