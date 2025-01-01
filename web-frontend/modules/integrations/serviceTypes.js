@@ -252,7 +252,7 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
       })
       return formattedResult
     }
-    return 0
+    return null
   }
 
   isValid(service) {

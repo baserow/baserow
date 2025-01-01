@@ -72,8 +72,13 @@ export default {
     result() {
       if (this.dataSource) {
         const data = this.getDataForDataSource(this.dataSource.id)
-        const serviceType = this.$registry.get('service', this.dataSource.type)
-        return serviceType.getResult(this.dataSource, data)
+        if (data?.result) {
+          const serviceType = this.$registry.get(
+            'service',
+            this.dataSource.type
+          )
+          return serviceType.getResult(this.dataSource, data)
+        }
       }
       return 0
     },
