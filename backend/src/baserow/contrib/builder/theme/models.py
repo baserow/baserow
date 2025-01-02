@@ -30,7 +30,7 @@ class ColorThemeConfigBlock(ThemeConfigBlock):
     main_warning_color = models.CharField(max_length=9, default="#FCC74A")
     main_error_color = models.CharField(max_length=9, default="#FF5A4A")
     custom_colors = models.JSONField(
-        default=list, db_default=models.Value([], output_field=models.JSONField())
+        default=list, db_default=[]
     )
 
 
