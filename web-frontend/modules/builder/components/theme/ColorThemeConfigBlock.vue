@@ -89,7 +89,7 @@
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 
-const CUSTOM_COLOR_PREFIX = 'Custom '
+const CUSTOM_COLOR_PREFIX = 'Custom'
 
 export default {
   name: 'ColorThemeConfigBlock',
