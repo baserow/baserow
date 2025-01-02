@@ -26,7 +26,7 @@ from baserow.core.services.registries import (
     service_type_registry,
 )
 
-from .exceptions import ServiceConfigurationNotAllowed
+from .exceptions import DashboardDataSourceDoesNotExist, ServiceConfigurationNotAllowed
 from .signals import (
     dashboard_data_source_created,
     dashboard_data_source_deleted,
@@ -55,6 +55,9 @@ class DashboardDataSourceService:
         """
 
         data_source = self.handler.get_data_source(data_source_id)
+
+        if data_source.dashboard.trashed:
+            raise DashboardDataSourceDoesNotExist()
 
         CoreHandler().check_permissions(
             user,
@@ -182,6 +185,9 @@ class DashboardDataSourceService:
 
         data_source = self.handler.get_data_source_for_update(data_source_id)
 
+        if data_source.dashboard.trashed:
+            raise DashboardDataSourceDoesNotExist()
+
         CoreHandler().check_permissions(
             user,
             UpdateDashboardDataSourceOperationType.type,
@@ -226,6 +232,9 @@ class DashboardDataSourceService:
 
         data_source = self.handler.get_data_source_for_update(data_source_id)
 
+        if data_source.dashboard.trashed:
+            raise DashboardDataSourceDoesNotExist()
+
         CoreHandler().check_permissions(
             user,
             DeleteDashboardDataSourceOperationType.type,
@@ -264,6 +273,9 @@ class DashboardDataSourceService:
         """
 
         data_source = self.handler.get_data_source(data_source_id)
+
+        if data_source.dashboard.trashed:
+            raise DashboardDataSourceDoesNotExist()
 
         CoreHandler().check_permissions(
             user,

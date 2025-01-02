@@ -70,6 +70,7 @@ from baserow.contrib.dashboard.widgets.operations import (
     DeleteWidgetOperationType,
     ListWidgetsOperationType,
     ReadWidgetOperationType,
+    RestoreWidgetOperationType,
     UpdateWidgetOperationType,
 )
 from baserow.contrib.database.airtable.operations import (
@@ -462,6 +463,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreateWidgetOperationType,
         UpdateWidgetOperationType,
         DeleteWidgetOperationType,
+        RestoreWidgetOperationType,
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,

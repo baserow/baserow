@@ -49,7 +49,11 @@ class DashboardDataSourceFixtures:
             name = self.fake.unique.word()
 
         data_source = DashboardDataSource.objects.create(
-            dashboard=dashboard, name=name, service=service, order=order
+            dashboard=dashboard,
+            name=name,
+            service=service,
+            order=order,
+            trashed=kwargs.get("trashed", False),
         )
 
         return data_source

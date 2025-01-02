@@ -4,6 +4,7 @@ import IntegrationService from '@baserow/modules/core/services/integration'
 import debounce from 'lodash/debounce'
 
 export const state = () => ({
+  dashboardId: null,
   loading: false,
   editMode: false,
   selectedWidgetId: null,
@@ -20,12 +21,16 @@ let debouncedWidgetUpdate = null
 
 export const mutations = {
   RESET(state) {
+    state.dashboardId = null
     state.editMode = false
     state.selectedWidgetId = null
     state.widgets = []
     state.dataSources = []
     state.integrations = []
     state.data = {}
+  },
+  SET_DASHBOARD_ID(state, dashboardId) {
+    state.dashboardId = dashboardId
   },
   TOGGLE_EDIT_MODE(state) {
     state.editMode = !state.editMode
@@ -127,6 +132,7 @@ export const actions = {
   },
   async fetchInitial({ commit, dispatch }, { dashboardId, forEditing }) {
     commit('RESET')
+    commit('SET_DASHBOARD_ID', dashboardId)
     const { data } = await WidgetService(this.$client).getAllWidgets(
       dashboardId
     )
@@ -186,6 +192,9 @@ export const actions = {
 }
 
 export const getters = {
+  getDashboardId(state) {
+    return state.dashboardId
+  },
   isEditMode(state) {
     return state.editMode
   },
@@ -199,7 +208,7 @@ export const getters = {
     return state.widgets.find((widget) => widget.id === widgetId)
   },
   getWidgets(state) {
-    return state.widgets
+    return state.widgets.toSorted((a, b) => a.order - b.order)
   },
   getSelectedWidgetId(state) {
     return state.selectedWidgetId

@@ -54,6 +54,26 @@ class WidgetType(
 
         pass
 
+    def before_trashed(self, instance: Widget):
+        """
+        This function allows you to hook into the process of trashing
+        a widget and do widget type specific steps.
+
+        :param instance: The instance that will be restored.
+        """
+
+        pass
+
+    def before_restore(self, instance: Widget):
+        """
+        This function allows you to hook into the process of restoring
+        a widget and do widget type specific steps.
+
+        :param instance: The instance that will be restored.
+        """
+
+        pass
+
     def deserialize_property(
         self,
         prop_name: str,

@@ -12,6 +12,8 @@ class DashboardConfig(AppConfig):
             object_scope_type_registry,
             operation_type_registry,
         )
+        from baserow.core.trash.registries import trash_item_type_registry
+        from baserow.ws.registries import page_registry
 
         from .application_types import DashboardApplicationType
 
@@ -39,6 +41,7 @@ class DashboardConfig(AppConfig):
                 DeleteWidgetOperationType,
                 ListWidgetsOperationType,
                 ReadWidgetOperationType,
+                RestoreWidgetOperationType,
                 UpdateWidgetOperationType,
             )
 
@@ -47,6 +50,7 @@ class DashboardConfig(AppConfig):
             operation_type_registry.register(CreateWidgetOperationType())
             operation_type_registry.register(UpdateWidgetOperationType())
             operation_type_registry.register(DeleteWidgetOperationType())
+            operation_type_registry.register(RestoreWidgetOperationType())
 
             from baserow.contrib.dashboard.data_sources.operations import (
                 CreateDashboardDataSourceOperationType,
@@ -70,3 +74,15 @@ class DashboardConfig(AppConfig):
             from baserow.contrib.dashboard.widgets.widget_types import SummaryWidgetType
 
             widget_type_registry.register(SummaryWidgetType())
+
+            from baserow.contrib.dashboard.widgets.trash_types import (
+                WidgetTrashableItemType,
+            )
+
+            trash_item_type_registry.register(WidgetTrashableItemType())
+
+            from .ws.pages import DashboardPageType
+
+            page_registry.register(DashboardPageType())
+
+            from .ws.receivers import widget_created  # noqa: F401

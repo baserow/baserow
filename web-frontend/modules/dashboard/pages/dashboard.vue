@@ -47,5 +47,11 @@ export default {
     }
     return data
   },
+  mounted() {
+    this.$realtime.subscribe('dashboard', { dashboard_id: this.dashboard.id })
+  },
+  beforeDestroy() {
+    this.$realtime.unsubscribe('dashboard', { dashboard_id: this.dashboard.id })
+  },
 }
 </script>

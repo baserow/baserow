@@ -23,6 +23,10 @@ class DeleteWidgetOperationType(WidgetOperationType):
     type = "dashboard.widget.delete"
 
 
+class RestoreWidgetOperationType(WidgetOperationType):
+    type = "dashboard.widget.restore"
+
+
 class ListWidgetsOperationType(DashboardOperationType):
     type = "dashboard.list_widgets"
     object_scope_name = "dashboard_widget"
