@@ -94,7 +94,7 @@ from baserow.contrib.database.api.views.errors import (
 from baserow.contrib.database.db.functions import RandomUUID
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
 from baserow.contrib.database.fields.filter_support.formula import (
-    FormulaArrayFilterSupport,
+    FormulaFieldTypeArrayFilterSupport,
 )
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
@@ -144,6 +144,7 @@ from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import list_to_comma_separated_string
 
 from .constants import (
+    BASEROW_BOOLEAN_FIELD_FALSE_VALUES,
     BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
     UPSERT_OPTION_DICT_KEY,
     DeleteFieldStrategyEnum,
@@ -783,6 +784,21 @@ class NumberFieldType(FieldType):
             "number_separator": field.number_separator,
         }
 
+    def prepare_filter_value(self, field, model_field, value):
+        """
+        Verify if it's a valid and finite decimal value, but the filter value doesn't
+        need to respect the number_decimal_places, because they can change while the
+        filter_value remains the same.
+        """
+
+        try:
+            value = Decimal(value)
+            if not value.is_finite():
+                raise ValueError
+        except (InvalidOperation, ValueError, TypeError):
+            raise ValueError(f"Invalid value for number field: {value}")
+        return value
+
 
 class RatingFieldType(FieldType):
     type = "rating"
@@ -958,6 +974,14 @@ class BooleanFieldType(FieldType):
         self, boolean_formula_type: BaserowFormulaBooleanType
     ) -> BooleanField:
         return BooleanField()
+
+    def prepare_filter_value(self, field, model_field, value):
+        if value in BASEROW_BOOLEAN_FIELD_TRUE_VALUES:
+            return True
+        elif value in BASEROW_BOOLEAN_FIELD_FALSE_VALUES:
+            return False
+        else:
+            raise ValueError(f"Invalid value for boolean field: {value}")
 
 
 class DateFieldType(FieldType):
@@ -4674,7 +4698,7 @@ class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
         return collate_expression(Value(value))
 
 
-class FormulaFieldType(FormulaArrayFilterSupport, ReadOnlyFieldType):
+class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
     type = "formula"
     model_class = FormulaField
     _db_column_fields = []
@@ -5237,6 +5261,13 @@ class FormulaFieldType(FormulaArrayFilterSupport, ReadOnlyFieldType):
             )
 
         return FormulaHandler.get_dependencies_field_names(serialized_field["formula"])
+
+    def prepare_filter_value(self, field, model_field, value):
+        (
+            field_instance,
+            field_type,
+        ) = self.get_field_instance_and_type_from_formula_field(field)
+        return field_type.prepare_filter_value(field_instance, model_field, value)
 
 
 class CountFieldType(FormulaFieldType):

@@ -1629,12 +1629,17 @@ def test_has_value_length_is_lower_than_uuid_field_types(data_fixture):
         (
             "has_all_values_equal",
             "",
-            [BooleanLookupRow.ALL_FALSE],
+            [
+                BooleanLookupRow.ALL_TRUE,
+                BooleanLookupRow.ALL_FALSE,
+                BooleanLookupRow.NO_VALUES,
+                BooleanLookupRow.MIXED,
+            ],
         ),
         (
             "has_all_values_equal",
             "invalid",
-            [BooleanLookupRow.ALL_FALSE],
+            [],
         ),
     ],
 )
@@ -1683,12 +1688,17 @@ def test_has_all_values_equal_filter_boolean_lookup_field_type(
         (
             "has_value_equal",
             "",
-            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+            [
+                BooleanLookupRow.MIXED,
+                BooleanLookupRow.ALL_FALSE,
+                BooleanLookupRow.NO_VALUES,
+                BooleanLookupRow.ALL_TRUE,
+            ],
         ),
         (
             "has_value_equal",
             "invalid",
-            [BooleanLookupRow.MIXED, BooleanLookupRow.ALL_FALSE],
+            [],
         ),
     ],
 )
@@ -1737,12 +1747,23 @@ def test_has_value_equal_filter_boolean_lookup_field_type(
         (
             "has_not_value_equal",
             "",
-            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+            [
+                BooleanLookupRow.MIXED,
+                BooleanLookupRow.ALL_FALSE,
+                BooleanLookupRow.NO_VALUES,
+                BooleanLookupRow.ALL_TRUE,
+            ],
         ),
         (
             "has_not_value_equal",
             "invalid",
-            [BooleanLookupRow.ALL_TRUE, BooleanLookupRow.NO_VALUES],
+            # inverse of has_value_equal with `invalid` value
+            [
+                BooleanLookupRow.ALL_TRUE,
+                BooleanLookupRow.ALL_FALSE,
+                BooleanLookupRow.NO_VALUES,
+                BooleanLookupRow.MIXED,
+            ],
         ),
     ],
 )
