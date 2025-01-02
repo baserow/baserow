@@ -32,7 +32,7 @@
 
 <script>
 import { resolveColor } from '@baserow/modules/core/utils/colors'
-import { themeToColorVariables } from '@baserow/modules/builder/utils/theme'
+import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 import {
   BACKGROUND_TYPES,
@@ -46,6 +46,7 @@ import {
   ROLE_TYPE_ALLOW_EXCEPT,
   ROLE_TYPE_DISALLOW_EXCEPT,
 } from '@baserow/modules/builder/constants'
+
 import { mapGetters } from 'vuex'
 
 export default {
@@ -69,8 +70,14 @@ export default {
   computed: {
     BACKGROUND_TYPES: () => BACKGROUND_TYPES,
     WIDTH_TYPES: () => WIDTH_TYPES,
+    themeConfigBlocks() {
+      return this.$registry.getOrderedList('themeConfigBlock')
+    },
     colorVariables() {
-      return themeToColorVariables(this.builder.theme)
+      return ThemeConfigBlockType.getAllColorVariables(
+        this.themeConfigBlocks,
+        this.builder.theme
+      )
     },
     elementMode() {
       return this.forceMode !== null ? this.forceMode : this.mode
