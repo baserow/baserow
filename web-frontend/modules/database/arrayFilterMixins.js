@@ -276,9 +276,9 @@ export const hasSelectOptionIdEqualMixin = Object.assign(
         const filterValues = String(filterValue ?? '')
           .trim()
           .split(',')
-        return filterValues.reduce((acc, fltValue) => {
-          return acc || hasValueEqualFilter(cellValue, String(fltValue))
-        }, false)
+        return filterValues.some((fltValue) =>
+          hasValueEqualFilter(cellValue, String(fltValue))
+        )
       }
     },
   }
@@ -308,6 +308,62 @@ export const hasSelectOptionValueContainsWordFilterMixin = Object.assign(
           cellValue.map((v) => ({ id: v.id, value: v.value?.value || '' })),
           filterValue
         )
+    },
+  }
+)
+
+export const hasNestedSelectOptionValueContainsFilterMixin = Object.assign(
+  {},
+  hasValueContainsFilterMixin,
+  {
+    getHasValueContainsFilterFunction(field) {
+      return (cellValue, filterValue) => {
+        if (!Array.isArray(cellValue) || cellValue.length === 0) {
+          return false
+        }
+        return cellValue.some((v) =>
+          genericHasValueContainsFilter(v?.value || [], filterValue)
+        )
+      }
+    },
+  }
+)
+
+export const hasNestedSelectOptionValueContainsWordFilterMixin = Object.assign(
+  {},
+  hasValueContainsWordFilterMixin,
+  {
+    getHasValueContainsWordFilterFunction(field) {
+      return (cellValue, filterValue) => {
+        if (!Array.isArray(cellValue) || cellValue.length === 0) {
+          return false
+        }
+        return cellValue.some((v) =>
+          genericHasValueContainsWordFilter(v?.value || [], filterValue)
+        )
+      }
+    },
+  }
+)
+
+export const hasMultipleSelectOptionIdEqualMixin = Object.assign(
+  {},
+  hasValueEqualFilterMixin,
+  {
+    getHasValueEqualFilterFunction(field) {
+      return (cellValue, filterValue) => {
+        if (!Array.isArray(cellValue)) {
+          return false
+        }
+        const rowValueIds = new Set(
+          cellValue.flatMap((v) => (v?.value || []).map((i) => i.id))
+        )
+        const filterValues = (filterValue || '')
+          .trim()
+          .split(',')
+          .map(Number.parseInt)
+        return filterValues.some((fltValue) => rowValueIds.has(fltValue))
+      }
     },
   }
 )

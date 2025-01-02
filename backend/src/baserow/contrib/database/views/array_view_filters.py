@@ -23,6 +23,7 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaBooleanType,
     BaserowFormulaCharType,
+    BaserowFormulaMultipleSelectType,
     BaserowFormulaSingleSelectType,
     BaserowFormulaURLType,
 )
@@ -45,6 +46,7 @@ class HasEmptyValueViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
         ),
     ]
 
@@ -110,6 +112,7 @@ class HasValueEqualViewFilterType(ComparisonHasValueFilter):
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
         ),
     ]
 
@@ -140,6 +143,7 @@ class HasValueContainsViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
         ),
     ]
 
@@ -174,6 +178,7 @@ class HasValueContainsWordViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
         ),
     ]
 

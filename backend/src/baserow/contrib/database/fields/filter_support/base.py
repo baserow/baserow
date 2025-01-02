@@ -41,7 +41,7 @@ class HasValueEmptyFilterSupport:
 
     def get_in_array_empty_query(
         self, field_name: str, model_field: models.Field, field: "Field"
-    ) -> OptionallyAnnotatedQ:
+    ) -> Q | OptionallyAnnotatedQ:
         """
         Specifies a Q expression to filter empty values contained in an array.
 
@@ -224,6 +224,9 @@ def get_array_json_filter_expression(
     :param extra: extra arguments for the json_expression.
     :return: the annotated query for the filter.
     """
+
+    if not isinstance(value, Value):
+        value = Value(value)
 
     annotation_query = json_expression(
         F(field_name), Value(value), output_field=BooleanField(), **extra

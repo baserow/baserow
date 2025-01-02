@@ -2355,3 +2355,219 @@ def test_has_none_select_option_equal_filter_single_select_field(data_fixture):
     ]
     assert len(ids) == 1
     assert row_2.id in ids
+
+
+def setup_multiple_select_rows(data_fixture):
+    test_setup = setup(data_fixture, multiple_select_field_factory)
+
+    user = data_fixture.create_user()
+    row_A_value = multiple_select_field_value_factory(
+        data_fixture, test_setup.target_field, "Aa C"
+    )
+    row_B_value = multiple_select_field_value_factory(
+        data_fixture, test_setup.target_field, "B"
+    )
+    row_empty_value = multiple_select_field_value_factory(
+        data_fixture, test_setup.target_field
+    )
+
+    (
+        other_row_A,
+        other_row_B,
+        other_row_empty,
+    ) = test_setup.row_handler.force_create_rows(
+        user,
+        test_setup.other_table,
+        [
+            {f"field_{test_setup.target_field.id}": row_A_value},
+            {f"field_{test_setup.target_field.id}": row_B_value},
+            {f"field_{test_setup.target_field.id}": row_empty_value},
+        ],
+    )
+    row_1 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={
+            f"field_{test_setup.link_row_field.id}": [
+                other_row_A.id,
+                other_row_empty.id,
+            ]
+        },
+    )
+    row_2 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={f"field_{test_setup.link_row_field.id}": []},
+    )
+    row_3 = test_setup.row_handler.create_row(
+        user=test_setup.user,
+        table=test_setup.table,
+        values={f"field_{test_setup.link_row_field.id}": [other_row_B.id]},
+    )
+    return test_setup, [row_1, row_2, row_3], [*row_A_value, *row_B_value]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_select
+def test_has_or_has_not_empty_value_filter_multiple_select_field_types(
+    data_fixture,
+):
+    test_setup, [row_1, row_2, row_3], _ = setup_multiple_select_rows(data_fixture)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_empty_value",
+        value="",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert row_1.id in ids
+
+    view_filter.type = "has_not_empty_value"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_2.id, row_3.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_select
+def test_has_or_doesnt_have_value_contains_filter_multiple_select_field_types(
+    data_fixture,
+):
+    test_setup, [row_1, row_2, row_3], _ = setup_multiple_select_rows(data_fixture)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_contains",
+        value="A",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert row_1.id in ids
+
+    view_filter.type = "has_not_value_contains"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_2.id, row_3.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_select
+def test_has_or_doesnt_have_value_contains_word_filter_multiple_select_field_types(
+    data_fixture,
+):
+    test_setup, [row_1, row_2, row_3], _ = setup_multiple_select_rows(data_fixture)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_contains_word",
+        value="A",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 0
+
+    view_filter.value = "Aa"
+    view_filter.save()
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert row_1.id in ids
+
+    view_filter.type = "has_not_value_contains_word"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_2.id, row_3.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_select
+def test_has_or_doesnt_have_value_equal_filter_multiple_select_field_types(
+    data_fixture,
+):
+    test_setup, [row_1, row_2, row_3], options = setup_multiple_select_rows(
+        data_fixture
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_equal",
+        value="A",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 0
+
+    view_filter.value = str(options[0])
+    view_filter.save()
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_1.id]
+
+    view_filter.value = ",".join([str(oid) for oid in options])
+    view_filter.save()
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_1.id, row_3.id]
+
+    view_filter.type = "has_not_value_equal"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_2.id]

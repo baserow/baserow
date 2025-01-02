@@ -23,6 +23,21 @@ FILTER_TYPE_OR = "OR"
 tracer = trace.get_tracer(__name__)
 
 
+def parse_select_option_ids(filter_value: str) -> list[int]:
+    """
+    Parses the provided filter value and returns a list of integers that represent the
+    select option ids. If a token is not a digit, it is ignored.
+
+    :param filter_value: The value that has been provided by the user.
+    :return: A list of integers that represent the select option ids.
+    """
+
+    try:
+        return [int(v) for v in filter_value.split(",") if v.isdigit()]
+    except ValueError:
+        return []
+
+
 class AnnotatedQ:
     """
     A simple wrapper class combining a params for a Queryset.annotate call with a

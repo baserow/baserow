@@ -24,6 +24,7 @@ export class HasEmptyValueViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(number)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(multiple_select)'),
     ]
   }
 
@@ -49,6 +50,7 @@ export class HasNotEmptyValueViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(number)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(multiple_select)'),
     ]
   }
 
@@ -85,7 +87,8 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
         FormulaFieldType.arrayOf('url'),
         FormulaFieldType.arrayOf('boolean'),
         FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('number')
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('multiple_select')
       ),
     ]
   }
@@ -119,7 +122,8 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
         FormulaFieldType.arrayOf('url'),
         FormulaFieldType.arrayOf('boolean'),
         FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('number')
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('multiple_select')
       ),
     ]
   }
@@ -146,7 +150,8 @@ export class HasValueContainsViewFilterType extends ViewFilterType {
         FormulaFieldType.arrayOf('text'),
         FormulaFieldType.arrayOf('url'),
         FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('number')
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('multiple_select')
       ),
     ]
   }
@@ -177,7 +182,8 @@ export class HasNotValueContainsViewFilterType extends ViewFilterType {
         FormulaFieldType.arrayOf('text'),
         FormulaFieldType.arrayOf('url'),
         FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('number')
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('multiple_select')
       ),
     ]
   }
@@ -207,6 +213,7 @@ export class HasValueContainsWordViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(multiple_select)'),
     ]
   }
 
@@ -235,6 +242,7 @@ export class HasNotValueContainsWordViewFilterType extends ViewFilterType {
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(multiple_select)'),
     ]
   }
 

@@ -59,6 +59,9 @@ import {
   hasSelectOptionValueContainsWordFilterMixin,
   baserowFormulaArrayTypeFilterMixin,
   hasNumericValueComparableToFilterMixin,
+  hasNestedSelectOptionValueContainsFilterMixin,
+  hasNestedSelectOptionValueContainsWordFilterMixin,
+  hasMultipleSelectOptionIdEqualMixin,
 } from '@baserow/modules/database/arrayFilterMixins'
 import _ from 'lodash'
 import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/ViewFilterTypeBoolean.vue'
@@ -68,6 +71,7 @@ import {
 } from '@baserow/modules/database/utils/fieldFilters'
 import ViewFilterTypeSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeSelectOptions.vue'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
+import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions.vue'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
   getIconClass() {
@@ -923,7 +927,13 @@ export class BaserowFormulaSingleSelectType extends mix(
   }
 }
 
-export class BaserowFormulaMultipleSelectType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaMultipleSelectType extends mix(
+  hasEmptyValueFilterMixin,
+  hasNestedSelectOptionValueContainsFilterMixin,
+  hasNestedSelectOptionValueContainsWordFilterMixin,
+  hasMultipleSelectOptionIdEqualMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'multiple_select'
   }
@@ -934,6 +944,10 @@ export class BaserowFormulaMultipleSelectType extends BaserowFormulaTypeDefiniti
 
   getIconClass() {
     return 'baserow-icon-multiple-select'
+  }
+
+  getFilterInputComponent(field, filterType) {
+    return ViewFilterTypeMultipleSelectOptions
   }
 
   getRowEditFieldComponent(field) {

@@ -24,6 +24,7 @@ from baserow.contrib.database.fields.field_filters import (
     FilterBuilder,
     OptionallyAnnotatedQ,
     filename_contains_filter,
+    parse_select_option_ids,
 )
 from baserow.contrib.database.fields.field_types import (
     AutonumberFieldType,
@@ -1073,9 +1074,11 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
         ),
     ]
 
+    @staticmethod
     def _get_filter(field_name, value, model_field, field):
         return Q(**{f"{field_name}_id": value})
 
+    @staticmethod
     def _get_formula_filter(field_name, value, model_field, field):
         return Q(**{f"{field_name}__id": value})
 
@@ -1144,22 +1147,12 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         }
     )
 
-    def parse_option_ids(self, value):
-        try:
-            return [int(v) for v in value.split(",") if v.isdigit()]
-        # non-strings will raise AttributeError, so we have a type check here too
-        except (
-            ValueError,
-            AttributeError,
-        ):
-            return []
-
     def get_filter(self, field_name, value: str, model_field, field):
         value = value.strip()
         if not value:
             return Q()
 
-        if not (option_ids := self.parse_option_ids(value)):
+        if not (option_ids := parse_select_option_ids(value)):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
@@ -1365,18 +1358,17 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         ),
     ]
 
+    @staticmethod
     def _get_filter(field_name, option_ids, model_field, field):
-        try:
-            remote_field = model_field.remote_field
-            remote_model = remote_field.model
-            return Q(
-                id__in=remote_model.objects.filter(id__in=option_ids).values(
-                    f"{remote_field.related_name}__id"
-                )
+        remote_field = model_field.remote_field
+        remote_model = remote_field.model
+        return Q(
+            id__in=remote_model.objects.filter(id__in=option_ids).values(
+                f"{remote_field.related_name}__id"
             )
-        except ValueError:
-            return Q()
+        )
 
+    @staticmethod
     def _get_formula_filter(field_name, option_ids, model_field, field):
         model = model_field.model
         subq = (
@@ -1403,12 +1395,6 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
             q=Q(**{f"{annotation_name}__overlap": option_ids}),
         )
 
-    def parse_option_ids(self, value):
-        try:
-            return [int(v) for v in value.split(",") if v.isdigit()]
-        except ValueError:
-            return []
-
     filter_functions = MappingProxyType(
         {
             MultipleSelectFieldType.type: _get_filter,
@@ -1421,7 +1407,7 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         if not value:
             return Q()
 
-        if not (option_ids := self.parse_option_ids(value)):
+        if not (option_ids := parse_select_option_ids(value)):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)

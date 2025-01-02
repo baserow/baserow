@@ -254,7 +254,7 @@ class JSONArrayEqualSelectOptionIdExpr(BaserowFilterExpression):
         EXISTS(
             SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE (filtered_field -> 'value' ->> 'id') LIKE (%(value)s)
+            WHERE (filtered_field -> 'value' ->> 'id')::int = ANY(%(value)s)
         )
         """  # nosec B608
     )
@@ -339,3 +339,62 @@ class JSONArrayCompareNumericValueExpr(BaserowFilterExpression):
         data = super().get_template_data(sql_value)
         data["comparison_op"] = self.comparison_op.value
         return data
+    
+    
+class JSONArrayValueIsExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT 1
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+            WHERE filtered_field -> 'value' = (%(value)s)
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayNestedValueContainsValueExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT 1
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as outer_elem,
+                 JSONB_ARRAY_ELEMENTS(outer_elem -> 'value') as filtered_field
+            WHERE UPPER(filtered_field ->> 'value') LIKE UPPER(%(value)s::text)
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayNestedSelectOptionValueSimilarToExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        rf"""
+        EXISTS(
+            SELECT 1
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as outer_elem,
+                 JSONB_ARRAY_ELEMENTS(outer_elem -> 'value') as filtered_field
+            WHERE UPPER(filtered_field ->> 'value')  ~* ('\y' || %(value)s || '\y')
+        )
+        """  # nosec B608
+    )
+    # fmt: on
+
+
+class JSONArrayNestedValueAnyOfValuesExpr(BaserowFilterExpression):
+    # fmt: off
+    template = (
+        f"""
+        EXISTS(
+            SELECT 1
+            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as outer_elem,
+                 JSONB_ARRAY_ELEMENTS(outer_elem -> 'value') as filtered_field
+            WHERE (filtered_field ->> 'id')::int = ANY(%(value)s)
+        )
+        """  # nosec B608
+    )
+    # fmt: on

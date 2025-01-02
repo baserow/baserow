@@ -43,6 +43,9 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueLengthIsLowerThanFilterSupport,
     get_array_json_filter_expression,
 )
+from baserow.contrib.database.fields.filter_support.multiple_select import (
+    MultipleleSelectFormulaTypeFilterSupport,
+)
 from baserow.contrib.database.fields.filter_support.single_select import (
     SingleSelectFormulaTypeFilterSupport,
 )
@@ -1508,7 +1511,9 @@ class BaserowFormulaSingleSelectType(
         }
 
 
-class BaserowFormulaMultipleSelectType(BaserowJSONBObjectBaseType):
+class BaserowFormulaMultipleSelectType(
+    MultipleleSelectFormulaTypeFilterSupport, BaserowJSONBObjectBaseType
+):
     type = "multiple_select"
     baserow_field_type = "multiple_select"
     can_order_by = False
