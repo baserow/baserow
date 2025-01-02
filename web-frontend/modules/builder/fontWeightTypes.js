@@ -2,7 +2,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 
 export class FontWeightType extends Registerable {
   get name() {
-    return 'Regular'
+    return this.app.i18n.t('fontWeightType.regular')
   }
 
   get weight() {
@@ -16,7 +16,7 @@ export class ThinFontWeightType extends FontWeightType {
   }
 
   get name() {
-    return 'Thin'
+    return this.app.i18n.t('fontWeightType.thin')
   }
 
   get weight() {
@@ -30,7 +30,7 @@ export class UltraLightFontWeightType extends FontWeightType {
   }
 
   get name() {
-    return 'Extra-light'
+    return this.app.i18n.t('fontWeightType.extraLight')
   }
 
   get weight() {
@@ -44,7 +44,7 @@ export class LightFontWeightType extends FontWeightType {
   }
 
   get name() {
-    return 'Light'
+    return this.app.i18n.t('fontWeightType.light')
   }
 
   get weight() {
@@ -58,7 +58,7 @@ export class RegularFontWeightType extends FontWeightType {
   }
 
   get name() {
-    return 'Regular'
+    return this.app.i18n.t('fontWeightType.regular')
   }
 
   get weight() {
@@ -72,7 +72,7 @@ export class MediumFontWeightType extends FontWeightType {
   }
 
   get name() {
-    return 'Medium'
+    return this.app.i18n.t('fontWeightType.medium')
   }
 
   get weight() {
@@ -86,7 +86,7 @@ export class SemiBoldFontWeightType extends FontWeightType {
   }
 
   get name() {
-    return 'Semi-bold'
+    return this.app.i18n.t('fontWeightType.semiBold')
   }
 
   get weight() {
@@ -100,7 +100,7 @@ export class BoldFontWeightType extends FontWeightType {
   }
 
   get name() {
-    return 'Bold'
+    return this.app.i18n.t('fontWeightType.bold')
   }
 
   get weight() {
@@ -114,7 +114,7 @@ export class ExtraBoldFontWeightType extends FontWeightType {
   }
 
   get name() {
-    return 'Extra-bold'
+    return this.app.i18n.t('fontWeightType.extraBold')
   }
 
   get weight() {
@@ -128,7 +128,7 @@ export class BlackFontWeightType extends FontWeightType {
   }
 
   get name() {
-    return 'Black'
+    return this.app.i18n.t('fontWeightType.black')
   }
 
   get weight() {
@@ -142,7 +142,7 @@ export class ExtraBlackFontWeightType extends FontWeightType {
   }
 
   get name() {
-    return 'Extra-black'
+    return this.app.i18n.t('fontWeightType.extraBlack')
   }
 
   get weight() {
