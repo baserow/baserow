@@ -89,7 +89,7 @@ import {
 
 const COLOR_ID_LENGTH = 5
 
-const CUSTOM_COLOR_PREFIX = 'Custom '
+const CUSTOM_COLOR_PREFIX = 'Custom'
 
 export default {
   name: 'ColorThemeConfigBlock',
