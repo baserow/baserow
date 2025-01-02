@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import (
     map_exceptions,
+    require_request_data_type,
     validate_body,
     validate_body_custom_fields,
 )
@@ -242,6 +243,7 @@ class DataSourceView(APIView):
             InvalidServiceTypeDispatchSource: ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
         }
     )
+    @require_request_data_type(dict)
     def patch(self, request, data_source_id: int):
         """
         Update a data_source.

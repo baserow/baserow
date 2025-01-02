@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import (
     map_exceptions,
+    require_request_data_type,
     validate_body,
     validate_body_custom_fields,
 )
@@ -262,6 +263,7 @@ class BuilderWorkflowActionView(APIView):
             WorkflowActionDoesNotExist: ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
         }
     )
+    @require_request_data_type(dict)
     def patch(self, request, workflow_action_id: int):
         workflow_action = BuilderWorkflowActionHandler().get_workflow_action(
             workflow_action_id

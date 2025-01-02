@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from baserow.api.decorators import (
     allowed_includes,
     map_exceptions,
+    require_request_data_type,
     validate_body,
     validate_body_custom_fields,
     validate_query_parameters,
@@ -1342,6 +1343,7 @@ class ViewDecorationView(APIView):
             DecoratorValueProviderTypeNotCompatible: ERROR_VIEW_DECORATION_VALUE_PROVIDER_NOT_COMPATIBLE,
         }
     )
+    @require_request_data_type(dict)
     def patch(self, request, view_decoration_id):
         """Updates the view decoration."""
 
