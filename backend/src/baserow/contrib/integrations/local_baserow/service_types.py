@@ -1195,26 +1195,18 @@ class LocalBaserowAggregateRowsUserServiceType(
             },
         }
 
-    def get_context_data(self, service: LocalBaserowAggregateRows) -> None:
-        """
-        The Local Baserow aggregate rows service type does not provide any
-        `get_context_data` results.
+    def get_context_data(self, service: LocalBaserowAggregateRows) -> dict:
+        context_data = {}
+        if service.field:
+            serialized_field = field_type_registry.get_serializer(
+                service.field, FieldSerializer
+            ).data
+            context_data["field"] = serialized_field
+        return context_data
 
-        :param service: A LocalBaserowAggregateRows instance.
-        :return: None
-        """
-
-        return None
-
-    def get_context_data_schema(self, service: LocalBaserowAggregateRows) -> None:
-        """
-        The Local Baserow aggregate rows service type does not provide any
-        `get_context_data_schema` results.
-
-        :param service: A LocalBaserowAggregateRows instance.
-        :return: None
-        """
-
+    def get_context_data_schema(
+        self, service: LocalBaserowAggregateRows
+    ) -> dict | None:
         return None
 
     def enhance_queryset(self, queryset):

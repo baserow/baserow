@@ -72,6 +72,13 @@ export class ViewAggregationType extends Registerable {
     return 50
   }
 
+  formatValue(value, context) {
+    if (isNaN(value)) {
+      return null
+    }
+    return value
+  }
+
   /**
    * Compute the final aggregation value from the value sent by the server and the given
    * context.
@@ -81,10 +88,7 @@ export class ViewAggregationType extends Registerable {
    * @returns the final aggregation value for this type.
    */
   getValue(value, context) {
-    if (isNaN(value)) {
-      return null
-    }
-    return value
+    return this.formatValue(value, context)
   }
 
   /**
@@ -185,10 +189,10 @@ export class NotEmptyCountViewAggregationType extends ViewAggregationType {
   }
 
   getValue(value, { rowCount }) {
-    if (rowCount === 0) {
+    if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return rowCount - value
+    return this.formatValue(rowCount - value)
   }
 
   getComponent() {
@@ -241,7 +245,7 @@ export class CheckedCountViewAggregationType extends ViewAggregationType {
     if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return rowCount - value
+    return this.formatValue(rowCount - value)
   }
 
   getComponent() {
@@ -297,11 +301,18 @@ export class EmptyPercentageViewAggregationType extends ViewAggregationType {
     ]
   }
 
+  formatValue(value, context) {
+    if (isNaN(value)) {
+      return null
+    }
+    return `${Math.round(value)}%`
+  }
+
   getValue(value, { rowCount }) {
     if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return `${Math.round((value / rowCount) * 100)}%`
+    return this.formatValue((value / rowCount) * 100)
   }
 
   getComponent() {
@@ -357,11 +368,18 @@ export class NotEmptyPercentageViewAggregationType extends ViewAggregationType {
     ]
   }
 
+  formatValue(value, context) {
+    if (isNaN(value)) {
+      return null
+    }
+    return `${Math.round(value)}%`
+  }
+
   getValue(value, { rowCount }) {
     if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return `${Math.round(((rowCount - value) / rowCount) * 100)}%`
+    return this.formatValue(((rowCount - value) / rowCount) * 100)
   }
 
   getComponent() {
@@ -392,11 +410,18 @@ export class NotCheckedPercentageViewAggregationType extends ViewAggregationType
     return ['boolean', FormulaFieldType.compatibleWithFormulaTypes('boolean')]
   }
 
+  formatValue(value, context) {
+    if (isNaN(value)) {
+      return null
+    }
+    return `${Math.round(value)}%`
+  }
+
   getValue(value, { rowCount }) {
     if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return `${Math.round((value / rowCount) * 100)}%`
+    return this.formatValue((value / rowCount) * 100)
   }
 
   getComponent() {
@@ -427,11 +452,18 @@ export class CheckedPercentageViewAggregationType extends ViewAggregationType {
     return ['boolean', FormulaFieldType.compatibleWithFormulaTypes('boolean')]
   }
 
+  formatValue(value, context) {
+    if (isNaN(value)) {
+      return null
+    }
+    return `${Math.round(value)}%`
+  }
+
   getValue(value, { rowCount }) {
     if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return `${Math.round(((rowCount - value) / rowCount) * 100)}%`
+    return this.formatValue(((rowCount - value) / rowCount) * 100)
   }
 
   getComponent() {
@@ -500,7 +532,7 @@ export class MinViewAggregationType extends ViewAggregationType {
     return GenericViewAggregation
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value) || value === null) {
       return null
     }
@@ -532,7 +564,7 @@ export class MaxViewAggregationType extends ViewAggregationType {
     return GenericViewAggregation
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value) || value === null) {
       return null
     }
@@ -568,7 +600,7 @@ export class EarliestDateViewAggregationType extends ViewAggregationType {
     ]
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (!(typeof value === 'string')) {
       return null
     }
@@ -608,7 +640,7 @@ export class LatestDateViewAggregationType extends ViewAggregationType {
     ]
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (!(typeof value === 'string')) {
       return null
     }
@@ -643,7 +675,7 @@ export class SumViewAggregationType extends ViewAggregationType {
     return GenericViewAggregation
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value) || value === null) {
       return null
     }
@@ -668,7 +700,7 @@ export class AverageViewAggregationType extends ViewAggregationType {
     ]
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value)) {
       return null
     }
@@ -703,7 +735,7 @@ export class StdDevViewAggregationType extends ViewAggregationType {
     ]
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value)) {
       return null
     }
@@ -733,7 +765,7 @@ export class VarianceViewAggregationType extends ViewAggregationType {
     ]
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value)) {
       return null
     }
@@ -767,7 +799,7 @@ export class MedianViewAggregationType extends ViewAggregationType {
     return GenericViewAggregation
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value)) {
       return null
     }
