@@ -30,18 +30,17 @@ export default {
         'workspace/selectById',
         dashboard.workspace.id
       )
+      data.workspace = workspace
+      data.dashboard = dashboard
       const forEditing = app.$hasPermission(
         'application.update',
         dashboard,
         dashboard.workspace.id
       )
-      await store.dispatch('dashboardApplication/fetchInitial', {
+      store.dispatch('dashboardApplication/fetchInitial', {
         dashboardId: dashboard.id,
         forEditing,
       })
-      data.workspace = workspace
-      data.dashboard = dashboard
-      await store.dispatch('dashboardApplication/setLoading', false)
     } catch (e) {
       return error({ statusCode: 404, message: 'Dashboard not found.' })
     }

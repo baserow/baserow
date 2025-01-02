@@ -23,6 +23,10 @@
   }
 }
 
+.dashboard-widget__loading {
+  min-height: 124px;
+}
+
 .dashboard-widget__name {
   @include elevation($elevation-low);
   @include absolute(-37px, auto, auto, 0);
