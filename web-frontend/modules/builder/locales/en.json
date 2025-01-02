@@ -492,6 +492,18 @@
     "bodyLabel": "Body",
     "fontFamily": "Font"
   },
+  "fontWeightType": {
+    "thin": "Thin",
+    "extraLight": "Extra-light",
+    "light": "Light",
+    "regular": "Regular",
+    "medium": "Medium",
+    "semiBold": "Semi-bold",
+    "bold": "Bold",
+    "extraBold": "Extra-bold",
+    "black": "Black",
+    "extraBlack": "Extra-black"
+  },
   "buttonThemeConfigBlock": {
     "backgroundColor": "Background color",
     "button": "Button",
