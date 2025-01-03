@@ -943,6 +943,8 @@ class ViewFilterType(Instance):
         :rtype: str
         """
 
+        if value is None:
+            return ""
         return value
 
     def set_import_serialized_value(self, value, id_mapping) -> str:
@@ -960,6 +962,8 @@ class ViewFilterType(Instance):
         :rtype: str
         """
 
+        if value is None:
+            return ""
         return value
 
     def field_is_compatible(self, field):

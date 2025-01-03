@@ -42,6 +42,11 @@ class ConditionalColorValueProviderConfColorFilterSerializer(serializers.Seriali
         ),
     )
 
+    def validate(self, attrs):
+        if attrs.get("value") is None:
+            attrs["value"] = ""
+        return attrs
+
 
 class ConditionalColorValueProviderConfColorFilterGroupSerializer(
     serializers.Serializer

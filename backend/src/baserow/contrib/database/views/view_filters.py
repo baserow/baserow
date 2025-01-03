@@ -1147,7 +1147,11 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
     def parse_option_ids(self, value):
         try:
             return [int(v) for v in value.split(",") if v.isdigit()]
-        except ValueError:
+        # non-strings will raise AttributeError, so we have a type check here too
+        except (
+            ValueError,
+            AttributeError,
+        ):
             return []
 
     def get_filter(self, field_name, value: str, model_field, field):
@@ -1162,18 +1166,14 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         filter_function = self.filter_functions[field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
-    def set_import_serialized_value(self, value, id_mapping):
-        splitted = value.split(",")
+    def set_import_serialized_value(self, value: str, id_mapping: dict) -> str:
+        # Parses the old option ids and remaps them to the new option ids.
+        old_options_ids = self.parse_option_ids(value)
+        select_option_map = id_mapping["database_field_select_options"]
         new_values = []
-        for value in splitted:
-            try:
-                int_value = int(value)
-            except ValueError:
-                return ""
-
-            new_id = str(id_mapping["database_field_select_options"].get(int_value, ""))
-            new_values.append(new_id)
-
+        for old_id in old_options_ids:
+            if new_id := select_option_map.get(old_id):
+                new_values.append(str(new_id))
         return ",".join(new_values)
 
 
@@ -1429,12 +1429,16 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value, id_mapping):
-        try:
-            value = int(value)
-        except ValueError:
-            return ""
+        # Parses the old option ids and remaps them to the new option ids.
+        old_options_ids = self.parse_option_ids(value)
+        select_option_map = id_mapping["database_field_select_options"]
 
-        return str(id_mapping["database_field_select_options"].get(value, ""))
+        new_values = []
+        for old_id in old_options_ids:
+            if new_id := select_option_map.get(old_id):
+                new_values.append(str(new_id))
+
+        return ",".join(new_values)
 
 
 class MultipleSelectHasNotViewFilterType(
@@ -1461,6 +1465,8 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
     COLLABORATORS_KEY = f"available_collaborators"
 
     def get_export_serialized_value(self, value, id_mapping):
+        if value is None:
+            value = ""
         if self.COLLABORATORS_KEY not in id_mapping:
             workspace_id = id_mapping.get("workspace_id", None)
             if workspace_id is None:
@@ -1528,6 +1534,8 @@ class UserIsViewFilterType(ViewFilterType):
             return Q()
 
     def get_export_serialized_value(self, value, id_mapping):
+        if value is None:
+            value = ""
         if self.USER_KEY not in id_mapping:
             workspace_id = id_mapping.get("workspace_id", None)
             if workspace_id is None:

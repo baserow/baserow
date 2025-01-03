@@ -2,6 +2,7 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple
 from uuid import uuid4
 
 from baserow_premium.license.handler import LicenseHandler
+from loguru import logger
 
 from baserow.contrib.database.fields.field_types import SingleSelectFieldType
 from baserow.contrib.database.views.handler import ViewHandler
@@ -128,18 +129,22 @@ class ConditionalColorValueProviderType(PremiumDecoratorValueProviderType):
             if "id" not in color:
                 color["id"] = str(uuid4())
 
+            new_filters = []
             for color_filter in color["filters"]:
-                new_value = (
-                    id_mapping["database_field_select_options"].get(
-                        int(color_filter["value"])
-                    )
-                    if "database_field_select_options" in id_mapping
-                    and str(color_filter["value"]).isdigit()
-                    else color_filter["value"]
-                )
-                color_filter["value"] = new_value
                 new_field_id = id_mapping["database_fields"][color_filter["field"]]
                 color_filter["field"] = new_field_id
+                try:
+                    filter_type = view_filter_type_registry.get(
+                        color_filter.get("type")
+                    )
+                    imported_value = filter_type.set_import_serialized_value(
+                        color_filter["value"], id_mapping
+                    )
+                    color_filter["value"] = imported_value
+                    new_filters.append(color_filter)
+                except Exception as err:
+                    logger.warning(f"Cannot import filter value: {color_filter}: {err}")
+            color["filters"] = new_filters
 
         return value
 
