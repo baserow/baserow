@@ -1465,6 +1465,8 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
     COLLABORATORS_KEY = f"available_collaborators"
 
     def get_export_serialized_value(self, value, id_mapping):
+        if value is None:
+            value = ""
         if self.COLLABORATORS_KEY not in id_mapping:
             workspace_id = id_mapping.get("workspace_id", None)
             if workspace_id is None:
@@ -1532,6 +1534,8 @@ class UserIsViewFilterType(ViewFilterType):
             return Q()
 
     def get_export_serialized_value(self, value, id_mapping):
+        if value is None:
+            value = ""
         if self.USER_KEY not in id_mapping:
             workspace_id = id_mapping.get("workspace_id", None)
             if workspace_id is None:

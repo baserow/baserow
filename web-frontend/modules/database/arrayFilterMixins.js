@@ -267,13 +267,13 @@ export const hasSelectOptionIdEqualMixin = Object.assign(
       const mapOptionIdsToValues = (cellVal) =>
         cellVal.map((v) => ({
           id: v.id,
-          value: String(v.value?.id || ''),
+          value: String(v.value?.id ?? ''),
         }))
       const hasValueEqualFilter = (cellVal, fltValue) =>
         genericHasValueEqualFilter(mapOptionIdsToValues(cellVal), fltValue)
 
       return (cellValue, filterValue) => {
-        const filterValues = String(filterValue || '')
+        const filterValues = String(filterValue ?? '')
           .trim()
           .split(',')
         return filterValues.reduce((acc, fltValue) => {
