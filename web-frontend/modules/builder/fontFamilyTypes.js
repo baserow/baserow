@@ -145,3 +145,43 @@ export class BrushScriptMTFontFamilyType extends FontFamilyType {
     return ['regular', 'bold']
   }
 }
+
+export class GoogleFontFamilyType extends FontFamilyType {
+  constructor({ app, name, type }) {
+    super({ app })
+    this._name = name
+    this._type = type
+  }
+
+  getType() {
+    return this._type
+  }
+
+  get name() {
+    return this._name
+  }
+}
+
+// Example of a google font object:
+//
+// {
+//   "id": "abeezee",
+//   "family": "ABeeZee",
+//   "subsets": [
+//       "latin",
+//       "latin-ext"
+//   ],
+//   "weights": [
+//       400
+//   ],
+//   "styles": [
+//       "italic",
+//       "normal"
+//   ],
+//   "defSubset": "latin",
+//   "variable": false,
+//   "lastModified": "2024-09-04",
+//   "category": "sans-serif",
+//   "license": "OFL-1.1",
+//   "type": "google"
+// }

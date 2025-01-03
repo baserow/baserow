@@ -1,7 +1,10 @@
 import ThemeService from '@baserow/modules/builder/services/theme'
+import FontService from '@baserow/modules/builder/services/font'
 import { clone } from '@baserow/modules/core/utils/object'
 
-const state = {}
+const state = {
+  fonts: []
+}
 
 let patchRequestTimeout = null
 let patchRequestResolve = null
@@ -11,6 +14,10 @@ let patchRequestOldProperties = {}
 const mutations = {
   UPDATE_PROPERTY(state, { builder, key, value }) {
     builder.theme[key] = value
+  },
+
+  SET_ITEMS(state, { fonts }) {
+    state.fonts = fonts
   },
 }
 
@@ -73,9 +80,22 @@ const actions = {
   forceSetProperty({ commit }, { builder, key, value }) {
     commit('UPDATE_PROPERTY', { builder, key, value })
   },
+
+  async fetchFonts({ commit }) {
+    try {
+      const resp = await FontService(this.$client).fetchFonts()
+      commit('SET_ITEMS', { fonts: resp.data })
+    } catch (e) {
+      throw e
+    }
+  }
 }
 
-const getters = {}
+const getters = {
+  getFonts: (state) => () => {
+    return state.fonts
+  }
+}
 
 export default {
   namespaced: true,

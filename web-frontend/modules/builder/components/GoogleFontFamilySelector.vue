@@ -1,21 +1,22 @@
 <template>
   <Dropdown :value="value" fixed-items @input="$emit('input', $event)">
     <DropdownItem
-      v-for="fontFamily in fontFamilies"
-      :key="fontFamily.getType()"
-      :value="fontFamily.getType()"
-      :name="fontFamily.name"
+      v-for="fontFamily in googleFontFamilies"
+      :key="fontFamily.id"
+      :value="fontFamily.id"
+      :name="fontFamily.family"
     />
   </Dropdown>
 </template>
 
 <script>
+import { mapActions } from 'vuex'
 import {
   GoogleFontFamilyType
 } from '@baserow/modules/builder/fontFamilyTypes'
 
 export default {
-  name: 'FontFamilySelector',
+  name: 'GoogleFontFamilySelector',
   inject: ['builder'],
   props: {
     value: {
@@ -25,17 +26,14 @@ export default {
     },
   },
   computed: {
-    fontFamilies() {
-      return Object.values(this.$registry.getAll('fontFamily')).sort((a, b) =>
-        a.name.localeCompare(b.name)
-      )
+    googleFontFamilies() {
+      return this.$store.getters['theme/getFonts']()
 
-      // This is pretty slow and isn't feasible, but it's how I initially
-      // tested dynamically registering fonts.
-      //
       // Loop over downloaded fonts, then register them.
+      // TODO: This should probably happen at page load time
       // const googleFonts = this.$store.getters['theme/getFonts']()
       // for (const font of googleFonts) {
+      //   console.log('registered new font: ', font.family)
       //   const name = font.family
       //   const type = font.id
       //   const newGoogleFont = new GoogleFontFamilyType({
@@ -45,19 +43,16 @@ export default {
       //   })
       //   this.$registry.register('fontFamily', newGoogleFont)
       // }
-     
-      // return Object.values(this.$registry.getAll('fontFamily')).sort((a, b) =>
-      //   a.name.localeCompare(b.name)
-      // )
     },
   },
-  // async mounted() {
-  //   this.$store.getters['theme/getFonts']()
-  // },
-  // methods: {
-  //   ...mapActions({
-  //     actionFetchFonts: 'theme/fetchFonts',
-  //   }),
-  // },
+  async mounted() {
+    await this.actionFetchFonts()
+    this.$store.getters['theme/getFonts']()
+  },
+  methods: {
+    ...mapActions({
+      actionFetchFonts: 'theme/fetchFonts',
+    }),
+  },
 }
 </script>

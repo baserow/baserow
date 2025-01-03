@@ -457,6 +457,7 @@
   "themeConfigBlockType": {
     "color": "Colors",
     "page": "Page",
+    "font": "Font",
     "typography": "Typography",
     "button": "Button",
     "link": "Link",
@@ -499,6 +500,9 @@
     "textAlignment": "Alignment",
     "bodyLabel": "Body",
     "fontFamily": "Font"
+  },
+  "fontThemeConfigBlock": {
+    "googleFontFamily": "Google Fonts"
   },
   "fontWeightType": {
     "thin": "Thin",
