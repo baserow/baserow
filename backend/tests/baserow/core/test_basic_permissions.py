@@ -511,6 +511,11 @@ def test_get_permissions(data_fixture):
                     "builder.page.list_workflow_actions",
                     "builder.page.data_source.dispatch",
                     "builder.page.list_data_sources",
+                    "dashboard.widget.read",
+                    "dashboard.list_widgets",
+                    "dashboard.data_source.read",
+                    "dashboard.list_data_sources",
+                    "dashboard.data_source.dispatch",
                 ],
                 "workspace_template_ids": [],
             },
@@ -560,6 +565,11 @@ def test_get_permissions(data_fixture):
                     "builder.page.list_workflow_actions",
                     "builder.page.data_source.dispatch",
                     "builder.page.list_data_sources",
+                    "dashboard.widget.read",
+                    "dashboard.list_widgets",
+                    "dashboard.data_source.read",
+                    "dashboard.list_data_sources",
+                    "dashboard.data_source.dispatch",
                 ],
                 "workspace_template_ids": [],
             },
@@ -626,6 +636,11 @@ def test_get_permissions(data_fixture):
                     "builder.page.list_workflow_actions",
                     "builder.page.data_source.dispatch",
                     "builder.page.list_data_sources",
+                    "dashboard.widget.read",
+                    "dashboard.list_widgets",
+                    "dashboard.data_source.read",
+                    "dashboard.list_data_sources",
+                    "dashboard.data_source.dispatch",
                 ],
                 "workspace_template_ids": [],
             },
@@ -675,6 +690,11 @@ def test_get_permissions(data_fixture):
                     "builder.page.list_workflow_actions",
                     "builder.page.data_source.dispatch",
                     "builder.page.list_data_sources",
+                    "dashboard.widget.read",
+                    "dashboard.list_widgets",
+                    "dashboard.data_source.read",
+                    "dashboard.list_data_sources",
+                    "dashboard.data_source.dispatch",
                 ],
                 "workspace_template_ids": [],
             },
@@ -741,6 +761,11 @@ def test_get_permissions(data_fixture):
                     "builder.page.list_workflow_actions",
                     "builder.page.data_source.dispatch",
                     "builder.page.list_data_sources",
+                    "dashboard.widget.read",
+                    "dashboard.list_widgets",
+                    "dashboard.data_source.read",
+                    "dashboard.list_data_sources",
+                    "dashboard.data_source.dispatch",
                 ],
                 "workspace_template_ids": [],
             },
@@ -790,6 +815,11 @@ def test_get_permissions(data_fixture):
                     "builder.page.list_workflow_actions",
                     "builder.page.data_source.dispatch",
                     "builder.page.list_data_sources",
+                    "dashboard.widget.read",
+                    "dashboard.list_widgets",
+                    "dashboard.data_source.read",
+                    "dashboard.list_data_sources",
+                    "dashboard.data_source.dispatch",
                 ],
                 "workspace_template_ids": [],
             },
@@ -856,6 +886,11 @@ def test_get_permissions(data_fixture):
                     "builder.page.list_workflow_actions",
                     "builder.page.data_source.dispatch",
                     "builder.page.list_data_sources",
+                    "dashboard.widget.read",
+                    "dashboard.list_widgets",
+                    "dashboard.data_source.read",
+                    "dashboard.list_data_sources",
+                    "dashboard.data_source.dispatch",
                 ],
                 "workspace_template_ids": [],
             },
@@ -1097,7 +1132,6 @@ def test_allow_if_template_permission_manager_filter_queryset(data_fixture):
 
 
 @pytest.mark.django_db
-@pytest.mark.django_db
 @override_settings(
     PERMISSION_MANAGERS=[
         "core",
@@ -1136,7 +1170,7 @@ def test_allow_if_template_permission_manager_query_count(data_fixture):
         )
 
     # We should have one more query when we query a template authorized permission
-    assert len(query_not_for_template.captured_queries) + 1 == len(
+    assert len(query_not_for_template.captured_queries) + 2 == len(
         query_for_template.captured_queries
     )
 

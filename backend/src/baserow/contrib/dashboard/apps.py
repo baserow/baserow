@@ -85,11 +85,10 @@ class DashboardConfig(AppConfig):
 
             page_registry.register(DashboardPageType())
 
-            from .ws.receivers import widget_created  # noqa: F401
-
             from baserow.core.registries import permission_manager_type_registry
 
             from .permission_manager import AllowIfTemplatePermissionManagerType
+            from .ws.receivers import widget_created  # noqa: F401
 
             prev_manager = permission_manager_type_registry.get(
                 AllowIfTemplatePermissionManagerType.type
