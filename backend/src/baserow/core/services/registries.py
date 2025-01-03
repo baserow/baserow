@@ -102,6 +102,20 @@ class ServiceType(
 
         return values
 
+    def export_prepared_values(self, instance: Service):
+        """
+        Returns a serializable dict of prepared values for the service attributes.
+        This method is the counterpart of `prepare_values`. It is called
+        by undo/redo ActionHandler to store the values in a way that could be
+        restored later.
+
+        :param instance: The service instance to export values for.
+        :return: A dict of prepared values.
+        """
+
+        values = {key: getattr(instance, key) for key in self.allowed_fields}
+        return values
+
     def after_create(self, instance: ServiceSubClass, values: Dict):
         """
         This hook is called right after the service has been created.

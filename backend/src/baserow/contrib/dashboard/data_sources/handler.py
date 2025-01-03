@@ -21,7 +21,11 @@ from baserow.core.services.registries import ServiceType, service_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import find_unused_name
 
-from .types import DashboardDataSourceDict, DashboardDataSourceForUpdate
+from .types import (
+    DashboardDataSourceDict,
+    DashboardDataSourceForUpdate,
+    UpdatedDashboardDataSource,
+)
 
 
 class DashboardDataSourceHandler:
@@ -198,7 +202,7 @@ class DashboardDataSourceHandler:
         service_type: ServiceType,
         name: str | None = None,
         **kwargs,
-    ) -> DashboardDataSource:
+    ) -> UpdatedDashboardDataSource:
         """
         Updates the data source and the related service with values.
 
@@ -214,6 +218,7 @@ class DashboardDataSourceHandler:
             data_source.service.specific
         )
         original_service = data_source.service
+        updated_service = None
         if service_type != original_service_type:
             # If the service type is not the same let's create
             # a new service instead of updating the existing one
@@ -238,9 +243,10 @@ class DashboardDataSourceHandler:
             service_to_update = self.service_handler.get_service_for_update(
                 data_source.service.id
             )
-            data_source.service = self.service_handler.update_service(
+            updated_service = self.service_handler.update_service(
                 service_type, service_to_update, **kwargs
             )
+            data_source.service = updated_service.service
 
         # Update data source attributes
         if name is not None:
@@ -252,7 +258,11 @@ class DashboardDataSourceHandler:
         if original_service.id != data_source.service.id:
             self.service_handler.delete_service(service_type, original_service)
 
-        return data_source
+        return UpdatedDashboardDataSource(
+            data_source,
+            updated_service.original_service_values if updated_service else {},
+            updated_service.new_service_values if updated_service else {},
+        )
 
     def delete_data_source(self, data_source: DashboardDataSource):
         """

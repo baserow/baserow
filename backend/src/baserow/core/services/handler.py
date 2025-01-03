@@ -18,7 +18,7 @@ from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
 
 from .dispatch_context import DispatchContext
-from .types import ServiceForUpdate
+from .types import ServiceForUpdate, UpdatedService
 
 
 class ServiceHandler:
@@ -154,7 +154,7 @@ class ServiceHandler:
 
     def update_service(
         self, service_type: ServiceType, service: ServiceForUpdate, **kwargs
-    ) -> Service:
+    ) -> UpdatedService:
         """
         Updates and service with values. Will also check if the values are allowed
         to be set on the service first.
@@ -168,6 +168,7 @@ class ServiceHandler:
         allowed_updates = extract_allowed(
             kwargs, shared_allowed_fields + service_type.allowed_fields
         )
+        original_service_values = service_type.export_prepared_values(service)
 
         # Responsible for tracking the fields which changed in this update.
         # This will be passed to `service_type.after_update` so that granular
@@ -181,10 +182,10 @@ class ServiceHandler:
             setattr(service, key, new_value)
 
         service.save()
-
         service_type.after_update(service, kwargs, service_changes)
+        new_service_values = service_type.export_prepared_values(service)
 
-        return service
+        return UpdatedService(service, original_service_values, new_service_values)
 
     def delete_service(self, service_type: ServiceType, service: Service):
         """

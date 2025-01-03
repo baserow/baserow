@@ -85,6 +85,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFilter,
     LocalBaserowTableServiceSort,
     LocalBaserowUpsertRow,
+    Service,
 )
 from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
@@ -457,6 +458,16 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return super().prepare_values(values, user, instance)
 
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        if values.get("integration"):
+            del values["integration"]
+            values["integration_id"] = instance.integration.id
+        if values.get("table"):
+            del values["table"]
+            values["table_id"] = instance.table.id if instance.table else None
+        return values
+
     def generate_schema(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ) -> Optional[Dict[str, Any]]:
@@ -797,6 +808,13 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
                 values["view"] = None
 
         return super().prepare_values(values, user, instance)
+
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        if values.get("view"):
+            del values["view"]
+            values["view_id"] = instance.view.id
+        return values
 
 
 class LocalBaserowListRowsUserServiceType(
@@ -1282,7 +1300,7 @@ class LocalBaserowAggregateRowsUserServiceType(
                 "table_id" not in values
                 and instance
                 and instance.field_id
-                and instance.table_id != values["table"].id
+                and instance.table != values["table"]
             ):
                 values["field"] = None
 
@@ -1324,6 +1342,13 @@ class LocalBaserowAggregateRowsUserServiceType(
                 values["aggregation_type"] = ""
 
         return super().prepare_values(values, user, instance)
+
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        if values.get("field"):
+            del values["field"]
+            values["field_id"] = instance.field.id
+        return values
 
     def serialize_property(
         self,

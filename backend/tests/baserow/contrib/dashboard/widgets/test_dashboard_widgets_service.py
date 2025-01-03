@@ -194,9 +194,9 @@ def test_update_widget(data_fixture):
         dashboard=dashboard_2,
     )
 
-    assert updated_widget.title == "Updated title"
-    assert updated_widget.description == "Updated description"
-    assert updated_widget.dashboard == dashboard  # cannot change
+    assert updated_widget.widget.title == "Updated title"
+    assert updated_widget.widget.description == "Updated description"
+    assert updated_widget.widget.dashboard == dashboard  # cannot change
 
 
 @pytest.mark.django_db

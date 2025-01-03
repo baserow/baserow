@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import NewType, Optional, TypedDict, TypeVar
 
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
@@ -22,6 +23,13 @@ class ServiceSortDict(TypedDict):
     service: int
     field: int
     order: str
+
+
+@dataclass
+class UpdatedService:
+    service: Service
+    original_service_values: dict[str, any]
+    new_service_values: dict[str, any]
 
 
 ServiceDictSubClass = TypeVar("ServiceDictSubClass", bound="ServiceDict")
