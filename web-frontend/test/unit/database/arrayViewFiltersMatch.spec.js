@@ -602,7 +602,9 @@ describe('Text-based array view filters', () => {
             field,
             fieldType
           )
-          expect(result).toBe(!testValues.expected)
+          expect(result).toBe(
+            testValues.filterValue === '' || !testValues.expected
+          )
         }
       )
     }
@@ -1057,11 +1059,6 @@ describe('Number-based array view filters', () => {
       expected: { has: true, hasNot: true },
     },
     {
-      cellValue: [],
-      filterValue: null,
-      expected: { has: false, hasNot: true },
-    },
-    {
       cellValue: [{ value: null }],
       filterValue: '',
       expected: { has: true, hasNot: true },
@@ -1071,12 +1068,6 @@ describe('Number-based array view filters', () => {
       filterValue: '',
       expected: { has: true, hasNot: true },
     },
-    {
-      cellValue: [{ value: null }],
-      filterValue: null,
-      expected: { has: true, hasNot: false },
-    },
-
     {
       cellValue: [{ value: 123.0 }, { value: null }],
       filterValue: '123',
@@ -1115,16 +1106,6 @@ describe('Number-based array view filters', () => {
     {
       cellValue: [],
       filterValue: '',
-      expected: {
-        higher: true,
-        higherEqual: true,
-        notHigher: true,
-        notHigherEqual: true,
-      },
-    },
-    {
-      cellValue: [],
-      filterValue: null,
       expected: {
         higher: true,
         higherEqual: true,
@@ -1449,7 +1430,9 @@ describe('Multiple select-based array view filters', () => {
             field,
             fieldType
           )
-          expect(result).toBe(!testValues.expected)
+          expect(result).toBe(
+            testValues.filterValue === '' || !testValues.expected
+          )
         }
       )
     }
@@ -1546,14 +1529,15 @@ describe('Multiple select-based array view filters', () => {
             field,
             fieldType
           )
-          expect(result).toBe(!testValues.expected)
+          expect(result).toBe(
+            testValues.filterValue === '' || !testValues.expected
+          )
         }
       )
     }
   )
 
-
-const hasMultipleSelectOptionContainsWordCases = [
+  const hasMultipleSelectOptionContainsWordCases = [
     {
       cellValue: [],
       filterValue: 'A',
@@ -1638,7 +1622,9 @@ const hasMultipleSelectOptionContainsWordCases = [
             field,
             fieldType
           )
-          expect(result).toBe(!testValues.expected)
+          expect(result).toBe(
+            testValues.filterValue === '' || !testValues.expected
+          )
         }
       )
     }

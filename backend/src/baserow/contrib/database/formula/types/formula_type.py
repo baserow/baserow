@@ -497,7 +497,7 @@ class BaserowFormulaType(abc.ABC):
         field_instance.id = field.id
         return field_type.is_searchable(field_instance)
 
-    def prepare_filter_value(self, field, model_field, value):
+    def parse_filter_value(self, field, model_field, value):
         """
         Use the Baserow field type method where possible to prepare the filter value.
         """
@@ -506,7 +506,7 @@ class BaserowFormulaType(abc.ABC):
             field_instance,
             field_type,
         ) = self.get_baserow_field_instance_and_type()
-        return field_type.prepare_filter_value(field_instance, model_field, value)
+        return field_type.parse_filter_value(field_instance, model_field, value)
 
 
 class BaserowFormulaInvalidType(BaserowFormulaType):

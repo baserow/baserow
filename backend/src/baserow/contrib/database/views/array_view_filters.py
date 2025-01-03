@@ -5,6 +5,7 @@ from django.db.models import Q
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.filter_support.base import (
+    HasAllValuesEqualFilterSupport,
     HasNumericValueComparableToFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
@@ -75,7 +76,7 @@ class ComparisonHasValueFilter(ViewFilterType, ABC):
 
         field_type = field_type_registry.get_by_model(field)
         try:
-            filter_value = field_type.prepare_filter_value(field, model_field, value)
+            filter_value = field_type.parse_filter_value(field, model_field, value)
         except ValueError:  # invalid filter value for the field
             return self.default_filter_on_exception()
 
@@ -249,7 +250,7 @@ class HasAllValuesEqualViewFilterType(ComparisonHasValueFilter):
     def get_filter_expression(
         self, field_name, value, model_field, field
     ) -> OptionallyAnnotatedQ:
-        field_type: HasAllValuesEqualViewFilterType = field_type_registry.get_by_model(
+        field_type: HasAllValuesEqualFilterSupport = field_type_registry.get_by_model(
             field
         )
         return field_type.get_has_all_values_equal_query(
@@ -257,6 +258,7 @@ class HasAllValuesEqualViewFilterType(ComparisonHasValueFilter):
         )
 
 
+# TODO: remove in future versions when the filter is no longer used
 class HasAnySelectOptionEqualViewFilterType(HasValueEqualViewFilterType):
     """
     This filter can be used to verify if any of the select options in an array
@@ -270,21 +272,11 @@ class HasAnySelectOptionEqualViewFilterType(HasValueEqualViewFilterType):
         ),
     ]
 
-    def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        if value == "":
-            return Q()
 
-        return super().get_filter(field_name, value.split(","), model_field, field)
-
-
+# TODO: remove in future versions when the filter is no longer used
 class HasNoneSelectOptionEqualViewFilterType(
     NotViewFilterTypeMixin, HasAnySelectOptionEqualViewFilterType
 ):
-    """
-    This filter can be used to verify if none of the select options in an array are
-    equal to the option IDs provided
-    """
-
     type = "has_none_select_option_equal"
 
 

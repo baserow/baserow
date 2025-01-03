@@ -185,6 +185,7 @@ from .field_filters import (
     contains_filter,
     contains_word_filter,
     filename_contains_filter,
+    parse_ids_from_csv_string,
 )
 from .field_sortings import OptionallyAnnotatedOrderBy
 from .fields import BaserowExpressionField, BaserowLastModifiedField
@@ -777,7 +778,7 @@ class NumberFieldType(FieldType):
             "number_separator": field.number_separator,
         }
 
-    def prepare_filter_value(self, field, model_field, value):
+    def parse_filter_value(self, field, model_field, value):
         """
         Verify if it's a valid and finite decimal value, but the filter value doesn't
         need to respect the number_decimal_places, because they can change while the
@@ -968,7 +969,7 @@ class BooleanFieldType(FieldType):
     ) -> BooleanField:
         return BooleanField()
 
-    def prepare_filter_value(self, field, model_field, value):
+    def parse_filter_value(self, field, model_field, value):
         if value in BASEROW_BOOLEAN_FIELD_TRUE_VALUES:
             return True
         elif value in BASEROW_BOOLEAN_FIELD_FALSE_VALUES:
@@ -3871,6 +3872,17 @@ class SelectOptionBaseFieldType(FieldType):
     ) -> Expression | F:
         return F(f"{field_name}__value")
 
+    def parse_filter_value(self, field, model_field, value) -> List[int]:
+        """
+        Parses the provided comma separated string value to extract option ids from it.
+        If the result does not contain any valid option id, a ValueError is raised.
+        """
+
+        option_ids = parse_ids_from_csv_string(value)
+        if not option_ids:
+            raise ValueError("The provided value does not contain a valid option id.")
+        return option_ids
+
 
 class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     type = "single_select"
@@ -5291,12 +5303,12 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
 
         return FormulaHandler.get_dependencies_field_names(serialized_field["formula"])
 
-    def prepare_filter_value(self, field, model_field, value):
+    def parse_filter_value(self, field, model_field, value):
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(field)
-        return field_type.prepare_filter_value(field_instance, model_field, value)
+        return field_type.parse_filter_value(field_instance, model_field, value)
 
 
 class CountFieldType(FormulaFieldType):

@@ -70,8 +70,11 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
+    return (
+      filterValue === '' ||
+      fieldType.hasValueEqualFilter(cellValue, filterValue, field)
+    )
   }
 
   getInputComponent(field) {
@@ -105,8 +108,11 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
+    return (
+      filterValue === '' ||
+      fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
+    )
   }
 
   getInputComponent(field) {
@@ -157,7 +163,10 @@ export class HasValueContainsViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasValueContainsFilter(cellValue, filterValue, field)
+    return (
+      filterValue.trim() === '' ||
+      fieldType.hasValueContainsFilter(cellValue, filterValue, field)
+    )
   }
 }
 
@@ -189,7 +198,10 @@ export class HasNotValueContainsViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasNotValueContainsFilter(cellValue, filterValue, field)
+    return (
+      filterValue.trim() === '' ||
+      fieldType.hasNotValueContainsFilter(cellValue, filterValue, field)
+    )
   }
 }
 
@@ -218,7 +230,10 @@ export class HasValueContainsWordViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasValueContainsWordFilter(cellValue, filterValue, field)
+    return (
+      filterValue.trim() === '' ||
+      fieldType.hasValueContainsWordFilter(cellValue, filterValue, field)
+    )
   }
 }
 
@@ -247,10 +262,9 @@ export class HasNotValueContainsWordViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasNotValueContainsWordFilter(
-      cellValue,
-      filterValue,
-      field
+    return (
+      filterValue.trim() === '' ||
+      fieldType.hasNotValueContainsWordFilter(cellValue, filterValue, field)
     )
   }
 }
@@ -305,7 +319,7 @@ export class HasAllValuesEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return fieldType.hasAllValuesEqualFilter(cellValue, filterValue, field)
   }
 }
@@ -379,7 +393,7 @@ export class HasValueHigherThanViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       fieldType.hasValueComparableToFilter(
@@ -403,7 +417,7 @@ export class HasNotValueHigherThanViewFilterType extends HasValueHigherThanViewF
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       !fieldType.hasValueComparableToFilter(
@@ -439,7 +453,7 @@ export class HasValueHigherThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       fieldType.hasValueComparableToFilter(
@@ -463,7 +477,7 @@ export class HasNotValueHigherThanOrEqualViewFilterType extends HasValueHigherTh
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       !fieldType.hasValueComparableToFilter(
@@ -499,7 +513,7 @@ export class HasValueLowerThanViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       fieldType.hasValueComparableToFilter(
@@ -523,7 +537,7 @@ export class HasNotValueLowerThanViewFilterType extends HasValueLowerThanViewFil
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       !fieldType.hasValueComparableToFilter(
@@ -559,7 +573,7 @@ export class HasValueLowerThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       fieldType.hasValueComparableToFilter(
@@ -583,7 +597,7 @@ export class HasNotValueLowerThanOrEqualViewFilterType extends HasValueLowerThan
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       !fieldType.hasValueComparableToFilter(

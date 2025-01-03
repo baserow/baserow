@@ -3,17 +3,14 @@ import zoneinfo
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from enum import Enum
-from functools import reduce
 from types import MappingProxyType
 from typing import Any, Dict, NamedTuple, Optional, Tuple, Union
 
-from django.contrib.postgres.expressions import ArraySubquery
-from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
-from django.db.models import DateField, DateTimeField, IntegerField, OuterRef, Q, Value
+from django.db.models import DateField, DateTimeField, IntegerField, Q, Value
 from django.db.models.expressions import F, Func
 from django.db.models.fields.json import JSONField
-from django.db.models.functions import Cast, Extract, Length, Mod, TruncDate
+from django.db.models.functions import Extract, Length, Mod, TruncDate
 
 from dateutil import parser
 from dateutil.relativedelta import MO, relativedelta
@@ -24,7 +21,7 @@ from baserow.contrib.database.fields.field_filters import (
     FilterBuilder,
     OptionallyAnnotatedQ,
     filename_contains_filter,
-    parse_select_option_ids,
+    parse_ids_from_csv_string,
 )
 from baserow.contrib.database.fields.field_types import (
     AutonumberFieldType,
@@ -50,6 +47,9 @@ from baserow.contrib.database.fields.field_types import (
     TextFieldType,
     URLFieldType,
     UUIDFieldType,
+)
+from baserow.contrib.database.fields.filter_support.base import (
+    get_jsonb_has_any_in_value_filter_expr,
 )
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -125,7 +125,7 @@ class EqualViewFilterType(ViewFilterType):
         # Check if the model_field accepts the value.
         field_type = field_type_registry.get_by_model(field)
         try:
-            value = field_type.prepare_filter_value(field, model_field, value)
+            value = field_type.parse_filter_value(field, model_field, value)
             return Q(**{field_name: value})
         except Exception:
             return self.default_filter_on_exception()
@@ -388,7 +388,7 @@ class NumericComparisonViewFilterType(ViewFilterType):
 
         field_type = field_type_registry.get_by_model(field)
         try:
-            filter_value = field_type.prepare_filter_value(field, model_field, value)
+            filter_value = field_type.parse_filter_value(field, model_field, value)
         except ValueError:
             return self.default_filter_on_exception()
 
@@ -1075,12 +1075,14 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
     ]
 
     @staticmethod
-    def _get_filter(field_name, value, model_field, field):
+    def _get_filter(field_name, value: int, model_field, field):
         return Q(**{f"{field_name}_id": value})
 
     @staticmethod
-    def _get_formula_filter(field_name, value, model_field, field):
-        return Q(**{f"{field_name}__id": value})
+    def _get_formula_filter(field_name, value: int, model_field, field):
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [value], query_path="$.id"
+        )
 
     filter_functions = MappingProxyType(
         {
@@ -1135,9 +1137,8 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         return Q(**{f"{field_name}_id__in": option_ids})
 
     def _get_formula_filter(field_name, option_ids, model_field, field):
-        return reduce(
-            lambda x, y: x | y,
-            [Q(**{f"{field_name}__id": str(option_id)}) for option_id in option_ids],
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, option_ids, query_path="$.id"
         )
 
     filter_functions = MappingProxyType(
@@ -1152,7 +1153,7 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         if not value:
             return Q()
 
-        if not (option_ids := parse_select_option_ids(value)):
+        if not (option_ids := parse_ids_from_csv_string(value)):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
@@ -1204,7 +1205,7 @@ class BooleanViewFilterType(ViewFilterType):
 
         field_type = field_type_registry.get_by_model(field)
         try:
-            value = field_type.prepare_filter_value(field, model_field, value)
+            value = field_type.parse_filter_value(field, model_field, value)
             return Q(**{field_name: value})
         except ValueError:
             return self.default_filter_on_exception()
@@ -1370,29 +1371,8 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
 
     @staticmethod
     def _get_formula_filter(field_name, option_ids, model_field, field):
-        model = model_field.model
-        subq = (
-            model.objects.filter(id=OuterRef("id"))
-            .annotate(
-                res=Cast(
-                    Func(
-                        Func(field_name, function="jsonb_array_elements"),
-                        Value("id"),
-                        function="jsonb_extract_path",
-                    ),
-                    output_field=IntegerField(),
-                )
-            )
-            .values("res")
-        )
-        annotation_name = f"{field_name}_has"
-        return AnnotatedQ(
-            annotation={
-                annotation_name: ArraySubquery(
-                    subq, output_field=ArrayField(IntegerField())
-                )
-            },
-            q=Q(**{f"{annotation_name}__overlap": option_ids}),
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, option_ids, query_path="$[*].id"
         )
 
     filter_functions = MappingProxyType(
@@ -1407,7 +1387,7 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         if not value:
             return Q()
 
-        if not (option_ids := parse_select_option_ids(value)):
+        if not (option_ids := parse_ids_from_csv_string(value)):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)

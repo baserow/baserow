@@ -23,17 +23,17 @@ FILTER_TYPE_OR = "OR"
 tracer = trace.get_tracer(__name__)
 
 
-def parse_select_option_ids(filter_value: str) -> list[int]:
+def parse_ids_from_csv_string(value: str) -> list[int]:
     """
-    Parses the provided filter value and returns a list of integers that represent the
-    select option ids. If a token is not a digit, it is ignored.
+    Parses the provided value and returns a list of integers that represent ids. If a
+    token is not a digit, it is ignored.
 
-    :param filter_value: The value that has been provided by the user.
-    :return: A list of integers that represent the select option ids.
+    :param value: The value that has been provided by the user.
+    :return: A list of integers that represent ids.
     """
 
     try:
-        return [int(v) for v in filter_value.split(",") if v.isdigit()]
+        return [int(v) for v in value.split(",") if v.isdigit()]
     except ValueError:
         return []
 

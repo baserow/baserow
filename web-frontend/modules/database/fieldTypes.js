@@ -717,8 +717,17 @@ export class FieldType extends Registerable {
    * Return a valid filter value for the field type. This is used to parse the
    * filter value from the frontend to the backend.
    */
-  prepareFilterValue(field, filterValue) {
+  parseFilterValue(field, filterValue) {
     return filterValue
+  }
+
+  /**
+   * Given a field value, format it as a string to be used in a filter value
+   * and sent to the backend.
+   */
+  formatFilterValue(field, value) {
+    console.log('formatFilterValue', field.name, value, typeof value)
+    return String(value ?? '')
   }
 
   /**
@@ -887,6 +896,19 @@ class SelectOptionBaseFieldType extends FieldType {
 
   getFormViewFieldOptionsComponent() {
     return FormViewFieldOptionsAllowedSelectOptions
+  }
+
+  formatFilterValue(field, value) {
+    // Filter out invalid option IDs before sending to the backend. Invalid IDs are not
+    // visible in the frontend list, but would cause the backend to return no results,
+    // which is confusing since usually an empty list means no filter and all the rows.
+    const validOptionIds = field.select_options.map((option) =>
+      String(option.id)
+    )
+    return value
+      .split(',')
+      .filter((id) => validOptionIds.includes(String(id)))
+      .join(',')
   }
 }
 
@@ -1652,7 +1674,7 @@ export class NumberFieldType extends FieldType {
     return new BigNumber(value)
   }
 
-  prepareFilterValue(field, value) {
+  parseFilterValue(field, value) {
     const res = parseNumberValue(field, String(value ?? ''), false)
     return res === null || res.isNaN() ? '' : res.toString()
   }
@@ -1928,7 +1950,7 @@ export class BooleanFieldType extends FieldType {
     return this.getHasValueEqualFilterFunction(field, true)
   }
 
-  prepareFilterValue(field, value) {
+  parseFilterValue(field, value) {
     return this.parseInputValue(field, String(value ?? ''))
   }
 }
@@ -3804,8 +3826,12 @@ export class FormulaFieldType extends mix(
     return i18n.t('fieldType.formula')
   }
 
-  prepareFilterValue(field, value) {
-    return this.getFormulaType(field)?.prepareFilterValue(field, value)
+  parseFilterValue(field, value) {
+    return this.getFormulaType(field)?.parseFilterValue(field, value)
+  }
+
+  formatFilterValue(field, value) {
+    return this.getFormulaType(field)?.formatFilterValue(field, value)
   }
 
   getFormulaType(field) {

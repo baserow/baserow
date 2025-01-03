@@ -7,6 +7,8 @@ from tests.baserow.contrib.database.utils import (
     boolean_field_factory,
     email_field_factory,
     long_text_field_factory,
+    multiple_select_field_factory,
+    multiple_select_field_value_factory,
     phone_number_field_factory,
     setup_linked_table_and_lookup,
     single_select_field_factory,
@@ -2358,7 +2360,9 @@ def test_has_none_select_option_equal_filter_single_select_field(data_fixture):
 
 
 def setup_multiple_select_rows(data_fixture):
-    test_setup = setup(data_fixture, multiple_select_field_factory)
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, multiple_select_field_factory
+    )
 
     user = data_fixture.create_user()
     row_A_value = multiple_select_field_value_factory(

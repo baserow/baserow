@@ -1,73 +1,60 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
-from django.contrib.postgres.fields import ArrayField
-from django.db import models
-from django.db.models import Q, Value
+from django.db.models import Field
 
-from baserow.contrib.database.fields.field_filters import (
-    OptionallyAnnotatedQ,
-    parse_select_option_ids,
-)
-from baserow.contrib.database.formula.expression_generator.django_expressions import (
-    JSONArrayNestedSelectOptionValueSimilarToExpr,
-    JSONArrayNestedValueAnyOfValuesExpr,
-    JSONArrayNestedValueContainsValueExpr,
-    JSONArrayValueIsExpr,
-)
+from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 
 from .base import (
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
-    get_array_json_filter_expression,
+    HasValueEqualFilterSupport,
+    get_jsonb_contains_filter_expr,
+    get_jsonb_contains_word_filter_expr,
+    get_jsonb_has_any_in_value_filter_expr,
 )
 
 if TYPE_CHECKING:
-    from baserow.contrib.database.fields.models import Field
+    from baserow.contrib.database.fields.models import Field as BaserowField
 
 
-class MultipleleSelectFormulaTypeFilterSupport(
+class MultipleSelectFormulaTypeFilterSupport(
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
 ):
     def get_in_array_empty_query(
-        self, field_name, model_field, field: "Field"
-    ) -> Q | OptionallyAnnotatedQ:
-        return get_array_json_filter_expression(
-            JSONArrayValueIsExpr, field_name, Value([], models.JSONField())
+        self, field_name, model_field, field: "BaserowField"
+    ) -> OptionallyAnnotatedQ:
+        # get_jsonb_has_any_in_value_filter_expr should be used to check if the array
+        # contains the values in the provided list, but using the size() function
+        # we can check if the array is empty instead.
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [0], query_path="$[*].value.size()"
         )
 
     def get_in_array_is_query(
         self,
         field_name: str,
-        value: str,
-        model_field: models.Field,
-        field: "Field",
+        value: List[int],
+        model_field: Field,
+        field: "BaserowField",
     ) -> OptionallyAnnotatedQ:
-        if not value:
-            return Q()
-
-        option_ids = parse_select_option_ids(value)
-
-        return get_array_json_filter_expression(
-            JSONArrayNestedValueAnyOfValuesExpr,
-            field_name,
-            Value(option_ids, ArrayField(models.IntegerField())),
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, value, query_path="$[*].value.id"
         )
 
     def get_in_array_contains_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+        self, field_name: str, value: str, model_field: Field, field: "BaserowField"
     ) -> OptionallyAnnotatedQ:
-        return get_array_json_filter_expression(
-            JSONArrayNestedValueContainsValueExpr, field_name, f"%{value}%"
+        return get_jsonb_contains_filter_expr(
+            model_field, value, query_path="$[*].value.value"
         )
 
     def get_in_array_contains_word_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+        self, field_name: str, value: str, model_field: Field, field: "BaserowField"
     ) -> OptionallyAnnotatedQ:
-        return get_array_json_filter_expression(
-            JSONArrayNestedSelectOptionValueSimilarToExpr, field_name, value
+        return get_jsonb_contains_word_filter_expr(
+            model_field, value, query_path="$[*].value.value"
         )

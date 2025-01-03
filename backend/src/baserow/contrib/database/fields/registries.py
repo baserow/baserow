@@ -1826,7 +1826,7 @@ class FieldType(
 
         return value1 == value2
 
-    def prepare_filter_value(
+    def parse_filter_value(
         self, field: "Field", model_field: django_models.Field, value: Any
     ) -> Any:
         """

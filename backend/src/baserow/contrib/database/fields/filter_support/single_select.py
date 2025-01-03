@@ -1,17 +1,10 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, List
 
-from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Q, Value
 
-from baserow.contrib.database.fields.field_filters import (
-    OptionallyAnnotatedQ,
-    parse_select_option_ids,
-)
-from baserow.contrib.database.formula.expression_generator.django_expressions import (
-    JSONArrayContainsSelectOptionValueExpr,
-    JSONArrayContainsSelectOptionValueSimilarToExpr,
-    JSONArrayEqualSelectOptionIdExpr,
+from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
+from baserow.contrib.database.fields.filter_support.multiple_select import (
+    get_jsonb_has_any_in_value_filter_expr,
 )
 
 from .base import (
@@ -19,7 +12,8 @@ from .base import (
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
     HasValueEqualFilterSupport,
-    get_array_json_filter_expression,
+    get_jsonb_contains_filter_expr,
+    get_jsonb_contains_word_filter_expr,
 )
 
 if TYPE_CHECKING:
@@ -38,31 +32,24 @@ class SingleSelectFormulaTypeFilterSupport(
     def get_in_array_is_query(
         self,
         field_name: str,
-        value: str,
+        value: List[int],
         model_field: models.Field,
         field: "Field",
     ) -> OptionallyAnnotatedQ:
-        if not value:
-            return Q()
-
-        option_ids = parse_select_option_ids(value)
-
-        return get_array_json_filter_expression(
-            JSONArrayEqualSelectOptionIdExpr,
-            field_name,
-            Value(option_ids, ArrayField(models.IntegerField())),
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, value, query_path="$[*].value.id"
         )
 
     def get_in_array_contains_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        return get_array_json_filter_expression(
-            JSONArrayContainsSelectOptionValueExpr, field_name, f"%{value}%"
+        return get_jsonb_contains_filter_expr(
+            model_field, value, query_path="$[*].value.value"
         )
 
     def get_in_array_contains_word_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        return get_array_json_filter_expression(
-            JSONArrayContainsSelectOptionValueSimilarToExpr, field_name, value
+        return get_jsonb_contains_word_filter_expr(
+            model_field, value, query_path="$[*].value.value"
         )
