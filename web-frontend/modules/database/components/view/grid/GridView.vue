@@ -321,6 +321,7 @@
     </Context>
     <RowEditModal
       ref="rowEditModal"
+      display-row-actions
       :database="database"
       :table="table"
       :view="view"
@@ -333,14 +334,6 @@
       :read-only="
         readOnly ||
         !$hasPermission(
-          'database.table.update_row',
-          table,
-          database.workspace.id
-        )
-      "
-      :enable-navigation="
-        !readOnly &&
-        $hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
@@ -361,6 +354,8 @@
       @navigate-previous="$emit('navigate-previous', $event, activeSearchTerm)"
       @navigate-next="$emit('navigate-next', $event, activeSearchTerm)"
       @refresh-row="refreshRow"
+      @duplicate-row="duplicateRow($event)"
+      @delete-row="deleteRow($event)"
     ></RowEditModal>
   </div>
 </template>
@@ -701,8 +696,12 @@ export default {
     },
     duplicateSelectedRow(event, selectedRow) {
       event.preventFieldCellUnselect = true
-      this.addRowAfter(selectedRow, selectedRow)
+      this.duplicateRow(selectedRow, false)
+    },
+    async duplicateRow(row, isFromRowEditModal = true) {
+      await this.addRowAfter(row, row)
       this.$refs.rowContext.hide()
+      if (isFromRowEditModal) this.$refs.rowEditModal.navigateToNextRow()
     },
     copyLinkToSelectedRow(event, selectedRow) {
       const url =
@@ -936,7 +935,7 @@ export default {
      * figure out which row is below the given row and insert before that one. If the
      * next row is not found, we can safely assume it is the last row and add it last.
      */
-    addRowAfter(row, values = {}) {
+    async addRowAfter(row, values = {}) {
       const rows =
         this.$store.getters[this.storePrefix + 'view/grid/getAllRows']
       const index = rows.findIndex((r) => r.id === row.id)
@@ -945,10 +944,10 @@ export default {
       if (index !== -1 && rows.length > index + 1) {
         nextRow = rows[index + 1]
       }
-
-      this.addRow(nextRow, values)
+      await this.addRow(nextRow, values)
     },
     async deleteRow(row) {
+      this.$refs.rowEditModal.toggleLoadingDeleteRow()
       try {
         this.$refs.rowContext.hide()
         // We need a small helper function that calculates the current scrollTop because
@@ -964,6 +963,8 @@ export default {
             getScrollTop,
           }
         )
+        this.$refs.rowEditModal.hide()
+        this.$refs.rowEditModal.toggleLoadingDeleteRow()
         await this.$store.dispatch('toast/restore', {
           trash_item_type: 'row',
           parent_trash_item_id: this.table.id,
@@ -1037,6 +1038,7 @@ export default {
         return
       }
 
+      this.selectedRow = row
       this.$refs.rowEditModal.show(row.id)
       this.$emit('selected-row', row)
     },

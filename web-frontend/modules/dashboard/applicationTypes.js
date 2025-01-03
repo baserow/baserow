@@ -1,6 +1,7 @@
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import ApplicationContext from '@baserow/modules/dashboard/components/application/ApplicationContext'
 import DashboardForm from '@baserow/modules/dashboard/components/form/DashboardForm'
+import DashboardFormFooter from '@baserow/modules/dashboard/components/form/DashboardFormFooter'
 import SidebarComponentDashboard from '@baserow/modules/dashboard/components/sidebar/SidebarComponentDashboard'
 
 export class DashboardApplicationType extends ApplicationType {
@@ -42,6 +43,10 @@ export class DashboardApplicationType extends ApplicationType {
 
   getApplicationFormComponent() {
     return DashboardForm
+  }
+
+  getApplicationFormFooterComponent() {
+    return DashboardFormFooter
   }
 
   getSidebarComponent() {

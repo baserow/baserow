@@ -1,7 +1,7 @@
 <template>
   <div>
     <a
-      class="row-edit-modal-comments-notification-mode"
+      class="modal__topbar-icon"
       @click.prevent="
         $refs.context.toggle($event.currentTarget, 'bottom', 'right', 2)
       "

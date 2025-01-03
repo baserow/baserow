@@ -1,5 +1,28 @@
 <template>
   <div class="control__elements">
+    <span v-if="!readOnly" ref="dropdownLink" class="row-modal__choose-button">
+      <ButtonText
+        type="secondary"
+        icon="iconoir-plus"
+        @click.prevent="$refs.dropdown.toggle($refs.dropdownLink)"
+      >
+        {{ $t('rowEditFieldMultipleCollaborators.addCollaborator') }}
+      </ButtonText>
+
+      <FieldCollaboratorDropdown
+        v-if="!readOnly"
+        ref="dropdown"
+        :collaborators="availableCollaborators"
+        :disabled="readOnly"
+        :show-input="false"
+        fixed-items
+        :show-empty-value="false"
+        :class="{ 'dropdown--error': touched && !valid }"
+        @input="updateValue($event, value)"
+        @hide="touch()"
+      ></FieldCollaboratorDropdown>
+    </span>
+
     <ul class="field-multiple-collaborators__items">
       <li
         v-for="item in value"
@@ -7,43 +30,16 @@
         class="field-multiple-collaborators__item field-multiple-collaborators__item--row-edit"
       >
         <template v-if="item.id && item.name">
-          <div
-            class="field-multiple-collaborators__name background-color--light-gray"
+          <BadgeCollaborator
+            :remove-icon="!readOnly"
+            :initials="getCollaboratorNameInitials(item)"
+            @remove="removeValue($event, value, item.id)"
           >
-            <span class="field-multiple-collaborators__name-text">{{
-              getCollaboratorName(item)
-            }}</span>
-            <a
-              v-if="!readOnly"
-              class="field-multiple-collaborators__remove"
-              @click.prevent="removeValue($event, value, item.id)"
-            >
-              <i class="iconoir-cancel"></i>
-            </a>
-          </div>
-          <div class="field-multiple-collaborators__initials">
-            {{ getCollaboratorNameInitials(item) }}
-          </div>
+            {{ getCollaboratorName(item) }}
+          </BadgeCollaborator>
         </template>
       </li>
     </ul>
-    <span v-if="!readOnly" ref="dropdownLink">
-      <ButtonText icon="iconoir-plus" @click.prevent="toggleDropdown()">
-        {{ $t('rowEditFieldMultipleCollaborators.addCollaborator') }}
-      </ButtonText></span
-    >
-
-    <FieldCollaboratorDropdown
-      v-if="!readOnly"
-      ref="dropdown"
-      :collaborators="availableCollaborators"
-      :disabled="readOnly"
-      :show-input="false"
-      :show-empty-value="false"
-      :error="touched && !valid"
-      @input="updateValue($event, value)"
-      @hide="touch()"
-    ></FieldCollaboratorDropdown>
     <div v-show="touched && !valid" class="error">
       {{ error }}
     </div>

@@ -1,18 +1,11 @@
 <template>
   <div class="control__elements">
-    <div
+    <BadgeCollaborator
       v-if="value"
-      class="field-last-modified-by field-last-modified-by--row-edit-field"
+      :initials="getCollaboratorNameInitials(value)"
     >
-      <div class="field-last-modified-by__name background-color--light-gray">
-        <span class="field-last-modified-by__name-text">{{
-          getCollaboratorName(value)
-        }}</span>
-      </div>
-      <div class="field-last-modified-by__initials">
-        {{ getCollaboratorNameInitials(value) }}
-      </div>
-    </div>
+      {{ getCollaboratorName(value) }}
+    </BadgeCollaborator>
   </div>
 </template>
 

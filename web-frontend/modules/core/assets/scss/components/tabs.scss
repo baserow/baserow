@@ -24,7 +24,7 @@
     padding-left: 40px;
   }
 
-  .tabs--nopadding & {
+  .tabs--no-padding-x & {
     padding-left: 0;
   }
 }
@@ -84,9 +84,19 @@
   .tabs--full-height & {
     overflow: auto;
     height: 100%;
+
+    &.tab--no-scroll {
+      overflow: hidden;
+    }
   }
 
-  .tabs--nopadding & {
-    padding: 14px 0;
+  .tabs--no-padding-x & {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .tabs--no-padding-y & {
+    padding-top: 0;
+    padding-bottom: 0;
   }
 }

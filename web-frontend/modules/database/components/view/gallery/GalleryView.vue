@@ -133,6 +133,7 @@
       @navigate-previous="$emit('navigate-previous', $event, activeSearchTerm)"
       @navigate-next="$emit('navigate-next', $event, activeSearchTerm)"
       @refresh-row="refreshRow"
+      @delete-row="deleteRow($event)"
     >
     </RowEditModal>
   </div>

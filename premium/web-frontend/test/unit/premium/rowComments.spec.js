@@ -40,7 +40,7 @@ describe('Premium Row Comments Component Tests', () => {
       rowId,
       tableId,
     })
-    expect(rowCommentSidebar.text()).toContain('rowCommentSidebar.onlyPremium')
+    expect(rowCommentSidebar.text()).toContain('rowCommentSidebar.upgradeText')
     expect(rowCommentSidebar.text()).not.toContain('test comment')
   })
   test.skip('User with global premium features can see comments', async () => {

@@ -21,20 +21,6 @@
         {{ $t('error.requiredField') }}
       </template>
     </FormGroup>
-
-    <div class="actions">
-      <div class="align-right">
-        <Button
-          type="primary"
-          size="large"
-          :loading="loading"
-          :disabled="loading"
-        >
-          {{ $t('action.add') }}
-          {{ databaseApplicationType.getName() | lowercase }}
-        </Button>
-      </div>
-    </div>
   </form>
 </template>
 
