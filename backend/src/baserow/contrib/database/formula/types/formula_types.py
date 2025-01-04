@@ -1750,12 +1750,29 @@ def calculate_number_type(
     arg_types: List[BaserowFormulaNumberType], min_decimal_places=0
 ):
     max_number_decimal_places = min_decimal_places
+    number_prefix = ""
+    number_suffix = ""
+    number_separator = ""
+    number_settings_set = False
     for a in arg_types:
         max_number_decimal_places = max(
             max_number_decimal_places, a.number_decimal_places
         )
+        if not number_settings_set and (
+            a.number_prefix or a.number_suffix or a.number_separator
+        ):
+            # If we have not set the number settings yet, we will use the first
+            number_prefix = a.number_prefix
+            number_suffix = a.number_suffix
+            number_separator = a.number_separator
+            number_settings_set = True
 
-    return BaserowFormulaNumberType(number_decimal_places=max_number_decimal_places)
+    return BaserowFormulaNumberType(
+        number_decimal_places=max_number_decimal_places,
+        number_prefix=number_prefix,
+        number_suffix=number_suffix,
+        number_separator=number_separator,
+    )
 
 
 def _lookup_formula_type_from_string(formula_type_string):

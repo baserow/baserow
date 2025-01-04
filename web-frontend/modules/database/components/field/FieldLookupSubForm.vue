@@ -16,7 +16,7 @@
     ></FieldSelectTargetFieldSubForm>
     <template v-if="selectedTargetField">
       <FormulaTypeSubForms
-        :default-values="defaultValues"
+        :default-values="subFormDefaultValues"
         :formula-type="targetFieldFormulaType"
         :table="table"
         :view="view"
@@ -50,22 +50,46 @@ export default {
       allowedValues: [],
       values: {},
       errorFromServer: null,
+      subFormDefaultValues: {},
     }
   },
   computed: {
     targetFieldFormulaType() {
       if (this.selectedTargetField) {
-        return (
-          this.selectedTargetField.array_formula_type ||
-          this.selectedTargetField.formula_type ||
-          this.selectedTargetField.type
-        )
+        return this.getFormulaType(this.selectedTargetField)
       }
       return 'unknown'
     },
   },
+  watch: {
+    defaultValues: {
+      handler(newDefaultValues) {
+        this.subFormDefaultValues = { ...newDefaultValues }
+      },
+      immediate: true,
+    },
+    targetFieldFormulaType: {
+      handler(newFormulaType) {
+        const formulaTypeChanged =
+          newFormulaType &&
+          this.getFormulaType(this.defaultValues) !== newFormulaType
+        // New field or different type, use the relevant settings from the target field
+        const fieldValues = this.defaultValues
+        if (!fieldValues.id || formulaTypeChanged) {
+          for (const key in this.selectedTargetField) {
+            if (key.startsWith(newFormulaType)) {
+              this.subFormDefaultValues[key] = this.selectedTargetField[key]
+            }
+          }
+        }
+      },
+    },
+  },
   validations: {},
   methods: {
+    getFormulaType(field) {
+      return field.array_formula_type || field.formula_type || field.type
+    },
     handleErrorByForm(error) {
       if (
         [
