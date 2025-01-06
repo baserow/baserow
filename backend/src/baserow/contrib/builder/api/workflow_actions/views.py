@@ -397,7 +397,6 @@ class DispatchBuilderWorkflowActionView(APIView):
             request,
             workflow_action.page,
             workflow_action=workflow_action,
-            only_expose_public_allowed_properties=True,
         )
 
         response = BuilderWorkflowActionService().dispatch_action(

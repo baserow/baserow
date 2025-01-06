@@ -512,10 +512,11 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
         columns=[
             ("Food", "text"),
             ("Spiciness", "number"),
+            ("Color", "text"),
         ],
         rows=[
-            ["Paneer Tikka", 5],
-            ["Gobi Manchurian", 8],
+            ["Paneer Tikka", 5, "Green"],
+            ["Gobi Manchurian", 8, "Red"],
         ],
     )
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
@@ -577,7 +578,10 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
     dispatch_context = BuilderDispatchContext(fake_request, page)
 
     mock_get_builder_used_property_names.return_value = {
-        "external": {data_source.service.id: [f"field_{field.id}" for field in fields]}
+        "all": {
+            data_source.service.id: [f"field_{fields[0].id}", f"field_{fields[1].id}"]
+        },
+        "external": {data_source.service.id: [f"field_{fields[0].id}"]},
     }
 
     result = DataSourceHandler().dispatch_data_source(data_source, dispatch_context)
@@ -588,10 +592,14 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
             {
                 "id": 1,
                 "order": "1.00000000000000000000",
+                f"field_{fields[0].id}": "Paneer Tikka",
+                f"field_{fields[1].id}": "5",
             },
             {
                 "id": 2,
                 "order": "2.00000000000000000000",
+                f"field_{fields[0].id}": "Gobi Manchurian",
+                f"field_{fields[1].id}": "8",
             },
         ],
     }

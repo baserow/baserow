@@ -28,7 +28,6 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.test_utils.helpers import AnyInt, AnyStr
 
 
 @pytest.mark.django_db
@@ -549,16 +548,25 @@ def test_dispatch_local_baserow_create_row_workflow_action(api_client, data_fixt
         kwargs={"workflow_action_id": workflow_action.id},
     )
 
-    response = api_client.post(
-        url,
-        {},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {workflow_action.service.id: ["id", color_field.db_column]},
+            "external": {workflow_action.service.id: ["id", color_field.db_column]},
+        }
+        response = api_client.post(
+            url,
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
-    assert color_field.db_column not in response_json
+
+    assert "id" in response_json
+    assert response_json[color_field.db_column] == "Brown"
     assert animal_field.db_column not in response_json
 
 
@@ -598,18 +606,25 @@ def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixt
         kwargs={"workflow_action_id": workflow_action.id},
     )
 
-    response = api_client.post(
-        url,
-        {},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {workflow_action.service.id: ["id", color_field.db_column]},
+            "external": {workflow_action.service.id: ["id", color_field.db_column]},
+        }
+        response = api_client.post(
+            url,
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["id"] == first_row.id
 
-    assert color_field.db_column not in response_json
+    assert response_json[color_field.db_column] == "Blue"
     assert animal_field.db_column not in response_json
 
 
@@ -650,16 +665,24 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
         "api:builder:workflow_action:dispatch",
         kwargs={"workflow_action_id": workflow_action.id},
     )
-
-    response = api_client.post(
-        url,
-        {"current_record": 123},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {workflow_action.service.id: [index.db_column]},
+            "external": {workflow_action.service.id: [index.db_column]},
+        }
+        response = api_client.post(
+            url,
+            {"current_record": 123},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_200_OK
-    assert index.db_column not in response.json()
+    response_json = response.json()
+    assert "id" not in response_json
+    assert response_json[index.db_column] == "Index 123"
 
 
 @pytest.mark.django_db
@@ -759,18 +782,38 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
         kwargs={"workflow_action_id": workflow_action.id},
     )
 
-    response = api_client.post(
-        url,
-        {},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {
+                data_source.service.id: [fields[1].db_column],
+                shared_data_source.service.id: [fields2[0].db_column],
+                workflow_action.service.id: [
+                    color_field.db_column,
+                    animal_field.db_column,
+                ],
+            },
+            "external": {
+                data_source.service.id: [fields[1].db_column],
+                shared_data_source.service.id: [fields2[0].db_column],
+                workflow_action.service.id: [
+                    color_field.db_column,
+                    animal_field.db_column,
+                ],
+            },
+        }
+        response = api_client.post(
+            url,
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
-    assert response_json["id"] == first_row.id
-    assert color_field.db_column not in response_json
-    assert animal_field.db_column not in response_json
+    assert response_json[color_field.db_column] == "Orange"
+    assert response_json[animal_field.db_column] == f"{rows[1].id}"
 
 
 @pytest.mark.django_db
@@ -991,10 +1034,7 @@ def test_workflow_action_dispatch_does_not_return_fields(
     assert response.status_code == 200
 
     # Ensure that field information is not returned.
-    assert response.json() == {
-        "id": AnyInt(),
-        "order": AnyStr(),
-    }
+    assert response.json() == {}
 
 
 @pytest.mark.django_db
@@ -1055,7 +1095,5 @@ def test_notification_action_can_access_the_field_of_previous_action(
     #
     # Conversely, the other DB columns aren't returned, since they aren't used.
     assert response.json() == {
-        "id": AnyInt(),
-        "order": AnyStr(),
         fields[0].db_column: "Palak Paneer",
     }
