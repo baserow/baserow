@@ -244,9 +244,10 @@
   },
   "generalForm": {
     "labelTitle": "Label",
-    "labelPlaceholder": "Enter a label (optional)",
-    "valueTitle": "Default value",
-    "valuePlaceholder": "Enter a default value (optional)",
+    "labelPlaceholder": "Enter label",
+    "valueTitle": "Value",
+    "valuePlaceholder": "Enter value (optional)",
+    "valueRequiredPlaceholder": "Enter value (required)",
     "placeholderTitle": "Placeholder",
     "placeholderPlaceholder": "Enter a placeholder (optional)",
     "requiredTitle": "Required",
@@ -988,5 +989,27 @@
     "stroke": "Stroke",
     "italic": "Italic",
     "uppercase": "Uppercase"
+  },
+  "ratingFieldForm": {
+    "maxValue": "Max value",
+    "color": "Color",
+    "style": "Style",
+    "star": "Star",
+    "heart": "Heart",
+    "thumbsUp": "Thumbs up",
+    "flag": "Flag",
+    "value": "Value"
+  },
+  "ratingElementForm": {
+    "value": "Value",
+    "valuePlaceholder": "Enter a value or formula",
+    "maxValue": "Maximum Value",
+    "color": "Color",
+    "style": "Style",
+    "star": "Star",
+    "heart": "Heart",
+    "thumbsUp": "Thumbs Up",
+    "flag": "Flag",
+    "editable": "Use as form input"
   }
 }

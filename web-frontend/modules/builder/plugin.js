@@ -44,6 +44,8 @@ import {
   RecordSelectorElementType,
   HeaderElementType,
   FooterElementType,
+  RatingElementType,
+  RatingInputElementType,
   MenuElementType,
   SimpleContainerElementType,
 } from '@baserow/modules/builder/elementTypes'
@@ -231,6 +233,8 @@ export default (context) => {
   app.$registry.register('element', new DateTimePickerElementType(context))
   app.$registry.register('element', new RecordSelectorElementType(context))
   app.$registry.register('element', new RepeatElementType(context))
+  app.$registry.register('element', new RatingElementType(context))
+  app.$registry.register('element', new RatingInputElementType(context))
   app.$registry.register('element', new MenuElementType(context))
 
   app.$registry.register('device', new DesktopDeviceType(context))

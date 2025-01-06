@@ -63,6 +63,10 @@ import {
 } from '@baserow/modules/builder/elementTypeMixins'
 import { isNumeric, isValidEmail } from '@baserow/modules/core/utils/string'
 import { FormattedDate, FormattedDateTime } from '@baserow/modules/builder/date'
+import RatingElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingElementForm'
+import RatingElement from '@baserow/modules/builder/components/elements/components/RatingElement.vue'
+import RatingInputElement from '@baserow/modules/builder/components/elements/components/RatingInputElement.vue'
+import RatingInputElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingInputElementForm.vue'
 
 export class ElementType extends Registerable {
   get name() {
@@ -2043,6 +2047,135 @@ export class FooterElementType extends HeaderElementType {
       }
     }
     return null
+  }
+}
+
+export class RatingInputElementType extends FormElementType {
+  static getType() {
+    return 'rating_input'
+  }
+
+  get name() {
+    return 'Rating input'
+  }
+
+  get description() {
+    return 'A rating input element'
+  }
+
+  get iconClass() {
+    return 'star'
+  }
+
+  get component() {
+    return RatingInputElement
+  }
+
+  get generalFormComponent() {
+    return RatingInputElementForm
+  }
+
+  getOrder() {
+    return 50
+  }
+
+  formDataType(element) {
+    return 'number'
+  }
+
+  getInitialFormDataValue(element, applicationContext) {
+    try {
+      return (
+        Number(
+          this.resolveFormula(element.default_value, {
+            element,
+            ...applicationContext,
+          })
+        ) || 0
+      )
+    } catch {
+      return 0
+    }
+  }
+
+  getDefaultValues(page, values) {
+    return {
+      ...values,
+      max_value: 5,
+      color: '#fcbb03',
+      style: 'star',
+      value: 0,
+      required: false,
+      label: '',
+    }
+  }
+
+  isValid(element, value) {
+    if (element.required && (value === null || value === undefined)) {
+      return false
+    }
+    return value >= 0 && value <= element.max_value
+  }
+}
+
+export class RatingElementType extends ElementType {
+  static getType() {
+    return 'rating'
+  }
+  get name() {
+    return 'Rating'
+  }
+
+  get description() {
+    return 'A rating element'
+  }
+
+  get iconClass() {
+    return 'star'
+  }
+
+  get component() {
+    return RatingElement
+  }
+
+  get generalFormComponent() {
+    return RatingElementForm
+  }
+
+  getOrder() {
+    return 50
+  }
+
+  formDataType(element) {
+    return 'number'
+  }
+
+  getInitialFormDataValue(element, applicationContext) {
+    try {
+      return (
+        Number(
+          this.resolveFormula(element.default_value, {
+            element,
+            ...applicationContext,
+          })
+        ) || 0
+      )
+    } catch {
+      return 0
+    }
+  }
+
+  getDefaultValues(page, values) {
+    return {
+      ...values,
+      max_value: 5,
+      color: '#fcbb03',
+      style: 'star',
+      value: 0,
+    }
+  }
+  isValid(element, value) {
+    return value >= 0 && value <= element.max_value
   }
 }
 

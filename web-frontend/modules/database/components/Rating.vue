@@ -8,7 +8,7 @@
     ]"
   >
     <i
-      v-for="index in props.readOnly ? props.value : props.maxValue"
+      v-for="index in props.readOnly && !props.showUnselectedInReadOnly ? props.value : props.maxValue"
       :key="index"
       class="rating__star"
       :class="{
@@ -29,8 +29,8 @@ export default {
   name: 'Rating',
   props: {
     readOnly: {
-      default: false,
       type: Boolean,
+      required: true,
     },
     value: {
       required: true,
@@ -47,6 +47,10 @@ export default {
     color: {
       default: 'dark-orange',
       type: String,
+    },
+    showUnselectedInReadOnly: {
+      type: Boolean,
+      default: false,
     },
   },
 }
