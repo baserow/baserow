@@ -1,9 +1,14 @@
 from typing import Any, Dict, Generator, TypedDict, Union
 
+from django.core.validators import MinValueValidator, MaxValueValidator
 from rest_framework import serializers
 
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
-from baserow.contrib.builder.elements.models import CollectionField, LinkElement
+from baserow.contrib.builder.elements.models import (
+    CollectionField,
+    LinkElement,
+    RatingStyles,
+)
 from baserow.contrib.builder.elements.registries import CollectionFieldType
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.formula.serializers import (
@@ -31,6 +36,48 @@ class BooleanCollectionFieldType(CollectionFieldType):
                 required=False,
                 allow_blank=True,
                 default=False,
+            ),
+        }
+
+
+class RatingCollectionFieldType(CollectionFieldType):
+    type = "rating"
+    allowed_fields = ["value", "color", "style", "max_value"]
+    serializer_field_names = ["value", "color", "style", "max_value"]
+    simple_formula_fields = ["value"]
+
+    class SerializedDict(TypedDict):
+        value: int
+        color: str
+        style: str
+        max_value: int
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "value": FormulaSerializerField(
+                help_text="The rating value.",
+                required=False,
+                allow_blank=True,
+                default=0,
+            ),
+            "color": serializers.CharField(
+                help_text="The color of the rating.",
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+            "style": serializers.ChoiceField(
+                choices=RatingStyles.choices,
+                help_text="The style of the rating.",
+                required=False,
+                default=RatingStyles.STAR,
+            ),
+            "max_value": serializers.IntegerField(
+                help_text="The maximum value of the rating.",
+                required=False,
+                default=5,
+                validators=[MinValueValidator(1)],
             ),
         }
 
@@ -63,13 +110,6 @@ class LinkCollectionFieldType(CollectionFieldType):
     ]
 
     def after_register(self):
-        """
-        After the `LinkCollectionFieldType` is registered, we connect the
-        `page_deleted` signal to the `page_deleted_update_link_collection_fields`
-        receiver. This is so that if the `LinkCollectionFieldType` isn't used, we
-        don't execute its handler.
-        """
-
         super(LinkCollectionFieldType, self).after_register()
         from baserow.contrib.builder.elements.receivers import (
             connect_link_collection_field_type_to_page_delete_signal,
@@ -78,12 +118,6 @@ class LinkCollectionFieldType(CollectionFieldType):
         connect_link_collection_field_type_to_page_delete_signal()
 
     def before_unregister(self):
-        """
-        Before the `LinkCollectionFieldType` is unregistered, we disconnect the
-        `page_deleted` signal from the `page_deleted_update_link_collection_fields`
-        receiver.
-        """
-
         super(LinkCollectionFieldType, self).before_unregister()
         from baserow.contrib.builder.elements.receivers import (
             disconnect_link_collection_field_type_from_page_delete_signal,
@@ -141,12 +175,6 @@ class LinkCollectionFieldType(CollectionFieldType):
     def formula_generator(
         self, collection_field: CollectionField
     ) -> Generator[str | Instance, str, None]:
-        """
-        Generator that iterates over formula fields for LinkCollectionFieldType.
-
-        Some formula fields are in the config JSON field, e.g. page_parameters.
-        """
-
         yield from super().formula_generator(collection_field)
 
         for index, page_parameter in enumerate(
@@ -223,13 +251,6 @@ class TagsCollectionFieldType(CollectionFieldType):
     def formula_generator(
         self, collection_field: CollectionField
     ) -> Generator[str | Instance, str, None]:
-        """
-        Generator that iterates over formula fields for TagsCollectionFieldType.
-
-        Some formula fields are in the config JSON field. Whether the field is
-        a formula field or not is controlled by additional keys.
-        """
-
         yield from super().formula_generator(collection_field)
 
         if collection_field.config.get("colors_is_formula"):
@@ -260,7 +281,6 @@ class ButtonCollectionFieldType(CollectionFieldType):
         }
 
     def before_delete(self, instance: CollectionField):
-        # We delete the related workflow actions
         BuilderWorkflowAction.objects.filter(event__startswith=instance.uid).delete()
 
 

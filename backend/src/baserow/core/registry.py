@@ -781,7 +781,7 @@ class Registry(Generic[InstanceSubClass]):
             )
 
         self.registry[instance.type] = instance
-
+        print(f"Registered {self.name} {instance.type}")
         instance.after_register()
 
     def unregister(self, value: Union[str, InstanceSubClass]):

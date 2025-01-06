@@ -28,6 +28,14 @@ if TYPE_CHECKING:
     from baserow.contrib.builder.pages.models import Page
 
 
+class RatingStyles(models.TextChoices):
+    STAR = "star"
+    HEART = "heart"
+    THUMBS_UP = "thumbs-up"
+    FLAG = "flag"
+    SMILE = "smile"
+
+
 class BackgroundTypes(models.TextChoices):
     NONE = "none"
     COLOR = "color"
@@ -587,6 +595,50 @@ class FormElement(Element):
 
     class Meta:
         abstract = True
+
+
+class BaseRatingElement(Element):
+    """
+    A Rating element to display a rating.
+    """
+
+    value = FormulaField(default="")
+
+    max_value = models.PositiveSmallIntegerField(
+        default=5,
+        help_text="Maximum value the rating can take.",
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+    )
+    color = models.CharField(
+        max_length=50,
+        blank=False,
+        help_text="Color of the symbols.",
+        default="dark-orange",
+    )
+    style = models.CharField(
+        choices=RatingStyles,
+        default="star",
+        max_length=50,
+        blank=False,
+        help_text=(
+            "Rating style. Allowed values: "
+            f"{', '.join([value for value in RatingStyles.values])}."
+        ),
+    )
+
+    class Meta:
+        abstract = True
+
+
+class RatingElement(BaseRatingElement):
+    pass
+
+
+class RatingInputElement(BaseRatingElement, FormElement):
+    label = FormulaField(
+        default="",
+        help_text="The text label for this field",
+    )
 
 
 class InputTextElement(FormElement):

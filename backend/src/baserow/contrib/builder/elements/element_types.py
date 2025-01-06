@@ -66,6 +66,8 @@ from baserow.contrib.builder.elements.models import (
     TextElement,
     VerticalAlignments,
     get_default_table_orientation,
+    RatingElement,
+    RatingInputElement,
 )
 from baserow.contrib.builder.elements.registries import (
     ElementType,
@@ -1206,6 +1208,108 @@ class ImageElementType(ElementType):
 
 class InputElementType(FormElementTypeMixin, ElementType, abc.ABC):
     pass
+
+
+class RatingElementType(ElementType):
+    type = "rating"
+    model_class = RatingElement
+    allowed_fields = [
+        "max_value",
+        "color",
+        "style",
+        "value",
+    ]
+    serializer_field_names = [
+        "max_value",
+        "color",
+        "style",
+        "value",
+    ]
+    simple_formula_fields = ["value"]
+
+    class SerializedDict(ElementDict):
+        value: BaserowFormula
+        max_value: str
+        color: str
+        style: str
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "max_value": 5,
+            "value": 5,
+            "color": "dark-orange",
+            "style": RatingElement.style.field.choices.STAR.value,
+        }
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "value": FormulaSerializerField(
+                help_text=RatingElement._meta.get_field("value").help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+        }
+
+
+class RatingInputElementType(InputElementType):
+    type = "rating_input"
+    model_class = RatingInputElement
+    allowed_fields = ["max_value", "color", "style", "value", "required", "label"]
+    serializer_field_names = [
+        "max_value",
+        "color",
+        "style",
+        "value",
+        "required",
+        "label",
+    ]
+    simple_formula_fields = ["value", "label"]
+
+    class SerializedDict(ElementDict):
+        label: BaserowFormula
+        required: bool
+        value: BaserowFormula
+        max_value: str
+        color: str
+        style: str
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "max_value": 5,
+            "value": 5,
+            "color": "dark-orange",
+            "style": RatingInputElement.style.field.choices.STAR.value,
+            "label": "",
+            "required": False,
+        }
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return super().serializer_field_overrides | {
+            "label": FormulaSerializerField(
+                help_text=RatingInputElement._meta.get_field("label").help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+            "required": serializers.BooleanField(
+                help_text=RatingInputElement._meta.get_field("required").help_text,
+                default=False,
+                required=False,
+            ),
+            "value": FormulaSerializerField(
+                help_text=RatingInputElement._meta.get_field("value").help_text,
+                required=False,
+                allow_blank=True,
+                default="",
+            ),
+        }
 
 
 class InputTextElementType(InputElementType):

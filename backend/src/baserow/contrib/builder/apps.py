@@ -189,11 +189,15 @@ class BuilderConfig(AppConfig):
             SimpleContainerElementType,
             TableElementType,
             TextElementType,
+            RatingElementType,
+            RatingInputElementType,
         )
         from .elements.registries import element_type_registry
 
         element_type_registry.register(HeadingElementType())
         element_type_registry.register(TextElementType())
+        element_type_registry.register(RatingElementType())
+        element_type_registry.register(RatingInputElementType())
         element_type_registry.register(LinkElementType())
         element_type_registry.register(ImageElementType())
         element_type_registry.register(InputTextElementType())
@@ -299,10 +303,12 @@ class BuilderConfig(AppConfig):
             LinkCollectionFieldType,
             TagsCollectionFieldType,
             TextCollectionFieldType,
+            RatingCollectionFieldType,
         )
         from .elements.registries import collection_field_type_registry
 
         collection_field_type_registry.register(BooleanCollectionFieldType())
+        collection_field_type_registry.register(RatingCollectionFieldType())
         collection_field_type_registry.register(TextCollectionFieldType())
         collection_field_type_registry.register(LinkCollectionFieldType())
         collection_field_type_registry.register(TagsCollectionFieldType())
