@@ -124,6 +124,7 @@ import {
   ButtonCollectionFieldType,
   TagsCollectionFieldType,
   ImageCollectionFieldType,
+  RatingCollectionFieldType,
 } from '@baserow/modules/builder/collectionFieldTypes'
 
 import {
@@ -387,6 +388,10 @@ export default (context) => {
   app.$registry.register(
     'collectionField',
     new ImageCollectionFieldType(context)
+  )
+  app.$registry.register(
+    'collectionField',
+    new RatingCollectionFieldType(context)
   )
 
   app.$registry.register('fontFamily', new InterFontFamilyType(context))

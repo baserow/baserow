@@ -11,10 +11,13 @@ import TagsFieldForm from '@baserow/modules/builder/components/elements/componen
 import LinkFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/LinkFieldForm'
 import ImageField from '@baserow/modules/builder/components/elements/components/collectionField/ImageField.vue'
 import ImageFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/ImageFieldForm.vue'
+import RatingField from '@baserow/modules/builder/components/elements/components/collectionField/RatingField'
+import RatingFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/RatingFieldForm'
 import {
   ensureArray,
   ensureBoolean,
   ensureString,
+  ensureInteger,
 } from '@baserow/modules/core/utils/validator'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
@@ -265,5 +268,41 @@ export class ImageCollectionFieldType extends CollectionFieldType {
       alt: alts[index % alts.length],
     }))
     return { images }
+  }
+}
+
+export class RatingCollectionFieldType extends CollectionFieldType {
+  getType() {
+    return 'rating'
+  }
+
+  get name() {
+    return 'Rating'
+  }
+
+  get component() {
+    return RatingField
+  }
+
+  get formComponent() {
+    return RatingFieldForm
+  }
+
+  getProps(field, { resolveFormula, applicationContext }) {
+    try {
+      return {
+        max_value: ensureInteger(field.max_value || 5),
+        color: field.color || '#fcbb03',
+        icon_style: field.style || 'star',
+        value: ensureInteger(resolveFormula(field.value)) || 0,
+      }
+    } catch (error) {
+      return {
+        max_value: 5,
+        color: field.color || '#fcbb03',
+        icon_style: field.style || 'star',
+        value: 0,
+      }
+    }
   }
 }
