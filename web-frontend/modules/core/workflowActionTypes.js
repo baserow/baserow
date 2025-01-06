@@ -26,4 +26,14 @@ export class WorkflowActionType extends Registerable {
   getDataSchema(applicationContext, workflowAction) {
     throw new Error('Must be set on the type.')
   }
+
+  /**
+   * Returns whether the workflow action configuration is valid or not.
+   * @param {object} workflowAction - The workflow action to validate.
+   * @param {object} param An object containing application context data.
+   * @returns true if the workflow action is in error
+   */
+  isInError(workflowAction, { page, element, builder }) {
+    return false
+  }
 }

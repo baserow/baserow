@@ -35,13 +35,18 @@ export const ContainerElementTypeMixin = (Base) =>
      * A Container element without any child elements is invalid. Return true
      * if there are no children, otherwise return false.
      */
-    isInError({ page, element }) {
+    isInError({ page, element, builder }) {
       const children = this.app.store.getters['element/getChildren'](
         page,
         element
       )
 
-      return !children.length
+      // A container element needs at least one child.
+      if (!children.length) {
+        return true
+      }
+
+      return super.isInError({ page, element, builder })
     }
   }
 

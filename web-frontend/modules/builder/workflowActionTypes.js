@@ -9,6 +9,7 @@ import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import DeleteRowWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/DeleteRowWorkflowActionForm.vue'
+import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 
 export class NotificationWorkflowActionType extends WorkflowActionType {
   static getType() {
@@ -46,6 +47,19 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
 
   get label() {
     return this.app.i18n.t('workflowActionTypes.openPageLabel')
+  }
+
+  /**
+   * Returns whether the open page configuration is valid or not.
+   * @param {object} workflowAction - The workflow action to validate.
+   * @param {object} param An object containing application context data.
+   * @returns true if the open page action is in error
+   */
+  isInError(workflowAction, { element, builder }) {
+    return pathParametersInError(
+      workflowAction,
+      this.app.store.getters['page/getVisiblePages'](builder)
+    )
   }
 
   execute({

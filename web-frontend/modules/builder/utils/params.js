@@ -12,26 +12,29 @@ export function defaultValueForParameterType(type) {
 }
 
 /**
- * Responsible for detecting if an element's path parameters have diverged
- * from the destination page's path parameters. This can happen if an element
+ * Responsible for detecting if a navigable record's path parameters have diverged
+ * from the destination page's path parameters. This can happen if a record
  * points to a page, and then the page's parameters are altered.
  *
- * @param {Object} element The element's properties we'll validate.
- * @param {Object} pages Page of this application.
- * @returns {Boolean} Whether this resolvedUrl is external.
+ * @param {Object} navigationObject - An `element` or `workflowAction` object
+ *  which points to navigation data. In the case of an `element` this could be
+ *  a button, and in the case of a `workflowAction` this could be an "open page"
+ *  workflow action type.
+ * @param {Array} pages - An array of "visible" pages in the application.
+ * @returns {Boolean} Whether this navigable object has parameters in error.
  */
-export function pathParametersInError(element, pages) {
+export function pathParametersInError(navigationObject, pages) {
   if (
-    element.navigation_type === 'page' &&
-    !isNaN(element.navigate_to_page_id)
+    navigationObject.navigation_type === 'page' &&
+    !isNaN(navigationObject.navigate_to_page_id)
   ) {
     const destinationPage = pages.find(
-      ({ id }) => id === element.navigate_to_page_id
+      ({ id }) => id === navigationObject.navigate_to_page_id
     )
 
     if (destinationPage) {
       const destinationPageParams = destinationPage.path_params || []
-      const pageParams = element.page_parameters || []
+      const pageParams = navigationObject.page_parameters || []
 
       const destinationPageParamNames = destinationPageParams.map(
         ({ name }) => name

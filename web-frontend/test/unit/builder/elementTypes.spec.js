@@ -17,6 +17,18 @@ describe('elementTypes tests', () => {
 
   const contextBlankParam = { page: { parameters: { id: '' } } }
 
+  const misconfiguredOpenPageWorkflowActionPage = {
+    id: 1,
+    shared: false,
+    path_params: [{ name: 'id', type: 'numeric' }],
+  }
+  const misconfiguredOpenPageWorkflowAction = {
+    type: 'open_page',
+    page_parameters: [],
+    navigation_type: 'page',
+    navigate_to_page_id: misconfiguredOpenPageWorkflowActionPage.id,
+  }
+
   describe('CollectionElementTypeMixin tests', () => {
     test('hasAncestorOfType', () => {
       const page = { id: 123 }
@@ -728,9 +740,9 @@ describe('elementTypes tests', () => {
       element.image_file = { url: 'http://localhost' }
       expect(elementType.isInError({ element })).toBe(false)
 
-      // Image with missing image_url is invalid
-      element.image_source_type = ''
-      element.image_url = ''
+      // Image with image_source_type of 'url' must have an image_url
+      delete element.image_file
+      element.image_source_type = IMAGE_SOURCE_TYPES.URL
       expect(elementType.isInError({ element })).toBe(true)
 
       // Otherwise it is valid
@@ -740,21 +752,50 @@ describe('elementTypes tests', () => {
   })
 
   describe('ButtonElementType isInError tests', () => {
+    test('Returns true if Button Element has no errors, but has misconfigured workflow actions.', () => {
+      const page = {
+        id: 2,
+        shared: false,
+        name: 'Foo Page',
+        workflowActions: [
+          { ...misconfiguredOpenPageWorkflowAction, element_id: 50 },
+        ],
+      }
+      const element = {
+        id: 50,
+        value: 'Click me',
+        page_id: page.id,
+      }
+      const builder = {
+        id: 1,
+        pages: [page, misconfiguredOpenPageWorkflowActionPage],
+      }
+      const elementType = testApp.getRegistry().get('element', 'button')
+
+      // Button with value and invalid workflowAction is invalid
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
+    })
     test('Returns true if Button Element has errors, false otherwise', () => {
-      const page = { id: 1, name: 'Foo Page', workflowActions: [] }
+      const page = {
+        id: 1,
+        shared: false,
+        name: 'Foo Page',
+        workflowActions: [],
+      }
+      const builder = { id: 1, pages: [page] }
       const element = { id: 50, value: '', page_id: page.id }
       const elementType = testApp.getRegistry().get('element', 'button')
 
       // Button with missing value is invalid
-      expect(elementType.isInError({ page, element })).toBe(true)
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
 
       // Button with value but missing workflowActions is invalid
       element.value = 'click me'
-      expect(elementType.isInError({ page, element })).toBe(true)
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
 
       // Button with value and workflowAction is valid
-      page.workflowActions = [{ element_id: 50 }]
-      expect(elementType.isInError({ page, element })).toBe(false)
+      page.workflowActions = [{ element_id: 50, type: 'open_page' }]
+      expect(elementType.isInError({ page, element, builder })).toBe(false)
     })
   })
 
@@ -785,8 +826,44 @@ describe('elementTypes tests', () => {
   })
 
   describe('FormContainerElementType isInError tests', () => {
+    test('Returns true if Form Container Element has no errors, but has misconfigured workflow actions.', () => {
+      const page = {
+        id: 2,
+        shared: false,
+        name: 'Foo Page',
+        workflowActions: [
+          { ...misconfiguredOpenPageWorkflowAction, element_id: 50 },
+        ],
+      }
+      const element = {
+        id: 50,
+        submit_button_label: 'Submit',
+        page_id: page.id,
+      }
+      const childElement = {
+        id: 51,
+        type: 'input_text',
+        page_id: page.id,
+        parent_element_id: element.id,
+      }
+      page.elementMap = { 50: element, 51: childElement }
+      page.orderedElements = [element, childElement]
+      const builder = {
+        id: 1,
+        pages: [page, misconfiguredOpenPageWorkflowActionPage],
+      }
+      const elementType = testApp.getRegistry().get('element', 'form_container')
+
+      // Form container with value and workflowAction is valid
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
+    })
     test('Returns true if Form Container Element has errors, false otherwise', () => {
-      const page = { id: 1, name: 'Foo Page', workflowActions: [] }
+      const page = {
+        id: 1,
+        shared: false,
+        name: 'Foo Page',
+        workflowActions: [],
+      }
       const element = {
         id: 50,
         submit_button_label: 'Submit',
@@ -794,6 +871,10 @@ describe('elementTypes tests', () => {
       }
       page.elementMap = { 50: element }
       page.orderedElements = [element]
+      const builder = {
+        id: 1,
+        pages: [page, misconfiguredOpenPageWorkflowActionPage],
+      }
 
       const elementType = testApp.getRegistry().get('element', 'form_container')
 
@@ -801,8 +882,8 @@ describe('elementTypes tests', () => {
       expect(elementType.isInError({ page, element })).toBe(true)
 
       // Invalid if we have no children
-      page.workflowActions = [{ element_id: 50 }]
-      expect(elementType.isInError({ page, element })).toBe(true)
+      page.workflowActions = [{ element_id: 50, type: 'open_page' }]
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
 
       // Valid as we have all required fields
       const childElement = {
@@ -813,11 +894,11 @@ describe('elementTypes tests', () => {
       }
       page.elementMap = { 50: element, 51: childElement }
       page.orderedElements = [element, childElement]
-      expect(elementType.isInError({ page, element })).toBe(false)
+      expect(elementType.isInError({ page, element, builder })).toBe(false)
     })
   })
 
-  describe.only('elementType elementAround tests', () => {
+  describe('elementType elementAround tests', () => {
     let page, sharedPage, builder
     beforeEach(async () => {
       // Populate a page with a bunch of elements

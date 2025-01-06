@@ -153,6 +153,7 @@ export default {
   watch: {
     'destinationPage.path_params': {
       handler(value) {
+        this.updatePageParameters()
         this.refreshParametersInError()
       },
       deep: true,
@@ -191,6 +192,7 @@ export default {
       }
       this.navigateTo = navigateTo
     }
+    this.updatePageParameters()
     this.refreshParametersInError()
   },
   methods: {

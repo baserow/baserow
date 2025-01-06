@@ -96,4 +96,23 @@ describe('resolveElementUrl tests', () => {
     )
     expect(result).toEqual('/builder/123/preview/contact/')
   })
+  test('Should return resolvedContext and ignore element page params when destination page params are removed', () => {
+    const element = {
+      navigation_type: 'page',
+      navigate_to_page_id: 1,
+      page_parameters: [{ name: 'id', value: '"10"' }],
+    }
+    const builder = {
+      id: 123,
+      pages: [{ id: 1, path: '/products/', path_params: [] }], // Page parameters have been removed
+    }
+    const result = resolveElementUrl(
+      element,
+      builder,
+      builder.pages,
+      resolveFormula,
+      'preview'
+    )
+    expect(result).toEqual('/builder/123/preview/products/')
+  })
 })

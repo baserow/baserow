@@ -148,7 +148,8 @@
     "style": "Style",
     "visibility": "Visibility",
     "events": "Events",
-    "eventsTabDeactivatedNoEvents": "This element doesn't support any events"
+    "eventsTabDeactivatedNoEvents": "This element doesn't support any events",
+    "eventsTabInError": "One or more actions are misconfigured."
   },
   "emptySidePanelState": {
     "message": "Click on one of the elements to see more details"
