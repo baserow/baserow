@@ -26,6 +26,7 @@
       :error-message="valueErrorMessage"
     >
       <InjectedFormulaInput
+        data-test-id="rating-form-value"
         v-model="values.value"
         :placeholder="
           values.editable
