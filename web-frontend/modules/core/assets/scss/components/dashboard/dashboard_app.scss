@@ -25,6 +25,10 @@
   }
 }
 
+.dashboard-app__content--small {
+  min-height: calc(100vh - 212px);
+}
+
 .dashboard-app__content-header {
   margin-bottom: 24px;
 }

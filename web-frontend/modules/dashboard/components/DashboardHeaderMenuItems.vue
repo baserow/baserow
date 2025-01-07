@@ -12,14 +12,17 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex'
-
 export default {
   name: 'DashboardHeaderMenuItems',
   props: {
     dashboard: {
       type: Object,
       required: true,
+    },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   computed: {
@@ -32,9 +35,11 @@ export default {
     },
   },
   methods: {
-    ...mapActions({
-      toggleEditMode: 'dashboardApplication/toggleEditMode',
-    }),
+    toggleEditMode() {
+      this.$store.dispatch(
+        this.storePrefix + `dashboardApplication/toggleEditMode`
+      )
+    },
   },
 }
 </script>

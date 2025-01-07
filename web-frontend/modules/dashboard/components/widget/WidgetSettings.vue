@@ -10,6 +10,7 @@
       :is="widgetSettingsComponent"
       :dashboard="dashboard"
       :widget="widget"
+      :store-prefix="storePrefix"
     />
   </div>
 </template>
@@ -17,7 +18,6 @@
 <script>
 import _ from 'lodash'
 import WidgetSettingsBaseForm from '@baserow/modules/dashboard/components/widget/WidgetSettingsBaseForm'
-import { mapActions } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
@@ -32,6 +32,11 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   computed: {
     widgetType() {
@@ -42,9 +47,6 @@ export default {
     },
   },
   methods: {
-    ...mapActions({
-      updateWidget: 'dashboardApplication/updateWidget',
-    }),
     async baseFormValuesChanged(values) {
       if (this.$refs.form.isFormValid()) {
         const defaultValues = this.$refs.form.defaultValues
@@ -59,11 +61,14 @@ export default {
           )
         )
         try {
-          await this.updateWidget({
-            widgetId: this.widget.id,
-            values: updatedValues,
-            originalValues,
-          })
+          await this.$store.dispatch(
+            `${this.storePrefix}dashboardApplication/updateWidget`,
+            {
+              widgetId: this.widget.id,
+              values: updatedValues,
+              originalValues,
+            }
+          )
         } catch (error) {
           notifyIf(error, 'dashboard')
         }

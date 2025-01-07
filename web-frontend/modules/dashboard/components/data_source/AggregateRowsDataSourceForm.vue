@@ -149,6 +149,11 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   data() {
     return {
@@ -166,9 +171,9 @@ export default {
   },
   computed: {
     integration() {
-      return this.$store.getters['dashboardApplication/getIntegrationById'](
-        this.dataSource.integration_id
-      )
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getIntegrationById`
+      ](this.dataSource.integration_id)
     },
     databases() {
       return this.integration.context_data.databases

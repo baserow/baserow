@@ -32,6 +32,10 @@ export default (context) => {
   registerRealtimeEvents(app.$realtime)
 
   store.registerModule('dashboardApplication', dashboardApplicationStore)
+  store.registerModule(
+    'template/dashboardApplication',
+    dashboardApplicationStore
+  )
 
   if (app.$featureFlagIsEnabled(FF_DASHBOARDS)) {
     app.$registry.register('application', new DashboardApplicationType(context))

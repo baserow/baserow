@@ -44,7 +44,6 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
 import WidgetContextMenu from '@baserow/modules/dashboard/components/widget/WidgetContextMenu'
 
 export default {
@@ -59,20 +58,32 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   computed: {
-    ...mapGetters({
-      getDataSourceById: 'dashboardApplication/getDataSourceById',
-      getDataForDataSource: 'dashboardApplication/getDataForDataSource',
-      isEditMode: 'dashboardApplication/isEditMode',
-    }),
     dataSource() {
-      return this.getDataSourceById(this.widget.data_source_id)
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getDataSourceById`
+      ](this.widget.data_source_id)
+    },
+    dataForDataSource() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getDataForDataSource`
+      ](this.dataSource?.id)
+    },
+    isEditMode() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isEditMode`
+      ]
     },
     result() {
       if (this.dataSource) {
-        const data = this.getDataForDataSource(this.dataSource.id)
-        if (data?.result) {
+        const data = this.dataForDataSource
+        if (data && data.result !== undefined) {
           const serviceType = this.$registry.get(
             'service',
             this.dataSource.type
@@ -83,7 +94,7 @@ export default {
       return 0
     },
     dataSourceMisconfigured() {
-      const data = this.getDataForDataSource(this.dataSource?.id)
+      const data = this.dataForDataSource
       if (data) {
         return !!data._error
       }
