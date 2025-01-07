@@ -749,22 +749,10 @@ class NumberFieldType(FieldType):
         new_number_negative = new_field_attrs.get(
             "number_negative", old_field.number_negative
         )
-        new_number_prefix = new_field_attrs.get(
-            "number_prefix", old_field.number_prefix
-        )
-        new_number_suffix = new_field_attrs.get(
-            "number_suffix", old_field.number_suffix
-        )
-        new_number_separator = new_field_attrs.get(
-            "number_separator", old_field.number_separator
-        )
         return (
             old_field.number_decimal_places > new_number_decimal_places
             or old_field.number_negative
             and not new_number_negative
-            or old_field.number_prefix != new_number_prefix
-            or old_field.number_suffix != new_number_suffix
-            or old_field.number_separator != new_number_separator
         )
 
     def serialize_metadata_for_row_history(
