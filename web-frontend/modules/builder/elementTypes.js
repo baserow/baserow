@@ -2122,6 +2122,7 @@ export class RatingElementType extends ElementType {
   static getType() {
     return 'rating'
   }
+
   get name() {
     return 'Rating'
   }
@@ -2174,6 +2175,7 @@ export class RatingElementType extends ElementType {
       value: 0,
     }
   }
+
   isValid(element, value) {
     return value >= 0 && value <= element.max_value
   }

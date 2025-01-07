@@ -1,21 +1,9 @@
-import pytest
-from django.core.validators import MinValueValidator, MaxValueValidator
-from rest_framework.exceptions import ValidationError
-
-from baserow.contrib.builder.data_sources.builder_dispatch_context import (
-    BuilderDispatchContext,
-)
-from baserow.contrib.builder.elements.element_types import (
-    RatingElementType,
-    RatingInputElementType,
-)
-from baserow.contrib.builder.elements.models import (
-    RatingElement,
-    RatingInputElement,
-    RatingStyles,
-)
-from baserow.contrib.builder.elements.registries import element_type_registry
 from collections import defaultdict
+
+import pytest
+
+from baserow.contrib.builder.elements.models import RatingElement, RatingStyles
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.core.utils import MirrorDict
 
 

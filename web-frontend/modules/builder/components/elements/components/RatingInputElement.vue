@@ -70,6 +70,15 @@ export default {
       return this.formElementData?.value ?? this.resolvedValue
     },
   },
+  watch: {
+    resolvedValue: {
+      handler(newValue) {
+        if (this.editable && this.formElementData?.value === undefined) {
+          this.setFormData(newValue)
+        }
+      },
+    },
+  },
   mounted() {
     if (this.editable) {
       this.setFormData(this.resolvedValue)
@@ -80,15 +89,6 @@ export default {
       if (this.editable) {
         this.handleFormElementChange(value)
       }
-    },
-  },
-  watch: {
-    resolvedValue: {
-      handler(newValue) {
-        if (this.editable && this.formElementData?.value === undefined) {
-          this.setFormData(newValue)
-        }
-      },
     },
   },
 }

@@ -183,14 +183,14 @@ class BuilderConfig(AppConfig):
             ImageElementType,
             InputTextElementType,
             LinkElementType,
+            RatingElementType,
+            RatingInputElementType,
             MenuElementType,
             RecordSelectorElementType,
             RepeatElementType,
             SimpleContainerElementType,
             TableElementType,
             TextElementType,
-            RatingElementType,
-            RatingInputElementType,
         )
         from .elements.registries import element_type_registry
 
@@ -301,9 +301,9 @@ class BuilderConfig(AppConfig):
             ButtonCollectionFieldType,
             ImageCollectionFieldType,
             LinkCollectionFieldType,
+            RatingCollectionFieldType,
             TagsCollectionFieldType,
             TextCollectionFieldType,
-            RatingCollectionFieldType,
         )
         from .elements.registries import collection_field_type_registry
 

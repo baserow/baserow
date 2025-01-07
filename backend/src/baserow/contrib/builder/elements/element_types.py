@@ -59,6 +59,8 @@ from baserow.contrib.builder.elements.models import (
     MenuElement,
     MenuItemElement,
     NavigationElementMixin,
+    RatingElement,
+    RatingInputElement,
     RecordSelectorElement,
     RepeatElement,
     SimpleContainerElement,
@@ -66,8 +68,6 @@ from baserow.contrib.builder.elements.models import (
     TextElement,
     VerticalAlignments,
     get_default_table_orientation,
-    RatingElement,
-    RatingInputElement,
 )
 from baserow.contrib.builder.elements.registries import (
     ElementType,
@@ -1236,9 +1236,9 @@ class RatingElementType(ElementType):
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "max_value": 5,
-            "value": 5,
+            "value": "5",
             "color": "dark-orange",
-            "style": RatingElement.style.field.choices.STAR.value,
+            "style": "STAR",
         }
 
     @property
@@ -1280,9 +1280,9 @@ class RatingInputElementType(InputElementType):
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "max_value": 5,
-            "value": 5,
+            "value": "5",
             "color": "dark-orange",
-            "style": RatingInputElement.style.field.choices.STAR.value,
+            "style": "STAR",
             "label": "",
             "required": False,
         }

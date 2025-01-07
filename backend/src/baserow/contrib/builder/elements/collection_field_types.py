@@ -1,6 +1,7 @@
 from typing import Any, Dict, Generator, TypedDict, Union
 
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator
+
 from rest_framework import serializers
 
 from baserow.contrib.builder.elements.element_types import NavigationElementManager

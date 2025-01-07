@@ -26,8 +26,8 @@
       :error-message="valueErrorMessage"
     >
       <InjectedFormulaInput
-        data-test-id="rating-form-value"
         v-model="values.value"
+        data-test-id="rating-form-value"
         :placeholder="
           values.editable
             ? $t('generalForm.valuePlaceholder')
@@ -45,8 +45,8 @@
       required
     >
       <input
-        type="number"
         v-model="values.max_value"
+        type="number"
         :min="1"
         :max="10"
         :step="1"
