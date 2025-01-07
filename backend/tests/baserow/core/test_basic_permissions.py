@@ -1170,7 +1170,7 @@ def test_allow_if_template_permission_manager_query_count(data_fixture):
         )
 
     # We should have one more query when we query a template authorized permission
-    assert len(query_not_for_template.captured_queries) + 2 == len(
+    assert len(query_not_for_template.captured_queries) + 1 == len(
         query_for_template.captured_queries
     )
 
