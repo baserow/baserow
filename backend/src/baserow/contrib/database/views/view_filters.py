@@ -51,7 +51,7 @@ from baserow.contrib.database.fields.field_types import (
 from baserow.contrib.database.fields.filter_support.base import (
     get_jsonb_has_any_in_value_filter_expr,
 )
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import (
     BaserowFormulaBooleanType,
@@ -1160,9 +1160,9 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         filter_function = self.filter_functions[field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
-    def set_import_serialized_value(self, value: str, id_mapping: dict) -> str:
+    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
         # Parses the old option ids and remaps them to the new option ids.
-        old_options_ids = self.parse_option_ids(value)
+        old_options_ids = parse_ids_from_csv_string(value or "")
         select_option_map = id_mapping["database_field_select_options"]
         new_values = []
         for old_id in old_options_ids:
@@ -1257,18 +1257,20 @@ class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
             pass
 
         if related_row_id:
-            field = view_filter.field.specific
-            # TODO: use field.get_related_primary_field() and
-            # model_field.remote_field.model here instead
-            table = field.link_row_table
-            primary_field = table.field_set.get(primary=True)
-            model = table.get_model(
-                field_ids=[], fields=[primary_field], add_dependencies=False
-            )
-
+            related_table_id = LinkRowField.objects.filter(
+                id=view_filter.field_id
+            ).values("link_row_table_id")[:1]
             try:
+                primary_field = Field.objects.select_related("table").get(
+                    primary=True, table_id=related_table_id
+                )
+
+                model = primary_field.table.get_model(
+                    field_ids=[], fields=[primary_field], add_dependencies=False
+                )
+
                 name = str(model.objects.get(pk=related_row_id))
-            except model.DoesNotExist:
+            except (Field.DoesNotExist, model.DoesNotExist):
                 pass
 
         return {"display_name": name}
@@ -1394,9 +1396,9 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         filter_function = self.filter_functions[field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
-    def set_import_serialized_value(self, value, id_mapping):
+    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
         # Parses the old option ids and remaps them to the new option ids.
-        old_options_ids = self.parse_option_ids(value)
+        old_options_ids = parse_ids_from_csv_string(value or "")
         select_option_map = id_mapping["database_field_select_options"]
 
         new_values = []
