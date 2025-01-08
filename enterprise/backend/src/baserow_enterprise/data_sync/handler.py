@@ -39,4 +39,4 @@ class EnterpriseDataSyncHandler:
 
     @classmethod
     def trigger_auto_data_sync_syncs(cls):
-        pass
+        AutoDataSyncInterval.objects.
