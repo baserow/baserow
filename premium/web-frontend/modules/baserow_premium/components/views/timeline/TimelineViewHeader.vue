@@ -56,7 +56,7 @@
         <span>{{ timezone ? timezone : '' }}</span>
       </div>
     </li>
-    <li class="header__filter-item header__filter-item--right">
+    <li class="header__filter-item header__filter-item--full-width">
       <ViewSearch
         :view="view"
         :fields="fields"
