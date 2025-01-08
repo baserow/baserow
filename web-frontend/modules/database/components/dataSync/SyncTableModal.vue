@@ -57,6 +57,7 @@ export default {
   methods: {
     show() {
       this.job = null
+      this.hideError()
       modal.methods.show.bind(this)()
     },
     hidden() {

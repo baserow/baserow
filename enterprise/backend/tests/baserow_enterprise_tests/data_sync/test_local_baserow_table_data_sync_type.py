@@ -1268,3 +1268,319 @@ def test_change_source_table_with_changing_synced_fields(
     # Expect the other field to be removed.
     assert len(response_json["synced_properties"]) == 1
     assert response_json["synced_properties"][0]["key"] == "id"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_data_sync_view_does_not_exist(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    with pytest.raises(SyncError) as e:
+        handler.create_data_sync_table(
+            user=user,
+            database=database,
+            table_name="Test",
+            type_name="local_baserow_table",
+            synced_properties=["id"],
+            source_table_id=source_table.id,
+            source_table_view_id=0,
+        )
+
+    assert "does not exist" in str(e)
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_data_sync_view_does_not_belong_to_table(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    view = enterprise_data_fixture.create_grid_view()
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    with pytest.raises(SyncError) as e:
+        handler.create_data_sync_table(
+            user=user,
+            database=database,
+            table_name="Test",
+            type_name="local_baserow_table",
+            synced_properties=["id"],
+            source_table_id=source_table.id,
+            source_table_view_id=view.id,
+        )
+
+    assert "does not exist" in str(e)
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_data_sync_with_view_provided(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    public_field = enterprise_data_fixture.create_text_field(
+        table=source_table, name="Text", primary=True
+    )
+
+    grid = enterprise_data_fixture.create_grid_view(
+        table=source_table, user=user, public=True, create_options=False
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid, public_field, hidden=False
+    )
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{public_field.id}"],
+        source_table_id=source_table.id,
+        source_table_view_id=grid.id,
+    )
+
+    assert isinstance(data_sync, LocalBaserowTableDataSync)
+    assert data_sync.source_table_id == source_table.id
+    assert data_sync.authorized_user_id == user.id
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+    assert fields[0].name == "Row ID"
+    assert isinstance(fields[0], NumberField)
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+    assert fields[0].immutable_type is True
+    assert fields[0].immutable_properties is True
+    assert fields[1].name == "Text"
+    assert fields[1].primary is False
+    assert fields[1].read_only is True
+    assert fields[1].immutable_type is True
+    assert fields[1].immutable_properties is True
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_properties_with_view_provided_only_public_fields(
+    enterprise_data_fixture, api_client
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    public_field = enterprise_data_fixture.create_text_field(
+        table=source_table, name="Text", primary=True
+    )
+    hidden_field = enterprise_data_fixture.create_text_field(
+        table=source_table,
+        name="Number",
+        primary=False,
+    )
+
+    grid = enterprise_data_fixture.create_grid_view(
+        table=source_table, user=user, public=True, create_options=False
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid, public_field, hidden=False
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid, hidden_field, hidden=True
+    )
+
+    url = reverse("api:database:data_sync:properties")
+    response = api_client.post(
+        url,
+        {
+            "type": "local_baserow_table",
+            "source_table_id": source_table.id,
+            "source_table_view_id": grid.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == [
+        {
+            "unique_primary": True,
+            "key": "id",
+            "name": "Row ID",
+            "field_type": "number",
+            "initially_selected": True,
+        },
+        {
+            "unique_primary": False,
+            "key": f"field_{public_field.id}",
+            "name": "Text",
+            "field_type": "text",
+            "initially_selected": True,
+        },
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_properties_with_table_view_id_none(enterprise_data_fixture, api_client):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+
+    url = reverse("api:database:data_sync:properties")
+    response = api_client.post(
+        url,
+        {
+            "type": "local_baserow_table",
+            "source_table_id": source_table.id,
+            "source_table_view_id": None,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_with_view_provided_having_filter_and_sort(
+    enterprise_data_fixture,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    public_field = enterprise_data_fixture.create_text_field(
+        table=source_table, name="Text", primary=True
+    )
+
+    grid = enterprise_data_fixture.create_grid_view(
+        table=source_table, user=user, public=True, create_options=False
+    )
+
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid, public_field, hidden=False
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=grid, field=public_field, type="not_equal", value="B"
+    )
+    enterprise_data_fixture.create_view_sort(view=grid, field=public_field, order="ASC")
+
+    source_model = source_table.get_model()
+    source_row_1 = source_model.objects.create(
+        **{
+            f"field_{public_field.id}": "C",
+        }
+    )
+    source_model.objects.create(
+        **{
+            f"field_{public_field.id}": "B",
+        }
+    )
+    source_model.objects.create(
+        **{
+            f"field_{public_field.id}": "A",
+        }
+    )
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{public_field.id}"],
+        source_table_id=source_table.id,
+        source_table_view_id=grid.id,
+    )
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    field_1_field = fields[1]
+
+    model = data_sync.table.get_model()
+    assert model.objects.all().count() == 2
+    row = list(model.objects.all())
+    assert getattr(row[0], f"field_{field_1_field.id}") == "A"
+    assert getattr(row[1], f"field_{field_1_field.id}") == "C"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_source_table_view_deleted(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+
+    grid = enterprise_data_fixture.create_grid_view(
+        table=source_table, user=user, public=True, create_options=False
+    )
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id"],
+        source_table_id=source_table.id,
+        source_table_view_id=grid.id,
+    )
+
+    grid_id = grid.id
+    grid.delete()
+
+    with pytest.raises(SyncError) as e:
+        handler.create_data_sync_table(
+            user=user,
+            database=database,
+            table_name="Test",
+            type_name="local_baserow_table",
+            synced_properties=["id"],
+            source_table_id=source_table.id,
+            source_table_view_id=grid.id,
+        )
+
+    assert "does not exist" in str(e)
+
+    data_sync.refresh_from_db()
+    # We expect the view to still exist so that it fails because if it's set to
+    # `null`, it might expose all table data.
+    assert data_sync.source_table_view_id == grid_id
