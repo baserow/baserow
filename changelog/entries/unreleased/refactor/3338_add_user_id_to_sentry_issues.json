@@ -1,0 +1,7 @@
+{
+    "type": "refactor",
+    "message": "Add user id to sentry issues.",
+    "issue_number": 3338,
+    "bullet_points": [],
+    "created_at": "2025-01-07"
+}

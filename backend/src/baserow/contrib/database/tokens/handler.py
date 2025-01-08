@@ -42,7 +42,7 @@ class TokenHandler:
         """
 
         try:
-            token = Token.objects.select_related("workspace").get(key=key)
+            token = Token.objects.select_related("workspace", "user").get(key=key)
         except Token.DoesNotExist:
             raise TokenDoesNotExist(f"The token with key {key} does not exist.")
 
