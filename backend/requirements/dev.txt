@@ -10,15 +10,15 @@ asgiref==3.8.1
     # via
     #   -c base.txt
     #   django
-asttokens==2.4.1
+asttokens==3.0.0
     # via
     #   snoop
     #   stack-data
-async-timeout==4.0.3
+async-timeout==5.0.1
     # via
     #   -c base.txt
     #   redis
-attrs==23.2.0
+attrs==24.3.0
     # via
     #   -c base.txt
     #   jsonschema
@@ -32,21 +32,21 @@ bandit==1.7.8
     # via -r dev.in
 black==23.3.0
     # via -r dev.in
-build==1.2.2
+build==1.2.2.post1
     # via
     #   -r dev.in
     #   pip-tools
-certifi==2024.6.2
+certifi==2024.12.14
     # via
     #   -c base.txt
     #   requests
-charset-normalizer==3.3.2
+charset-normalizer==3.4.1
     # via
     #   -c base.txt
     #   requests
 cheap-repr==0.5.2
     # via snoop
-click==8.1.7
+click==8.1.8
     # via
     #   -c base.txt
     #   black
@@ -98,7 +98,7 @@ httpretty==1.1.4
     # via -r dev.in
 icdiff==2.0.7
     # via pytest-icdiff
-idna==3.7
+idna==3.10
     # via
     #   -c base.txt
     #   requests
@@ -106,15 +106,15 @@ iniconfig==2.0.0
     # via pytest
 ipdb==0.13.13
     # via -r dev.in
-ipython==8.27.0
+ipython==8.31.0
     # via
     #   -r dev.in
     #   ipdb
 isort==5.13.2
     # via -r dev.in
-jedi==0.19.1
+jedi==0.19.2
     # via ipython
-jinja2==3.1.4
+jinja2==3.1.5
     # via pytest-html
 jsonschema==4.17.3
     # via
@@ -132,7 +132,7 @@ markdown-it-py==3.0.0
     # via
     #   -c base.txt
     #   rich
-markupsafe==2.1.5
+markupsafe==3.0.2
     # via jinja2
 matplotlib-inline==0.1.7
     # via ipython
@@ -174,13 +174,13 @@ pexpect==4.9.0
     # via ipython
 pip-tools==7.4.1
     # via -r dev.in
-platformdirs==4.3.3
+platformdirs==4.3.6
     # via black
 pluggy==1.5.0
     # via pytest
 pprintpp==0.4.0
     # via pytest-icdiff
-prompt-toolkit==3.0.46
+prompt-toolkit==3.0.48
     # via
     #   -c base.txt
     #   ipython
@@ -196,7 +196,7 @@ pyfakefs==5.4.1
     # via -r dev.in
 pyflakes==3.2.0
     # via flake8
-pygments==2.18.0
+pygments==2.19.1
     # via
     #   -c base.txt
     #   ipython
@@ -204,7 +204,7 @@ pygments==2.18.0
     #   snoop
 pyinstrument==4.6.2
     # via -r dev.in
-pyproject-hooks==1.1.0
+pyproject-hooks==1.2.0
     # via
     #   build
     #   pip-tools
@@ -258,7 +258,7 @@ python-dateutil==2.8.2
     # via
     #   -c base.txt
     #   freezegun
-pyyaml==6.0.1
+pyyaml==6.0.2
     # via
     #   -c base.txt
     #   bandit
@@ -281,10 +281,9 @@ rich==13.7.1
     # via
     #   -c base.txt
     #   bandit
-six==1.16.0
+six==1.17.0
     # via
     #   -c base.txt
-    #   asttokens
     #   python-dateutil
     #   rfc3339-validator
     #   snoop
@@ -292,24 +291,24 @@ snoop==0.4.3
     # via -r dev.in
 sortedcontainers==2.4.0
     # via fakeredis
-sqlparse==0.5.0
+sqlparse==0.5.3
     # via
     #   -c base.txt
     #   django
     #   django-silk
 stack-data==0.6.3
     # via ipython
-stevedore==5.3.0
+stevedore==5.4.0
     # via bandit
-tomli==2.0.1
+tomli==2.2.1
     # via django-stubs
 traitlets==5.14.3
     # via
     #   ipython
     #   matplotlib-inline
-types-pytz==2024.2.0.20240913
+types-pytz==2024.2.0.20241221
     # via django-stubs
-types-pyyaml==6.0.12.20240917
+types-pyyaml==6.0.12.20241230
     # via django-stubs
 typing-extensions==4.11.0
     # via
@@ -318,7 +317,7 @@ typing-extensions==4.11.0
     #   django-stubs-ext
     #   ipython
     #   mypy
-urllib3==1.26.18
+urllib3==1.26.20
     # via
     #   -c base.txt
     #   requests
@@ -329,7 +328,7 @@ wcwidth==0.2.13
     # via
     #   -c base.txt
     #   prompt-toolkit
-wheel==0.44.0
+wheel==0.45.1
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:

@@ -170,6 +170,7 @@ deprecated==1.2.14
     # via
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-http
+    #   opentelemetry-semantic-conventions
 distro==1.9.0
     # via
     #   anthropic
@@ -456,7 +457,7 @@ openapi-spec-validator==0.5.6
     # via -r dev.in
 openpyxl==3.1.5
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-api==1.24.0
+opentelemetry-api==1.29.0
     # via
     #   -r /baserow/backend/requirements/base.in
     #   opentelemetry-exporter-otlp-proto-http
@@ -469,17 +470,18 @@ opentelemetry-api==1.24.0
     #   opentelemetry-instrumentation-django
     #   opentelemetry-instrumentation-grpc
     #   opentelemetry-instrumentation-logging
-    #   opentelemetry-instrumentation-psycopg2
+    #   opentelemetry-instrumentation-psycopg
     #   opentelemetry-instrumentation-redis
     #   opentelemetry-instrumentation-requests
     #   opentelemetry-instrumentation-wsgi
     #   opentelemetry-propagator-aws-xray
     #   opentelemetry-sdk
-opentelemetry-exporter-otlp-proto-common==1.24.0
+    #   opentelemetry-semantic-conventions
+opentelemetry-exporter-otlp-proto-common==1.29.0
     # via opentelemetry-exporter-otlp-proto-http
-opentelemetry-exporter-otlp-proto-http==1.24.0
+opentelemetry-exporter-otlp-proto-http==1.29.0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation==0.45b0
+opentelemetry-instrumentation==0.50b0
     # via
     #   -r /baserow/backend/requirements/base.in
     #   opentelemetry-instrumentation-aiohttp-client
@@ -490,53 +492,53 @@ opentelemetry-instrumentation==0.45b0
     #   opentelemetry-instrumentation-django
     #   opentelemetry-instrumentation-grpc
     #   opentelemetry-instrumentation-logging
-    #   opentelemetry-instrumentation-psycopg2
+    #   opentelemetry-instrumentation-psycopg
     #   opentelemetry-instrumentation-redis
     #   opentelemetry-instrumentation-requests
     #   opentelemetry-instrumentation-wsgi
-opentelemetry-instrumentation-aiohttp-client==0.45b0
+opentelemetry-instrumentation-aiohttp-client==0.50b0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation-asgi==0.45b0
+opentelemetry-instrumentation-asgi==0.50b0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation-botocore==0.45b0
+opentelemetry-instrumentation-botocore==0.50b0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation-celery==0.45b0
+opentelemetry-instrumentation-celery==0.50b0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation-dbapi==0.45b0
+opentelemetry-instrumentation-dbapi==0.50b0
     # via
     #   -r /baserow/backend/requirements/base.in
-    #   opentelemetry-instrumentation-psycopg2
-opentelemetry-instrumentation-django==0.45b0
+    #   opentelemetry-instrumentation-psycopg
+opentelemetry-instrumentation-django==0.50b0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation-grpc==0.45b0
+opentelemetry-instrumentation-grpc==0.50b0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation-logging==0.45b0
+opentelemetry-instrumentation-logging==0.50b0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation-psycopg2==0.45b0
+opentelemetry-instrumentation-psycopg==0.50b0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation-redis==0.45b0
+opentelemetry-instrumentation-redis==0.50b0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation-requests==0.45b0
+opentelemetry-instrumentation-requests==0.50b0
     # via -r /baserow/backend/requirements/base.in
-opentelemetry-instrumentation-wsgi==0.45b0
+opentelemetry-instrumentation-wsgi==0.50b0
     # via
     #   -r /baserow/backend/requirements/base.in
     #   opentelemetry-instrumentation-django
 opentelemetry-propagator-aws-xray==1.0.1
     # via opentelemetry-instrumentation-botocore
-opentelemetry-proto==1.24.0
+opentelemetry-proto==1.29.0
     # via
     #   -r /baserow/backend/requirements/base.in
     #   opentelemetry-exporter-otlp-proto-common
     #   opentelemetry-exporter-otlp-proto-http
-opentelemetry-sdk==1.24.0
+opentelemetry-sdk==1.29.0
     # via
     #   -r /baserow/backend/requirements/base.in
     #   opentelemetry-exporter-otlp-proto-http
-    #   opentelemetry-instrumentation-grpc
-opentelemetry-semantic-conventions==0.45b0
+opentelemetry-semantic-conventions==0.50b0
     # via
     #   -r /baserow/backend/requirements/base.in
+    #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-aiohttp-client
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-botocore
@@ -548,7 +550,7 @@ opentelemetry-semantic-conventions==0.45b0
     #   opentelemetry-instrumentation-requests
     #   opentelemetry-instrumentation-wsgi
     #   opentelemetry-sdk
-opentelemetry-util-http==0.45b0
+opentelemetry-util-http==0.50b0
     # via
     #   -r /baserow/backend/requirements/base.in
     #   opentelemetry-instrumentation-aiohttp-client
@@ -566,6 +568,7 @@ packaging==23.2
     #   huggingface-hub
     #   langchain-core
     #   marshmallow
+    #   opentelemetry-instrumentation
     #   pytest
 parso==0.8.4
     # via jedi
@@ -599,7 +602,7 @@ prosemirror @ https://github.com/fellowapp/prosemirror-py/archive/refs/tags/v0.3
     # via -r /baserow/backend/requirements/base.in
 proto-plus==1.24.0
     # via google-api-core
-protobuf==4.25.4
+protobuf==5.29.2
     # via
     #   google-api-core
     #   googleapis-common-protos
@@ -607,7 +610,9 @@ protobuf==4.25.4
     #   proto-plus
 psutil==5.9.8
     # via -r /baserow/backend/requirements/base.in
-psycopg2==2.9.9
+psycopg==3.2.3
+    # via -r /baserow/backend/requirements/base.in
+psycopg-binary==3.2.3
     # via -r /baserow/backend/requirements/base.in
 ptyprocess==0.7.0
     # via pexpect
@@ -867,6 +872,7 @@ typing-extensions==4.11.0
     #   openai
     #   opentelemetry-sdk
     #   prosemirror
+    #   psycopg
     #   pydantic
     #   pydantic-core
     #   sqlalchemy

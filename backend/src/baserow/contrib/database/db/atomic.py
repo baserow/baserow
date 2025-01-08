@@ -1,7 +1,7 @@
 from django.db.transaction import Atomic
 
 from cachalot.api import cachalot_disabled
-from psycopg2 import sql
+from psycopg import sql
 
 from baserow.core.db import IsolationLevel, transaction_atomic
 

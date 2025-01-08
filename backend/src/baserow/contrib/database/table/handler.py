@@ -11,7 +11,7 @@ from django.utils import translation
 from django.utils.translation import gettext as _
 
 from opentelemetry import trace
-from psycopg2 import sql
+from psycopg import sql
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.constants import RESERVED_BASEROW_FIELD_NAMES

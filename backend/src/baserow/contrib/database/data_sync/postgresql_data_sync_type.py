@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
 
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg import sql
 
 from baserow.contrib.database.fields.models import (
     NUMBER_MAX_DECIMAL_PLACES,
@@ -171,7 +171,7 @@ class PostgreSQLDataSyncType(DataSyncType):
         if baserow_postgresql_connection or data_sync_blacklist:
             raise SyncError("It's not allowed to connect to this hostname.")
         try:
-            connection = psycopg2.connect(
+            connection = psycopg.connect(
                 host=instance.postgresql_host,
                 dbname=instance.postgresql_database,
                 user=instance.postgresql_username,
@@ -181,7 +181,7 @@ class PostgreSQLDataSyncType(DataSyncType):
             )
             cursor = connection.cursor()
             yield cursor
-        except psycopg2.Error as e:
+        except psycopg.Error as e:
             raise SyncError(str(e))
         finally:
             if cursor:

@@ -10,7 +10,7 @@ from cachalot import utils as cachalot_utils
 from cachalot.settings import cachalot_settings
 from django_redis import get_redis_connection
 from loguru import logger
-from psycopg2.sql import Composed
+from psycopg.sql import Composed
 
 
 @contextmanager
@@ -139,7 +139,7 @@ def patch_cachalot_for_baserow():
     def lower(self):
         """
         Cachalot wants this method to lowercase the queries to check if they are
-        cachable, but the Composed class in psycopg2.sql does not have a lower
+        cachable, but the Composed class in psycopg.sql does not have a lower
         method, so we add it here to add the support for it.
         """
 

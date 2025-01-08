@@ -13,7 +13,7 @@ from django.utils.encoding import force_str
 
 from loguru import logger
 from opentelemetry import trace
-from psycopg2 import sql
+from psycopg import sql
 from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
