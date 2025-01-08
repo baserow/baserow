@@ -190,7 +190,7 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             help_text="If provided, then only the visible fields and rows matching the "
             "filters will be synced.",
             required=False,
-            allow_null=False,
+            allow_null=True,
         ),
     }
 

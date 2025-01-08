@@ -1443,6 +1443,31 @@ def test_get_properties_with_view_provided_only_public_fields(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_get_properties_with_table_view_id_none(enterprise_data_fixture, api_client):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+
+    url = reverse("api:database:data_sync:properties")
+    response = api_client.post(
+        url,
+        {
+            "type": "local_baserow_table",
+            "source_table_id": source_table.id,
+            "source_table_view_id": None,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_sync_data_sync_table_with_view_provided_having_filter_and_sort(
     enterprise_data_fixture,
 ):

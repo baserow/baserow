@@ -57,10 +57,10 @@
           required
         >
           <Dropdown
-            v-model="values.source_table_id"
+            :value="values.source_table_id"
             :error="fieldHasErrors('source_table_id')"
             :disabled="disabled"
-            @input="$v.values.source_table_id.$touch()"
+            @input="tableChanged"
           >
             <DropdownItem
               v-for="table in tables"
@@ -139,7 +139,7 @@ export default {
       allowedValues: ['source_table_id', 'source_table_view_id'],
       values: {
         source_table_id: '',
-        source_table_view_id: '',
+        source_table_view_id: null,
       },
       selectedWorkspaceId:
         this.$store.getters['workspace/getSelected'].id || null,
@@ -223,6 +223,7 @@ export default {
       this.selectedWorkspaceId = value
       this.selectedDatabaseId = null
       this.values.source_table_id = null
+      this.values.source_table_view_id = null
     },
     databaseChanged(value) {
       if (this.selectedDatabaseId === value) {
@@ -230,33 +231,49 @@ export default {
       }
       this.selectedDatabaseId = value
       this.values.source_table_id = null
+      this.values.source_table_view_id = null
     },
-
+    tableChanged(value) {
+      this.$v.values.source_table_id.$touch()
+      if (this.values.source_table_id === value) {
+        return
+      }
+      this.values.source_table_id = value
+      this.values.source_table_view_id = null
+    },
     async loadViewsIfNeeded() {
       if (this.values.source_table_id === null) {
         return
       }
 
       this.viewsLoading = true
-      // Because the authorized user changes when a view is created or updated, it's
-      // fine to just fetch all the views that the user has access to.
-      const { data } = await ViewService(this.$client).fetchAll(
-        this.values.source_table_id,
-        false,
-        false,
-        false,
-        false
-      )
-      this.views = data
-        .map((view) => {
-          const viewType = this.$registry.get('view', view.type)
-          view._ = { type: viewType.serialize() }
-          return view
-        })
-        .sort((a, b) => {
-          return a.order - b.order
-        })
-      this.viewsLoading = false
+
+      try {
+        // Because the authorized user changes when a view is created or updated, it's
+        // fine to just fetch all the views that the user has access to.
+        const { data } = await ViewService(this.$client).fetchAll(
+          this.values.source_table_id,
+          false,
+          false,
+          false,
+          false
+        )
+        this.views = data
+          .filter((view) => {
+            const viewType = this.$registry.get('view', view.type)
+            return viewType.canFilter
+          })
+          .map((view) => {
+            const viewType = this.$registry.get('view', view.type)
+            view._ = { type: viewType.serialize() }
+            return view
+          })
+          .sort((a, b) => {
+            return a.order - b.order
+          })
+      } finally {
+        this.viewsLoading = false
+      }
     },
   },
 }
