@@ -32,21 +32,21 @@ export default {
       )
       data.workspace = workspace
       data.dashboard = dashboard
-      const forEditing = app.$hasPermission(
-        'application.update',
-        dashboard,
-        dashboard.workspace.id
-      )
-      store.dispatch('dashboardApplication/fetchInitial', {
-        dashboardId: dashboard.id,
-        forEditing,
-      })
     } catch (e) {
       return error({ statusCode: 404, message: 'Dashboard not found.' })
     }
     return data
   },
   mounted() {
+    const forEditing = this.$hasPermission(
+      'application.update',
+      this.dashboard,
+      this.dashboard.workspace.id
+    )
+    this.$store.dispatch('dashboardApplication/fetchInitial', {
+      dashboardId: this.dashboard.id,
+      forEditing,
+    })
     this.$realtime.subscribe('dashboard', { dashboard_id: this.dashboard.id })
   },
   beforeDestroy() {
