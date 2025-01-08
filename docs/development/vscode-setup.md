@@ -49,7 +49,7 @@ automatic style fixers to make your life as easy as possible.
             CREATE USER baserow WITH ENCRYPTED PASSWORD 'baserow';
             ALTER USER baserow CREATEDB;
             ```
-    4. You might also have to `pip install psycopg2-binary` or
+    4. You might also have to `pip install "psycopg[binary]"` or
        `sudo apt install libpq-dev`
 1. Now you should be able to run the backend python tests from the testing menu, try
    run `backend/tests/baserow/core/test_core_models.py` for instance.

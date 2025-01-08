@@ -1,7 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection, models
 
-from psycopg2 import sql
+from psycopg import sql
 
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,

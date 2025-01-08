@@ -2,7 +2,7 @@
 
 from django.db import connection, migrations
 
-from psycopg2 import sql
+from psycopg import sql
 
 from baserow.contrib.database.fields.models import (
     CreatedOnField,

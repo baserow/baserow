@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-import psycopg2
+import psycopg
 
 from baserow.contrib.database.fields.models import (
     LinkRowField,
@@ -156,7 +156,7 @@ class BaserowBackupRunner:
         return ["pg_restore"] + self._get_postgres_tool_args() + extra_command
 
     def _build_connection(self):
-        return psycopg2.connect(
+        return psycopg.connect(
             host=self.host,
             port=self.port,
             database=self.database,

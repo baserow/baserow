@@ -14,6 +14,9 @@ from django.db.models import (
 )
 from django.db.models.functions import Cast, Extract, Mod
 
+import psycopg
+from psycopg.types.datetime import IntervalLoader
+
 H_M = "h:mm"
 H_M_S = "h:mm:ss"
 H_M_S_S = "h:mm:ss.s"
@@ -702,3 +705,16 @@ def text_value_sql_to_duration(field: "DurationField") -> str:
     ]
     args = [f"'{arg or 'NULL'}'" for arg in db_function_args]
     return f"br_text_to_interval(p_in, {','.join(args)});"
+
+
+class BaserowIntervalLoader(IntervalLoader):
+    """
+    We're not doing anything special here, but if we don't register this
+    adapter tests will fail when parsing negative intervals.
+    """
+
+    def load(self, data):
+        return super().load(data)
+
+
+psycopg.adapters.register_loader("interval", BaserowIntervalLoader)

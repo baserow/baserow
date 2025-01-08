@@ -10,7 +10,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.django import DjangoInstrumentor
-from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
+from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
@@ -131,7 +131,7 @@ def _setup_log_exporting(logger):
 
 def _setup_standard_backend_instrumentation():
     BotocoreInstrumentor().instrument()
-    Psycopg2Instrumentor().instrument()
+    PsycopgInstrumentor().instrument()
     RedisInstrumentor().instrument()
     RequestsInstrumentor().instrument()
     CeleryInstrumentor().instrument()

@@ -21,7 +21,7 @@ from django.db.models.query import QuerySet
 import jwt
 from loguru import logger
 from opentelemetry import trace
-from psycopg2 import sql
+from psycopg import sql
 from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.api.utils import get_include_exclude_field_ids

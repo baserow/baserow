@@ -467,10 +467,7 @@ def test_convert_duration_field_to_text_to_duration_field(
 
     row_1 = model.objects.first()
     updated_value = getattr(row_1, f"field_{field.id}")
-    # compare timedelta values
-    # assert updated_value == dest_value, ( # inital_value, (
-    #     input_format, input_value, dest_format, dest_value, updated_value,
-    # )
+
     if updated_value is not None:
         formatted = format_duration_value(updated_value, dest_format)
     else:

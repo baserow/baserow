@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from django.db import models, transaction
 
-from psycopg2 import sql
+from psycopg import sql
 
 from baserow.contrib.database.db.schema import (
     lenient_schema_editor,

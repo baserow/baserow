@@ -22,7 +22,7 @@ from django.db.utils import DatabaseError, DataError, ProgrammingError
 
 from loguru import logger
 from opentelemetry import trace
-from psycopg2 import sql
+from psycopg import sql
 
 from baserow.contrib.database.db.schema import (
     lenient_schema_editor,
