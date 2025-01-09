@@ -15,6 +15,11 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
+# Disable default optimizations for the tests because they make tests slower.
+DATABASES["default"]["OPTIONS"] = {
+    "server_side_binding": False,
+    "prepare_threshold": None,
+}
 # Open a second database connection that can be used to test transactions.
 DATABASES["default-copy"] = deepcopy(DATABASES["default"])
 

@@ -234,6 +234,12 @@ else:
             os.getenv("DATABASE_OPTIONS", "{}")
         )
 
+DATABASES["default"].setdefault("OPTIONS", {})
+# This doesn't work with SET and many other commands as described here:
+# https://www.psycopg.org/psycopg3/docs/basic/from_pg2.html#server-side-binding Although
+# all tests passes, unless explicitly set, it's safer to disable it for now.
+DATABASES["default"]["OPTIONS"].setdefault("server_side_binding", False)
+
 GENERATED_MODEL_CACHE_NAME = "generated-models"
 CACHES = {
     "default": {
