@@ -14,8 +14,11 @@
               class="link-navigation-selection-form__navigate-option-page-path"
             >
               {{ destinationPage.path }}
-            </span></template
-          >
+              <template v-if="destinationPage.query_params.length">
+                ?{{ destinationPage.query_params.map(p => `${p.name}=[${p.type}]`).join('&') }}
+              </template>
+            </span>
+          </template>
           <span v-else>{{
             $t('linkNavigationSelection.navigateToCustom')
           }}</span>
@@ -32,6 +35,9 @@
             class="link-navigation-selection-form__navigate-option-page-path"
           >
             {{ pageItem.path }}
+            <template v-if="pageItem.query_params.length">
+              ?{{ pageItem.query_params.map(p => `${p.name}=[${p.type}]`).join('&') }}
+            </template>
           </span>
         </DropdownItem>
         <DropdownItem
