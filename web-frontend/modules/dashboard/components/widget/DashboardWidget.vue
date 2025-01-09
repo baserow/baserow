@@ -18,7 +18,7 @@
       :store-prefix="storePrefix"
     />
     <div v-else>
-      <div class="dashboard-widget__loading loading-spinner"></div>
+      <div class="dashboard-widget__loading"></div>
     </div>
   </div>
 </template>
