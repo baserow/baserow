@@ -15,6 +15,8 @@ from django.db.models import (
     OuterRef,
     Q,
     Subquery,
+    TextField,
+    UUIDField,
     Value,
     When,
     fields,
@@ -416,6 +418,11 @@ class BaserowExpressionToDjangoExpressionGenerator(
                     ),
                     Value([], output_field=JSONField()),
                 )
+        elif isinstance(model_field, UUIDField):
+            return ExpressionWrapper(
+                Cast(F(db_column), output_field=TextField()),
+                output_field=TextField(),
+            )
         else:
             return ExpressionWrapper(
                 F(db_column),
