@@ -1,5 +1,30 @@
 .link-navigation-selection-form__navigate-option-page-path {
-  font-size: 12px;
-  color: $color-neutral-500;
   margin-left: 5px;
+  width: 175px;
+  height: inherit;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+}
+
+.link-navigation-selection-form__navigate-option-page-path span {
+  color: $color-neutral-500;
+  font-size: 12px;
+  display: inline-block;
+  position: absolute;
+  width: fit-content;
+}
+
+.animate-scroll {
+  animation: scroll 3s linear infinite alternate-reverse;
+}
+
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(calc(-100% + 175px));
+  }
 }

@@ -13,10 +13,9 @@
             <span
               class="link-navigation-selection-form__navigate-option-page-path"
             >
-              {{ destinationPage.path }}
-              <template v-if="destinationPage.query_params.length">
-                ?{{ destinationPage.query_params.map(p => `${p.name}=[${p.type}]`).join('&') }}
-              </template>
+              <span>
+                {{ destinationPagePathWithParams }}
+              </span>
             </span>
           </template>
           <span v-else>{{
@@ -30,15 +29,7 @@
           :value="pageItem.id"
           :name="pageItem.name"
         >
-          {{ pageItem.name }}
-          <span
-            class="link-navigation-selection-form__navigate-option-page-path"
-          >
-            {{ pageItem.path }}
-            <template v-if="pageItem.query_params.length">
-              ?{{ pageItem.query_params.map(p => `${p.name}=[${p.type}]`).join('&') }}
-            </template>
-          </span>
+          {{ pageItem.name }} {{ getPagePathWithParams(pageItem) }}
         </DropdownItem>
         <DropdownItem
           :name="$t('linkNavigationSelection.navigateToCustom')"
@@ -155,6 +146,10 @@ export default {
       }
       return null
     },
+    destinationPagePathWithParams() {
+      if (!this.destinationPage) return ''
+      return this.getPagePathWithParams(this.destinationPage)
+    },
   },
   watch: {
     'destinationPage.path_params': {
@@ -164,7 +159,7 @@ export default {
       },
       deep: true,
     },
-    navigateTo(value) {
+    async navigateTo(value) {
       if (value === '') {
         this.values.navigation_type = 'page'
         this.values.navigate_to_page_id = null
@@ -176,10 +171,14 @@ export default {
         this.values.navigate_to_page_id = value
         this.updatePageParameters()
       }
+
+      // Wait for DOM update then check overflow
+      await this.$nextTick()
+      this.checkTextOverflow()
     },
     destinationPage(value) {
       this.updatePageParameters()
-
+      this.checkTextOverflow()
       // This means that the page select does not exist anymore
       if (value === undefined) {
         this.values.navigate_to_page_id = null
@@ -202,6 +201,27 @@ export default {
     this.refreshParametersInError()
   },
   methods: {
+    checkTextOverflow() {
+      const container = document?.querySelector(
+        '.link-navigation-selection-form__navigate-option-page-path'
+      )
+      if (!container) return
+      const textSpan = container.querySelector('span')
+      if (textSpan.scrollWidth > container.clientWidth) {
+        textSpan.classList.add('animate-scroll')
+      } else {
+        textSpan.classList.remove('animate-scroll')
+      }
+    },
+    getPagePathWithParams(page) {
+      let path = page.path
+      if (page.query_params.length) {
+        path += `?${page.query_params
+          .map((p) => `${p.name}=[${p.type}]`)
+          .join('&')}`
+      }
+      return path
+    },
     refreshParametersInError() {
       this.parametersInError = pathParametersInError(this.values, this.pages)
     },
