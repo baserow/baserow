@@ -5670,46 +5670,37 @@ class LookupFieldType(FormulaFieldType):
         through_field_name = values.get("through_field_name", None)
         target_field_name = values.get("target_field_name", None)
 
-        def get_field(table_id, field_id, field_name, model_class, prefix, exc):
-            field_object = model_class.objects.filter(table_id=table_id)
-            if field_id is not None:
-                field_object = field_object.filter(id=field_id)
-            elif field_name is not None:
-                field_object = field_object.filter(name=field_name)
-            else:
-                raise exc(
-                    f"Either a {prefix}field_id or {prefix}field_name must be provided."
-                )
+        through_queryset = LinkRowField.objects.filter(table_id=table.id)
+        if through_field_id is not None:
+            through_queryset = through_queryset.filter(id=through_field_id)
+        elif through_field_name is not None:
+            through_queryset = through_queryset.filter(name=through_field_name)
+        else:
+            raise InvalidLookupThroughField(
+                f"Either a through_field_id or through_field_name must be provided."
+            )
 
-            try:
-                field_object = field_object.get()
-            except model_class.DoesNotExist:
-                raise exc()
-
-            return field_object
-
-        through_field = get_field(
-            table_id=table.id,
-            field_id=through_field_id,
-            field_name=through_field_name,
-            model_class=LinkRowField,
-            prefix="through_",
-            exc=InvalidLookupThroughField,
-        )
+        try:
+            through_field = through_queryset.get()
+        except LinkRowField.DoesNotExist:
+            raise InvalidLookupThroughField()
 
         values["through_field_id"] = through_field.id
         values["through_field_name"] = through_field.name
 
-        target_field = get_field(
-            table_id=through_field.link_row_table_id,
-            field_id=target_field_id,
-            field_name=target_field_name,
-            model_class=Field,
-            prefix="target_",
-            exc=InvalidLookupTargetField,
-        )
+        target_queryset = Field.objects.filter(table_id=through_field.link_row_table_id)
+        if target_field_id is not None:
+            target_queryset = target_queryset.filter(id=target_field_id)
+        elif target_field_name is not None:
+            target_queryset = target_queryset.filter(name=target_field_name)
+        else:
+            raise InvalidLookupTargetField(
+                f"Either a target_field_id or target_field_name must be provided."
+            )
 
-        if target_field.table_id != through_field.link_row_table_id:
+        try:
+            target_field = target_queryset.get()
+        except Field.DoesNotExist:
             raise InvalidLookupTargetField()
 
         values["target_field_id"] = target_field.id
@@ -5724,7 +5715,16 @@ class LookupFieldType(FormulaFieldType):
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
-        self._rebuild_field_from_names(field)
+        # The updated field can be the through field or the target field, and we're only
+        # interested if the name or the field type changed.
+        if updated_field.id == field.through_field_id:
+            if updated_field.name != field.through_field_name:
+                field.through_field_name = updated_field.name
+                field.save(recalculate=False)
+        elif updated_field.id == field.target_field_id:
+            if updated_field.name != field.target_field_name:
+                field.target_field_name = updated_field.name
+                field.save(recalculate=False)
 
         super().field_dependency_updated(
             field,
@@ -5743,7 +5743,14 @@ class LookupFieldType(FormulaFieldType):
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
-        self._rebuild_field_from_names(field)
+        # Either the through field or the target field has been deleted
+        if deleted_field.id == field.through_field_id:
+            field.through_field_id = None
+            field.target_field_id = None
+            field.save(recalculate=False)
+        elif deleted_field.id == field.target_field_id:
+            field.target_field_id = None
+            field.save(recalculate=False)
 
         super().field_dependency_deleted(
             field,
@@ -5761,7 +5768,27 @@ class LookupFieldType(FormulaFieldType):
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
-        self._rebuild_field_from_names(field)
+        # If the created field can fix this broken field because it was pointing to
+        # the same name, then we can do so.
+        if (
+            field.error
+            and field.through_field_id is None
+            and isinstance(created_field, LinkRowField)
+            and created_field.name == field.through_field_name
+        ):
+            field.through_field_id = created_field.id
+            field.target_field = Field.objects.filter(
+                table_id=created_field.link_row_table_id, name=field.target_field_name
+            ).first()
+            field.save(recalculate=False)
+        elif (
+            field.error
+            and field.target_field_id is None
+            and created_field.name == field.target_field_name
+            and created_field.table_id == field.through_field.specific.link_row_table_id
+        ):
+            field.target_field_id = created_field.id
+            field.save(recalculate=False)
 
         super().field_dependency_created(
             field,
@@ -5770,28 +5797,6 @@ class LookupFieldType(FormulaFieldType):
             field_cache,
             via_path_to_starting_table,
         )
-
-    def _rebuild_field_from_names(self, field):
-        values = {
-            "through_field_name": field.through_field_name,
-            "through_field_id": None,
-            "target_field_name": field.target_field_name,
-            "target_field_id": None,
-        }
-        try:
-            self._validate_through_and_target_field_values(field.table, values)
-        except (InvalidLookupTargetField, InvalidLookupThroughField):
-            pass
-
-        changed = False
-        for key, value in values.items():
-            if getattr(field, key) != value:
-                changed = True
-                setattr(field, key, value)
-        # Only update if the values have actually changed to reduce the number of
-        # queries and unnecessary model invalidations.
-        if changed:
-            field.save(recalculate=False)
 
     def import_serialized(
         self,
