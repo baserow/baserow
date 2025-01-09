@@ -1,14 +1,14 @@
 <template>
   <form @submit.prevent="submit" @input="$emit('formchange')">
     <div>
-      <Alert v-if="!values.active" type="info-primary">
+      <Alert v-if="!v$.values.active.$model" type="info-primary">
         <template #title> {{ $t('webhookForm.deactivated.title') }} </template>
         <p>{{ $t('webhookForm.deactivated.content') }}</p>
 
         <template #actions>
           <button
             class="alert__actions-button-text"
-            @click="values.active = true"
+            @click="v$.values.active.$model = true"
           >
             {{ $t('webhookForm.deactivated.activate') }}
           </button>
@@ -24,9 +24,9 @@
             class="margin-bottom-2"
           >
             <FormInput
-              v-model="values.name"
-              :error="fieldHasErrors('name')"
-              @blur="v$.values.name.$touch()"
+              v-model="v$.values.name.$model"
+              :error="v$.values.name.$error"
+              @blur="v$.values.name.$touch"
             ></FormInput>
 
             <template #error>
@@ -41,7 +41,7 @@
             required
             class="margin-bottom-2"
           >
-            <Checkbox v-model="values.use_user_field_names">{{
+            <Checkbox v-model="v$.values.use_user_field_names.$model">{{
               $t('webhookForm.checkbox.sendUserFieldNames')
             }}</Checkbox>
           </FormGroup>
@@ -53,7 +53,7 @@
             required
             class="margin-bottom-2"
           >
-            <Dropdown v-model="values.request_method">
+            <Dropdown v-model="v$.values.request_method.$model">
               <DropdownItem name="GET" value="GET"></DropdownItem>
               <DropdownItem name="POST" value="POST"></DropdownItem>
               <DropdownItem name="PATCH" value="PATCH"></DropdownItem>
@@ -74,26 +74,25 @@
               v-model="values.url"
               :placeholder="$t('webhookForm.inputLabels.url')"
               :error="fieldHasErrors('url')"
-              @blur="v$.values.url.$touch()"
+              @blur="v$.values.url.$touch"
             ></FormInput>
 
             <template #error>
-              <div
+              <span
                 v-if="
-                  fieldHasErrors('url') &&
-                  (!v$.values.url.required ||
-                    !v$.values.url.isValidURLWithHttpScheme)
+                  (fieldHasErrors('url') && v$.values.url.required.$invalid) ||
+                  v$.values.url.isValidURLWithHttpScheme.$invalid
                 "
               >
                 {{ $t('webhookForm.errors.urlField') }}
-              </div>
-              <div v-else-if="v$.values.url.$error && !v$.values.url.maxLength">
+              </span>
+              <span v-else-if="v$.values.url.maxLength.$invalid">
                 {{
                   $t('error.maxLength', {
                     max: v$.values.url.$params.maxLength.max,
                   })
                 }}
-              </div>
+              </span>
             </template>
           </FormGroup>
         </div>
@@ -106,7 +105,7 @@
         class="margin-bottom-2"
       >
         <RadioGroup
-          v-model="values.include_all_events"
+          v-model="v$.values.include_all_events.$model"
           :options="eventsRadioOptions"
           vertical-layout
         >
@@ -168,7 +167,6 @@
         small-label
         :label="$t('webhookForm.inputLabels.headers')"
         required
-        :error="v$.headers.$anyError"
         class="margin-bottom-2"
       >
         <div
@@ -181,26 +179,21 @@
         >
           <div class="webhook__header-row">
             <FormInput
+              :ref="`headerNameInput${index}`"
               v-model="header.name"
-              :error="!lastHeader(index) && v$.headers.$each[index].name.$error"
+              :error="v$.headers.$each.$response?.$data[index]?.name.$error"
               class="webhook__header-key"
               :placeholder="$t('webhookForm.inputLabels.name')"
               @input="lastHeader(index) && addHeader(header.name, header.value)"
-              @blur="
-                !lastHeader(index) && v$.headers.$each[index].name.$touch()
-              "
+              @blur="!lastHeader(index) && v$.headers.$touch()"
             />
             <FormInput
               v-model="header.value"
               class="webhook__header-value"
-              :error="
-                !lastHeader(index) && v$.headers.$each[index].value.$error
-              "
+              :error="v$.headers.$each.$response?.$data[index]?.value.$error"
               :placeholder="$t('webhookForm.inputLabels.value')"
               @input="lastHeader(index) && addHeader(header.name, header.value)"
-              @blur="
-                !lastHeader(index) && v$.headers.$each[index].value.$touch()
-              "
+              @blur="!lastHeader(index) && v$.headers.$touch()"
             />
             <ButtonIcon
               v-if="!lastHeader(index)"
@@ -212,7 +205,7 @@
           </div>
         </div>
         <template #error>
-          <div v-if="v$.headers.$anyError" class="error">
+          <div v-if="v$.headers.$error">
             {{ $t('webhookForm.errors.invalidHeaders') }}
           </div>
         </template>
@@ -256,8 +249,8 @@
 </template>
 
 <script>
-import { required, maxLength } from '@vuelidate/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { helpers, required, maxLength } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
@@ -284,6 +277,9 @@ export default {
       type: Array,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -369,26 +365,35 @@ export default {
       })
     }
   },
-  validations: {
-    values: {
-      name: { required },
-      url: { required, maxLength: maxLength(2000), isValidURLWithHttpScheme },
-    },
-    headers: {
-      $each: {
-        name: {
-          required,
-          valid(value) {
-            const regex = /[^:\\s][^:\\r\\n]*$/
-            return !!value.match(regex)
-          },
-        },
-        value: {
-          required,
-        },
+  validations() {
+    return {
+      values: {
+        name: { required },
+        url: { required, maxLength: maxLength(2000), isValidURLWithHttpScheme },
+        active: {},
+        use_user_field_names: {},
+        request_method: {},
+        include_all_events: {},
+        events: {},
+        event_config: {},
       },
-    },
+      headers: {
+        $each: helpers.forEach({
+          name: {
+            required,
+            valid(value) {
+              const regex = /[^:\\s][^:\\r\\n]*$/
+              return !!value.match(regex)
+            },
+          },
+          value: {
+            required,
+          },
+        }),
+      },
+    }
   },
+
   methods: {
     getEventFields(event) {
       const eventConfig = this.values.event_config.find(
@@ -416,13 +421,15 @@ export default {
     prepareHeaders(headers) {
       const preparedHeaders = {}
       headers.forEach((header) => {
-        preparedHeaders[header.name] = header.value
+        if (header.name !== '' && header.value !== '')
+          preparedHeaders[header.name] = header.value
       })
       return preparedHeaders
     },
     getFormValues() {
       const values = form.methods.getFormValues.call(this)
       values.headers = this.prepareHeaders(this.headers)
+
       return values
     },
     openTestModal() {
@@ -441,6 +448,11 @@ export default {
     },
     addHeader(name, value) {
       this.headers.push({ name, value })
+      const index = this.headers.length - 1
+
+      this.$nextTick(() => {
+        this.$refs[`headerNameInput${index}`][0].focus()
+      })
     },
     removeHeader(index) {
       this.headers.splice(index, 1)

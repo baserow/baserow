@@ -87,6 +87,18 @@ import samlAuthProviderService from '@baserow_enterprise/services/samlAuthProvid
 export default {
   mixins: [form, error],
   layout: 'login',
+  setup() {
+    const state = reactive({
+      email: '',
+    })
+
+    const rules = computed(() => ({
+      email: { required, email },
+    }))
+
+    const v$ = useVuelidate(rules, state)
+    return { v$, state }
+  },
   async asyncData({ app, redirect, store, route }) {
     // the SuperUser must create the account using username and password
     if (store.getters['settings/get'].show_admin_signup_page === true) {
@@ -200,11 +212,6 @@ export default {
         }
       }
       return parsedUrl.toString()
-    },
-  },
-  validations: {
-    values: {
-      email: { required, email },
     },
   },
 }

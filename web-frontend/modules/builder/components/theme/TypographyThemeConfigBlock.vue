@@ -39,24 +39,17 @@
           small-label
           class="margin-bottom-2"
           :label="$t('typographyThemeConfigBlock.size')"
-          :error-message="
-            v$.values[`body_font_size`].$invalid
-              ? $t('error.minMaxValueField', {
-                  min: fontSizeMin,
-                  max: bodyFontSizeMax,
-                })
-              : ''
-          "
+          :error-message="v$.values[`body_font_size`].$errors[0]?.$message"
         >
           <PixelValueSelector
-            v-model="values.body_font_size"
+            v-model="v$.values.body_font_size.$model"
             :default-value-when-empty="defaultValuesWhenEmpty[`body_font_size`]"
             class="typography-theme-config-block__input-number"
-            @blur="v$.values[`body_font_size`].$touch()"
+            @blur="v$.values[`body_font_size`].$touch"
           />
           <template #after-input>
             <ResetButton
-              v-model="values.body_font_size"
+              v-model="v$.values.body_font_size.$model"
               :default-value="theme?.body_font_size"
             />
           </template>
@@ -133,16 +126,11 @@
             class="margin-bottom-2"
             :label="$t('typographyThemeConfigBlock.size')"
             :error-message="
-              v$.values[`heading_${level}_font_size`].$invalid
-                ? $t('error.minMaxValueField', {
-                    min: fontSizeMin,
-                    max: fontSizeMax,
-                  })
-                : ''
+              v$.values[`heading_${level}_font_size`].$errors[0]?.$message
             "
           >
             <PixelValueSelector
-              v-model="values[`heading_${level}_font_size`]"
+              v-model="v$.values[`heading_${level}_font_size`].$model"
               :default-value-when-empty="
                 defaultValuesWhenEmpty[`heading_${level}_font_size`]
               "
@@ -151,7 +139,7 @@
             />
             <template #after-input>
               <ResetButton
-                v-model="values[`heading_${level}_font_size`]"
+                v-model="v$.values[`heading_${level}_font_size`].$model"
                 :default-value="theme?.[`heading_${level}_font_size`]"
               />
             </template>
@@ -192,7 +180,14 @@
 </template>
 
 <script>
-import { required, integer, minValue, maxValue } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import {
+  required,
+  integer,
+  minValue,
+  maxValue,
+  helpers,
+} from '@vuelidate/validators'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
@@ -216,9 +211,24 @@ export default {
     PixelValueSelector,
   },
   mixins: [themeConfigBlock],
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
-      values: {},
+      values: {
+        body_font_size: 0,
+        body_text_color: '',
+        body_font_family: '',
+        body_text_alignment: '',
+        ...headings.reduce((o, i) => {
+          o[`heading_${i}_font_size`] = 0
+          o[`heading_${i}_text_color`] = ''
+          o[`heading_${i}_font_family`] = ''
+          o[`heading_${i}_text_alignment`] = ''
+          return o
+        }, {}),
+      },
       defaultValuesWhenEmpty: {
         body_font_size: DEFAULT_FONT_SIZE_PX,
         heading_1_font_size: 24,
@@ -259,24 +269,47 @@ export default {
       return key.startsWith('heading_') || key.startsWith('body_')
     },
   },
-  validations: {
-    values: {
-      ...headings.reduce((o, i) => {
-        o[`heading_${i}_font_size`] = {
-          required,
-          integer,
-          minValue: minValue(fontSizeMin),
-          maxValue: maxValue(fontSizeMax),
-        }
-        return o
-      }, {}),
-      body_font_size: {
-        required,
-        integer,
-        minValue: minValue(fontSizeMin),
-        maxValue: maxValue(bodyFontSizeMax),
+  validations() {
+    return {
+      values: {
+        ...headings.reduce((o, i) => {
+          o[`heading_${i}_font_size`] = {
+            required: helpers.withMessage(
+              this.$t('error.requiredField'),
+              required
+            ),
+            integer: helpers.withMessage(
+              this.$t('error.integerField'),
+              integer
+            ),
+            minValue: helpers.withMessage(
+              this.$t('error.minValueField', { min: fontSizeMin }),
+              minValue(fontSizeMin)
+            ),
+            maxValue: helpers.withMessage(
+              this.$t('error.maxValueField', { max: fontSizeMax }),
+              maxValue(fontSizeMax)
+            ),
+          }
+          return o
+        }, {}),
+        body_font_size: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', { min: fontSizeMin }),
+            minValue(fontSizeMin)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', { max: fontSizeMax }),
+            maxValue(bodyFontSizeMax)
+          ),
+        },
       },
-    },
+    }
   },
 }
 </script>

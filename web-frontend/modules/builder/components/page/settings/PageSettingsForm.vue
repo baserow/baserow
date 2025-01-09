@@ -2,29 +2,47 @@
   <form @submit.prevent="submit">
     <div class="row margin-bottom-2">
       <div class="col col-6">
-        <PageSettingsNameFormElement
-          ref="name"
-          v-model="values.name"
-          :disabled="!hasPermission"
-          :has-errors="fieldHasErrors('name')"
-          :validation-state="v$.values.name"
-          :is-creation="isCreation"
-          @blur="v$.values.name.$touch()"
-        />
+        <FormGroup
+          required
+          small-label
+          :label="$t('pageForm.nameTitle')"
+          :error-message="getFirstErrorMessage('name')"
+          :helper-text="$t('pageForm.nameSubtitle')"
+        >
+          <FormInput
+            ref="name"
+            v-model="v$.values.name.$model"
+            size="large"
+            :placeholder="$t('pageForm.namePlaceholder')"
+            :disabled="!hasPermission"
+            @blur="v$.values.name.$touch"
+            @focus.once="isCreation && $event.target.select()"
+          />
+        </FormGroup>
       </div>
       <div class="col col-6">
-        <PageSettingsPathFormElement
-          v-model="values.path"
-          :disabled="!hasPermission"
-          :has-errors="fieldHasErrors('path')"
-          :validation-state="v$.values.path"
-          @blur="onPathBlur"
-        />
+        <FormGroup
+          required
+          small-label
+          :label="$t('pageForm.pathTitle')"
+          :error="fieldHasErrors('path')"
+          :error-message="getFirstErrorMessage('path')"
+          :helper-text="$t('pageForm.pathSubtitle')"
+        >
+          <FormInput
+            v-model="v$.values.path.$model"
+            size="large"
+            :placeholder="$t('pageForm.pathPlaceholder')"
+            :disabled="!hasPermission"
+            @blur="onPathBlur"
+          />
+        </FormGroup>
       </div>
     </div>
     <div class="row">
       <div class="col col-6">
         <PageSettingsPathParamsFormElement
+          v-if="values.path_params.length"
           :disabled="!hasPermission"
           :path-params="values.path_params"
           @update="onPathParamUpdate"
@@ -37,11 +55,9 @@
 </template>
 
 <script>
-import { maxLength, required } from '@vuelidate/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { maxLength, required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
-import PageSettingsNameFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsNameFormElement'
-import PageSettingsPathFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsPathFormElement'
 import PageSettingsPathParamsFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsPathParamsFormElement'
 import {
   getPathParams,
@@ -58,8 +74,6 @@ export default {
   name: 'PageSettingsForm',
   components: {
     PageSettingsPathParamsFormElement,
-    PageSettingsPathFormElement,
-    PageSettingsNameFormElement,
   },
   mixins: [form],
   inject: ['workspace', 'builder'],
@@ -74,6 +88,9 @@ export default {
       required: false,
       default: false,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -120,7 +137,8 @@ export default {
         .map((page) => page.path)
     },
     currentPathParams() {
-      return getPathParams(this.values.path)
+      if (this.values.path) return getPathParams(this.values.path)
+      return []
     },
   },
   watch: {
@@ -203,7 +221,7 @@ export default {
   },
   created() {
     if (this.isCreation) {
-      this.values.name = this.defaultName
+      this.v$.values.name.$model = this.defaultName
     }
   },
   mounted() {
@@ -254,17 +272,44 @@ export default {
     return {
       values: {
         name: {
-          required,
-          isUnique: this.isNameUnique,
-          maxLength: maxLength(255),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          isUnique: helpers.withMessage(
+            this.$t('pageErrors.errorNameNotUnique'),
+            this.isNameUnique
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(225)
+          ),
         },
         path: {
-          required,
-          isUnique: this.isPathUnique,
-          maxLength: maxLength(255),
-          startingSlash: this.pathStartsWithSlash,
-          validPathCharacters: this.pathHasValidCharacters,
-          uniquePathParams: this.arePathParamsUnique,
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          isUnique: helpers.withMessage(
+            this.$t('pageErrors.errorPathNotUnique'),
+            this.isPathUnique
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(225)
+          ),
+          startingSlash: helpers.withMessage(
+            this.$t('pageErrors.errorStartingSlash'),
+            this.pathStartsWithSlash
+          ),
+          validPathCharacters: helpers.withMessage(
+            this.$t('pageErrors.errorValidPathCharacters'),
+            this.pathHasValidCharacters
+          ),
+          uniquePathParams: helpers.withMessage(
+            this.$t('pageErrors.errorUniquePathParams'),
+            this.arePathParamsUnique
+          ),
         },
       },
     }
