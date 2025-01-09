@@ -118,6 +118,7 @@ export const actions = {
     })
   },
   async updateDataSource({ commit, dispatch }, { dataSourceId, values }) {
+    commit('UPDATE_DATA', { dataSourceId, values: null })
     const { data } = await DataSourceService(this.$client).update(
       dataSourceId,
       values
@@ -139,6 +140,7 @@ export const actions = {
     data.forEach((widget) => {
       commit('ADD_WIDGET', widget)
     })
+    await dispatch('setLoading', false)
     await dispatch('fetchNewDataSources', dashboardId)
 
     if (forEditing) {
@@ -176,6 +178,7 @@ export const actions = {
     dispatch('selectWidget', createdWidget.id)
   },
   async dispatchDataSource({ commit }, dataSourceId) {
+    commit('UPDATE_DATA', { dataSourceId, values: null })
     try {
       const { data } = await DataSourceService(this.$client).dispatch(
         dataSourceId
@@ -220,6 +223,9 @@ export const getters = {
     return state.dataSources.find(
       (dataSource) => dataSource.id === dataSourceId
     )
+  },
+  getData(state) {
+    return state.data
   },
   getDataForDataSource: (state, getters) => (dataSourceId) => {
     return state.data[dataSourceId]
