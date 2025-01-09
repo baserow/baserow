@@ -48,6 +48,14 @@ class SummaryWidgetType(WidgetType):
             values["data_source"] = data_source
         return values
 
+    def before_trashed(self, instance: Widget):
+        instance.data_source.trashed = True
+        instance.data_source.save()
+
+    def before_restore(self, instance: Widget):
+        instance.data_source.trashed = False
+        instance.data_source.save()
+
     def after_delete(self, instance: Widget):
         DashboardDataSourceHandler().delete_data_source(instance.data_source)
 

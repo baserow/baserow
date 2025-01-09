@@ -12,7 +12,6 @@
 <script>
 import EmptyDashboardSidebar from '@baserow/modules/dashboard/components/EmptyDashboardSidebar'
 import WidgetSettings from '@baserow/modules/dashboard/components/widget/WidgetSettings'
-import { mapGetters } from 'vuex'
 
 export default {
   name: 'DashboardSidebar',
@@ -22,11 +21,18 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   computed: {
-    ...mapGetters({
-      selectedWidget: 'dashboardApplication/getSelectedWidget',
-    }),
+    selectedWidget() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getSelectedWidget`
+      ]
+    },
   },
 }
 </script>

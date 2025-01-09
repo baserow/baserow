@@ -234,11 +234,6 @@ export default {
         this.element.parent_element_id
       )
     },
-    parentElementType() {
-      return this.parentElement
-        ? this.$registry.get('element', this.parentElement?.type)
-        : null
-    },
     inError() {
       return this.elementType.isInError({
         page: this.elementPage,

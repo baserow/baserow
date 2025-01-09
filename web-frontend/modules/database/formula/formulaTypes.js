@@ -57,7 +57,8 @@ import {
   hasSelectOptionIdEqualMixin,
   hasSelectOptionValueContainsFilterMixin,
   hasSelectOptionValueContainsWordFilterMixin,
-  formulaArrayFilterMixin,
+  baserowFormulaArrayTypeFilterMixin,
+  hasNumericValueComparableToFilterMixin,
 } from '@baserow/modules/database/arrayFilterMixins'
 import _ from 'lodash'
 import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/ViewFilterTypeBoolean.vue'
@@ -81,16 +82,20 @@ export class BaserowFormulaTypeDefinition extends Registerable {
     )
   }
 
-  /**
-   * Returns optionally input component for a field / filter type combination
-   * @returns {null}
-   */
   getFilterInputComponent(field, filterType) {
-    return null
+    return this.app.$registry
+      .get('field', this.getFieldType())
+      .getFilterInputComponent(field, filterType)
   }
 
   getRowEditArrayFieldComponent() {
     return null
+  }
+
+  prepareFilterValue(field, value) {
+    return this.app.$registry
+      .get('field', this.getFieldType())
+      .prepareFilterValue(field, value)
   }
 
   getFunctionalGridViewFieldComponent() {
@@ -305,7 +310,13 @@ export class BaserowFormulaCharType extends mix(
   }
 }
 
-export class BaserowFormulaNumberType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaNumberType extends mix(
+  hasEmptyValueFilterMixin,
+  hasValueContainsFilterMixin,
+  hasNumericValueComparableToFilterMixin,
+
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'number'
   }
@@ -582,7 +593,7 @@ export class BaserowFormulaInvalidType extends BaserowFormulaTypeDefinition {
 }
 
 export class BaserowFormulaArrayType extends mix(
-  formulaArrayFilterMixin,
+  baserowFormulaArrayTypeFilterMixin,
   BaserowFormulaTypeDefinition
 ) {
   static getType() {
@@ -603,6 +614,14 @@ export class BaserowFormulaArrayType extends mix(
 
   getCardComponent() {
     return RowCardFieldArray
+  }
+
+  prepareFilterValue(field, value) {
+    return this.getSubType(field)?.prepareFilterValue(field, value)
+  }
+
+  getSubType(field) {
+    return this.app.$registry.get('formula_type', field.array_formula_type)
   }
 
   getRowEditFieldComponent(field) {

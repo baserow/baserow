@@ -1,5 +1,5 @@
 import re
-import typing
+from typing import TYPE_CHECKING, Any, Dict, Type
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models
@@ -13,17 +13,32 @@ from baserow.contrib.database.fields.field_filters import (
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
     BaserowFilterExpression,
+    ComparisonOperator,
     JSONArrayAllAreExpr,
+    JSONArrayCompareNumericValueExpr,
     JSONArrayContainsValueExpr,
     JSONArrayContainsValueLengthLowerThanExpr,
     JSONArrayContainsValueSimilarToExpr,
 )
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
 
 
 class HasValueEmptyFilterSupport:
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        """
+        Returns the value to use for filtering empty values in an array. An empty string
+        is used by default and works for test-like fields, but for number fields or
+        other types, this method should be overridden returning None or the most
+        appropriate value.
+
+        :param field: The related field's instance.
+        :return: The value to use for filtering empty values in an array.
+        """
+
+        return ""
+
     def get_in_array_empty_query(
         self, field_name: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
@@ -36,10 +51,13 @@ class HasValueEmptyFilterSupport:
         :return: A Q or AnnotatedQ filter given value.
         """
 
-        return Q(**{f"{field_name}__contains": Value([{"value": ""}], JSONField())})
+        empty_value = self.get_in_array_empty_value(field)
+        return Q(
+            **{f"{field_name}__contains": Value([{"value": empty_value}], JSONField())}
+        )
 
 
-class HasValueFilterSupport:
+class HasValueEqualFilterSupport:
     def get_in_array_is_query(
         self, field_name: str, value: str, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
@@ -52,9 +70,6 @@ class HasValueFilterSupport:
         :param field: The related field's instance.
         :return: A Q or AnnotatedQ filter given value.
         """
-
-        if not value:
-            return Q()
 
         return Q(**{f"{field_name}__contains": Value([{"value": value}], JSONField())})
 
@@ -74,8 +89,6 @@ class HasValueContainsFilterSupport:
         :return: A Q or AnnotatedQ filter given value.
         """
 
-        if not value:
-            return Q()
         annotation_query = JSONArrayContainsValueExpr(
             F(field_name), Value(f"%{value}%"), output_field=BooleanField()
         )
@@ -103,9 +116,6 @@ class HasValueContainsWordFilterSupport:
         :return: A Q or AnnotatedQ filter given value.
         """
 
-        value = value.strip()
-        if not value:
-            return Q()
         value = re.escape(value.upper())
         annotation_query = JSONArrayContainsValueSimilarToExpr(
             F(field_name), Value(f"%\\m{value}\\M%"), output_field=BooleanField()
@@ -134,9 +144,6 @@ class HasValueLengthIsLowerThanFilterSupport:
         :return: A Q or AnnotatedQ filter given value.
         """
 
-        value = value.strip()
-        if not value:
-            return Q()
         try:
             converted_value = int(value)
         except (TypeError, ValueError):
@@ -182,29 +189,49 @@ class HasAllValuesEqualFilterSupport:
             return self.default_filter_on_exception()
 
 
-def get_array_json_filter_expression(
-    json_expression: typing.Type[BaserowFilterExpression], field_name: str, value: str
-) -> OptionallyAnnotatedQ:
-    """
-    helper to generate annotated query to get filtered json-based array.
-    `json_expression` should be a filter expression class.
+class HasNumericValueComparableToFilterSupport:
+    def get_has_numeric_value_comparable_to_filter_query(
+        self,
+        field_name: str,
+        value: str,
+        model_field: models.Field,
+        field: "Field",
+        comparison_op: ComparisonOperator,
+    ) -> OptionallyAnnotatedQ:
+        return get_array_json_filter_expression(
+            JSONArrayCompareNumericValueExpr,
+            field_name,
+            value,
+            comparison_op=comparison_op,
+        )
 
-    :param json_expression: BaserowFilterExpression to use
-    :param field_name: a name of a field
-    :param value: filter value
-    :param model_field:
-    :param field:
-    :return:
+
+def get_array_json_filter_expression(
+    json_expression: Type[BaserowFilterExpression],
+    field_name: str,
+    value: str,
+    **extra: Dict[str, Any],
+) -> AnnotatedQ:
+    """
+    Helper function to generate an AnnotatedQ for the given field and filtering
+    expression. This function ensure a consistent way to name the annotations so they
+    don't clash when combined with similar filters for different fields or values.
+
+
+    :param json_expression: BaserowFilterExpression to use for filtering.
+    :param field_name: the name of the field
+    :param value: filter the filter value.
+    :param extra: extra arguments for the json_expression.
+    :return: the annotated query for the filter.
     """
 
     annotation_query = json_expression(
-        F(field_name), Value(value), output_field=BooleanField()
+        F(field_name), Value(value), output_field=BooleanField(), **extra
     )
-    lookup_name = (json_expression.__name__).lower()
+    expr_name = json_expression.__name__.lower()
     hashed_value = hash(value)
+    annotation_name = f"{field_name}_{expr_name}_{hashed_value}"
     return AnnotatedQ(
-        annotation={
-            f"{field_name}_array_expr_{lookup_name}_{hashed_value}": annotation_query
-        },
-        q={f"{field_name}_array_expr_{lookup_name}_{hashed_value}": True},
+        annotation={annotation_name: annotation_query},
+        q={annotation_name: True},
     )

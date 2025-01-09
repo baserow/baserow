@@ -6,6 +6,7 @@ from django.db.models.signals import post_migrate, pre_migrate
 from health_check.storage.backends import DefaultFileStorageHealthCheck
 
 from baserow.cachalot_patch import clear_cachalot_cache
+from baserow.core.sentry import patch_user_model_str
 
 
 class CoreConfig(AppConfig):
@@ -356,6 +357,9 @@ class CoreConfig(AppConfig):
 
         if settings.CACHALOT_ENABLED:
             pre_migrate.connect(lambda *a, **kw: clear_cachalot_cache(), sender=self)
+
+        if settings.SENTRY_DSN:
+            patch_user_model_str()
 
     def _setup_health_checks(self):
         from health_check.plugins import plugin_dir

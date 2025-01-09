@@ -2173,7 +2173,7 @@ def test_update_row(api_client, data_fixture):
         "non_field_errors": [
             {
                 "code": "invalid",
-                "error": "Invalid data. Expected a dictionary, but got str.",
+                "error": "Invalid data. Expected types are: dict, but got str.",
             }
         ]
     }

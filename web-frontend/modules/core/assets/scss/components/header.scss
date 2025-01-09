@@ -74,6 +74,7 @@
   &.header__filter--full-width {
     flex: 1 1;
     width: 100%;
+    min-width: 0;
   }
 }
 
@@ -84,6 +85,13 @@
 
   &.header__filter-item--right {
     margin-left: auto;
+    margin-right: 10px;
+  }
+
+  &.header__filter-item--full-width {
+    flex-grow: 1;
+    display: flex;
+    min-width: 0;
     margin-right: 10px;
   }
 
@@ -193,12 +201,6 @@
   color: $palette-neutral-600;
 }
 
-.header__search-icon {
-  color: $color-neutral-900;
-  margin-right: 4px;
-  font-size: 16px;
-}
-
 .header__info {
   @extend %clearfix;
 
@@ -217,4 +219,23 @@
       margin-right: 0;
     }
   }
+}
+
+.header__search {
+  margin-left: auto;
+  flex-direction: row-reverse;
+  display: flex;
+  flex-grow: 1;
+  min-width: 36px;
+
+  .header__filter-link {
+    @extend %ellipsis;
+
+    display: inline-block;
+  }
+}
+
+.header__search-icon {
+  color: $color-neutral-900;
+  font-size: 16px;
 }

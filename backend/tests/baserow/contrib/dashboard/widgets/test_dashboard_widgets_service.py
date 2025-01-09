@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 
 import pytest
 
+from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
 from baserow.contrib.dashboard.widgets.exceptions import (
     WidgetDoesNotExist,
     WidgetTypeDoesNotExist,
@@ -40,6 +41,26 @@ def test_get_widget_permission_denied(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_widget_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget = data_fixture.create_summary_widget(dashboard=dashboard, trashed=True)
+
+    with pytest.raises(WidgetDoesNotExist):
+        WidgetService().get_widget(user, widget.id)
+
+
+@pytest.mark.django_db
+def test_get_widget_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
+    widget = data_fixture.create_summary_widget(dashboard=dashboard)
+
+    with pytest.raises(WidgetDoesNotExist):
+        WidgetService().get_widget(user, widget.id)
+
+
+@pytest.mark.django_db
 def test_get_widgets(data_fixture, stub_check_permissions):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
@@ -71,6 +92,15 @@ def test_get_widgets(data_fixture, stub_check_permissions):
             widget_2.id,
             widget_3.id,
         ]
+
+
+@pytest.mark.django_db
+def test_get_widgets_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
+
+    with pytest.raises(DashboardDoesNotExist):
+        WidgetService().get_widgets(user, dashboard.id)
 
 
 @pytest.mark.django_db
@@ -114,6 +144,22 @@ def test_create_widget_widget_type_doesnt_exist(data_fixture):
     widget_type = "xxx"
 
     with pytest.raises(WidgetTypeDoesNotExist):
+        WidgetService().create_widget(
+            user,
+            widget_type,
+            dashboard.id,
+            title="My widget",
+            description="My description",
+        )
+
+
+@pytest.mark.django_db
+def test_create_widget_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
+    widget_type = "summary"
+
+    with pytest.raises(DashboardDoesNotExist):
         WidgetService().create_widget(
             user,
             widget_type,
@@ -188,6 +234,36 @@ def test_update_widget_blank_title(data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_widget_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget = data_fixture.create_summary_widget(dashboard=dashboard, trashed=True)
+
+    with pytest.raises(WidgetDoesNotExist):
+        WidgetService().update_widget(
+            user,
+            widget.id,
+            title="Updated title",
+            description="Updated description",
+        )
+
+
+@pytest.mark.django_db
+def test_update_widget_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
+    widget = data_fixture.create_summary_widget(dashboard=dashboard)
+
+    with pytest.raises(WidgetDoesNotExist):
+        WidgetService().update_widget(
+            user,
+            widget.id,
+            title="Updated title",
+            description="Updated description",
+        )
+
+
+@pytest.mark.django_db
 def test_delete_widget(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
@@ -206,3 +282,23 @@ def test_delete_widget_permission_denied(data_fixture):
 
     with pytest.raises(PermissionException):
         WidgetService().delete_widget(user_without_perms, widget.id)
+
+
+@pytest.mark.django_db
+def test_delete_widget_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget = data_fixture.create_summary_widget(dashboard=dashboard, trashed=True)
+
+    with pytest.raises(WidgetDoesNotExist):
+        WidgetService().delete_widget(user, widget.id)
+
+
+@pytest.mark.django_db
+def test_delete_widget_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
+    widget = data_fixture.create_summary_widget(dashboard=dashboard)
+
+    with pytest.raises(WidgetDoesNotExist):
+        WidgetService().delete_widget(user, widget.id)

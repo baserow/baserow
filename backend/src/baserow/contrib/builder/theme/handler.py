@@ -47,7 +47,10 @@ class ThemeHandler:
             theme_config_block = getattr(builder, related_name)
             serialized_theme.update(
                 **theme_config_block_type.export_serialized(
-                    theme_config_block, files_zip, storage, cache
+                    theme_config_block,
+                    files_zip=files_zip,
+                    storage=storage,
+                    cache=cache,
                 )
             )
         return serialized_theme

@@ -399,7 +399,9 @@ def accept_timezone():
 def require_request_data_type(*rtypes: typing.Type) -> typing.Callable:
     """
     Decorate a view function to restrict allowed request.data to specific types,
-    allowing request.data type checks before actual view is called.
+    allowing request.data type checks before actual view is called. This may be
+    required for views that reach to request.data, assuming it's a dict, before doing
+    full validation with a serializer.
 
     In case of type mismatch decorator raises RequestBodyValidationException with
     a payload mimicking Serializer's invalid data error.
@@ -425,7 +427,11 @@ def require_request_data_type(*rtypes: typing.Type) -> typing.Callable:
                     "non_field_errors": [
                         {
                             "code": "invalid",
-                            "error": f"Invalid data. Expected a dictionary, but got {type(request.data).__name__}.",
+                            "error": (
+                                f"Invalid data. Expected types are: "
+                                f"{','.join([rtype.__name__ for rtype in rtypes])}, "
+                                f"but got {type(request.data).__name__}."
+                            ),
                         }
                     ]
                 }

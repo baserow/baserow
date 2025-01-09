@@ -48,11 +48,11 @@
         :fixed-items="true"
       >
         <DropdownItem
-          v-for="outputType in outputTypes"
-          :key="outputType.getType()"
-          :name="outputType.getName()"
-          :value="outputType.getType()"
-          :description="outputType.getDescription()"
+          v-for="outputTypeItem in outputTypes"
+          :key="outputTypeItem.getType()"
+          :name="outputTypeItem.getName()"
+          :value="outputTypeItem.getType()"
+          :description="outputTypeItem.getDescription()"
         />
       </Dropdown>
       <template v-if="changedOutputType" #warning>

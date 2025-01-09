@@ -135,7 +135,9 @@
     "reset": "Start new",
     "cancel": "Cancel",
     "download":  "Download",
-    "importingState": "Importing",
+    "exportingState": "Exporting",
+    "exportingTableState": "Exporting table: {table}",
+    "exportingCreateArchiveState": "Creating archive",
     "noExports": "No exports for this workspace yet.",
     "created": "created"
   },
@@ -166,7 +168,8 @@
     "invalidResourceTitle": "Invalid resource",
     "invalidResourceMessage": "The provided file is not a valid Baserow export.",
     "untrustedPublicKeyTitle": "Untrusted signature",
-    "untrustedPublicKeyMessage": "The provided file is signed with an untrusted public key. Ask your administrator to add the public key to the list of trusted keys or disable the signature verification to be able to import this file."
+    "untrustedPublicKeyMessage": "The provided file is signed with an untrusted public key. Ask your administrator to add the public key to the list of trusted keys or disable the signature verification to be able to import this file.",
+    "importingState": "Importing"
   },
   "dashboardWorkspace": {
     "createApplication": "Create new"

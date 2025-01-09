@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import (
     map_exceptions,
+    require_request_data_type,
     validate_body,
     validate_body_custom_fields,
 )
@@ -189,6 +190,7 @@ class DomainView(APIView):
             SubDomainHasInvalidDomainName: ERROR_SUB_DOMAIN_HAS_INVALID_DOMAIN_NAME,
         }
     )
+    @require_request_data_type(dict)
     def patch(self, request, domain_id: int):
         base_queryset = Domain.objects
 

@@ -156,9 +156,9 @@ class DashboardDataSourceHandler:
         """
 
         existing_pages_names = list(
-            DashboardDataSource.objects.filter(dashboard=dashboard).values_list(
-                "name", flat=True
-            )
+            DashboardDataSource.objects_and_trash.filter(
+                dashboard=dashboard
+            ).values_list("name", flat=True)
         )
         return find_unused_name([proposed_name], existing_pages_names, max_length=255)
 

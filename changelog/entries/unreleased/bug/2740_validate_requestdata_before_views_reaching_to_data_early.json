@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Validate request.data before views reaching to .data early",
+    "issue_number": 2740,
+    "bullet_points": [],
+    "created_at": "2025-01-02"
+}

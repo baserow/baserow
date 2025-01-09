@@ -453,10 +453,18 @@ class DatabaseConfig(AppConfig):
             HasNotValueContainsViewFilterType,
             HasNotValueContainsWordViewFilterType,
             HasNotValueEqualViewFilterType,
+            HasNotValueHigherOrEqualTHanFilterType,
+            HasNotValueHigherThanFilterType,
+            HasNotValueLowerOrEqualTHanFilterType,
+            HasNotValueLowerThanFilterType,
             HasValueContainsViewFilterType,
             HasValueContainsWordViewFilterType,
             HasValueEqualViewFilterType,
+            HasValueHigherOrEqualThanFilter,
             HasValueLengthIsLowerThanViewFilterType,
+            HasValueLowerOrEqualThanFilter,
+            HasValueLowerThanFilter,
+            hasValueComparableToFilter,
         )
 
         view_filter_type_registry.register(HasValueEqualViewFilterType())
@@ -471,6 +479,14 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(HasNotEmptyValueViewFilterType())
         view_filter_type_registry.register(HasAnySelectOptionEqualViewFilterType())
         view_filter_type_registry.register(HasNoneSelectOptionEqualViewFilterType())
+        view_filter_type_registry.register(HasValueLowerThanFilter())
+        view_filter_type_registry.register(HasValueLowerOrEqualThanFilter())
+        view_filter_type_registry.register(hasValueComparableToFilter())
+        view_filter_type_registry.register(HasValueHigherOrEqualThanFilter())
+        view_filter_type_registry.register(HasNotValueHigherOrEqualTHanFilterType())
+        view_filter_type_registry.register(HasNotValueHigherThanFilterType())
+        view_filter_type_registry.register(HasNotValueLowerOrEqualTHanFilterType())
+        view_filter_type_registry.register(HasNotValueLowerThanFilterType())
 
         from .views.view_aggregations import (
             AverageViewAggregationType,

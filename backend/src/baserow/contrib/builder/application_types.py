@@ -141,6 +141,7 @@ class BuilderApplicationType(ApplicationType):
         import_export_config: ImportExportConfig,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> BuilderDict:
         """
         Exports the builder application type to a serialized format that can later
@@ -205,6 +206,7 @@ class BuilderApplicationType(ApplicationType):
             import_export_config,
             files_zip=files_zip,
             storage=storage,
+            progress_builder=progress_builder,
         )
 
         serialized_login_page = None

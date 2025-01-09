@@ -52,6 +52,7 @@ class DashboardApplicationType(ApplicationType):
         import_export_config: ImportExportConfig,
         files_zip: ExportZipFile | None = None,
         storage: Storage | None = None,
+        progress_builder: ChildProgressBuilder | None = None,
     ) -> DashboardDict:
         """
         Exports the dashboard application type to a serialized format that can later
@@ -93,6 +94,7 @@ class DashboardApplicationType(ApplicationType):
             import_export_config,
             files_zip=files_zip,
             storage=storage,
+            progress_builder=progress_builder,
         )
 
         return DashboardDict(

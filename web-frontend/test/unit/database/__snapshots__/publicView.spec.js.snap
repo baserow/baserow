@@ -332,9 +332,11 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
           </li>
            
           <li
-            class="header__filter-item header__filter-item--right"
+            class="header__filter-item header__filter-item--full-width"
           >
-            <div>
+            <div
+              class="header__search"
+            >
               <a
                 class="header__filter-link"
               >

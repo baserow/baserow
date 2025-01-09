@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Fix worfklow action navigation for pages with no parameters",
+    "issue_number": 2833,
+    "bullet_points": [],
+    "created_at": "2024-11-26"
+}

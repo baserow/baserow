@@ -370,7 +370,9 @@
     "authorizing": "You're authorizing your account to select the data from the source table.",
     "workspace": "Workspace",
     "database": "Database",
-    "table": "Table"
+    "table": "Table",
+    "view": "View",
+    "viewHelper": "Only visibile fields and rows matching the filters are synced."
   },
   "jiraIssuesDataSync": {
     "jiraUrl": "Jira instance URL",

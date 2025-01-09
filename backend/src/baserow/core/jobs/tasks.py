@@ -5,6 +5,8 @@ from django.conf import settings
 from baserow.config.celery import app
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.registries import job_type_registry
+from baserow.core.sentry import setup_user_in_sentry
+from baserow.core.telemetry.utils import setup_user_in_baggage_and_spans
 
 
 @app.task(
@@ -20,9 +22,12 @@ def run_async_job(self, job_id: int):
     from baserow.core.jobs.handler import JobHandler
     from baserow.core.jobs.models import Job
 
-    job = Job.objects.get(id=job_id).specific
+    job = Job.objects.select_related("user", "content_type").get(id=job_id).specific
     if job.cancelled:
         return  # Job cancelled before it started. No need to run it.
+
+    setup_user_in_baggage_and_spans(job.user)
+    setup_user_in_sentry(job.user)
 
     job_type = job_type_registry.get_by_model(job)
     job.set_state_started()

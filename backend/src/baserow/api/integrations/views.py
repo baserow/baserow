@@ -14,6 +14,7 @@ from baserow.api.applications.errors import (
 )
 from baserow.api.decorators import (
     map_exceptions,
+    require_request_data_type,
     validate_body,
     validate_body_custom_fields,
 )
@@ -201,6 +202,7 @@ class IntegrationView(APIView):
             IntegrationDoesNotExist: ERROR_INTEGRATION_DOES_NOT_EXIST,
         }
     )
+    @require_request_data_type(dict)
     def patch(self, request, integration_id: int):
         """
         Update an integration.

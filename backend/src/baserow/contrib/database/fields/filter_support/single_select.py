@@ -1,7 +1,6 @@
 from functools import reduce
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Any, List
 
-from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import BooleanField, F, Q, Value
 
@@ -19,7 +18,7 @@ from .base import (
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
 )
 
 if TYPE_CHECKING:
@@ -28,12 +27,12 @@ if TYPE_CHECKING:
 
 class SingleSelectFormulaTypeFilterSupport(
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
 ):
-    def get_in_array_empty_query(self, field_name, model_field, field: "Field"):
-        return Q(**{f"{field_name}__contains": Value([{"value": None}], JSONField())})
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return None
 
     def get_in_array_is_query(
         self,

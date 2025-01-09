@@ -580,7 +580,15 @@
   },
   "viewFilter": {
     "filter": "Filter | 1 Filter | {count} Filters",
-    "hasAllValuesEqual": "has all values equal"
+    "hasAllValuesEqual": "has all values equal",
+    "hasValueHigherThan": "has value higher than",
+    "hasValueHigherThanOrEqual": "has value higher than or equal",
+    "hasValueLowerThan": "has value lower than",
+    "hasValueLowerThanOrEqual": "has value lower than or equal",
+    "hasNotValueHigherThan": "doesn't have value higher than",
+    "hasNotValueHigherThanOrEqual": "doesn't have value higher than or equal",
+    "hasNotValueLowerThan": "doesn't have value lower than",
+    "hasNotValueLowerThanOrEqual": "doesn't have value lower than or equal"
   },
   "viewContext": {
     "exportView": "Export view",

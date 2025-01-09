@@ -2,6 +2,8 @@ import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import ApplicationContext from '@baserow/modules/dashboard/components/application/ApplicationContext'
 import DashboardForm from '@baserow/modules/dashboard/components/form/DashboardForm'
 import SidebarComponentDashboard from '@baserow/modules/dashboard/components/sidebar/SidebarComponentDashboard'
+import DashboardTemplateSidebar from '@baserow/modules/dashboard/components/sidebar/DashboardTemplateSidebar'
+import DashboardTemplate from '@baserow/modules/dashboard/components/DashboardTemplate'
 
 export class DashboardApplicationType extends ApplicationType {
   static getType() {
@@ -46,6 +48,20 @@ export class DashboardApplicationType extends ApplicationType {
 
   getSidebarComponent() {
     return SidebarComponentDashboard
+  }
+
+  getTemplateSidebarComponent() {
+    return DashboardTemplateSidebar
+  }
+
+  getTemplatesPageComponent() {
+    return DashboardTemplate
+  }
+
+  getTemplatePage(application) {
+    return {
+      dashboard: application,
+    }
   }
 
   delete(application, { $router }) {

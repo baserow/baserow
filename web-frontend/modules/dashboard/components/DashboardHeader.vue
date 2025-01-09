@@ -2,7 +2,11 @@
   <header class="layout__col-2-1 header header--space-between">
     <div v-show="isLoading" class="header__loading"></div>
     <template v-if="!isLoading">
-      <DashboardHeaderMenuItems v-if="!isEditMode" :dashboard="dashboard" />
+      <DashboardHeaderMenuItems
+        v-if="!isEditMode"
+        :dashboard="dashboard"
+        :store-prefix="storePrefix"
+      />
       <div v-else class="dashboard-app-header__done-editing">
         <Button type="primary" @click="doneEditing">{{
           $t('dashboardHeader.doneEditing')
@@ -14,7 +18,6 @@
 
 <script>
 import DashboardHeaderMenuItems from '@baserow/modules/dashboard/components/DashboardHeaderMenuItems'
-import { mapGetters } from 'vuex'
 
 export default {
   name: 'DashboardHeader',
@@ -26,16 +29,29 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   computed: {
-    ...mapGetters({
-      isEditMode: 'dashboardApplication/isEditMode',
-      isLoading: 'dashboardApplication/isLoading',
-    }),
+    isEditMode() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isEditMode`
+      ]
+    },
+    isLoading() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isLoading`
+      ]
+    },
   },
   methods: {
     doneEditing() {
-      this.$store.dispatch('dashboardApplication/toggleEditMode')
+      this.$store.dispatch(
+        `${this.storePrefix}dashboardApplication/toggleEditMode`
+      )
     },
   },
 }

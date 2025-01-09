@@ -10,8 +10,15 @@ import {
   HasNotEmptyValueViewFilterType,
   HasValueLengthIsLowerThanViewFilterType,
   HasAllValuesEqualViewFilterType,
+  HasValueHigherThanViewFilterType,
+  HasValueHigherThanOrEqualViewFilterType,
+  HasNotValueHigherThanViewFilterType,
+  HasNotValueHigherThanOrEqualViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
-import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
+import {
+  FormulaFieldType,
+  LookupFieldType,
+} from '@baserow/modules/database/fieldTypes'
 import {
   EmptyViewFilterType,
   NotEmptyViewFilterType,
@@ -995,6 +1002,347 @@ describe('Boolean-based array view filters', () => {
         fieldType
       )
       expect(result).toBe(testValues.expected)
+    }
+  )
+})
+
+describe('Number-based array view filters', () => {
+  let testApp = null
+  let fieldType = null
+
+  const fieldDefinition = {
+    type: 'lookup',
+    formula_type: 'array',
+    array_formula_type: 'number',
+  }
+
+  beforeAll(() => {
+    testApp = new TestApp()
+    fieldType = new LookupFieldType({
+      app: testApp._app,
+    })
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const hasEmptyValueTestCases = [
+    {
+      cellValue: [],
+      filterValue: '',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: null }],
+      filterValue: '',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: '123.0' }, { value: null }],
+      filterValue: '',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: '123.0' }, { value: '' }],
+      filterValue: '',
+      expected: true,
+    },
+  ]
+
+  const hasValueContainsTestCases = [
+    {
+      cellValue: [],
+      filterValue: '',
+      expected: { has: true, hasNot: true },
+    },
+    {
+      cellValue: [],
+      filterValue: null,
+      expected: { has: false, hasNot: true },
+    },
+    {
+      cellValue: [{ value: null }],
+      filterValue: '',
+      expected: { has: true, hasNot: true },
+    },
+    {
+      cellValue: [{ value: '' }],
+      filterValue: '',
+      expected: { has: true, hasNot: true },
+    },
+    {
+      cellValue: [{ value: null }],
+      filterValue: null,
+      expected: { has: true, hasNot: false },
+    },
+
+    {
+      cellValue: [{ value: 123.0 }, { value: null }],
+      filterValue: '123',
+      expected: { has: true, hasNot: false },
+    },
+    {
+      cellValue: [{ value: '123.0' }, { value: null }],
+      filterValue: '123',
+      expected: { has: true, hasNot: false },
+    },
+    {
+      cellValue: [{ value: 123.0 }, { value: '' }],
+      filterValue: '100',
+      expected: { has: false, hasNot: true },
+    },
+    {
+      cellValue: [{ value: 1.11101 }],
+      filterValue: '10',
+      expected: { has: true, hasNot: false },
+    },
+    {
+      cellValue: [{ value: '1.11101' }],
+      filterValue: '10',
+      expected: { has: true, hasNot: false },
+    },
+    {
+      cellValue: [{ value: 10100.001 }],
+      filterValue: '20',
+      expected: { has: false, hasNot: true },
+    },
+  ]
+
+  // has value higher/lower are implemented with a code path that will return
+  // true for empty filterValues. This requires per filter type result check
+  const hasValueHigherThanOrEqualTestCases = [
+    {
+      cellValue: [],
+      filterValue: '',
+      expected: {
+        higher: true,
+        higherEqual: true,
+        notHigher: true,
+        notHigherEqual: true,
+      },
+    },
+    {
+      cellValue: [],
+      filterValue: null,
+      expected: {
+        higher: true,
+        higherEqual: true,
+        notHigher: true,
+        notHigherEqual: true,
+      },
+    },
+    {
+      cellValue: [{ value: null }],
+      filterValue: '',
+      expected: {
+        higher: true,
+        higherEqual: true,
+        notHigher: true,
+        notHigherEqual: true,
+      },
+    },
+    {
+      cellValue: [{ value: '' }],
+      filterValue: '',
+      expected: {
+        higher: true,
+        higherEqual: true,
+        notHigher: true,
+        notHigherEqual: true,
+      },
+    },
+    {
+      cellValue: [{ value: null }],
+      filterValue: 10,
+      expected: {
+        higher: false,
+        higherEqual: false,
+        notHigher: true,
+        notHigherEqual: true,
+      },
+    },
+    {
+      cellValue: [{ value: null }],
+      filterValue: 10,
+      expected: {
+        higher: false,
+        higherEqual: false,
+        notHigher: true,
+        notHigherEqual: true,
+      },
+    },
+    {
+      cellValue: [{ value: 123.0 }, { value: null }],
+      filterValue: '123',
+      expected: {
+        higher: false,
+        higherEqual: true,
+        notHigher: true,
+        notHigherEqual: false,
+      },
+    },
+
+    {
+      cellValue: [{ value: '123.0' }, { value: null }],
+      filterValue: '123',
+      expected: {
+        higher: false,
+        higherEqual: true,
+        notHigher: true,
+        notHigherEqual: false,
+      },
+    },
+
+    {
+      cellValue: [{ value: 123.0 }],
+      filterValue: '123.0001',
+      expected: {
+        higher: false,
+        higherEqual: false,
+        notHigher: true,
+        notHigherEqual: true,
+      },
+    },
+    {
+      cellValue: [{ value: '123.0' }],
+      filterValue: '123.0001',
+      expected: {
+        higher: false,
+        higherEqual: false,
+        notHigher: true,
+        notHigherEqual: true,
+      },
+    },
+    {
+      cellValue: [{ value: 123.0 }, { value: 500 }],
+      filterValue: '123.0001',
+      expected: {
+        higher: true,
+        higherEqual: true,
+        notHigher: false,
+        notHigherEqual: false,
+      },
+    },
+  ]
+
+  test.each(hasEmptyValueTestCases)(
+    'hasEmptyValueTestCases %j',
+    (testValues) => {
+      const result = new HasEmptyValueViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected)
+    }
+  )
+
+  test.each(hasEmptyValueTestCases)(
+    'hasNotEmptyValueTestCases %j',
+    (testValues) => {
+      const result = new HasNotEmptyValueViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(!testValues.expected)
+    }
+  )
+
+  test.each(hasValueContainsTestCases)(
+    'hasValueContainsTestCases %j',
+    (testValues) => {
+      const result = new HasValueContainsViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected.has)
+    }
+  )
+
+  test.each(hasValueContainsTestCases)(
+    'hasNotValueContainsTestCases %j',
+    (testValues) => {
+      const result = new HasNotValueContainsViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected.hasNot)
+    }
+  )
+
+  test.each(hasValueHigherThanOrEqualTestCases)(
+    'hasValueHigherTestCases %j',
+    (testValues) => {
+      const result = new HasValueHigherThanViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected.higher)
+    }
+  )
+
+  test.each(hasValueHigherThanOrEqualTestCases)(
+    'hasValueHigherOrEqualTestCases %j',
+    (testValues) => {
+      const result = new HasValueHigherThanOrEqualViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected.higherEqual)
+    }
+  )
+
+  test.each(hasValueHigherThanOrEqualTestCases)(
+    'hasNotValueHigherTestCases %j',
+    (testValues) => {
+      const result = new HasNotValueHigherThanViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected.notHigher)
+    }
+  )
+
+  test.each(hasValueHigherThanOrEqualTestCases)(
+    'hasNotValueHigherOrEqualTestCases %j',
+    (testValues) => {
+      const result = new HasNotValueHigherThanOrEqualViewFilterType({
+        app: testApp._app,
+      }).matches(
+        testValues.cellValue,
+        testValues.filterValue,
+        fieldDefinition,
+        fieldType
+      )
+      expect(result).toBe(testValues.expected.notHigherEqual)
     }
   )
 })

@@ -3,6 +3,7 @@ from django.db import models
 
 from baserow.contrib.database.data_sync.models import DataSync
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.models import View
 
 User = get_user_model()
 
@@ -14,6 +15,15 @@ class LocalBaserowTableDataSync(DataSync):
         on_delete=models.SET_NULL,
         help_text="The source table containing the data you would like to get the data "
         "from.",
+    )
+    # Deliberately don't make a ForeignKey because if the view is deleted the data sync
+    # must fail in that case. If the view fields are filters are ignored, it could
+    # accidentally expose data.
+    source_table_view_id = models.PositiveIntegerField(
+        View,
+        null=True,
+        help_text="If provided, then only the visible fields and rows matching the "
+        "filters will be synced.",
     )
     authorized_user = models.ForeignKey(
         User,

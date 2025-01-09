@@ -309,6 +309,7 @@ services:
 
   redis:
     image: redis:6
+    restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD:?}
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]

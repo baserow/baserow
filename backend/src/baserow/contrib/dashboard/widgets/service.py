@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.dashboard.handler import DashboardHandler
+from baserow.contrib.dashboard.widgets.exceptions import WidgetDoesNotExist
 from baserow.contrib.dashboard.widgets.operations import (
     CreateWidgetOperationType,
     DeleteWidgetOperationType,
@@ -10,6 +11,7 @@ from baserow.contrib.dashboard.widgets.operations import (
 )
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.trash.handler import TrashHandler
 
 from .handler import WidgetHandler
 from .models import Widget
@@ -33,6 +35,9 @@ class WidgetService:
         """
 
         widget = self.handler.get_widget(widget_id)
+
+        if TrashHandler.item_has_a_trashed_parent(widget):
+            raise WidgetDoesNotExist()
 
         CoreHandler().check_permissions(
             user,
@@ -131,6 +136,9 @@ class WidgetService:
 
         widget = self.handler.get_widget_for_update(widget_id)
 
+        if TrashHandler.item_has_a_trashed_parent(widget):
+            raise WidgetDoesNotExist()
+
         CoreHandler().check_permissions(
             user,
             UpdateWidgetOperationType.type,
@@ -153,6 +161,9 @@ class WidgetService:
 
         widget = self.handler.get_widget(widget_id)
 
+        if TrashHandler.item_has_a_trashed_parent(widget):
+            raise WidgetDoesNotExist()
+
         CoreHandler().check_permissions(
             user,
             DeleteWidgetOperationType.type,
@@ -160,4 +171,4 @@ class WidgetService:
             context=widget,
         )
 
-        self.handler.delete_widget(widget)
+        TrashHandler.trash(user, widget.dashboard.workspace, widget.dashboard, widget)

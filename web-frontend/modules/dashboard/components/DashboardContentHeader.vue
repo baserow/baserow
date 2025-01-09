@@ -41,7 +41,6 @@
 
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { mapGetters, mapActions } from 'vuex'
 
 export default {
   name: 'DashboardContentHeader',
@@ -49,6 +48,11 @@ export default {
     dashboard: {
       type: Object,
       required: true,
+    },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   data() {
@@ -58,15 +62,24 @@ export default {
     }
   },
   computed: {
-    ...mapGetters({
-      isEditMode: 'dashboardApplication/isEditMode',
-      isEmpty: 'dashboardApplication/isEmpty',
-    }),
+    isEditMode() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isEditMode`
+      ]
+    },
+    isEmpty() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isEmpty`
+      ]
+    },
   },
   methods: {
-    ...mapActions({
-      selectWidget: 'dashboardApplication/selectWidget',
-    }),
+    selectWidget(widgetId) {
+      return this.$store.dispatch(
+        `${this.storePrefix}dashboardApplication/selectWidget`,
+        widgetId
+      )
+    },
     editName() {
       this.$refs.dashboardNameEditable.edit()
       this.editingDashboardName = true
