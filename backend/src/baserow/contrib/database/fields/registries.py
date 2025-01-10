@@ -1853,6 +1853,11 @@ class FieldType(
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
+        """
+        Returns a valid expression the formula language can use to reference the given
+        model_field for the field type.
+        """
+
         return ExpressionWrapper(
             F(db_column),
             output_field=model_field,

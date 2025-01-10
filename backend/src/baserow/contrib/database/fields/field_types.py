@@ -97,6 +97,10 @@ from baserow.contrib.database.export_serialized import DatabaseExportSerializedS
 from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
 )
+from baserow.contrib.database.fields.utils.expression import (
+    get_select_option_extractor,
+    wrap_in_subquery,
+)
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
     BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES,
@@ -111,10 +115,6 @@ from baserow.contrib.database.formula import (
     BaserowFormulaTextType,
     BaserowFormulaType,
     FormulaHandler,
-)
-from baserow.contrib.database.formula.expression_generator.utils import (
-    get_select_option_extractor,
-    wrap_in_subquery,
 )
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.formula.types.formula_types import (
@@ -6409,6 +6409,11 @@ class UUIDFieldType(ReadOnlyFieldType):
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
+        """
+        Casts the uuid to text to make it compatible with all the text related
+        functions.
+        """
+
         return ExpressionWrapper(
             Cast(F(db_column), output_field=models.TextField()),
             output_field=models.TextField(),
