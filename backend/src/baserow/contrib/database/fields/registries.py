@@ -1851,11 +1851,22 @@ class FieldType(
             raise ValueError(str(e))
 
     def get_formula_reference_to_model_field(
-        self, model_field, db_column, already_in_subquery
-    ):
+        self,
+        model_field: django_models.Field,
+        db_column: str,
+        already_in_subquery: bool,
+    ) -> Expression:
         """
-        Returns a valid expression the formula language can use to reference the given
-        model_field for the field type.
+        Returns a formula-compatible expression for referencing a model field.
+
+        :param model_field: The Django model field to be referenced in the formula.
+        :param db_column: The database column name or annotation name. For m2m fields
+                that are aggregated, this might differ from model_field.name.
+        :param already_in_subquery: Boolean indicating if the reference is within a
+                subquery context. Required for proper aggregation in certain field
+                types.
+        :return: A database expression that can be used to reference the model field in
+            formulas.
         """
 
         return ExpressionWrapper(
