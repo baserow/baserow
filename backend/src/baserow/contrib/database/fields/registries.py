@@ -26,6 +26,7 @@ from django.db.models import (
     Count,
     DurationField,
     Expression,
+    ExpressionWrapper,
     F,
     IntegerField,
     JSONField,
@@ -1848,6 +1849,30 @@ class FieldType(
             return model_field.get_prep_value(value)
         except ValidationError as e:
             raise ValueError(str(e))
+
+    def get_formula_reference_to_model_field(
+        self,
+        model_field: django_models.Field,
+        db_column: str,
+        already_in_subquery: bool,
+    ) -> Expression:
+        """
+        Returns a formula-compatible expression for referencing a model field.
+
+        :param model_field: The Django model field to be referenced in the formula.
+        :param db_column: The database column name or annotation name. For m2m fields
+                that are aggregated, this might differ from model_field.name.
+        :param already_in_subquery: Boolean indicating if the reference is within a
+                subquery context. Required for proper aggregation in certain field
+                types.
+        :return: A database expression that can be used to reference the model field in
+            formulas.
+        """
+
+        return ExpressionWrapper(
+            F(db_column),
+            output_field=model_field,
+        )
 
 
 class ReadOnlyFieldType(FieldType):

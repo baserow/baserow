@@ -24,8 +24,7 @@ from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
-from django.contrib.postgres.aggregates import ArrayAgg, StringAgg
-from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.aggregates import ArrayAgg, JSONBAgg, StringAgg
 from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
 from django.db import OperationalError, connection, models
@@ -35,8 +34,10 @@ from django.db.models import (
     DateTimeField,
     Exists,
     Expression,
+    ExpressionWrapper,
     F,
     Func,
+    JSONField,
     OuterRef,
     Q,
     QuerySet,
@@ -46,7 +47,7 @@ from django.db.models import (
     Window,
 )
 from django.db.models.fields.related import ManyToManyField
-from django.db.models.functions import Coalesce, RowNumber
+from django.db.models.functions import Cast, Coalesce, RowNumber
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -95,6 +96,10 @@ from baserow.contrib.database.db.functions import RandomUUID
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
 from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
+)
+from baserow.contrib.database.fields.utils.expression import (
+    get_select_option_extractor,
+    wrap_in_subquery,
 )
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
@@ -4201,6 +4206,21 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             }
         )
 
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        single_select_extractor = get_select_option_extractor(db_column, model_field)
+        if already_in_subquery:
+            return Case(
+                When(**{f"{db_column}__isnull": True}, then=Value(None)),
+                default=single_select_extractor,
+                output_field=model_field,
+            )
+        else:
+            return wrap_in_subquery(
+                single_select_extractor, db_column, model_field.model
+            )
+
 
 class MultipleSelectFieldType(
     CollationSortMixin,
@@ -4636,6 +4656,27 @@ class MultipleSelectFieldType(
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
         return set(value1) == set(value2)
+
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        if already_in_subquery:
+            return Coalesce(
+                JSONBAgg(
+                    get_select_option_extractor(db_column, model_field),
+                    filter=Q(**{f"{db_column}__isnull": False}),
+                ),
+                Value([], output_field=JSONField()),
+            )
+        else:
+            return Coalesce(
+                wrap_in_subquery(
+                    JSONBAgg(get_select_option_extractor(db_column, model_field)),
+                    db_column,
+                    model_field.model,
+                ),
+                Value([], output_field=JSONField()),
+            )
 
 
 class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
@@ -6261,6 +6302,27 @@ class MultipleCollaboratorsFieldType(
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
 
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        if already_in_subquery:
+            return Coalesce(
+                JSONBAgg(
+                    get_select_option_extractor(db_column, model_field),
+                    filter=Q(**{f"{db_column}__isnull": False}),
+                ),
+                Value([], output_field=JSONField()),
+            )
+        else:
+            return Coalesce(
+                wrap_in_subquery(
+                    JSONBAgg(get_select_option_extractor(db_column, model_field)),
+                    db_column,
+                    model_field.model,
+                ),
+                Value([], output_field=JSONField()),
+            )
+
 
 class UUIDFieldType(ReadOnlyFieldType):
     """
@@ -6343,6 +6405,19 @@ class UUIDFieldType(ReadOnlyFieldType):
         self, formula_type: BaserowFormulaTextType
     ) -> UUIDField:
         return UUIDField()
+
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        """
+        Casts the uuid to text to make it compatible with all the text related
+        functions.
+        """
+
+        return ExpressionWrapper(
+            Cast(F(db_column), output_field=models.TextField()),
+            output_field=models.TextField(),
+        )
 
 
 class AutonumberFieldType(ReadOnlyFieldType):

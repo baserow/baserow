@@ -1995,3 +1995,89 @@ def test_lookup_arrays(data_fixture):
             join_lookup_field.db_column: "b1,b2",
         }
     ]
+
+
+@pytest.mark.django_db
+def test_formulas_with_lookup_to_uuid_primary_field(data_fixture):
+    user = data_fixture.create_user()
+
+    table = data_fixture.create_database_table(user=user)
+    table_primary_field = data_fixture.create_text_field(
+        primary=True,
+        name="Primary",
+        table=table,
+    )
+
+    linked_table = data_fixture.create_database_table(
+        user=user, database=table.database
+    )
+    data_fixture.create_uuid_field(
+        primary=True,
+        name="Linked primary",
+        table=linked_table,
+    )
+    linked_table_text_field = data_fixture.create_text_field(
+        name="LText",
+        table=linked_table,
+    )
+
+    linked_row_1, linked_row_2 = RowHandler().create_rows(
+        user,
+        linked_table,
+        [
+            {
+                linked_table_text_field.db_column: "Linked row #1",
+            },
+            {
+                linked_table_text_field.db_column: "Linked row #2",
+            },
+        ],
+    )
+
+    link_field = FieldHandler().create_field(
+        user, table, "link_row", link_row_table=linked_table, name="Link"
+    )
+
+    formula_scenarios = [
+        f"lookup('{link_field.name}', 'LText')",
+        f"filter(field('{link_field.name}'), isblank(lookup('{link_field.name}','LText')))",
+    ]
+
+    fields = [
+        data_fixture.create_formula_field(
+            user=user,
+            table=table,
+            formula=formula,
+        )
+        for formula in formula_scenarios
+    ]
+
+    RowHandler().create_rows(
+        user,
+        table,
+        [
+            {
+                table_primary_field.db_column: "Row #1",
+                link_field.db_column: [linked_row_1.id],
+            },
+            {
+                table_primary_field.db_column: "Row #2",
+                link_field.db_column: [
+                    linked_row_1.id,
+                    linked_row_2.id,
+                ],
+            },
+            {table_primary_field.db_column: "Row #3", link_field.db_column: []},
+        ],
+    )
+
+    rows = data_fixture.get_rows(fields=[table_primary_field, *fields])
+    assert rows == [
+        ["Row #1", [{"id": 1, "value": "Linked row #1"}], []],
+        [
+            "Row #2",
+            [{"id": 1, "value": "Linked row #1"}, {"id": 2, "value": "Linked row #2"}],
+            [],
+        ],
+        ["Row #3", [], []],
+    ]
