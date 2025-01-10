@@ -84,7 +84,7 @@ class BaserowJSONBObjectBaseType(BaserowFormulaValidType, ABC):
         from baserow.contrib.database.fields.registries import field_type_registry
 
         if self.baserow_field_type is None:
-            return value
+            return value if value != "" else None
 
         return field_type_registry.get(self.baserow_field_type).parse_filter_value(
             field, model_field, value

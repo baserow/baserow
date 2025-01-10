@@ -2,7 +2,9 @@ import re
 from typing import TYPE_CHECKING, Any, Dict, List, Type
 
 from django.contrib.postgres.fields import JSONField
-from django.db.models import BooleanField, F, Field, Q, Value
+from django.db.models import BooleanField, F
+from django.db.models import Field as DjangoField
+from django.db.models import Q, Value
 from django.db.models.expressions import RawSQL
 
 from loguru import logger
@@ -20,11 +22,11 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
 )
 
 if TYPE_CHECKING:
-    from baserow.contrib.database.fields.models import Field as BaserowField
+    from baserow.contrib.database.fields.models import Field
 
 
 class HasValueEmptyFilterSupport:
-    def get_in_array_empty_value(self, field: "BaserowField") -> Any:
+    def get_in_array_empty_value(self, field: "Field") -> Any:
         """
         Returns the value to use for filtering empty values in an array. An empty string
         is used by default and works for test-like fields, but for number fields or
@@ -38,7 +40,7 @@ class HasValueEmptyFilterSupport:
         return ""
 
     def get_in_array_empty_query(
-        self, field_name: str, model_field: Field, field: "BaserowField"
+        self, field_name: str, model_field: DjangoField, field: "Field"
     ) -> OptionallyAnnotatedQ:
         """
         Specifies a Q expression to filter empty values contained in an array.
@@ -57,7 +59,7 @@ class HasValueEmptyFilterSupport:
 
 class HasValueEqualFilterSupport:
     def get_in_array_is_query(
-        self, field_name: str, value: str, model_field: Field, field: "BaserowField"
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
     ) -> OptionallyAnnotatedQ:
         """
         Specifies a Q expression to filter exact values contained in an array.
@@ -74,7 +76,7 @@ class HasValueEqualFilterSupport:
 
 class HasValueContainsFilterSupport:
     def get_in_array_contains_query(
-        self, field_name: str, value: str, model_field: Field, field: "BaserowField"
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
     ) -> OptionallyAnnotatedQ:
         """
         Specifies a Q expression to filter values in an array that contain a
@@ -92,16 +94,16 @@ class HasValueContainsFilterSupport:
 
 class HasValueContainsWordFilterSupport:
     def get_in_array_contains_word_query(
-        self, field_name: str, value: str, model_field: Field, field: "BaserowField"
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
     ) -> OptionallyAnnotatedQ:
         """
-        Specifies a Q expression to filter values in an array that contain a
-        specific word.
+        Specifies a Q expression to filter values in an array that contain a specific
+        word.
 
         :param field_name: The name of the field.
         :param value: The value to check if it is contained in array.
-        :param model_field: The field's actual django field model instance.
-        :param field: The related field's instance.
+        :param model_field: Django model field instance.
+        :param field: The related Baserow field's instance containing field's metadata.
         :return: A Q or AnnotatedQ filter given value.
         """
 
@@ -110,7 +112,7 @@ class HasValueContainsWordFilterSupport:
 
 class HasValueLengthIsLowerThanFilterSupport:
     def get_in_array_length_is_lower_than_query(
-        self, field_name: str, value: str, model_field: Field, field: "BaserowField"
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
     ) -> OptionallyAnnotatedQ:
         """
         Specifies a Q expression to filter values in an array that has lower
@@ -118,8 +120,8 @@ class HasValueLengthIsLowerThanFilterSupport:
 
         :param field_name: The name of the field.
         :param value: The value representing the length to use for the check.
-        :param model_field: The field's actual django field model instance.
-        :param field: The related field's instance.
+        :param model_field: Django model field instance.
+        :param field: The related Baserow field's instance containing field's metadata.
         :return: A Q or AnnotatedQ filter given value.
         """
 
@@ -141,18 +143,18 @@ class HasValueLengthIsLowerThanFilterSupport:
 
 class HasAllValuesEqualFilterSupport:
     def get_has_all_values_equal_query(
-        self, field_name: str, value: str, model_field: Field, field: "BaserowField"
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
     ) -> "OptionallyAnnotatedQ":
         """
-        Creates a query expression to filter rows where all values of an array in
-        the specified field are equal to a specific value
+         Creates a query expression to filter rows where all values of an array in
+         the specified field are equal to a specific value
 
-        :param field_name: The name of the field
-        :param value: The value that should be present in all array elements
-            in the field
-        :param model_field: Field's schema model instance.
-        :param field: Field's instance.
-        :return: A Q or AnnotatedQ filter given value.
+         :param field_name: The name of the field
+         :param value: The value that should be present in all array elements
+             in the field
+        :param model_field: Django model field instance.
+         :param field: The related Baserow field's instance containing field's metadata.
+         :return: A Q or AnnotatedQ filter given value.
         """
 
         try:
@@ -173,7 +175,7 @@ class HasNumericValueComparableToFilterSupport:
         self,
         field_name: str,
         value: str,
-        model_field: Field,
+        model_field: DjangoField,
         field: "Field",
         comparison_op: ComparisonOperator,
     ) -> OptionallyAnnotatedQ:
@@ -217,7 +219,7 @@ def get_array_json_filter_expression(
 
 
 def get_jsonb_contains_filter_expr(
-    model_field: Field, value: str, query_path: str = "$[*].value"
+    model_field: DjangoField, value: str, query_path: str = "$[*].value"
 ) -> OptionallyAnnotatedQ:
     """
     Returns an AnnotatedQ that will filter rows where the JSON field contains the
@@ -233,7 +235,6 @@ def get_jsonb_contains_filter_expr(
     :return: An AnnotatedQ that will filter rows where the JSON field contains the
     """
 
-    value = value.strip()
     # If an empty value has been provided we do not want to filter at all.
     if value == "":
         return Q()
@@ -255,7 +256,7 @@ def get_jsonb_contains_filter_expr(
 
 
 def get_jsonb_contains_word_filter_expr(
-    model_field: Field, value: str, query_path: str = "$[*].value"
+    model_field: DjangoField, value: str, query_path: str = "$[*].value"
 ) -> OptionallyAnnotatedQ:
     """
     Returns an AnnotatedQ that will filter rows where the JSON field contains the
@@ -272,7 +273,6 @@ def get_jsonb_contains_word_filter_expr(
         specified word.
     """
 
-    value = value.strip()
     # If an empty value has been provided we do not want to filter at all.
     if value == "":
         return Q()
@@ -296,7 +296,7 @@ def get_jsonb_contains_word_filter_expr(
 
 
 def get_jsonb_has_any_in_value_filter_expr(
-    model_field: Field,
+    model_field: DjangoField,
     value: List[int],
     query_path: str = "$[*].id",
     operator: str = "||",

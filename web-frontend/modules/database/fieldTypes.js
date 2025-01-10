@@ -726,7 +726,6 @@ export class FieldType extends Registerable {
    * and sent to the backend.
    */
   formatFilterValue(field, value) {
-    console.log('formatFilterValue', field.name, value, typeof value)
     return String(value ?? '')
   }
 

@@ -214,7 +214,7 @@ class JSONArrayAllAreExpr(BaserowFilterExpression):
             SELECT upper(filtered_field ->> 'value')
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
         ) AND JSONB_ARRAY_LENGTH(%(field_name)s) > 0
-                """  # nosec B608 %(value)s
+        """  # nosec B608 %(value)s
     )
     # fmt: on
 

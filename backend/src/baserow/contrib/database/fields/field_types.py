@@ -785,6 +785,9 @@ class NumberFieldType(FieldType):
         filter_value remains the same.
         """
 
+        if value == "":
+            return None
+
         try:
             value = Decimal(value)
             if not value.is_finite():
@@ -970,7 +973,9 @@ class BooleanFieldType(FieldType):
         return BooleanField()
 
     def parse_filter_value(self, field, model_field, value):
-        if value in BASEROW_BOOLEAN_FIELD_TRUE_VALUES:
+        if value == "":
+            return None
+        elif value in BASEROW_BOOLEAN_FIELD_TRUE_VALUES:
             return True
         elif value in BASEROW_BOOLEAN_FIELD_FALSE_VALUES:
             return False
@@ -3877,6 +3882,9 @@ class SelectOptionBaseFieldType(FieldType):
         Parses the provided comma separated string value to extract option ids from it.
         If the result does not contain any valid option id, a ValueError is raised.
         """
+
+        if value == "":
+            return None
 
         option_ids = parse_ids_from_csv_string(value)
         if not option_ids:

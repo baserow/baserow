@@ -71,14 +71,16 @@ class ComparisonHasValueFilter(ViewFilterType, ABC):
     def get_filter(
         self, field_name, value: str, model_field, field
     ) -> OptionallyAnnotatedQ:
-        if value == "":
-            return Q()
-
         field_type = field_type_registry.get_by_model(field)
         try:
-            filter_value = field_type.parse_filter_value(field, model_field, value)
+            filter_value = field_type.parse_filter_value(
+                field, model_field, value.strip()
+            )
         except ValueError:  # invalid filter value for the field
             return self.default_filter_on_exception()
+
+        if filter_value is None:
+            return Q()
 
         return self.get_filter_expression(field_name, filter_value, model_field, field)
 
@@ -149,9 +151,6 @@ class HasValueContainsViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        if value == "":
-            return Q()
-
         field_type: HasValueContainsFilterSupport = field_type_registry.get_by_model(
             field
         )
@@ -184,14 +183,11 @@ class HasValueContainsWordViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
-        if value == "":
-            return Q()
-
         field_type: HasValueContainsWordFilterSupport = (
             field_type_registry.get_by_model(field)
         )
         return field_type.get_in_array_contains_word_query(
-            field_name, value, model_field, field
+            field_name, value.strip(), model_field, field
         )
 
 
@@ -258,7 +254,7 @@ class HasAllValuesEqualViewFilterType(ComparisonHasValueFilter):
         )
 
 
-# TODO: remove in future versions when the filter is no longer used
+# TODO: remove in future versions since it's the same as parent class now.
 class HasAnySelectOptionEqualViewFilterType(HasValueEqualViewFilterType):
     """
     This filter can be used to verify if any of the select options in an array
@@ -273,7 +269,7 @@ class HasAnySelectOptionEqualViewFilterType(HasValueEqualViewFilterType):
     ]
 
 
-# TODO: remove in future versions when the filter is no longer used
+# TODO: remove in future versions since it's the same as parent class now.
 class HasNoneSelectOptionEqualViewFilterType(
     NotViewFilterTypeMixin, HasAnySelectOptionEqualViewFilterType
 ):

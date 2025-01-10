@@ -116,19 +116,18 @@ class EqualViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field):
-        value = value.strip()
-
-        # If an empty value has been provided we do not want to filter at all.
-        if value == "":
-            return Q()
-
         # Check if the model_field accepts the value.
         field_type = field_type_registry.get_by_model(field)
         try:
-            value = field_type.parse_filter_value(field, model_field, value)
-            return Q(**{field_name: value})
-        except Exception:
+            value = field_type.parse_filter_value(field, model_field, value.strip())
+        except ValueError:
             return self.default_filter_on_exception()
+
+        # If an empty value has been provided we do not want to filter at all.
+        if value is None:
+            return Q()
+
+        return Q(**{field_name: value})
 
 
 class NotEqualViewFilterType(NotViewFilterTypeMixin, EqualViewFilterType):
@@ -380,17 +379,16 @@ class NumericComparisonViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field):
-        value = value.strip()
-
-        # If an empty value has been provided we do not want to filter at all.
-        if value == "":
-            return Q()
-
         field_type = field_type_registry.get_by_model(field)
         try:
-            filter_value = field_type.parse_filter_value(field, model_field, value)
+            filter_value = field_type.parse_filter_value(
+                field, model_field, value.strip()
+            )
         except ValueError:
             return self.default_filter_on_exception()
+
+        if filter_value is None:
+            return Q()
 
         return Q(**{f"{field_name}__{self.operator}": filter_value})
 
@@ -1200,15 +1198,17 @@ class BooleanViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field):
-        if value == "":  # consider emtpy value as False
-            value = "false"
+        if value == "":  # consider an empty string as False
+            return Q(**{field_name: False})
 
-        field_type = field_type_registry.get_by_model(field)
         try:
-            value = field_type.parse_filter_value(field, model_field, value)
-            return Q(**{field_name: value})
+            filter_value = BooleanFieldType().parse_filter_value(
+                field, model_field, value
+            )
         except ValueError:
             return self.default_filter_on_exception()
+
+        return Q(**{field_name: filter_value})
 
 
 class ManyToManyHasBaseViewFilter(ViewFilterType):
