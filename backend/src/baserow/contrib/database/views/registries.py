@@ -1008,6 +1008,8 @@ class ViewAggregationType(Instance):
     aggregation. For example you can compute a sum of all values of a field in a table.
     """
 
+    allowed_in_view = True
+
     def get_aggregation(
         self,
         field_name: str,

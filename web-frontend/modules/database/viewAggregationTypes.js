@@ -91,6 +91,10 @@ export class ViewAggregationType extends Registerable {
     return this.formatValue(value, context)
   }
 
+  isAllowedInView() {
+    return true
+  }
+
   /**
    * @return object
    */
@@ -100,6 +104,56 @@ export class ViewAggregationType extends Registerable {
       rawType: this.getRawType(),
       name: this.getName(),
     }
+  }
+}
+
+export class CountViewAggregationType extends ViewAggregationType {
+  static getType() {
+    return 'count'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewAggregationType.count')
+  }
+
+  getCompatibleFieldTypes() {
+    return [
+      'text',
+      'long_text',
+      'boolean',
+      'url',
+      'email',
+      'number',
+      'date',
+      'last_modified',
+      'last_modified_by',
+      'created_on',
+      'created_by',
+      'link_row',
+      'file',
+      'single_select',
+      'multiple_select',
+      'phone_number',
+      'duration',
+      'password',
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'text',
+        'char',
+        'date',
+        'number',
+        'boolean',
+        FormulaFieldType.arrayOf('single_file')
+      ),
+    ]
+  }
+
+  getComponent() {
+    return GenericViewAggregation
+  }
+
+  isAllowedInView() {
+    return false
   }
 }
 

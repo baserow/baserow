@@ -278,6 +278,7 @@ import {
   BaserowFormulaURLType,
 } from '@baserow/modules/database/formula/formulaTypes'
 import {
+  CountViewAggregationType,
   EmptyCountViewAggregationType,
   NotEmptyCountViewAggregationType,
   CheckedCountViewAggregationType,
@@ -896,6 +897,10 @@ export default (context) => {
   app.$registry.register(
     'viewAggregation',
     new LatestDateViewAggregationType(context)
+  )
+  app.$registry.register(
+    'viewAggregation',
+    new CountViewAggregationType(context)
   )
   app.$registry.register(
     'viewAggregation',

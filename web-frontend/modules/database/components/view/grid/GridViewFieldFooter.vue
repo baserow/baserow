@@ -143,7 +143,9 @@ export default {
     viewAggregationTypes() {
       return this.$registry
         .getOrderedList('viewAggregation')
-        .filter((agg) => agg.fieldIsCompatible(this.field))
+        .filter(
+          (agg) => agg.fieldIsCompatible(this.field) && agg.isAllowedInView()
+        )
     },
     fieldType() {
       return this.$registry.get('field', this.field.type)

@@ -71,6 +71,52 @@ def get_has_relations_annotation(field_name: str, model_field: Field) -> Dict:
     return {f"has_relations_{field_name}": Exists(subquery)}
 
 
+class CountViewAggregationType(ViewAggregationType):
+    """
+    The count aggregation counts how many rows
+    are in the table.
+    """
+
+    type = "count"
+    allowed_in_view = False
+
+    compatible_field_types = [
+        TextFieldType.type,
+        LongTextFieldType.type,
+        URLFieldType.type,
+        NumberFieldType.type,
+        RatingFieldType.type,
+        BooleanFieldType.type,
+        DateFieldType.type,
+        DurationFieldType.type,
+        LastModifiedFieldType.type,
+        LastModifiedByFieldType.type,
+        CreatedOnFieldType.type,
+        CreatedByFieldType.type,
+        LinkRowFieldType.type,
+        EmailFieldType.type,
+        FileFieldType.type,
+        PhoneNumberFieldType.type,
+        SingleSelectFieldType.type,
+        MultipleSelectFieldType.type,
+        PasswordFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaTextType.type,
+            BaserowFormulaCharType.type,
+            BaserowFormulaNumberType.type,
+            BaserowFormulaDateType.type,
+            BaserowFormulaBooleanType.type,
+            FormulaFieldType.array_of(BaserowFormulaSingleFileType.type),
+        ),
+    ]
+
+    def get_aggregation(self, field_name, model_field, field):
+        return Count(
+            "id",
+            distinct=True,
+        )
+
+
 class EmptyCountViewAggregationType(ViewAggregationType):
     """
     The empty count aggregation counts how many values are considered empty for

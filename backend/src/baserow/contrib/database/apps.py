@@ -238,6 +238,7 @@ class DatabaseConfig(AppConfig):
             AverageFieldAggregationType,
             CheckedFieldAggregationType,
             CheckedPercentageFieldAggregationType,
+            CountFieldAggregationType,
             EarliestDateFieldAggregationType,
             EmptyCountFieldAggregationType,
             EmptyPercentageFieldAggregationType,
@@ -255,6 +256,7 @@ class DatabaseConfig(AppConfig):
             VarianceFieldAggregationType,
         )
 
+        field_aggregation_registry.register(CountFieldAggregationType())
         field_aggregation_registry.register(EmptyCountFieldAggregationType())
         field_aggregation_registry.register(NotEmptyCountFieldAggregationType())
         field_aggregation_registry.register(CheckedFieldAggregationType())
@@ -490,6 +492,7 @@ class DatabaseConfig(AppConfig):
 
         from .views.view_aggregations import (
             AverageViewAggregationType,
+            CountViewAggregationType,
             DecileViewAggregationType,
             EmptyCountViewAggregationType,
             MaxViewAggregationType,
@@ -502,6 +505,7 @@ class DatabaseConfig(AppConfig):
             VarianceViewAggregationType,
         )
 
+        view_aggregation_type_registry.register(CountViewAggregationType())
         view_aggregation_type_registry.register(EmptyCountViewAggregationType())
         view_aggregation_type_registry.register(NotEmptyCountViewAggregationType())
         view_aggregation_type_registry.register(UniqueCountViewAggregationType())
