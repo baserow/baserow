@@ -68,23 +68,22 @@ export default {
       },
       immediate: true,
     },
-    targetFieldFormulaType: {
-      handler(newFormulaType) {
-        const formulaTypeChanged =
-          newFormulaType &&
-          this.getFormulaType(this.defaultValues) !== newFormulaType
-
-        let fieldAttrPrefix = newFormulaType
-        // created_on and last_modified uses date_* settings to specify the date format
-        if (['created_on', 'last_modified'].includes(newFormulaType)) {
-          fieldAttrPrefix = 'date'
+    selectedTargetField: {
+      handler(newTargetField) {
+        if (!newTargetField) {
+          return
         }
+        const fieldType = this.$registry.get('field', newTargetField.type)
+        const formulaType = fieldType.toBaserowFormulaType(newTargetField)
+
+        const formulaTypeChanged =
+          formulaType && this.getFormulaType(this.defaultValues) !== formulaType
 
         // New field or different type, use the relevant settings from the target field
         const fieldValues = this.defaultValues
         if (!fieldValues.id || formulaTypeChanged) {
           for (const key in this.selectedTargetField) {
-            if (key.startsWith(fieldAttrPrefix)) {
+            if (key.startsWith(formulaType)) {
               this.subFormDefaultValues[key] = this.selectedTargetField[key]
             }
           }

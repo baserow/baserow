@@ -869,6 +869,10 @@ export class FieldType extends Registerable {
   getAlias() {
     return null
   }
+
+  toBaserowFormulaType(field) {
+    return this.getType()
+  }
 }
 
 class SelectOptionBaseFieldType extends FieldType {
@@ -2156,6 +2160,10 @@ class BaseDateFieldType extends FieldType {
       )
     }
     return super.isEqual(field, value1, value2)
+  }
+
+  toBaserowFormulaType(field) {
+    return 'date'
   }
 }
 
@@ -3947,6 +3955,10 @@ export class FormulaFieldType extends mix(
 
   canRepresentFiles(field) {
     return this.getFormulaType(field)?.canRepresentFiles(field)
+  }
+
+  toBaserowFormulaType(field) {
+    return this.getFormulaType(field).toBaserowFormulaType(field)
   }
 }
 

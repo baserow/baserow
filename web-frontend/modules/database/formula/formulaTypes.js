@@ -766,6 +766,10 @@ export class BaserowFormulaArrayType extends mix(
   canGroupByInView() {
     return false
   }
+
+  toBaserowFormulaType(field) {
+    return this.getSubType(field)?.toBaserowFormulaType(field)
+  }
 }
 
 export class BaserowFormulaFileType extends BaserowFormulaTypeDefinition {
