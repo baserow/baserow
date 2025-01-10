@@ -57,10 +57,10 @@
           required
         >
           <Dropdown
-            v-model="values.source_table_id"
+            v-model="v$.values.source_table_id.$model"
             :error="fieldHasErrors('source_table_id')"
             :disabled="disabled"
-            @input="v$.values.source_table_id.$touch()"
+            @input="v$.values.source_table_id.$touch"
           >
             <DropdownItem
               v-for="table in tables"
@@ -70,14 +70,7 @@
             ></DropdownItem>
           </Dropdown>
           <template #error>
-            <div
-              v-if="
-                v$.values.source_table_id.$dirty &&
-                !v$.values.source_table_id.required
-              "
-            >
-              {{ $t('error.requiredField') }}
-            </div>
+            {{ v$.values.source_table_id.$errors[0]?.$message }}
           </template>
         </FormGroup>
       </div>
@@ -86,8 +79,9 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import { mapGetters, mapState } from 'vuex'
-import { required, numeric } from '@vuelidate/validators'
+import { required, numeric, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
@@ -106,6 +100,9 @@ export default {
       required: false,
       default: false,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -172,10 +169,18 @@ export default {
       }
     }
   },
-  validations: {
-    values: {
-      source_table_id: { required, numeric },
-    },
+  validations() {
+    return {
+      values: {
+        source_table_id: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          numeric,
+        },
+      },
+    }
   },
   methods: {
     workspaceChanged(value) {

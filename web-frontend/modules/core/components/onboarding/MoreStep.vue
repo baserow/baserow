@@ -6,28 +6,24 @@
       small-label
       :label="$t('moreStep.roleOrJob')"
       required
-      :error="v$.role.$dirty && !v$.role.required"
+      :error="v$.role.$error"
       class="margin-bottom-3"
     >
       <FormInput
         v-model="role"
         :placeholder="$t('moreStep.roleOrJob') + '...'"
         size="large"
-        :error="v$.role.$dirty && !v$.role.required"
-        @blur="v$.role.$touch()"
+        :error="v$.role.$error"
+        @blur="v$.role.$touch"
       />
 
       <template #error>
-        {{ $t('error.requiredField') }}
+        {{ v$.role.$errors[0].$message }}
       </template>
     </FormGroup>
     <FormGroup
       :label="$t('moreStep.people')"
-      :error="
-        v$.companySize.$dirty && !v$.companySize.required
-          ? $t('error.requiredField')
-          : false
-      "
+      :error="v$.companySize.$error"
       class="margin-bottom-3"
       required
       small-label
@@ -43,12 +39,12 @@
       </div>
 
       <template #error>
-        {{ $t('error.requiredField') }}
+        {{ v$.companySize.$errors[0]?.$message }}
       </template>
     </FormGroup>
     <FormGroup
       :label="$t('moreStep.country')"
-      :error="v$.country.$dirty && !v$.country.required"
+      :error="v$.country.$error"
       required
       small-label
       class="margin-bottom-2"
@@ -57,7 +53,7 @@
         v-model="country"
         :error="v$.country.$error"
         size="large"
-        @hide="v$.country.$touch()"
+        @hide="v$.country.$touch"
       >
         <DropdownItem
           v-for="countryName in countries"
@@ -73,11 +69,15 @@
 </template>
 
 <script>
-import { required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 import { countryList } from '@baserow/modules/core/utils/countries'
 
 export default {
   name: 'MoreStep',
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       role: '',
@@ -128,9 +128,15 @@ export default {
   },
   validations() {
     return {
-      role: { required },
-      companySize: { required },
-      country: { required },
+      role: {
+        required: helpers.withMessage(this.$t('error.requiredField'), required),
+      },
+      companySize: {
+        required: helpers.withMessage(this.$t('error.requiredField'), required),
+      },
+      country: {
+        required: helpers.withMessage(this.$t('error.requiredField'), required),
+      },
     }
   },
 }

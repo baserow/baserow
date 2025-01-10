@@ -55,7 +55,7 @@
         </div>
       </div>
       <div class="admin-health__group">
-        <EmailerTester></EmailerTester>
+        <EmailTester></EmailTester>
       </div>
       <div class="admin-health__group">
         <h2>Error tester</h2>
@@ -67,10 +67,10 @@
 
 <script>
 import HealthService from '@baserow/modules/core/services/health'
-import EmailerTester from '@baserow/modules/core/components/health/EmailTester.vue'
+import EmailTester from '@baserow/modules/core/components/health/EmailTester.vue'
 
 export default {
-  components: { EmailerTester },
+  components: { EmailTester },
   layout: 'app',
   middleware: 'staff',
   async asyncData({ app }) {

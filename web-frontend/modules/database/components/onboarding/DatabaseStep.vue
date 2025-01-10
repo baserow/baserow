@@ -13,17 +13,17 @@
       ></SegmentControl>
     </div>
     <template v-if="hasName">
-      <FormGroup :error="v$.name.$dirty && !v$.name.required">
+      <FormGroup :error="v$.name.required.$invalid">
         <FormInput
           v-model="name"
           :placeholder="$t('databaseStep.databaseNameLabel')"
           :label="$t('databaseStep.databaseNameLabel')"
           size="large"
-          :error="v$.name.$dirty && !v$.name.required"
+          :error="v$.name.required.$invalid"
           @input="updateValue"
-          @blur="v$.name.$touch()"
+          @blur="v$.name.$touch"
         />
-        <template #error>{{ $t('error.requiredField') }}</template>
+        <template #error>{{ v$.name.required.$errors[0].$message }}</template>
       </FormGroup>
     </template>
     <AirtableImportForm
@@ -35,13 +35,17 @@
 </template>
 
 <script>
-import { requiredIf } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { requiredIf, helpers } from '@vuelidate/validators'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm.vue'
 
 export default {
   name: 'DatabaseStep',
   components: { AirtableImportForm, SegmentControl },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       types: [
@@ -89,14 +93,20 @@ export default {
   validations() {
     return {
       name: {
-        required: requiredIf(() => {
-          return this.hasName
-        }),
+        required: helpers.withMessage(
+          this.$t('error.requiredField'),
+          requiredIf(() => {
+            return this.hasName
+          })
+        ),
       },
       airtableUrl: {
-        required: requiredIf(() => {
-          return this.selectedType === 'airtable'
-        }),
+        required: helpers.withMessage(
+          this.$t('error.requiredField'),
+          requiredIf(() => {
+            return this.selectedType === 'airtable'
+          })
+        ),
       },
     }
   },

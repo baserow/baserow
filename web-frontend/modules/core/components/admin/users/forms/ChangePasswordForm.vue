@@ -27,9 +27,7 @@
       ></FormInput>
 
       <template #error>
-        <span v-if="!v$.values.passwordConfirm.sameAsPassword" class="error">
-          {{ $t('changePasswordForm.error.doesntMatch') }}
-        </span>
+        {{ v$.values.passwordConfirm.$errors[0]?.$message }}
       </template>
     </FormGroup>
 
@@ -49,7 +47,8 @@
 </template>
 
 <script>
-import { sameAs } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { sameAs, helpers } from '@vuelidate/validators'
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
 import { passwordValidation } from '@baserow/modules/core/validators'
 
@@ -65,6 +64,9 @@ export default {
       required: true,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: ['password', 'passwordConfirm'],
@@ -74,13 +76,18 @@ export default {
       },
     }
   },
-  validations: {
-    values: {
-      passwordConfirm: {
-        sameAsPassword: sameAs('password'),
+  validations() {
+    return {
+      values: {
+        passwordConfirm: {
+          sameAsPassword: helpers.withMessage(
+            this.$t('changePasswordForm.error.doesntMatch'),
+            sameAs(this.values.password)
+          ),
+        },
+        password: passwordValidation,
       },
-      password: passwordValidation,
-    },
+    }
   },
 }
 </script>

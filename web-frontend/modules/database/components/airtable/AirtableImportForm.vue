@@ -17,11 +17,11 @@
         :error="v$.values.airtableUrl.$error"
         :placeholder="$t('importFromAirtable.airtableShareLinkPaste')"
         size="large"
-        @blur="v$.values.airtableUrl.$touch()"
+        @blur="v$.values.airtableUrl.$touch"
         @input="
           $emit(
             'input',
-            v$.values.airtableUrl.$invalid ? '' : values.airtableUrl
+            v$.values.airtableUrl.$invalid ? '' : v$.values.airtableUrl.$model
           )
         "
       ></FormInput>
@@ -35,10 +35,13 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-
+import { useVuelidate } from '@vuelidate/core'
 export default {
   name: 'AirtableImportForm',
   mixins: [form],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {
@@ -46,15 +49,17 @@ export default {
       },
     }
   },
-  validations: {
-    values: {
-      airtableUrl: {
-        valid(value) {
-          const regex = /https:\/\/airtable.com\/[shr|app](.*)$/g
-          return !!value.match(regex)
+  validations() {
+    return {
+      values: {
+        airtableUrl: {
+          valid(value) {
+            const regex = /https:\/\/airtable.com\/[shr|app](.*)$/g
+            return !!value.match(regex)
+          },
         },
       },
-    },
+    }
   },
 }
 </script>

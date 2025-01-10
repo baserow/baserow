@@ -23,6 +23,5 @@ export default {
       values: {},
     }
   },
-  validations: {},
 }
 </script>

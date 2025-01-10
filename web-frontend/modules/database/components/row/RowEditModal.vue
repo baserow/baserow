@@ -101,6 +101,7 @@
       >
         <span ref="createFieldContextLink">
           <ButtonText
+            tag="a"
             icon="iconoir-plus"
             @click="
               $refs.createFieldContext.toggle($refs.createFieldContextLink)

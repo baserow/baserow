@@ -19,7 +19,7 @@
     </div>
     <FormGroup
       v-if="what === 'own'"
-      :error="v$.tableName.$dirty && !v$.tableName.required"
+      :error="v$.tableName.required.$invalid"
       :label="$t('databaseScratchTrackStep.tableName')"
       required
       small-label
@@ -29,11 +29,13 @@
         v-model="tableName"
         :placeholder="$t('databaseScratchTrackStep.tableName') + '...'"
         size="large"
-        :error="v$.tableName.$dirty && !v$.tableName.required"
+        :error="v$.tableName.required.$invalid"
         @input="updateValue"
-        @blur="v$.tableName.$touch()"
+        @blur="v$.tableName.$touch"
       />
-      <template #error>{{ $t('error.requiredField') }}</template>
+      <template #error>
+        {{ v$.tableName.$errors[0].$message }}
+      </template>
     </FormGroup>
 
     <template v-if="what !== ''">
@@ -41,31 +43,37 @@
         v-for="(row, index) in [0, 1, 2]"
         :key="index"
         class="margin-bottom-2"
-        :error="v$['row' + index].$dirty && v$['row' + index].$invalid"
+        :error="v$['row' + index]?.required?.$invalid"
         small-label
       >
         <template v-if="index === 0" #label>
           {{ $t('databaseScratchTrackStep.thisIncludes') }}</template
         >
         <FormInput
-          v-model="$data['row' + index]"
+          v-model="v$['row' + index].$model"
           :placeholder="$t('databaseScratchTrackStep.rowName') + '...'"
           size="large"
-          :error="v$['row' + index].$dirty && v$['row' + index].$invalid"
+          :error="v$['row' + index]?.required?.$invalid"
           @input="updateValue"
-          @blur="v$['row' + index].$touch()"
+          @blur="v$['row' + index].$touch"
         />
-        <template #error>{{ $t('error.requiredField') }}</template>
+        <template #error>
+          {{ v$['row' + index].$errors[0].$message }}
+        </template>
       </FormGroup>
     </template>
   </div>
 </template>
 
 <script>
-import { required, requiredIf } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, requiredIf, helpers } from '@vuelidate/validators'
 
 export default {
   name: 'DatabaseScratchTrackStep',
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       what: '',
@@ -130,13 +138,21 @@ export default {
   },
   validations() {
     return {
-      what: { required },
-      tableName: {
-        required: requiredIf(() => {
-          return this.what === 'own'
-        }),
+      what: {
+        required: helpers.withMessage(this.$t('error.requiredField'), required),
       },
-      row0: { required },
+
+      tableName: {
+        required: helpers.withMessage(
+          this.$t('error.requiredField'),
+          requiredIf(() => {
+            return this.what === 'own'
+          })
+        ),
+      },
+      row0: {
+        required: helpers.withMessage(this.$t('error.requiredField'), required),
+      },
       row1: {},
       row2: {},
     }

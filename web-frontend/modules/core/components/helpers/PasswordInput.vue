@@ -40,7 +40,7 @@ modules/core/validators.js
       :autocomplete="autocomplete"
       :value="value"
       :placeholder="placeholder"
-      @blur="validationState.$touch()"
+      @blur="validationState.$touch"
       @input="$emit('input', $event)"
     >
     </FormInput>

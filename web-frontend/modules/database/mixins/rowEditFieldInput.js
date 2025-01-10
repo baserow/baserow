@@ -1,8 +1,12 @@
+import { useVuelidate } from '@vuelidate/core'
 /**
  * This mixin can be used with a row edit field if the field only needs an input. For
  * example for the text and number fields. It depends on the rowEditField mixin.
  */
 export default {
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       /**
@@ -98,5 +102,10 @@ export default {
         this.editing ? this.prepareValue(this.copy) : this.value
       )
     },
+  },
+  validations() {
+    return {
+      copy: {},
+    }
   },
 }

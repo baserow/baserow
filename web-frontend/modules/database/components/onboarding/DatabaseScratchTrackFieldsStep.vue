@@ -39,7 +39,7 @@
           <div class="onboarding__form-group-label">
             {{ $t('databaseScratchTrackFieldsStep.fieldType') }}
           </div>
-          <Dropdown v-model="ownField" :show-search="false">
+          <Dropdown v-model="ownField" size="large" :show-search="false">
             <DropdownItem
               v-for="field in ownFields"
               :key="field.props.type"
@@ -54,27 +54,19 @@
           <div class="onboarding__form-group-label">
             {{ $t('databaseScratchTrackFieldsStep.fieldName') }}
           </div>
+
           <FormInput
             v-model="ownField.props.name"
             :placeholder="$t('databaseScratchTrackFieldsStep.fieldName')"
             size="large"
-            :error="
-              v$.ownField.props.name.$dirty && v$.ownField.props.name.$invalid
-            "
-            @blur="v$.ownField.props.name.$touch()"
+            :error="v$.ownField.props.name.$error"
+            @blur="v$.ownField.props.name.$touch"
           />
           <p
-            v-if="
-              v$.ownField.props.name.$dirty && v$.ownField.props.name.$invalid
-            "
+            v-if="v$.ownField.props.name.$error"
             class="control__messages--error"
           >
-            <template v-if="!v$.ownField.props.name.required">
-              {{ $t('error.requiredField') }}
-            </template>
-            <template v-if="!v$.ownField.props.name.uniqueNameValidator">
-              {{ $t('error.alreadyInUse') }}
-            </template>
+            {{ v$.ownField.props.name.$errors[0].$message }}
           </p>
         </div>
       </div>
@@ -83,16 +75,21 @@
 </template>
 
 <script>
-import { requiredIf } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { requiredIf, helpers } from '@vuelidate/validators'
 import { DatabaseScratchTrackOnboardingType } from '@baserow/modules/database/onboardingTypes'
 
 export default {
   name: 'DatabaseScratchTrackFieldsStep',
+
   props: {
     data: {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -231,10 +228,16 @@ export default {
       ownField: {
         props: {
           name: {
-            required: requiredIf(() => this.isOwnFieldValidationEnabled),
-            uniqueNameValidator: (value) => {
-              return !this.isNameUsed(value, 'own')
-            },
+            required: helpers.withMessage(
+              this.$t('error.requiredField'),
+              requiredIf(() => this.isOwnFieldValidationEnabled)
+            ),
+            uniqueNameValidator: helpers.withMessage(
+              this.$t('error.alreadyInUse'),
+              (value) => {
+                return !this.isNameUsed(value, 'own')
+              }
+            ),
           },
         },
       },
