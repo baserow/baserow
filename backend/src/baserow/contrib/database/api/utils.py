@@ -298,7 +298,10 @@ def extract_link_row_joins_from_request(
 
 
 def get_thousand_and_decimal_separator(value):
-    return NUMBER_SEPARATORS.get(value, {}).get("separators", None) or (
-        DEFAULT_THOUSAND_SEPARATOR,
-        DEFAULT_DECIMAL_SEPARATOR,
-    )
+    thousand_sep, decimal_sep = NUMBER_SEPARATORS.get(value, {}).get("separators", None)
+    if not thousand_sep or not decimal_sep:
+        thousand_sep, decimal_sep = (
+            DEFAULT_THOUSAND_SEPARATOR,
+            DEFAULT_DECIMAL_SEPARATOR,
+        )
+    return thousand_sep.value, decimal_sep.value

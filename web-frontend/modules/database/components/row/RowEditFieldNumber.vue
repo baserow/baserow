@@ -48,7 +48,6 @@ export default {
       handler(newValue) {
         this.initCopy(newValue)
       },
-      immediate: true,
     },
   },
   created() {

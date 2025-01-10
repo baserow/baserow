@@ -214,3 +214,10 @@ export const parseNumberValue = (field, value, roundDecimals = true) => {
     ? parsedNumber.negated()
     : parsedNumber
 }
+
+export const formatFrontendNumber = (field, value) => {
+  if (value == null || value === '') {
+    return ''
+  }
+  return formatNumberValue(field, new BigNumber(value))
+}

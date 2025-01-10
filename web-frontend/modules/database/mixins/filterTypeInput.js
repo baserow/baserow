@@ -13,14 +13,14 @@ export default {
   data() {
     return {
       copy: null,
+      // This can be used to avoid changing the value if the user is editing it
+      // Or can be set i.e. by onFocus event
+      focused: false,
     }
   },
   watch: {
     'filter.value'(value, oldValue) {
-      const isFocused = Object.prototype.hasOwnProperty.call(this, 'focused')
-        ? this.focused
-        : false
-      if (!isFocused) {
+      if (!this.focused) {
         this.copy = this.prepareCopy(this.filter.value)
         if (oldValue !== value) {
           this.afterValueChanged(value, oldValue)
