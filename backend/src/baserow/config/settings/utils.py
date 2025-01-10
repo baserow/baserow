@@ -132,8 +132,8 @@ def get_crontab_from_env(env_var_name: str, default_crontab: str) -> crontab:
     actual crontab spec so we expand and re-order the arguments to match.
     """
 
-    minute, hour, day_of_month, month_of_year, day_of_week = (
-        os.getenv(env_var_name) or default_crontab
+    minute, hour, day_of_month, month_of_year, day_of_week = os.getenv(
+        env_var_name, default_crontab
     ).split(" ")
     return crontab(minute, hour, day_of_week, day_of_month, month_of_year)
 
