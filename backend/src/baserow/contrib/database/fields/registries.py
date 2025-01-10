@@ -26,6 +26,7 @@ from django.db.models import (
     Count,
     DurationField,
     Expression,
+    ExpressionWrapper,
     F,
     IntegerField,
     JSONField,
@@ -1848,6 +1849,14 @@ class FieldType(
             return model_field.get_prep_value(value)
         except ValidationError as e:
             raise ValueError(str(e))
+
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        return ExpressionWrapper(
+            F(db_column),
+            output_field=model_field,
+        )
 
 
 class ReadOnlyFieldType(FieldType):
