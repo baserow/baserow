@@ -35,8 +35,8 @@
             class="mb-24"
           >
             <PasswordInput
-              v-model="state.password"
-              :validation-state="v$.password"
+              v-model="account.password"
+              :validation-state="v$.account.password"
               :placeholder="$t('signup.passwordPlaceholder')"
               :error-placeholder-class="'auth__control-error'"
               :show-error-icon="true"
@@ -48,14 +48,14 @@
             :label="$t('resetPassword.repeatNewPassword')"
             required
             class="mb-32"
-            :error="v$.passwordConfirm.$error"
+            :error="v$.account.passwordConfirm.$error"
           >
             <FormInput
-              v-model="state.passwordConfirm"
-              :error="v$.passwordConfirm.$error"
+              v-model="account.passwordConfirm"
+              :error="v$.account.passwordConfirm.$error"
               type="password"
               size="large"
-              @blur="v$.passwordConfirm.$touch"
+              @blur="v$.account.passwordConfirm.$touch"
             >
             </FormInput>
 
@@ -118,20 +118,26 @@ export default {
   mixins: [error],
   layout: 'login',
   setup() {
-    const state = reactive({
-      password: '',
-      passwordConfirm: '',
+    const values = reactive({
+      account: {
+        password: '',
+        passwordConfirm: '',
+      },
     })
 
     const rules = computed(() => ({
-      password: passwordValidation,
-      passwordConfirm: {
-        sameAsPassword: sameAs(state.password),
+      account: {
+        password: passwordValidation,
+        passwordConfirm: {
+          sameAsPassword: sameAs(values.account.password),
+        },
       },
     }))
 
-    const v$ = useVuelidate(rules, state)
-    return { v$, state }
+    return {
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      account: values.account,
+    }
   },
   data() {
     return {

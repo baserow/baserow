@@ -23,21 +23,22 @@
         <FormInput
           v-if="invitation !== null"
           ref="email"
+          v-model="values.email"
           type="email"
           size="large"
           disabled
-          :value="state.email"
         ></FormInput>
+
         <FormInput
           v-else
           ref="email"
-          v-model="state.email"
+          v-model="values.email"
           type="email"
           size="large"
           :error="fieldHasErrors('email')"
           :placeholder="$t('login.emailPlaceholder')"
           autocomplete="username"
-          @blur="v$.email.$touch"
+          @blur="v$.values.email.$touch"
         />
 
         <template #error>
@@ -60,13 +61,13 @@
         >
         <FormInput
           ref="password"
-          v-model="state.password"
+          v-model="values.password"
           type="password"
           size="large"
           :error="fieldHasErrors('password')"
           :placeholder="$t('login.passwordPlaceholder')"
           autocomplete="current-password"
-          @blur="v$.password.$touch"
+          @blur="v$.values.password.$touch"
         />
         <template #error>
           <i class="iconoir-warning-triangle"></i>
@@ -91,7 +92,7 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import { required, email } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
@@ -113,18 +114,24 @@ export default {
     },
   },
   setup() {
-    const state = reactive({
-      email: '',
-      password: '',
+    const values = reactive({
+      values: {
+        email: '',
+        password: '',
+      },
     })
 
-    const rules = computed(() => ({
-      email: { required, email },
-      password: { required },
-    }))
+    const rules = {
+      values: {
+        email: { required, email },
+        password: { required },
+      },
+    }
 
-    const v$ = useVuelidate(rules, state)
-    return { v$, state }
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
+    }
   },
   data() {
     return {
@@ -133,7 +140,7 @@ export default {
   },
   beforeMount() {
     if (this.invitation !== null) {
-      this.state.email = this.invitation.email
+      this.values.email = this.invitation.email
     }
   },
   async mounted() {
@@ -177,13 +184,13 @@ export default {
 
       try {
         const data = await this.$store.dispatch('auth/login', {
-          email: this.state.email,
-          password: this.state.password,
+          email: this.values.email,
+          password: this.values.password,
         })
 
         // If there is an invitation we can immediately accept that one after the user
         // successfully signs in.
-        if (this.invitation?.email === this.state.email) {
+        if (this.invitation?.email === this.values.email) {
           await WorkspaceService(this.$client).acceptInvitation(
             this.invitation.id
           )
@@ -210,7 +217,7 @@ export default {
             } else if (
               response.data?.error === 'ERROR_EMAIL_VERIFICATION_REQUIRED'
             ) {
-              this.$emit('email-not-verified', this.state.email)
+              this.$emit('email-not-verified', this.values.email)
             } else {
               this.showError(
                 this.$t('error.incorrectCredentialTitle'),
@@ -218,7 +225,7 @@ export default {
               )
             }
 
-            this.state.password = ''
+            this.values.password = ''
             this.v$.$reset()
             this.$refs.password.focus()
           } else {

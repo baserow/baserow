@@ -36,16 +36,16 @@
             small-label
             :label="$t('field.emailAddress')"
             required
-            :error="v$.email.$error"
+            :error="fieldHasErrors('email')"
             class="mb-32"
           >
             <FormInput
               ref="email"
-              v-model="state.email"
-              :error="v$.email.$error"
+              v-model="values.email"
+              :error="fieldHasErrors('email')"
               :disabled="success"
               size="large"
-              @blur="v$.email.$touch()"
+              @blur="v$.values.email.$touch"
             >
             </FormInput>
             <template #error>
@@ -82,7 +82,7 @@
         {{ $t('forgotPassword.confirmationTitle') }}
       </h2>
       <p>
-        {{ $t('forgotPassword.confirmation', { email: account.email }) }}
+        {{ $t('forgotPassword.confirmation', { email: values.email }) }}
       </p>
       <Button
         tag="nuxt-link"
@@ -99,28 +99,34 @@
 <script>
 import { required, email } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 
 import error from '@baserow/modules/core/mixins/error'
+import form from '@baserow/modules/core/mixins/form'
 import AuthService from '@baserow/modules/core/services/auth'
 import LangPicker from '@baserow/modules/core/components/LangPicker'
 import { mapGetters } from 'vuex'
 
 export default {
   components: { LangPicker },
-  mixins: [error],
+  mixins: [error, form],
   layout: 'login',
   setup() {
-    const state = reactive({
-      email: '',
+    const values = reactive({
+      values: {
+        email: '',
+      },
     })
 
-    const rules = computed(() => ({
-      email: { required, email },
-    }))
-
-    const v$ = useVuelidate(rules, state)
-    return { v$, state }
+    const rules = {
+      values: {
+        email: { required, email },
+      },
+    }
+    return {
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      values: values.values,
+    }
   },
   data() {
     return {
@@ -149,7 +155,7 @@ export default {
       try {
         const resetUrl = `${this.$config.BASEROW_EMBEDDED_SHARE_URL}/reset-password`
         await AuthService(this.$client).sendResetPasswordEmail(
-          this.state.email,
+          this.values.email,
           resetUrl
         )
         this.success = true

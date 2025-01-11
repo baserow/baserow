@@ -16,14 +16,14 @@
       <FormGroup
         small-label
         :label="$t('field.emailAddress')"
-        :error="v$.email.$error"
+        :error="v$.account.email.$error"
         required
         class="mb-24"
       >
         <FormInput
           v-if="invitation !== null"
           ref="email"
-          v-model="state.email"
+          v-model="account.email"
           type="email"
           disabled
           :placeholder="$t('signup.emailPlaceholder')"
@@ -32,13 +32,13 @@
         <FormInput
           v-else
           ref="email"
-          v-model="state.email"
+          v-model="account.email"
           size="large"
           type="text"
           autocomplete="username"
           :placeholder="$t('signup.emailPlaceholder')"
-          :error="v$.email.$error"
-          @blur="v$.email.$touch"
+          :error="v$.account.email.$error"
+          @blur="v$.account.email.$touch"
         />
 
         <template #error>
@@ -50,18 +50,18 @@
       <FormGroup
         small-label
         :label="$t('field.name')"
-        :error="fieldHasErrors('name')"
+        :error="v$.account.name.$error"
         required
         class="mb-24"
       >
         <FormInput
           ref="name"
-          v-model="v$.name.$model"
-          :error="fieldHasErrors('name')"
+          v-model="account.name"
+          :error="v$.account.name.$error"
           type="text"
           size="large"
           :placeholder="$t('signup.namePlaceholder')"
-          @blur="v$.name.$touch()"
+          @blur="v$.account.name.$touch"
         >
         </FormInput>
 
@@ -78,8 +78,8 @@
         class="mb-24"
       >
         <PasswordInput
-          v-model="v$.password.$model"
-          :validation-state="v$.password"
+          v-model="account.password"
+          :validation-state="v$.account.password"
           :placeholder="$t('signup.passwordPlaceholder')"
           :error-placeholder-class="'auth__control-error'"
           :show-error-icon="true"
@@ -119,12 +119,11 @@ import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandle
 import error from '@baserow/modules/core/mixins/error'
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
 import { passwordValidation } from '@baserow/modules/core/validators'
-import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'PasswordRegister',
   components: { PasswordInput },
-  mixins: [form, error],
+  mixins: [error],
   props: {
     invitation: {
       required: false,
@@ -138,33 +137,34 @@ export default {
     },
   },
   setup() {
-    const state = reactive({
-      email: '',
-      password: '',
-      name: '',
+    const values = reactive({
+      account: {
+        email: '',
+        password: '',
+        name: '',
+      },
     })
 
     const rules = computed(() => ({
-      email: { required, email },
-      name: {
-        required,
-        minLength: minLength(2),
-        maxLength: maxLength(150),
+      account: {
+        email: { required, email },
+        name: {
+          required,
+          minLength: minLength(2),
+          maxLength: maxLength(150),
+        },
+        password: passwordValidation,
       },
-      password: passwordValidation,
     }))
 
-    const v$ = useVuelidate(rules, state)
-    return { v$, state }
+    return {
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      account: values.account,
+    }
   },
   data() {
     return {
       loading: false,
-      account: {
-        email: '',
-        name: '',
-        password: '',
-      },
     }
   },
   computed: {
@@ -183,13 +183,6 @@ export default {
     async register() {
       this.v$.$touch()
       let registerComponentsValid = true
-
-      this.account = {
-        name: this.v$.name.$model,
-        password: this.v$.password.$model,
-      }
-
-      if (!this.invitation) this.account.email = this.v$.email.$model
 
       for (let i = 0; i < this.registerComponents.length; i++) {
         const ref = this.$refs[`register-component-${i}`][0]

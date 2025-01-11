@@ -32,10 +32,10 @@ export default {
   },
   watch: {
     values: {
-      deep: true,
       handler(newValues) {
         this.emitChange(newValues)
       },
+      deep: true,
     },
   },
   methods: {
@@ -130,7 +130,6 @@ export default {
       if (this.selectedFieldIsDeactivated) {
         return
       }
-
       this.touch(deep)
 
       if (this.isFormValid(deep)) {
@@ -144,7 +143,15 @@ export default {
      */
     fieldHasErrors(fieldName) {
       // a field can be without any validators
-      return this.v$[fieldName]?.$error || false
+      return this.v$.values[fieldName]?.$error || false
+    },
+    /**
+     * Return the first validaten error message for the given field
+     * @param {str} fieldName
+     * @returns the error message or undefined if none.
+     */
+    getFirstErrorMessage(fieldName) {
+      return this.v$.values[fieldName].$errors[0]?.$message
     },
     /**
      * Returns true is everything is valid.
@@ -154,23 +161,17 @@ export default {
      */
     isFormValid(deep = false) {
       // Some forms might not do any validation themselves. If they don't, then they
-      // are by definition valid if their children are valid.
+      // are by definition valid if their children are valid.c
       const thisFormInvalid = 'v$' in this && this.v$.$invalid
-      return !thisFormInvalid && this.areChildFormsValid()
+      return !thisFormInvalid && this.areChildFormsValid(deep)
     },
     /**
      * Returns true if all the child form components are valid.
      */
     areChildFormsValid(deep = false) {
-      for (const child of this.getChildForms(
-        (child) => 'isFormValid' in child,
-        deep
-      )) {
-        if (!child.isFormValid(deep)) {
-          return false
-        }
-      }
-      return true
+      return this.getChildForms((child) => 'isFormValid' in child, deep).every(
+        (child) => child.isFormValid()
+      )
     },
     /**
      * A method that can be overridden to do some mutations on the values before
@@ -235,7 +236,6 @@ export default {
       }
       return childHandledIt
     },
-
     emitChange(newValues) {
       this.$emit('values-changed', newValues)
     },

@@ -21,13 +21,13 @@
         >
           <FormInput
             ref="email"
-            v-model="state.email"
+            v-model="values.email"
             type="email"
             size="large"
             :placeholder="$t('login.emailPlaceholder')"
             :error="fieldHasErrors('email') || loginRequestError"
             @input="loginRequestError = null"
-            @blur="v$.email.$touch"
+            @blur="v$.values.email.$touch"
           ></FormInput>
 
           <template #error>
@@ -135,16 +135,22 @@ export default {
     }
   },
   setup() {
-    const state = reactive({
-      email: '',
+    const values = reactive({
+      values: {
+        email: '',
+      },
     })
 
-    const rules = computed(() => ({
-      email: { required, email },
-    }))
+    const rules = {
+      values: {
+        email: { required, email },
+      },
+    }
 
-    const v$ = useVuelidate(rules, state)
-    return { v$, state }
+    return {
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      values: values.values,
+    }
   },
   computed: {
     ...mapGetters({
@@ -175,7 +181,7 @@ export default {
         const { data } = await samlAuthProviderService(
           this.$client
         ).getSamlLoginUrl({
-          email: this.state.email,
+          email: this.values.email,
           original,
         })
         window.location = this.getRedirectUrlWithValidQueryParams(
