@@ -2416,8 +2416,8 @@ def test_formula_referencing_lookup_with_same_name_field_in_linked_table_being_r
     table_2_lookup.refresh_from_db()
     table_2_formula.refresh_from_db()
 
-    assert table_2_lookup.formula_type == BaserowFormulaInvalidType.type
-    assert table_2_formula.formula_type == BaserowFormulaInvalidType.type
+    assert table_2_lookup.error is None
+    assert table_2_formula.error is None
 
     table_1_formula = FieldHandler().update_field(
         user,
