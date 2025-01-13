@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="repeatelement",
-            name="repeat_horizontal_gap",
+            name="horizontal_gap",
             field=models.IntegerField(
                 db_default=0,
                 default=0,
@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="repeatelement",
-            name="repeat_vertical_gap",
+            name="vertical_gap",
             field=models.IntegerField(
                 db_default=0,
                 default=0,

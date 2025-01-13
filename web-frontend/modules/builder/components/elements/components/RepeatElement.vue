@@ -151,9 +151,9 @@ export default {
      * @property {str} orientation - The orientation to repeat in (vertical, horizontal).
      * @property {Object} items_per_row - The number of items, per device, which should
      *  be repeated in a row. Only applicable to when the orientation is 'horizontal'.
-     * @property {int} repeat_horizontal_gap - The amount of space between repeat
+     * @property {int} horizontal_gap - The amount of space between repeat
      *   elements when the orientation is 'horizontal'.
-     * @property {int} repeat_vertical_gap - The amount of space between repeat
+     * @property {int} vertical_gap - The amount of space between repeat
      *   elements when the orientation is 'vertical'.
      */
     element: {
@@ -192,7 +192,7 @@ export default {
         return {
           display: 'flex',
           'flex-direction': 'column',
-          gap: `${this.element.repeat_vertical_gap}px`,
+          gap: `${this.element.vertical_gap}px ${this.element.horizontal_gap}px`,
         }
       } else {
         return {
@@ -200,7 +200,7 @@ export default {
           'grid-template-columns': `repeat(${
             this.element.items_per_row[this.deviceTypeSelected]
           }, 1fr)`,
-          gap: `${this.element.repeat_horizontal_gap}px`,
+          gap: `${this.element.vertical_gap}px ${this.element.horizontal_gap}px`,
         }
       }
     },

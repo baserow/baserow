@@ -65,38 +65,6 @@
       />
     </FormGroup>
 
-    <FormSection
-      :title="$t('repeatElementForm.gapLabel')"
-      class="margin-bottom-2"
-    >
-      <FormGroup
-        :label="$t('repeatElementForm.gapVerticalLabel')"
-        class="margin-bottom-2"
-        small-label
-        required
-        horizontal-narrow
-        :error-message="gapVerticalError"
-      >
-        <PixelValueSelector
-          v-model="values.repeat_vertical_gap"
-          :default-value-when-empty="0"
-        />
-      </FormGroup>
-      <FormGroup
-        :label="$t('repeatElementForm.gapHorizontalLabel')"
-        class="margin-bottom-2"
-        small-label
-        required
-        horizontal-narrow
-        :error-message="gapHorizontalError"
-      >
-        <PixelValueSelector
-          v-model="values.repeat_horizontal_gap"
-          :default-value-when-empty="0"
-        />
-      </FormGroup>
-    </FormSection>
-
     <CustomStyle
       v-show="values.data_source_id"
       v-model="values.styles"
@@ -136,6 +104,7 @@
       small-label
       required
       :helper-text="$t('repeatElementForm.itemsPerRowDescription')"
+      class="margin-bottom-2"
     >
       <DeviceSelector
         :device-type-selected="deviceTypeSelected"
@@ -152,6 +121,18 @@
           />
         </template>
       </DeviceSelector>
+    </FormGroup>
+    <FormGroup
+      small-label
+      required
+      :label="$t('repeatElementForm.gapLabel')"
+      :error-message="gapError"
+      class="margin-bottom-2"
+    >
+      <PaddingSelector
+        v-model="padding"
+        :default-values-when-empty="paddingDefaults"
+      />
     </FormGroup>
     <FormGroup
       small-label
@@ -196,7 +177,7 @@ import InjectedFormulaInput from '@baserow/modules/core/components/formula/Injec
 import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector.vue'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
-import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
+import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
 
 const MAX_GAP_PX = 2000
 
@@ -209,7 +190,7 @@ export default {
     CustomStyle,
     InjectedFormulaInput,
     ServiceSchemaPropertySelector,
-    PixelValueSelector,
+    PaddingSelector,
   },
   mixins: [collectionElementForm],
   inject: ['applicationContext'],
@@ -220,8 +201,8 @@ export default {
         'schema_property',
         'items_per_page',
         'items_per_row',
-        'repeat_vertical_gap',
-        'repeat_horizontal_gap',
+        'vertical_gap',
+        'horizontal_gap',
         'orientation',
         'button_load_more_label',
         'styles',
@@ -232,8 +213,8 @@ export default {
         items_per_page: 1,
         items_per_row: {},
         orientation: 'vertical',
-        repeat_vertical_gap: 0,
-        repeat_horizontal_gap: 0,
+        vertical_gap: 0,
+        horizontal_gap: 0,
         button_load_more_label: '',
         styles: {},
       },
@@ -265,25 +246,22 @@ export default {
       }
       return ''
     },
-    gapVerticalError() {
-      if (this.$v.values.repeat_vertical_gap.$invalid) {
+    gapError() {
+      if (this.$v.values.vertical_gap.$invalid) {
         return this.$t('error.minMaxValueField', {
           min: 0,
           max: MAX_GAP_PX,
         })
-      } else {
-        return ''
       }
-    },
-    gapHorizontalError() {
-      if (this.$v.values.repeat_horizontal_gap.$invalid) {
+
+      if (this.$v.values.horizontal_gap.$invalid) {
         return this.$t('error.minMaxValueField', {
           min: 0,
           max: MAX_GAP_PX,
         })
-      } else {
-        return ''
       }
+
+      return ''
     },
     orientationOptions() {
       return [
@@ -298,6 +276,24 @@ export default {
           icon: 'iconoir-view-columns-3',
         },
       ]
+    },
+    padding: {
+      get() {
+        return {
+          vertical: this.values.vertical_gap,
+          horizontal: this.values.horizontal_gap,
+        }
+      },
+      set(newValue) {
+        this.values.vertical_gap = newValue.vertical
+        this.values.horizontal_gap = newValue.horizontal
+      },
+    },
+    paddingDefaults() {
+      return {
+        vertical: 0,
+        horizontal: 0,
+      }
     },
   },
   mounted() {
@@ -343,12 +339,12 @@ export default {
           }
           return acc
         }, {}),
-        repeat_vertical_gap: {
+        vertical_gap: {
           required,
           integer,
           between: between(0, MAX_GAP_PX),
         },
-        repeat_horizontal_gap: {
+        horizontal_gap: {
           required,
           integer,
           between: between(0, MAX_GAP_PX),

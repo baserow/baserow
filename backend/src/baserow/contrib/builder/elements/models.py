@@ -856,7 +856,7 @@ class RepeatElement(CollectionElement, ContainerElement):
         help_text="The amount repetitions per row, per device type. "
         "Only applicable when the orientation is horizontal.",
     )
-    repeat_horizontal_gap = models.IntegerField(
+    horizontal_gap = models.IntegerField(
         default=0,
         db_default=0,
         help_text="The amount of horizontal space between repeat elements.",
@@ -865,7 +865,7 @@ class RepeatElement(CollectionElement, ContainerElement):
             MaxValueValidator(2000, message="Value cannot be greater than 2000."),
         ],
     )
-    repeat_vertical_gap = models.IntegerField(
+    vertical_gap = models.IntegerField(
         default=0,
         db_default=0,
         help_text="The amount of vertical space between repeat elements.",
