@@ -8,6 +8,10 @@ export class FontFamilyType extends Registerable {
   get safeFont() {
     return 'sans-serif'
   }
+
+  get weights() {
+    return ['regular', 'bold']
+  }
 }
 
 export class InterFontFamilyType extends FontFamilyType {
@@ -17,6 +21,10 @@ export class InterFontFamilyType extends FontFamilyType {
 
   get name() {
     return 'Inter'
+  }
+
+  get weights() {
+    return ['regular', 'medium', 'semi-bold', 'bold']
   }
 }
 
@@ -127,5 +135,9 @@ export class BrushScriptMTFontFamilyType extends FontFamilyType {
 
   get safeFont() {
     return 'cursive'
+  }
+
+  get weights() {
+    return ['regular', 'bold']
   }
 }
