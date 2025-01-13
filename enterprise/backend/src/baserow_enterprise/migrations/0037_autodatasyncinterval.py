@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0035_hubspotcontactsdatasync"),
+        ("baserow_enterprise", "0036_localbaserowtabledatasync_source_table_view_id"),
         ("database", "0175_formviewfieldoptions_include_all_select_options_and_more"),
     ]
 
