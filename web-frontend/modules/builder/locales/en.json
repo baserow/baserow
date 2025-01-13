@@ -468,6 +468,7 @@
     "warningColor": "Warning",
     "errorColor": "Error",
     "customColors": "Custom colors",
+    "addCustomColor": "Add custom color",
     "customColorPrefix": "Custom"
   },
   "pageThemeConfigBlock": {

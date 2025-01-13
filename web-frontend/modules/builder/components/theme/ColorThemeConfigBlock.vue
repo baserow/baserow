@@ -73,12 +73,14 @@
           </template>
         </FormGroup>
         <div class="color-theme-config-block__custom-color-container">
-          <a
-            class="color-theme-config-block__custom-color-link"
+          <ButtonText
+            type="primary"
+            icon="iconoir-plus"
+            size="small"
             @click="addCustomColor"
           >
-            <i class="baserow-icon-plus"></i>
-          </a>
+            {{ $t('colorThemeConfigBlock.addCustomColor') }}
+          </ButtonText>
         </div>
       </template>
     </ThemeConfigBlockSection>

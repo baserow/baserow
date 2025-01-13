@@ -2,18 +2,3 @@
   display: flex;
   justify-content: flex-end;
 }
-
-.color-theme-config-block__custom-color-link {
-  line-height: 0px;
-  padding: 8px;
-  border-radius: 100%;
-  border: solid 1px $color-neutral-400;
-  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.16);
-  color: $color-neutral-900;
-  background-color: $white;
-
-  &:hover {
-    background-color: $color-neutral-50;
-    box-shadow: 0 3px 5px 0 rgba(0, 0, 0, 0.32);
-  }
-}
