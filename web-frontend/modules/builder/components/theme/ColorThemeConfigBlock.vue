@@ -89,8 +89,6 @@
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 
-const CUSTOM_COLOR_PREFIX = 'Custom'
-
 export default {
   name: 'ColorThemeConfigBlock',
 
@@ -100,6 +98,11 @@ export default {
     return {
       values: {},
     }
+  },
+  computed: {
+    customColorPrefix() {
+      return this.$t('colorThemeConfigBlock.customColorPrefix')
+    },
   },
   methods: {
     isAllowedKey(key) {
@@ -127,11 +130,13 @@ export default {
       // To avoid duplicating names, newColorId is incremented until an unused
       // value is found.
       const existingNames = this.values.custom_colors.map((color) => color.name)
-      while (existingNames.includes(`${CUSTOM_COLOR_PREFIX} ${newColorId}`)) {
+      while (
+        existingNames.includes(`${this.customColorPrefix} ${newColorId}`)
+      ) {
         newColorId++
       }
 
-      const colorName = `${CUSTOM_COLOR_PREFIX} ${newColorId}`
+      const colorName = `${this.customColorPrefix} ${newColorId}`
       const newCustomColor = {
         name: colorName,
         value: colorName,

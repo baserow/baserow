@@ -467,7 +467,8 @@
     "successColor": "Success",
     "warningColor": "Warning",
     "errorColor": "Error",
-    "customColors": "Custom colors"
+    "customColors": "Custom colors",
+    "customColorPrefix": "Custom"
   },
   "pageThemeConfigBlock": {
     "backgroundColor": "Background color",
