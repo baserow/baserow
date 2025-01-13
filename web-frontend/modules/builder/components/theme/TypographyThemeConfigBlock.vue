@@ -85,7 +85,10 @@
           class="margin-bottom-2"
           :label="$t('typographyThemeConfigBlock.weight')"
         >
-          <FontWeightSelector v-model="values.body_font_weight" />
+          <FontWeightSelector
+            v-model="values.body_font_weight"
+            :font="values.body_font_family"
+          />
           <template #after-input>
             <ResetButton
               v-model="values.body_font_weight"
