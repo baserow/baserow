@@ -11,6 +11,10 @@ from baserow_enterprise.audit_log.tasks import (
     clean_up_audit_log_entries,
     setup_periodic_audit_log_tasks,
 )
+from baserow_enterprise.data_sync.tasks import (
+    call_periodic_data_sync_syncs_that_are_due,
+    sync_periodic_data_sync,
+)
 
 
 @app.task(bind=True, queue="export")
@@ -64,4 +68,9 @@ def unsubscribe_subject_from_tables_currently_subscribed_to_task(
     )
 
 
-__all__ = ["clean_up_audit_log_entries", "setup_periodic_audit_log_tasks"]
+__all__ = [
+    "clean_up_audit_log_entries",
+    "setup_periodic_audit_log_tasks",
+    "sync_periodic_data_sync",
+    "call_periodic_data_sync_syncs_that_are_due",
+]
