@@ -83,6 +83,16 @@ class License(models.Model):
         return self.payload["seats"]
 
     @property
+    def external_users(self):
+        # User source user limits did not exist before v1.31
+        return self.payload.get("external_users")
+
+    @property
+    def page_views(self):
+        # Page view limits did not exist before v1.31
+        return self.payload.get("page_views")
+
+    @property
     def issued_on(self):
         return parser.parse(self.payload["issued_on"]).replace(tzinfo=timezone.utc)
 

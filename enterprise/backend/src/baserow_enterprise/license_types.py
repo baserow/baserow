@@ -54,6 +54,12 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
         # We don't have to do anything because the seat limit is a soft limit.
         pass
 
+    def handle_external_user_overflow(
+        self, external_users_taken: int, license_object: License
+    ):
+        # We don't have to do anything because the external user limit is a soft limit?
+        pass
+
 
 class EnterpriseLicenseType(EnterpriseWithoutSupportLicenseType):
     type = "enterprise"

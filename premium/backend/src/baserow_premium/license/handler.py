@@ -401,11 +401,29 @@ class LicenseHandler:
                 license_object.delete()
                 continue
 
-            summary = license_object.license_type.get_seat_usage_summary(license_object)
-            if summary is not None and summary.seats_taken > license_object.seats:
+            seat_summary = license_object.license_type.get_seat_usage_summary(
+                license_object
+            )
+            if (
+                seat_summary is not None
+                and seat_summary.seats_taken > license_object.seats
+            ):
                 license_object.license_type.handle_seat_overflow(
-                    summary.seats_taken, license_object
+                    seat_summary.seats_taken, license_object
                 )
+
+            builder_summary = license_object.license_type.get_builder_usage_summary(
+                license_object
+            )
+            if (
+                builder_summary is not None
+                and builder_summary.external_users_taken > license_object.external_users
+            ):
+                license_object.license_type.handle_external_user_overflow(
+                    builder_summary.external_users_taken, license_object
+                )
+
+            # TODO: what should we do when the `page_views` have been exceeded?
 
             license_object.last_check = datetime.now(tz=timezone.utc)
             license_object.save()
