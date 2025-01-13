@@ -18,6 +18,12 @@ class SeatUsageSummary:
     highest_role_per_user_id: Dict[int, str] = dataclasses.field(default_factory=dict)
 
 
+@dataclasses.dataclass
+class BuilderUsageSummary:
+    external_users_taken: int
+    page_views_generated: int
+
+
 class LicenseType(abc.ABC, Instance):
     """
     A type of license that a user can install into Baserow to unlock extra
@@ -51,7 +57,7 @@ class LicenseType(abc.ABC, Instance):
     ) -> Optional[SeatUsageSummary]:
         """
         If it makes sense for a license to have seat usage then it should be calculated
-        and returned herre.
+        and returned here.
         If it doesn't make sense for this license type then this should return None.
         """
 
@@ -70,6 +76,23 @@ class LicenseType(abc.ABC, Instance):
 
     @abc.abstractmethod
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
+        pass
+
+    def get_builder_usage_summary(
+        self, license_object_of_this_type: License
+    ) -> Optional[BuilderUsageSummary]:
+        """
+        If it makes sense for a license to have builder usage then it should be
+        calculated and returned here.
+        If it doesn't make sense for this license type then this should return None.
+        """
+
+        return None
+
+    @abc.abstractmethod
+    def handle_external_user_overflow(
+        self, external_users_taken: int, license_object: License
+    ):
         pass
 
 

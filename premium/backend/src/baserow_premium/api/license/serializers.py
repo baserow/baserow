@@ -32,6 +32,14 @@ class LicenseSerializer(serializers.ModelSerializer):
     seats = serializers.IntegerField(
         help_text="The maximum amount of users that can use the license."
     )
+    page_views = serializers.IntegerField(
+        allow_null=True,
+        help_text="The maximum amount of application page views that this license allows.",
+    )
+    external_users = serializers.IntegerField(
+        allow_null=True,
+        help_text="The maximum amount of application external users that this license allows.",
+    )
     product_code = serializers.CharField(
         help_text="The product code that indicates what the license unlocks."
     )
@@ -59,6 +67,8 @@ class LicenseSerializer(serializers.ModelSerializer):
             "free_users_count",
             "seats_taken",
             "seats",
+            "page_views",
+            "external_users",
             "product_code",
             "issued_on",
             "issued_to_email",
@@ -104,7 +114,7 @@ class LicenseWithUsersSerializer(LicenseSerializer):
 
 class LicenseUserLookupSerializer(serializers.ModelSerializer):
     value = serializers.SerializerMethodField(
-        help_text="The name and the email " "address of the user."
+        help_text="The name and the email address of the user."
     )
 
     class Meta:

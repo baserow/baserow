@@ -212,6 +212,8 @@
     "lastCheckDescription": "The license is periodically checked for changes. If you for example renewed or upgraded your license, the changes become active after the check.",
     "checkNow": "check now",
     "seats": "Seats (amount of users)",
+    "pageViews": "Page views (application builder)",
+    "externalUsers": "External users (application builder)",
     "licensedTo": "Licensed to",
     "applications": "Applications / databases",
     "unlimited": "Unlimited",
