@@ -78,21 +78,18 @@
             ></FormInput>
 
             <template #error>
+              <span v-if="v$.values.url.required.$invalid">{{
+                $t('error.requiredField')
+              }}</span>
+              <span v-else-if="v$.values.url.maxLength.$invalid">{{
+                $t('error.maxLength', {
+                  max: v$.values.url.maxLength.$params.max,
+                })
+              }}</span>
               <span
-                v-if="
-                  (fieldHasErrors('url') && v$.values.url.required.$invalid) ||
-                  v$.values.url.isValidURLWithHttpScheme.$invalid
-                "
+                v-else-if="v$.values.url.isValidURLWithHttpScheme.$invalid"
+                >{{ $t('webhookForm.errors.urlField') }}</span
               >
-                {{ $t('webhookForm.errors.urlField') }}
-              </span>
-              <span v-else-if="v$.values.url.maxLength.$invalid">
-                {{
-                  $t('error.maxLength', {
-                    max: v$.values.url.$params.maxLength.max,
-                  })
-                }}
-              </span>
             </template>
           </FormGroup>
         </div>
@@ -250,6 +247,7 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
+import { reactive } from 'vue'
 import { helpers, required, maxLength } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
@@ -279,7 +277,55 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    const values = reactive({
+      values: {
+        name: '',
+        active: true,
+        use_user_field_names: true,
+        url: '',
+        request_method: 'POST',
+        include_all_events: true,
+        events: [],
+        event_config: [],
+      },
+      headers: [],
+    })
+
+    const rules = {
+      values: {
+        name: { required },
+        url: {
+          required,
+          maxLength: maxLength(2000),
+          isValidURLWithHttpScheme,
+        },
+        active: {},
+        use_user_field_names: {},
+        request_method: {},
+        include_all_events: {},
+        events: {},
+        event_config: {},
+      },
+      headers: {
+        $each: helpers.forEach({
+          name: {
+            required,
+            valid(value) {
+              const regex = /[^:\\s][^:\\r\\n]*$/
+              return !!value.match(regex)
+            },
+          },
+          value: {
+            required,
+          },
+        }),
+      },
+    }
+    return {
+      values: values.values,
+      headers: values.headers,
+      v$: useVuelidate(rules, values, { $lazy: true }),
+    }
   },
   data() {
     return {
@@ -294,17 +340,6 @@ export default {
         'event_config',
         'active',
       ],
-      values: {
-        name: '',
-        active: true,
-        use_user_field_names: true,
-        url: '',
-        request_method: 'POST',
-        include_all_events: true,
-        events: [],
-        event_config: [],
-      },
-      headers: [],
       exampleWebhookEventType: '',
       eventsRadioOptions: [
         { value: true, label: this.$t('webhookForm.radio.allEvents') },
@@ -365,35 +400,6 @@ export default {
       })
     }
   },
-  validations() {
-    return {
-      values: {
-        name: { required },
-        url: { required, maxLength: maxLength(2000), isValidURLWithHttpScheme },
-        active: {},
-        use_user_field_names: {},
-        request_method: {},
-        include_all_events: {},
-        events: {},
-        event_config: {},
-      },
-      headers: {
-        $each: helpers.forEach({
-          name: {
-            required,
-            valid(value) {
-              const regex = /[^:\\s][^:\\r\\n]*$/
-              return !!value.match(regex)
-            },
-          },
-          value: {
-            required,
-          },
-        }),
-      },
-    }
-  },
-
   methods: {
     getEventFields(event) {
       const eventConfig = this.values.event_config.find(
@@ -429,7 +435,6 @@ export default {
     getFormValues() {
       const values = form.methods.getFormValues.call(this)
       values.headers = this.prepareHeaders(this.headers)
-
       return values
     },
     openTestModal() {
