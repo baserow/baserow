@@ -38,6 +38,13 @@ class PeriodicDataSyncInterval(models.Model):
         help_text="The number of failed sync data sync operations that have failed. "
         "This is used to deactivate the periodic sync if it keeps failing.",
     )
+    authorized_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        help_text="The user on whose behalf the data is periodically synced."
+        "Automatically set when the interval changes.",
+    )
 
 
 class LocalBaserowTableDataSync(DataSync):

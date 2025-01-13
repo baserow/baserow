@@ -273,12 +273,13 @@ class DataSyncHandler:
         :return:
         """
 
-        CoreHandler().check_permissions(
-            user,
-            SyncTableOperationType.type,
-            workspace=data_sync.table.database.workspace,
-            context=data_sync.table,
-        )
+        if user is not None:
+            CoreHandler().check_permissions(
+                user,
+                SyncTableOperationType.type,
+                workspace=data_sync.table.database.workspace,
+                context=data_sync.table,
+            )
 
         try:
             lock_key = self.get_table_sync_lock_key(data_sync.id)

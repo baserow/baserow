@@ -1,12 +1,19 @@
 from datetime import datetime, time
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
 from baserow_premium.license.handler import LicenseHandler
+from loguru import logger
 
+from baserow.contrib.database.data_sync.exceptions import (
+    SyncDataSyncTableAlreadyRunning,
+)
+from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import DataSync
 from baserow.contrib.database.table.operations import UpdateDatabaseTableOperationType
 from baserow.core.handler import CoreHandler
@@ -28,7 +35,8 @@ class EnterpriseDataSyncHandler:
         """
         Updates the periodic configuration of a data sync.
 
-        :param user: The user on whose behalf the perioc configuration is updated.
+        :param user: The user on whose behalf the periodic configuration is updated.
+            This user is saved on the object, and is used when syncing the data sync.
         :param data_sync: The data sync where the periodic configuration must be
             updated for.
         :param interval: Accepts either `DATA_SYNC_INTERVAL_DAILY` or
@@ -54,6 +62,7 @@ class EnterpriseDataSyncHandler:
             defaults={
                 "interval": interval,
                 "when": when,
+                "authorized_user": user,
             },
         )
 
@@ -117,14 +126,32 @@ class EnterpriseDataSyncHandler:
 
         updated_periodic_data_sync = []
         for periodic_data_sync in all_to_trigger:
-            if LicenseHandler.workspace_has_feature(
+            workspace_has_feature = LicenseHandler.workspace_has_feature(
                 DATA_SYNC, periodic_data_sync.data_sync.table.database.workspace
-            ):
+            )
+            if workspace_has_feature:
+                lock_key = DataSyncHandler().get_table_sync_lock_key(
+                    periodic_data_sync.data_sync_id
+                )
+                sync_is_running = cache.get(lock_key) is not None
+
                 periodic_data_sync.last_periodic_sync = now
                 updated_periodic_data_sync.append(periodic_data_sync)
-                transaction.on_commit(
-                    lambda: sync_periodic_data_sync.delay(periodic_data_sync.id)
-                )
+
+                # If the sync is already running because the lock exists,
+                # then nothing sohuld happen because the sync has already happened
+                # within the correct periodic timeframe. We do want to update the
+                # `last_periodic_sync`, so that it doesn't try again on the next run.
+                if sync_is_running:
+                    logger.info(
+                        f"Skipping periodic data sync of data sync "
+                        f"{periodic_data_sync.data_sync_id} because the sync already "
+                        f"running."
+                    )
+                else:
+                    transaction.on_commit(
+                        lambda: sync_periodic_data_sync.delay(periodic_data_sync.id)
+                    )
 
         # Update the last periodic sync so the periodic sync won't be triggerd the next
         # time this method is called.
@@ -134,11 +161,60 @@ class EnterpriseDataSyncHandler:
             )
 
     @classmethod
-    def sync_periodic_data_sync(cls, periodic_data_sync):
-        print("@TODO implement sync_periodic_data_sync method")
-        # lock the periodic data sync.
-        # check if the periodic data sync has not been deactivated in the meantime.
-        # call the `sync_data_sync_table` method.
-        # if failed, increase the `consecutive_failed_count`.
-        # if failed too many times, deactivate the periodic data sync.
-        # if success reset the `consecutive_failed_count`.
+    def sync_periodic_data_sync(cls, periodic_data_sync_id):
+        """
+        Syncs the data sync of a periodic data sync. This is typically executed by the
+        async task `sync_periodic_data_sync`.
+
+        :param periodic_data_sync_id:  The ID of the periodic data sync object that must
+            be synced. Note that this not equal to the data sync ID.
+        :return: True if the data sync ran, even if it wasn't successful. False if it
+            never ran.
+        """
+
+        try:
+            periodic_data_sync = (
+                PeriodicDataSyncInterval.objects.select_related("data_sync")
+                .select_for_update(of=("self",))
+                .get(id=periodic_data_sync_id, automatically_deactivated=False)
+            )
+        except PeriodicDataSyncInterval.DoesNotExist:
+            logger.info(
+                f"Skipping periodic data sync {periodic_data_sync_id} because it "
+                f"doesn't exist or has been deactivated."
+            )
+            return False
+
+        try:
+            data_sync = DataSyncHandler().sync_data_sync_table(
+                periodic_data_sync.authorized_user,
+                periodic_data_sync.data_sync.specific,
+            )
+        except SyncDataSyncTableAlreadyRunning:
+            # If the sync has started in the meantime, then we don't want to do
+            # anything because the sync already ran.
+            logger.info(
+                f"Skipping periodic data sync of data sync "
+                f"{periodic_data_sync.data_sync_id} because the sync is running."
+            )
+            return False
+
+        if data_sync.last_error:
+            # If the data sync has an error, then something went wrong during execution,
+            # and we need to increase the consecutive count so that when the max errors
+            # is reached, we can deactivate it. This to protect the system from
+            # periodically syncing a data sync that doesn't work anyway.
+            periodic_data_sync.consecutive_failed_count += 1
+            if (
+                periodic_data_sync.consecutive_failed_count
+                >= settings.BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS
+            ):
+                periodic_data_sync.automatically_deactivated = True
+            periodic_data_sync.save()
+        elif periodic_data_sync.consecutive_failed_count > 0:
+            # Once it runs successfully, the consecutive count can be reset because we
+            # now know it actually works, and it doesn't have to be deactivated anymore.
+            periodic_data_sync.consecutive_failed_count = 0
+            periodic_data_sync.save()
+
+        return True

@@ -1,15 +1,18 @@
 from datetime import datetime, time, timezone
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.db import transaction
 from django.test.utils import override_settings
 from django.utils import timezone as django_timezone
 
 import pytest
+import responses
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.license.models import License
 from freezegun.api import freeze_time
 
+from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import DataSync
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow_enterprise.data_sync.handler import EnterpriseDataSyncHandler
@@ -18,7 +21,7 @@ from baserow_enterprise.data_sync.models import PeriodicDataSyncInterval
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_update_auto_data_sync_interval_licence_check(enterprise_data_fixture):
+def test_update_periodic_data_sync_interval_licence_check(enterprise_data_fixture):
     user = enterprise_data_fixture.create_user()
     data_sync = enterprise_data_fixture.create_ical_data_sync(user=user)
 
@@ -33,7 +36,7 @@ def test_update_auto_data_sync_interval_licence_check(enterprise_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_update_auto_data_sync_interval_check_permissions(enterprise_data_fixture):
+def test_update_periodic_data_sync_interval_check_permissions(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
 
     user = enterprise_data_fixture.create_user()
@@ -50,13 +53,13 @@ def test_update_auto_data_sync_interval_check_permissions(enterprise_data_fixtur
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_update_auto_data_sync_interval_create(enterprise_data_fixture):
+def test_update_periodic_data_sync_interval_create(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
 
     user = enterprise_data_fixture.create_user()
     data_sync = enterprise_data_fixture.create_ical_data_sync(user=user)
 
-    auto_data_sync_interval = (
+    periodic_data_sync_interval = (
         EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
             user=user,
             data_sync=data_sync,
@@ -65,26 +68,29 @@ def test_update_auto_data_sync_interval_create(enterprise_data_fixture):
         )
     )
 
-    fetched_auto_data_sync_interval = PeriodicDataSyncInterval.objects.all().first()
-    assert auto_data_sync_interval.id == fetched_auto_data_sync_interval.id
+    fetched_periodic_data_sync_interval = PeriodicDataSyncInterval.objects.all().first()
+    assert periodic_data_sync_interval.id == fetched_periodic_data_sync_interval.id
     assert (
-        auto_data_sync_interval.data_sync_id
-        == auto_data_sync_interval.data_sync_id
+        periodic_data_sync_interval.data_sync_id
+        == periodic_data_sync_interval.data_sync_id
         == data_sync.id
     )
     assert (
-        auto_data_sync_interval.interval == auto_data_sync_interval.interval == "DAILY"
+        periodic_data_sync_interval.interval
+        == periodic_data_sync_interval.interval
+        == "DAILY"
     )
     assert (
-        auto_data_sync_interval.when
-        == auto_data_sync_interval.when
+        periodic_data_sync_interval.when
+        == periodic_data_sync_interval.when
         == time(hour=12, minute=10, second=1, microsecond=1)
     )
+    assert periodic_data_sync_interval.authorized_user_id == user.id
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_update_auto_data_sync_interval_update(enterprise_data_fixture):
+def test_update_periodic_data_sync_interval_update(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
 
     user = enterprise_data_fixture.create_user()
@@ -97,7 +103,7 @@ def test_update_auto_data_sync_interval_update(enterprise_data_fixture):
         when=time(hour=12, minute=10, second=1, microsecond=1),
     )
 
-    auto_data_sync_interval = (
+    periodic_data_sync_interval = (
         EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
             user=user,
             data_sync=data_sync,
@@ -106,21 +112,24 @@ def test_update_auto_data_sync_interval_update(enterprise_data_fixture):
         )
     )
 
-    fetched_auto_data_sync_interval = PeriodicDataSyncInterval.objects.all().first()
-    assert auto_data_sync_interval.id == fetched_auto_data_sync_interval.id
+    fetched_periodic_data_sync_interval = PeriodicDataSyncInterval.objects.all().first()
+    assert periodic_data_sync_interval.id == fetched_periodic_data_sync_interval.id
     assert (
-        auto_data_sync_interval.data_sync_id
-        == auto_data_sync_interval.data_sync_id
+        periodic_data_sync_interval.data_sync_id
+        == periodic_data_sync_interval.data_sync_id
         == data_sync.id
     )
     assert (
-        auto_data_sync_interval.interval == auto_data_sync_interval.interval == "HOURLY"
+        periodic_data_sync_interval.interval
+        == periodic_data_sync_interval.interval
+        == "HOURLY"
     )
     assert (
-        auto_data_sync_interval.when
-        == auto_data_sync_interval.when
+        periodic_data_sync_interval.when
+        == periodic_data_sync_interval.when
         == time(hour=14, minute=12, second=1, microsecond=1)
     )
+    assert periodic_data_sync_interval.authorized_user_id == user.id
 
 
 @pytest.mark.django_db
@@ -387,3 +396,244 @@ def test_skip_locked_data_syncs(enterprise_data_fixture):
     not_yet_executed_2.refresh_from_db()
     # Should not be triggered because there the data sync was locked.
     assert not_yet_executed_2.last_periodic_sync is None
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.data_sync.handler.sync_periodic_data_sync")
+def test_skip_syncing_data_syncs(mock_sync_periodic_data_sync, enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    not_yet_executed_1 = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+
+    lock_key = DataSyncHandler().get_table_sync_lock_key(
+        not_yet_executed_1.data_sync_id
+    )
+    cache.add(lock_key, "locked", timeout=2)
+
+    with freeze_time("2024-10-10T12:15:00.00Z"):
+        with transaction.atomic():
+            EnterpriseDataSyncHandler.call_periodic_data_sync_syncs_that_are_due()
+
+    not_yet_executed_1.refresh_from_db()
+    # Should be updated if the data sync is already running.
+    assert not_yet_executed_1.last_periodic_sync is not None
+
+    # Should not be called if the data sync is already running.
+    mock_sync_periodic_data_sync.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_periodic_data_sync_deactivated(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+    periodic_data_sync.automatically_deactivated = True
+    periodic_data_sync.save()
+
+    assert (
+        EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id)
+        is False
+    )
+
+    periodic_data_sync.data_sync.refresh_from_db()
+    assert periodic_data_sync.data_sync.last_sync is None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_periodic_data_sync_already_syncing(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+
+    lock_key = DataSyncHandler().get_table_sync_lock_key(
+        periodic_data_sync.data_sync_id
+    )
+    cache.add(lock_key, "locked", timeout=2)
+
+    assert (
+        EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id)
+        is False
+    )
+
+    periodic_data_sync.data_sync.refresh_from_db()
+    assert periodic_data_sync.data_sync.last_sync is None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@responses.activate
+def test_sync_periodic_data_sync_consecutive_failed_count_increases(
+    enterprise_data_fixture,
+):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=404,
+        body="",
+    )
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+
+    assert (
+        EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id) is True
+    )
+
+    periodic_data_sync.refresh_from_db()
+    assert periodic_data_sync.consecutive_failed_count == 1
+
+
+@pytest.mark.django_db
+@override_settings(
+    DEBUG=True, BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS=2
+)
+@responses.activate
+def test_sync_periodic_data_sync_consecutive_failed_count_reset(
+    enterprise_data_fixture,
+):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body="""BEGIN:VCALENDAR
+VERSION:2.0
+END:VCALENDAR""",
+    )
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(
+            user=user, ical_url="https://baserow.io/ical.ics"
+        ),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+    periodic_data_sync.consecutive_failed_count = 1
+    periodic_data_sync.save()
+
+    assert (
+        EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id) is True
+    )
+
+    periodic_data_sync.refresh_from_db()
+    assert periodic_data_sync.consecutive_failed_count == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@responses.activate
+def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=404,
+        body="",
+    )
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+    periodic_data_sync.consecutive_failed_count = 1
+    periodic_data_sync.save()
+
+    assert (
+        EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id) is True
+    )
+
+    periodic_data_sync.refresh_from_db()
+    assert periodic_data_sync.consecutive_failed_count == 2
+    assert periodic_data_sync.automatically_deactivated is True
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_sync_periodic_data_sync_authorized_user_is_none(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+    periodic_data_sync.authorized_user is None
+    periodic_data_sync.save()
+
+    assert (
+        EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id) is True
+    )
+
+    periodic_data_sync.refresh_from_db()
+    assert periodic_data_sync.consecutive_failed_count == 1
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@responses.activate
+def test_sync_periodic_data_sync(enterprise_data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body="""BEGIN:VCALENDAR
+VERSION:2.0
+END:VCALENDAR""",
+    )
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(
+            user=user, ical_url="https://baserow.io/ical.ics"
+        ),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+
+    assert (
+        EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id) is True
+    )
+
+    periodic_data_sync.data_sync.refresh_from_db()
+    assert periodic_data_sync.data_sync.last_sync is not None
+    assert periodic_data_sync.data_sync.last_error is None
