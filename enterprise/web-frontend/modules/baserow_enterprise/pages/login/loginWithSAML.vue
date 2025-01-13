@@ -75,7 +75,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import { useVuelidate } from '@vuelidate/core'
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import decamelize from 'decamelize'
 import { required, email } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
@@ -88,16 +88,22 @@ export default {
   mixins: [form, error],
   layout: 'login',
   setup() {
-    const state = reactive({
-      email: '',
+    const values = reactive({
+      values: {
+        email: '',
+      },
     })
 
-    const rules = computed(() => ({
-      email: { required, email },
-    }))
+    const rules = {
+      values: {
+        email: { required, email },
+      },
+    }
 
-    const v$ = useVuelidate(rules, state)
-    return { v$, state }
+    return {
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      values: values.values,
+    }
   },
   async asyncData({ app, redirect, store, route }) {
     // the SuperUser must create the account using username and password
@@ -141,27 +147,6 @@ export default {
       loading: false,
       redirectImmediately: false,
       loginRequestError: false,
-      values: {
-        email: '',
-      },
-    }
-  },
-  setup() {
-    const values = reactive({
-      values: {
-        email: '',
-      },
-    })
-
-    const rules = {
-      values: {
-        email: { required, email },
-      },
-    }
-
-    return {
-      v$: useVuelidate(rules, values, { $lazy: true }),
-      values: values.values,
     }
   },
   computed: {
