@@ -34,7 +34,7 @@ export default {
     fontWeights() {
       return Object.values(this.$registry.getAll('fontWeight'))
         .filter((fontWeight) => this.supportedWeights.includes(fontWeight.type))
-        .sort((a, b) => a.weight < b.weight)
+        .sort((a, b) => a.weight - b.weight)
     },
   },
 }
