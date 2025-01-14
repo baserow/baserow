@@ -95,8 +95,7 @@ export class ViewFilterType extends Registerable {
    * example be used to convert the value to a number.
    */
   prepareValue(value, field) {
-    const fieldType = this.app.$registry.get('field', field.type)
-    return fieldType.formatFilterValue(field, value)
+    return String(value ?? '')
   }
 
   /**

@@ -2530,6 +2530,9 @@ def test_has_or_doesnt_have_value_equal_filter_multiple_select_field_types(
     test_setup, [row_1, row_2, row_3], options = setup_multiple_select_rows(
         data_fixture
     )
+    # row_1 links to other_row_A (options[0]) and other_row_empty ([])
+    # row_2 links to other_row_empty ([])
+    # row_3 links to other_row_B (options[1])
 
     view_filter = data_fixture.create_view_filter(
         view=test_setup.grid_view,
@@ -2563,7 +2566,7 @@ def test_has_or_doesnt_have_value_equal_filter_multiple_select_field_types(
             test_setup.grid_view, test_setup.model.objects.all()
         ).all()
     ]
-    assert ids == [row_1.id, row_3.id]
+    assert ids == []  # no row has all options
 
     view_filter.type = "has_not_value_equal"
     view_filter.save()
@@ -2574,4 +2577,4 @@ def test_has_or_doesnt_have_value_equal_filter_multiple_select_field_types(
             test_setup.grid_view, test_setup.model.objects.all()
         ).all()
     ]
-    assert ids == [row_2.id]
+    assert ids == [row_1.id, row_2.id, row_3.id]

@@ -33,7 +33,7 @@ def parse_ids_from_csv_string(value: str) -> list[int]:
     """
 
     try:
-        return [int(v) for v in value.split(",") if v.isdigit()]
+        return [int(v) for v in value.split(",") if v.strip().isdigit()]
     except ValueError:
         return []
 

@@ -898,9 +898,9 @@ class SelectOptionBaseFieldType extends FieldType {
   }
 
   formatFilterValue(field, value) {
-    // Filter out invalid option IDs before sending to the backend. Invalid IDs are not
-    // visible in the frontend list, but would cause the backend to return no results,
-    // which is confusing since usually an empty list means no filter and all the rows.
+    // Filter out any invalid option IDs before sending to the backend.
+    // This prevents confusion where invalid IDs might be interpreted as no option selected,
+    // but the backend will reject them.
     const validOptionIds = field.select_options.map((option) =>
       String(option.id)
     )

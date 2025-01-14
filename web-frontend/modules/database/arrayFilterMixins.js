@@ -8,6 +8,7 @@ import {
   numericHasValueComparableToFilterFunction,
   ComparisonOperator,
 } from '@baserow/modules/database/utils/fieldFilters'
+import _ from 'lodash'
 
 export const hasEmptyValueFilterMixin = {
   getHasEmptyValueFilterFunction(field) {
@@ -346,7 +347,7 @@ export const hasNestedSelectOptionValueContainsWordFilterMixin = Object.assign(
   }
 )
 
-export const hasMultipleSelectOptionIdEqualMixin = Object.assign(
+export const hasMultipleSelectAnyOptionIdEqualMixin = Object.assign(
   {},
   hasValueEqualFilterMixin,
   {
@@ -363,6 +364,34 @@ export const hasMultipleSelectOptionIdEqualMixin = Object.assign(
           .split(',')
           .map(Number.parseInt)
         return filterValues.some((fltValue) => rowValueIds.has(fltValue))
+      }
+    },
+  }
+)
+
+export const hasMultipleSelectOptionIdEqualMixin = Object.assign(
+  {},
+  hasValueEqualFilterMixin,
+  {
+    getHasValueEqualFilterFunction(field) {
+      return (cellValue, filterValue) => {
+        if (!Array.isArray(cellValue)) {
+          return false
+        }
+
+        const filterValues = (filterValue || '')
+          .trim()
+          .split(',')
+          .map((oid) => Number.parseInt(oid))
+
+        // create an array with the sets containing the ids per linked row
+        const rowValueIdSets = cellValue.map(
+          (v) => new Set(v?.value.map((i) => i.id))
+        )
+        // Compare if any of the linked row values match exactly the filter values
+        return rowValueIdSets.some((rowValueIdSet) =>
+          _.isEqual(rowValueIdSet, new Set(filterValues))
+        )
       }
     },
   }

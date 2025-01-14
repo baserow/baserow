@@ -299,7 +299,6 @@ def get_jsonb_has_any_in_value_filter_expr(
     model_field: DjangoField,
     value: List[int],
     query_path: str = "$[*].id",
-    operator: str = "||",
 ) -> OptionallyAnnotatedQ:
     """
     Returns an AnnotatedQ that will filter rows where the JSON field contains any of the
@@ -310,13 +309,11 @@ def get_jsonb_has_any_in_value_filter_expr(
         the model for the subquery and the field name.
     :param value: A list of IDs to filter on. The list cannot be empty.
     :param query_path: The path in the JSON field to filter on. Defaults to "$[*].id".
-    :param operator: The operator to use when joining the filter expressions. Defaults
-        to "||", can be && or other valid operators.
     :return: An AnnotatedQ that will filter rows where the JSON field contains any of
         the select option IDs provided in the value.
     """
 
-    sql_ids = f"{operator}".join([f"(@ == {v})" for v in value])
+    sql_ids = "||".join([f"(@ == {v})" for v in value])
     field_name = model_field.name
 
     raw_sql = f"""
@@ -329,6 +326,42 @@ def get_jsonb_has_any_in_value_filter_expr(
     expr = RawSQL(raw_sql, (f"{query_path} ? ({sql_ids})",))  # nosec B611
 
     annotation_name = f"{field_name}_has_any_of_{hash(sql_ids)}"
+    return AnnotatedQ(
+        annotation={annotation_name: expr},
+        q=Q(**{annotation_name: True}),
+    )
+
+
+def get_jsonb_has_exact_value_filter_expr(
+    model_field: DjangoField, value: List[int]
+) -> OptionallyAnnotatedQ:
+    """
+    Returns an AnnotatedQ that filters rows where the JSON field exactly matches the
+    provided IDs. The JSON field must be an array of objects, each containing a 'value'
+    key, which is an array of objects with 'id' keys. For example:
+    [{"value": [{"id": 1}, {"id": 2}]}, {"value": [{"id": 3}]}, ...]
+
+    :param model_field: The Django model field to filter on.
+    :param value: A list of IDs to match. The list cannot be empty.
+    :return: An AnnotatedQ that filters rows with the exact IDs in the JSON field.
+    """
+
+    field_name = model_field.name
+    sql_ids = sorted(set(value))
+
+    raw_sql = f"""
+        EXISTS(
+            SELECT 1
+            FROM jsonb_array_elements("{field_name}") top_obj
+            WHERE (
+                SELECT array_agg((inner_el->>'id')::int ORDER BY (inner_el->>'id')::int)
+                FROM jsonb_array_elements(top_obj->'value') inner_el
+            ) = %s::int[]
+        )
+    """  # nosec B608 {field_name}
+    expr = RawSQL(raw_sql, (sql_ids,))  # nosec B611
+
+    annotation_name = f"{field_name}_has_any_of_{hash(tuple(sql_ids))}"
     return AnnotatedQ(
         annotation={annotation_name: expr},
         q=Q(**{annotation_name: True}),

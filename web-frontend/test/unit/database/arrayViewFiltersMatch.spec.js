@@ -1350,7 +1350,7 @@ describe('Multiple select-based array view filters', () => {
         {
           value: [
             { id: 2, value: 'B' },
-            { id: 3, value: 'B' },
+            { id: 3, value: 'C' },
           ],
         },
         { value: [{ id: 1, value: 'A' }] },
@@ -1363,7 +1363,7 @@ describe('Multiple select-based array view filters', () => {
         {
           value: [
             { id: 1, value: 'A' },
-            { id: 3, value: 'A' },
+            { id: 3, value: 'C' },
           ],
         },
       ],
@@ -1371,14 +1371,40 @@ describe('Multiple select-based array view filters', () => {
       expected: false,
     },
     {
-      cellValue: [{ value: [{ id: 3, value: 'Aa' }] }],
+      cellValue: [{ value: [{ id: 4, value: 'Aa' }] }],
       filterValue: '1',
       expected: false,
     },
     {
-      cellValue: [{ value: [{ id: 3, value: 'Aa' }] }],
+      cellValue: [{ value: [{ id: 4, value: 'Aa' }] }],
       filterValue: '',
       expected: true,
+    },
+    {
+      cellValue: [
+        {
+          value: [
+            { id: 2, value: 'B' },
+            { id: 3, value: 'C' },
+          ],
+        },
+        { value: [{ id: 1, value: 'A' }] },
+      ],
+      filterValue: '2,3',
+      expected: true,
+    },
+    {
+      cellValue: [
+        {
+          value: [
+            { id: 2, value: 'B' },
+            { id: 3, value: 'C' },
+          ],
+        },
+        { value: [{ id: 1, value: 'A' }] },
+      ],
+      filterValue: '2',
+      expected: false,
     },
   ]
 

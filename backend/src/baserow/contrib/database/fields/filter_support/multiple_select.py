@@ -12,6 +12,7 @@ from .base import (
     get_jsonb_contains_filter_expr,
     get_jsonb_contains_word_filter_expr,
     get_jsonb_has_any_in_value_filter_expr,
+    get_jsonb_has_exact_value_filter_expr,
 )
 
 if TYPE_CHECKING:
@@ -27,9 +28,8 @@ class MultipleSelectFormulaTypeFilterSupport(
     def get_in_array_empty_query(
         self, field_name, model_field, field: "BaserowField"
     ) -> OptionallyAnnotatedQ:
-        # get_jsonb_has_any_in_value_filter_expr should be used to check if the array
-        # contains the values in the provided list, but using the size() function
-        # we can check if the array is empty instead.
+        # Use get_jsonb_has_any_in_value_filter_expr with size() to check if the array
+        # is empty.
         return get_jsonb_has_any_in_value_filter_expr(
             model_field, [0], query_path="$[*].value.size()"
         )
@@ -41,9 +41,7 @@ class MultipleSelectFormulaTypeFilterSupport(
         model_field: Field,
         field: "BaserowField",
     ) -> OptionallyAnnotatedQ:
-        return get_jsonb_has_any_in_value_filter_expr(
-            model_field, value, query_path="$[*].value.id"
-        )
+        return get_jsonb_has_exact_value_filter_expr(model_field, value)
 
     def get_in_array_contains_query(
         self, field_name: str, value: str, model_field: Field, field: "BaserowField"

@@ -42,9 +42,6 @@ export default {
     prepareCopy(value) {
       return value
     },
-    prepareValue(value) {
-      return String(value ?? '').trim()
-    },
     afterValueChanged(value, oldValue) {},
     delayedUpdate(value, immediately = false) {
       if (this.disabled) {
@@ -58,12 +55,11 @@ export default {
         return
       }
 
-      const preparedValue = this.prepareValue(value)
       if (immediately) {
-        this.$emit('input', preparedValue)
+        this.$emit('input', value)
       } else {
         delayTimeout = setTimeout(() => {
-          this.$emit('input', preparedValue)
+          this.$emit('input', value)
         }, 400)
       }
     },

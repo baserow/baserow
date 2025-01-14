@@ -1858,7 +1858,7 @@ class FieldType(
 
     def get_formula_reference_to_model_field(
         self,
-        model_field: django_models.Field,
+        model_field: DjangoField,
         db_column: str,
         already_in_subquery: bool,
     ) -> Expression:
