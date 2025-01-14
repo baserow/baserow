@@ -3,6 +3,8 @@
   width: 40px;
   padding: 0 3px;
   border: 1px solid transparent;
+  z-index: 9;
+  position: relative;
 
   @include rounded($rounded);
 
