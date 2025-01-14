@@ -201,8 +201,18 @@ export default {
     }
 
     // Merge the query string values with the page parameters
-    Object.assign(pageParamsValue, query)
-
+    Object.assign(query, pageParamsValue)
+    // Ensure missing query params are initialized with default values
+    pageFound.query_params.forEach((queryParam) => {
+      if (queryParam.name in pageParamsValue) {
+        return
+      }
+      if (queryParam.type === 'text') {
+        pageParamsValue[queryParam.name] = ''
+      } else {
+        pageParamsValue[queryParam.name] = null
+      }
+    })
     const page = await store.getters['page/getById'](builder, pageFound.id)
 
     try {

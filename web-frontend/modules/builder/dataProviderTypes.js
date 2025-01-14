@@ -4,7 +4,10 @@ import { getValueAtPath } from '@baserow/modules/core/utils/object'
 
 import { defaultValueForParameterType } from '@baserow/modules/builder/utils/params'
 import { DEFAULT_USER_ROLE_PREFIX } from '@baserow/modules/builder/constants'
-import { PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS } from '@baserow/modules/builder/enums'
+import {
+  PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS,
+  QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS,
+} from '@baserow/modules/builder/enums'
 import { extractSubSchema } from '@baserow/modules/core/utils/schema'
 
 export class DataSourceDataProviderType extends DataProviderType {
@@ -303,20 +306,18 @@ export class PageParameterDataProviderType extends DataProviderType {
       )
     } else {
       // Read parameters value from the application context
+      const queryParamNames = page.query_params.map((p) => p.name)
       await Promise.all(
-        pageParams.map(({ name, type }) =>
-          this.app.store.dispatch('pageParameter/setParameter', {
+        pageParams.map(({ name, type }) => {
+          const validators = queryParamNames.includes(name)
+            ? QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS
+            : PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS
+          return this.app.store.dispatch('pageParameter/setParameter', {
             page,
             name,
-            value: PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS[type](
-              // If the (query string) value is not present in the pageParamsValue,
-              // we raise "A valid `type` is required." error.
-              // Not sure how that translates to production.
-              // TODO: Discuss and possibly implement better error handling.
-              pageParamsValue[name]
-            ),
+            value: validators[type](pageParamsValue[name]),
           })
-        )
+        })
       )
     }
   }
