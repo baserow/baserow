@@ -1,5 +1,14 @@
 <template functional>
-  <div ref="cell" class="grid-view__cell" :class="data.staticClass || ''">
+  <div
+    ref="cell"
+    class="grid-view__cell"
+    :class="{
+      ...(data.staticClass && {
+        [data.staticClass]: true,
+      }),
+      'cell-error': $options.methods.isError(props.value),
+    }"
+  >
     <client-only>
       <div class="grid-field-date">
         <div ref="dateDisplay" class="grid-field-date__date">

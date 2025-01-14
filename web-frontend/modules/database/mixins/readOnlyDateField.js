@@ -3,6 +3,7 @@ import {
   getTimeMomentFormat,
   getCellTimezoneAbbr,
   getFieldTimezone,
+  INVALID_DATE,
 } from '@baserow/modules/database/utils/date'
 import moment from '@baserow/modules/core/moment'
 
@@ -38,6 +39,9 @@ export default {
     },
     getCellTimezoneAbbr(field, value) {
       return getCellTimezoneAbbr(field, value)
+    },
+    isError(value) {
+      return value === INVALID_DATE
     },
   },
 }
