@@ -417,13 +417,12 @@ class LicenseHandler:
             )
             if (
                 builder_summary is not None
-                and builder_summary.external_users_taken > license_object.external_users
+                and builder_summary.external_users_taken
+                > builder_summary.external_users_licensed
             ):
                 license_object.license_type.handle_external_user_overflow(
                     builder_summary.external_users_taken, license_object
                 )
-
-            # TODO: what should we do when the `page_views` have been exceeded?
 
             license_object.last_check = datetime.now(tz=timezone.utc)
             license_object.save()

@@ -20,8 +20,14 @@ class SeatUsageSummary:
 
 @dataclasses.dataclass
 class BuilderUsageSummary:
-    external_users_taken: int
+    # How many page views this application has generated.
     page_views_generated: int
+    # How many external users are currently being used.
+    external_users_taken: int
+    # How many external users the license allows.
+    external_users_licensed: int
+    # How many external users are remaining.
+    external_users_remaining: int
 
 
 class LicenseType(abc.ABC, Instance):

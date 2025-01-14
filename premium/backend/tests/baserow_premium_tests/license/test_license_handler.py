@@ -43,6 +43,19 @@ VALID_ONE_SEAT_LICENSE = (
     b"Aroj-4jl7KWvlP-OJNc1BgH2wnhFmeKHotv-Iumi83JQohyceUbG6j8rDDQvJfcn0W2_ebmUH3TKr-w="
     b"="
 )
+VALID_FIVE_SEAT_FIFTEEN_EXT_USER_1M_PAGE_VIEWS_LICENSE = (
+    # id: "e4ebb9c6-c019-4d42-a557-4bc1d657b59f", instance_id: "1"
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImU0ZWJiOWM2LWMwMTktNGQ0Mi1hNTU3LTRiYzFkNjU3YjU5ZiIsI"
+    b"CJ2YWxpZF9mcm9tIjogIjIwMjUtMDEtMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI3LT"
+    b"EyLTMxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogNSwgInBhZ2V"
+    b"fdmlld3MiOiAxMDAwMDAwLCAiZXh0ZXJuYWxfdXNlcnMiOiAxNSwgImlzc3VlZF9vbiI6ICIyMDI1LTAx"
+    b"LTE0VDExOjMzOjI0Ljc5NTY2NiIsICJpc3N1ZWRfdG9fZW1haWwiOiAiZGV2QGJhc2Vyb3cuaW8iLCAia"
+    b"XNzdWVkX3RvX25hbWUiOiAiRGV2IiwgImluc3RhbmNlX2lkIjogIjEifQ==.nxpewcGX0_V1ajeMulWLs"
+    b"Nr5W4YBW7bopJVTdQwHzOWAdZhV0mQInUWq_9HwUd9PpBWUop5dfGXMDw15InbWm50c7hizfs_N7tuDqt"
+    b"BPBSKsDCR1Kf1twU8Um03ITPfLyFoBu3cUvhJj6Wgz7dxCW9CEFPUjvzQH4NMcm0LMoPZX9kDPivGfuWZ"
+    b"dTqQ4a89yB4fLeRfr8r_YyIElxP_zPIPrnUZGeQpyZccUpS8teQ2v1EUkhhn3hG-nDuMvAqfk0uzjDk58"
+    b"fQxgPHcWw9aPBzc59gQw8FKuJtucOXHci6UF0PmYyTAPv7g6uzSOuHqWTHQcYbNQLX8lWmKL0esIHA=="
+)
 VALID_UPGRADED_TEN_SEAT_LICENSE = (
     # id: "1", instance_id: "1"
     b"eyJ2ZXJzaW9uIjogMSwgImlkIjogIjEiLCAidmFsaWRfZnJvbSI6ICIyMDIxLTA4LTI5VDE5OjUyOjU3"
@@ -83,6 +96,8 @@ VALID_INSTANCE_TWO_LICENSE = (
     b"="
 )
 VALID_ENTERPRISE_FIVE_SEAT_LICENSE = (
+    # id: "3f0168af-afaf-4426-896b-b388391076e7"
+    # instance_id: "6d6366b8-6f32-4549-81c2-d4a0c07a334b"
     b"eyJ2ZXJzaW9uIjogMSwgImlkIjogIjNmMDE2OGFmLWFmYWYtNDQyNi04OTZiLWIzODgzOTEwNzZlNyIsI"
     b"CJ2YWxpZF9mcm9tIjogIjIwMjEtMDEtMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDIxLT"
     b"EyLTMxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJlbnRlcnByaXNlIiwgInNlYXRzIjogNSwgIml"
@@ -94,6 +109,20 @@ VALID_ENTERPRISE_FIVE_SEAT_LICENSE = (
     b"qMe-ngEomRVnRMPAEgCNjFB44rVAB3zcJfPuBoukRB2FjOw1ddEkA3DjwcHlhkj1NcETlyUpFbFtCjhtL"
     b"oowm_5CZm8Ba6eL-YgI2vKTWfMsVZ9GkJxcaiK3d-AB_ipjub-VVyNXPiVWab7108w3EXmoZIvmhCc67g"
     b"bL3jA=="
+)
+VALID_ENTERPRISE_FIVE_SEAT_FIFTY_EXT_USER_2M_PAGE_VIEWS_LICENSE = (
+    # id: "626af4de-8aff-41a5-9e5f-331870793170", instance_id: "1"
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogIjYyNmFmNGRlLThhZmYtNDFhNS05ZTVmLTMzMTg3MDc5MzE3MCIsI"
+    b"CJ2YWxpZF9mcm9tIjogIjIwMjUtMDEtMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI3LT"
+    b"EyLTMxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJlbnRlcnByaXNlIiwgInNlYXRzIjogNSwgInB"
+    b"hZ2Vfdmlld3MiOiAyMDAwMDAwLCAiZXh0ZXJuYWxfdXNlcnMiOiA1MCwgImlzc3VlZF9vbiI6ICIyMDI1"
+    b"LTAxLTE0VDExOjM5OjE5LjU5NjExNyIsICJpc3N1ZWRfdG9fZW1haWwiOiAiZGV2QGJhc2Vyb3cuaW8iL"
+    b"CAiaXNzdWVkX3RvX25hbWUiOiAiRGV2IiwgImluc3RhbmNlX2lkIjogIjEifQ==.al6RKwvLIEwgj2rDn"
+    b"xJ8YTUko5Y__MMXljoR4gyvnuq1zf5cLnFoxr6fvP0nlNN13kocP9KJDCd5oZlDmY6zJtKo-tjn0ZZiL_"
+    b"z6hCmaMtXIsC0dk-f3BTj6MtSIWsqmTP_jHUPIzessLq78hdDAfzKnNZ5zFyn2vo4MfSmCt9YHlVYZAf1"
+    b"SDwPlyHRAIpoPK1WxeVVfqGNH4REEVuTQTuTGUYphPX7Y6Pf6xH0_5XN0gnixDnVSh02YSSoYz8Lf143s"
+    b"fZDT4vAoZ7s-xwZLdH2GuohvI3TB5bPNcV8WBZCpVLnnlxkShvKXukxCYxc3FQ8juX5WCfnSAuw_Z8bDE"
+    b"A=="
 )
 INVALID_SIGNATURE_LICENSE = (
     b"eyJ2ZXJzaW9uIjogMSwgImlkIjogMSwgInZhbGlkX2Zyb20iOiAiMjAyMS0wOC0yOVQxOTo1NDoxMi4w"
@@ -191,19 +220,19 @@ def test_has_active_premium_license(data_fixture):
 @override_settings(DEBUG=True)
 def test_check_active_premium_license_for_workspace_with_valid_license(data_fixture):
     user_in_license = data_fixture.create_user()
-    group = data_fixture.create_workspace(user=user_in_license)
+    workspace = data_fixture.create_workspace(user=user_in_license)
     license = License.objects.create(license=VALID_TWO_SEAT_LICENSE.decode())
     LicenseUser.objects.create(license=license, user=user_in_license)
 
     with freeze_time("2021-08-01 12:00"):
         with pytest.raises(FeaturesNotAvailableError):
             LicenseHandler.raise_if_user_doesnt_have_feature(
-                PREMIUM, user_in_license, group
+                PREMIUM, user_in_license, workspace
             )
 
     with freeze_time("2021-09-01 12:00"):
         LicenseHandler.raise_if_user_doesnt_have_feature(
-            PREMIUM, user_in_license, group
+            PREMIUM, user_in_license, workspace
         )
 
 
@@ -504,6 +533,22 @@ def test_decode_license_with_valid_license():
         "issued_to_name": "Bram",
         "instance_id": "1",
     }
+    assert LicenseHandler.decode_license(
+        VALID_FIVE_SEAT_FIFTEEN_EXT_USER_1M_PAGE_VIEWS_LICENSE
+    ) == {
+        "version": 1,
+        "id": "e4ebb9c6-c019-4d42-a557-4bc1d657b59f",
+        "valid_from": "2025-01-01T00:00:00",
+        "valid_through": "2027-12-31T23:59:59",
+        "product_code": "premium",
+        "seats": 5,
+        "external_users": 15,
+        "page_views": 1_000_000,
+        "issued_on": "2025-01-14T11:33:24.795666",
+        "issued_to_email": "dev@baserow.io",
+        "issued_to_name": "Dev",
+        "instance_id": "1",
+    }
     assert LicenseHandler.decode_license(VALID_UPGRADED_TEN_SEAT_LICENSE) == {
         "version": 1,
         "id": "1",
@@ -539,6 +584,34 @@ def test_decode_license_with_valid_license():
         "issued_to_email": "bram@baserow.io",
         "issued_to_name": "Bram",
         "instance_id": "2",
+    }
+    assert LicenseHandler.decode_license(VALID_ENTERPRISE_FIVE_SEAT_LICENSE) == {
+        "version": 1,
+        "id": "3f0168af-afaf-4426-896b-b388391076e7",
+        "valid_from": "2021-01-01T00:00:00",
+        "valid_through": "2021-12-31T23:59:59",
+        "product_code": "enterprise",
+        "seats": 5,
+        "issued_on": "2023-01-11T14:53:45.372950",
+        "issued_to_email": "petr@example.com",
+        "issued_to_name": "petr@example.com",
+        "instance_id": "6d6366b8-6f32-4549-81c2-d4a0c07a334b",
+    }
+    assert LicenseHandler.decode_license(
+        VALID_ENTERPRISE_FIVE_SEAT_FIFTY_EXT_USER_2M_PAGE_VIEWS_LICENSE
+    ) == {
+        "version": 1,
+        "id": "626af4de-8aff-41a5-9e5f-331870793170",
+        "valid_from": "2025-01-01T00:00:00",
+        "valid_through": "2027-12-31T23:59:59",
+        "product_code": "enterprise",
+        "seats": 5,
+        "external_users": 50,
+        "page_views": 2_000_000,
+        "issued_on": "2025-01-14T11:39:19.596117",
+        "issued_to_email": "dev@baserow.io",
+        "issued_to_name": "Dev",
+        "instance_id": "1",
     }
 
 
@@ -961,7 +1034,7 @@ def test_check_active_premium_license_for_workspace_with_license_pretending_to_b
     data_fixture,
 ):
     user_in_license = data_fixture.create_user()
-    group = data_fixture.create_workspace(user=user_in_license)
+    workspace = data_fixture.create_workspace(user=user_in_license)
     license = License.objects.create(
         license=VALID_TWO_SEAT_LICENSE.decode(), cached_untrusted_instance_wide=True
     )
@@ -970,13 +1043,13 @@ def test_check_active_premium_license_for_workspace_with_license_pretending_to_b
     with freeze_time("2021-08-01 12:00"):
         with pytest.raises(FeaturesNotAvailableError):
             LicenseHandler.raise_if_user_doesnt_have_feature(
-                PREMIUM, user_in_license, group
+                PREMIUM, user_in_license, workspace
             )
 
     with freeze_time("2021-09-01 12:00"):
         with pytest.raises(FeaturesNotAvailableError):
             LicenseHandler.raise_if_user_doesnt_have_feature(
-                PREMIUM, user_in_license, group
+                PREMIUM, user_in_license, workspace
             )
 
     with freeze_time("2021-09-01 12:00"):

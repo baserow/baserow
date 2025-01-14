@@ -150,3 +150,23 @@ def test_public_allowed_properties_is_cached(data_fixture, django_assert_num_que
     with django_assert_num_queries(0):
         result = handler.get_builder_public_properties(user_source_user, builder)
         assert result == expected_results
+
+
+@pytest.mark.django_db
+def test_aggregate_user_source_counts(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    builder = data_fixture.create_builder_application(user=user)
+    data_fixture.create_local_baserow_table_user_source(application=builder)
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+    data_fixture.create_local_baserow_table_user_source(application=published_builder)
+
+    unpublished_builder = data_fixture.create_builder_application(workspace=workspace)
+    data_fixture.create_local_baserow_table_user_source(application=unpublished_builder)
+
+    # The table contains 4 rows, and is used in *one* published application.
+    assert BuilderHandler().aggregate_user_source_counts() == 4

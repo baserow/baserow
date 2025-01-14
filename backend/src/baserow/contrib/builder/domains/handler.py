@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Iterable, List, cast
+from typing import Iterable, List, Optional, cast
 
 from django.db.models import QuerySet
 from django.db.utils import IntegrityError
@@ -15,6 +15,7 @@ from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
@@ -193,7 +194,25 @@ class DomainHandler:
 
         return full_order
 
-    def publish(self, domain: Domain, progress: Progress | None = None):
+    def get_published_applications(
+        self, workspace: Optional[Workspace] = None
+    ) -> QuerySet[Builder]:
+        """
+        Returns all published applications in a workspace or all published applications
+        in the instance if no workspace is provided.
+
+        :param workspace: Only return published applications in this workspace.
+        :return: A queryset of published applications.
+        """
+
+        applications = Builder.objects.exclude(published_from=None)
+        return (
+            applications.filter(published_from__builder__workspace=workspace)
+            if workspace
+            else applications
+        )
+
+    def publish(self, domain: Domain, progress: Progress):
         """
         Publishes a builder for the given domain object. If the builder was
         already published, the previous version is deleted and a new one is created.
