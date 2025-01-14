@@ -3081,8 +3081,7 @@ class BaserowRegexReplace(ThreeArgumentBaserowFunction):
             arg1,
             arg2,
             arg3,
-            Value("g", output_field=fields.TextField()),
-            function="regexp_replace",
+            function="try_regexp_replace",
             output_field=fields.TextField(),
         )
 
