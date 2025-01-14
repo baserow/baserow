@@ -50,6 +50,7 @@ class DataSyncHandler:
         Returns the data sync matching the provided ID.
 
         :param data_sync_id: The data sync ID to fetch.
+        :param base_queryset: Optionally change the default queryset.
         :return: The fetched data sync object.
         """
 

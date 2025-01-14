@@ -15,7 +15,10 @@ DATA_SYNC_INTERVAL_HOURLY = "HOURLY"
 
 class PeriodicDataSyncInterval(models.Model):
     data_sync = models.OneToOneField(
-        DataSync, on_delete=models.CASCADE, help_text="The periodic data sync."
+        DataSync,
+        on_delete=models.CASCADE,
+        help_text="The periodic data sync.",
+        related_name="periodic_interval",
     )
     last_periodic_sync = models.DateTimeField(
         null=True, help_text="Timestamp when the table was last periodically synced."

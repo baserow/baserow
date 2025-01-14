@@ -57,7 +57,7 @@ class EnterpriseDataSyncHandler:
             context=data_sync.table,
         )
 
-        auto_data_sync, _ = PeriodicDataSyncInterval.objects.update_or_create(
+        periodic_data_sync, _ = PeriodicDataSyncInterval.objects.update_or_create(
             data_sync=data_sync,
             defaults={
                 "interval": interval,
@@ -66,7 +66,7 @@ class EnterpriseDataSyncHandler:
             },
         )
 
-        return auto_data_sync
+        return periodic_data_sync
 
     @classmethod
     def call_periodic_data_sync_syncs_that_are_due(cls):
@@ -97,8 +97,9 @@ class EnterpriseDataSyncHandler:
                     interval=DATA_SYNC_INTERVAL_DAILY,
                 )
                 | Q(
-                    # If the interval is hourly, the last periodic data sync timestamp must
-                    # be at least an hour ago or None meaning it hasn't been executed yet.
+                    # If the interval is hourly, the last periodic data sync timestamp
+                    # must be at least an hour ago or None meaning it hasn't been
+                    # executed yet.
                     is_null | Q(last_periodic_sync__lt=beginning_of_hour),
                     interval=DATA_SYNC_INTERVAL_HOURLY,
                 ),
