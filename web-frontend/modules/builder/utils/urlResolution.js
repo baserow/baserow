@@ -65,15 +65,18 @@ export default function resolveElementUrl(
   if (element.query_parameters && element.query_parameters.length > 0) {
     const queryString = element.query_parameters
       .map(({ name, value }) => {
+        if (!value) return null
         const resolvedValue = resolveFormula(value)
         return `${encodeURIComponent(name)}=${encodeURIComponent(
           resolvedValue
         )}`
       })
+      .filter((param) => param !== null)
       .join('&')
-    resolvedUrl = `${resolvedUrl}?${queryString}`
+    if (queryString) {
+      resolvedUrl = `${resolvedUrl}?${queryString}`
+    }
   }
-
   // If the protocol is a supported one, return early.
   const protocolRegex = /^[A-Za-z]+:/
   if (protocolRegex.test(resolvedUrl)) {
