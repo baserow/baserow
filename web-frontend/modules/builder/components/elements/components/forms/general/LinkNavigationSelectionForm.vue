@@ -81,6 +81,20 @@
             :placeholder="$t('linkNavigationSelection.paramPlaceholder')"
           />
         </FormGroup>
+        <FormGroup
+          v-for="param in values.query_parameters"
+          :key="param.name"
+          small-label
+          :label="param.name"
+          class="margin-bottom-2"
+          required
+          horizontal
+        >
+          <InjectedFormulaInput
+            v-model="param.value"
+            :placeholder="$t('linkNavigationSelection.paramPlaceholder')"
+          />
+        </FormGroup>
       </div>
     </FormGroup>
     <FormGroup
@@ -118,6 +132,7 @@ export default {
         'navigate_to_page_id',
         'navigate_to_url',
         'page_parameters',
+        'query_parameters',
         'target',
       ],
       values: {
@@ -125,6 +140,7 @@ export default {
         navigate_to_page_id: null,
         navigate_to_url: '',
         page_parameters: [],
+        query_parameters: [],
         target: 'self',
       },
       linkNavigationSelectionTargetOptions: [
@@ -226,12 +242,22 @@ export default {
       this.parametersInError = pathParametersInError(this.values, this.pages)
     },
     updatePageParameters() {
+      // Update path parameters
       this.values.page_parameters = (
         this.destinationPage?.path_params || []
       ).map(({ name }, index) => {
         const previousValue = this.values.page_parameters[index]?.value || ''
         return { name, value: previousValue }
       })
+
+      // Update query parameters
+      this.values.query_parameters = (
+        this.destinationPage?.query_params || []
+      ).map(({ name }, index) => {
+        const previousValue = this.values.query_parameters[index]?.value || ''
+        return { name, value: previousValue }
+      })
+
       this.parametersInError = false
     },
   },

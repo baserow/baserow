@@ -488,6 +488,11 @@ class NavigationElementMixin(models.Model):
         help_text="The parameters for each parameters of the selected page if any.",
         null=True,
     )
+    query_parameters = models.JSONField(
+        default=list,
+        help_text="The query parameters for each parameter of the selected page if any.",
+        null=True,
+    )
     target = models.CharField(
         choices=TARGETS.choices,
         help_text="The target of the link when we click on it.",

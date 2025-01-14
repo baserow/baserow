@@ -65,7 +65,8 @@ export default {
           this.mode
         )
       } catch (e) {
-        return ''
+        console.error(e)
+        return '#error'
       }
     },
   },

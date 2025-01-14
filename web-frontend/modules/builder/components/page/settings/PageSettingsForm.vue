@@ -24,13 +24,6 @@
     </div>
     <div class="row">
       <div class="col col-6">
-        <PageSettingsPathParamsFormElement
-          :disabled="!hasPermission"
-          :path-params="values.path_params"
-          @update="onPathParamUpdate"
-        />
-      </div>
-      <div class="col col-6">
         <PageSettingsQueryParamsFormElement
           :disabled="!hasPermission"
           :query-params="localQueryParams"
@@ -38,6 +31,13 @@
           :validation-state="$v.values.query_params"
           @update="onQueryParamUpdate"
           @add="addQueryParam"
+        />
+      </div>
+      <div class="col col-6">
+        <PageSettingsPathParamsFormElement
+          :disabled="!hasPermission"
+          :path-params="values.path_params"
+          @update="onPathParamUpdate"
         />
       </div>
     </div>

@@ -41,7 +41,6 @@ const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
 
 export default {
   components: { PageContent, Toasts },
-  ssr: false,
   provide() {
     return {
       workspace: this.workspace,

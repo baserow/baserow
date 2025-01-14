@@ -742,6 +742,7 @@ class NavigationElementManager:
         "navigate_to_page_id",
         "navigate_to_url",
         "page_parameters",
+        "query_parameters",
         "target",
     ]
     allowed_fields = [
@@ -749,6 +750,7 @@ class NavigationElementManager:
         "navigate_to_page_id",
         "navigate_to_url",
         "page_parameters",
+        "query_parameters",
         "target",
     ]
     simple_formula_fields = ["navigate_to_url"]
@@ -757,6 +759,7 @@ class NavigationElementManager:
         navigation_type: str
         navigate_to_page_id: int
         page_parameters: List
+        query_parameters: List
         navigate_to_url: BaserowFormula
         target: str
 
@@ -800,6 +803,11 @@ class NavigationElementManager:
             "page_parameters": PageParameterValueSerializer(
                 many=True,
                 help_text=LinkElement._meta.get_field("page_parameters").help_text,
+                required=False,
+            ),
+            "query_parameters": PageParameterValueSerializer(
+                many=True,
+                help_text=LinkElement._meta.get_field("query_parameters").help_text,
                 required=False,
             ),
             "target": serializers.ChoiceField(
@@ -857,7 +865,7 @@ class NavigationElementManager:
 
         return ElementType.prepare_value_for_db(self, values, instance)
 
-    def _raise_if_path_params_are_invalid(self, path_params: Dict, page: Page) -> None:
+    def _raise_if_path_params_are_invalid(self, path_params: List, page: Page) -> None:
         """
         Checks if the path parameters being set are correctly correlated to the
         path parameters defined for the page.
@@ -869,7 +877,6 @@ class NavigationElementManager:
         """
 
         parameter_types = {p["name"]: p["type"] for p in page.path_params}
-
         for page_parameter in path_params:
             page_parameter_name = page_parameter["name"]
             page_parameter_type = parameter_types.get(page_parameter_name, None)
@@ -887,7 +894,6 @@ class LinkElementType(ElementType):
 
     type = "link"
     model_class = LinkElement
-    PATH_PARAM_TYPE_TO_PYTHON_TYPE_MAP = {"text": str, "numeric": int}
     simple_formula_fields = NavigationElementManager.simple_formula_fields + ["value"]
 
     @property
