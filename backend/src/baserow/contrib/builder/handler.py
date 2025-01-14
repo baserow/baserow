@@ -5,12 +5,16 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 
+from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.formula_property_extractor import (
     get_builder_used_property_names,
 )
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Workspace
+from baserow.core.user_sources.handler import UserSourceHandler
+from baserow.core.user_sources.models import UserSource
 
 User = get_user_model()
 CACHE_KEY_PREFIX = "used_properties_for_page"
@@ -92,3 +96,22 @@ class BuilderHandler:
                 )
 
         return properties
+
+    def aggregate_user_source_counts(
+        self,
+        workspace: Optional[Workspace] = None,
+    ) -> int:
+        """
+        The builder implementation of the `UserSourceHandler.aggregate_user_counts`
+        method, we need it to only count user sources in published applications.
+
+        :param workspace: If provided, only count user sources in published
+            applications within this workspace.
+        :return: The total number of user sources in published applications.
+        """
+
+        applications = DomainHandler().get_published_applications(workspace)
+        queryset = UserSourceHandler().get_user_sources(
+            base_queryset=UserSource.objects.filter(application__in=applications)
+        )
+        return UserSourceHandler().aggregate_user_counts(workspace, queryset)

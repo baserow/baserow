@@ -8,6 +8,7 @@ from baserow_premium.license.registries import (
     SeatUsageSummary,
 )
 
+from baserow.contrib.builder.handler import BuilderHandler
 from baserow.core.models import User
 
 
@@ -32,11 +33,18 @@ class PremiumLicenseType(LicenseType):
     def get_builder_usage_summary(
         self, license_object_of_this_type: License
     ) -> Optional[BuilderUsageSummary]:
-        external_users_taken = 0
-        page_views_generated = 0
+        external_users_taken = BuilderHandler().aggregate_user_source_counts()
+        external_users_licensed = (
+            license_object_of_this_type.external_users
+            if license_object_of_this_type.external_users is not None
+            else 0
+        )
+        external_users_remaining = external_users_licensed - external_users_taken
         return BuilderUsageSummary(
+            page_views_generated=0,
             external_users_taken=external_users_taken,
-            page_views_generated=page_views_generated,
+            external_users_licensed=external_users_licensed,
+            external_users_remaining=external_users_remaining,
         )
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
