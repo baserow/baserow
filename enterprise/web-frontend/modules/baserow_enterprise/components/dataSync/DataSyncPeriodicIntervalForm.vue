@@ -78,7 +78,7 @@
           />
         </FormGroup>
       </div>
-      <p>
+      <p class="control__helper-text">
         {{ $t('dataSyncPeriodicIntervalForm.whenHelper') }}
       </p>
     </template>
