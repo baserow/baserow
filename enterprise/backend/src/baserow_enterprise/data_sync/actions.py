@@ -39,6 +39,7 @@ class UpdatePeriodicDataSyncIntervalActionType(ActionType):
         data_sync_id: int
         interval: str
         when: str
+        automatically_deactivated: bool
 
     @classmethod
     def do(
@@ -47,12 +48,17 @@ class UpdatePeriodicDataSyncIntervalActionType(ActionType):
         data_sync: DataSync,
         interval: str,
         when: time,
+        automatically_deactivated: bool = False,
     ) -> DataSync:
         data_sync = data_sync.specific
 
         periodic_interval = (
             EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
-                user=user, data_sync=data_sync, interval=interval, when=when
+                user=user,
+                data_sync=data_sync,
+                interval=interval,
+                when=when,
+                automatically_deactivated=automatically_deactivated,
             )
         )
 
@@ -67,6 +73,7 @@ class UpdatePeriodicDataSyncIntervalActionType(ActionType):
             data_sync.id,
             interval,
             when.strftime("%H:%M:%S"),
+            automatically_deactivated,
         )
         cls.register_action(user, params, cls.scope(database.id), workspace=workspace)
 

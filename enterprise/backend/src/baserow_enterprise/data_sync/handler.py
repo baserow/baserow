@@ -30,7 +30,12 @@ from .tasks import sync_periodic_data_sync
 class EnterpriseDataSyncHandler:
     @classmethod
     def update_periodic_data_sync_interval(
-        cls, user: AbstractUser, data_sync: DataSync, interval: str, when: time
+        cls,
+        user: AbstractUser,
+        data_sync: DataSync,
+        interval: str,
+        when: time,
+        automatically_deactivated: bool = False,
     ) -> PeriodicDataSyncInterval:
         """
         Updates the periodic configuration of a data sync.
@@ -43,6 +48,8 @@ class EnterpriseDataSyncHandler:
             `DATA_SYNC_INTERVAL_DAILY` indicating how frequently the data sync must be
             updated.
         :param when: Indicates when the data sync must periodically be synced.
+        :param automatically_deactivated: Changes the automatically state to the
+            desired value.
         :return: The created or updated periodic data sync object.
         """
 
@@ -63,6 +70,7 @@ class EnterpriseDataSyncHandler:
                 "interval": interval,
                 "when": when,
                 "authorized_user": user,
+                "automatically_deactivated": automatically_deactivated,
             },
         )
 

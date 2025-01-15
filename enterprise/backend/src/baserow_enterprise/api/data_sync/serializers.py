@@ -9,4 +9,12 @@ class PeriodicDataSyncIntervalSerializer(serializers.ModelSerializer):
         fields = (
             "interval",
             "when",
+            "automatically_deactivated",
         )
+
+    def validate_automatically_deactivated(self, value):
+        if value is True:
+            raise serializers.ValidationError(
+                "automatically_deactivated can only be set to False."
+            )
+        return value

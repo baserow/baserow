@@ -73,7 +73,11 @@ class PeriodicDataSyncIntervalView(APIView):
         )
 
         if not hasattr(data_sync, "periodic_interval"):
-            periodic_interval = {"interval": DATA_SYNC_INTERVAL_MANUAL, "when": None}
+            periodic_interval = {
+                "interval": DATA_SYNC_INTERVAL_MANUAL,
+                "when": None,
+                "automatically_deactivated": False,
+            }
         else:
             periodic_interval = data_sync.periodic_interval
 
@@ -119,12 +123,7 @@ class PeriodicDataSyncIntervalView(APIView):
 
         periodic_interval = action_type_registry.get_by_type(
             UpdatePeriodicDataSyncIntervalActionType
-        ).do(
-            user=request.user,
-            data_sync=data_sync,
-            interval=data["interval"],
-            when=data["when"],
-        )
+        ).do(user=request.user, data_sync=data_sync, **data)
 
         serializer = PeriodicDataSyncIntervalSerializer(periodic_interval)
         return Response(serializer.data)

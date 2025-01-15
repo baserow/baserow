@@ -12,7 +12,26 @@
       </div>
       <div v-else-if="fetchLoaded">
         <Error :error="error"></Error>
+        <Alert
+          v-if="periodicInterval.automatically_deactivated"
+          type="info-primary"
+        >
+          <template #title>{{
+            $t('configureDataSyncPeriodicInterval.deactivatedTitle')
+          }}</template>
+          <p>{{ $t('configureDataSyncPeriodicInterval.deactivatedText') }}</p>
+          <template #actions>
+            <Button
+              type="primary"
+              size="small"
+              :loading="saveLoading"
+              @click="activate"
+              >{{ $t('configureDataSyncPeriodicInterval.activate') }}</Button
+            >
+          </template>
+        </Alert>
         <DataSyncPeriodicIntervalForm
+          v-if="!periodicInterval.automatically_deactivated"
           :default-values="periodicInterval"
           :disabled="saveLoading"
           @submitted="submitted"
@@ -72,7 +91,8 @@ import EnterpriseDataSyncService from '@baserow_enterprise/services/dataSync'
 import error from '@baserow/modules/core/mixins/error'
 import DataSyncPeriodicIntervalForm from '@baserow_enterprise/components/dataSync/DataSyncPeriodicIntervalForm'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal.vue'
+import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
+import { clone } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'ConfigureDataSyncPeriodicInterval',
@@ -125,14 +145,36 @@ export default {
         this.fetchLoading = false
       }
     },
-    async submitted(values) {
+    async activate() {
+      this.hideError()
+      const values = clone(this.periodicInterval)
+      values.automatically_deactivated = false
       this.saveLoading = true
 
       try {
         await EnterpriseDataSyncService(this.$client).updatePeriodicInterval(
           this.table.data_sync.id,
           values.interval,
-          values.when
+          values.when,
+          values.automatically_deactivated,
+        )
+        this.periodicInterval = values
+      } catch (error) {
+        this.handleError(error)
+      } finally {
+        this.saveLoading = false
+      }
+    },
+    async submitted(values) {
+      this.hideError()
+      this.saveLoading = true
+
+      try {
+        await EnterpriseDataSyncService(this.$client).updatePeriodicInterval(
+          this.table.data_sync.id,
+          values.interval,
+          values.when,
+          values.automatically_deactivated,
         )
         this.saved = true
       } catch (error) {

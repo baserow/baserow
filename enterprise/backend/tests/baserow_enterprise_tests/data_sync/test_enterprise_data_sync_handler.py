@@ -86,6 +86,7 @@ def test_update_periodic_data_sync_interval_create(enterprise_data_fixture):
         == time(hour=12, minute=10, second=1, microsecond=1)
     )
     assert periodic_data_sync_interval.authorized_user_id == user.id
+    assert periodic_data_sync_interval.automatically_deactivated is False
 
 
 @pytest.mark.django_db
@@ -130,6 +131,37 @@ def test_update_periodic_data_sync_interval_update(enterprise_data_fixture):
         == time(hour=14, minute=12, second=1, microsecond=1)
     )
     assert periodic_data_sync_interval.authorized_user_id == user.id
+    assert periodic_data_sync_interval.automatically_deactivated is False
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_update_periodic_data_sync_interval_update_automatically_disabled(
+    enterprise_data_fixture,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    data_sync = enterprise_data_fixture.create_ical_data_sync(user=user)
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=data_sync,
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+        automatically_deactivated=True,
+    )
+    assert periodic_data_sync.automatically_deactivated is True
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=data_sync,
+        interval="HOURLY",
+        when=time(hour=14, minute=12, second=1, microsecond=1),
+        automatically_deactivated=False,
+    )
+
+    assert periodic_data_sync.automatically_deactivated is False
 
 
 @pytest.mark.django_db
