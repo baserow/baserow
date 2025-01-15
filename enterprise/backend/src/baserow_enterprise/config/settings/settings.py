@@ -72,5 +72,5 @@ def setup(settings):
     )
     settings.BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS = int(
         os.getenv("BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS", "")
-        or 2
+        or 4
     )

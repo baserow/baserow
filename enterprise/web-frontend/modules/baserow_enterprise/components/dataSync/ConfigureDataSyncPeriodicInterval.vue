@@ -156,7 +156,7 @@ export default {
           this.table.data_sync.id,
           values.interval,
           values.when,
-          values.automatically_deactivated,
+          values.automatically_deactivated
         )
         this.periodicInterval = values
       } catch (error) {
@@ -174,7 +174,7 @@ export default {
           this.table.data_sync.id,
           values.interval,
           values.when,
-          values.automatically_deactivated,
+          values.automatically_deactivated
         )
         this.saved = true
       } catch (error) {
