@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
+from baserow.contrib.dashboard.actions import DASHBOARD_ACTION_CONTEXT
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.action.scopes import ApplicationActionScopeType
@@ -17,7 +18,8 @@ class CreateWidgetActionType(UndoableActionType):
     type = "create_widget"
     description = ActionTypeDescription(
         _("Create widget"),
-        _('Widget "%(widget_title)s" (%(widget_id)s) created.'),
+        _('Widget "%(widget_title)s" (%(widget_id)s) created'),
+        DASHBOARD_ACTION_CONTEXT,
     )
     analytics_params = ["dashboard_id", "widget_id", "widget_type"]
 
@@ -79,7 +81,8 @@ class UpdateWidgetActionType(UndoableActionType):
     type = "update_widget"
     description = ActionTypeDescription(
         _("Update widget"),
-        _('Widget "%(widget_title)s" (%(widget_id)s) updated.'),
+        _('Widget "%(widget_title)s" (%(widget_id)s) updated'),
+        DASHBOARD_ACTION_CONTEXT,
     )
     analytics_params = ["dashboard_id", "widget_id"]
 
@@ -110,8 +113,8 @@ class UpdateWidgetActionType(UndoableActionType):
                 updated_widget.widget.id,
                 updated_widget.widget.title,
                 widget_type,
-                updated_widget.original_widget_values,
-                updated_widget.new_widget_values,
+                updated_widget.original_values,
+                updated_widget.new_values,
             ),
             scope=cls.scope(updated_widget.widget.dashboard.id),
             workspace=updated_widget.widget.dashboard.workspace,
@@ -149,7 +152,8 @@ class DeleteWidgetActionType(UndoableActionType):
     type = "delete_widget"
     description = ActionTypeDescription(
         _("Delete widget"),
-        _('Widget "%(widget_title)s" (%(widget_id)s) deleted.'),
+        _('Widget "%(widget_title)s" (%(widget_id)s) deleted'),
+        DASHBOARD_ACTION_CONTEXT,
     )
     analytics_params = ["dashboard_id", "widget_id"]
 

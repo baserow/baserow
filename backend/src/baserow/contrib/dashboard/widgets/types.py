@@ -9,5 +9,5 @@ WidgetForUpdate = NewType("WidgetForUpdate", Widget)
 @dataclass
 class UpdatedWidget:
     widget: Widget
-    original_widget_values: dict[str, any]
-    new_widget_values: dict[str, any]
+    original_values: dict[str, any]
+    new_values: dict[str, any]

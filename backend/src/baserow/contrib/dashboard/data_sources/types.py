@@ -20,5 +20,5 @@ class DashboardDataSourceDict(TypedDict):
 @dataclass
 class UpdatedDashboardDataSource:
     data_source: DashboardDataSource
-    original_data_source_attributes: dict[str, any]
-    new_data_source_attributes: dict[str, any]
+    original_values: dict[str, any]
+    new_values: dict[str, any]

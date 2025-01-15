@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
+from baserow.contrib.dashboard.actions import DASHBOARD_ACTION_CONTEXT
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.action.scopes import ApplicationActionScopeType
@@ -16,7 +17,8 @@ class UpdateDashboardDataSourceActionType(UndoableActionType):
     type = "update_dashboard_data_source"
     description = ActionTypeDescription(
         _("Update dashboard data source"),
-        _('Data source "%(data_source_name)s" (%(data_source_id)s) updated.'),
+        _('Data source "%(data_source_name)s" (%(data_source_id)s) updated'),
+        DASHBOARD_ACTION_CONTEXT,
     )
     analytics_params = ["dashboard_id", "data_source_id"]
 
@@ -44,8 +46,8 @@ class UpdateDashboardDataSourceActionType(UndoableActionType):
 
         # For now remove information about integrations as they cannot
         # change and would be rejected later on undo/redo calls
-        updated_data_source.original_data_source_attributes.pop("integration_id", None)
-        updated_data_source.new_data_source_attributes.pop("integration_id", None)
+        updated_data_source.original_values.pop("integration_id", None)
+        updated_data_source.new_values.pop("integration_id", None)
 
         cls.register_action(
             user=user,
@@ -55,8 +57,8 @@ class UpdateDashboardDataSourceActionType(UndoableActionType):
                 updated_data_source.data_source.id,
                 updated_data_source.data_source.name,
                 service_type.type,
-                updated_data_source.original_data_source_attributes,
-                updated_data_source.new_data_source_attributes,
+                updated_data_source.original_values,
+                updated_data_source.new_values,
             ),
             scope=cls.scope(updated_data_source.data_source.dashboard.id),
             workspace=updated_data_source.data_source.dashboard.workspace,
