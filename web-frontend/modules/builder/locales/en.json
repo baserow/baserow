@@ -449,12 +449,9 @@
     "paddingLabel": "Padding",
     "marginLabel": "Margin"
   },
-  "borderStyleForm": {
-    "borderRadiusLabel": "Border radius",
-    "borderRadiusTopLeft": "Top left",
-    "borderRadiusTopRight": "Top right",
-    "borderRadiusBottomLeft": "Bottom left",
-    "borderRadiusBottomRight": "Bottom right"
+  "radiusStyleForm": {
+    "backgroundRadiusLabel": "Background radius",
+    "borderRadiusLabel": "Border radius"
   },
   "themeConfigBlockType": {
     "color": "Colors",
@@ -565,7 +562,9 @@
     "imageConstraintCover": "Cover",
     "imageConstraintCoverDisabled": "Unavailable with empty max height.",
     "imageConstraintContain": "Contain",
-    "imageConstraintContainDisabled": "Unavailable with a max height."
+    "imageConstraintContainDisabled": "Unavailable with a max height.",
+    "imageBorderRadiusLabel": "Border radius",
+    "imageBorderRadiusPlaceholder": "Enter the image border radius."
   },
   "tableThemeConfigBlock": {
     "borderColor": "Border color",
