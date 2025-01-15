@@ -9,7 +9,7 @@
     required
   >
     <div
-      v-for="(queryParam, index) in localQueryParams"
+      v-for="(queryParam, index) in values.queryParams"
       :key="index"
       class="page-settings-query-params"
     >
@@ -17,7 +17,6 @@
         :value="queryParam.name"
         class="page-settings-query-params__name"
         @input="updateQueryParamName(index, $event)"
-        @blur="finalizeQueryParamUpdate(index)"
       ></FormInput>
       <div class="page-settings-query-params__dropdown">
         <Dropdown
@@ -49,7 +48,7 @@
     <div>
       <ButtonText icon="iconoir-plus" @click.prevent="addParameter">
         {{
-          localQueryParams.length > 0
+          values.queryParams.length > 0
             ? $t('pageForm.addAnotherParameter')
             : $t('pageForm.addParameter')
         }}
@@ -94,40 +93,43 @@ export default {
   },
   data() {
     return {
-      localQueryParams: [],
+      values: {
+        queryParams: [],
+      },
     }
   },
   watch: {
     queryParams: {
       immediate: true,
       handler(newParams) {
-        this.localQueryParams = JSON.parse(JSON.stringify(newParams))
+        if (
+          JSON.stringify(this.values.queryParams) !== JSON.stringify(newParams)
+        ) {
+          this.values.queryParams = JSON.parse(JSON.stringify(newParams))
+        }
       },
     },
   },
   methods: {
     deleteQueryParam(index) {
-      this.localQueryParams.splice(index, 1)
-      this.$emit('update', this.localQueryParams)
+      this.values.queryParams.splice(index, 1)
+      this.$emit('update', this.values.queryParams)
     },
     updateQueryParamName(index, newName) {
-      this.localQueryParams[index].name = newName
-      this.$emit('update', this.localQueryParams)
+      this.values.queryParams[index].name = newName
+      this.$emit('update', this.values.queryParams)
     },
     updateQueryParamType(index, newType) {
-      this.localQueryParams[index].type = newType
-      this.$emit('update', this.localQueryParams)
+      this.values.queryParams[index].type = newType
+      this.$emit('update', this.values.queryParams)
     },
     addParameter() {
       const newParam = {
-        name: `param${this.localQueryParams.length + 1}`,
+        name: `param${this.values.queryParams.length + 1}`,
         type: this.queryParamTypes[0].getType(),
       }
-      this.localQueryParams.push(newParam)
-      this.$emit('update', this.localQueryParams)
-    },
-    finalizeQueryParamUpdate(index) {
-      this.$emit('update', this.localQueryParams)
+      this.values.queryParams.push(newParam)
+      this.$emit('update', this.values.queryParams)
     },
   },
   computed: {
