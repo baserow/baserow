@@ -1,10 +1,16 @@
 import { AppAuthProviderType } from '@baserow/modules/core/appAuthProviderTypes'
-import { SamlAuthProviderTypeMixin } from '@baserow_enterprise/authProviderTypes'
+import {
+  SamlAuthProviderTypeMixin,
+  OAuth2AuthProviderTypeMixin,
+} from '@baserow_enterprise/authProviderTypes'
 
 import LocalBaserowUserSourceForm from '@baserow_enterprise/integrations/localBaserow/components/appAuthProviders/LocalBaserowPasswordAppAuthProviderForm'
 import LocalBaserowAuthPassword from '@baserow_enterprise/integrations/localBaserow/components/appAuthProviders/LocalBaserowAuthPassword'
 import CommonSamlSettingForm from '@baserow_enterprise/integrations/common/components/CommonSamlSettingForm'
+import CommonOIDCSettingForm from '@baserow_enterprise/integrations/common/components/CommonOIDCSettingForm'
 import SamlAuthLink from '@baserow_enterprise/integrations/common/components/SamlAuthLink'
+import OIDCAuthLink from '@baserow_enterprise/integrations/common/components/OIDCAuthLink'
+import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg'
 import { PasswordFieldType } from '@baserow/modules/database/fieldTypes'
 
 export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType {
@@ -133,5 +139,60 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
 
   getOrder() {
     return 20
+  }
+}
+
+export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixin(
+  AppAuthProviderType
+) {
+  static getType() {
+    return 'openid_connect'
+  }
+
+  getIcon() {
+    return OpenIdIcon
+  }
+
+  getName() {
+    return 'OpenID Connect'
+  }
+
+  getProviderName(provider) {
+    return provider.name ? provider.name : this.getName()
+  }
+
+  get component() {
+    return OIDCAuthLink
+  }
+
+  get formComponent() {
+    return CommonOIDCSettingForm
+  }
+
+  getCallbackUrl(userSource) {
+    return `${this.app.$config.PUBLIC_BACKEND_URL}/api/user_source/${userSource.uid}/sso/oauth2_openid_connect/callback/`
+  }
+
+  handleServerError(vueComponentInstance, error) {
+    // TODO
+    if (error.handler.code === 'ERROR_INVALID_PROVIDER_URL') {
+      vueComponentInstance.serverErrors = {
+        ...vueComponentInstance.serverErrors,
+        baseUrl: error.handler.detail,
+      }
+      return true
+    }
+
+    if (error.handler.code !== 'ERROR_REQUEST_BODY_VALIDATION') return false
+
+    vueComponentInstance.serverErrors = structuredClone(
+      error.handler.detail || {}
+    )
+
+    return true
+  }
+
+  getOrder() {
+    return 50
   }
 }

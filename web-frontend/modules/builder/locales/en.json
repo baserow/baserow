@@ -911,5 +911,9 @@
     "all": "On all pages",
     "only": "Only on selected pages",
     "except": "Exclude selected pages"
+  },
+  "authProviderWithModal": {
+    "authProviderInError": "Please edit this provider to fix the error.",
+    "title": "Edit provider: {name}"
   }
 }

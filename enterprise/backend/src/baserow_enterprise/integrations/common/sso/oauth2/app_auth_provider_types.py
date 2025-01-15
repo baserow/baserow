@@ -66,23 +66,7 @@ class OpenIdConnectAppAuthProviderType(
     compatible_user_source_types = [LocalBaserowUserSourceType.type]
 
     class SerializedDict(
-        AppAuthProviderTypeDict,
         OpenIdConnectAuthProviderTypeMixin.OpenIdConnectSerializedDict,
+        AppAuthProviderTypeDict,
     ):
         ...
-
-    @property
-    def allowed_fields(self) -> List[str]:
-        return OpenIdConnectAuthProviderTypeMixin.oidc_allowed_fields
-
-    @property
-    def serializer_field_names(self):
-        return OpenIdConnectAuthProviderTypeMixin.oidc_serializer_field_names
-
-    public_serializer_field_names = []
-
-    @property
-    def serializer_field_overrides(self):
-        return OpenIdConnectAuthProviderTypeMixin.oidc_serializer_field_overrides
-
-    public_serializer_field_overrides = {}

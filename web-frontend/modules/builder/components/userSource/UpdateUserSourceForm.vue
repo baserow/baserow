@@ -38,6 +38,7 @@
       :integration="integration"
       @values-changed="emitChange"
     />
+
     <div v-if="integration">
       <FormGroup
         :label="$t('updateUserSourceForm.authTitle')"
@@ -102,10 +103,11 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
+import AuthProviderWithModal from '@baserow/modules/builder/components/userSource/AuthProviderWithModal'
 import { required, maxLength } from 'vuelidate/lib/validators'
 
 export default {
-  components: { IntegrationDropdown },
+  components: { IntegrationDropdown, AuthProviderWithModal },
   mixins: [form],
   props: {
     builder: {

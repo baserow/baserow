@@ -327,9 +327,6 @@
     "acsTitle": "Single Sign On url (Click to copy)",
     "preview": "Preview"
   },
-  "commonSamlSettingForm": {
-    "authProviderInError": "Please edit this provider to fix the error."
-  },
   "enterpriseSettings": {
     "branding": "Branding",
     "showBaserowHelpMessage": "Show help message",
