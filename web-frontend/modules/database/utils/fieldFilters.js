@@ -62,7 +62,11 @@ export function genericHasEmptyValueFilter(cellValue, filterValue) {
   for (let i = 0; i < cellValue.length; i++) {
     const value = cellValue[i].value
 
-    if (value === '' || value === null) {
+    if (
+      value === '' ||
+      value === null ||
+      (Array.isArray(value) && value.length === 0)
+    ) {
       return true
     }
   }

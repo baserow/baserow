@@ -4,19 +4,9 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, List, Optional, Set, Type, Union
 
-from django.contrib.postgres.expressions import ArraySubquery
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import (
-    Expression,
-    F,
-    Func,
-    OuterRef,
-    Q,
-    QuerySet,
-    TextField,
-    Value,
-)
+from django.db.models import Expression, F, Func, Q, QuerySet, TextField, Value
 from django.db.models.functions import Cast, Concat
 
 from dateutil import parser
@@ -28,10 +18,7 @@ from baserow.contrib.database.fields.expressions import (
     extract_jsonb_list_values_to_array,
     json_extract_path,
 )
-from baserow.contrib.database.fields.field_filters import (
-    AnnotatedQ,
-    OptionallyAnnotatedQ,
-)
+from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
 from baserow.contrib.database.fields.filter_support.base import (
     HasAllValuesEqualFilterSupport,
@@ -42,6 +29,12 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueEqualFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
     get_array_json_filter_expression,
+    get_jsonb_contains_filter_expr,
+    get_jsonb_contains_word_filter_expr,
+)
+from baserow.contrib.database.fields.filter_support.multiple_select import (
+    MultipleSelectFormulaTypeFilterSupport,
+    get_jsonb_has_any_in_value_filter_expr,
 )
 from baserow.contrib.database.fields.filter_support.single_select import (
     SingleSelectFormulaTypeFilterSupport,
@@ -63,7 +56,6 @@ from baserow.contrib.database.formula.ast.tree import (
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
     ComparisonOperator,
     JSONArrayCompareNumericValueExpr,
-    JSONArrayContainsValueExpr,
 )
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.formula.types.exceptions import UnknownFormulaType
@@ -82,14 +74,21 @@ from baserow.core.utils import list_to_comma_separated_string
 
 
 class BaserowJSONBObjectBaseType(BaserowFormulaValidType, ABC):
-    def prepare_filter_value(self, field, model_field, value):
+    def parse_filter_value(self, field, model_field, value):
         """
         Since the subclasses don't have a baserow_field_type or data might be stored
         differently due to the JSONB nature, return the value as is here and let the
         filter method handle it.
         """
 
-        return value
+        from baserow.contrib.database.fields.registries import field_type_registry
+
+        if self.baserow_field_type is None:
+            return value if value != "" else None
+
+        return field_type_registry.get(self.baserow_field_type).parse_filter_value(
+            field, model_field, value
+        )
 
 
 class BaserowFormulaBaseTextType(BaserowFormulaTypeHasEmptyBaserowExpression):
@@ -482,7 +481,7 @@ class BaserowFormulaNumberType(
         return get_array_json_filter_expression(
             JSONArrayCompareNumericValueExpr,
             field_name,
-            value,
+            Value(value),
             comparison_op=ComparisonOperator.EQUAL,
         )
 
@@ -527,10 +526,10 @@ class BaserowFormulaBooleanType(
         return expr
 
     def get_in_array_is_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+        self, field_name: str, value: bool, model_field: models.Field, field: "Field"
     ) -> OptionallyAnnotatedQ:
-        return get_array_json_filter_expression(
-            JSONArrayContainsValueExpr, field_name, value
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [str(value).lower()], query_path="$[*].value"
         )
 
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
@@ -541,13 +540,6 @@ class BaserowFormulaBooleanType(
             output_field=ArrayField(
                 base_field=models.DecimalField(max_digits=50, decimal_places=0)
             ),
-        )
-
-    def get_has_all_values_equal_query(
-        self, field_name: str, value: str, model_field: models.Field, field: "Field"
-    ) -> "OptionallyAnnotatedQ":
-        return super().get_has_all_values_equal_query(
-            field_name, value, model_field, field
         )
 
 
@@ -1352,8 +1344,8 @@ class BaserowFormulaArrayType(
             )
         }
 
-    def prepare_filter_value(self, field, model_field, value):
-        return self.sub_type.prepare_filter_value(field, model_field, value)
+    def parse_filter_value(self, field, model_field, value):
+        return self.sub_type.parse_filter_value(field, model_field, value)
 
 
 class BaserowFormulaSingleSelectType(
@@ -1508,7 +1500,9 @@ class BaserowFormulaSingleSelectType(
         }
 
 
-class BaserowFormulaMultipleSelectType(BaserowJSONBObjectBaseType):
+class BaserowFormulaMultipleSelectType(
+    MultipleSelectFormulaTypeFilterSupport, BaserowJSONBObjectBaseType
+):
     type = "multiple_select"
     baserow_field_type = "multiple_select"
     can_order_by = False
@@ -1621,74 +1615,10 @@ class BaserowFormulaMultipleSelectType(BaserowJSONBObjectBaseType):
         return formula_function_registry.get("multiple_select_count")(arg)
 
     def contains_query(self, field_name, value, model_field, field):
-        value = value.strip()
-        # If an empty value has been provided we do not want to filter at all.
-        if value == "":
-            return Q()
-        model = model_field.model
-        subq = (
-            model.objects.filter(id=OuterRef("id"))
-            .annotate(
-                res=Func(
-                    Func(
-                        field_name,
-                        function="jsonb_array_elements",
-                        output_field=JSONField(),
-                    ),
-                    Value("value"),
-                    function="jsonb_extract_path",
-                    output_field=TextField(),
-                )
-            )
-            .values("res")
-        )
-        annotation_name = f"{field_name}_contains"
-        return AnnotatedQ(
-            annotation={
-                annotation_name: Func(
-                    ArraySubquery(subq, output_field=ArrayField(TextField())),
-                    Value(","),
-                    function="array_to_string",
-                    output_field=TextField(),
-                )
-            },
-            q=Q(**{f"{annotation_name}__icontains": value}),
-        )
+        return get_jsonb_contains_filter_expr(model_field, value)
 
     def contains_word_query(self, field_name, value, model_field, field):
-        value = value.strip()
-        # If an empty value has been provided we do not want to filter at all.
-        if value == "":
-            return Q()
-        model = model_field.model
-        subq = (
-            model.objects.filter(id=OuterRef("id"))
-            .annotate(
-                res=Func(
-                    Func(
-                        field_name,
-                        function="jsonb_array_elements",
-                        output_field=JSONField(),
-                    ),
-                    Value("value"),
-                    function="jsonb_extract_path",
-                    output_field=TextField(),
-                )
-            )
-            .values("res")
-        )
-        annotation_name = f"{field_name}_contains"
-        return AnnotatedQ(
-            annotation={
-                annotation_name: Func(
-                    ArraySubquery(subq, output_field=ArrayField(TextField())),
-                    Value(","),
-                    function="array_to_string",
-                    output_field=TextField(),
-                )
-            },
-            q=Q(**{f"{annotation_name}__iregex": rf"\m{re.escape(value)}\M"}),
-        )
+        return get_jsonb_contains_word_filter_expr(model_field, value)
 
 
 BASEROW_FORMULA_TYPES = [

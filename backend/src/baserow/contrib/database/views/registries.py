@@ -931,35 +931,30 @@ class ViewFilterType(Instance):
 
         return {}
 
-    def get_export_serialized_value(self, value, id_mapping: Dict) -> str:
+    def get_export_serialized_value(self, value: str | None, id_mapping: dict) -> str:
         """
         This method is called before the filter value is exported. Here it can
         optionally be modified.
 
         :param value: The original value.
-        :type value: str
         :param id_mapping: Cache for mapping object ids.
         :return: The updated value.
-        :rtype: str
         """
 
         if value is None:
             return ""
         return value
 
-    def set_import_serialized_value(self, value, id_mapping) -> str:
+    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
         """
         This method is called before a field is imported. It can optionally be
         modified. If the value for example points to a field or select option id, it
         can be replaced with the correct value by doing a lookup in the id_mapping.
 
         :param value: The original exported value.
-        :type value: str
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
-        :type id_mapping: dict
         :return: The new value that will be imported.
-        :rtype: str
         """
 
         if value is None:

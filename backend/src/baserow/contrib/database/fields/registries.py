@@ -19,8 +19,8 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField as PostgresJSONField
 from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
-from django.db import models as django_models
 from django.db.models import (
+    Aggregate,
     BooleanField,
     CharField,
     Count,
@@ -28,6 +28,9 @@ from django.db.models import (
     Expression,
     ExpressionWrapper,
     F,
+)
+from django.db.models import Field as DjangoField
+from django.db.models import (
     IntegerField,
     JSONField,
     Model,
@@ -368,7 +371,7 @@ class FieldType(
     def empty_query(
         self,
         field_name: str,
-        model_field: django_models.Field,
+        model_field: DjangoField,
         field: Field,
     ) -> Q:
         """
@@ -1826,8 +1829,8 @@ class FieldType(
 
         return value1 == value2
 
-    def prepare_filter_value(
-        self, field: "Field", model_field: django_models.Field, value: Any
+    def parse_filter_value(
+        self, field: "Field", model_field: DjangoField, value: str
     ) -> Any:
         """
         Prepare a non-empty value string to be used in a view filter, verifying if it is
@@ -1840,10 +1843,13 @@ class FieldType(
         :param field: The field instance that the value belongs to.
         :param model_field: The model field that the value must be prepared for.
         :param value: The value that must be prepared for filtering.
-        :return: The prepared value.
+        :return: The prepared value or None if the value is an empty string.
         :raises ValueError: If the value is not compatible for the given field and
             model_field.
         """
+
+        if value == "":
+            return None
 
         try:
             return model_field.get_prep_value(value)
@@ -1852,7 +1858,7 @@ class FieldType(
 
     def get_formula_reference_to_model_field(
         self,
-        model_field: django_models.Field,
+        model_field: DjangoField,
         db_column: str,
         already_in_subquery: bool,
     ) -> Expression:
@@ -2207,9 +2213,7 @@ class FieldAggregationType(Instance):
             for t in self.compatible_field_types
         )
 
-    def _get_raw_aggregation(
-        self, model_field: django_models.Field, field: Field
-    ) -> django_models.Aggregate:
+    def _get_raw_aggregation(self, model_field: DjangoField, field: Field) -> Aggregate:
         """
         Returns the raw aggregation that should be used for the field aggregation
         type.
@@ -2222,7 +2226,7 @@ class FieldAggregationType(Instance):
         return self.raw_type().get_aggregation(field.db_column, model_field, field)
 
     def _get_aggregation_dict(
-        self, queryset: QuerySet, model_field: django_models.Field, field: Field
+        self, queryset: QuerySet, model_field: DjangoField, field: Field
     ) -> dict:
         """
         Returns a dictinary defining the aggregation for the queryset.aggregate

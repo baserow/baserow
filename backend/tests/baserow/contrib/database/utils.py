@@ -123,6 +123,19 @@ def single_select_field_value_factory(data_fixture, target_field, value=None):
     )
 
 
+def multiple_select_field_factory(data_fixture, table, user):
+    return data_fixture.create_multiple_select_field(
+        name="target", user=user, table=table
+    )
+
+
+def multiple_select_field_value_factory(data_fixture, target_field, value=None):
+    if value is None:
+        return []
+    option = data_fixture.create_select_option(field=target_field, value=value)
+    return [option.id]
+
+
 def duration_field_factory(
     data_fixture, table, user, duration_format: str = "d h mm", name: str | None = None
 ):
