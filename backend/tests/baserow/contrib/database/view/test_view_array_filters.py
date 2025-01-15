@@ -5,6 +5,8 @@ import pytest
 
 from tests.baserow.contrib.database.utils import (
     boolean_field_factory,
+    date_field_factory,
+    datetime_field_factory,
     email_field_factory,
     long_text_field_factory,
     multiple_select_field_factory,
@@ -2364,7 +2366,7 @@ def setup_multiple_select_rows(data_fixture):
         data_fixture, multiple_select_field_factory
     )
 
-    user = data_fixture.create_user()
+    user = test_setup.user
     row_A_value = multiple_select_field_value_factory(
         data_fixture, test_setup.target_field, "Aa C"
     )
@@ -2578,3 +2580,65 @@ def test_has_or_doesnt_have_value_equal_filter_multiple_select_field_types(
         ).all()
     ]
     assert ids == [row_1.id, row_2.id, row_3.id]
+
+
+def setup_date_rows(data_fixture, field_factory):
+    test_setup = setup_linked_table_and_lookup(data_fixture, field_factory)
+    user = test_setup.user
+    target_field = test_setup.target_field
+    other_row_1, other_row_2, other_row_3 = test_setup.row_handler.force_create_rows(
+        user,
+        test_setup.other_table,
+        [
+            {target_field.db_column: "2020-01-01"},
+            {target_field.db_column: "2020-01-02"},
+            {},
+        ],
+        model=test_setup.other_table_model,
+    )
+    row_1, row_2, empty_row = test_setup.row_handler.force_create_rows(
+        user,
+        test_setup.table,
+        [
+            {test_setup.link_row_field.db_column: [other_row_1.id]},
+            {test_setup.link_row_field.db_column: [other_row_2.id]},
+            {test_setup.link_row_field.db_column: [other_row_3.id]},
+        ],
+        model=test_setup.model,
+    )
+    return test_setup, [row_1, row_2, empty_row]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_date
+@pytest.mark.parametrize("field_factory", [date_field_factory, datetime_field_factory])
+def test_has_or_has_not_empty_value_filter_date_field_types(
+    data_fixture, field_factory
+):
+    test_setup, [row_1, row_2, empty_row] = setup_date_rows(data_fixture, field_factory)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_empty_value",
+        value="",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert empty_row.id in ids
+
+    view_filter.type = "has_not_empty_value"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_1.id, row_2.id]

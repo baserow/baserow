@@ -1729,3 +1729,95 @@ describe('Multiple select-based array view filters', () => {
     }
   )
 })
+
+describe('Date array view filters', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const hasEmptyValueSupportedFields = [
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'date',
+      date_include_time: false,
+    },
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'date',
+      date_include_time: true,
+    },
+  ]
+
+  const hasEmptyValueCases = [
+    {
+      cellValue: [],
+      expected: false,
+    },
+    {
+      cellValue: [{ value: null }],
+      expected: true,
+    },
+    {
+      cellValue: [{ value: '2021-01-01' }, { value: null }],
+      expected: true,
+    },
+    {
+      cellValue: [{ value: '2021-01-01' }, { value: '2021-01-02' }],
+      expected: false,
+    },
+  ]
+
+  describe.each(hasEmptyValueSupportedFields)(
+    'HasEmptyValueViewFilterType %j',
+    (field) => {
+      test.each(hasEmptyValueCases)(
+        'filter matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasEmptyValueViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(testValues.expected)
+        }
+      )
+    }
+  )
+
+  describe.each(hasEmptyValueSupportedFields)(
+    'HasNotEmptyValueViewFilterType %j',
+    (field) => {
+      test.each(hasEmptyValueCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotEmptyValueViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(!testValues.expected)
+        }
+      )
+    }
+  )
+})

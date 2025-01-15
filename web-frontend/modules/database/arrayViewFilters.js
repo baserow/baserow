@@ -15,6 +15,7 @@ const HasEmptyValueViewFilterTypeMixin = {
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(number)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(date)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(multiple_select)'),
     ]

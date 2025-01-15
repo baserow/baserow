@@ -424,7 +424,10 @@ export class BaserowFormulaBooleanType extends BaserowFormulaTypeDefinition {
   }
 }
 
-export class BaserowFormulaDateType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaDateType extends mix(
+  hasEmptyValueFilterMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'date'
   }

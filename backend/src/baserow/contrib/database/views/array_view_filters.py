@@ -24,6 +24,7 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaBooleanType,
     BaserowFormulaCharType,
+    BaserowFormulaDateType,
     BaserowFormulaMultipleSelectType,
     BaserowFormulaSingleSelectType,
     BaserowFormulaURLType,
@@ -45,6 +46,7 @@ class HasEmptyValueViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaTextType.type),
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
+            FormulaFieldType.array_of(BaserowFormulaDateType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
