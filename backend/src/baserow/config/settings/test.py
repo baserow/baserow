@@ -1,7 +1,28 @@
 # flake8: noqa: F405
+import os
 from copy import deepcopy
+from unittest.mock import patch
 
-from .base import *  # noqa: F403, F401
+from dotenv import dotenv_values
+
+# Create a .env.testing file in the backend directory to store different test settings and
+# override the default ones. For different test settings, provide the TEST_ENV_FILE
+# environment variable with the name of the file to use. Everything that starts with
+# .env.testing will be ignored by git.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEST_ENV_FILE = os.getenv("TEST_ENV_FILE", ".env.testing")
+TEST_ENV_VARS = dotenv_values(os.path.join(BASE_DIR, f"../../../{TEST_ENV_FILE}"))
+
+
+def getenv_for_tests(key: str, default: str = "") -> str:
+    return TEST_ENV_VARS.get(key, default)
+
+
+with patch("os.getenv", getenv_for_tests) as load_dotenv:
+    # Avoid loading .env settings to prevent conflicts with the test settings,
+    # but allow custom settings to be loaded from the .env.test file in the
+    # backend root directory.
+    from .base import *  # noqa: F403, F401
 
 TESTS = True
 
@@ -66,20 +87,6 @@ BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED = "VIEWER"
 # prevent failures caused by the middleware itself
 if "baserow.middleware.ConcurrentUserRequestsMiddleware" in MIDDLEWARE:
     MIDDLEWARE.remove("baserow.middleware.ConcurrentUserRequestsMiddleware")
-
-
-BASEROW_OPENAI_API_KEY = None
-BASEROW_OPENAI_ORGANIZATION = None
-BASEROW_OPENAI_MODELS = []
-BASEROW_OPENROUTER_API_KEY = None
-BASEROW_OPENROUTER_ORGANIZATION = None
-BASEROW_OPENROUTER_MODELS = []
-BASEROW_ANTHROPIC_API_KEY = None
-BASEROW_ANTHROPIC_MODELS = []
-BASEROW_MISTRAL_API_KEY = None
-BASEROW_MISTRAL_MODELS = []
-BASEROW_OLLAMA_HOST = None
-BASEROW_OLLAMA_MODELS = []
 
 PUBLIC_BACKEND_URL = "http://localhost:8000"
 PUBLIC_WEB_FRONTEND_URL = "http://localhost:3000"
