@@ -32,7 +32,6 @@
 </template>
 
 <script>
-import _ from 'lodash'
 import { required, integer, between } from 'vuelidate/lib/validators'
 
 import form from '@baserow/modules/core/mixins/form'
