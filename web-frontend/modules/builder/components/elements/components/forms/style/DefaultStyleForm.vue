@@ -84,8 +84,8 @@
 
     <RadiusForm
       v-model="radiusStyles"
-      :background-radius-is-allowed="isStyleAllowed(`style_background_radius`)"
-      :border-radius-is-allowed="isStyleAllowed(`style_border_radius`)"
+      :background-radius-is-allowed="isStyleAllowed('style_background_radius')"
+      :border-radius-is-allowed="isStyleAllowed('style_border_radius')"
     />
   </form>
 </template>

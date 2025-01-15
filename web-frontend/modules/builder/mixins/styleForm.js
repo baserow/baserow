@@ -29,8 +29,8 @@ export default {
         borderNames.map((pos) => [pos, this.getBoxStyleValue(pos)])
       ),
       radiusStyles: {
-        background_radius: this.defaultValues.background_radius,
-        border_radius: this.defaultValues.border_radius,
+        background_radius: this.defaultValues.style_background_radius,
+        border_radius: this.defaultValues.style_border_radius,
       },
     }
   },
