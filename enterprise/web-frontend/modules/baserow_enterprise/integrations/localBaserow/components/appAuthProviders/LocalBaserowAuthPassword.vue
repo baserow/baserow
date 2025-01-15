@@ -61,6 +61,10 @@ export default {
       type: Array,
       required: true,
     },
+    authProviderType: {
+      type: Object,
+      required: true,
+    },
     loginButtonLabel: {
       type: String,
       required: true,
@@ -88,7 +92,6 @@ export default {
       values: { email: '', password: '' },
     }
   },
-  computed: {},
   methods: {
     async onLogin(event) {
       await this.beforeLogin()

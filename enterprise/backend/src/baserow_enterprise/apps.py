@@ -177,11 +177,11 @@ class BaserowEnterpriseConfig(AppConfig):
             LocalBaserowPasswordAppAuthProviderType()
         )
 
-        from baserow_enterprise.integrations.common.sso.saml.app_auth_provider_types import (
-            SamlAppAuthProviderType,
-        )
         from baserow_enterprise.integrations.common.sso.oauth2.app_auth_provider_types import (
             OpenIdConnectAppAuthProviderType,
+        )
+        from baserow_enterprise.integrations.common.sso.saml.app_auth_provider_types import (
+            SamlAppAuthProviderType,
         )
 
         app_auth_provider_type_registry.register(SamlAppAuthProviderType())

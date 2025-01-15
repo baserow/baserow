@@ -169,27 +169,43 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
     return CommonOIDCSettingForm
   }
 
-  getCallbackUrl(userSource) {
-    return `${this.app.$config.PUBLIC_BACKEND_URL}/api/user_source/${userSource.uid}/sso/oauth2_openid_connect/callback/`
+  getAuthToken(userSource, authProvider, route) {
+    // token can be in the query string (SSO) or in the cookies (previous session)
+    // We use the user source id in order to prevent conflicts when using multiple
+    // auth forms on the same page.
+    const queryParamName = `user_source_oidc_token__${userSource.id}`
+    return route.query[queryParamName]
   }
 
   handleServerError(vueComponentInstance, error) {
-    // TODO
-    if (error.handler.code === 'ERROR_INVALID_PROVIDER_URL') {
-      vueComponentInstance.serverErrors = {
-        ...vueComponentInstance.serverErrors,
-        baseUrl: error.handler.detail,
-      }
-      return true
-    }
-
     if (error.handler.code !== 'ERROR_REQUEST_BODY_VALIDATION') return false
 
-    vueComponentInstance.serverErrors = structuredClone(
-      error.handler.detail || {}
-    )
+    if (error.handler.detail?.auth_providers?.length > 0) {
+      const flatProviders = Object.entries(vueComponentInstance.authProviders)
+        .map(([, providers]) => providers)
+        .flat()
+        // Sort per ID to make sure we have the same order
+        // as the backend
+        .sort((a, b) => a.id - b.id)
 
-    return true
+      for (const [
+        index,
+        authError,
+      ] of error.handler.detail.auth_providers.entries()) {
+        if (
+          Object.keys(authError).length > 0 &&
+          flatProviders[index].id === vueComponentInstance.authProvider.id
+        ) {
+          vueComponentInstance.serverErrors = {
+            ...vueComponentInstance.serverErrors,
+            ...authError,
+          }
+          return true
+        }
+      }
+    }
+
+    return false
   }
 
   getOrder() {

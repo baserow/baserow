@@ -12,6 +12,36 @@
       @values-changed="checkValidity"
       v-on="$listeners"
     >
+      <template #config>
+        <FormGroup
+          small-label
+          :label="$t('commonOidcSettingForm.callbackTitle')"
+          required
+          :helper-text="$t('commonOidcSettingForm.callbackHelperText')"
+        >
+          <div class="common-oidc-setting-form__url-block">
+            <div
+              v-for="callback in callbacks"
+              :key="callback.name"
+              class="common-oidc-setting-form__url"
+            >
+              <span class="common-oidc-setting-form__url-domain">
+                {{ callback.name }}
+              </span>
+              <span
+                class="common-oidc-setting-form__url-dest"
+                @click.prevent="
+                  ;[copyToClipboard(callback.url), $refs.copiedACS.show()]
+                "
+                :title="callback.url"
+              >
+                {{ callback.previewUrl }}
+              </span>
+            </div>
+            <Copied ref="copiedACS"></Copied>
+          </div>
+        </FormGroup>
+      </template>
     </OpenIdConnectSettingsForm>
   </AuthProviderWithModal>
 </template>
@@ -20,6 +50,7 @@
 import OpenIdConnectSettingsForm from '@baserow_enterprise/components/admin/forms/OpenIdConnectSettingsForm.vue'
 import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
 import AuthProviderWithModal from '@baserow/modules/builder/components/userSource/AuthProviderWithModal'
+import { mapGetters } from 'vuex'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
@@ -38,6 +69,35 @@ export default {
   },
   data() {
     return { inError: false }
+  },
+  computed: {
+    ...mapGetters({ domains: 'domain/getDomains' }),
+    callbacks() {
+      const url = `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/${this.userSource.uid}/sso/oauth2/openid_connect/callback/`
+      const previewUrl = `${this.$config.PUBLIC_BACKEND_URL.substr(
+        0,
+        10
+      )}.../user-source/${this.userSource.uid}/sso/...`
+
+      const preview = [
+        {
+          name: this.$t('commonOidcSettingForm.preview'),
+          url,
+          previewUrl,
+        },
+      ]
+
+      const others = this.domains.map((domain) => ({
+        name: domain.domain_name,
+        url: `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/domain_${domain.id}__${this.userSource.uid}/sso/oauth2/openid_connect/callback/`,
+        previewUrl: `${this.$config.PUBLIC_BACKEND_URL.substr(
+          0,
+          10
+        )}.../user-source/domain_${domain.id}__${this.userSource.uid}/sso/...`,
+      }))
+
+      return [...preview, ...others]
+    },
   },
   watch: {
     '$v.$anyDirty'() {

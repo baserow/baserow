@@ -321,10 +321,13 @@
     "passwordFieldLabel": "Select password field",
     "noFields": "No compatible fields"
   },
-  "commonSamlSettingModal": {
-    "title": "Edit provider",
+  "commonSamlSettingForm": {
     "relayStateTitle": "Default Relay State URL (Click to copy)",
-    "acsTitle": "Single Sign On url (Click to copy)",
+    "acsTitle": "Single Sign On url (Click to copy)"
+  },
+  "commonOidcSettingForm": {
+    "callbackTitle": "Callback URLs (Click to copy)",
+    "callbackHelperText": "Add these URLs to your Openid connect provider redirect URI settings.",
     "preview": "Preview"
   },
   "enterpriseSettings": {
@@ -402,7 +405,6 @@
     "accessTokenHelper": "To generate a private app access token in HubSpot, click on Settings in the top bar, navigate to Integrations > Private Apps, and create a new private app. Assign the following scopes: crm.objects.contacts.read, crm.schemas.contacts.read, and crm.objects.custom.read. Finally, click Create app to generate the token."
   },
   "samlAuthLink": {
-    "loginWithSaml": "Login with SAML",
     "placeholderWithSaml": "{login} with SAML",
     "provideEmail": "Provide your SAML account email",
     "emailPlaceholder": "Enter your email..."
@@ -429,5 +431,8 @@
     "hour": "Hour",
     "minute": "Minute",
     "second": "Second"
+  },
+  "oidcAuthLink": {
+    "placeholderWithOIDC": "{login} with {provider}"
   }
 }

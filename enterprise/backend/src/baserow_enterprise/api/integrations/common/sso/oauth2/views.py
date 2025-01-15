@@ -1,62 +1,44 @@
-from typing import Any, Dict
-
 from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
-from baserow.api.decorators import map_exceptions
 
-from baserow.api.exceptions import (
-    QueryParameterValidationException,
-    RequestBodyValidationException,
-)
-from baserow.api.utils import validate_data
-from baserow.core.user_sources.exceptions import (
-    UserSourceDoesNotExist,
-    UserSourceImproperlyConfigured,
-)
-from baserow.core.user_sources.handler import UserSourceHandler
-from baserow_enterprise.integrations.common.sso.oauth2.app_auth_provider_types import (
-    OpenIdConnectAppAuthProviderType,
-)
-
-from baserow.api.user_sources.errors import ERROR_USER_SOURCE_DOES_NOT_EXIST
-from baserow_enterprise.sso.saml.exceptions import (
-    InvalidSamlConfiguration,
-    InvalidSamlResponse,
-)
 from baserow_premium.license.handler import CoreHandler
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.views import APIView
-from baserow_enterprise.api.sso.serializers import BaseSsoLoginRequestSerializer
+
+from baserow.api.decorators import map_exceptions
+from baserow.api.exceptions import (
+    QueryParameterValidationException,
+    RequestBodyValidationException,
+)
+from baserow.api.user_sources.errors import ERROR_USER_SOURCE_DOES_NOT_EXIST
+from baserow.api.utils import validate_data
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
-
-
-from baserow.api.decorators import validate_query_parameters
-from baserow.core.auth_provider.exceptions import (
-    AuthProviderModelNotFound,
-    DifferentAuthProvider,
+from baserow.core.auth_provider.exceptions import AuthProviderModelNotFound
+from baserow.core.exceptions import ApplicationDoesNotExist
+from baserow.core.user.exceptions import DeactivatedUserException
+from baserow.core.user_sources.exceptions import (
+    UserSourceDoesNotExist,
+    UserSourceImproperlyConfigured,
 )
-from baserow.core.auth_provider.handler import AuthProviderHandler
-from baserow.core.exceptions import (
-    ApplicationDoesNotExist,
-    WorkspaceInvitationEmailMismatch,
-)
-from baserow.core.user.exceptions import DeactivatedUserException, DisabledSignupError
-from baserow_enterprise.api.sso.serializers import SsoLoginRequestSerializer
+from baserow.core.user_sources.handler import UserSourceHandler
+from baserow_enterprise.api.sso.serializers import BaseSsoLoginRequestSerializer
 from baserow_enterprise.api.sso.utils import (
     SsoErrorCode,
     get_valid_frontend_url,
     map_sso_exceptions,
-    redirect_to_sign_in_error_page,
-    redirect_user_on_success,
     urlencode_query_params,
 )
-
-from baserow_enterprise.sso.exceptions import AuthFlowError
-from baserow_enterprise.sso.utils import is_sso_feature_active
+from baserow_enterprise.integrations.common.sso.oauth2.app_auth_provider_types import (
+    OpenIdConnectAppAuthProviderType,
+)
+from baserow_enterprise.sso.saml.exceptions import (
+    InvalidSamlConfiguration,
+    InvalidSamlResponse,
+)
 
 
 class OAuth2LoginView(APIView):
@@ -141,9 +123,16 @@ class OAuth2LoginView(APIView):
             # provider = AuthProviderHandler.get_auth_provider_by_id(provider_id)
 
             provider_type = app_auth_provider_type_registry.get(provider_type_name)
+            provider = provider_type.model_class.objects.get(
+                user_source_id=user_source.id
+            )
+
+            # TODO use client_id to get the right provider
 
             redirect_url = provider_type.get_authorization_url(
-                provider_type.model_class.objects.get(user_source_id=user_source.id),
+                # TODO they are potentially many of them. Use django session
+                # to store client id?
+                provider,
                 session=request.session,
                 query_params=query_params,
             )
@@ -154,7 +143,7 @@ class OAuth2LoginView(APIView):
         # happened
         error_url = urlencode_query_params(
             application_urls[0],
-            {f"saml_error__{user_source.id}": error_raised["code"].value},
+            {f"oidc_error__{user_source.id}": error_raised["code"].value},
         )
         return redirect(error_url)
 
@@ -213,7 +202,7 @@ class OAuth2CallbackView(APIView):
         def on_error(error_code):
             error_raised["code"] = error_code
 
-        # We can't use the decorator here because the redirect_url is related
+        # We can't use the view decorator here because the redirect_url is related
         # to the application and we don't have it before.
         with map_sso_exceptions(
             {
@@ -228,6 +217,8 @@ class OAuth2CallbackView(APIView):
         ):
             provider_type = app_auth_provider_type_registry.get(provider_type_name)
             provider = provider_type.model_class.objects.get(user_source=user_source)
+
+            print(request.query_params)
 
             code = request.query_params.get("code", None)
 

@@ -9,6 +9,7 @@
         <component
           :is="appAuthType.component"
           :user-source="selectedUserSource"
+          :auth-provider-type="appAuthType"
           :auth-providers="appAuthProviderPerTypes[appAuthType.type]"
           :login-button-label="resolvedLoginButtonLabel"
           :before-login="beforeLogin"

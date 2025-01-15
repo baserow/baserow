@@ -16,7 +16,7 @@
         <FormGroup
           small-label
           required
-          :label="$t('commonSamlSettingModal.relayStateTitle')"
+          :label="$t('commonSamlSettingForm.relayStateTitle')"
           class="margin-bottom-2"
         >
           <div class="common-saml-setting-form__url-block">
@@ -37,7 +37,7 @@
         <FormGroup
           small-label
           required
-          :label="$t('commonSamlSettingModal.acsTitle')"
+          :label="$t('commonSamlSettingForm.acsTitle')"
           class="margin-bottom-2"
         >
           <div class="common-saml-setting-form__url-block">

@@ -1,6 +1,6 @@
-from abc import abstractmethod
 import json
 import urllib
+from abc import abstractmethod
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, Optional, Tuple, TypedDict
 
@@ -477,7 +477,8 @@ class OpenIdConnectAuthProviderTypeMixin:
     def get_user_info_url(self, instance: AuthProviderModel) -> str:
         return instance.user_info_url
 
-    def get_wellknown_urls(self, base_url: str) -> WellKnownUrls:
+    @classmethod
+    def get_wellknown_urls(cls, base_url: str) -> WellKnownUrls:
         """
         Queries the provider "wellknown URL endpoint" to retrieve OpenId Connect
         wellknown URLS like authorization url, access token url or user info url.
@@ -489,15 +490,17 @@ class OpenIdConnectAuthProviderTypeMixin:
 
         try:
             wellknown_url = f"{base_url}/.well-known/openid-configuration"
-            json_response = requests.get(wellknown_url).json()  # nosec B113
+            json_response = requests.get(
+                wellknown_url, timeout=120
+            ).json()  # nosec B113
             return WellKnownUrls(
                 authorization_url=json_response["authorization_endpoint"],
                 access_token_url=json_response["token_endpoint"],
                 user_info_url=json_response["userinfo_endpoint"],
             )
         except Exception as exc:
-            logger.exception(exc)
-            raise InvalidProviderUrl()
+            logger.exception("Provider 'Wellknown URL endpoint' invalid.")
+            raise InvalidProviderUrl() from exc
 
 
 class OpenIdConnectAuthProviderType(

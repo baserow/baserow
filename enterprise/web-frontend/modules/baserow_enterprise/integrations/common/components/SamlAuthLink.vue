@@ -53,6 +53,10 @@ export default {
       type: Array,
       required: true,
     },
+    authProviderType: {
+      type: Object,
+      required: true,
+    },
     loginButtonLabel: {
       type: String,
       required: true,
