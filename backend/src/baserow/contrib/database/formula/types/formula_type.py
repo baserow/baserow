@@ -15,6 +15,7 @@ from baserow.contrib.database.formula.types.exceptions import InvalidFormulaType
 T = TypeVar("T", bound="BaserowFormulaType")
 
 if TYPE_CHECKING:
+    from baserow.contrib.database.fields.models import FormulaField
     from baserow.contrib.database.fields.registries import FieldType
     from baserow.contrib.database.formula.types.formula_types import (
         BaserowFormulaBooleanType,
@@ -292,6 +293,35 @@ class BaserowFormulaType(abc.ABC):
             kwargs[field_name] = getattr(formula_field, field_name)
         return cls(**kwargs)
 
+    def _has_user_defined_values(self, field: "FormulaField") -> bool:
+        """
+        Returns True if the formula field has any user defined values for the type or
+        False if not, so that our formula language can suggest which values could be
+        used.
+
+        :param formula_field: The formula field to check if the user has set any values
+            for the type.
+        :return: True if the user has set any values for the type or False if not.
+        """
+
+        from baserow.contrib.database.fields.models import FormulaField
+
+        # if the formula_field exists and the type haven't changed, we don't want to
+        # override the user set values with the formula calculated values for the type.
+        formula_type = field.array_formula_type or field.formula_type
+        if field.id and formula_type == self.type:
+            return True
+        else:
+            # check if any of the user_overridable_formatting_option_fields is different
+            # from the field default value, If so, don't override them.
+            for field_name in self.user_overridable_formatting_option_fields:
+                override_set_by_user = getattr(field, field_name)
+                field_attr = getattr(FormulaField, field_name).field
+                default_value = None if field_attr.null else field_attr.default
+                if override_set_by_user != default_value:
+                    return True
+        return False
+
     def new_type_with_user_and_calculated_options_merged(self: T, formula_field):
         """
         Generates a new merged BaserowFormulaType instance from what has been set on the
@@ -307,15 +337,9 @@ class BaserowFormulaType(abc.ABC):
         """
 
         kwargs = {}
+        source = formula_field if self._has_user_defined_values(formula_field) else self
         for field_name in self.user_overridable_formatting_option_fields:
-            override_set_by_user = getattr(formula_field, field_name)
-            if (
-                override_set_by_user is not None
-                or field_name in self.nullable_option_fields
-            ):
-                kwargs[field_name] = override_set_by_user
-            else:
-                kwargs[field_name] = getattr(self, field_name)
+            kwargs[field_name] = getattr(source, field_name)
         for field_name in self.get_internal_fields():
             kwargs[field_name] = getattr(self, field_name)
         return self.__class__(**kwargs)
@@ -335,19 +359,19 @@ class BaserowFormulaType(abc.ABC):
             BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
         )
 
+        field_has_user_defined_values = self._has_user_defined_values(formula_field)
+
         formula_field.formula_type = self.type
         for attr in BASEROW_FORMULA_TYPE_ALLOWED_FIELDS:
             if attr in self.user_overridable_formatting_option_fields:
-                # Only set the calculated type formatting options if the user has not
-                # already set them.
-                if getattr(formula_field, attr) is None:
+                if not field_has_user_defined_values:
                     setattr(formula_field, attr, getattr(self, attr))
             elif attr in self.get_internal_fields():
                 setattr(formula_field, attr, getattr(self, attr))
-            else:
+            else:  # unset all attributes unnecessary for this formula type to original
                 field_attr = getattr(FormulaField, attr).field
-                default_value = None if field_attr.null else field_attr.default
-                setattr(formula_field, attr, default_value)
+                default_field_value = None if field_attr.null else field_attr.default
+                setattr(formula_field, attr, default_field_value)
 
     def get_baserow_field_instance_and_type(self) -> "tuple[Model, FieldType]":
         from baserow.contrib.database.fields.registries import field_type_registry
