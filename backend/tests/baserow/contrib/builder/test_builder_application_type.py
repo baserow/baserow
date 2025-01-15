@@ -661,6 +661,7 @@ def test_builder_application_export(data_fixture):
             "link_text_color": "primary",
             "link_hover_text_color": "#96baf6ff",
             "image_alignment": "left",
+            "image_border_radius": 0,
             "image_max_width": 100,
             "image_max_height": None,
             "image_constraint": "contain",
