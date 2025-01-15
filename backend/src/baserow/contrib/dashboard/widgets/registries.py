@@ -44,6 +44,19 @@ class WidgetType(
 
         return values
 
+    def export_prepared_values(self, instance: Widget):
+        """
+        Returns a serializable dict of prepared values for the widget attributes.
+        It is called by undo/redo ActionHandler to store the values in a way that
+        could be restored later.
+
+        :param instance: The widget instance to export values for.
+        :return: A dict of prepared values.
+        """
+
+        values = {key: getattr(instance, key) for key in self.allowed_fields}
+        return values
+
     def after_delete(self, instance: Widget):
         """
         This function allows you to hook into the moment after a widget is

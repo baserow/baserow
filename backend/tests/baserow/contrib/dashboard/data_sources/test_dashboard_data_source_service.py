@@ -266,10 +266,10 @@ def test_update_data_source_name(dashboard_data_source_updated, data_fixture):
     updated_data_source = DashboardDataSourceService().update_data_source(
         user, data_source.id, data_source.service.get_type(), name="Updated name"
     )
-    assert updated_data_source.name == "Updated name"
+    assert updated_data_source.data_source.name == "Updated name"
 
     assert dashboard_data_source_updated.called_with(
-        data_source=updated_data_source, user=user
+        data_source=updated_data_source.data_source, user=user
     )
 
 

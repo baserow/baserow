@@ -7,6 +7,7 @@ class DashboardConfig(AppConfig):
     name = "baserow.contrib.dashboard"
 
     def ready(self):
+        from baserow.core.action.registries import action_type_registry
         from baserow.core.registries import (
             application_type_registry,
             object_scope_type_registry,
@@ -88,7 +89,6 @@ class DashboardConfig(AppConfig):
             from baserow.core.registries import permission_manager_type_registry
 
             from .permission_manager import AllowIfTemplatePermissionManagerType
-            from .ws.receivers import widget_created  # noqa: F401
 
             prev_manager = permission_manager_type_registry.get(
                 AllowIfTemplatePermissionManagerType.type
@@ -99,3 +99,24 @@ class DashboardConfig(AppConfig):
             permission_manager_type_registry.register(
                 AllowIfTemplatePermissionManagerType(prev_manager)
             )
+
+            from baserow.contrib.dashboard.data_sources.actions import (
+                UpdateDashboardDataSourceActionType,
+            )
+            from baserow.contrib.dashboard.widgets.actions import (
+                CreateWidgetActionType,
+                DeleteWidgetActionType,
+                UpdateWidgetActionType,
+            )
+
+            from .ws.receivers import (  # noqa: F401
+                dashboard_data_source_updated,
+                widget_created,
+                widget_deleted,
+                widget_updated,
+            )
+
+            action_type_registry.register(CreateWidgetActionType())
+            action_type_registry.register(UpdateWidgetActionType())
+            action_type_registry.register(DeleteWidgetActionType())
+            action_type_registry.register(UpdateDashboardDataSourceActionType())

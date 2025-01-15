@@ -17,6 +17,11 @@ from baserow.api.utils import (
 )
 from baserow.contrib.dashboard.api.errors import ERROR_DASHBOARD_DOES_NOT_EXIST
 from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
+from baserow.contrib.dashboard.widgets.actions import (
+    CreateWidgetActionType,
+    DeleteWidgetActionType,
+    UpdateWidgetActionType,
+)
 from baserow.contrib.dashboard.widgets.exceptions import (
     WidgetDoesNotExist,
     WidgetTypeDoesNotExist,
@@ -122,8 +127,8 @@ class WidgetsView(APIView):
         """Creates a new widget."""
 
         widget_type = data.pop("type")
-        widget = WidgetService().create_widget(
-            request.user, widget_type, dashboard_id, **data
+        widget = CreateWidgetActionType.do(
+            request.user, dashboard_id, widget_type, data
         )
         serializer = widget_type_registry.get_serializer(widget, WidgetSerializer)
         return Response(serializer.data)
@@ -185,7 +190,9 @@ class WidgetView(APIView):
             partial=True,
             return_validated=True,
         )
-        updated_widget = WidgetService().update_widget(request.user, widget_id, **data)
+        updated_widget = UpdateWidgetActionType.do(
+            request.user, widget_id, widget_type, data
+        )
         serializer = widget_type_registry.get_serializer(
             updated_widget, WidgetSerializer
         )
@@ -220,5 +227,5 @@ class WidgetView(APIView):
         Deletes a widget.
         """
 
-        WidgetService().delete_widget(request.user, widget_id)
+        DeleteWidgetActionType.do(request.user, widget_id)
         return Response(status=204)

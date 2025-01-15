@@ -53,9 +53,9 @@ class DashboardDataSourceSerializer(ServiceSerializer):
     def get_dashboard_id(self, instance):
         return self.context["data_source"].dashboard_id
 
-    @extend_schema_field(OpenApiTypes.FLOAT)
+    @extend_schema_field(OpenApiTypes.STR)
     def get_order(self, instance):
-        return self.context["data_source"].order
+        return str(self.context["data_source"].order)
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_schema(self, instance):

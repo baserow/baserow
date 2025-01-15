@@ -117,18 +117,29 @@ export const actions = {
       debouncedWidgetUpdate()
     })
   },
+  handleWidgetUpdated({ commit }, widget) {
+    commit('UPDATE_WIDGET', { widgetId: widget.id, values: widget })
+  },
   async updateDataSource({ commit, dispatch }, { dataSourceId, values }) {
     commit('UPDATE_DATA', { dataSourceId, values: null })
     const { data } = await DataSourceService(this.$client).update(
       dataSourceId,
       values
     )
-    commit('UPDATE_DATA_SOURCE', { dataSourceId, values: data })
-
+    await dispatch('handleDataSourceUpdated', data)
+  },
+  async handleDataSourceUpdated({ commit, dispatch }, dataSource) {
+    commit('UPDATE_DATA_SOURCE', {
+      dataSourceId: dataSource.id,
+      values: dataSource,
+    })
     try {
-      await dispatch('dispatchDataSource', dataSourceId)
+      await dispatch('dispatchDataSource', dataSource.id)
     } catch (error) {
-      commit('UPDATE_DATA', { dataSourceId, values: { _error: true } })
+      commit('UPDATE_DATA', {
+        dataSourceId: dataSource.id,
+        values: { _error: true },
+      })
     }
   },
   async fetchInitial({ commit, dispatch }, { dashboardId, forEditing }) {
@@ -188,8 +199,11 @@ export const actions = {
       commit('UPDATE_DATA', { dataSourceId, values: { _error: true } })
     }
   },
-  async deleteWidget({ commit }, widgetId) {
+  async deleteWidget({ dispatch }, widgetId) {
     await WidgetService(this.$client).delete(widgetId)
+    dispatch('handleWidgetDeleted', widgetId)
+  },
+  handleWidgetDeleted({ commit }, widgetId) {
     commit('DELETE_WIDGET', widgetId)
   },
 }
