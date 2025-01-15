@@ -140,6 +140,7 @@ const HasValueContainsViewFilterTypeMixin = {
         FormulaFieldType.arrayOf('char'),
         FormulaFieldType.arrayOf('url'),
         FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('date'),
         FormulaFieldType.arrayOf('single_select'),
         FormulaFieldType.arrayOf('multiple_select')
       ),

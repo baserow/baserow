@@ -2591,7 +2591,7 @@ def setup_date_rows(data_fixture, field_factory):
         test_setup.other_table,
         [
             {target_field.db_column: "2020-01-01"},
-            {target_field.db_column: "2020-01-02"},
+            {target_field.db_column: "2019-01-02"},
             {},
         ],
         model=test_setup.other_table_model,
@@ -2629,8 +2629,7 @@ def test_has_or_has_not_empty_value_filter_date_field_types(
             test_setup.grid_view, test_setup.model.objects.all()
         ).all()
     ]
-    assert len(ids) == 1
-    assert empty_row.id in ids
+    assert ids == [empty_row.id]
 
     view_filter.type = "has_not_empty_value"
     view_filter.save()
@@ -2642,3 +2641,37 @@ def test_has_or_has_not_empty_value_filter_date_field_types(
         ).all()
     ]
     assert ids == [row_1.id, row_2.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_date
+@pytest.mark.parametrize("field_factory", [date_field_factory, datetime_field_factory])
+def test_has_or_has_not_value_contains_filter_date_field_types(
+    data_fixture, field_factory
+):
+    test_setup, [row_1, row_2, empty_row] = setup_date_rows(data_fixture, field_factory)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_contains",
+        value="19",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_2.id]
+
+    view_filter.type = "has_not_value_contains"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_1.id, empty_row.id]

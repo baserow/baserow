@@ -426,6 +426,7 @@ export class BaserowFormulaBooleanType extends BaserowFormulaTypeDefinition {
 
 export class BaserowFormulaDateType extends mix(
   hasEmptyValueFilterMixin,
+  hasValueContainsFilterMixin,
   BaserowFormulaTypeDefinition
 ) {
   static getType() {

@@ -789,7 +789,9 @@ class BaserowFormulaDurationType(
         )
 
 
-class BaserowFormulaDateType(HasValueEmptyFilterSupport, BaserowFormulaValidType):
+class BaserowFormulaDateType(
+    HasValueEmptyFilterSupport, HasValueContainsFilterSupport, BaserowFormulaValidType
+):
     type = "date"
     baserow_field_type = "date"
     user_overridable_formatting_option_fields = [

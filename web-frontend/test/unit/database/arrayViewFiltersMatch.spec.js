@@ -1741,7 +1741,7 @@ describe('Date array view filters', () => {
     testApp.afterEach()
   })
 
-  const hasEmptyValueSupportedFields = [
+  const supportedFields = [
     {
       TestFieldType: FormulaFieldType,
       formula_type: 'array',
@@ -1775,16 +1775,74 @@ describe('Date array view filters', () => {
     },
   ]
 
-  describe.each(hasEmptyValueSupportedFields)(
-    'HasEmptyValueViewFilterType %j',
+  describe.each(supportedFields)('HasEmptyValueViewFilterType %j', (field) => {
+    test.each(hasEmptyValueCases)('filter matches values %j', (testValues) => {
+      const fieldType = new field.TestFieldType({
+        app: testApp._app,
+      })
+      const result = new HasEmptyValueViewFilterType({
+        app: testApp._app,
+      }).matches(testValues.cellValue, testValues.filterValue, field, fieldType)
+      expect(result).toBe(testValues.expected)
+    })
+  })
+
+  describe.each(supportedFields)(
+    'HasNotEmptyValueViewFilterType %j',
     (field) => {
       test.each(hasEmptyValueCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotEmptyValueViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(!testValues.expected)
+        }
+      )
+    }
+  )
+
+  const hasValueContainsCases = [
+    {
+      cellValue: [],
+      filterValue: '19',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: '2020-01-01' }, { value: '2019-01-02' }],
+      filterValue: '19',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: '2021-01-01' }, { value: '2021-01-02' }],
+      filterValue: '3',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: '2021-01-01' }, { value: '2021-01-02' }],
+      filterValue: '2',
+      expected: true,
+    },
+  ]
+
+  describe.each(supportedFields)(
+    'HasValueContainsViewFilterType %j',
+    (field) => {
+      test.each(hasValueContainsCases)(
         'filter matches values %j',
         (testValues) => {
           const fieldType = new field.TestFieldType({
             app: testApp._app,
           })
-          const result = new HasEmptyValueViewFilterType({
+          const result = new HasValueContainsViewFilterType({
             app: testApp._app,
           }).matches(
             testValues.cellValue,
@@ -1798,16 +1856,16 @@ describe('Date array view filters', () => {
     }
   )
 
-  describe.each(hasEmptyValueSupportedFields)(
-    'HasNotEmptyValueViewFilterType %j',
+  describe.each(supportedFields)(
+    'HasNotValueContainsViewFilterType %j',
     (field) => {
-      test.each(hasEmptyValueCases)(
+      test.each(hasValueContainsCases)(
         'filter not matches values %j',
         (testValues) => {
           const fieldType = new field.TestFieldType({
             app: testApp._app,
           })
-          const result = new HasNotEmptyValueViewFilterType({
+          const result = new HasNotValueContainsViewFilterType({
             app: testApp._app,
           }).matches(
             testValues.cellValue,

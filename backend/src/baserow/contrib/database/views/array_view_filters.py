@@ -146,6 +146,7 @@ class HasValueContainsViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaTextType.type),
             FormulaFieldType.array_of(BaserowFormulaCharType.type),
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
+            FormulaFieldType.array_of(BaserowFormulaDateType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
