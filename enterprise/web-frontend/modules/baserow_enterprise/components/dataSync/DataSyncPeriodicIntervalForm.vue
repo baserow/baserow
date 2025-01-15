@@ -37,8 +37,8 @@
             :disabled="disabled"
             size="large"
             type="number"
-            min="0"
-            max="23"
+            :min="0"
+            :max="23"
             @blur="$v.hour.$touch()"
             @input="updateWhen"
           />
@@ -54,8 +54,8 @@
             :disabled="disabled"
             size="large"
             type="number"
-            min="0"
-            max="59"
+            :min="0"
+            :max="59"
             @blur="$v.minute.$touch()"
             @input="updateWhen"
           />
@@ -71,8 +71,8 @@
             :disabled="disabled"
             size="large"
             type="number"
-            min="0"
-            max="59"
+            :min="0"
+            :max="59"
             @blur="$v.second.$touch()"
             @input="updateWhen"
           />
@@ -113,10 +113,18 @@ export default {
     }
   },
   mounted() {
-    const splitted = this.values.when.split(':')
-    this.hour = splitted[0] || ''
-    this.minute = splitted[1] || ''
-    this.second = splitted[2] || ''
+    if (this.values.when) {
+      const splitted = this.values.when.split(':')
+      this.hour = splitted[0] || ''
+      this.minute = splitted[1] || ''
+      this.second = splitted[2] || ''
+    } else {
+      const currentDate = new Date()
+      this.hour = currentDate.getHours()
+      this.minute = currentDate.getMinutes()
+      this.second = currentDate.getSeconds()
+    }
+    this.updateWhen()
   },
   methods: {
     updateWhen() {
