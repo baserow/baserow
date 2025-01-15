@@ -191,7 +191,7 @@ export default {
       })
     }
 
-    const [pageFound, path, pageParamsValue] = found
+    const [pageFound, path, pageParams] = found
     // Handle 404
     if (pageFound.shared) {
       return error({
@@ -201,8 +201,7 @@ export default {
     }
 
     // Merge the query string values with the page parameters
-    Object.assign(query, pageParamsValue)
-    // Ensure missing query params are initialized with default values
+    const pageParamsValue = Object.assign({}, query, pageParams)
     pageFound.query_params.forEach((queryParam) => {
       if (queryParam.name in pageParamsValue) {
         return
