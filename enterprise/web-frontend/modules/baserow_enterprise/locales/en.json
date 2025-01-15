@@ -409,5 +409,23 @@
     "placeholderWithSaml": "{login} with SAML",
     "provideEmail": "Provide your SAML account email",
     "emailPlaceholder": "Enter your email..."
+  },
+  "configureDataSyncModal": {
+    "periodicInterval": "Periodic settings"
+  },
+  "configureDataSyncPeriodicInterval": {
+    "title": "Periodic settings",
+    "saved": "Saved"
+  },
+  "dataSyncPeriodicIntervalForm": {
+    "intervalLabel": "Interval",
+    "intervalHelper": "How frequently should the the data sync automatically sync.",
+    "manual": "Manual",
+    "daily": "Daily",
+    "hourly": "Hourly",
+    "whenHelper": "Provide the exact hour, minute, and second when the data sync should sync.",
+    "hour": "Hour",
+    "minute": "Minute",
+    "second": "Second"
   }
 }
