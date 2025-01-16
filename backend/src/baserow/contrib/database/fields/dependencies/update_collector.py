@@ -5,7 +5,7 @@ from django.db.models import Expression, Q, Value
 
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.models import Field, LinkRowField
-from baserow.contrib.database.fields.signals import field_updated
+from baserow.contrib.database.fields.signals import field_updated, fields_type_changed
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.constants import (
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
@@ -330,7 +330,7 @@ class FieldUpdateCollector:
         # the `ViewHandler::fields_type_changed` is called. That way, they can be
         # called combined, instead of one by one to save queries when many updated have
         # been made.
-        self._view_fields_type_changed = set()
+        self._fields_type_changed = set()
 
     def _init_update_statement_collector(self):
         return PathBasedUpdateStatementCollector(
@@ -408,11 +408,9 @@ class FieldUpdateCollector:
             deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
         )
 
-        if len(self._view_fields_type_changed) > 0:
-            from baserow.contrib.database.views.handler import ViewHandler
-
-            ViewHandler().fields_type_changed(list(self._view_fields_type_changed))
-            self._view_fields_type_changed = set()
+        if len(self._fields_type_changed) > 0:
+            fields_type_changed.send(self, fields=list(self._fields_type_changed))
+            self._fields_type_changed = set()
 
         return updated_rows_count
 
@@ -493,5 +491,5 @@ class FieldUpdateCollector:
     def _get_updated_fields_in_table(self, table) -> List[Field]:
         return [field for field in self._pending_field_updates.fields(table)]
 
-    def add_field_to_view_fields_type_changed(self, field: Field):
-        self._view_fields_type_changed.add(field)
+    def add_to_fields_type_changed(self, field: Field):
+        self._fields_type_changed.add(field)

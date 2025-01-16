@@ -402,7 +402,9 @@ class GalleryViewType(ViewType):
         fields_cannot_represent_files = [
             field
             for field in fields
-            if not field_type_registry.get_by_model(field).can_represent_files(field)
+            if not field_type_registry.get_by_model(
+                field.specific_class
+            ).can_represent_files(field)
         ]
         if len(fields_cannot_represent_files) > 0:
             GalleryView.objects.filter(
