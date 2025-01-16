@@ -1,9 +1,9 @@
 import re
 from typing import Any, Dict, List, Optional, Type, Union
 
-from django.utils.translation import gettext as _
-from django.core.cache import cache
 from django.conf import settings
+from django.core.cache import cache
+from django.utils.translation import gettext as _
 
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
@@ -410,14 +410,18 @@ class PreviousActionProviderType(DataProviderType):
         if previous_action_id not in previous_action:
             message = "The previous action id is not present in the dispatch context"
             raise DataProviderChunkInvalidException(message)
-        
+
         workflow_action = BuilderWorkflowActionHandler().get_workflow_action(
             previous_action_id
         )
-        dispatch_id = dispatch_context.request.data.get("previous_action", {}).get("current_dispatch_id")
+        dispatch_id = dispatch_context.request.data.get("previous_action", {}).get(
+            "current_dispatch_id"
+        )
 
         if workflow_action.get_type().is_server_workflow and dispatch_id:
-            cache_key = self.get_dispatch_action_cache_key(dispatch_id, workflow_action.id)
+            cache_key = self.get_dispatch_action_cache_key(
+                dispatch_id, workflow_action.id
+            )
             result = {str(workflow_action.id): cache.get(cache_key)}
             return get_value_at_path(result, path)
         else:
@@ -480,10 +484,14 @@ class PreviousActionProviderType(DataProviderType):
         return {
             previous_action.service.id: service_type.extract_properties(rest, **kwargs)
         }
-    
+
     def post_dispatch(self, dispatch_context, workflow_action, result):
-        if dispatch_id := dispatch_context.request.data.get("previous_action", {}).get("current_dispatch_id"):
-            cache_key = self.get_dispatch_action_cache_key(dispatch_id, workflow_action.id)
+        if dispatch_id := dispatch_context.request.data.get("previous_action", {}).get(
+            "current_dispatch_id"
+        ):
+            cache_key = self.get_dispatch_action_cache_key(
+                dispatch_id, workflow_action.id
+            )
             cache.set(
                 cache_key,
                 result,

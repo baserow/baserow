@@ -13,9 +13,9 @@ from baserow.core.formula.types import (
     FormulaContext,
     FunctionCollection,
 )
-from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.registry import Instance, Registry
 from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.workflow_actions.models import WorkflowAction
 
 
 class RuntimeFormulaFunction(ABC, Instance):
@@ -194,7 +194,10 @@ class DataProviderType(
         return None
 
     def get_dispatch_action_cache_key(self, dispatch_id: str, action_id: int) -> str:
-        """Return a unique string to key the intermediate dispatch results in the cache."""
+        """
+        Return a unique string to key the intermediate dispatch results in
+        the cache.
+        """
 
         return f"builder_dispatch_action_{dispatch_id}_{action_id}"
 
