@@ -491,7 +491,7 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
 
     if (Object.prototype.hasOwnProperty.call(theme, 'image_border_radius')) {
       if (imageBorderRadius) {
-        style.style['--image-border-radius'] = `${imageBorderRadius}%`
+        style.style['--image-border-radius'] = `${imageBorderRadius}px`
       }
     }
 

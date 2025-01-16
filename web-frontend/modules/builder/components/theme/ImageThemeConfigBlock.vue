@@ -146,7 +146,7 @@
               : !$v.values.image_border_radius.minValue
               ? $t('error.minValueField', { min: 0 })
               : !$v.values.image_border_radius.maxValue
-              ? $t('error.maxValueField', { max: 50 })
+              ? $t('error.maxValueField', { max: 100 })
               : ''
           "
         >
@@ -164,9 +164,7 @@
             "
             :to-value="(value) => (value ? parseInt(value) : null)"
           >
-            <template #suffix>
-              <i class="iconoir-percentage"></i>
-            </template>
+            <template #suffix>px</template>
           </FormInput>
 
           <template #after-input>
@@ -203,7 +201,7 @@ const minMax = {
   },
   image_border_radius: {
     min: 0,
-    max: 50,
+    max: 100,
   },
 }
 

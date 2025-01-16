@@ -296,7 +296,7 @@ class ImageThemeConfigBlock(ThemeConfigBlock):
         help_text="The border radius for this image element.",
         validators=[
             MinValueValidator(0, message="Value cannot be less than 0."),
-            MaxValueValidator(50, message="Value cannot be greater than 50."),
+            MaxValueValidator(100, message="Value cannot be greater than 100."),
         ],
         default=0,
         db_default=0,

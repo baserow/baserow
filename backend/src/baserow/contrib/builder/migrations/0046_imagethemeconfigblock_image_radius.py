@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                         0, message="Value cannot be less than 0."
                     ),
                     django.core.validators.MaxValueValidator(
-                        50, message="Value cannot be greater than 50."
+                        100, message="Value cannot be greater than 100."
                     ),
                 ],
             ),
