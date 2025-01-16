@@ -1,6 +1,10 @@
+import zoneinfo
 from abc import ABC, abstractmethod
+from datetime import date, datetime, tzinfo
 
 from django.db.models import Q
+
+from dateutil import parser
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_types import FormulaFieldType
@@ -12,7 +16,9 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueEmptyFilterSupport,
     HasValueEqualFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
+    get_jsonb_has_date_value_filter_expr,
 )
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import (
     BaserowFormulaNumberType,
@@ -31,7 +37,12 @@ from baserow.contrib.database.formula.types.formula_types import (
 )
 
 from .registries import ViewFilterType
-from .view_filters import NotViewFilterTypeMixin
+from .view_filters import (
+    DATE_FILTER_OPERATOR_BOUNDS,
+    DATE_FILTER_OPERATOR_FROM_VALUE,
+    BaseDateMultiStepViewFilterType,
+    NotViewFilterTypeMixin,
+)
 
 
 class HasEmptyValueViewFilterType(ViewFilterType):
@@ -375,3 +386,166 @@ class HasNotValueLowerOrEqualTHanFilterType(
     NotViewFilterTypeMixin, HasValueLowerOrEqualThanFilter
 ):
     type = "has_not_value_lower_or_equal"
+
+
+class ArrayDateMultiStepViewFilterType(BaseDateMultiStepViewFilterType):
+    compatible_field_types = [
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaDateType.type)
+        ),
+    ]
+
+    def get_filter(
+        self, field_name: str, value: str, model_field, field: Field
+    ) -> OptionallyAnnotatedQ:
+        try:
+            timezone, filter_value, operator = self.split_combined_value(
+                field, value.strip()
+            )
+            if self.is_empty_filter(operator, filter_value):
+                return Q()
+
+            filter_date = self.get_filter_date(operator, filter_value, timezone)
+        except (
+            OverflowError,
+            ValueError,
+            parser.ParserError,
+            zoneinfo.ZoneInfoNotFoundError,
+        ):
+            return Q(pk__in=[])
+
+        if not field.date_include_time and isinstance(filter_date, datetime):
+            filter_date = filter_date.date()
+
+        date_filter_operator = DATE_FILTER_OPERATOR_FROM_VALUE[operator]
+        lower_bound, upper_bound = DATE_FILTER_OPERATOR_BOUNDS[date_filter_operator](
+            filter_date
+        )
+        return self.get_filter_expression(
+            model_field, timezone, lower_bound, upper_bound
+        )
+
+
+class HasDateEqualViewFilterType(ArrayDateMultiStepViewFilterType):
+    type = "has_date_equal"
+
+    def get_filter_expression(
+        self,
+        model_field,
+        timezone: tzinfo,
+        lower_bound: date | datetime,
+        upper_bound: date | datetime,
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_has_date_value_filter_expr(
+            model_field, timezone, gte_of=lower_bound, lt_of=upper_bound
+        )
+
+
+class HasNotDateEqualViewFilterType(NotViewFilterTypeMixin, HasDateEqualViewFilterType):
+    type = "has_not_date_equal"
+
+
+class HasDateBeforeViewFilterType(ArrayDateMultiStepViewFilterType):
+    type = "has_date_before"
+
+    def get_filter_expression(
+        self,
+        model_field,
+        timezone: tzinfo,
+        lower_bound: date | datetime,
+        upper_bound: date | datetime,
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_has_date_value_filter_expr(
+            model_field, timezone, lt_of=lower_bound
+        )
+
+
+class HasNotDateBeforeViewFilterType(
+    NotViewFilterTypeMixin, HasDateBeforeViewFilterType
+):
+    type = "has_not_date_before"
+
+
+class HasDateOnOrBeforeViewFilterType(ArrayDateMultiStepViewFilterType):
+    type = "has_date_on_or_before"
+
+    def get_filter_expression(
+        self,
+        model_field,
+        timezone: tzinfo,
+        lower_bound: date | datetime,
+        upper_bound: date | datetime,
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_has_date_value_filter_expr(
+            model_field, timezone, lt_of=upper_bound
+        )
+
+
+class HasNotDateOnOrBeforeViewFilterType(
+    NotViewFilterTypeMixin, HasDateOnOrBeforeViewFilterType
+):
+    type = "has_not_date_on_or_before"
+
+
+class HasDateAfterViewFilterType(ArrayDateMultiStepViewFilterType):
+    type = "has_date_after"
+
+    def get_filter_expression(
+        self,
+        model_field,
+        timezone: tzinfo,
+        lower_bound: date | datetime,
+        upper_bound: date | datetime,
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_has_date_value_filter_expr(
+            model_field, timezone, gte_of=upper_bound
+        )
+
+
+class HasNotDateAfterViewFilterType(NotViewFilterTypeMixin, HasDateAfterViewFilterType):
+    type = "has_not_date_after"
+
+
+class HasDateOnOrAfterViewFilterType(ArrayDateMultiStepViewFilterType):
+    type = "has_date_on_or_after"
+
+    def get_filter_expression(
+        self,
+        model_field,
+        timezone: tzinfo,
+        lower_bound: date | datetime,
+        upper_bound: date | datetime,
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_has_date_value_filter_expr(
+            model_field, timezone, gte_of=lower_bound
+        )
+
+
+class HasNotDateOnOrAfterViewFilterType(
+    NotViewFilterTypeMixin, HasDateOnOrAfterViewFilterType
+):
+    type = "has_not_date_on_or_after"
+
+
+class HasDateWithinViewFilterType(ArrayDateMultiStepViewFilterType):
+    type = "has_date_within"
+
+    def get_filter_expression(
+        self,
+        model_field,
+        timezone: tzinfo,
+        lower_bound: date | datetime,
+        upper_bound: date | datetime,
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_has_date_value_filter_expr(
+            model_field,
+            timezone,
+            gte_of=datetime.now(tz=timezone).date(),
+            lt_of=upper_bound,
+        )
+
+
+class HasNotDateWithinViewFilterType(
+    NotViewFilterTypeMixin, HasDateWithinViewFilterType
+):
+    type = "has_not_date_within"

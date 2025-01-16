@@ -1751,14 +1751,7 @@ DATE_FILTER_OPERATOR_DELTA_MAP = {
 }
 
 
-class DateMultiStepViewFilterType(ViewFilterType):
-    compatible_field_types = [
-        DateFieldType.type,
-        LastModifiedFieldType.type,
-        CreatedOnFieldType.type,
-        FormulaFieldType.compatible_with_formula_types(BaserowFormulaDateType.type),
-    ]
-
+class BaseDateMultiStepViewFilterType(ViewFilterType):
     incompatible_operators = []
 
     def get_filter_date(
@@ -1827,16 +1820,17 @@ class DateMultiStepViewFilterType(ViewFilterType):
 
     def split_combined_value(
         self, field, filter_value, separator=DATE_FILTER_TIMEZONE_SEPARATOR
-    ) -> Tuple[zoneinfo.ZoneInfo, str]:
+    ) -> Tuple[zoneinfo.ZoneInfo, str, str]:
         """
-        Splits the timezone and the value from the provided value. If the value
-        does not contain a timezone then the default timezone will be used.
+        Splits the timezone and the value from the provided value. If the value does not
+        contain a timezone then the default timezone will be used.
 
         :param field: The field that is being filtered.
         :param filter_value: The value that has been provided by the user.
-        :param separator: The separator that is used to split the timezone and
-            the value.
-        :return: A tuple containing the timezone and the filter_value string.
+        :param separator: The separator that is used to split the timezone and the
+            value.
+        :return: A tuple containing the timezone, the filter_value string and the
+            operator.
         """
 
         (
@@ -1869,6 +1863,20 @@ class DateMultiStepViewFilterType(ViewFilterType):
         if operator not in ("exact_date", "nr_days_ago", "nr_days_from_now"):
             return False
         return filter_value == DATE_FILTER_EMPTY_VALUE
+
+    def get_filter(
+        self, field_name: str, value: str, model_field, field: Field
+    ) -> Union[Q, AnnotatedQ]:
+        raise NotImplementedError()
+
+
+class DateMultiStepViewFilterType(BaseDateMultiStepViewFilterType):
+    compatible_field_types = [
+        DateFieldType.type,
+        LastModifiedFieldType.type,
+        CreatedOnFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(BaserowFormulaDateType.type),
+    ]
 
     def get_filter_query_dict(
         self,
