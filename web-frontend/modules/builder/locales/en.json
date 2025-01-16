@@ -450,8 +450,9 @@
     "marginLabel": "Margin"
   },
   "radiusStyleForm": {
-    "backgroundRadiusLabel": "Background radius",
-    "borderRadiusLabel": "Border radius"
+    "cornerRadiusLabel": "Corner radius",
+    "backgroundRadiusLabel": "Background",
+    "borderRadiusLabel": "Border"
   },
   "themeConfigBlockType": {
     "color": "Colors",

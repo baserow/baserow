@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent>
     <FormSection
-      :title="$t('radiusStyleForm.borderRadiusLabel')"
+      :title="$t('radiusStyleForm.cornerRadiusLabel')"
       class="margin-bottom-2"
     >
       <FormGroup
