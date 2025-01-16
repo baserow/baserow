@@ -943,6 +943,12 @@ class LinkElementType(ElementType):
                 element.page_parameters[index]["value"] = new_formula
                 yield element
 
+        for index, data in enumerate(element.query_parameters or []):
+            new_formula = yield data["value"]
+            if new_formula is not None:
+                element.query_parameters[index]["value"] = new_formula
+                yield element
+
     def deserialize_property(
         self,
         prop_name: str,
