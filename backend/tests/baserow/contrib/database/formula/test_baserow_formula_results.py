@@ -2121,6 +2121,6 @@ def test_regexp_replace(data_fixture):
     assert rows == [
         ["a123", "\\d", "aXXX"],
         ["a123", "a", "X123"],
-        ["a123", "[a-", ""],
-        ["a123", "\\", ""],
+        ["a123", "[a-", "#ERROR!"],
+        ["a123", "\\", "#ERROR!"],
     ]

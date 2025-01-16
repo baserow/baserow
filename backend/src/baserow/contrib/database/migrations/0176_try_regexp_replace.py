@@ -16,7 +16,8 @@ CREATE OR REPLACE FUNCTION try_regexp_replace(
     input_string TEXT,
     pattern TEXT,
     replacement TEXT,
-    flags TEXT DEFAULT 'g'
+    flags TEXT DEFAULT 'g',
+    error_value TEXT DEFAULT ''
 ) RETURNS TEXT AS $$
 DECLARE
     result TEXT;
@@ -26,11 +27,11 @@ BEGIN
 
 EXCEPTION
     WHEN others THEN
-        RETURN '';
+        RETURN error_value;
 END;
 $$ LANGUAGE plpgsql;
 """
             ),
-            ("DROP FUNCTION IF EXISTS try_regexp_replace(text, text, text, text);"),
+            ("DROP FUNCTION IF EXISTS try_regexp_replace(text, text, text, text, text);"),
         ),
     ]
