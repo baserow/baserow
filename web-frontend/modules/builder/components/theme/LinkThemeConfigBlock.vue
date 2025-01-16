@@ -59,7 +59,10 @@
           class="margin-bottom-2"
           :label="$t('linkThemeConfigBlock.weight')"
         >
-          <FontWeightSelector v-model="values.link_font_weight" />
+          <FontWeightSelector
+            v-model="values.link_font_weight"
+            :font="values.link_font_family"
+          />
           <template #after-input>
             <ResetButton
               v-model="values.link_font_weight"
