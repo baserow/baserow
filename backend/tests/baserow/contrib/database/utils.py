@@ -105,8 +105,16 @@ def phone_number_field_factory(data_fixture, table, user):
     return data_fixture.create_phone_number_field(name="target", user=user, table=table)
 
 
-def uuid_field_factory(data_fixture, table, user):
-    return data_fixture.create_uuid_field(name="target", user=user, table=table)
+def uuid_field_factory(data_fixture, table, user, **kwargs):
+    return data_fixture.create_uuid_field(
+        name="target", user=user, table=table, **kwargs
+    )
+
+
+def autonumber_field_factory(data_fixture, table, user, **kwargs):
+    return data_fixture.create_autonumber_field(
+        name="target", user=user, table=table, **kwargs
+    )
 
 
 def single_select_field_factory(data_fixture, table, user):

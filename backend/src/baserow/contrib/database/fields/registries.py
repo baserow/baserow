@@ -230,6 +230,21 @@ class FieldType(
 
         return value
 
+    def parse_field_value_for_db(self, instance: Field, value: Any) -> Any:
+        """
+        This method parses a value for a given field type and a field instance. It
+        fallback to the `prepare_value_for_db` method if not implemented, but it can be
+        customized for read_only fields where it's not possible to prepare the value for
+        the database, but they can be used as primary field in a table and so rows might
+        be queried by value.
+
+        :param instance: The field instance.
+        :param value: The value that needs to be validated.
+        :return: The modified value that could be directly saved in the database.
+        """
+
+        return self.prepare_value_for_db(instance, value)
+
     def get_search_expression(self, field: Field, queryset: QuerySet) -> Expression:
         """
         When a field/row is created, updated or restored, this `FieldType` method
@@ -1906,6 +1921,18 @@ class ReadOnlyFieldType(FieldType):
         raise ValidationError(
             f"Field of type {self.type} is read only and should not be set manually."
         )
+
+    def parse_field_value_for_db(self, instance: Field, value: Any) -> Any:
+        """
+        Consider the value as valid if the field serializer can properly serialize it.
+        """
+
+        try:
+            return self.get_serializer_field(instance).to_internal_value(value)
+        except serializers.ValidationError:
+            raise ValidationError(
+                f"Field of type {self.type} is read only and should not be set manually."
+            )
 
     def get_export_serialized_value(
         self,
