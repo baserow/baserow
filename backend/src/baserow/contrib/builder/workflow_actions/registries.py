@@ -21,6 +21,7 @@ class BuilderWorkflowActionType(
 
     parent_property_name = "page"
     id_mapping_name = "builder_workflow_actions"
+    is_server_workflow: bool = True
 
     def prepare_values(
         self,
