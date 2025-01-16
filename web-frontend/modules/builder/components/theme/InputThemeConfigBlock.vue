@@ -64,7 +64,10 @@
           class="margin-bottom-2"
           :label="$t('inputThemeConfigBlock.weight')"
         >
-          <FontWeightSelector v-model="values.label_font_weight" />
+          <FontWeightSelector
+            v-model="values.label_font_weight"
+            :font="values.label_font_family"
+          />
           <template #after-input>
             <ResetButton
               v-model="values.label_font_weight"
@@ -140,7 +143,10 @@
           class="margin-bottom-2"
           :label="$t('inputThemeConfigBlock.weight')"
         >
-          <FontWeightSelector v-model="values.input_font_weight" />
+          <FontWeightSelector
+            v-model="values.input_font_weight"
+            :font="values.input_font_family"
+          />
           <template #after-input>
             <ResetButton
               v-model="values.input_font_weight"

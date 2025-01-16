@@ -135,7 +135,10 @@
           class="margin-bottom-2"
           :label="$t('tableThemeConfigBlock.fontWeight')"
         >
-          <FontWeightSelector v-model="values.table_header_font_weight" />
+          <FontWeightSelector
+            v-model="values.table_header_font_weight"
+            :font="values.table_header_font_family"
+          />
           <template #after-input>
             <ResetButton
               v-model="values.table_header_font_weight"
