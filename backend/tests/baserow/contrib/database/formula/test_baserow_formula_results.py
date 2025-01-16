@@ -2081,3 +2081,46 @@ def test_formulas_with_lookup_to_uuid_primary_field(data_fixture):
         ],
         ["Row #3", [], []],
     ]
+
+
+@pytest.mark.django_db
+def test_regexp_replace(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    regexp_field = data_fixture.create_text_field(table=table)
+    formula_field = data_fixture.create_formula_field(
+        user=user,
+        table=table,
+        formula=f"regex_replace(field('{text_field.name}'), field('{regexp_field.name}'), 'X')",
+    )
+    RowHandler().create_rows(
+        user,
+        table,
+        [
+            {
+                text_field.db_column: "a123",
+                regexp_field.db_column: "\\d",
+            },
+            {
+                text_field.db_column: "a123",
+                regexp_field.db_column: "a",
+            },
+            {
+                text_field.db_column: "a123",
+                regexp_field.db_column: "[a-",
+            },
+            {
+                text_field.db_column: "a123",
+                regexp_field.db_column: "\\",
+            },
+        ],
+    )
+
+    rows = data_fixture.get_rows(fields=[text_field, regexp_field, formula_field])
+    assert rows == [
+        ["a123", "\\d", "aXXX"],
+        ["a123", "a", "X123"],
+        ["a123", "[a-", "#ERROR!"],
+        ["a123", "\\", "#ERROR!"],
+    ]
