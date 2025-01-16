@@ -13,6 +13,7 @@ from baserow.core.formula.types import (
     FormulaContext,
     FunctionCollection,
 )
+from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.registry import Instance, Registry
 from baserow.core.services.dispatch_context import DispatchContext
 
@@ -177,6 +178,25 @@ class DataProviderType(
         """
 
         return {}
+
+    def post_dispatch(
+        self,
+        dispatch_context: DispatchContext,
+        workflow_action: WorkflowAction,
+        result: Any,
+    ) -> None:
+        """
+        This hook is called after a Workflow Action has been dispatched. It is
+        used to call custom logic that should be executed on the dispatch
+        results.
+        """
+
+        return None
+
+    def get_dispatch_action_cache_key(self, dispatch_id: str, action_id: int) -> str:
+        """Return a unique string to key the intermediate dispatch results in the cache."""
+
+        return f"builder_dispatch_action_{dispatch_id}_{action_id}"
 
 
 DataProviderTypeSubClass = TypeVar("DataProviderTypeSubClass", bound=DataProviderType)
