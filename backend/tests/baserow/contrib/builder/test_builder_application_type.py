@@ -880,7 +880,7 @@ IMPORT_REFERENCE = {
                             "uid": str(uuid.uuid4()),
                             "config": {
                                 "page_parameters": [],
-                                "query_parameters": [],
+                                # "query_parameters": [],
                                 "navigation_type": "custom",
                                 "navigate_to_page_id": None,
                                 "navigate_to_url": "get('current_record.field_25')",

@@ -802,11 +802,13 @@ class NavigationElementManager:
             ),
             "page_parameters": PageParameterValueSerializer(
                 many=True,
+                default=[],
                 help_text=LinkElement._meta.get_field("page_parameters").help_text,
                 required=False,
             ),
             "query_parameters": PageParameterValueSerializer(
                 many=True,
+                default=[],
                 help_text=LinkElement._meta.get_field("query_parameters").help_text,
                 required=False,
             ),
@@ -828,6 +830,7 @@ class NavigationElementManager:
             "navigate_to_page_id": None,
             "navigate_to_url": '"http://example.com"',
             "page_parameters": [],
+            "query_parameters": [],
             "target": "blank",
         }
 
@@ -889,7 +892,7 @@ class NavigationElementManager:
 
 class LinkElementType(ElementType):
     """
-    A simple paragraph element that can be used to display a paragraph of text.
+    A link element that can be used to navigate to a page or a URL.
     """
 
     type = "link"
@@ -929,7 +932,7 @@ class LinkElementType(ElementType):
         Generator that returns formula fields for the LinkElementType.
 
         Unlike other Element types, this one has its formula fields in the
-        page_parameters JSON field.
+        page_parameters and query_prameters JSON fields.
         """
 
         yield from super().formula_generator(element)

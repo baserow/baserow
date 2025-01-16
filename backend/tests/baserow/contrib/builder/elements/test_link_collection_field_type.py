@@ -101,6 +101,7 @@ def test_import_export_link_collection_field_type(data_fixture):
         "navigate_to_url": f"get('data_source.{data_source2.id}.0.{text_field.db_column}')",
         "navigate_to_page_id": None,
         "navigation_type": "page",
+        "query_parameters": [],
         "page_parameters": [
             {
                 "name": "fooPageParam",
