@@ -993,9 +993,11 @@ def workflow_action_hidden_fields_fixture(data_fixture):
     )
 
     return {
+        "user": user,
         "token": token,
         "page": page,
         "service": service,
+        "integration": integration,
         "button": button,
         "fields": fields,
     }
@@ -1097,3 +1099,100 @@ def test_notification_action_can_access_the_field_of_previous_action(
     assert response.json() == {
         fields[0].db_column: "Palak Paneer",
     }
+
+
+@pytest.mark.django_db
+def test_create_row_action_can_access_the_field_of_previous_action(
+    data_fixture, api_client, workflow_action_hidden_fields_fixture
+):
+    """
+    An Integration test to ensure that a chained Workflow Action has access to
+    the Previous Action field. In this test, there are two Workflow Actions:
+    'Create Row' followed by another 'Create row'.
+
+    The second 'Create row' creates a new row in a different table, inserting
+    the `id` of the previous 'Create row' action.
+    """
+
+    user = workflow_action_hidden_fields_fixture["user"]
+    page = workflow_action_hidden_fields_fixture["page"]
+    service = workflow_action_hidden_fields_fixture["service"]
+    button = workflow_action_hidden_fields_fixture["button"]
+    token = workflow_action_hidden_fields_fixture["token"]
+    integration = workflow_action_hidden_fields_fixture["integration"]
+
+    action_1 = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page,
+        service=service,
+        element=button,
+        event=EventTypes.CLICK,
+    )
+
+    table_2, fields_2, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+        ],
+        rows=[],
+    )
+    service_2 = data_fixture.create_local_baserow_upsert_row_service(
+        table=table_2,
+        integration=integration,
+    )
+    service_2.field_mappings.create(
+        field=fields_2[0],
+        value=f"get('previous_action.{action_1.id}.id')",
+    )
+    # This second workflow action references the field that was just created
+    # by the first workflow action.
+    action_2 = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page,
+        element=button,
+        service=service_2,
+        event=EventTypes.CLICK,
+    )
+
+    mock_dispatch_id = "3ae8b86c-6f5d-4215-918a-dd1aad85eb3a"
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": action_1.id},
+    )
+    payload = {
+        "previous_action": {
+            "current_dispatch_id": mock_dispatch_id,
+        },
+    }
+    response = api_client.post(
+        url,
+        payload,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {}
+
+    # Ensure that the 2nd table currently has zero rows
+    assert action_2.service.table.get_model().objects.all().count() == 0
+
+    # Now dispatch the 2nd Workflow Action 
+    payload["previous_action"][action_1.id] = {}
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": action_2.id},
+    )
+    response = api_client.post(
+        url,
+        payload,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {}
+
+    results = table_2.get_model().objects.all()
+    assert len(results) == 1
+    # The ID of the new row that was created by the first Workflow Action
+    row_id = action_1.service.table.get_model().objects.all()[2].id
+    assert getattr(results[0], fields_2[0].db_column) == str(row_id)
