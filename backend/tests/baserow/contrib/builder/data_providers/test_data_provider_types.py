@@ -883,14 +883,23 @@ def test_form_data_provider_type_import_path(data_fixture):
     assert path_imported == [str(element_duplicated.id), "test"]
 
 
-def test_previous_action_data_provider_get_data_chunk():
+@pytest.mark.django_db
+def test_previous_action_data_provider_get_data_chunk(data_fixture):
     previous_action_data_provider = PreviousActionProviderType()
 
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+        element=button_element, page=page
+    )
+    
     fake_request = MagicMock()
-    fake_request.data = {"previous_action": {"id": 42}}
+    fake_request.data = {"previous_action": {workflow_action.id: {"id": 100}}}
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
-    assert previous_action_data_provider.get_data_chunk(dispatch_context, ["id"]) == 42
+    assert previous_action_data_provider.get_data_chunk(dispatch_context, [workflow_action.id, "id"]) == 100
     with pytest.raises(DataProviderChunkInvalidException):
         previous_action_data_provider.get_data_chunk(dispatch_context, ["invalid"])
 
