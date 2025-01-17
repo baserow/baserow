@@ -977,6 +977,27 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
     mock_cache.set.assert_called_once_with(mock_cache_key, mock_result, timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS)
 
 
+@pytest.mark.parametrize(
+    "dispatch_id,action_id,expected_cache_key",
+    [
+        (1, 2, "builder_dispatch_action_1_2"),
+        (123, 456, "builder_dispatch_action_123_456"),
+        ("234", "567", "builder_dispatch_action_234_567"),
+    ]
+)
+def test_get_dispatch_action_cache_key(dispatch_id, action_id, expected_cache_key):
+    """
+    Test the get_dispatch_action_cache_key() method. Ensure that the expected
+    key is returned.
+    """
+
+    previous_action_data_provider = PreviousActionProviderType()
+
+    cache_key = previous_action_data_provider.get_dispatch_action_cache_key(dispatch_id, action_id)
+
+    assert cache_key == expected_cache_key
+
+
 @pytest.mark.django_db
 def test_previous_action_data_provider_import_path():
     previous_action_data_provider = PreviousActionProviderType()
