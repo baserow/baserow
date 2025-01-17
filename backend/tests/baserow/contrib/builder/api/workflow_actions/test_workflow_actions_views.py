@@ -1175,7 +1175,7 @@ def test_create_row_action_can_access_the_field_of_previous_action(
     # Ensure that the 2nd table currently has zero rows
     assert action_2.service.table.get_model().objects.all().count() == 0
 
-    # Now dispatch the 2nd Workflow Action 
+    # Now dispatch the 2nd Workflow Action
     payload["previous_action"][action_1.id] = {}
     url = reverse(
         "api:builder:workflow_action:dispatch",

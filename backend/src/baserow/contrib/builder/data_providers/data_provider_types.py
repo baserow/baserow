@@ -26,7 +26,6 @@ from baserow.contrib.builder.elements.models import FormElement
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
-from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.formula.exceptions import FormulaRecursion, InvalidBaserowFormula
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.services.dispatch_context import DispatchContext
@@ -34,6 +33,7 @@ from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import get_value_at_path
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
+from baserow.core.workflow_actions.models import WorkflowAction
 
 RE_DEFAULT_ROLE = re.compile(rf"{DEFAULT_USER_ROLE_PREFIX}(\d+)")
 
@@ -486,7 +486,12 @@ class PreviousActionProviderType(DataProviderType):
             previous_action.service.id: service_type.extract_properties(rest, **kwargs)
         }
 
-    def post_dispatch(self, dispatch_context: DispatchContext, workflow_action: WorkflowAction, result: Any) -> None:
+    def post_dispatch(
+        self,
+        dispatch_context: DispatchContext,
+        workflow_action: WorkflowAction,
+        result: Any,
+    ) -> None:
         """
         If the current_dispatch_id exists in the request data, create a unique
         cache key and store the result in the cache.

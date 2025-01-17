@@ -1,10 +1,10 @@
 from collections import defaultdict
 from unittest.mock import MagicMock, Mock, patch
 
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest
 from django.shortcuts import reverse
-from django.conf import settings
 
 import pytest
 
@@ -895,18 +895,25 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
     workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
         element=button_element, page=page
     )
-    
+
     fake_request = MagicMock()
     fake_request.data = {"previous_action": {workflow_action.id: {"id": 100}}}
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
-    assert previous_action_data_provider.get_data_chunk(dispatch_context, [workflow_action.id, "id"]) == 100
+    assert (
+        previous_action_data_provider.get_data_chunk(
+            dispatch_context, [workflow_action.id, "id"]
+        )
+        == 100
+    )
     with pytest.raises(DataProviderChunkInvalidException):
         previous_action_data_provider.get_data_chunk(dispatch_context, ["invalid"])
 
 
 @pytest.mark.django_db
-def test_previous_action_data_provider_get_data_chunk_returns_cached_result(data_fixture):
+def test_previous_action_data_provider_get_data_chunk_returns_cached_result(
+    data_fixture,
+):
     """
     Ensure that when a current_dispatch_id is present in the request and it matches
     a previously cached result, that result is returned.
@@ -921,7 +928,7 @@ def test_previous_action_data_provider_get_data_chunk_returns_cached_result(data
     workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
         element=button_element, page=page
     )
-    
+
     fake_request = MagicMock()
     fake_request.data = {
         "previous_action": {
@@ -931,14 +938,18 @@ def test_previous_action_data_provider_get_data_chunk_returns_cached_result(data
     }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
-    previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(return_value="bar")
+    previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
+        return_value="bar"
+    )
 
-    with patch("baserow.contrib.builder.data_providers.data_provider_types.cache") as mock_cache:
+    with patch(
+        "baserow.contrib.builder.data_providers.data_provider_types.cache"
+    ) as mock_cache:
         mock_cache.get.return_value = {"id": "mock-cached-data"}
         result = previous_action_data_provider.get_data_chunk(
             dispatch_context, [str(workflow_action.id), "id"]
         )
-    
+
     assert result == "mock-cached-data"
 
 
@@ -963,18 +974,26 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
 
     mock_cache_key = "mock-cache-key"
     mock_result = {"mock-key": "mock-value"}
-    previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(return_value=mock_cache_key)
+    previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
+        return_value=mock_cache_key
+    )
 
-    with patch("baserow.contrib.builder.data_providers.data_provider_types.cache") as mock_cache:
+    with patch(
+        "baserow.contrib.builder.data_providers.data_provider_types.cache"
+    ) as mock_cache:
         result = previous_action_data_provider.post_dispatch(
             dispatch_context, workflow_action, mock_result
         )
-    
+
     assert result is None
     previous_action_data_provider.get_dispatch_action_cache_key.assert_called_once_with(
         "foo-bar-123", 100
     )
-    mock_cache.set.assert_called_once_with(mock_cache_key, mock_result, timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS)
+    mock_cache.set.assert_called_once_with(
+        mock_cache_key,
+        mock_result,
+        timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS,
+    )
 
 
 @pytest.mark.parametrize(
@@ -983,7 +1002,7 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
         (1, 2, "builder_dispatch_action_1_2"),
         (123, 456, "builder_dispatch_action_123_456"),
         ("234", "567", "builder_dispatch_action_234_567"),
-    ]
+    ],
 )
 def test_get_dispatch_action_cache_key(dispatch_id, action_id, expected_cache_key):
     """
@@ -993,7 +1012,9 @@ def test_get_dispatch_action_cache_key(dispatch_id, action_id, expected_cache_ke
 
     previous_action_data_provider = PreviousActionProviderType()
 
-    cache_key = previous_action_data_provider.get_dispatch_action_cache_key(dispatch_id, action_id)
+    cache_key = previous_action_data_provider.get_dispatch_action_cache_key(
+        dispatch_id, action_id
+    )
 
     assert cache_key == expected_cache_key
 
