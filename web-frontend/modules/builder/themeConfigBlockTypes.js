@@ -7,6 +7,7 @@ import ImageThemeConfigBlock from '@baserow/modules/builder/components/theme/Ima
 import PageThemeConfigBlock from '@baserow/modules/builder/components/theme/PageThemeConfigBlock'
 import InputThemeConfigBlock from '@baserow/modules/builder/components/theme/InputThemeConfigBlock'
 import TableThemeConfigBlock from '@baserow/modules/builder/components/theme/TableThemeConfigBlock'
+import { FONT_WEIGHTS } from '@baserow/modules/builder/fontWeights'
 import {
   resolveColor,
   colorRecommendation,
@@ -58,8 +59,7 @@ export class ThemeStyle {
 
   addFontWeightIfExists(theme, propName, styleName) {
     return this.addIfExists(theme, propName, styleName, (v) => {
-      const fontWeightType = this.$registry.get('fontWeight', v)
-      return fontWeightType.weight
+      return FONT_WEIGHTS[v]
     })
   }
 

@@ -6,14 +6,16 @@
   >
     <DropdownItem
       v-for="fontWeight in fontWeights"
-      :key="fontWeight.getType()"
-      :value="fontWeight.getType()"
+      :key="fontWeight.type"
+      :value="fontWeight.type"
       :name="fontWeight.name"
     />
   </Dropdown>
 </template>
 
 <script>
+import { FONT_WEIGHTS } from '@baserow/modules/builder/fontWeights'
+
 export default {
   name: 'FontWeightSelector',
   props: {
@@ -36,7 +38,14 @@ export default {
       return this.$registry.get('fontFamily', this.font)
     },
     fontWeights() {
-      return Object.values(this.$registry.getAll('fontWeight'))
+      return Object.entries(FONT_WEIGHTS)
+        .map(([fontType, weight]) => {
+          return {
+            type: fontType,
+            name: this.getFontLabel(fontType),
+            weight,
+          }
+        })
         .filter((fontWeight) => this.supportedWeights.includes(fontWeight.type))
         .sort((a, b) => a.weight - b.weight)
     },
@@ -59,6 +68,17 @@ export default {
       if (!this.supportedWeights.includes(this.value)) {
         this.fontWeightValue = this.fontFamilyType.defaultWeight
       }
+    },
+  },
+
+  methods: {
+    getFontLabel(fontType) {
+      // Convert kebab cased font type, e.g. 'extra-light' to
+      // its camel case equivalent, e.g. 'extraLight'
+      const fontTypeKebab = fontType.replace(/-([a-z])/g, (_, char) =>
+        char.toUpperCase()
+      )
+      return this.$i18n.t(`fontWeightType.${fontTypeKebab}`)
     },
   },
 }
