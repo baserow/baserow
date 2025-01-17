@@ -489,9 +489,7 @@ export default ({ service, customPopulateRow }) => {
           )
 
           // Only fetch visible rows if there are any.
-          const {
-            data: { results },
-          } = await service(this.$client).fetchRows({
+          const { data } = await service(this.$client).fetchRows({
             viewId: getters.getViewId,
             offset: rangeToFetch.offset,
             limit: rangeToFetch.limit,
@@ -505,9 +503,13 @@ export default ({ service, customPopulateRow }) => {
             filters: getFilters(view, adhocFiltering),
           })
 
-          results.forEach((row, index) => {
+          data.results.forEach((row, index) => {
             rows[rangeToFetch.offset + index] = populateRow(row)
           })
+
+          if (includeFieldOptions) {
+            commit('UPDATE_ALL_FIELD_OPTIONS', data.field_options)
+          }
         }
 
         commit('SET_ROWS', rows)
