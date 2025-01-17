@@ -12,6 +12,10 @@ export class FontFamilyType extends Registerable {
   get weights() {
     return ['regular', 'bold']
   }
+
+  get defaultWeight() {
+    return 'regular'
+  }
 }
 
 export class InterFontFamilyType extends FontFamilyType {
