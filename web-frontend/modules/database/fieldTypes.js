@@ -489,6 +489,13 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Return a representation of the value in the aggregation context.
+   */
+  toAggregationString(field, value) {
+    return this.toHumanReadableString(field, value)
+  }
+
+  /**
    * When searching a cells value this should return the value to match the users
    * user term against.
    */
@@ -3283,6 +3290,10 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       return ''
     }
     return value.value
+  }
+
+  toAggregationString(field, value) {
+    return value
   }
 
   getDocsDataType() {

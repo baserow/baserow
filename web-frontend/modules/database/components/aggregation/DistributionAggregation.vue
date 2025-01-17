@@ -1,8 +1,9 @@
 <template>
   <div
     v-tooltip:[tooltipConfig]="tooltipContent"
-    class="grid-view-aggregation__generic"
+    class="grid-view-aggregation__generic grid-view-aggregation__distribution"
     tooltip-position="top"
+    tooltip-top-value="4"
   >
     <span class="grid-view-aggregation__generic-name">
       {{ aggregationType.getShortName() }}
@@ -44,19 +45,26 @@ export default {
   computed: {
     topItem() {
       if (this.value?.[0]) {
-        return this.value[0].map(escape).join(' ')
+        return this.value[0]
+          .map((v, index) =>
+            index === 0
+              ? v
+                ? escape(this.fieldType.toAggregationString(this.field, v))
+                : this.othersCount
+              : v
+          )
+          .join(' ')
       }
       return ''
     },
     tooltipContent() {
       if (this.value) {
-        console.log('>> this.value', this.value)
         const tableRows = this.value.map((items) => {
-          const rowCells = items.map((item, index) => {
+          return items.map((item, index) => {
             let displayValue
             if (index === 0) {
               if (item) {
-                displayValue = this.fieldType.toHumanReadableString(
+                displayValue = this.fieldType.toAggregationString(
                   this.field,
                   item
                 )
@@ -66,14 +74,13 @@ export default {
             } else {
               displayValue = item
             }
-            return `<td>${truncate(escape(displayValue), {
+            return truncate(escape(displayValue), {
               length: 30,
               omission: '…',
-            })}</td>`
+            })
           })
-          return `<tr>${rowCells.join('')}</tr>`
         })
-        return `<table>${tableRows.join('')}</table>`
+        return this.generateTable(tableRows)
       }
       return ''
     },
@@ -88,6 +95,26 @@ export default {
     },
     othersCount() {
       return this.$i18n.t('viewAggregationType.othersCount')
+    },
+  },
+  methods: {
+    generateTable(data) {
+      if (!process.client) {
+        return null
+      }
+
+      const table = document.createElement('table')
+      for (const row of data) {
+        const tr = document.createElement('tr')
+        for (const cell of row) {
+          const td = document.createElement('td')
+          td.innerText = escape(cell)
+          tr.appendChild(td)
+        }
+        table.appendChild(tr)
+      }
+
+      return table.outerHTML
     },
   },
 }

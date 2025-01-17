@@ -77,3 +77,8 @@
     @include absolute(50%, auto, auto, 50%);
   }
 }
+
+.grid-view-aggregation__distribution {
+  height: 100%;
+  align-items: center;
+}
