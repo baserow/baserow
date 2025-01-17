@@ -26,6 +26,7 @@ from baserow.contrib.builder.elements.models import FormElement
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
+from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.formula.exceptions import FormulaRecursion, InvalidBaserowFormula
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.services.dispatch_context import DispatchContext
@@ -485,7 +486,18 @@ class PreviousActionProviderType(DataProviderType):
             previous_action.service.id: service_type.extract_properties(rest, **kwargs)
         }
 
-    def post_dispatch(self, dispatch_context, workflow_action, result):
+    def post_dispatch(self, dispatch_context: DispatchContext, workflow_action: WorkflowAction, result: Any) -> None:
+        """
+        If the current_dispatch_id exists in the request data, create a unique
+        cache key and store the result in the cache.
+
+        The current_dispatch_id is used to keep track of results of chained
+        workflow actions. For security reasons, the result of a workflow action
+        is not returned to the frontend; it is instead stored in the cache. Should
+        a subsequent workflow action require the result, it can fetch it from
+        the cache.
+        """
+
         if dispatch_id := dispatch_context.request.data.get("previous_action", {}).get(
             "current_dispatch_id"
         ):
