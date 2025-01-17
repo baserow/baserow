@@ -153,7 +153,7 @@ export default {
       return isActive
     },
     isValid() {
-      return !this.v$.$invalid
+      return !this.v$.$invalid && this.v$.$dirty
     },
     toggleSelection(value) {
       const isAlreadySelected = this.isChipActive(value)

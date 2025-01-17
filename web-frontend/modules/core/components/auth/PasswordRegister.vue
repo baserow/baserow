@@ -194,8 +194,6 @@ export default {
         }
       }
 
-      console.log(this.v$, registerComponentsValid)
-
       if (this.v$.$invalid || !registerComponentsValid) {
         return
       }

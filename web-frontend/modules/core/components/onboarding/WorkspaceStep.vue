@@ -36,7 +36,7 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.v$.$invalid
+      return !this.v$.$invalid && this.v$.$dirty
     },
     updateValue() {
       this.v$.name.$touch()

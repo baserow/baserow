@@ -23,7 +23,7 @@
         :error="v$.emails.$each.$response?.$data[index]?.email.$error"
         icon-right="iconoir-mail"
         size="large"
-        @input="updateValue(index, $event)"
+        @input=";[v$.emails.$touch(), updateValue(index, $event)]"
         @blur="v$.emails.$touch"
       />
       <template #error>{{ $t('error.email') }}</template>
@@ -65,12 +65,12 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.v$.$invalid
+      if (!this.v$.$dirty) return true
+      return !this.v$.$invalid && this.v$.$dirty
     },
     updateValue() {
       const filteredEmails = this.emails.filter((email) => !!email.email)
       const emails = filteredEmails.map((email) => email.email)
-      console.log(emails)
       this.$emit('update-data', { emails })
     },
   },

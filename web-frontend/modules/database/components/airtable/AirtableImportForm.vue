@@ -19,10 +19,13 @@
         size="large"
         @blur="v$.values.airtableUrl.$touch"
         @input="
-          $emit(
-            'input',
-            v$.values.airtableUrl.$invalid ? '' : v$.values.airtableUrl.$model
-          )
+          ;[
+            $emit(
+              'input',
+              v$.values.airtableUrl.$invalid ? '' : v$.values.airtableUrl.$model
+            ),
+            v$.values.airtableUrl.$touch(),
+          ]
         "
       ></FormInput>
       <template #error>

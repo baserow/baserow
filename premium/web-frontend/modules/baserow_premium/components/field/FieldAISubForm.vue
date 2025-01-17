@@ -18,7 +18,7 @@
       <Dropdown
         v-model="v$.values.ai_file_field_id.$model"
         class="dropdown--floating"
-        :error="fieldHasError('ai_file_field_id')"
+        :error="fieldHasErrors('ai_file_field_id')"
         :fixed-items="true"
         :show-search="false"
         @hide="v$.values.ai_file_field_id.$touch"
@@ -63,7 +63,7 @@
     <FormGroup
       small-label
       :label="$t('fieldAISubForm.prompt')"
-      :error="fieldHasError('ai_prompt')"
+      :error="fieldHasErrors('ai_prompt')"
       required
     >
       <div style="max-width: 366px">

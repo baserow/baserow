@@ -94,6 +94,7 @@ export default {
       return ['0 - 10', '11 - 50', '51 - 200', '201 - 500', '500+']
     },
   },
+
   watch: {
     role() {
       this.updateValue()
@@ -110,7 +111,7 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.v$.$invalid
+      return !this.v$.$invalid && this.v$.$dirty
     },
     selectSize(size) {
       this.v$.companySize.$touch()

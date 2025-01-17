@@ -54,7 +54,7 @@
       :label="$t('fieldNumberSubForm.separatorLabel')"
       :class="{ 'margin-bottom-2': allowSetNumberNegative }"
     >
-      <Dropdown v-model="v$.number_separator.$model" :fixed-items="true">
+      <Dropdown v-model="v$.values.number_separator.$model" :fixed-items="true">
         <DropdownItem
           v-for="option in numberFormatOptions"
           :key="option.value"

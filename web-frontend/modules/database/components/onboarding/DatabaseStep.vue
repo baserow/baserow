@@ -13,30 +13,30 @@
       ></SegmentControl>
     </div>
     <template v-if="hasName">
-      <FormGroup :error="v$.name.required.$invalid">
+      <FormGroup :error="v$.name.$error">
         <FormInput
           v-model="name"
           :placeholder="$t('databaseStep.databaseNameLabel')"
           :label="$t('databaseStep.databaseNameLabel')"
           size="large"
-          :error="v$.name.required.$invalid"
-          @input="updateValue"
+          :error="v$.name.$error"
+          @input=";[v$.name.$touch(), updateValue()]"
           @blur="v$.name.$touch"
         />
-        <template #error>{{ v$.name.required.$errors[0].$message }}</template>
+        <template #error>{{ v$.name.$errors[0].$message }}</template>
       </FormGroup>
     </template>
     <AirtableImportForm
       v-if="selectedType === 'airtable'"
       ref="airtable"
-      @input=";[(airtableUrl = $event), updateValue()]"
+      @input="handleAirtableInput"
     ></AirtableImportForm>
   </div>
 </template>
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-import { requiredIf, helpers } from '@vuelidate/validators'
+import { required, helpers } from '@vuelidate/validators'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm.vue'
 
@@ -67,6 +67,7 @@ export default {
       airtableUrl: '',
     }
   },
+
   computed: {
     selectedType() {
       return this.types[this.selectedTypeIndex].type
@@ -75,12 +76,17 @@ export default {
       return ['scratch', 'import'].includes(this.selectedType)
     },
   },
+  watch: {
+    selectedTypeIndex() {
+      this.airtableUrl = ''
+    },
+  },
   mounted() {
     this.updateValue()
   },
   methods: {
     isValid() {
-      return !this.v$.$invalid
+      return !this.v$.$invalid && this.v$.$dirty
     },
     updateValue() {
       this.$emit('update-data', {
@@ -89,26 +95,24 @@ export default {
         airtableUrl: this.airtableUrl,
       })
     },
+    handleAirtableInput(event) {
+      this.v$.airtableUrl.$model = event
+      this.v$.airtableUrl.$touch()
+      this.updateValue()
+    },
   },
   validations() {
-    return {
-      name: {
-        required: helpers.withMessage(
-          this.$t('error.requiredField'),
-          requiredIf(() => {
-            return this.hasName
-          })
-        ),
-      },
-      airtableUrl: {
-        required: helpers.withMessage(
-          this.$t('error.requiredField'),
-          requiredIf(() => {
-            return this.selectedType === 'airtable'
-          })
-        ),
-      },
+    const rules = {}
+    if (this.hasName) {
+      rules.name = {
+        required: helpers.withMessage(this.$t('error.requiredField'), required),
+      }
+    } else if (this.selectedType === 'airtable') {
+      rules.airtableUrl = {
+        required: helpers.withMessage(this.$t('error.requiredField'), required),
+      }
     }
+    return rules
   },
 }
 </script>

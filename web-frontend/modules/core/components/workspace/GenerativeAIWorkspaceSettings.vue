@@ -86,6 +86,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import error from '@baserow/modules/core/mixins/error'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 
@@ -96,6 +97,9 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {

@@ -116,7 +116,13 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.v$.$invalid && this.getData !== null && this.dataLoaded
+      console.log(this.v$)
+      return (
+        !this.v$.$invalid &&
+        this.v$.$dirty &&
+        this.getData !== null &&
+        this.dataLoaded
+      )
     },
     updateValue() {
       const tableName = this.tableName

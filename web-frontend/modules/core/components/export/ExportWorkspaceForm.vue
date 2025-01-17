@@ -26,10 +26,13 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
-
+import { useVuelidate } from '@vuelidate/core'
 export default {
   name: 'ExportWorkspaceForm',
   mixins: [form],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {

@@ -23,7 +23,7 @@
         />
       </Dropdown>
       <template #error>
-        <div v-if="v$.ai_generative_ai_type.required.$invalid">
+        <div v-if="v$.values.ai_generative_ai_type.required.$invalid">
           {{ $t('error.requiredField') }}
         </div>
       </template>
@@ -68,7 +68,7 @@
       required
     >
       <FormInput
-        v-model="temperature"
+        v-model="v$.values.ai_temperature.$model"
         :step="0.1"
         :min="0"
         :max="maxTemperature"

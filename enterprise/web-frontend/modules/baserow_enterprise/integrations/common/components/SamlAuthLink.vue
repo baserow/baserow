@@ -24,7 +24,7 @@
             <ABInput
               v-model="values.email"
               :placeholder="$t('samlAuthLink.emailPlaceholder')"
-              @blur="$v.values.email.$touch()"
+              @blur="$v.values.email.$touch"
             />
           </ABFormGroup>
           <div class="saml-auth-link__modal-footer">
