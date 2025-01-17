@@ -602,7 +602,9 @@ describe('Text-based array view filters', () => {
             field,
             fieldType
           )
-          expect(result).toBe(!testValues.expected)
+          expect(result).toBe(
+            testValues.filterValue === '' || !testValues.expected
+          )
         }
       )
     }
@@ -1057,11 +1059,6 @@ describe('Number-based array view filters', () => {
       expected: { has: true, hasNot: true },
     },
     {
-      cellValue: [],
-      filterValue: null,
-      expected: { has: false, hasNot: true },
-    },
-    {
       cellValue: [{ value: null }],
       filterValue: '',
       expected: { has: true, hasNot: true },
@@ -1071,12 +1068,6 @@ describe('Number-based array view filters', () => {
       filterValue: '',
       expected: { has: true, hasNot: true },
     },
-    {
-      cellValue: [{ value: null }],
-      filterValue: null,
-      expected: { has: true, hasNot: false },
-    },
-
     {
       cellValue: [{ value: 123.0 }, { value: null }],
       filterValue: '123',
@@ -1115,16 +1106,6 @@ describe('Number-based array view filters', () => {
     {
       cellValue: [],
       filterValue: '',
-      expected: {
-        higher: true,
-        higherEqual: true,
-        notHigher: true,
-        notHigherEqual: true,
-      },
-    },
-    {
-      cellValue: [],
-      filterValue: null,
       expected: {
         higher: true,
         higherEqual: true,
@@ -1343,6 +1324,408 @@ describe('Number-based array view filters', () => {
         fieldType
       )
       expect(result).toBe(testValues.expected.notHigherEqual)
+    }
+  )
+})
+
+describe('Multiple select-based array view filters', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const hasMultipleSelectOptionsEqualCases = [
+    {
+      cellValue: [],
+      filterValue: '1',
+      expected: false,
+    },
+    {
+      cellValue: [
+        {
+          value: [
+            { id: 2, value: 'B' },
+            { id: 3, value: 'C' },
+          ],
+        },
+        { value: [{ id: 1, value: 'A' }] },
+      ],
+      filterValue: '1',
+      expected: true,
+    },
+    {
+      cellValue: [
+        {
+          value: [
+            { id: 1, value: 'A' },
+            { id: 3, value: 'C' },
+          ],
+        },
+      ],
+      filterValue: '2',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: [{ id: 4, value: 'Aa' }] }],
+      filterValue: '1',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: [{ id: 4, value: 'Aa' }] }],
+      filterValue: '',
+      expected: true,
+    },
+    {
+      cellValue: [
+        {
+          value: [
+            { id: 2, value: 'B' },
+            { id: 3, value: 'C' },
+          ],
+        },
+        { value: [{ id: 1, value: 'A' }] },
+      ],
+      filterValue: '2,3',
+      expected: true,
+    },
+    {
+      cellValue: [
+        {
+          value: [
+            { id: 2, value: 'B' },
+            { id: 3, value: 'C' },
+          ],
+        },
+        { value: [{ id: 1, value: 'A' }] },
+      ],
+      filterValue: '2',
+      expected: false,
+    },
+  ]
+
+  const hasMultipleSelectOptionEqualSupportedFields = [
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'multiple_select',
+    },
+  ]
+
+  describe.each(hasMultipleSelectOptionEqualSupportedFields)(
+    'HasValueEqualViewFilterType %j',
+    (field) => {
+      test.each(hasMultipleSelectOptionsEqualCases)(
+        'filter matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasValueEqualViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(testValues.expected)
+        }
+      )
+    }
+  )
+
+  describe.each(hasMultipleSelectOptionEqualSupportedFields)(
+    'HasNotValueEqualViewFilterType %j',
+    (field) => {
+      test.each(hasMultipleSelectOptionsEqualCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotValueEqualViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(
+            testValues.filterValue === '' || !testValues.expected
+          )
+        }
+      )
+    }
+  )
+
+  const hasMultipleSelectOptionContainsCases = [
+    {
+      cellValue: [],
+      filterValue: 'A',
+      expected: false,
+    },
+    {
+      cellValue: [
+        { value: [{ id: 2, value: 'B' }] },
+        {
+          value: [
+            { id: 1, value: 'A' },
+            { id: 2, value: 'B' },
+          ],
+        },
+      ],
+      filterValue: 'A',
+      expected: true,
+    },
+    {
+      cellValue: [
+        {
+          value: [
+            { id: 1, value: 'A' },
+            { id: 2, value: 'C' },
+          ],
+        },
+      ],
+      filterValue: 'B',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: [{ id: 3, value: 'Aa' }] }],
+      filterValue: 'a',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: [{ id: 3, value: 'a' }] }],
+      filterValue: '',
+      expected: true,
+    },
+  ]
+
+  const hasMultipleSelectOptionContainsSupportedFields = [
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'multiple_select',
+    },
+  ]
+
+  describe.each(hasMultipleSelectOptionContainsSupportedFields)(
+    'HasValueContainsViewFilterType %j',
+    (field) => {
+      test.each(hasMultipleSelectOptionContainsCases)(
+        'filter matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasValueContainsViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(testValues.expected)
+        }
+      )
+    }
+  )
+
+  describe.each(hasMultipleSelectOptionContainsSupportedFields)(
+    'HasNotValueContainsViewFilterType %j',
+    (field) => {
+      test.each(hasMultipleSelectOptionContainsCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotValueContainsViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(
+            testValues.filterValue === '' || !testValues.expected
+          )
+        }
+      )
+    }
+  )
+
+  const hasMultipleSelectOptionContainsWordCases = [
+    {
+      cellValue: [],
+      filterValue: 'A',
+      expected: false,
+    },
+    {
+      cellValue: [
+        {
+          value: [
+            { id: 2, value: 'B' },
+            { id: 3, value: 'C' },
+          ],
+        },
+        { value: [{ id: 1, value: 'Aa' }] },
+        { value: [] },
+      ],
+      filterValue: 'Aa',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: [{ id: 1, value: 'A' }] }],
+      filterValue: 'B',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: [{ id: 3, value: 'Aa' }] }],
+      filterValue: 'a',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: [{ id: 1, value: 'A' }] }],
+      filterValue: '',
+      expected: true,
+    },
+  ]
+
+  const hasMultipleSelectOptionsContainsWordSupportedFields = [
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'multiple_select',
+    },
+  ]
+
+  describe.each(hasMultipleSelectOptionsContainsWordSupportedFields)(
+    'HasValueContainsWordViewFilterType %j',
+    (field) => {
+      test.each(hasMultipleSelectOptionContainsWordCases)(
+        'filter matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasValueContainsWordViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(testValues.expected)
+        }
+      )
+    }
+  )
+
+  describe.each(hasMultipleSelectOptionsContainsWordSupportedFields)(
+    'HasNotValueContainsWordViewFilterType %j',
+    (field) => {
+      test.each(hasMultipleSelectOptionContainsWordCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotValueContainsWordViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(
+            testValues.filterValue === '' || !testValues.expected
+          )
+        }
+      )
+    }
+  )
+
+  const hasEmptySelectOptionsCases = [
+    {
+      cellValue: [],
+      expected: false,
+    },
+    {
+      cellValue: [{ value: [{ id: 1, value: 'a' }] }, { value: [] }],
+      expected: true,
+    },
+    {
+      cellValue: [{ value: [] }],
+      expected: true,
+    },
+    {
+      cellValue: [{ value: [{ id: 2, value: 'b' }] }],
+      expected: false,
+    },
+  ]
+
+  const hasEmptySelectOptionSupportedFields = [
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'multiple_select',
+    },
+  ]
+
+  describe.each(hasEmptySelectOptionSupportedFields)(
+    'HasEmptyValueViewFilterType %j',
+    (field) => {
+      test.each(hasEmptySelectOptionsCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasEmptyValueViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(testValues.expected)
+        }
+      )
+    }
+  )
+
+  describe.each(hasEmptySelectOptionSupportedFields)(
+    'HasNotEmptyValueViewFilterType %j',
+    (field) => {
+      test.each(hasEmptySelectOptionsCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotEmptyValueViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(!testValues.expected)
+        }
+      )
     }
   )
 })

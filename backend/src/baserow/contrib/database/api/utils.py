@@ -7,13 +7,17 @@ from django.db.models import QuerySet
 from rest_framework import serializers
 
 from baserow.config.settings.utils import str_to_bool
-from baserow.contrib.database.api.constants import NUMBER_SEPARATOR_MAPPING
 from baserow.contrib.database.api.rows.exceptions import InvalidJoinParameterException
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     IncompatibleField,
 )
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import (
+    DEFAULT_DECIMAL_SEPARATOR,
+    DEFAULT_THOUSAND_SEPARATOR,
+    NUMBER_SEPARATORS,
+    Field,
+)
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.core.db import specific_iterator
 from baserow.core.utils import split_comma_separated_string
@@ -294,4 +298,10 @@ def extract_link_row_joins_from_request(
 
 
 def get_thousand_and_decimal_separator(value):
-    return NUMBER_SEPARATOR_MAPPING.get(value, None) or NUMBER_SEPARATOR_MAPPING[""]
+    thousand_sep, decimal_sep = NUMBER_SEPARATORS.get(value, {}).get("separators", None)
+    if not thousand_sep or not decimal_sep:
+        thousand_sep, decimal_sep = (
+            DEFAULT_THOUSAND_SEPARATOR,
+            DEFAULT_DECIMAL_SEPARATOR,
+        )
+    return thousand_sep.value, decimal_sep.value

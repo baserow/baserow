@@ -1,4 +1,5 @@
 import typing
+from enum import Enum
 from typing import NewType
 
 from django.contrib.contenttypes.models import ContentType
@@ -71,12 +72,49 @@ RATING_STYLE_CHOICES = [
     ("smile", "Smile"),
 ]
 
+
+# We use these constants to map the separators to the values used in the database.
+# The same variables are used in the frontend
+class THOUSAND_SEPARATORS(Enum):
+    SPACE = " "
+    COMMA = ","
+    PERIOD = "."
+    NONE = ""
+
+
+class DECIMAL_SEPARATORS(Enum):
+    COMMA = ","
+    PERIOD = "."
+
+
+DEFAULT_THOUSAND_SEPARATOR = THOUSAND_SEPARATORS.NONE
+DEFAULT_DECIMAL_SEPARATOR = DECIMAL_SEPARATORS.PERIOD
+
+NUMBER_SEPARATORS = {
+    "": {
+        "label": "No formatting",
+        "separators": (DEFAULT_THOUSAND_SEPARATOR, DEFAULT_DECIMAL_SEPARATOR),
+    },
+    "SPACE_COMMA": {
+        "label": "Space, comma",
+        "separators": (THOUSAND_SEPARATORS.SPACE, DECIMAL_SEPARATORS.COMMA),
+    },
+    "SPACE_PERIOD": {
+        "label": "Space, period",
+        "separators": (THOUSAND_SEPARATORS.SPACE, DECIMAL_SEPARATORS.PERIOD),
+    },
+    "COMMA_PERIOD": {
+        "label": "Comma, period",
+        "separators": (THOUSAND_SEPARATORS.COMMA, DECIMAL_SEPARATORS.PERIOD),
+    },
+    "PERIOD_COMMA": {
+        "label": "Period, comma",
+        "separators": (DECIMAL_SEPARATORS.PERIOD, THOUSAND_SEPARATORS.COMMA),
+    },
+}
+
 NUMBER_SEPARATOR_CHOICES = [
-    ("", "No formatting"),
-    ("SPACE_COMMA", "Space, comma"),
-    ("SPACE_PERIOD", "Space, period"),
-    ("COMMA_PERIOD", "Comma, period"),
-    ("PERIOD_COMMA", "Period, comma"),
+    (key, value["label"]) for key, value in NUMBER_SEPARATORS.items()
 ]
 
 DURATION_FORMAT_CHOICES = [(k, v["name"]) for k, v in DURATION_FORMATS.items()]

@@ -232,6 +232,7 @@ export default {
         this.$v.$touch()
       },
       immediate: true,
+      deep: true,
     },
     'values.table_id': {
       handler(tableId) {

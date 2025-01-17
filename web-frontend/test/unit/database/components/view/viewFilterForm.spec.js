@@ -76,7 +76,7 @@ const view = {
     {
       field: 2,
       type: 'equal',
-      value: 2,
+      value: '2',
       preload_values: {},
       _: { hover: false, loading: false },
       id: 11,
@@ -139,7 +139,7 @@ describe('ViewFilterForm match snapshots', () => {
       // We want to bypass some setTimeout
       jest.useFakeTimers()
       // Mock server filter update call
-      mockServer.updateViewFilter(11, 5)
+      mockServer.updateViewFilter(11, '5')
 
       // Add rating one filter
       const viewClone = JSON.parse(JSON.stringify(view))
@@ -147,7 +147,7 @@ describe('ViewFilterForm match snapshots', () => {
         {
           field: 2,
           type: 'equal',
-          value: 2,
+          value: '2',
           preload_values: {},
           _: { hover: false, loading: false },
           id: 11,

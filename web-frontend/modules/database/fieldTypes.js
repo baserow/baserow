@@ -724,8 +724,16 @@ export class FieldType extends Registerable {
    * Return a valid filter value for the field type. This is used to parse the
    * filter value from the frontend to the backend.
    */
-  prepareFilterValue(field, filterValue) {
+  parseFilterValue(field, filterValue) {
     return filterValue
+  }
+
+  /**
+   * Given a field value, format it as a string to be used in a filter value
+   * and sent to the backend.
+   */
+  formatFilterValue(field, value) {
+    return String(value ?? '')
   }
 
   /**
@@ -876,6 +884,10 @@ export class FieldType extends Registerable {
   getAlias() {
     return null
   }
+
+  toBaserowFormulaType(field) {
+    return this.getType()
+  }
 }
 
 class SelectOptionBaseFieldType extends FieldType {
@@ -894,6 +906,19 @@ class SelectOptionBaseFieldType extends FieldType {
 
   getFormViewFieldOptionsComponent() {
     return FormViewFieldOptionsAllowedSelectOptions
+  }
+
+  formatFilterValue(field, value) {
+    // Filter out any invalid option IDs before sending to the backend.
+    // This prevents confusion where invalid IDs might be interpreted as no option selected,
+    // but the backend will reject them.
+    const validOptionIds = field.select_options.map((option) =>
+      String(option.id)
+    )
+    return value
+      .split(',')
+      .filter((id) => validOptionIds.includes(String(id)))
+      .join(',')
   }
 }
 
@@ -1659,7 +1684,7 @@ export class NumberFieldType extends FieldType {
     return new BigNumber(value)
   }
 
-  prepareFilterValue(field, value) {
+  parseFilterValue(field, value) {
     const res = parseNumberValue(field, String(value ?? ''), false)
     return res === null || res.isNaN() ? '' : res.toString()
   }
@@ -1935,7 +1960,7 @@ export class BooleanFieldType extends FieldType {
     return this.getHasValueEqualFilterFunction(field, true)
   }
 
-  prepareFilterValue(field, value) {
+  parseFilterValue(field, value) {
     return this.parseInputValue(field, String(value ?? ''))
   }
 }
@@ -2163,6 +2188,10 @@ class BaseDateFieldType extends FieldType {
       )
     }
     return super.isEqual(field, value1, value2)
+  }
+
+  toBaserowFormulaType(field) {
+    return 'date'
   }
 }
 
@@ -3815,8 +3844,12 @@ export class FormulaFieldType extends mix(
     return i18n.t('fieldType.formula')
   }
 
-  prepareFilterValue(field, value) {
-    return this.getFormulaType(field)?.prepareFilterValue(field, value)
+  parseFilterValue(field, value) {
+    return this.getFormulaType(field)?.parseFilterValue(field, value)
+  }
+
+  formatFilterValue(field, value) {
+    return this.getFormulaType(field)?.formatFilterValue(field, value)
   }
 
   getFormulaType(field) {
@@ -3958,6 +3991,10 @@ export class FormulaFieldType extends mix(
 
   canRepresentFiles(field) {
     return this.getFormulaType(field)?.canRepresentFiles(field)
+  }
+
+  toBaserowFormulaType(field) {
+    return this.getFormulaType(field).toBaserowFormulaType(field)
   }
 }
 

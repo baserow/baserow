@@ -608,8 +608,8 @@ class TimelineViewType(ViewType):
         Verify that the start and the end date fields have compatible settings. This
         means that both fields must have the same timezone (if set) and include time
         settings. If include_time is False (date only fields), the timezone setting is
-        ignored. Please keep this in sync with the frontend implementation.
-        #TODO: add reference to frontend implementation
+        ignored. Please keep this in sync with the dateFieldsAreCompatible function in
+        web-frontend/modules/baserow_premium/utils/timeline.js.
 
         :param start_date_field: The start date field instance.
         :return: True if the date settings are valid, otherwise False.

@@ -15,7 +15,7 @@ from baserow.core.utils import extract_allowed
 
 from .exceptions import WidgetDoesNotExist
 from .models import Widget
-from .types import WidgetForUpdate
+from .types import UpdatedWidget, WidgetForUpdate
 
 
 class WidgetHandler:
@@ -128,7 +128,7 @@ class WidgetHandler:
 
         return widget
 
-    def update_widget(self, widget: WidgetForUpdate, **kwargs) -> Widget:
+    def update_widget(self, widget: WidgetForUpdate, **kwargs) -> UpdatedWidget:
         """
         Updates a widget with values if the values are allowed
         to be set on the widget.
@@ -138,18 +138,21 @@ class WidgetHandler:
         :return: The updated widget.
         """
 
-        allowed_updates = extract_allowed(kwargs, widget.get_type().allowed_fields)
+        allowed_values = extract_allowed(kwargs, widget.get_type().allowed_fields)
 
-        allowed_updates = widget.get_type().prepare_value_for_db(
-            allowed_updates, instance=widget
+        original_widget_values = widget.get_type().export_prepared_values(
+            instance=widget
         )
 
-        for key, value in allowed_updates.items():
+        for key, value in allowed_values.items():
             setattr(widget, key, value)
 
         widget.full_clean()
         widget.save()
-        return widget
+
+        new_widget_values = widget.get_type().export_prepared_values(instance=widget)
+
+        return UpdatedWidget(widget, original_widget_values, new_widget_values)
 
     def delete_widget(self, widget: Widget):
         """

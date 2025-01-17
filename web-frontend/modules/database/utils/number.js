@@ -1,5 +1,8 @@
 import BigNumber from 'bignumber.js'
 
+// We use these constants to map the separators to the values used in the database.
+// The same variables are used in the backend.
+
 const THOUSAND_SEPARATORS = {
   SPACE: ' ',
   COMMA: ',',
@@ -205,5 +208,16 @@ export const parseNumberValue = (field, value, roundDecimals = true) => {
   }
 
   const parsedNumber = toBigNumber(result)
-  return parsedNumber.isNaN() ? null : isNegative ? -parsedNumber : parsedNumber
+  return parsedNumber.isNaN()
+    ? null
+    : isNegative
+    ? parsedNumber.negated()
+    : parsedNumber
+}
+
+export const formatFrontendNumber = (field, value) => {
+  if (value == null || value === '') {
+    return ''
+  }
+  return formatNumberValue(field, new BigNumber(value))
 }

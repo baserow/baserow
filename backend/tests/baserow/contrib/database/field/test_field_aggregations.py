@@ -7,6 +7,7 @@ from baserow.contrib.database.fields.field_aggregations import (
     AverageFieldAggregationType,
     CheckedFieldAggregationType,
     CheckedPercentageFieldAggregationType,
+    CountFieldAggregationType,
     EarliestDateFieldAggregationType,
     EmptyCountFieldAggregationType,
     EmptyPercentageFieldAggregationType,
@@ -39,6 +40,29 @@ def test_field_agg_compute_final_aggregation():
 
     result = agg_type._compute_final_aggregation(10, 0)
     assert result == 0
+
+
+@pytest.mark.django_db
+def test_field_agg_count(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    model = table.get_model()
+    model_field = model._meta.get_field(field.db_column)
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {f"field_{field.id}": 4},
+            {f"field_{field.id}": None},
+            {f"field_{field.id}": None},
+        ],
+    )
+    agg_type = CountFieldAggregationType()
+
+    result = agg_type.aggregate(model.objects, model_field, field)
+
+    assert result == 3
 
 
 @pytest.mark.django_db

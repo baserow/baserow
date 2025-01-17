@@ -3193,7 +3193,7 @@ def test_multiple_select_contains_not_filter_type(field_name, data_fixture):
 )
 def test_multiple_select_contains_word_filter_type(field_name, data_fixture):
     test_setup = setup_view_for_multiple_select_field(
-        data_fixture, ["A", "AA", "B", None]
+        data_fixture, ["A", "aa", "B", None]
     )
     handler = ViewHandler()
     grid_view = test_setup.grid_view

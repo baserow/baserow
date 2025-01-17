@@ -725,6 +725,7 @@
     "back": "Back to dashboard"
   },
   "viewAggregationType": {
+    "count": "Count",
     "emptyCount": "Empty",
     "notEmptyCount": "Filled",
     "emptyPercentage": "Percent empty",

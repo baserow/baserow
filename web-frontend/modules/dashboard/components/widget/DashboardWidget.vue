@@ -12,10 +12,14 @@
     </div>
     <component
       :is="widgetComponent(widget.type)"
+      v-if="isLoading === false"
       :dashboard="dashboard"
       :widget="widget"
       :store-prefix="storePrefix"
     />
+    <div v-else>
+      <div class="dashboard-widget__loading"></div>
+    </div>
   </div>
 </template>
 
@@ -56,6 +60,12 @@ export default {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/isEditMode`
       ]
+    },
+    isLoading() {
+      return this.widgetType.isLoading(
+        this.widget,
+        this.$store.getters[`${this.storePrefix}dashboardApplication/getData`]
+      )
     },
   },
   methods: {

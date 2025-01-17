@@ -247,11 +247,3 @@ EXCLUDE_FIELDS_API_PARAM = OpenApiParameter(
         "response. "
     ),
 )
-
-NUMBER_SEPARATOR_MAPPING = {
-    "": ("", "."),
-    "SPACE_COMMA": (" ", ","),
-    "SPACE_PERIOD": (" ", "."),
-    "COMMA_PERIOD": (",", "."),
-    "PERIOD_COMMA": (".", ","),
-}

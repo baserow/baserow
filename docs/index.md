@@ -112,6 +112,7 @@ Everything related to contributing and developing for Baserow.
   and when to add your own.
 * [Metrics and Logs](./development/metrics-and-logs.md): How to work with metrics and logs
   to aid with monitoring Baserow as a developer.
+* [Backend Tests](development/running-tests.md): A guide on how to run python tests for the backend.
 
 ## Plugins
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-17 08:48+0000\n"
+"POT-Creation-Date: 2025-01-15 11:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -50,7 +50,7 @@ msgid ""
 "Airtable share ID \"%(airtable_share_id)s\""
 msgstr ""
 
-#: src/baserow/contrib/database/application_types.py:265
+#: src/baserow/contrib/database/application_types.py:283
 msgid "Table"
 msgstr ""
 
@@ -148,8 +148,8 @@ msgid ""
 "%(new_primary_field_name)s"
 msgstr ""
 
-#: src/baserow/contrib/database/fields/models.py:386
-#: src/baserow/contrib/database/fields/models.py:544
+#: src/baserow/contrib/database/fields/models.py:415
+#: src/baserow/contrib/database/fields/models.py:594
 msgid "The format of the duration."
 msgstr ""
 

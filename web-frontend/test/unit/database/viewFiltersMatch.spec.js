@@ -50,6 +50,7 @@ import {
   FormulaFieldType,
   NumberFieldType,
   SingleSelectFieldType,
+  MultipleSelectFieldType,
 } from '@baserow/modules/database/fieldTypes'
 
 const dateBeforeCases = [
@@ -787,7 +788,7 @@ const multipleSelectValuesHas = [
       { id: 155, value: 'A', color: 'green' },
       { id: 154, value: 'B', color: 'green' },
     ],
-    filterValue: 154,
+    filterValue: '154',
     expected: true,
   },
   {
@@ -795,7 +796,7 @@ const multipleSelectValuesHas = [
       { id: 155, value: 'A', color: 'green' },
       { id: 154, value: 'B', color: 'green' },
     ],
-    filterValue: 200,
+    filterValue: '200,201',
     expected: false,
   },
   {
@@ -814,7 +815,7 @@ const multipleSelectValuesHasNot = [
       { id: 155, value: 'A', color: 'green' },
       { id: 154, value: 'B', color: 'green' },
     ],
-    filterValue: 154,
+    filterValue: '154,155',
     expected: false,
   },
   {
@@ -822,7 +823,7 @@ const multipleSelectValuesHasNot = [
       { id: 155, value: 'A', color: 'green' },
       { id: 154, value: 'B', color: 'green' },
     ],
-    filterValue: 200,
+    filterValue: '200',
     expected: true,
   },
   {
@@ -2163,9 +2164,10 @@ describe('All Tests', () => {
   })
 
   test.each(multipleSelectValuesHas)('MultipleSelect Has', (values) => {
+    const fieldType = new MultipleSelectFieldType()
     const result = new MultipleSelectHasFilterType({
       app: testApp._app,
-    }).matches(values.rowValue, values.filterValue, {})
+    }).matches(values.rowValue, values.filterValue, {}, fieldType)
     expect(result).toBe(values.expected)
   })
 

@@ -1,7 +1,6 @@
 import typing
 
 from django.db import models
-from django.db.models import Q
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
@@ -43,7 +42,7 @@ class FormulaFieldTypeArrayFilterSupport(
         value: str,
         model_field: models.Field,
         field: "FormulaField",
-    ) -> Q | OptionallyAnnotatedQ:
+    ) -> OptionallyAnnotatedQ:
         (
             field_instance,
             field_type,

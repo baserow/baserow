@@ -226,7 +226,7 @@ export const TreeGroupNode = class {
     }
     const filterType = this.filterType
     for (const filter of this.filters) {
-      const filterValue = filter.value
+      const filterValue = String(filter.value ?? '')
       const field = fields.find((f) => f.id === filter.field)
       const fieldType = $registry.get('field', field.type)
       const viewFilterType = $registry.get('viewFilter', filter.type)

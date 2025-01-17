@@ -3,17 +3,14 @@ import zoneinfo
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from enum import Enum
-from functools import reduce
 from types import MappingProxyType
 from typing import Any, Dict, NamedTuple, Optional, Tuple, Union
 
-from django.contrib.postgres.expressions import ArraySubquery
-from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
-from django.db.models import DateField, DateTimeField, IntegerField, OuterRef, Q, Value
+from django.db.models import DateField, DateTimeField, IntegerField, Q, Value
 from django.db.models.expressions import F, Func
 from django.db.models.fields.json import JSONField
-from django.db.models.functions import Cast, Extract, Length, Mod, TruncDate
+from django.db.models.functions import Extract, Length, Mod, TruncDate
 
 from dateutil import parser
 from dateutil.relativedelta import MO, relativedelta
@@ -24,6 +21,7 @@ from baserow.contrib.database.fields.field_filters import (
     FilterBuilder,
     OptionallyAnnotatedQ,
     filename_contains_filter,
+    parse_ids_from_csv_string,
 )
 from baserow.contrib.database.fields.field_types import (
     AutonumberFieldType,
@@ -50,7 +48,10 @@ from baserow.contrib.database.fields.field_types import (
     URLFieldType,
     UUIDFieldType,
 )
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.filter_support.base import (
+    get_jsonb_has_any_in_value_filter_expr,
+)
+from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import (
     BaserowFormulaBooleanType,
@@ -115,19 +116,18 @@ class EqualViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field):
-        value = value.strip()
-
-        # If an empty value has been provided we do not want to filter at all.
-        if value == "":
-            return Q()
-
         # Check if the model_field accepts the value.
         field_type = field_type_registry.get_by_model(field)
         try:
-            value = field_type.prepare_filter_value(field, model_field, value)
-            return Q(**{field_name: value})
-        except Exception:
+            value = field_type.parse_filter_value(field, model_field, value.strip())
+        except ValueError:
             return self.default_filter_on_exception()
+
+        # If an empty value has been provided we do not want to filter at all.
+        if value is None:
+            return Q()
+
+        return Q(**{field_name: value})
 
 
 class NotEqualViewFilterType(NotViewFilterTypeMixin, EqualViewFilterType):
@@ -379,17 +379,16 @@ class NumericComparisonViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field):
-        value = value.strip()
-
-        # If an empty value has been provided we do not want to filter at all.
-        if value == "":
-            return Q()
-
         field_type = field_type_registry.get_by_model(field)
         try:
-            filter_value = field_type.prepare_filter_value(field, model_field, value)
+            filter_value = field_type.parse_filter_value(
+                field, model_field, value.strip()
+            )
         except ValueError:
             return self.default_filter_on_exception()
+
+        if filter_value is None:
+            return Q()
 
         return Q(**{f"{field_name}__{self.operator}": filter_value})
 
@@ -1073,11 +1072,15 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
         ),
     ]
 
-    def _get_filter(field_name, value, model_field, field):
+    @staticmethod
+    def _get_filter(field_name, value: int, model_field, field):
         return Q(**{f"{field_name}_id": value})
 
-    def _get_formula_filter(field_name, value, model_field, field):
-        return Q(**{f"{field_name}__id": value})
+    @staticmethod
+    def _get_formula_filter(field_name, value: int, model_field, field):
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [value], query_path="$.id"
+        )
 
     filter_functions = MappingProxyType(
         {
@@ -1132,9 +1135,8 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         return Q(**{f"{field_name}_id__in": option_ids})
 
     def _get_formula_filter(field_name, option_ids, model_field, field):
-        return reduce(
-            lambda x, y: x | y,
-            [Q(**{f"{field_name}__id": str(option_id)}) for option_id in option_ids],
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, option_ids, query_path="$.id"
         )
 
     filter_functions = MappingProxyType(
@@ -1144,31 +1146,21 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         }
     )
 
-    def parse_option_ids(self, value):
-        try:
-            return [int(v) for v in value.split(",") if v.isdigit()]
-        # non-strings will raise AttributeError, so we have a type check here too
-        except (
-            ValueError,
-            AttributeError,
-        ):
-            return []
-
     def get_filter(self, field_name, value: str, model_field, field):
         value = value.strip()
         if not value:
             return Q()
 
-        if not (option_ids := self.parse_option_ids(value)):
+        if not (option_ids := parse_ids_from_csv_string(value)):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
         filter_function = self.filter_functions[field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
-    def set_import_serialized_value(self, value: str, id_mapping: dict) -> str:
+    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
         # Parses the old option ids and remaps them to the new option ids.
-        old_options_ids = self.parse_option_ids(value)
+        old_options_ids = parse_ids_from_csv_string(value or "")
         select_option_map = id_mapping["database_field_select_options"]
         new_values = []
         for old_id in old_options_ids:
@@ -1206,15 +1198,17 @@ class BooleanViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field):
-        if value == "":  # consider emtpy value as False
-            value = "false"
+        if value == "":  # consider an empty string as False
+            return Q(**{field_name: False})
 
-        field_type = field_type_registry.get_by_model(field)
         try:
-            value = field_type.prepare_filter_value(field, model_field, value)
-            return Q(**{field_name: value})
+            filter_value = BooleanFieldType().parse_filter_value(
+                field, model_field, value
+            )
         except ValueError:
             return self.default_filter_on_exception()
+
+        return Q(**{field_name: filter_value})
 
 
 class ManyToManyHasBaseViewFilter(ViewFilterType):
@@ -1263,18 +1257,20 @@ class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
             pass
 
         if related_row_id:
-            field = view_filter.field.specific
-            # TODO: use field.get_related_primary_field() and
-            # model_field.remote_field.model here instead
-            table = field.link_row_table
-            primary_field = table.field_set.get(primary=True)
-            model = table.get_model(
-                field_ids=[], fields=[primary_field], add_dependencies=False
-            )
-
+            related_table_id = LinkRowField.objects.filter(
+                id=view_filter.field_id
+            ).values("link_row_table_id")[:1]
             try:
+                primary_field = Field.objects.select_related("table").get(
+                    primary=True, table_id=related_table_id
+                )
+
+                model = primary_field.table.get_model(
+                    field_ids=[], fields=[primary_field], add_dependencies=False
+                )
+
                 name = str(model.objects.get(pk=related_row_id))
-            except model.DoesNotExist:
+            except (Field.DoesNotExist, model.DoesNotExist):
                 pass
 
         return {"display_name": name}
@@ -1365,49 +1361,21 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         ),
     ]
 
+    @staticmethod
     def _get_filter(field_name, option_ids, model_field, field):
-        try:
-            remote_field = model_field.remote_field
-            remote_model = remote_field.model
-            return Q(
-                id__in=remote_model.objects.filter(id__in=option_ids).values(
-                    f"{remote_field.related_name}__id"
-                )
+        remote_field = model_field.remote_field
+        remote_model = remote_field.model
+        return Q(
+            id__in=remote_model.objects.filter(id__in=option_ids).values(
+                f"{remote_field.related_name}__id"
             )
-        except ValueError:
-            return Q()
+        )
 
+    @staticmethod
     def _get_formula_filter(field_name, option_ids, model_field, field):
-        model = model_field.model
-        subq = (
-            model.objects.filter(id=OuterRef("id"))
-            .annotate(
-                res=Cast(
-                    Func(
-                        Func(field_name, function="jsonb_array_elements"),
-                        Value("id"),
-                        function="jsonb_extract_path",
-                    ),
-                    output_field=IntegerField(),
-                )
-            )
-            .values("res")
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, option_ids, query_path="$[*].id"
         )
-        annotation_name = f"{field_name}_has"
-        return AnnotatedQ(
-            annotation={
-                annotation_name: ArraySubquery(
-                    subq, output_field=ArrayField(IntegerField())
-                )
-            },
-            q=Q(**{f"{annotation_name}__overlap": option_ids}),
-        )
-
-    def parse_option_ids(self, value):
-        try:
-            return [int(v) for v in value.split(",") if v.isdigit()]
-        except ValueError:
-            return []
 
     filter_functions = MappingProxyType(
         {
@@ -1421,16 +1389,16 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         if not value:
             return Q()
 
-        if not (option_ids := self.parse_option_ids(value)):
+        if not (option_ids := parse_ids_from_csv_string(value)):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
         filter_function = self.filter_functions[field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
-    def set_import_serialized_value(self, value, id_mapping):
+    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
         # Parses the old option ids and remaps them to the new option ids.
-        old_options_ids = self.parse_option_ids(value)
+        old_options_ids = parse_ids_from_csv_string(value or "")
         select_option_map = id_mapping["database_field_select_options"]
 
         new_values = []

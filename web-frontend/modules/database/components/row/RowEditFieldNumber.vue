@@ -39,6 +39,7 @@ export default {
   mixins: [rowEditField, rowEditFieldInput, numberField],
   watch: {
     field: {
+      immediate: true,
       handler() {
         this.initCopy(this.value)
       },
@@ -47,8 +48,10 @@ export default {
       handler(newValue) {
         this.initCopy(newValue)
       },
-      immediate: true,
     },
+  },
+  created() {
+    this.updateFormattedValue(this.field, this.value)
   },
   methods: {
     initCopy(value) {

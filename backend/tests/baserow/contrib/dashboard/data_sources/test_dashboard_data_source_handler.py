@@ -286,7 +286,7 @@ def test_update_data_source_name(data_fixture):
         data_source, name="Renamed", service_type=data_source.service.get_type()
     )
 
-    assert updated_data_source.name == "Renamed"
+    assert updated_data_source.data_source.name == "Renamed"
 
 
 @pytest.mark.django_db
@@ -302,7 +302,7 @@ def test_update_data_source_change_type(data_fixture):
     )
 
     assert (
-        service_type_registry.get_by_model(updated_data_source.service).type
+        service_type_registry.get_by_model(updated_data_source.data_source.service).type
         == "local_baserow_aggregate_rows"
     )
 

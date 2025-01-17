@@ -30,24 +30,23 @@ export default {
         'workspace/selectById',
         dashboard.workspace.id
       )
-      const forEditing = app.$hasPermission(
-        'application.update',
-        dashboard,
-        dashboard.workspace.id
-      )
-      await store.dispatch('dashboardApplication/fetchInitial', {
-        dashboardId: dashboard.id,
-        forEditing,
-      })
       data.workspace = workspace
       data.dashboard = dashboard
-      await store.dispatch('dashboardApplication/setLoading', false)
     } catch (e) {
       return error({ statusCode: 404, message: 'Dashboard not found.' })
     }
     return data
   },
   mounted() {
+    const forEditing = this.$hasPermission(
+      'application.update',
+      this.dashboard,
+      this.dashboard.workspace.id
+    )
+    this.$store.dispatch('dashboardApplication/fetchInitial', {
+      dashboardId: this.dashboard.id,
+      forEditing,
+    })
     this.$realtime.subscribe('dashboard', { dashboard_id: this.dashboard.id })
   },
   beforeDestroy() {
