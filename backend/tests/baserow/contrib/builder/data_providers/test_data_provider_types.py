@@ -905,6 +905,43 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
 
 
 @pytest.mark.django_db
+def test_previous_action_data_provider_get_data_chunk_returns_cached_result(data_fixture):
+    """
+    Ensure that when a current_dispatch_id is present in the request and it matches
+    a previously cached result, that result is returned.
+    """
+
+    previous_action_data_provider = PreviousActionProviderType()
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+        element=button_element, page=page
+    )
+    
+    fake_request = MagicMock()
+    fake_request.data = {
+        "previous_action": {
+            "current_dispatch_id": "abc123",
+            str(workflow_action.id): {},
+        }
+    }
+    dispatch_context = BuilderDispatchContext(fake_request, None)
+
+    previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(return_value="bar")
+
+    with patch("baserow.contrib.builder.data_providers.data_provider_types.cache") as mock_cache:
+        mock_cache.get.return_value = {"id": "mock-cached-data"}
+        result = previous_action_data_provider.get_data_chunk(
+            dispatch_context, [str(workflow_action.id), "id"]
+        )
+    
+    assert result == "mock-cached-data"
+
+
+@pytest.mark.django_db
 def test_previous_action_data_provider_import_path():
     previous_action_data_provider = PreviousActionProviderType()
     path = ["1", "field"]
