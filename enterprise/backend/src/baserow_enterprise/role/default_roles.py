@@ -158,6 +158,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewsOrderOperationType,
     ReadViewSortOperationType,
     RestoreViewOperationType,
+    UpdateReceiveNotificationOnSubmitFormViewOperationType,
     UpdateViewDecorationOperationType,
     UpdateViewFieldOptionsOperationType,
     UpdateViewFilterGroupOperationType,
@@ -347,6 +348,7 @@ default_roles[EDITOR_ROLE_UID].extend(
         RestoreDatabaseRowOperationType,
         ListTeamSubjectsOperationType,
         ReadTeamSubjectOperationType,
+        UpdateReceiveNotificationOnSubmitFormViewOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(

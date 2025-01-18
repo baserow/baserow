@@ -23,6 +23,7 @@ from rest_framework.serializers import Serializer
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
 from baserow.core.registries import OperationType
 from baserow.core.registry import (
@@ -835,6 +836,26 @@ class ViewType(
                 "field_id": field_id,
                 "hidden": hidden,
             },
+        )
+
+    def check_view_update_permissions(
+        self, user: AbstractUser, view: "View", data: Dict[str, Any]
+    ):
+        """
+        Hook that's called just before a view is updated. By default it checks the
+        `UpdateViewOperationType`, but when overwritten, it can optionally check for
+        different permissions depending on the data.
+
+        :param user: The user on whose behalf the view is updated.
+        :param view: The view instance that needs to be updated.
+        :param data: The properties that need to be updated.
+        """
+
+        from .operations import UpdateViewOperationType
+
+        workspace = view.table.database.workspace
+        CoreHandler().check_permissions(
+            user, UpdateViewOperationType.type, workspace=workspace, context=view
         )
 
 

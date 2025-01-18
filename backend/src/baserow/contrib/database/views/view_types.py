@@ -46,6 +46,7 @@ from baserow.contrib.database.fields.models import Field, FileField, SelectOptio
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.registries import view_aggregation_type_registry
+from baserow.core.handler import CoreHandler
 from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
@@ -1387,3 +1388,21 @@ class FormViewType(ViewType):
         return FormViewFieldOptions(
             field_id=field_id, form_view_id=view.id, enabled=False
         )
+
+    def check_view_update_permissions(self, user, view, data):
+        from .operations import UpdateReceiveNotificationOnSubmitFormViewOperationType
+
+        workspace = view.table.database.workspace
+
+        if len(data) == 1 and "receive_notification_on_submit" in data:
+            # If just the `receive_notification_on_submit` is provided, then we want to
+            # check a different permission because that operation is available for
+            # different roles.
+            CoreHandler().check_permissions(
+                user,
+                UpdateReceiveNotificationOnSubmitFormViewOperationType.type,
+                workspace=workspace,
+                context=view,
+            )
+        else:
+            return super().check_view_update_permissions(user, view, data)

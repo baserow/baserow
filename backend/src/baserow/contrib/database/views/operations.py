@@ -124,6 +124,10 @@ class UpdateViewOperationType(ViewOperationType):
     type = "database.table.view.update"
 
 
+class UpdateReceiveNotificationOnSubmitFormViewOperationType(ViewOperationType):
+    type = "database.table.view.update_receive_notification_on_submit_form_view"
+
+
 class DeleteViewOperationType(ViewOperationType):
     type = "database.table.view.delete"
 
