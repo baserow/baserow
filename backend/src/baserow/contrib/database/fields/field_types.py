@@ -5165,7 +5165,6 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         # so that eventually the view filters, sorts, etc are removed if needed.
         if not self.has_compatible_model_fields(field, old_field):
             update_collector.add_to_fields_type_changed(field)
-        update_collector.add_to_fields_type_changed(field)
         FieldDependencyHandler.rebuild_dependencies(field, field_cache)
         update_collector.add_field_with_pending_update_statement(
             field, expr, via_path_to_starting_table=via_path_to_starting_table
