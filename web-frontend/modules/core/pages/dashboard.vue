@@ -18,16 +18,16 @@
               @baserow/modules/core/assets/images/empty_workspace_illustration@2x.png 2x
             "
           />
-          <h4>{{ $t('adminDashboard.noWorkspace') }}</h4>
+          <h4>{{ $t('dashboard.noWorkspace') }}</h4>
           <p v-if="$hasPermission('create_workspace')">
-            {{ $t('adminDashboard.noWorkspaceDescription') }}
+            {{ $t('dashboard.noWorkspaceDescription') }}
           </p>
           <span
             v-if="$hasPermission('create_workspace')"
             ref="createApplicationContextLink2"
           >
             <Button icon="iconoir-plus" tag="a" @click="$refs.modal.show()">{{
-              $t('adminDashboard.addNew')
+              $t('dashboard.addNew')
             }}</Button>
           </span>
         </div>
