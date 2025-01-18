@@ -785,11 +785,97 @@ def test_field_type_changed(data_fixture):
     assert ViewGroupBy.objects.all().count() == 1
 
     field_handler.update_field(
-        user=user, field=long_text_field, new_type_name="password"
+        user=user,
+        field=long_text_field,
+        new_type_name="password",
     )
     assert ViewFilter.objects.all().count() == 0
     assert ViewSort.objects.all().count() == 0
     assert ViewGroupBy.objects.all().count() == 0
+
+
+@pytest.mark.django_db
+def test_field_type_single_field_num_queries(data_fixture, django_assert_num_queries):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    password_field_1 = data_fixture.create_password_field(table=table)
+    grid_view = data_fixture.create_grid_view(table=table)
+    gallery_view_1 = data_fixture.create_gallery_view(
+        table=table, card_cover_image_field=password_field_1
+    )
+    data_fixture.create_view_filter(
+        view=grid_view, field=password_field_1, type="contains", value="test"
+    )
+    data_fixture.create_view_filter(
+        view=grid_view, field=password_field_1, type="contains", value="test"
+    )
+    data_fixture.create_view_sort(view=grid_view, field=password_field_1, order="ASC")
+    data_fixture.create_view_group_by(
+        view=grid_view, field=password_field_1, order="ASC"
+    )
+
+    handler = ViewHandler()
+
+    # Should be equal to the `test_field_type_changed_two_fields_num_queries`.
+    with django_assert_num_queries(9):
+        handler.fields_type_changed([password_field_1])
+
+    assert ViewFilter.objects.all().count() == 0
+    assert ViewSort.objects.all().count() == 0
+    assert ViewGroupBy.objects.all().count() == 0
+
+    gallery_view_1.refresh_from_db()
+    assert gallery_view_1.card_cover_image_field is None
+
+
+@pytest.mark.django_db
+def test_field_type_changed_two_fields_num_queries(
+    data_fixture, django_assert_num_queries
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    password_field_1 = data_fixture.create_password_field(table=table)
+    password_field_2 = data_fixture.create_password_field(table=table)
+    grid_view = data_fixture.create_grid_view(table=table)
+    gallery_view_1 = data_fixture.create_gallery_view(
+        table=table, card_cover_image_field=password_field_1
+    )
+    gallery_view_2 = data_fixture.create_gallery_view(
+        table=table, card_cover_image_field=password_field_2
+    )
+    data_fixture.create_view_filter(
+        view=grid_view, field=password_field_1, type="contains", value="test"
+    )
+    data_fixture.create_view_filter(
+        view=grid_view, field=password_field_1, type="contains", value="test"
+    )
+    data_fixture.create_view_filter(
+        view=grid_view, field=password_field_2, type="contains", value="test"
+    )
+    data_fixture.create_view_sort(view=grid_view, field=password_field_1, order="ASC")
+    data_fixture.create_view_sort(view=grid_view, field=password_field_2, order="ASC")
+    data_fixture.create_view_group_by(
+        view=grid_view, field=password_field_1, order="ASC"
+    )
+    data_fixture.create_view_group_by(
+        view=grid_view, field=password_field_2, order="ASC"
+    )
+
+    handler = ViewHandler()
+
+    # Should be equal to the `test_field_type_single_field_num_queries`.
+    with django_assert_num_queries(9):
+        handler.fields_type_changed([password_field_1, password_field_2])
+
+    assert ViewFilter.objects.all().count() == 0
+    assert ViewSort.objects.all().count() == 0
+    assert ViewGroupBy.objects.all().count() == 0
+
+    gallery_view_1.refresh_from_db()
+    assert gallery_view_1.card_cover_image_field is None
+
+    gallery_view_2.refresh_from_db()
+    assert gallery_view_2.card_cover_image_field is None
 
 
 @pytest.mark.django_db

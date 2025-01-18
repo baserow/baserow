@@ -578,6 +578,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         from_model_field = from_model._meta.get_field(field.db_column)
         to_model_field = to_model._meta.get_field(field.db_column)
 
+        update_collector = FieldUpdateCollector(field.table)
+
         # If the field type or the database representation changes it could be
         # that some view dependencies like filters or sortings need to be changed.
         if (
@@ -586,7 +588,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 from_model_field, to_model_field
             )
         ):
-            ViewHandler().field_type_changed(field)
+            update_collector.add_to_fields_type_changed(field)
         SearchHandler.entire_field_values_changed_or_created(
             field.table, updated_fields=[field]
         )
@@ -690,7 +692,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
 
         field_cache.cache_model_fields(to_model)
 
-        update_collector = FieldUpdateCollector(field.table)
         for (
             dependant_field,
             dependant_field_type,

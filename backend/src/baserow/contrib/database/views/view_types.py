@@ -219,15 +219,15 @@ class GridViewType(ViewType):
 
         return field_options
 
-    def after_field_type_change(self, field):
+    def after_fields_type_change(self, fields):
         """
         Check field option aggregation_raw_type compatibility with the new field type.
         """
 
         field_options = (
-            GridViewFieldOptions.objects_and_trash.filter(field=field)
+            GridViewFieldOptions.objects_and_trash.filter(field__in=fields)
             .exclude(aggregation_raw_type="")
-            .select_related("grid_view")
+            .select_related("grid_view", "field")
         )
 
         view_handler = ViewHandler()
@@ -238,16 +238,18 @@ class GridViewType(ViewType):
             )
 
             view_handler.clear_aggregation_cache(
-                field_option.grid_view, field.db_column
+                field_option.grid_view, field_option.field.db_column
             )
 
-            if not aggregation_type.field_is_compatible(field):
+            if not aggregation_type.field_is_compatible(field_option.field):
                 # The field has an aggregation and the type is not compatible with
                 # the new field, so we need to clean the aggregation.
+                # @TODO check if there are multiple fields from the same field and
+                #  update them in bulk.
                 view_handler.update_field_options(
                     view=field_option.grid_view,
                     field_options={
-                        field.id: {
+                        field_option.field_id: {
                             "aggregation_type": "",
                             "aggregation_raw_type": "",
                         }
@@ -396,12 +398,20 @@ class GalleryViewType(ViewType):
 
         return super().prepare_values(values, table, user)
 
-    def after_field_type_change(self, field):
-        field_type = field_type_registry.get_by_model(field)
-        if not field_type.can_represent_files(field):
-            GalleryView.objects.filter(card_cover_image_field_id=field.id).update(
-                card_cover_image_field_id=None
-            )
+    def after_fields_type_change(self, fields):
+        fields_cannot_represent_files = [
+            field
+            for field in fields
+            if not field_type_registry.get_by_model(
+                field.specific_class
+            ).can_represent_files(field)
+        ]
+        if len(fields_cannot_represent_files) > 0:
+            GalleryView.objects.filter(
+                card_cover_image_field_id__in=[
+                    f.id for f in fields_cannot_represent_files
+                ]
+            ).update(card_cover_image_field_id=None)
 
     def export_serialized(
         self,
@@ -625,14 +635,20 @@ class FormViewType(ViewType):
             path("form/", include(api_urls, namespace=self.type)),
         ]
 
-    def after_field_type_change(self, field):
-        field_type = field_type_registry.get_by_model(field)
-
-        # If the new field type is not compatible with the form view, we must disable
-        # all the form view field options because they're not compatible anymore.
-        if not field_type.can_be_in_form_view:
+    def after_fields_type_change(self, fields):
+        fields_cannot_be_in_form_view = [
+            field
+            for field in fields
+            if not field_type_registry.get_by_model(
+                field.specific_class
+            ).can_be_in_form_view
+        ]
+        if len(fields_cannot_be_in_form_view) > 0:
+            # If the new field type is not compatible with the form view, we must
+            # disable all the form view field options because they're not compatible
+            # anymore.
             FormViewFieldOptions.objects_and_trash.filter(
-                field=field, enabled=True
+                field__in=[f.id for f in fields_cannot_be_in_form_view], enabled=True
             ).update(enabled=False)
 
     def before_field_options_update(self, view, field_options, fields):

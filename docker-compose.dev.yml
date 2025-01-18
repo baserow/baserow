@@ -252,7 +252,7 @@ services:
       local:
 
   otel-collector:
-    image: otel/opentelemetry-collector
+    image: otel/opentelemetry-collector:0.106.1
     command: ["--config=/etc/otel-collector-config.yaml"]
     environment:
       HONEYCOMB_API_KEY:
