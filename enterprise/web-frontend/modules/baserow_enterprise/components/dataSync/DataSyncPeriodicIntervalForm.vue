@@ -24,7 +24,8 @@
       </Dropdown>
     </FormGroup>
     <template v-if="values.interval !== 'MANUAL'">
-      <div class="flex">
+      {{ values.when }}
+      <div class="flex align-items-end">
         <FormGroup
           v-if="values.interval === 'DAILY'"
           small-label
@@ -77,6 +78,9 @@
             @input="updateWhen"
           />
         </FormGroup>
+        <div class="color-neutral">
+          {{ timezone }}
+        </div>
       </div>
       <p class="control__helper-text">
         {{ $t('dataSyncPeriodicIntervalForm.whenHelper') }}
@@ -87,6 +91,7 @@
 </template>
 
 <script>
+import moment from '@baserow/modules/core/moment'
 import { required, numeric, minValue, maxValue } from 'vuelidate/lib/validators'
 import form from '@baserow/modules/core/mixins/form'
 
@@ -102,6 +107,7 @@ export default {
   },
   data() {
     return {
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       allowedValues: ['interval', 'when'],
       values: {
         interval: 'MANUAL',
@@ -114,21 +120,31 @@ export default {
   },
   mounted() {
     if (this.values.when) {
-      const splitted = this.values.when.split(':')
-      this.hour = splitted[0] || ''
-      this.minute = splitted[1] || ''
-      this.second = splitted[2] || ''
+      const localTime = moment
+        .utc(this.values.when, 'HH:mm:ss')
+        .local()
+        .format('HH:mm:ss')
+      const splitted = localTime.split(':')
+      this.hour = parseInt(splitted[0], 10) || 0
+      this.minute = parseInt(splitted[1], 10) || 0
+      this.second = parseInt(splitted[2], 10) || 0
     } else {
-      const currentDate = new Date()
-      this.hour = currentDate.getHours()
-      this.minute = currentDate.getMinutes()
-      this.second = currentDate.getSeconds()
+      this.setDefaultTime()
     }
     this.updateWhen()
   },
   methods: {
+    setDefaultTime() {
+      const localTime = moment().format('HH:mm:ss')
+      const splitted = localTime.split(':')
+      this.hour = splitted[0]
+      this.minute = splitted[1]
+      this.second = splitted[2]
+    },
     updateWhen() {
-      this.values.when = `${this.hour}:${this.minute}:${this.second}`
+      const timeInLocal = `${this.hour}:${this.minute}:${this.second}`
+      const timeInUTC = moment(timeInLocal, 'HH:mm:ss').utc().format('HH:mm:ss')
+      this.values.when = timeInUTC
     },
   },
   validations() {
