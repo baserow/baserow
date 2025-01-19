@@ -149,18 +149,16 @@ def test_update_periodic_data_sync_interval_update_automatically_disabled(
         data_sync=data_sync,
         interval="DAILY",
         when=time(hour=12, minute=10, second=1, microsecond=1),
-        automatically_deactivated=True,
     )
-    assert periodic_data_sync.automatically_deactivated is True
+    periodic_data_sync.automatically_deactivated = True
+    periodic_data_sync.save()
 
     periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
         user=user,
         data_sync=data_sync,
         interval="HOURLY",
         when=time(hour=14, minute=12, second=1, microsecond=1),
-        automatically_deactivated=False,
     )
-
     assert periodic_data_sync.automatically_deactivated is False
 
 
@@ -602,7 +600,7 @@ def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture
         interval="DAILY",
         when=time(hour=12, minute=10, second=1, microsecond=1),
     )
-    periodic_data_sync.consecutive_failed_count = 1
+    periodic_data_sync.consecutive_failed_count = 3
     periodic_data_sync.save()
 
     assert (
@@ -610,7 +608,7 @@ def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture
     )
 
     periodic_data_sync.refresh_from_db()
-    assert periodic_data_sync.consecutive_failed_count == 2
+    assert periodic_data_sync.consecutive_failed_count == 4
     assert periodic_data_sync.automatically_deactivated is True
 
 

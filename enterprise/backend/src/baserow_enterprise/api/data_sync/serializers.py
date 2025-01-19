@@ -11,10 +11,4 @@ class PeriodicDataSyncIntervalSerializer(serializers.ModelSerializer):
             "when",
             "automatically_deactivated",
         )
-
-    def validate_automatically_deactivated(self, value):
-        if value is True:
-            raise serializers.ValidationError(
-                "automatically_deactivated can only be set to False."
-            )
-        return value
+        extra_kwargs = {"automatically_deactivated": {"read_only": True}}

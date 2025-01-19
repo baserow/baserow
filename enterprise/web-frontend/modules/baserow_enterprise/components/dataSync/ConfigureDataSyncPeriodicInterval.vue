@@ -65,7 +65,7 @@
           <i class="iconoir-timer"></i>
         </div>
         <p class="placeholder__content">
-          Periodic data sync is an advanced/enterprise feature.
+          {{ $t('configureDataSyncPeriodicInterval.enterprise') }}
         </p>
         <div class="placeholder__action">
           <Button
@@ -73,7 +73,7 @@
             icon="iconoir-no-lock"
             @click="$refs.enterpriseModal.show()"
           >
-            More information
+            {{ $t('configureDataSyncPeriodicInterval.more') }}
           </Button>
         </div>
       </div>
@@ -146,24 +146,12 @@ export default {
       }
     },
     async activate() {
-      this.hideError()
       const values = clone(this.periodicInterval)
       values.automatically_deactivated = false
-      this.saveLoading = true
-
-      try {
-        await EnterpriseDataSyncService(this.$client).updatePeriodicInterval(
-          this.table.data_sync.id,
-          values.interval,
-          values.when,
-          values.automatically_deactivated
-        )
-        this.periodicInterval = values
-      } catch (error) {
-        this.handleError(error)
-      } finally {
-        this.saveLoading = false
-      }
+      // Updating the periodic interval sets automatically_disabled = false.
+      await this.submitted(values)
+      this.periodicInterval = values
+      this.saved = false
     },
     async submitted(values) {
       this.hideError()
@@ -174,7 +162,6 @@ export default {
           this.table.data_sync.id,
           values.interval,
           values.when,
-          values.automatically_deactivated
         )
         this.saved = true
       } catch (error) {

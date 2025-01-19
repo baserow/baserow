@@ -24,7 +24,6 @@
       </Dropdown>
     </FormGroup>
     <template v-if="values.interval !== 'MANUAL'">
-      {{ values.when }}
       <div class="flex align-items-end">
         <FormGroup
           v-if="values.interval === 'DAILY'"

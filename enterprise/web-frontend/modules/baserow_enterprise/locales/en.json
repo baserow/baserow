@@ -418,7 +418,9 @@
     "saved": "Saved",
     "deactivatedTitle": "Periodic data sync deactivated",
     "deactivatedText": "The periodic data sync was deactivated because it failed to many consecutive times. Please try to sync manually, and if it works as expected, then click on the activate button.",
-    "activate": "Activate periodic sync"
+    "activate": "Activate periodic sync",
+    "enterprise": "Periodic data sync is an advanced/enterprise feature.",
+    "more": "More information"
   },
   "dataSyncPeriodicIntervalForm": {
     "intervalLabel": "Interval",
