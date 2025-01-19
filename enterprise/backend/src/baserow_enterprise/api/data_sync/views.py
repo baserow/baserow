@@ -1,5 +1,6 @@
 from django.db import transaction
 
+from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
@@ -24,6 +25,7 @@ from baserow_enterprise.data_sync.actions import (
 )
 from baserow_enterprise.data_sync.models import DATA_SYNC_INTERVAL_MANUAL
 
+from ...features import DATA_SYNC
 from .serializers import PeriodicDataSyncIntervalSerializer
 
 
@@ -44,6 +46,7 @@ class PeriodicDataSyncIntervalView(APIView):
         description=(
             "Responds with the periodic data sync interval data, if the user has the "
             "right permissions."
+            "\nThis is an **enterprise** feature."
         ),
         responses={
             200: PeriodicDataSyncIntervalSerializer,
@@ -62,7 +65,13 @@ class PeriodicDataSyncIntervalView(APIView):
 
         data_sync = DataSyncHandler().get_data_sync(
             data_sync_id,
-            base_queryset=DataSync.objects.select_related("periodic_interval"),
+            base_queryset=DataSync.objects.select_related(
+                "periodic_interval", "table__database__workspace"
+            ),
+        )
+
+        LicenseHandler.raise_if_workspace_doesnt_have_feature(
+            DATA_SYNC, data_sync.table.database.workspace
         )
 
         CoreHandler().check_permissions(
@@ -98,6 +107,7 @@ class PeriodicDataSyncIntervalView(APIView):
         description=(
             "Updates the periodic data sync interval, if the user has "
             "the right permissions."
+            "\nThis is an **enterprise** feature."
         ),
         request=PeriodicDataSyncIntervalSerializer,
         responses={
@@ -118,7 +128,10 @@ class PeriodicDataSyncIntervalView(APIView):
         """Updates the periodic data sync interval."""
 
         data_sync = DataSyncHandler().get_data_sync(
-            data_sync_id, base_queryset=DataSync.objects.select_for_update(of=("self",))
+            data_sync_id,
+            base_queryset=DataSync.objects.select_for_update(
+                of=("self",)
+            ).select_related("table__database__workspace"),
         )
 
         periodic_interval = action_type_registry.get_by_type(

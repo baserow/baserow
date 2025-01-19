@@ -161,7 +161,7 @@ export default {
         await EnterpriseDataSyncService(this.$client).updatePeriodicInterval(
           this.table.data_sync.id,
           values.interval,
-          values.when,
+          values.when
         )
         this.saved = true
       } catch (error) {

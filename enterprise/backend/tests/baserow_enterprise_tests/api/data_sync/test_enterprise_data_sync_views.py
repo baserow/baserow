@@ -4,7 +4,7 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_200_OK, HTTP_402_PAYMENT_REQUIRED
 
 from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.data_sync.handler import EnterpriseDataSyncHandler
@@ -69,6 +69,25 @@ def test_get_not_existing_periodic_data_sync_interval(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_get_periodic_data_sync_interval_without_license(
+    api_client, enterprise_data_fixture
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    data_sync = enterprise_data_fixture.create_ical_data_sync(user=user)
+
+    response = api_client.get(
+        reverse(
+            f"api:enterprise:data_sync:periodic_interval",
+            kwargs={"data_sync_id": data_sync.id},
+        ),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_402_PAYMENT_REQUIRED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_update_periodic_data_sync(api_client, enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
 
@@ -90,6 +109,24 @@ def test_update_periodic_data_sync(api_client, enterprise_data_fixture):
         "when": "12:10:01.000001",
         "automatically_deactivated": False,
     }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_update_periodic_data_sync_without_license(api_client, enterprise_data_fixture):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    data_sync = enterprise_data_fixture.create_ical_data_sync(user=user)
+
+    response = api_client.patch(
+        reverse(
+            f"api:enterprise:data_sync:periodic_interval",
+            kwargs={"data_sync_id": data_sync.id},
+        ),
+        {"interval": "HOURLY", "when": "12:10:01.000001"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
 @pytest.mark.django_db

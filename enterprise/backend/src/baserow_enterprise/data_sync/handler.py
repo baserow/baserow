@@ -15,7 +15,7 @@ from baserow.contrib.database.data_sync.exceptions import (
 )
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import DataSync
-from baserow.contrib.database.table.operations import UpdateDatabaseTableOperationType
+from baserow.contrib.database.data_sync.operations import SyncTableOperationType
 from baserow.core.handler import CoreHandler
 from baserow_enterprise.data_sync.models import (
     DATA_SYNC_INTERVAL_DAILY,
@@ -56,7 +56,7 @@ class EnterpriseDataSyncHandler:
 
         CoreHandler().check_permissions(
             user,
-            UpdateDatabaseTableOperationType.type,
+            SyncTableOperationType.type,
             workspace=data_sync.table.database.workspace,
             context=data_sync.table,
         )
