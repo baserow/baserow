@@ -75,7 +75,6 @@ from baserow.contrib.database.views.operations import (
     UpdateViewFilterGroupOperationType,
     UpdateViewFilterOperationType,
     UpdateViewGroupByOperationType,
-    UpdateViewOperationType,
     UpdateViewPublicOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
