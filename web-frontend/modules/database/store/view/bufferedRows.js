@@ -18,6 +18,7 @@ import {
   prepareRowForRequest,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
+import fieldOptionsStoreFactory from '@baserow/modules/database/store/view/fieldOptions'
 
 /**
  * This view store mixin can be used to efficiently keep and maintain the rows of a
@@ -50,9 +51,11 @@ import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/sea
  * ]
  * ```
  */
-export default ({ service, customPopulateRow }) => {
+export default ({ service, customPopulateRow, fieldOptions }) => {
   let lastRequestController = null
   const updateRowQueue = new GroupTaskQueue()
+  const fieldOptionsStore =
+    fieldOptions !== undefined ? fieldOptions : fieldOptionsStoreFactory()
 
   const populateRow = (row, metadata = {}) => {
     if (customPopulateRow) {
@@ -1197,9 +1200,9 @@ export default ({ service, customPopulateRow }) => {
 
   return {
     namespaced: true,
-    state,
-    getters,
-    actions,
-    mutations,
+    state: () => ({ ...state(), ...fieldOptionsStore.state() }),
+    getters: { ...getters, ...fieldOptionsStore.getters },
+    actions: { ...actions, ...fieldOptionsStore.actions },
+    mutations: { ...mutations, ...fieldOptionsStore.mutations },
   }
 }
