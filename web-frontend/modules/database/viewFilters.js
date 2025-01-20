@@ -789,19 +789,12 @@ export class BaseDateMultiStepViewFilterType extends ViewFilterType {
       : `${timezone}${sep}${filterValue}${sep}${operator}`
   }
 
-  matches(rowValue, filterValue, field, fieldType) {
-    throw new Error('The matches method must be implemented for every filter.')
-  }
-}
-
-export class DateMultiStepViewFilterType extends BaseDateMultiStepViewFilterType {
-  getCompatibleFieldTypes() {
-    return [
-      'date',
-      'last_modified',
-      'created_on',
-      FormulaFieldType.compatibleWithFormulaTypes('date'),
-    ]
+  localizeRowValue(rowValue, timezone) {
+    const localizedRowValue = moment.utc(rowValue)
+    if (timezone !== null) {
+      localizedRowValue.tz(timezone)
+    }
+    return localizedRowValue
   }
 
   rowMatches(rowDate, lowerBound, upperBound) {
@@ -839,14 +832,22 @@ export class DateMultiStepViewFilterType extends BaseDateMultiStepViewFilterType
     }
 
     // Localize the filter date and the row date.
-    const rowDate = moment.utc(rowValue)
-    if (timezone !== null) {
-      rowDate.tz(timezone)
-    }
+    const rowDate = this.localizeRowValue(rowValue, timezone)
     const [lowerBound, upperBound] =
       DATE_FILTER_OPERATOR_BOUNDS[operatorValue](filterDate)
 
     return this.rowMatches(rowDate, lowerBound, upperBound, timezone)
+  }
+}
+
+export class DateMultiStepViewFilterType extends BaseDateMultiStepViewFilterType {
+  getCompatibleFieldTypes() {
+    return [
+      'date',
+      'last_modified',
+      'created_on',
+      FormulaFieldType.compatibleWithFormulaTypes('date'),
+    ]
   }
 }
 

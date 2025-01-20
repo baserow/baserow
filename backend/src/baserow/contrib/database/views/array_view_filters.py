@@ -1,10 +1,8 @@
 import zoneinfo
 from abc import ABC, abstractmethod
-from datetime import date, datetime, tzinfo
+from datetime import date, datetime
 
 from django.db.models import Q
-
-from dateutil import parser
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_types import FormulaFieldType
@@ -18,7 +16,6 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueLengthIsLowerThanFilterSupport,
     get_jsonb_has_date_value_filter_expr,
 )
-from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import (
     BaserowFormulaNumberType,
@@ -37,12 +34,7 @@ from baserow.contrib.database.formula.types.formula_types import (
 )
 
 from .registries import ViewFilterType
-from .view_filters import (
-    DATE_FILTER_OPERATOR_BOUNDS,
-    DATE_FILTER_OPERATOR_FROM_VALUE,
-    BaseDateMultiStepViewFilterType,
-    NotViewFilterTypeMixin,
-)
+from .view_filters import BaseDateMultiStepViewFilterType, NotViewFilterTypeMixin
 
 
 class HasEmptyValueViewFilterType(ViewFilterType):
@@ -395,46 +387,17 @@ class ArrayDateMultiStepViewFilterType(BaseDateMultiStepViewFilterType):
         ),
     ]
 
-    def get_filter(
-        self, field_name: str, value: str, model_field, field: Field
-    ) -> OptionallyAnnotatedQ:
-        try:
-            timezone, filter_value, operator = self.split_combined_value(
-                field, value.strip()
-            )
-            if self.is_empty_filter(operator, filter_value):
-                return Q()
-
-            filter_date = self.get_filter_date(operator, filter_value, timezone)
-        except (
-            OverflowError,
-            ValueError,
-            parser.ParserError,
-            zoneinfo.ZoneInfoNotFoundError,
-        ):
-            return Q(pk__in=[])
-
-        if not field.date_include_time and isinstance(filter_date, datetime):
-            filter_date = filter_date.date()
-
-        date_filter_operator = DATE_FILTER_OPERATOR_FROM_VALUE[operator]
-        lower_bound, upper_bound = DATE_FILTER_OPERATOR_BOUNDS[date_filter_operator](
-            filter_date
-        )
-        return self.get_filter_expression(
-            model_field, timezone, lower_bound, upper_bound
-        )
-
 
 class HasDateEqualViewFilterType(ArrayDateMultiStepViewFilterType):
     type = "has_date_equal"
 
     def get_filter_expression(
         self,
+        field_name: str,
         model_field,
-        timezone: tzinfo,
         lower_bound: date | datetime,
         upper_bound: date | datetime,
+        timezone: zoneinfo.ZoneInfo,
     ) -> OptionallyAnnotatedQ:
         return get_jsonb_has_date_value_filter_expr(
             model_field, timezone, gte_of=lower_bound, lt_of=upper_bound
@@ -450,10 +413,11 @@ class HasDateBeforeViewFilterType(ArrayDateMultiStepViewFilterType):
 
     def get_filter_expression(
         self,
+        field_name: str,
         model_field,
-        timezone: tzinfo,
         lower_bound: date | datetime,
         upper_bound: date | datetime,
+        timezone: zoneinfo.ZoneInfo,
     ) -> OptionallyAnnotatedQ:
         return get_jsonb_has_date_value_filter_expr(
             model_field, timezone, lt_of=lower_bound
@@ -471,10 +435,11 @@ class HasDateOnOrBeforeViewFilterType(ArrayDateMultiStepViewFilterType):
 
     def get_filter_expression(
         self,
+        field_name: str,
         model_field,
-        timezone: tzinfo,
         lower_bound: date | datetime,
         upper_bound: date | datetime,
+        timezone: zoneinfo.ZoneInfo,
     ) -> OptionallyAnnotatedQ:
         return get_jsonb_has_date_value_filter_expr(
             model_field, timezone, lt_of=upper_bound
@@ -492,10 +457,11 @@ class HasDateAfterViewFilterType(ArrayDateMultiStepViewFilterType):
 
     def get_filter_expression(
         self,
+        field_name: str,
         model_field,
-        timezone: tzinfo,
         lower_bound: date | datetime,
         upper_bound: date | datetime,
+        timezone: zoneinfo.ZoneInfo,
     ) -> OptionallyAnnotatedQ:
         return get_jsonb_has_date_value_filter_expr(
             model_field, timezone, gte_of=upper_bound
@@ -511,10 +477,11 @@ class HasDateOnOrAfterViewFilterType(ArrayDateMultiStepViewFilterType):
 
     def get_filter_expression(
         self,
+        field_name: str,
         model_field,
-        timezone: tzinfo,
         lower_bound: date | datetime,
         upper_bound: date | datetime,
+        timezone: zoneinfo.ZoneInfo,
     ) -> OptionallyAnnotatedQ:
         return get_jsonb_has_date_value_filter_expr(
             model_field, timezone, gte_of=lower_bound
@@ -532,10 +499,11 @@ class HasDateWithinViewFilterType(ArrayDateMultiStepViewFilterType):
 
     def get_filter_expression(
         self,
+        field_name: str,
         model_field,
-        timezone: tzinfo,
         lower_bound: date | datetime,
         upper_bound: date | datetime,
+        timezone: zoneinfo.ZoneInfo,
     ) -> OptionallyAnnotatedQ:
         return get_jsonb_has_date_value_filter_expr(
             model_field,

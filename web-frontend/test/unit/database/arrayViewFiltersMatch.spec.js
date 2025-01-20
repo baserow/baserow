@@ -1,4 +1,3 @@
-import moment from '@baserow/modules/core/moment'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import {
   HasValueEqualViewFilterType,
@@ -35,6 +34,16 @@ import {
   EmptyViewFilterType,
   NotEmptyViewFilterType,
 } from '@baserow/modules/database/viewFilters'
+import {
+  dateBeforeCases,
+  dateEqualCases,
+  dateAfterCases,
+  dateBeforeOrEqualCases,
+  dateAfterOrEqualCases,
+  dateWithinDays,
+  dateWithinWeeks,
+  dateWithinMonths,
+} from './viewFiltersMatch.spec.js'
 
 describe('Text-based array view filters', () => {
   let testApp = null
@@ -1890,474 +1899,22 @@ describe('Date array view filters', () => {
       )
     }
   )
-})
-
-const dateBeforeCases = [
-  // Same cases as in viewFiltersMatch.js
-  {
-    rowValue: [{ value: '2021-08-10T21:59:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T22:59:37.940086Z' }],
-    filterValue: 'Europe/London?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T22:01:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T23:01:37.940086Z' }],
-    filterValue: 'Europe/London?2021-08-11',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T23:59:37.940086Z' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T00:01:37.940086Z' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-11' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: false,
-  },
-  // Array specific cases
-  {
-    rowValue: [{ value: '2021-08-10' }, { value: '2021-08-11' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10' }, { value: '2021-08-11' }],
-    filterValue: 'UTC?2021-08-10',
-    expected: false,
-  },
-]
-
-const dateEqualCases = [
-  // same as in viewFiltersMatch.js
-  {
-    rowValue: [{ value: '2021-08-11T21:59:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T22:59:37.940086Z' }],
-    filterValue: 'Europe/London?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T22:01:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T23:01:37.940086Z' }],
-    filterValue: 'Europe/London?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T21:59:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T22:59:37.940086Z' }],
-    filterValue: 'Europe/London?2021-08-11',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T23:59:37.940086Z' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11' }],
-    filterValue: 'CET?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T00:01:37.940086Z' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-12T00:01:37.940086Z' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-12' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: false,
-  },
-  // array cases
-  {
-    rowValue: [
-      { value: '2021-08-12' },
-      { value: '2021-08-13' },
-      { value: null },
-    ],
-    filterValue: 'UTC?2021-08-13',
-    expected: true,
-  },
-  {
-    rowValue: [
-      { value: '2021-08-12' },
-      { value: '2021-08-13' },
-      { value: null },
-    ],
-    filterValue: 'UTC?2021-08-11',
-    expected: false,
-  },
-]
-
-const dateAfterCases = [
-  // same as in viewFiltersMatch.js
-  {
-    rowValue: [{ value: '2021-08-11T22:01:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-12' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T23:01:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T21:59:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T22:59:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-12T00:01:37.940086Z' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-12' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T23:59:37.940086Z' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-11' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: false,
-  },
-]
-
-const dateBeforeOrEqualCases = [
-  // same as in viewFiltersMatch.js
-  {
-    rowValue: [{ value: '2021-08-10T21:59:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T22:59:37.940086Z' }],
-    filterValue: 'Europe/London?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T22:01:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-10',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T23:01:37.940086Z' }],
-    filterValue: 'Europe/London?2021-08-10',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T23:59:37.940086Z' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T00:01:37.940086Z' }],
-    filterValue: 'UTC?2021-08-10',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-11' }],
-    filterValue: 'UTC?2021-08-10',
-    expected: false,
-  },
-]
-
-const dateAfterOrEqualCases = [
-  // same as in viewFiltersMatch.js
-  {
-    rowValue: [{ value: '2021-08-11T22:01:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-12' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-10' }],
-    filterValue: 'Europe/Berlin?2021-08-09',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T23:01:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T21:59:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-12',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-10T22:59:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2021-08-12',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-12T00:01:37.940086Z' }],
-    filterValue: 'UTC?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-12' }],
-    filterValue: 'Europe/Berlin?2021-08-11',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '2021-08-11T23:59:37.940086Z' }],
-    filterValue: 'UTC?2021-08-12',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: '2021-08-11' }],
-    filterValue: 'UTC?2021-08-12',
-    expected: false,
-  },
-]
-
-const dateWithinDays = [
-  // same as in viewFiltersMatch.js
-  {
-    rowValue: [{ value: moment().tz('Europe/Berlin').add(1, 'days').format() }],
-    filterValue: 'Europe/Berlin?1',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '1970-08-11T23:30:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: moment().utc().add(2, 'days').format() }],
-    filterValue: 'UTC?3',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().format() }],
-    filterValue: '?1',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().format() }],
-    filterValue: 'UTC?1',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().format() }],
-    filterValue: '?',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().subtract(1, 'days').format() }],
-    filterValue: '?',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().subtract(1, 'days').format() }],
-    filterValue: '',
-    expected: true,
-  },
-]
-
-const dateWithinWeeks = [
-  // same as in viewFiltersMatch.js
-  {
-    rowValue: [{ value: moment().tz('Europe/Berlin').add(5, 'days').format() }],
-    filterValue: 'Europe/Berlin?1',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '1970-08-11T23:30:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: moment().utc().add(20, 'days').format() }],
-    filterValue: 'UTC?3',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().format() }],
-    filterValue: '?1',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().format() }],
-    filterValue: 'UTC?1',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().format() }],
-    filterValue: '?1',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().subtract(1, 'days').format() }],
-    filterValue: '?1',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: moment().utc().subtract(1, 'days').format() }],
-    filterValue: '',
-    expected: true,
-  },
-]
-
-const dateWithinMonths = [
-  {
-    rowValue: [
-      { value: moment().tz('Europe/Berlin').add(20, 'days').format() },
-    ],
-    filterValue: 'Europe/Berlin?1',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: '1970-08-11T23:30:37.940086Z' }],
-    filterValue: 'Europe/Berlin?2',
-    expected: false,
-  },
-  {
-    rowValue: [{ value: moment().utc().add(80, 'days').format() }],
-    filterValue: 'UTC?3',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().format() }],
-    filterValue: '?1',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().format() }],
-    filterValue: 'UTC?1',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().format() }],
-    filterValue: '?',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().subtract(1, 'days').format() }],
-    filterValue: '?',
-    expected: true,
-  },
-  {
-    rowValue: [{ value: moment().utc().subtract(1, 'days').format() }],
-    filterValue: '',
-    expected: true,
-  },
-]
-
-describe('Date field tests', () => {
-  let testApp = null
-
-  beforeAll(() => {
-    testApp = new TestApp()
-  })
-  afterEach(() => {
-    testApp.afterEach()
-  })
 
   test.each(dateBeforeCases)('HasDateBeforeViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
     const result = new HasDateBeforeViewFilterType({
       app: testApp,
-    }).matches(values.rowValue, `${values.filterValue}?exact_date`, {
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
       date_include_time: true,
     })
     expect(result).toBe(values.expected)
   })
 
   test.each(dateBeforeCases)('HasNotDateBeforeViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
     const result = new HasNotDateBeforeViewFilterType({
       app: testApp,
-    }).matches(values.rowValue, `${values.filterValue}?exact_date`, {
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
       date_include_time: true,
     })
     expect(result).toBe(!values.expected)
@@ -2366,9 +1923,10 @@ describe('Date field tests', () => {
   test.each(dateBeforeOrEqualCases)(
     'HasDateOnOrBeforeViewFilterType',
     (values) => {
+      const rowValue = [{ value: values.rowValue }]
       const result = new HasDateOnOrBeforeViewFilterType({
         app: testApp,
-      }).matches(values.rowValue, `${values.filterValue}?exact_date`, {
+      }).matches(rowValue, `${values.filterValue}?exact_date`, {
         date_include_time: true,
       })
       expect(result).toBe(values.expected)
@@ -2378,9 +1936,10 @@ describe('Date field tests', () => {
   test.each(dateBeforeOrEqualCases)(
     'HasNotDateOnOrBeforeViewFilterType',
     (values) => {
+      const rowValue = [{ value: values.rowValue }]
       const result = new HasNotDateOnOrBeforeViewFilterType({
         app: testApp,
-      }).matches(values.rowValue, `${values.filterValue}?exact_date`, {
+      }).matches(rowValue, `${values.filterValue}?exact_date`, {
         date_include_time: true,
       })
       expect(result).toBe(!values.expected)
@@ -2388,36 +1947,40 @@ describe('Date field tests', () => {
   )
 
   test.each(dateEqualCases)('HasDateEqualViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
     const result = new HasDateEqualViewFilterType({
       app: testApp,
-    }).matches(values.rowValue, `${values.filterValue}?exact_date`, {
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
       date_include_time: true,
     })
     expect(result).toBe(values.expected)
   })
 
   test.each(dateEqualCases)('HasNotDateEqualViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
     const result = new HasNotDateEqualViewFilterType({
       app: testApp,
-    }).matches(values.rowValue, `${values.filterValue}?exact_date`, {
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
       date_include_time: true,
     })
     expect(result).toBe(!values.expected)
   })
 
   test.each(dateAfterCases)('HasDateAfterViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
     const result = new HasDateAfterViewFilterType({
       app: testApp,
-    }).matches(values.rowValue, `${values.filterValue}?exact_date`, {
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
       date_include_time: true,
     })
     expect(result).toBe(values.expected)
   })
 
   test.each(dateAfterCases)('HaNotDateAfterViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
     const result = new HasNotDateAfterViewFilterType({
       app: testApp,
-    }).matches(values.rowValue, `${values.filterValue}?exact_date`, {
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
       date_include_time: true,
     })
     expect(result).toBe(!values.expected)
@@ -2426,9 +1989,10 @@ describe('Date field tests', () => {
   test.each(dateAfterOrEqualCases)(
     'HasDateOnOrAfterViewFilterType',
     (values) => {
+      const rowValue = [{ value: values.rowValue }]
       const result = new HasDateOnOrAfterViewFilterType({
         app: testApp,
-      }).matches(values.rowValue, `${values.filterValue}?exact_date`, {
+      }).matches(rowValue, `${values.filterValue}?exact_date`, {
         date_include_time: true,
       })
       expect(result).toBe(values.expected)
@@ -2438,9 +2002,10 @@ describe('Date field tests', () => {
   test.each(dateAfterOrEqualCases)(
     'HasNoeDateOnOrAfterViewFilterType',
     (values) => {
+      const rowValue = [{ value: values.rowValue }]
       const result = new HasNotDateOnOrAfterViewFilterType({
         app: testApp,
-      }).matches(values.rowValue, `${values.filterValue}?exact_date`, {
+      }).matches(rowValue, `${values.filterValue}?exact_date`, {
         date_include_time: true,
       })
       expect(result).toBe(!values.expected)
@@ -2448,23 +2013,26 @@ describe('Date field tests', () => {
   )
 
   test.each(dateWithinDays)('HasDateWithinDays', (values) => {
+    const rowValue = [{ value: values.rowValue }]
     const result = new HasDateWithinViewFilterType({
       app: testApp,
-    }).matches(values.rowValue, `${values.filterValue}?nr_days_from_now`, {})
+    }).matches(rowValue, `${values.filterValue}?nr_days_from_now`, {})
     expect(result).toBe(values.expected)
   })
 
   test.each(dateWithinWeeks)('HasDateWithinWeeks', (values) => {
+    const rowValue = [{ value: values.rowValue }]
     const result = new HasDateWithinViewFilterType({
       app: testApp,
-    }).matches(values.rowValue, `${values.filterValue}?nr_weeks_from_now`, {})
+    }).matches(rowValue, `${values.filterValue}?nr_weeks_from_now`, {})
     expect(result).toBe(values.expected)
   })
 
   test.each(dateWithinMonths)('HasDateWithinMonths', (values) => {
+    const rowValue = [{ value: values.rowValue }]
     const result = new HasDateWithinViewFilterType({
       app: testApp,
-    }).matches(values.rowValue, `${values.filterValue}?nr_months_from_now`, {})
+    }).matches(rowValue, `${values.filterValue}?nr_months_from_now`, {})
     expect(result).toBe(values.expected)
   })
 })

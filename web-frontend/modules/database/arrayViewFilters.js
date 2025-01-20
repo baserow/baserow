@@ -6,11 +6,6 @@ import {
   ViewFilterType,
   BaseDateMultiStepViewFilterType,
 } from '@baserow/modules/database/viewFilters'
-import {
-  DATE_FILTER_VALUE_SEPARATOR,
-  splitMultiStepDateValue,
-  DATE_FILTER_OPERATOR_BOUNDS,
-} from '@baserow/modules/database/utils/date'
 import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
 import { BaserowFormulaNumberType } from '@baserow/modules/database/formula/formulaTypes'
@@ -609,51 +604,15 @@ class ArrayDateMultiStepViewFilterType extends BaseDateMultiStepViewFilterType {
     ]
   }
 
-  rowMatches(rowDate, lowerBound, upperBound) {
-    throw new Error(
-      'The rowMatches method must be implemented for every filter.'
-    )
-  }
-
-  matches(rowValue, filterValue, field, fieldType) {
-    if (rowValue === null || !Array.isArray(rowValue)) {
-      return false
-    }
-
-    const sep = DATE_FILTER_VALUE_SEPARATOR
-    const [timezone, value, operatorValue] = splitMultiStepDateValue(
-      filterValue,
-      sep
-    )
-    // Check if the operator is compatible with the filter type.
-    const operator = this.getCompatibleOperators().find(
-      (opr) => opr.value === operatorValue
-    )
-    if (!operator) {
-      return false
-    } else if (operator.hasNrInputValue && value === '') {
-      return true // return all the rows if a proper value has not been set yet.
-    }
-
-    let filterDate
-    try {
-      filterDate = this.getFilterDate(operatorValue, value, timezone)
-    } catch {
-      return false
-    }
-
-    const rowDates = rowValue.map((item) => {
-      // Localize the filter date and the row date.
+  localizeRowValue(rowValue, timezone) {
+    const localizedRowValue = rowValue.map((item) => {
       const rowDate = moment.utc(item.value)
       if (timezone !== null) {
         rowDate.tz(timezone)
       }
       return rowDate
     })
-    const [lowerBound, upperBound] =
-      DATE_FILTER_OPERATOR_BOUNDS[operatorValue](filterDate)
-
-    return this.rowMatches(rowDates, lowerBound, upperBound, timezone)
+    return localizedRowValue
   }
 }
 

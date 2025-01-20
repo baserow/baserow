@@ -1839,10 +1839,8 @@ class BaseDateMultiStepViewFilterType(ViewFilterType):
             operator,
         ) = self._split_combined_value(field, filter_value, separator)
 
-        python_timezone = (
-            zoneinfo.ZoneInfo(user_timezone_str)
-            if user_timezone_str
-            else datetime_module.timezone.utc
+        python_timezone = zoneinfo.ZoneInfo(
+            user_timezone_str if user_timezone_str else "UTC"
         )
 
         validated_filter_value = (
@@ -1864,35 +1862,27 @@ class BaseDateMultiStepViewFilterType(ViewFilterType):
             return False
         return filter_value == DATE_FILTER_EMPTY_VALUE
 
-    def get_filter(
-        self, field_name: str, value: str, model_field, field: Field
-    ) -> Union[Q, AnnotatedQ]:
-        raise NotImplementedError()
-
-
-class DateMultiStepViewFilterType(BaseDateMultiStepViewFilterType):
-    compatible_field_types = [
-        DateFieldType.type,
-        LastModifiedFieldType.type,
-        CreatedOnFieldType.type,
-        FormulaFieldType.compatible_with_formula_types(BaserowFormulaDateType.type),
-    ]
-
-    def get_filter_query_dict(
+    def get_filter_expression(
         self,
-        operator: str,
         field_name: str,
-        aware_filter_date: Union[datetime, date],
-        **kwargs,
-    ) -> Dict[str, Union[date, datetime]]:
+        model_field,
+        lower_bound: date | datetime,
+        upper_bound: date | datetime,
+        timezone: zoneinfo.ZoneInfo,
+    ) -> OptionallyAnnotatedQ:
         """
-        Returns a dictionary that can be used to create a Q object.
+        Returns an OptionallyAnnotatedQ object that can be used to filter the provided
+        field_name, given the lower and upper bounds of the filter and the timezone to
+        consider.
 
-        :param operator: The operator that should be used to filter the field.
-        :param field_name: The name of the field that should be used in the
-            query.
-        :param aware_filter_date: The date that should be used to compare with
-            the field value.
+        :param field_name: The name of the field that should be used in the query.
+        :params model_field: The Django model field of the database table that is being
+            filtered.
+        :param lower_bound: The lower bound of the filter.
+        :param upper_bound: The upper bound of the filter.
+        :param timezone: The timezone that should be used to filter the provided field.
+        :return: An OptionallyAnnotatedQ object that can be used to filter the provided
+            field.
         """
 
         raise NotImplementedError()
@@ -1929,21 +1919,61 @@ class DateMultiStepViewFilterType(BaseDateMultiStepViewFilterType):
         ):
             return Q(pk__in=[])
 
-        annotation = {}
-        query_field_name = field_name
-
-        if isinstance(model_field, DateTimeField):
-            if not isinstance(filter_date, datetime):
-                query_field_name = f"{field_name}_tzdate"
-                annotation[query_field_name] = TruncDate(field_name, tzinfo=timezone)
-
-        elif isinstance(model_field, DateField) and isinstance(filter_date, datetime):
+        if isinstance(model_field, DateField) and isinstance(filter_date, datetime):
             filter_date = filter_date.date()
 
         date_filter_operator = DATE_FILTER_OPERATOR_FROM_VALUE[operator]
         lower_bound, upper_bound = DATE_FILTER_OPERATOR_BOUNDS[date_filter_operator](
             filter_date
         )
+
+        return self.get_filter_expression(
+            field_name, model_field, lower_bound, upper_bound, timezone
+        )
+
+
+class DateMultiStepViewFilterType(BaseDateMultiStepViewFilterType):
+    compatible_field_types = [
+        DateFieldType.type,
+        LastModifiedFieldType.type,
+        CreatedOnFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(BaserowFormulaDateType.type),
+    ]
+
+    def get_filter_query_dict(
+        self,
+        operator: str,
+        field_name: str,
+        aware_filter_date: Union[datetime, date],
+        **kwargs,
+    ) -> Dict[str, Union[date, datetime]]:
+        """
+        Returns a dictionary that can be used to create a Q object.
+
+        :param operator: The operator that should be used to filter the field.
+        :param field_name: The name of the field that should be used in the
+            query.
+        :param aware_filter_date: The date that should be used to compare with
+            the field value.
+        """
+
+        raise NotImplementedError()
+
+    def get_filter_expression(
+        self,
+        field_name: str,
+        model_field,
+        lower_bound: date | datetime,
+        upper_bound: date | datetime,
+        timezone: zoneinfo.ZoneInfo,
+    ) -> OptionallyAnnotatedQ:
+        annotation = {}
+        query_field_name = field_name
+
+        if isinstance(model_field, DateTimeField) and isinstance(lower_bound, date):
+            tzname = str(timezone).lower().replace("/", "_")
+            query_field_name = f"{field_name}_tz_{tzname}"
+            annotation[query_field_name] = TruncDate(field_name, tzinfo=timezone)
 
         query_dict = {
             f"{field_name}__isnull": False,  # makes `NotViewFilterTypeMixin` work with timezones
