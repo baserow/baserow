@@ -331,6 +331,10 @@ import {
   DatabaseScratchTrackTaskFieldsOnboardingType,
   DatabaseScratchTrackTeamFieldsOnboardingType,
 } from '@baserow/modules/database/databaseScratchTrackFieldsStepType'
+import {
+  SyncedFieldsConfigureDataSyncType,
+  SettingsConfigureDataSyncType,
+} from '@baserow/modules/database/configureDataSyncTypes'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -998,6 +1002,15 @@ export default (context) => {
   app.$registry.register(
     'onboardingTrackFields',
     new DatabaseScratchTrackCustomFieldsOnboardingType(context)
+  )
+
+  app.$registry.register(
+    'configureDataSync',
+    new SyncedFieldsConfigureDataSyncType(context)
+  )
+  app.$registry.register(
+    'configureDataSync',
+    new SettingsConfigureDataSyncType(context)
   )
 
   registerRealtimeEvents(app.$realtime)

@@ -204,6 +204,12 @@ class BaserowEnterpriseConfig(AppConfig):
         data_sync_type_registry.register(GitLabIssuesDataSyncType())
         data_sync_type_registry.register(HubspotContactsDataSyncType())
 
+        from baserow_enterprise.data_sync.actions import (
+            UpdatePeriodicDataSyncIntervalActionType,
+        )
+
+        action_type_registry.register(UpdatePeriodicDataSyncIntervalActionType())
+
         # Create default roles
         post_migrate.connect(sync_default_roles_after_migrate, sender=self)
 

@@ -409,5 +409,28 @@
     "placeholderWithSaml": "{login} with SAML",
     "provideEmail": "Provide your SAML account email",
     "emailPlaceholder": "Enter your email..."
+  },
+  "configureDataSyncModal": {
+    "periodicInterval": "Periodic settings"
+  },
+  "configureDataSyncPeriodicInterval": {
+    "title": "Periodic settings",
+    "saved": "Saved",
+    "deactivatedTitle": "Periodic data sync deactivated",
+    "deactivatedText": "The periodic data sync was deactivated because it failed to many consecutive times. Please try to sync manually, and if it works as expected, then click on the activate button.",
+    "activate": "Activate periodic sync",
+    "enterprise": "Periodic data sync is an advanced/enterprise feature.",
+    "more": "More information"
+  },
+  "dataSyncPeriodicIntervalForm": {
+    "intervalLabel": "Interval",
+    "intervalHelper": "How frequently should the the data sync automatically sync.",
+    "manual": "Manual",
+    "daily": "Daily",
+    "hourly": "Hourly",
+    "whenHelper": "Provide the exact hour, minute, and second when the data sync should sync.",
+    "hour": "Hour",
+    "minute": "Minute",
+    "second": "Second"
   }
 }

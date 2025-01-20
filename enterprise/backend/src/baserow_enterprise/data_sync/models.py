@@ -8,6 +8,48 @@ from baserow.contrib.database.views.models import View
 User = get_user_model()
 
 
+DATA_SYNC_INTERVAL_MANUAL = "MANUAL"
+DATA_SYNC_INTERVAL_DAILY = "DAILY"
+DATA_SYNC_INTERVAL_HOURLY = "HOURLY"
+
+
+class PeriodicDataSyncInterval(models.Model):
+    data_sync = models.OneToOneField(
+        DataSync,
+        on_delete=models.CASCADE,
+        help_text="The periodic data sync.",
+        related_name="periodic_interval",
+    )
+    last_periodic_sync = models.DateTimeField(
+        null=True, help_text="Timestamp when the table was last periodically synced."
+    )
+    interval = models.CharField(
+        choices=(
+            (DATA_SYNC_INTERVAL_MANUAL, DATA_SYNC_INTERVAL_MANUAL),
+            (DATA_SYNC_INTERVAL_DAILY, DATA_SYNC_INTERVAL_DAILY),
+            (DATA_SYNC_INTERVAL_HOURLY, DATA_SYNC_INTERVAL_HOURLY),
+        ),
+        default=DATA_SYNC_INTERVAL_MANUAL,
+    )
+    when = models.TimeField()
+    automatically_deactivated = models.BooleanField(
+        default=False,
+        help_text="Indicates whether the periodic data sync has been deactivated.",
+    )
+    consecutive_failed_count = models.SmallIntegerField(
+        default=0,
+        help_text="The number of failed sync data sync operations that have failed. "
+        "This is used to deactivate the periodic sync if it keeps failing.",
+    )
+    authorized_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        help_text="The user on whose behalf the data is periodically synced."
+        "Automatically set when the interval changes.",
+    )
+
+
 class LocalBaserowTableDataSync(DataSync):
     source_table = models.ForeignKey(
         Table,
