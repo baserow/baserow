@@ -1,11 +1,11 @@
-import { expect, test } from "../baserowTest";
+import {expect, test} from "../baserowTest";
 
 test.describe("Builder page test suite", () => {
-  test.beforeEach(async ({ builderPagePage }) => {
+  test.beforeEach(async ({builderPagePage}) => {
     await builderPagePage.goto();
   });
 
-  test("Can create a page", async ({ page }) => {
+  test("Can create a page", async ({page}) => {
     await page.getByText("New page").click();
     await page.getByText("Create page").waitFor();
     await page
@@ -25,12 +25,12 @@ test.describe("Builder page test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can open page settings", async ({ page }) => {
+  test("Can open page settings", async ({page}) => {
     await page.getByText("Page settings").click();
     await expect(page.locator(".box__title").getByText("Page")).toBeVisible();
   });
 
-  test("Can change page settings", async ({ page }) => {
+  test("Can change page settings", async ({page}) => {
     await page.getByText("Page settings").click();
 
     await page
@@ -57,9 +57,9 @@ test.describe("Builder page test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can create an element from empty page", async ({ page }) => {
+  test("Can create an element from empty page", async ({page}) => {
     await page.getByText("Click to create an element").click();
-    await page.getByText("Heading", { exact: true }).click();
+    await page.getByText("Heading", {exact: true}).click();
 
     await expect(
       page.locator(".modal__box").getByText("Add new element")
@@ -69,13 +69,13 @@ test.describe("Builder page test suite", () => {
     ).toBeVisible();
   });
 
-  test("Can create an element from element menu", async ({ page }) => {
+  test("Can create an element from element menu", async ({page}) => {
     await page.locator(".header").getByText("Elements").click();
     await page
       .locator(".elements-context")
-      .getByText("Element", { exact: true })
+      .getByText("Element", {exact: true})
       .click();
-    await page.getByText("Heading", { exact: true }).click();
+    await page.getByText("Heading", {exact: true}).click();
 
     await expect(
       page.locator(".modal__box").getByText("Add new element")
@@ -108,11 +108,16 @@ test.describe("Builder page test suite", () => {
 
     await page.getByTitle("Close").click();
     await expect(page.locator(".box__title").getByText("Page")).toBeHidden();
-    //
-    // await expect(
-    //   page
-    //     .locator(".preview-navigation-bar")
-    //     .getByText("my_param =")
-    // ).toBeVisible();
+    await page.getByText('Click to create an element').click();
+    await page.getByText('Link A link to page/URL').click();
+    await page.getByRole('complementary').getByRole('textbox').click();
+    await page.getByRole('complementary').getByRole('textbox').locator('div').first().fill('linkim');
+    await page.locator('a').filter({hasText: 'Make a choice'}).click();
+    await page.locator('a').filter({hasText: '?my_param=[text]'}).click();
+    await page.getByRole('textbox').nth(2).click();
+    await page.getByText('my_param').first().click();
+    await expect(page.getByRole('link', {name: 'linkim'})).toHaveAttribute(
+      'href', /\?my_param=test/);
+
   });
 });
