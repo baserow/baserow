@@ -193,14 +193,6 @@ class DataProviderType(
 
         return None
 
-    def get_dispatch_action_cache_key(self, dispatch_id: str, action_id: int) -> str:
-        """
-        Return a unique string to key the intermediate dispatch results in
-        the cache.
-        """
-
-        return f"builder_dispatch_action_{dispatch_id}_{action_id}"
-
 
 DataProviderTypeSubClass = TypeVar("DataProviderTypeSubClass", bound=DataProviderType)
 

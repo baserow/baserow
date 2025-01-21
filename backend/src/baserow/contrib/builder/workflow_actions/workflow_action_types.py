@@ -55,7 +55,6 @@ def service_backed_workflow_actions():
 
 class NotificationWorkflowActionType(BuilderWorkflowActionType):
     type = "notification"
-    is_server_workflow = False
     model_class = NotificationWorkflowAction
     simple_formula_fields = ["title", "description"]
     serializer_field_names = ["title", "description"]
@@ -88,7 +87,6 @@ class NotificationWorkflowActionType(BuilderWorkflowActionType):
 
 class OpenPageWorkflowActionType(BuilderWorkflowActionType):
     type = "open_page"
-    is_server_workflow = False
     model_class = OpenPageWorkflowAction
     simple_formula_fields = NavigationElementManager.simple_formula_fields
 
@@ -162,7 +160,6 @@ class OpenPageWorkflowActionType(BuilderWorkflowActionType):
 
 class LogoutWorkflowActionType(BuilderWorkflowActionType):
     type = "logout"
-    is_server_workflow = False
     model_class = LogoutWorkflowAction
 
     class SerializedDict(BuilderWorkflowActionDict):
@@ -174,7 +171,6 @@ class LogoutWorkflowActionType(BuilderWorkflowActionType):
 
 class RefreshDataSourceWorkflowAction(BuilderWorkflowActionType):
     type = "refresh_data_source"
-    is_server_workflow = False
     model_class = RefreshDataSourceWorkflowAction
     serializer_field_names = ["data_source_id"]
     serializer_field_overrides = {
@@ -231,6 +227,7 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
             help_text="The service which this workflow action is associated with.",
         )
     }
+    is_server_workflow = True
     serializer_field_overrides = {
         "service": PolymorphicServiceSerializer(
             help_text="The service which this workflow action is associated with."

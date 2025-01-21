@@ -892,20 +892,30 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(user=user, builder=builder)
     button_element = data_fixture.create_builder_button_element(page=page)
-    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+    workflow_action = data_fixture.create_notification_workflow_action(
         element=button_element, page=page
     )
 
     fake_request = MagicMock()
-    fake_request.data = {"previous_action": {workflow_action.id: {"id": 100}}}
+    fake_request.data = {
+        "previous_action": {str(workflow_action.id): {"path": {"to": 100}}}
+    }
     dispatch_context = BuilderDispatchContext(fake_request, None)
+
+    with pytest.raises(DataProviderChunkInvalidException):
+        previous_action_data_provider.get_data_chunk(
+            dispatch_context, [str(workflow_action.id), "path", "to"]
+        )
+
+    fake_request.data["previous_action"]["current_dispatch_id"] = "something"
 
     assert (
         previous_action_data_provider.get_data_chunk(
-            dispatch_context, [workflow_action.id, "id"]
+            dispatch_context, [str(workflow_action.id), "path", "to"]
         )
         == 100
     )
+
     with pytest.raises(DataProviderChunkInvalidException):
         previous_action_data_provider.get_data_chunk(dispatch_context, ["invalid"])
 
@@ -981,11 +991,10 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
     with patch(
         "baserow.contrib.builder.data_providers.data_provider_types.cache"
     ) as mock_cache:
-        result = previous_action_data_provider.post_dispatch(
+        previous_action_data_provider.post_dispatch(
             dispatch_context, workflow_action, mock_result
         )
 
-    assert result is None
     previous_action_data_provider.get_dispatch_action_cache_key.assert_called_once_with(
         "foo-bar-123", 100
     )
