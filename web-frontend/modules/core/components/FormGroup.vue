@@ -205,7 +205,7 @@ export default {
       return !!this.$slots.helper
     },
     hasAfterInputSlot() {
-      return !!this.$slots['after-input']
+      return Object.prototype.hasOwnProperty.call(this.$slots, 'after-input')
     },
     hasMessages() {
       return (

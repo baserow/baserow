@@ -20,17 +20,20 @@
           </template>
         </FormGroup>
         <FormGroup
-          v-if="!extraArgs?.noAlignment"
           horizontal-narrow
           small-label
           class="margin-bottom-2"
-          :label="$t('typographyThemeConfigBlock.textAlignment')"
+          :label="$t('typographyThemeConfigBlock.weight')"
         >
-          <HorizontalAlignmentsSelector v-model="values.body_text_alignment" />
+          <FontWeightSelector
+            v-model="values.body_font_weight"
+            :font="values.body_font_family"
+          />
           <template #after-input>
             <ResetButton
-              v-model="values.body_text_alignment"
-              :default-value="theme?.body_text_alignment"
+              v-if="values.body_font_family === theme?.body_font_family"
+              v-model="values.body_font_weight"
+              :default-value="theme?.body_font_weight"
             />
           </template>
         </FormGroup>
@@ -62,19 +65,17 @@
           </template>
         </FormGroup>
         <FormGroup
+          v-if="!extraArgs?.noAlignment"
           horizontal-narrow
           small-label
           class="margin-bottom-2"
-          :label="$t('typographyThemeConfigBlock.weight')"
+          :label="$t('typographyThemeConfigBlock.textAlignment')"
         >
-          <FontWeightSelector
-            v-model="values.body_font_weight"
-            :font="values.body_font_family"
-          />
+          <HorizontalAlignmentsSelector v-model="values.body_text_alignment" />
           <template #after-input>
             <ResetButton
-              v-model="values.body_font_weight"
-              :default-value="theme?.body_font_weight"
+              v-model="values.body_text_alignment"
+              :default-value="theme?.body_text_alignment"
             />
           </template>
         </FormGroup>
@@ -132,15 +133,20 @@
             horizontal-narrow
             small-label
             class="margin-bottom-2"
-            :label="$t('typographyThemeConfigBlock.textAlignment')"
+            :label="$t('typographyThemeConfigBlock.weight')"
           >
-            <HorizontalAlignmentsSelector
-              v-model="values[`heading_${level}_text_alignment`]"
+            <FontWeightSelector
+              v-model="values[`heading_${level}_font_weight`]"
+              :font="values[`heading_${level}_font_family`]"
             />
             <template #after-input>
               <ResetButton
-                v-model="values[`heading_${level}_text_alignment`]"
-                :default-value="theme?.[`heading_${level}_text_alignment`]"
+                v-if="
+                  values[`heading_${level}_font_family`] ===
+                  theme?.[`heading_${level}_font_family`]
+                "
+                v-model="values[`heading_${level}_font_weight`]"
+                :default-value="theme?.[`heading_${level}_font_weight`]"
               />
             </template>
           </FormGroup>
@@ -177,16 +183,15 @@
             horizontal-narrow
             small-label
             class="margin-bottom-2"
-            :label="$t('typographyThemeConfigBlock.weight')"
+            :label="$t('typographyThemeConfigBlock.textAlignment')"
           >
-            <FontWeightSelector
-              v-model="values[`heading_${level}_font_weight`]"
-              :font="values[`heading_${level}_font_family`]"
+            <HorizontalAlignmentsSelector
+              v-model="values[`heading_${level}_text_alignment`]"
             />
             <template #after-input>
               <ResetButton
-                v-model="values[`heading_${level}_font_weight`]"
-                :default-value="theme?.[`heading_${level}_font_weight`]"
+                v-model="values[`heading_${level}_text_alignment`]"
+                :default-value="theme?.[`heading_${level}_text_alignment`]"
               />
             </template>
           </FormGroup>

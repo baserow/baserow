@@ -22,19 +22,18 @@
         <FormGroup
           horizontal-narrow
           small-label
-          :label="$t('inputThemeConfigBlock.textColor')"
           class="margin-bottom-2"
+          :label="$t('inputThemeConfigBlock.weight')"
         >
-          <ColorInput
-            v-model="values.label_text_color"
-            :color-variables="colorVariables"
-            :default-value="theme?.label_text_color"
-            small
+          <FontWeightSelector
+            v-model="values.label_font_weight"
+            :font="values.label_font_family"
           />
           <template #after-input>
             <ResetButton
-              v-model="values.label_text_color"
-              :default-value="theme?.label_text_color"
+              v-if="values.label_font_family === theme?.label_font_family"
+              v-model="values.label_font_weight"
+              :default-value="theme?.label_font_weight"
             />
           </template>
         </FormGroup>
@@ -61,17 +60,19 @@
         <FormGroup
           horizontal-narrow
           small-label
+          :label="$t('inputThemeConfigBlock.textColor')"
           class="margin-bottom-2"
-          :label="$t('inputThemeConfigBlock.weight')"
         >
-          <FontWeightSelector
-            v-model="values.label_font_weight"
-            :font="values.label_font_family"
+          <ColorInput
+            v-model="values.label_text_color"
+            :color-variables="colorVariables"
+            :default-value="theme?.label_text_color"
+            small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.label_font_weight"
-              :default-value="theme?.label_font_weight"
+              v-model="values.label_text_color"
+              :default-value="theme?.label_text_color"
             />
           </template>
         </FormGroup>
@@ -101,19 +102,18 @@
         <FormGroup
           horizontal-narrow
           small-label
-          :label="$t('inputThemeConfigBlock.textColor')"
           class="margin-bottom-2"
+          :label="$t('inputThemeConfigBlock.weight')"
         >
-          <ColorInput
-            v-model="values.input_text_color"
-            :color-variables="colorVariables"
-            :default-value="theme?.input_text_color"
-            small
+          <FontWeightSelector
+            v-model="values.input_font_weight"
+            :font="values.input_font_family"
           />
           <template #after-input>
             <ResetButton
-              v-model="values.input_text_color"
-              :default-value="theme?.input_text_color"
+              v-if="values.input_font_family === theme?.input_font_family"
+              v-model="values.input_font_weight"
+              :default-value="theme?.input_font_weight"
             />
           </template>
         </FormGroup>
@@ -140,17 +140,19 @@
         <FormGroup
           horizontal-narrow
           small-label
+          :label="$t('inputThemeConfigBlock.textColor')"
           class="margin-bottom-2"
-          :label="$t('inputThemeConfigBlock.weight')"
         >
-          <FontWeightSelector
-            v-model="values.input_font_weight"
-            :font="values.input_font_family"
+          <ColorInput
+            v-model="values.input_text_color"
+            :color-variables="colorVariables"
+            :default-value="theme?.input_text_color"
+            small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.input_font_weight"
-              :default-value="theme?.input_font_weight"
+              v-model="values.input_text_color"
+              :default-value="theme?.input_text_color"
             />
           </template>
         </FormGroup>

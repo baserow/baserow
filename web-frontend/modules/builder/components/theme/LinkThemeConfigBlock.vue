@@ -20,6 +20,24 @@
         <FormGroup
           horizontal-narrow
           small-label
+          class="margin-bottom-2"
+          :label="$t('linkThemeConfigBlock.weight')"
+        >
+          <FontWeightSelector
+            v-model="values.link_font_weight"
+            :font="values.link_font_family"
+          />
+          <template #after-input>
+            <ResetButton
+              v-if="values.link_font_family === theme?.link_font_family"
+              v-model="values.link_font_weight"
+              :default-value="theme?.link_font_weight"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
           :label="$t('linkThemeConfigBlock.size')"
           :error-message="getError('link_font_size')"
           class="margin-bottom-2"
@@ -32,23 +50,6 @@
             <ResetButton
               v-model="values.link_font_size"
               :default-value="theme?.link_font_size"
-            />
-          </template>
-        </FormGroup>
-        <FormGroup
-          horizontal-narrow
-          small-label
-          class="margin-bottom-2"
-          :label="$t('linkThemeConfigBlock.weight')"
-        >
-          <FontWeightSelector
-            v-model="values.link_font_weight"
-            :font="values.link_font_family"
-          />
-          <template #after-input>
-            <ResetButton
-              v-model="values.link_font_weight"
-              :default-value="theme?.link_font_weight"
             />
           </template>
         </FormGroup>

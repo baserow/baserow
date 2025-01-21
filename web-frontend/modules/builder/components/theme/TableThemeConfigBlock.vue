@@ -112,6 +112,27 @@
         <FormGroup
           horizontal-narrow
           small-label
+          class="margin-bottom-2"
+          :label="$t('tableThemeConfigBlock.fontWeight')"
+        >
+          <FontWeightSelector
+            v-model="values.table_header_font_weight"
+            :font="values.table_header_font_family"
+          />
+          <template #after-input>
+            <ResetButton
+              v-if="
+                values.table_header_font_family ===
+                theme?.table_header_font_family
+              "
+              v-model="values.table_header_font_weight"
+              :default-value="theme?.table_header_font_weight"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
           :label="$t('tableThemeConfigBlock.fontSize')"
           :error-message="getError('table_header_font_size')"
           class="margin-bottom-2"
@@ -132,17 +153,18 @@
         <FormGroup
           horizontal-narrow
           small-label
+          required
+          :label="$t('tableThemeConfigBlock.alignment')"
           class="margin-bottom-2"
-          :label="$t('tableThemeConfigBlock.fontWeight')"
         >
-          <FontWeightSelector
-            v-model="values.table_header_font_weight"
-            :font="values.table_header_font_family"
+          <HorizontalAlignmentsSelector
+            v-model="values.table_header_text_alignment"
           />
+
           <template #after-input>
             <ResetButton
-              v-model="values.table_header_font_weight"
-              :default-value="theme?.table_header_font_weight"
+              v-model="values.table_header_text_alignment"
+              :default-value="theme?.table_header_text_alignment"
             />
           </template>
         </FormGroup>
@@ -162,24 +184,6 @@
             <ResetButton
               v-model="values.table_header_text_color"
               :default-value="theme?.table_header_text_color"
-            />
-          </template>
-        </FormGroup>
-        <FormGroup
-          horizontal-narrow
-          small-label
-          required
-          :label="$t('tableThemeConfigBlock.alignment')"
-          class="margin-bottom-2"
-        >
-          <HorizontalAlignmentsSelector
-            v-model="values.table_header_text_alignment"
-          />
-
-          <template #after-input>
-            <ResetButton
-              v-model="values.table_header_text_alignment"
-              :default-value="theme?.table_header_text_alignment"
             />
           </template>
         </FormGroup>

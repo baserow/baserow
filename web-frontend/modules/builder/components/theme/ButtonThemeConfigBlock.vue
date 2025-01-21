@@ -68,6 +68,24 @@
         <FormGroup
           horizontal-narrow
           small-label
+          class="margin-bottom-2"
+          :label="$t('buttonThemeConfigBlock.weight')"
+        >
+          <FontWeightSelector
+            v-model="values.button_font_weight"
+            :font="values.button_font_family"
+          />
+          <template #after-input>
+            <ResetButton
+              v-if="values.button_font_family === theme?.button_font_family"
+              v-model="values.button_font_weight"
+              :default-value="theme?.button_font_weight"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
           :label="$t('buttonThemeConfigBlock.size')"
           :error-message="getError('button_font_size')"
           class="margin-bottom-2"
@@ -82,23 +100,6 @@
             <ResetButton
               v-model="values.button_font_size"
               :default-value="theme?.button_font_size"
-            />
-          </template>
-        </FormGroup>
-        <FormGroup
-          horizontal-narrow
-          small-label
-          class="margin-bottom-2"
-          :label="$t('buttonThemeConfigBlock.weight')"
-        >
-          <FontWeightSelector
-            v-model="values.button_font_weight"
-            :font="values.button_font_family"
-          />
-          <template #after-input>
-            <ResetButton
-              v-model="values.button_font_weight"
-              :default-value="theme?.button_font_weight"
             />
           </template>
         </FormGroup>
