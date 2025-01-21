@@ -856,6 +856,24 @@ class RepeatElement(CollectionElement, ContainerElement):
         help_text="The amount repetitions per row, per device type. "
         "Only applicable when the orientation is horizontal.",
     )
+    horizontal_gap = models.IntegerField(
+        default=0,
+        db_default=0,
+        help_text="The amount of horizontal space between repeat elements.",
+        validators=[
+            MinValueValidator(0, message="Value cannot be less than 0."),
+            MaxValueValidator(2000, message="Value cannot be greater than 2000."),
+        ],
+    )
+    vertical_gap = models.IntegerField(
+        default=0,
+        db_default=0,
+        help_text="The amount of vertical space between repeat elements.",
+        validators=[
+            MinValueValidator(0, message="Value cannot be less than 0."),
+            MaxValueValidator(2000, message="Value cannot be greater than 2000."),
+        ],
+    )
 
 
 class RecordSelectorElement(CollectionElement, FormElement):

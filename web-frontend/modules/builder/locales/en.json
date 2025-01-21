@@ -677,7 +677,10 @@
     "orientationHorizontal": "Horizontal",
     "buttonLoadMoreLabel": "Show more label",
     "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
-    "propertySelectorMissingArrays": "No multiple valued fields found to repeat with."
+    "propertySelectorMissingArrays": "No multiple valued fields found to repeat with.",
+    "gapLabel": "Space between repetitions",
+    "gapVerticalLabel": "Vertical",
+    "gapHorizontalLabel": "Horizontal"
   },
   "recordSelectorElement": {
     "emptyAdhocState": "No records matching '{query}' found.",
