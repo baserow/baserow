@@ -487,9 +487,22 @@
     "headingValue": "Heading <h{i}>",
     "color": "Color",
     "size": "Size",
+    "weight": "Weight",
     "textAlignment": "Alignment",
     "bodyLabel": "Body",
     "fontFamily": "Font"
+  },
+  "fontWeightType": {
+    "thin": "Thin",
+    "extraLight": "Extra-light",
+    "light": "Light",
+    "regular": "Regular",
+    "medium": "Medium",
+    "semiBold": "Semi-bold",
+    "bold": "Bold",
+    "extraBold": "Extra-bold",
+    "black": "Black",
+    "extraBlack": "Extra-black"
   },
   "buttonThemeConfigBlock": {
     "backgroundColor": "Background color",
@@ -505,7 +518,8 @@
     "borderRadius": "Border radius",
     "padding": "Padding",
     "fontFamily": "Font",
-    "size": "Font size"
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "linkThemeConfigBlock": {
     "color": "Color",
@@ -513,7 +527,9 @@
     "defaultState": "Default state",
     "hoverState": "Hover state",
     "alignment": "Alignment",
-    "fontFamily": "Font"
+    "fontFamily": "Font",
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "inputThemeConfigBlock": {
     "label": "Label",
@@ -525,7 +541,8 @@
     "borderRadius": "Border radius",
     "padding": "Padding",
     "fontFamily": "Font",
-    "size": "Font size"
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "imageThemeConfigBlock": {
     "alignment": "Alignment",
@@ -551,6 +568,7 @@
     "fontFamily": "Font",
     "size": "Size",
     "fontSize": "Font size",
+    "fontWeight": "Font weight",
     "table": "Table",
     "header": "Header",
     "alignment": "Alignment",
