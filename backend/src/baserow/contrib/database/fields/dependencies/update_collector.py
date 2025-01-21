@@ -509,5 +509,5 @@ class FieldUpdateCollector:
     def add_to_fields_type_changed(self, field: Field):
         self._fields_type_changed.add(field)
 
-    def add_field_to_rebuild_dependencies(self, field: Field):
+    def add_to_rebuild_field_dependencies(self, field: Field):
         self._field_rebuild_dependencies.add(field)

@@ -1519,7 +1519,7 @@ class FieldType(
             back to the starting table the first field change occurred.
         """
 
-        update_collector.add_field_to_rebuild_dependencies(field)
+        update_collector.add_to_rebuild_field_dependencies(field)
 
         from baserow.contrib.database.views.handler import ViewHandler
 
