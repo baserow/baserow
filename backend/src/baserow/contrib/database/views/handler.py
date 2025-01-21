@@ -75,7 +75,6 @@ from baserow.contrib.database.views.operations import (
     UpdateViewFilterGroupOperationType,
     UpdateViewFilterOperationType,
     UpdateViewGroupByOperationType,
-    UpdateViewOperationType,
     UpdateViewPublicOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
@@ -947,7 +946,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         :param user: The user on whose behalf the view is updated.
         :param view: The view instance that needs to be updated.
-        :param data: The fields that need to be updated.
+        :param data: The properties that need to be updated.
         :raises ValueError: When the provided view not an instance of View.
         :return: The updated view instance.
         """
@@ -955,15 +954,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         if not isinstance(view, View):
             raise ValueError("The view is not an instance of View.")
 
-        workspace = view.table.database.workspace
-        CoreHandler().check_permissions(
-            user, UpdateViewOperationType.type, workspace=workspace, context=view
-        )
+        view_type = view_type_registry.get_by_model(view)
+        view_type.check_view_update_permissions(user, view, data)
+        view_type.before_view_update(data, view, user)
 
         old_view = deepcopy(view)
-
-        view_type = view_type_registry.get_by_model(view)
-        view_type.before_view_update(data, view, user)
 
         view_values = view_type.prepare_values(data, view.table, user)
         allowed_fields = [
@@ -1003,6 +998,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         )
         view = set_allowed_attrs(view_values, allowed_attrs, view)
         if previous_public_value != view.public:
+            workspace = view.table.database.workspace
             CoreHandler().check_permissions(
                 user,
                 UpdateViewPublicOperationType.type,

@@ -1,6 +1,13 @@
 <template>
   <div class="form-view__meta-controls">
     <SwitchInput
+      v-if="
+        $hasPermission(
+          'database.table.view.can_receive_notification_on_submit_form_view',
+          view,
+          database.workspace.id
+        )
+      "
       small
       :value="view.receive_notification_on_submit"
       class="margin-bottom-3"
