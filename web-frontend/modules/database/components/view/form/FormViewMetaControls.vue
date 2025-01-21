@@ -3,7 +3,7 @@
     <SwitchInput
       v-if="
         $hasPermission(
-          'database.table.view.update_receive_notification_on_submit_form_view',
+          'database.table.view.can_receive_notification_on_submit_form_view',
           view,
           database.workspace.id
         )

@@ -686,7 +686,7 @@ class DatabaseConfig(AppConfig):
         object_scope_type_registry.register(TokenObjectScopeType())
 
         from baserow.contrib.database.views.operations import (
-            UpdateReceiveNotificationOnSubmitFormViewOperationType,
+            CanReceiveNotificationOnSubmitFormViewOperationType,
             UpdateViewFieldOptionsOperationType,
         )
 
@@ -828,7 +828,7 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(ReadViewOperationType())
         operation_type_registry.register(UpdateViewOperationType())
         operation_type_registry.register(
-            UpdateReceiveNotificationOnSubmitFormViewOperationType()
+            CanReceiveNotificationOnSubmitFormViewOperationType()
         )
         operation_type_registry.register(DeleteViewOperationType())
         operation_type_registry.register(DuplicateViewOperationType())

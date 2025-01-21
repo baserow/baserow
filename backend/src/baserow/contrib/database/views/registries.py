@@ -842,13 +842,16 @@ class ViewType(
         self, user: AbstractUser, view: "View", data: Dict[str, Any]
     ):
         """
-        Hook that's called just before a view is updated. By default it checks the
+        Hook that's called just before a view is updated. By default, it checks the
         `UpdateViewOperationType`, but when overwritten, it can optionally check for
-        different permissions depending on the data.
+        different permissions depending on the data. It returns nothing if the user has
+        permissions, or raises a PermissionDenied error otherwise.
 
         :param user: The user on whose behalf the view is updated.
         :param view: The view instance that needs to be updated.
         :param data: The properties that need to be updated.
+        :raises PermissionDenied: if the user doesn't have permissions to update the
+            view.
         """
 
         from .operations import UpdateViewOperationType

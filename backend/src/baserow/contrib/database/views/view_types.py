@@ -1390,19 +1390,24 @@ class FormViewType(ViewType):
         )
 
     def check_view_update_permissions(self, user, view, data):
-        from .operations import UpdateReceiveNotificationOnSubmitFormViewOperationType
+        from .operations import CanReceiveNotificationOnSubmitFormViewOperationType
 
         workspace = view.table.database.workspace
 
-        if len(data) == 1 and "receive_notification_on_submit" in data:
-            # If just the `receive_notification_on_submit` is provided, then we want to
-            # check a different permission because that operation is available for
-            # different roles.
+        if "receive_notification_on_submit" in data:
+            # If `receive_notification_on_submit` is in the data, then we must check if
+            # the user has permissions to receive a notification on submit.
             CoreHandler().check_permissions(
                 user,
-                UpdateReceiveNotificationOnSubmitFormViewOperationType.type,
+                CanReceiveNotificationOnSubmitFormViewOperationType.type,
                 workspace=workspace,
                 context=view,
             )
-        else:
-            return super().check_view_update_permissions(user, view, data)
+
+            # If only the `receive_notification_on_submit` is provided, then there is
+            # no need to check if the user has permissions to update the view because
+            # nothing else is changed.
+            if len(data) == 1:
+                return
+
+        return super().check_view_update_permissions(user, view, data)
