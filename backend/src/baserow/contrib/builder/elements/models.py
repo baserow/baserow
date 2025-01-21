@@ -6,7 +6,11 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import SET_NULL, QuerySet
 
-from baserow.contrib.builder.constants import BACKGROUND_IMAGE_MODES, VerticalAlignments
+from baserow.contrib.builder.constants import (
+    BACKGROUND_IMAGE_MODES,
+    COLOR_FIELD_MAX_LENGTH,
+    VerticalAlignments,
+)
 from baserow.core.constants import DATE_FORMAT_CHOICES, DATE_TIME_FORMAT_CHOICES
 from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
@@ -136,7 +140,7 @@ class Element(
     )
 
     style_border_top_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",
         blank=True,
         help_text="Top border color.",
@@ -153,7 +157,7 @@ class Element(
     )
 
     style_border_bottom_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",
         blank=True,
         help_text="Bottom border color",
@@ -170,7 +174,7 @@ class Element(
     )
 
     style_border_left_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",
         blank=True,
         help_text="Left border color",
@@ -187,7 +191,7 @@ class Element(
     )
 
     style_border_right_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",
         blank=True,
         help_text="Right border color",
@@ -217,7 +221,7 @@ class Element(
         max_length=20,
     )
     style_background_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#ffffffff",
         blank=True,
         help_text="The background color if `style_background` is color.",

@@ -2,6 +2,10 @@ from django.db import models
 
 IMPORT_SERIALIZED_IMPORTING = "importing"
 
+# A color field can store a hex color value, e.g. "#abc123ff". It can also
+# store an arbitrary string, like "transparent" or "my customer color".
+COLOR_FIELD_MAX_LENGTH = 255
+
 
 class HorizontalAlignments(models.TextChoices):
     LEFT = "left"
