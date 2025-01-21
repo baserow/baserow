@@ -1,10 +1,10 @@
 from functools import lru_cache
-from typing import Optional
+from typing import Dict, Optional
 
 from django.contrib.auth import get_user_model
 
 from baserow_premium.license.models import License
-from baserow_premium.license.registries import SeatUsageSummary
+from baserow_premium.license.registries import BuilderUsageSummary, SeatUsageSummary
 from drf_spectacular.openapi import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -32,13 +32,8 @@ class LicenseSerializer(serializers.ModelSerializer):
     seats = serializers.IntegerField(
         help_text="The maximum amount of users that can use the license."
     )
-    page_views = serializers.IntegerField(
-        allow_null=True,
-        help_text="The maximum amount of application page views that this license allows.",
-    )
-    external_users = serializers.IntegerField(
-        allow_null=True,
-        help_text="The maximum amount of application external users that this license allows.",
+    addons = serializers.SerializerMethodField(
+        help_text="The addons that are associated with this license."
     )
     product_code = serializers.CharField(
         help_text="The product code that indicates what the license unlocks."
@@ -67,8 +62,7 @@ class LicenseSerializer(serializers.ModelSerializer):
             "free_users_count",
             "seats_taken",
             "seats",
-            "page_views",
-            "external_users",
+            "addons",
             "product_code",
             "issued_on",
             "issued_to_email",
@@ -88,6 +82,19 @@ class LicenseSerializer(serializers.ModelSerializer):
         return getattr(
             self.get_cached_seat_usage_summary(obj), "free_users_count", None
         )
+
+    @lru_cache(maxsize=128)
+    def get_cached_builder_usage_summary(self, obj) -> Optional[BuilderUsageSummary]:
+        return obj.license_type.get_builder_usage_summary(obj)
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_addons(self, obj) -> Dict[str, int]:
+        usage = self.get_cached_builder_usage_summary(obj)
+        return {
+            "application_users": usage.application_users_licensed,
+            "application_users_taken": usage.application_users_taken,
+            "application_users_remaining": usage.application_users_remaining,
+        }
 
 
 class RegisterLicenseSerializer(serializers.Serializer):

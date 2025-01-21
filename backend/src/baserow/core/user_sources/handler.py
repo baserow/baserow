@@ -374,7 +374,7 @@ class UserSourceHandler:
     ):
         """
         Responsible for iterating over all registered user source types, and asking the
-        implementation to count the number of external users it points to.
+        implementation to count the number of application users it points to.
 
         :param user_source_type: Optionally, a specific user source type to update.
         :param update_in_chunks: Whether to update the user count in chunks or not.
@@ -399,7 +399,7 @@ class UserSourceHandler:
             except Exception as e:
                 if not settings.TESTS:
                     logger.exception(
-                        f"Counting {user_source_type.type} external users failed: {e}"
+                        f"Counting {user_source_type.type} application users failed: {e}"
                     )
                 if raise_on_error:
                     raise e

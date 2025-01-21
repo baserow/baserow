@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Optional
 
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -83,14 +84,21 @@ class License(models.Model):
         return self.payload["seats"]
 
     @property
-    def external_users(self):
+    def application_users(self) -> Optional[int]:
         # User source user limits did not exist before v1.31
-        return self.payload.get("external_users")
+        from baserow_premium.license.addons.license_addon_types import (
+            BusinessLicenseAddonType,
+            ProLicenseAddonType,
+        )
 
-    @property
-    def page_views(self):
-        # Page view limits did not exist before v1.31
-        return self.payload.get("page_views")
+        compatible_addons = [
+            ProLicenseAddonType.type,
+            BusinessLicenseAddonType.type,
+        ]
+        for addon in self.payload.get("addons", []):
+            if addon["type"] in compatible_addons:
+                return addon["application_users"]
+        return None
 
     @property
     def issued_on(self):

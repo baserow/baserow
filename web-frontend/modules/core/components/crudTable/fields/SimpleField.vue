@@ -4,7 +4,7 @@
     :title="props.row[props.column.key]"
     v-on="listeners"
   >
-    {{ props.row[props.column.key] }}
+    {{ props.getValueAtPath(props.row, props.column.key) }}
   </div>
 </template>
 
@@ -20,6 +20,10 @@ export default {
     column: {
       required: true,
       type: Object,
+    },
+    getValueAtPath: {
+      required: true,
+      type: Function,
     },
   },
 }

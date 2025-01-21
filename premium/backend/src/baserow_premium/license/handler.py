@@ -270,14 +270,24 @@ class LicenseHandler:
 
             try:
                 license_type = license_object.license_type
-                usage = license_type.get_seat_usage_summary(license_object)
-                if usage is not None:
-                    extra_info = {
-                        "id": license_object.license_id,
-                        "seats_taken": usage.seats_taken,
-                        "free_users_count": usage.free_users_count,
-                        "highest_role_per_user_id": usage.highest_role_per_user_id,
-                    }
+                seat_usage = license_type.get_seat_usage_summary(license_object)
+                builder_usage = license_type.get_builder_usage_summary(license_object)
+                if seat_usage or builder_usage:
+                    extra_info = {"id": license_object.license_id}
+                    if seat_usage:
+                        extra_info.update(
+                            {
+                                "seats_taken": seat_usage.seats_taken,
+                                "free_users_count": seat_usage.free_users_count,
+                                "highest_role_per_user_id": seat_usage.highest_role_per_user_id,
+                            }
+                        )
+                    if builder_usage:
+                        extra_info.update(
+                            {
+                                "application_users_taken": builder_usage.application_users_taken,
+                            }
+                        )
                     extra_license_info.append(extra_info)
             except (InvalidLicenseError, UnsupportedLicenseError, DatabaseError):
                 pass
@@ -417,11 +427,11 @@ class LicenseHandler:
             )
             if (
                 builder_summary is not None
-                and builder_summary.external_users_taken
-                > builder_summary.external_users_licensed
+                and builder_summary.application_users_taken
+                > builder_summary.application_users_licensed
             ):
-                license_object.license_type.handle_external_user_overflow(
-                    builder_summary.external_users_taken, license_object
+                license_object.license_type.handle_application_user_overflow(
+                    builder_summary.application_users_taken, license_object
                 )
 
             license_object.last_check = datetime.now(tz=timezone.utc)
