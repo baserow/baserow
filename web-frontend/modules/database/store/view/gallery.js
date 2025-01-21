@@ -11,7 +11,7 @@ export function populateRow(row, metadata = {}) {
 
 const galleryBufferedRows = bufferedRows({
   service: GalleryService,
-  populateRow,
+  customPopulateRow: populateRow,
 })
 
 export const state = () => ({

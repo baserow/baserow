@@ -10,7 +10,7 @@ export function populateRow(row, metadata = {}) {
 
 const timelineBufferedRows = bufferedRows({
   service: TimelineService,
-  populateRow,
+  customPopulateRow: populateRow,
 })
 
 export const state = () => ({
