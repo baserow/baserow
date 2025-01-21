@@ -25,8 +25,11 @@ from baserow.contrib.database.formula.ast.function_defs import (
     Baserow2dArrayAgg,
     BaserowAggJoin,
     BaserowArrayAggNoNesting,
+    BaserowManyToManyAgg,
+    BaserowManyToManyCount,
     BaserowMultipleSelectCount,
     BaserowMultipleSelectOptionsAgg,
+    BaserowStringAggManyToManyValues,
     BaserowStringAggMultipleSelectValues,
 )
 from baserow.contrib.database.formula.ast.tree import (
@@ -40,6 +43,7 @@ from baserow.contrib.database.formula.types.formula_type import (
     UnTyped,
 )
 from baserow.contrib.database.formula.types.formula_types import (
+    BaserowFormulaMultipleCollaboratorsType,
     BaserowFormulaMultipleSelectType,
 )
 from baserow.contrib.database.formula.types.type_checker import MustBeManyExprChecker
@@ -1139,12 +1143,16 @@ def test_aggregate_functions_never_allow_non_many_inputs(data_fixture, api_clien
 
     function_exceptions = {
         Baserow2dArrayAgg.type,
-        # Multiple select formulas that are aggregates but they accepts
+        # DEPRECATED: Multiple select formulas that are aggregates but they accepts
         # non-many multiple select fields. All these functions are not directly
         # exposed to the user in the UI anyway.
         BaserowMultipleSelectOptionsAgg.type,
         BaserowMultipleSelectCount.type,
         BaserowStringAggMultipleSelectValues.type,
+        # ManyToMany formulas for i.e. multiple collaborators and multiple select.
+        BaserowManyToManyAgg.type,
+        BaserowManyToManyCount.type,
+        BaserowStringAggManyToManyValues.type,
     }
     custom_cases = {
         BaserowAggJoin.type: [
@@ -1232,6 +1240,9 @@ def test_aggregate_functions_can_be_referenced_by_other_formulas(
     multiple_select_field = data_fixture.create_multiple_select_field(
         user, table=table_b, name="multiple_select_field"
     )
+    multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
+        user, table=table_b, name="multiple_collaborator_field"
+    )
 
     fill_table_rows(10, table_b)
 
@@ -1246,6 +1257,8 @@ def test_aggregate_functions_can_be_referenced_by_other_formulas(
         BaserowMultipleSelectOptionsAgg.type,
         BaserowMultipleSelectCount.type,
         BaserowStringAggMultipleSelectValues.type,
+        # Multiple collaborators formulas
+        BaserowStringAggManyToManyValues.type,
     }
 
     for formula_func in formula_function_registry.get_all():
@@ -1260,6 +1273,7 @@ def test_aggregate_functions_can_be_referenced_by_other_formulas(
                 number_field=number_field,
                 bool_field=bool_field,
                 multiple_select_field=multiple_select_field,
+                multiple_collaborators_field=multiple_collaborators_field,
             )
         ]
 
@@ -1300,6 +1314,7 @@ def get_field_name_from_arg_types(
     number_field,
     bool_field,
     multiple_select_field,
+    multiple_collaborators_field,
 ):
     args = formula_func.arg_types
     field_refs = []
@@ -1320,6 +1335,8 @@ def get_field_name_from_arg_types(
             r = through_field.link_row_related_field.name
         elif arg_checker == BaserowFormulaMultipleSelectType:
             r = multiple_select_field.name
+        elif arg_checker == BaserowFormulaMultipleCollaboratorsType:
+            r = multiple_collaborators_field.name
         else:
             assert False, (
                 f"Please add a branch for {arg_checker} to "

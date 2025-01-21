@@ -715,6 +715,23 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 },
             },
         },
+        field_db_column_by_name["formula_multiple_collaborators"]: {
+            "title": "formula_multiple_collaborators",
+            "default": None,
+            "searchable": True,
+            "sortable": False,
+            "filterable": False,
+            "original_type": "formula",
+            "metadata": {},
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"title": "id", "type": "number"},
+                    "name": {"title": "name", "type": "string"},
+                },
+            },
+        },
         field_db_column_by_name["count"]: {
             "title": "count",
             "default": None,

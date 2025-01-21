@@ -109,10 +109,10 @@ def setup_interesting_test_table(
         ).order_by("id")
     except ValueError:
         user2 = data_fixture.create_user(
-            workspace=database.workspace, email="user2@example.com"
+            workspace=database.workspace, first_name="User2", email="user2@example.com"
         )
         user3 = data_fixture.create_user(
-            workspace=database.workspace, email="user3@example.com"
+            workspace=database.workspace, first_name="User3", email="user3@example.com"
         )
 
     table = data_fixture.create_database_table(

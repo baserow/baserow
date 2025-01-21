@@ -104,6 +104,7 @@ def test_can_export_every_interesting_different_field_to_json(
         "url": "https://google.com"
     },
     "formula_multipleselect": [],
+    "formula_multiple_collaborators": [],
     "count": 0,
     "rollup": "0.000",
     "duration_rollup_sum": "0:00",
@@ -196,8 +197,8 @@ def test_can_export_every_interesting_different_field_to_json(
         "E"
     ],
     "multiple_collaborators": [
-        "user2@example.com",
-        "user3@example.com"
+        "User2 (user2@example.com)",
+        "User3 (user3@example.com)"
     ],
     "phone_number": "+4412345678",
     "formula_text": "test FORMULA",
@@ -219,6 +220,10 @@ def test_can_export_every_interesting_different_field_to_json(
         "C",
         "D",
         "E"
+    ],
+    "formula_multiple_collaborators": [
+        "User2 (user2@example.com)",
+        "User3 (user3@example.com)"
     ],
     "count": 3,
     "rollup": "-122.222",
@@ -387,6 +392,7 @@ def test_can_export_every_interesting_different_field_to_xml(
          <url>https://google.com</url>
       </formula-link-url-only>
       <formula-multipleselect/>
+      <formula-multiple-collaborators/>
       <count>0</count>
       <rollup>0.000</rollup>
       <duration-rollup-sum>0:00</duration-rollup-sum>
@@ -479,8 +485,8 @@ def test_can_export_every_interesting_different_field_to_xml(
          <item>E</item>
       </multiple-select>
       <multiple-collaborators>
-         <item>user2@example.com</item>
-         <item>user3@example.com</item>
+         <item>User2 (user2@example.com)</item>
+         <item>User3 (user3@example.com)</item>
       </multiple-collaborators>
       <phone-number>+4412345678</phone-number>
       <formula-text>test FORMULA</formula-text>
@@ -499,10 +505,14 @@ def test_can_export_every_interesting_different_field_to_xml(
          <url>https://google.com</url>
       </formula-link-url-only>
       <formula-multipleselect>
-            <item>C</item>
-            <item>D</item>
-            <item>E</item>
+         <item>C</item>
+         <item>D</item>
+         <item>E</item>
       </formula-multipleselect>
+      <formula-multiple-collaborators>
+         <item>User2 (user2@example.com)</item>
+         <item>User3 (user3@example.com)</item>
+      </formula-multiple-collaborators>
       <count>3</count>
       <rollup>-122.222</rollup>
       <duration-rollup-sum>0:04</duration-rollup-sum>
@@ -743,6 +753,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "formula_link_with_label",
         "formula_link_url_only",
         "formula_multipleselect",
+        "formula_multiple_collaborators",
         "count",
         "rollup",
         "duration_rollup_sum",
@@ -814,6 +825,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "label (https://google.com)",
         "https://google.com",
         None,
+        None,
         "0",
         "0.000",
         "0:00",
@@ -872,7 +884,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "a.txt (http://localhost:8000/media/user_files/hashed_name.txt),b.txt (http://localhost:8000/media/user_files/other_name.txt)",
         "A",
         "D,C,E",
-        "user2@example.com,user3@example.com",
+        "User2 (user2@example.com),User3 (user3@example.com)",
         "+4412345678",
         "test FORMULA",
         "1",
@@ -885,6 +897,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "label (https://google.com)",
         "https://google.com",
         "C,D,E",
+        "User2 (user2@example.com),User3 (user3@example.com)",
         "3",
         "-122.222",
         "0:04",

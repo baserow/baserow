@@ -98,6 +98,7 @@ from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
 )
 from baserow.contrib.database.fields.utils.expression import (
+    get_collaborator_extractor,
     get_select_option_extractor,
     wrap_in_subquery,
 )
@@ -110,6 +111,7 @@ from baserow.contrib.database.formula import (
     BaserowFormulaCharType,
     BaserowFormulaDateType,
     BaserowFormulaInvalidType,
+    BaserowFormulaMultipleCollaboratorsType,
     BaserowFormulaNumberType,
     BaserowFormulaSingleSelectType,
     BaserowFormulaTextType,
@@ -4925,9 +4927,16 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
+        # Add the formula_field instance to provide a reference to the source table,
+        # which might be needed for the export value (i.e. multiple collaborators field)
         return field_type.get_export_value(
             value,
-            {"field": field_instance, "type": field_type, "name": field_object["name"]},
+            {
+                "field": field_instance,
+                "type": field_type,
+                "name": field_object["name"],
+                "formula_field": instance,
+            },
             rich_value=rich_value,
         )
 
@@ -4973,16 +4982,20 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         return FormulaHandler.get_field_dependencies(field_instance, field_cache)
 
     def get_human_readable_value(self, value: Any, field_object) -> str:
+        formula_field = field_object["field"]
         (
             field_instance,
             field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field_object["field"])
+        ) = self.get_field_instance_and_type_from_formula_field(formula_field)
+        # Add the formula_field instance to provide a reference to the source table,
+        # which might be needed for the export value (i.e. multiple collaborators field)
         return field_type.get_human_readable_value(
             value,
             {
                 "field": field_instance,
                 "type": field_type,
                 "name": field_object["name"],
+                "formula_field": formula_field,
             },
         )
 
@@ -6129,9 +6142,13 @@ class MultipleCollaboratorsFieldType(
         )
 
     def get_export_value(self, value, field_object, rich_value=False):
-        if value is None:
+        if hasattr(value, "all"):
+            value = value.all()
+
+        if not value:
             return [] if rich_value else ""
-        result = [item.email for item in value.all()]
+
+        result = [f"{user.first_name} ({user.email})" for user in value]
         if rich_value:
             return result
         else:
@@ -6358,13 +6375,19 @@ class MultipleCollaboratorsFieldType(
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
 
+    def to_baserow_formula_type(self, field: Field):
+        return BaserowFormulaMultipleCollaboratorsType(nullable=True)
+
+    def from_baserow_formula_type(self, formula_type) -> Field:
+        return self.model_class()
+
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
         if already_in_subquery:
             return Coalesce(
                 JSONBAgg(
-                    get_select_option_extractor(db_column, model_field),
+                    get_collaborator_extractor(db_column, model_field),
                     filter=Q(**{f"{db_column}__isnull": False}),
                 ),
                 Value([], output_field=JSONField()),
@@ -6372,7 +6395,7 @@ class MultipleCollaboratorsFieldType(
         else:
             return Coalesce(
                 wrap_in_subquery(
-                    JSONBAgg(get_select_option_extractor(db_column, model_field)),
+                    JSONBAgg(get_collaborator_extractor(db_column, model_field)),
                     db_column,
                     model_field.model,
                 ),

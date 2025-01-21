@@ -209,6 +209,10 @@ def construct_all_possible_field_kwargs(
             },
             {"name": "formula_link_url_only", "formula": "link('https://google.com')"},
             {"name": "formula_multipleselect", "formula": "field('multiple_select')"},
+            {
+                "name": "formula_multiple_collaborators",
+                "formula": "field('multiple_collaborators')",
+            },
         ],
         "count": [
             {
