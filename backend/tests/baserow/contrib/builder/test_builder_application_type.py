@@ -631,6 +631,7 @@ def test_builder_application_export(data_fixture):
             "button_alignment": "left",
             "button_text_alignment": "center",
             "button_width": "auto",
+            "custom_colors": [],
             "button_background_color": "primary",
             "button_text_color": "#ffffffff",
             "button_border_color": "border",

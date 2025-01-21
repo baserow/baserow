@@ -83,6 +83,20 @@
           horizontal-narrow
           small-label
           class="margin-bottom-2"
+          :label="$t('typographyThemeConfigBlock.textAlignment')"
+        >
+          <HorizontalAlignmentsSelector v-model="values.body_text_alignment" />
+          <template #after-input>
+            <ResetButton
+              v-model="values.body_text_alignment"
+              :default-value="theme?.body_text_alignment"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
           :label="$t('typographyThemeConfigBlock.color')"
         >
           <ColorInput

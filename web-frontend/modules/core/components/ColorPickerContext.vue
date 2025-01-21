@@ -64,8 +64,11 @@
       v-if="Object.keys(variables).length > 0"
       class="color-picker-context__variables"
     >
-      <Dropdown :value="selectedVariable?.name || ''" @input="setVariable">
-        <DropdownItem name="Custom" value=""></DropdownItem>
+      <Dropdown
+        :value="selectedVariable?.name || ''"
+        :placeholder="$t('colorPickerContext.pickColorPlaceholder')"
+        @input="setVariable"
+      >
         <DropdownItem
           v-for="variable in variables"
           :key="variable.name"

@@ -29,6 +29,7 @@ class ColorThemeConfigBlock(ThemeConfigBlock):
     main_success_color = models.CharField(max_length=9, default="#12D452")
     main_warning_color = models.CharField(max_length=9, default="#FCC74A")
     main_error_color = models.CharField(max_length=9, default="#FF5A4A")
+    custom_colors = models.JSONField(default=list, db_default=[])
 
 
 class TypographyThemeConfigBlock(ThemeConfigBlock):

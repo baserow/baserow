@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import form from '@baserow/modules/core/mixins/form'
-import { themeToColorVariables } from '@baserow/modules/builder/utils/theme'
+import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 const borderNames = ['top', 'bottom', 'left', 'right']
 
@@ -31,8 +31,14 @@ export default {
     }
   },
   computed: {
+    themeConfigBlocks() {
+      return this.$registry.getOrderedList('themeConfigBlock')
+    },
     colorVariables() {
-      return themeToColorVariables(this.builder.theme)
+      return ThemeConfigBlockType.getAllColorVariables(
+        this.themeConfigBlocks,
+        this.builder.theme
+      )
     },
     allowedStyles() {
       return this.getAllowedStyles()
