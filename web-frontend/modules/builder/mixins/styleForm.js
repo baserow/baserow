@@ -28,6 +28,10 @@ export default {
       boxStyles: Object.fromEntries(
         borderNames.map((pos) => [pos, this.getBoxStyleValue(pos)])
       ),
+      radiusStyles: {
+        background_radius: this.defaultValues.style_background_radius,
+        border_radius: this.defaultValues.style_border_radius,
+      },
     }
   },
   computed: {
@@ -61,6 +65,14 @@ export default {
         })
       },
     },
+    radiusStyles: {
+      deep: true,
+      handler(newValue) {
+        Object.entries(newValue).forEach(([prop, value]) => {
+          this.setRadiusStyleValue(prop, value)
+        })
+      },
+    },
   },
   methods: {
     isStyleAllowed(style) {
@@ -81,6 +93,9 @@ export default {
         this.values[`style_border_${pos}_color`] = newValue.border_color
         this.values[`style_border_${pos}_size`] = newValue.border_size
       }
+    },
+    setRadiusStyleValue(key, newValue) {
+      this.values[`style_${key}`] = newValue
     },
     getAllowedStyles() {
       const elementType = this.$registry.get('element', this.element.type)

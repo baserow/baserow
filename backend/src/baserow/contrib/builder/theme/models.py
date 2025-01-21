@@ -292,6 +292,16 @@ class ImageThemeConfigBlock(ThemeConfigBlock):
         ],
     )
 
+    image_border_radius = models.SmallIntegerField(
+        help_text="The border radius for this image element.",
+        validators=[
+            MinValueValidator(0, message="Value cannot be less than 0."),
+            MaxValueValidator(100, message="Value cannot be greater than 100."),
+        ],
+        default=0,
+        db_default=0,
+    )
+
     image_constraint = models.CharField(
         help_text="The image constraint to apply to this image",
         choices=IMAGE_CONSTRAINT_TYPES.choices,

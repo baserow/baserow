@@ -133,6 +133,8 @@ class PublicElementSerializer(serializers.ModelSerializer):
             "style_border_right_size",
             "style_padding_right",
             "style_margin_right",
+            "style_background_radius",
+            "style_border_radius",
             "style_background",
             "style_background_color",
             "style_background_file",

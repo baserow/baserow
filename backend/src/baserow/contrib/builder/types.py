@@ -33,6 +33,8 @@ class ElementDict(TypedDict):
     style_border_right_size: int
     style_padding_right: int
     style_margin_right: int
+    style_background_radius: int
+    style_border_radius: int
     style_background: str
     style_background_color: str
     style_background_file_id: str

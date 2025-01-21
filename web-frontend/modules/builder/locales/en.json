@@ -449,6 +449,11 @@
     "paddingLabel": "Padding",
     "marginLabel": "Margin"
   },
+  "radiusStyleForm": {
+    "cornerRadiusLabel": "Corner radius",
+    "backgroundRadiusLabel": "Background",
+    "borderRadiusLabel": "Border"
+  },
   "themeConfigBlockType": {
     "color": "Colors",
     "page": "Page",
@@ -558,7 +563,9 @@
     "imageConstraintCover": "Cover",
     "imageConstraintCoverDisabled": "Unavailable with empty max height.",
     "imageConstraintContain": "Contain",
-    "imageConstraintContainDisabled": "Unavailable with a max height."
+    "imageConstraintContainDisabled": "Unavailable with a max height.",
+    "imageBorderRadiusLabel": "Border radius",
+    "imageBorderRadiusPlaceholder": "Enter the image border radius."
   },
   "tableThemeConfigBlock": {
     "borderColor": "Border color",

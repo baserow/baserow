@@ -203,6 +203,13 @@ class Element(
         help_text="Margin size of the right border.",
     )
 
+    style_background_radius = models.SmallIntegerField(
+        default=0, db_default=0, help_text="Background radius."
+    )
+    style_border_radius = models.SmallIntegerField(
+        default=0, db_default=0, help_text="Border radius."
+    )
+
     style_background = models.CharField(
         choices=BackgroundTypes.choices,
         default=BackgroundTypes.NONE,

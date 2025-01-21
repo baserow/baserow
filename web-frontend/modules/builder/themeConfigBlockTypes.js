@@ -448,6 +448,11 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
       'image_constraint',
       baseTheme?.image_constraint
     )
+    const imageBorderRadius = get(
+      theme,
+      'image_border_radius',
+      baseTheme?.image_border_radius
+    )
 
     if (Object.prototype.hasOwnProperty.call(theme, 'image_max_width')) {
       style.style['--image-wrapper-width'] = `${imageMaxWidth}%`
@@ -481,6 +486,12 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
           style.style['--image-height'] = '100%'
           style.style['--image-max-width'] = 'none'
           break
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(theme, 'image_border_radius')) {
+      if (imageBorderRadius) {
+        style.style['--image-border-radius'] = `${imageBorderRadius}px`
       }
     }
 

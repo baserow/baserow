@@ -190,6 +190,11 @@ export default {
         '--element-margin-right': `${this.element.style_margin_right || 0}px`,
 
         '--element-padding-right': `${this.element.style_padding_right || 0}px`,
+
+        '--element-background-radius': `${
+          this.element.style_background_radius || 0
+        }px`,
+        '--element-border-radius': `${this.element.style_border_radius || 0}px`,
       }
 
       if (this.element.style_background_file !== null) {
