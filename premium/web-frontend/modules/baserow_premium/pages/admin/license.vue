@@ -94,24 +94,18 @@
               {{ license.seats_taken }} / {{ license.seats }}
             </div>
           </div>
+
           <div class="license-detail__item">
             <div class="license-detail__item-label">
               <div class="license-detail__item-name">
-                {{ $t('license.pageViews') }}
+                {{ $t('license.applicationUsers') }}
+              </div>
+              <div class="license-detail__item-description">
+                {{ $t('license.applicationUsersDescription') }}
               </div>
             </div>
             <div class="license-detail__item-value">
-              {{ license.page_views }}
-            </div>
-          </div>
-          <div class="license-detail__item">
-            <div class="license-detail__item-label">
-              <div class="license-detail__item-name">
-                {{ $t('license.externalUsers') }}
-              </div>
-            </div>
-            <div class="license-detail__item-value">
-              {{ license.external_users }}
+              {{ license.addons.application_users_taken }} / {{ license.addons.application_users }}
             </div>
           </div>
           <div class="license-detail__item">
@@ -248,7 +242,7 @@ export default {
     },
     licenseFeatureDescription() {
       return this.licenseType.getFeaturesDescription()
-    }
+    },
   },
   methods: {
     localDateTime(timestamp) {

@@ -7,6 +7,10 @@ from django.test.utils import override_settings
 
 import pytest
 import responses
+from baserow_premium.license.addons.license_addon_types import (
+    BusinessLicenseAddonType,
+    ProLicenseAddonType,
+)
 from baserow_premium.license.exceptions import (
     FeaturesNotAvailableError,
     InvalidLicenseError,
@@ -42,18 +46,19 @@ VALID_ONE_SEAT_LICENSE = (
     b"Aroj-4jl7KWvlP-OJNc1BgH2wnhFmeKHotv-Iumi83JQohyceUbG6j8rDDQvJfcn0W2_ebmUH3TKr-w="
     b"="
 )
-VALID_FIVE_SEAT_FIFTEEN_EXT_USER_1M_PAGE_VIEWS_LICENSE = (
-    # id: "e4ebb9c6-c019-4d42-a557-4bc1d657b59f", instance_id: "1"
-    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImU0ZWJiOWM2LWMwMTktNGQ0Mi1hNTU3LTRiYzFkNjU3YjU5ZiIsI"
-    b"CJ2YWxpZF9mcm9tIjogIjIwMjUtMDEtMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI3LT"
-    b"EyLTMxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogNSwgInBhZ2V"
-    b"fdmlld3MiOiAxMDAwMDAwLCAiZXh0ZXJuYWxfdXNlcnMiOiAxNSwgImlzc3VlZF9vbiI6ICIyMDI1LTAx"
-    b"LTE0VDExOjMzOjI0Ljc5NTY2NiIsICJpc3N1ZWRfdG9fZW1haWwiOiAiZGV2QGJhc2Vyb3cuaW8iLCAia"
-    b"XNzdWVkX3RvX25hbWUiOiAiRGV2IiwgImluc3RhbmNlX2lkIjogIjEifQ==.nxpewcGX0_V1ajeMulWLs"
-    b"Nr5W4YBW7bopJVTdQwHzOWAdZhV0mQInUWq_9HwUd9PpBWUop5dfGXMDw15InbWm50c7hizfs_N7tuDqt"
-    b"BPBSKsDCR1Kf1twU8Um03ITPfLyFoBu3cUvhJj6Wgz7dxCW9CEFPUjvzQH4NMcm0LMoPZX9kDPivGfuWZ"
-    b"dTqQ4a89yB4fLeRfr8r_YyIElxP_zPIPrnUZGeQpyZccUpS8teQ2v1EUkhhn3hG-nDuMvAqfk0uzjDk58"
-    b"fQxgPHcWw9aPBzc59gQw8FKuJtucOXHci6UF0PmYyTAPv7g6uzSOuHqWTHQcYbNQLX8lWmKL0esIHA=="
+VALID_5_SEAT_PREMIUM_LICENSE_WITH_15_APPLICATION_USERS_PRO_ADDON = (
+    # id: "4a862198-0e92-4729-b751-c40ae19b3c35", instance_id: "1"
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogIjRhODYyMTk4LTBlOTItNDcyOS1iNzUxLWM0MGFlMTliM2MzNSIs"
+    b"ICJ2YWxpZF9mcm9tIjogIjIwMjUtMDEtMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI3"
+    b"LTAxLTAxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogNSwgImFk"
+    b"ZG9ucyI6IFt7ImFwcGxpY2F0aW9uX3VzZXJzIjogMTUsICJwYWdlX3ZpZXdzIjogbnVsbCwgInR5cGUi"
+    b"OiAicHJvIn1dLCAiaXNzdWVkX29uIjogIjIwMjUtMDEtMjFUMTQ6NTE6MDUuNzkyMTg3IiwgImlzc3Vl"
+    b"ZF90b19lbWFpbCI6ICJwZXRlckBiYXNlcm93LmlvIiwgImlzc3VlZF90b19uYW1lIjogIlBldGVyIiwg"
+    b"Imluc3RhbmNlX2lkIjogIjEifQ==.KqUk4Zp3feVNb3Ry7evlZm57ZpmucMTwhWzqBtMJpDsm9uIOHrl"
+    b"f5yf3AAHMB-GN-9cDNTNbaNnqZNXdVZLDFTkftgkOkqWYaa3OpLuVAiwCSsoYNfB3MJ2P0RY5fJaxFUW"
+    b"8odFwPGoIOWHxkU3jgppoWadrbyfcfr6VdbnHPA0lZ4esQ-_F5cnqjVt2bM2t8cP2miR7_m-V7pqYWzx"
+    b"kpPzBVGP7J_QnRrj4YINx1OqMkFFaLZ8Rh29fuTQJ0_zlZ0zhc6XcJVcbxhewweA_J0LFusdNObLJe-5"
+    b"hCaEAvU_rlZq2pljO0p396ltEdyOBaoTDDQbRzoCkaQVQ56ci_w=="
 )
 VALID_UPGRADED_TEN_SEAT_LICENSE = (
     # id: "1", instance_id: "1"
@@ -109,19 +114,19 @@ VALID_ENTERPRISE_FIVE_SEAT_LICENSE = (
     b"oowm_5CZm8Ba6eL-YgI2vKTWfMsVZ9GkJxcaiK3d-AB_ipjub-VVyNXPiVWab7108w3EXmoZIvmhCc67g"
     b"bL3jA=="
 )
-VALID_ENTERPRISE_FIVE_SEAT_FIFTY_EXT_USER_2M_PAGE_VIEWS_LICENSE = (
-    # id: "626af4de-8aff-41a5-9e5f-331870793170", instance_id: "1"
-    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogIjYyNmFmNGRlLThhZmYtNDFhNS05ZTVmLTMzMTg3MDc5MzE3MCIsI"
+VALID_15_SEAT_ENTERPRISE_LICENSE_WITH_50_APPLICATION_USERS_BUSINESS_ADDON = (
+    # id: "d40e97ca-a55d-41d9-a60c-660af8341122", instance_id: "1"
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImQ0MGU5N2NhLWE1NWQtNDFkOS1hNjBjLTY2MGFmODM0MTEyMiIsI"
     b"CJ2YWxpZF9mcm9tIjogIjIwMjUtMDEtMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI3LT"
-    b"EyLTMxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJlbnRlcnByaXNlIiwgInNlYXRzIjogNSwgInB"
-    b"hZ2Vfdmlld3MiOiAyMDAwMDAwLCAiZXh0ZXJuYWxfdXNlcnMiOiA1MCwgImlzc3VlZF9vbiI6ICIyMDI1"
-    b"LTAxLTE0VDExOjM5OjE5LjU5NjExNyIsICJpc3N1ZWRfdG9fZW1haWwiOiAiZGV2QGJhc2Vyb3cuaW8iL"
-    b"CAiaXNzdWVkX3RvX25hbWUiOiAiRGV2IiwgImluc3RhbmNlX2lkIjogIjEifQ==.al6RKwvLIEwgj2rDn"
-    b"xJ8YTUko5Y__MMXljoR4gyvnuq1zf5cLnFoxr6fvP0nlNN13kocP9KJDCd5oZlDmY6zJtKo-tjn0ZZiL_"
-    b"z6hCmaMtXIsC0dk-f3BTj6MtSIWsqmTP_jHUPIzessLq78hdDAfzKnNZ5zFyn2vo4MfSmCt9YHlVYZAf1"
-    b"SDwPlyHRAIpoPK1WxeVVfqGNH4REEVuTQTuTGUYphPX7Y6Pf6xH0_5XN0gnixDnVSh02YSSoYz8Lf143s"
-    b"fZDT4vAoZ7s-xwZLdH2GuohvI3TB5bPNcV8WBZCpVLnnlxkShvKXukxCYxc3FQ8juX5WCfnSAuw_Z8bDE"
-    b"A=="
+    b"AxLTAxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJlbnRlcnByaXNlIiwgInNlYXRzIjogMTUsICJ"
+    b"hZGRvbnMiOiBbeyJhcHBsaWNhdGlvbl91c2VycyI6IDUwLCAicGFnZV92aWV3cyI6IG51bGwsICJ0eXBl"
+    b"IjogImJ1c2luZXNzIn1dLCAiaXNzdWVkX29uIjogIjIwMjUtMDEtMjFUMTQ6NTI6MTcuMDAyMDA2IiwgI"
+    b"mlzc3VlZF90b19lbWFpbCI6ICJwZXRlckBiYXNlcm93LmlvIiwgImlzc3VlZF90b19uYW1lIjogIlBldG"
+    b"VyIiwgImluc3RhbmNlX2lkIjogIjEifQ==.sLkGnXmVqo-DoFRzAyYbV5P2O4Nif_9NI0aE1vdcLkMDss"
+    b"99rBbJEbuHnu3aRislF8REI132Kb-hzAutgIZhWTVe1UjnrsnM59Yq7yU0pg83jik76QSBrYGsBpcy9Bg"
+    b"P4dCst7BjWmnuyB-zD3zIBfLsWWL17RDl7jtJfHFPO4NpzTT3XF_GWh24VOz9tsYLctpg9rDD_nUfkxWk"
+    b"7ZEEWFf2Phu_YEVbwfn0M4qXKriwHSNFZSKA5ZpOzx8FADvaZWcu1YtNvsx1eFtb715iL17FT1EUc0ps2"
+    b"0VPk_6noBLsDX55B7VpZ_q4RR_l9MaEFaFvfZtnDdKyq4Krd7cDOA=="
 )
 INVALID_SIGNATURE_LICENSE = (
     b"eyJ2ZXJzaW9uIjogMSwgImlkIjogMSwgInZhbGlkX2Zyb20iOiAiMjAyMS0wOC0yOVQxOTo1NDoxMi4w"
@@ -533,19 +538,24 @@ def test_decode_license_with_valid_license():
         "instance_id": "1",
     }
     assert LicenseHandler.decode_license(
-        VALID_FIVE_SEAT_FIFTEEN_EXT_USER_1M_PAGE_VIEWS_LICENSE
+        VALID_5_SEAT_PREMIUM_LICENSE_WITH_15_APPLICATION_USERS_PRO_ADDON
     ) == {
         "version": 1,
-        "id": "e4ebb9c6-c019-4d42-a557-4bc1d657b59f",
+        "id": "4a862198-0e92-4729-b751-c40ae19b3c35",
         "valid_from": "2025-01-01T00:00:00",
-        "valid_through": "2027-12-31T23:59:59",
+        "valid_through": "2027-01-01T23:59:59",
         "product_code": "premium",
         "seats": 5,
-        "external_users": 15,
-        "page_views": 1_000_000,
-        "issued_on": "2025-01-14T11:33:24.795666",
-        "issued_to_email": "dev@baserow.io",
-        "issued_to_name": "Dev",
+        "addons": [
+            {
+                "application_users": 15,
+                "page_views": None,
+                "type": ProLicenseAddonType.type,
+            },
+        ],
+        "issued_on": "2025-01-21T14:51:05.792187",
+        "issued_to_email": "peter@baserow.io",
+        "issued_to_name": "Peter",
         "instance_id": "1",
     }
     assert LicenseHandler.decode_license(VALID_UPGRADED_TEN_SEAT_LICENSE) == {
@@ -597,19 +607,24 @@ def test_decode_license_with_valid_license():
         "instance_id": "6d6366b8-6f32-4549-81c2-d4a0c07a334b",
     }
     assert LicenseHandler.decode_license(
-        VALID_ENTERPRISE_FIVE_SEAT_FIFTY_EXT_USER_2M_PAGE_VIEWS_LICENSE
+        VALID_15_SEAT_ENTERPRISE_LICENSE_WITH_50_APPLICATION_USERS_BUSINESS_ADDON
     ) == {
         "version": 1,
-        "id": "626af4de-8aff-41a5-9e5f-331870793170",
+        "id": "d40e97ca-a55d-41d9-a60c-660af8341122",
         "valid_from": "2025-01-01T00:00:00",
-        "valid_through": "2027-12-31T23:59:59",
+        "valid_through": "2027-01-01T23:59:59",
         "product_code": "enterprise",
-        "seats": 5,
-        "external_users": 50,
-        "page_views": 2_000_000,
-        "issued_on": "2025-01-14T11:39:19.596117",
-        "issued_to_email": "dev@baserow.io",
-        "issued_to_name": "Dev",
+        "seats": 15,
+        "addons": [
+            {
+                "application_users": 50,
+                "page_views": None,
+                "type": BusinessLicenseAddonType.type,
+            },
+        ],
+        "issued_on": "2025-01-21T14:52:17.002006",
+        "issued_to_email": "peter@baserow.io",
+        "issued_to_name": "Peter",
         "instance_id": "1",
     }
 
