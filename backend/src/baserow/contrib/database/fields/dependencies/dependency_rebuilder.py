@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import TYPE_CHECKING, List
 
 from django.db.models import Q
@@ -45,19 +46,23 @@ def update_fields_with_broken_references(fields: List["field_models.Field"]):
 
     # Create a map so that we can later get the right field based on the table id and
     # field name to set the correct dependency.
-    table_field_map = {(field.table_id, field.name): field for field in fields}
+    table_field_map = {}
+    field_names_per_table = defaultdict(list)
+    for field in fields:
+        table_field_map[(field.table_id, field.name)] = field
+        field_names_per_table[field.table_id].append(field.name)
 
     # We need to fetch the broken dependencies for all the provided in one query, so we
     # can chain a big or statement to fetch them all.
     q = Q()
-    for field in fields:
+    for table_id, field_names in field_names_per_table.items():
         q |= Q(
-            dependant__table=field.table,
-            broken_reference_field_name=field.name,
+            dependant__table_id=table_id,
+            broken_reference_field_name__in=field_names,
         )
         q |= Q(
-            via__link_row_table=field.table,
-            broken_reference_field_name=field.name,
+            via__link_row_table_id=table_id,
+            broken_reference_field_name__in=field_names,
         )
 
     broken_dependencies = FieldDependency.objects.filter(q).select_related(
