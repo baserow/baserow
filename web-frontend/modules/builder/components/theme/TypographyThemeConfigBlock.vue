@@ -83,16 +83,13 @@
           horizontal-narrow
           small-label
           class="margin-bottom-2"
-          :label="$t('typographyThemeConfigBlock.weight')"
+          :label="$t('typographyThemeConfigBlock.textAlignment')"
         >
-          <FontWeightSelector
-            v-model="values.body_font_weight"
-            :font="values.body_font_family"
-          />
+          <HorizontalAlignmentsSelector v-model="values.body_text_alignment" />
           <template #after-input>
             <ResetButton
-              v-model="values.body_font_weight"
-              :default-value="theme?.body_font_weight"
+              v-model="values.body_text_alignment"
+              :default-value="theme?.body_text_alignment"
             />
           </template>
         </FormGroup>
