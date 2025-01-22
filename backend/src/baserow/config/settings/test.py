@@ -77,6 +77,7 @@ if "cachalot" not in INSTALLED_APPS:
 CACHALOT_ENABLED = False
 
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = 10
+BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = 300
 
 AUTO_INDEX_VIEW_ENABLED = False
 # For ease of testing tests assume this setting is set to this. Set it explicitly to

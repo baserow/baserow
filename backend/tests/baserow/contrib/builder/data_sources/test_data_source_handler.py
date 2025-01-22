@@ -497,7 +497,7 @@ def test_recalculate_full_orders(data_fixture):
 
 @pytest.mark.django_db
 @patch("baserow.contrib.builder.handler.get_builder_used_property_names")
-def test_dispatch_data_source_returns_formula_field_names(
+def test_dispatch_data_source_doesnt_return_formula_field_names(
     mock_get_builder_used_property_names, data_fixture, api_request_factory
 ):
     """
@@ -512,10 +512,11 @@ def test_dispatch_data_source_returns_formula_field_names(
         columns=[
             ("Food", "text"),
             ("Spiciness", "number"),
+            ("Color", "text"),
         ],
         rows=[
-            ["Paneer Tikka", 5],
-            ["Gobi Manchurian", 8],
+            ["Paneer Tikka", 5, "Green"],
+            ["Gobi Manchurian", 8, "Red"],
         ],
     )
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
@@ -577,7 +578,10 @@ def test_dispatch_data_source_returns_formula_field_names(
     dispatch_context = BuilderDispatchContext(fake_request, page)
 
     mock_get_builder_used_property_names.return_value = {
-        "external": {data_source.service.id: [f"field_{field.id}" for field in fields]}
+        "all": {
+            data_source.service.id: [f"field_{fields[0].id}", f"field_{fields[1].id}"]
+        },
+        "external": {data_source.service.id: [f"field_{fields[0].id}"]},
     }
 
     result = DataSourceHandler().dispatch_data_source(data_source, dispatch_context)

@@ -551,11 +551,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         """
 
         if isinstance(dispatch_context.public_allowed_properties, dict):
-            all_field_names = dispatch_context.public_allowed_properties.get(
-                "all", {}
-            ).get(service.id, None)
-            if all_field_names is not None:
-                return all_field_names
+            return dispatch_context.public_allowed_properties.get("all", {}).get(
+                service.id, []
+            )
 
         return None
 
@@ -1899,6 +1897,29 @@ class LocalBaserowUpsertRowServiceType(
                 field_mapping.value = new_formula
                 yield field_mapping
 
+    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+        """
+        Given a list of formula path parts, call the ServiceType's
+        extract_properties() method and return a set of unique field names.
+
+        E.g. given that path is: ['field_5191', 'value'], returns the
+        following: ['field_5191']
+
+        Returns an empty list if the field name isn't found.
+        """
+
+        if len(path) >= 1:
+            field_dbname, *rest = path
+        else:
+            return []
+
+        # If the field_dbname doesn't start with "field_" it means that the
+        # formula is invalid.
+        if not str(field_dbname).startswith("field_") and field_dbname != "id":
+            return []
+
+        return [field_dbname]
+
     def serialize_property(
         self,
         service: LocalBaserowUpsertRow,
@@ -2027,10 +2048,17 @@ class LocalBaserowUpsertRowServiceType(
         :return:
         """
 
+        field_ids = (
+            extract_field_ids_from_list(dispatch_data["public_formula_fields"])
+            if isinstance(dispatch_data["public_formula_fields"], list)
+            else None
+        )
+
         serializer = get_row_serializer_class(
             dispatch_data["baserow_table_model"],
             RowSerializer,
             is_response=True,
+            field_ids=field_ids,
         )
         serialized_row = serializer(dispatch_data["data"]).data
 
@@ -2097,6 +2125,8 @@ class LocalBaserowUpsertRowServiceType(
         """
 
         table = resolved_values["table"]
+        used_field_names = self.get_used_field_names(service, dispatch_context)
+
         integration = service.integration.specific
         row_id: Optional[int] = resolved_values.get("row_id", None)
 
@@ -2174,7 +2204,11 @@ class LocalBaserowUpsertRowServiceType(
                     f"Cannot create rows in table {table.id} because it has a data sync."
                 ) from exc
 
-        return {"data": row, "baserow_table_model": model}
+        return {
+            "data": row,
+            "baserow_table_model": model,
+            "public_formula_fields": used_field_names,
+        }
 
     def import_path(self, path, id_mapping):
         """
