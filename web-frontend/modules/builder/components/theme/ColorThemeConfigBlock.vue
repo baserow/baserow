@@ -55,23 +55,13 @@
 
     <ThemeConfigBlockSection :title="$t('colorThemeConfigBlock.customColors')">
       <template #default>
-        <FormGroup
-          v-for="(customColor, index) in values.custom_colors"
+        <CustomColorInput
+          v-for="(customColor, index) in localCustomColors"
           :key="customColor.name"
-          horizontal-narrow
-          small-label
-          class="margin-bottom-2"
-          :label="customColor.name"
-        >
-          <ColorInput
-            :value="values.custom_colors[index].color"
-            small
-            @input="(newValue) => updateExistingColor(index, newValue)"
-          />
-          <template #after-input>
-            <ButtonIcon icon="iconoir-bin" @click="deleteCustomColor(index)" />
-          </template>
-        </FormGroup>
+          :value="customColor"
+          @input="updateCustomColor(index, $event)"
+        />
+
         <div class="color-theme-config-block__custom-color-container">
           <ButtonText
             type="primary"
@@ -90,23 +80,42 @@
 <script>
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
+import CustomColorInput from '@baserow/modules/builder/components/theme/CustomColorInput.vue'
 
 export default {
   name: 'ColorThemeConfigBlock',
 
-  components: { ThemeConfigBlockSection },
+  components: { ThemeConfigBlockSection, CustomColorInput },
   mixins: [themeConfigBlock],
   data() {
     return {
       values: {},
+      localCustomColors: [],
     }
   },
   computed: {
     customColorPrefix() {
       return this.$t('colorThemeConfigBlock.customColorPrefix')
     },
+    customColors() {
+      return this.values.custom_colors
+    }
+  },
+  watch: {
+    customColors: {
+      handler(newValue) {
+        console.log('setting localCustomColors to: ', newValue)
+        this.localCustomColors = JSON.parse(JSON.stringify(newValue))
+      }
+    }
   },
   methods: {
+    updateCustomColor(index, updatedValue) {
+      const updatedColors = [...this.localCustomColors]
+      updatedColors[index] = { ...updatedValue }
+      this.values.custom_colors = updatedColors
+
+    },
     isAllowedKey(key) {
       return (
         key.startsWith('main_') ||
