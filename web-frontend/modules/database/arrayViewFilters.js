@@ -1,7 +1,11 @@
+import moment from '@baserow/modules/core/moment'
 import ViewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText'
 import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber'
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
-import { ViewFilterType } from '@baserow/modules/database/viewFilters'
+import {
+  ViewFilterType,
+  BaseDateMultiStepViewFilterType,
+} from '@baserow/modules/database/viewFilters'
 import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
 import { BaserowFormulaNumberType } from '@baserow/modules/database/formula/formulaTypes'
@@ -15,6 +19,7 @@ const HasEmptyValueViewFilterTypeMixin = {
       FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(number)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(date)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(multiple_select)'),
     ]
@@ -139,6 +144,7 @@ const HasValueContainsViewFilterTypeMixin = {
         FormulaFieldType.arrayOf('char'),
         FormulaFieldType.arrayOf('url'),
         FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('date'),
         FormulaFieldType.arrayOf('single_select'),
         FormulaFieldType.arrayOf('multiple_select')
       ),
@@ -585,6 +591,225 @@ export class HasNotValueLowerThanOrEqualViewFilterType extends HasValueLowerThan
         field,
         ComparisonOperator.LOWER_THAN_OR_EQUAL
       )
+    )
+  }
+}
+
+class ArrayDateMultiStepViewFilterType extends BaseDateMultiStepViewFilterType {
+  getCompatibleFieldTypes() {
+    return [
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf('date')
+      ),
+    ]
+  }
+
+  localizeRowValue(rowValue, timezone) {
+    const localizedRowValue = rowValue.map((item) => {
+      const rowDate = moment.utc(item.value)
+      if (timezone !== null) {
+        rowDate.tz(timezone)
+      }
+      return rowDate
+    })
+    return localizedRowValue
+  }
+}
+
+export class HasDateEqualViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_equal'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateEqual')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return rowDates.some(
+      (value) => value.isSameOrAfter(lowerBound) && value.isBefore(upperBound)
+    )
+  }
+}
+
+export class HasNotDateEqualViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_equal'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateEqual')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return !rowDates.some(
+      (value) => value.isSameOrAfter(lowerBound) && value.isBefore(upperBound)
+    )
+  }
+}
+
+export class HasDateBeforeViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_before'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateBefore')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return rowDates.some((value) => value.isBefore(lowerBound))
+  }
+}
+
+export class HasNotDateBeforeViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_before'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateBefore')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return !rowDates.some((value) => value.isBefore(lowerBound))
+  }
+}
+
+export class HasDateOnOrBeforeViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_on_or_before'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateOnOrBefore')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return rowDates.some((value) => value.isBefore(upperBound))
+  }
+}
+
+export class HasNotDateOnOrBeforeViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_on_or_before'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateOnOrBefore')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return !rowDates.some((value) => value.isBefore(upperBound))
+  }
+}
+
+export class HasDateAfterViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_after'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateAfter')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return rowDates.some((value) => value.isSameOrAfter(upperBound))
+  }
+}
+
+export class HasNotDateAfterViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_after'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateAfter')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return !rowDates.some((value) => value.isSameOrAfter(upperBound))
+  }
+}
+
+export class HasDateOnOrAfterViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_on_or_after'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateOnOrAfter')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return rowDates.some((value) => value.isSameOrAfter(lowerBound))
+  }
+}
+
+export class HasNotDateOnOrAfterViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_on_or_after'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateOnOrAfter')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return !rowDates.some((value) => value.isSameOrAfter(lowerBound))
+  }
+}
+
+export class HasDateWithinViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_within'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateWithin')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound, timezone) {
+    const startOfToday = moment.utc()
+    if (timezone) {
+      startOfToday.tz(timezone)
+    }
+    startOfToday.startOf('day')
+    return rowDates.some(
+      (value) => value.isSameOrAfter(startOfToday) && value.isBefore(upperBound)
+    )
+  }
+}
+
+export class HasNotDateWithinViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_within'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateWithin')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound, timezone) {
+    const startOfToday = moment.utc()
+    if (timezone) {
+      startOfToday.tz(timezone)
+    }
+    startOfToday.startOf('day')
+    return !rowDates.some(
+      (value) => value.isSameOrAfter(startOfToday) && value.isBefore(upperBound)
     )
   }
 }

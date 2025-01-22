@@ -449,8 +449,20 @@ class DatabaseConfig(AppConfig):
         from .views.array_view_filters import (
             HasAllValuesEqualViewFilterType,
             HasAnySelectOptionEqualViewFilterType,
+            HasDateAfterViewFilterType,
+            HasDateBeforeViewFilterType,
+            HasDateEqualViewFilterType,
+            HasDateOnOrAfterViewFilterType,
+            HasDateOnOrBeforeViewFilterType,
+            HasDateWithinViewFilterType,
             HasEmptyValueViewFilterType,
             HasNoneSelectOptionEqualViewFilterType,
+            HasNotDateAfterViewFilterType,
+            HasNotDateBeforeViewFilterType,
+            HasNotDateEqualViewFilterType,
+            HasNotDateOnOrAfterViewFilterType,
+            HasNotDateOnOrBeforeViewFilterType,
+            HasNotDateWithinViewFilterType,
             HasNotEmptyValueViewFilterType,
             HasNotValueContainsViewFilterType,
             HasNotValueContainsWordViewFilterType,
@@ -489,6 +501,18 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(HasNotValueHigherThanFilterType())
         view_filter_type_registry.register(HasNotValueLowerOrEqualTHanFilterType())
         view_filter_type_registry.register(HasNotValueLowerThanFilterType())
+        view_filter_type_registry.register(HasDateEqualViewFilterType())
+        view_filter_type_registry.register(HasNotDateEqualViewFilterType())
+        view_filter_type_registry.register(HasDateBeforeViewFilterType())
+        view_filter_type_registry.register(HasNotDateBeforeViewFilterType())
+        view_filter_type_registry.register(HasDateOnOrBeforeViewFilterType())
+        view_filter_type_registry.register(HasNotDateOnOrBeforeViewFilterType())
+        view_filter_type_registry.register(HasDateOnOrAfterViewFilterType())
+        view_filter_type_registry.register(HasNotDateOnOrAfterViewFilterType())
+        view_filter_type_registry.register(HasDateAfterViewFilterType())
+        view_filter_type_registry.register(HasNotDateAfterViewFilterType())
+        view_filter_type_registry.register(HasDateWithinViewFilterType())
+        view_filter_type_registry.register(HasNotDateWithinViewFilterType())
 
         from .views.view_aggregations import (
             AverageViewAggregationType,

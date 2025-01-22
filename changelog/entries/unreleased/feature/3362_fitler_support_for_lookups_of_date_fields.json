@@ -1,0 +1,7 @@
+{
+    "type": "feature",
+    "message": "Added support for filtering lookups of date fields.",
+    "issue_number": 3362,
+    "bullet_points": [],
+    "created_at": "2025-01-17"
+}

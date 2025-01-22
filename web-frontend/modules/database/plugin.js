@@ -116,6 +116,18 @@ import {
   HasNotValueLowerThanViewFilterType,
   HasNotValueHigherThanOrEqualViewFilterType,
   HasNotValueHigherThanViewFilterType,
+  HasDateEqualViewFilterType,
+  HasNotDateEqualViewFilterType,
+  HasDateBeforeViewFilterType,
+  HasNotDateBeforeViewFilterType,
+  HasDateOnOrBeforeViewFilterType,
+  HasNotDateOnOrBeforeViewFilterType,
+  HasDateAfterViewFilterType,
+  HasNotDateAfterViewFilterType,
+  HasDateOnOrAfterViewFilterType,
+  HasNotDateOnOrAfterViewFilterType,
+  HasDateWithinViewFilterType,
+  HasNotDateWithinViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
 import {
   CSVImporterType,
@@ -610,12 +622,10 @@ export default (context) => {
     'viewFilter',
     new HasNotValueHigherThanOrEqualViewFilterType(context)
   )
-
   app.$registry.register(
     'viewFilter',
     new HasValueLowerThanViewFilterType(context)
   )
-
   app.$registry.register(
     'viewFilter',
     new HasNotValueLowerThanViewFilterType(context)
@@ -627,6 +637,42 @@ export default (context) => {
   app.$registry.register(
     'viewFilter',
     new HasNotValueLowerThanOrEqualViewFilterType(context)
+  )
+  app.$registry.register('viewFilter', new HasDateEqualViewFilterType(context))
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateEqualViewFilterType(context)
+  )
+  app.$registry.register('viewFilter', new HasDateBeforeViewFilterType(context))
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateBeforeViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasDateOnOrBeforeViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateOnOrBeforeViewFilterType(context)
+  )
+  app.$registry.register('viewFilter', new HasDateAfterViewFilterType(context))
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateAfterViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasDateOnOrAfterViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateOnOrAfterViewFilterType(context)
+  )
+  app.$registry.register('viewFilter', new HasDateWithinViewFilterType(context))
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateWithinViewFilterType(context)
   )
 
   app.$registry.register(
