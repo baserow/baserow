@@ -76,12 +76,11 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-import { requiredIf, helpers } from '@vuelidate/validators'
+import { required, helpers } from '@vuelidate/validators'
 import { DatabaseScratchTrackOnboardingType } from '@baserow/modules/database/onboardingTypes'
 
 export default {
   name: 'DatabaseScratchTrackFieldsStep',
-
   props: {
     data: {
       type: Object,
@@ -153,7 +152,8 @@ export default {
       return isActive
     },
     isValid() {
-      return !this.v$.$invalid && this.v$.$dirty
+      if (this.selectedFieldsCount && !this.isChipActive('own')) return true
+      else return !this.v$.$invalid && this.v$.$dirty
     },
     toggleSelection(value) {
       const isAlreadySelected = this.isChipActive(value)
@@ -175,6 +175,7 @@ export default {
             this.ownField = this.ownFields[0]
           }
           this.selectedFields.own = this.ownField
+          this.v$.ownField.props.name.$touch()
         } else {
           const selectedItem = this.whatItems[value]
           if (this.isNameUsed(selectedItem.props.name)) {
@@ -224,24 +225,26 @@ export default {
     },
   },
   validations() {
-    return {
-      ownField: {
-        props: {
-          name: {
-            required: helpers.withMessage(
-              this.$t('error.requiredField'),
-              requiredIf(() => this.isOwnFieldValidationEnabled)
-            ),
-            uniqueNameValidator: helpers.withMessage(
-              this.$t('error.alreadyInUse'),
-              (value) => {
-                return !this.isNameUsed(value, 'own')
-              }
-            ),
-          },
+    const rules = {}
+
+    rules.ownField = {
+      props: {
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
         },
+        uniqueNameValidator: helpers.withMessage(
+          this.$t('error.alreadyInUse'),
+          (value) => {
+            return !this.isNameUsed(value, 'own')
+          }
+        ),
       },
     }
+
+    return rules
   },
 }
 </script>

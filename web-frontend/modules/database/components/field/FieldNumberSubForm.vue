@@ -131,8 +131,10 @@ export default {
     return {
       values: {
         number_decimal_places: { required },
-        number_prefix: { maxLength: maxLength(10), required: false },
-        number_suffix: { maxLength: maxLength(10), required: false },
+        number_prefix: { maxLength: maxLength(10) },
+        number_suffix: { maxLength: maxLength(10) },
+        number_separator: {},
+        number_negative: {},
       },
     }
   },

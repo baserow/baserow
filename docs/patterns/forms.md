@@ -4,6 +4,9 @@ The Baserow frontend has a form pattern to create reusable and optionally nested
 components using the form mixin (`modules/core/mixins/form.js`). This pattern is a
 consistent way of creating forms, validation, reusability, and error handling.
 
+Note: A few forms are not using the form mixin. In that case the `fieldHasErrors` function cannot be used.
+Instead you can rely on the `v$[fieldName].$error` property to check if there are errors.
+
 ## Structure
 
 -   A form is always a standalone component that adds the `modules/core/mixins/form.js`
@@ -29,17 +32,17 @@ consistent way of creating forms, validation, reusability, and error handling.
             :label="$t('userForm.name')"
             required
             class="margin-bottom-2"
-            :error="v$.name.$error"
+            :error="fieldHasErrors('email')"
         >
             <FormInput
                 ref="name"
-                v-model="v$.name.$model"
+                v-model="v$.values.name.$model"
                 size="large"
-                :error="v$.name.$error"
-                @blur="$v.name.$touch"
+                :error="v$.values.name.$error"
+                @blur="$v.values.name.$touch"
             >
             </FormInput>
-            <template #error>{{ v$.name.$errors[0].$message }}</template>
+            <template #error>{{ v$.values.name.$errors[0].$message }}</template>
         </FormGroup>
 
         <FormGroup
@@ -51,14 +54,14 @@ consistent way of creating forms, validation, reusability, and error handling.
         >
             <FormInput
                 ref="email"
-                v-model="v$.email.$model"
+                v-model="v$.values.email.$model"
                 size="large"
-                :error="v$.email.$error"
-                @blur="$v.email.$touch"
+                :error="fieldHasErrors('email')"
+                @blur="$v.values.email.$touch"
             >
             </FormInput>
             <template #error>
-                {{ v$.email.$errors[0].$message }}
+                {{ v$.values.email.$errors[0].$message }}
             </template>
         </FormGroup>
     </form>
@@ -186,17 +189,19 @@ checked in the children as well, and will also submit if all are valid.
             :label="$t('userForm.email')"
             required
             class="margin-bottom-2"
-            :error="v$.email.$error"
+            :error="fieldHasErrors('email')"
         >
             <FormInput
                 ref="email"
-                v-model="v$.email.$model"
+                v-model="v$.values.email.$model"
                 size="large"
-                :error="v$.email.$error"
-                @blur="$v.email.$touch"
+                :error="fieldHasErrors('email')"
+                @blur="$v.values.email.$touch"
             >
             </FormInput>
-            <template #error>{{ v$.email.$errors[0].$message }}</template>
+            <template #error>{{
+                v$.values.email.$errors[0].$message
+            }}</template>
         </FormGroup>
     </form>
 </template>
@@ -247,14 +252,14 @@ export default {
             :label="$t('userForm.name')"
             required
             class="margin-bottom-2"
-            :error="v$.name.$error"
+            :error="fieldHasErrors('name')"
         >
             <FormInput
                 ref="name"
-                v-model="v$.name.$model"
+                v-model="v$.values.name.$model"
                 size="large"
-                :error="v$.name.$error"
-                @blur="$v.name.$touch"
+                :error="fieldHasErrors('name')"
+                @blur="$v.values.name.$touch"
             >
             </FormInput>
             <template #error>{{ $t("error.requiredField") }}</template>

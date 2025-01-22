@@ -116,7 +116,6 @@ export default {
   },
   methods: {
     isValid() {
-      console.log(this.v$)
       return (
         !this.v$.$invalid &&
         this.v$.$dirty &&

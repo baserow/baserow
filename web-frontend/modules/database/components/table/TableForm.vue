@@ -52,7 +52,6 @@ export default {
       },
     }
   },
-
   mounted() {
     this.$refs.name.focus()
   },
@@ -60,10 +59,7 @@ export default {
     return {
       values: {
         name: {
-          // No object-shorthand here to access vm properties
-          required: function (value) {
-            return required(value)
-          },
+          required,
         },
       },
     }
