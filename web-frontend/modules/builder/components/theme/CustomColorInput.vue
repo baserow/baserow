@@ -24,13 +24,29 @@ export default {
       required: true,
     },
   },
+  data() {
+    return {
+      nameTimeout: null,
+      colorTimeout: null,
+    }
+  },
   methods: {
     updateCustomColorName(newValue) {
-      this.$emit('input', {name: newValue, color: this.value.color})
+      clearTimeout(this.nameTimeout)
+      this.nameTimeout = setTimeout(() => {
+        this.$emit('input', {name: newValue, color: this.value.color})
+      }, 500)      
     },
     updateExistingColor(newValue) {
-      this.$emit('input', {name: this.value.name, color: newValue})
+      clearTimeout(this.colorTimeout)
+      this.colorTimeout = setTimeout(() => {
+        this.$emit('input', {name: this.value.name, color: newValue})
+      }, 500)      
     },
+  },
+  beforeDestroy() {
+    clearTimeout(this.nameTimeout)
+    clearTimeout(this.colorTimeout)
   },
 }
 </script>
