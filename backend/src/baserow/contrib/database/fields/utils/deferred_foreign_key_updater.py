@@ -59,7 +59,7 @@ class DeferredForeignKeyUpdater:
                     setattr(
                         field_to_bulk_update,
                         attr_name,
-                        id_mapping[mapping_key][desired_field_id],
+                        id_mapping.get(mapping_key, {}).get(desired_field_id, None),
                     )
             if len(fields_to_bulk_update) > 0:
                 field_model_class.objects.bulk_update(
