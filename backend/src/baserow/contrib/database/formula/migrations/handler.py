@@ -346,7 +346,7 @@ class FormulaMigrationHandler:
 
         for field in formulas_to_rebuild_dependencies_for.iterator():
             try:
-                FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+                FieldDependencyHandler.rebuild_dependencies([field], field_cache)
             except Exception as e:
                 logger.warning(
                     f"Failed to recalculate dependencies for field: "

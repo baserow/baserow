@@ -3254,9 +3254,9 @@ class LinkRowFieldType(
     ):
         if field.link_row_related_field:
             FieldDependencyHandler.rebuild_dependencies(
-                field.link_row_related_field, field_cache
+                [field.link_row_related_field], field_cache
             )
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
     def get_export_serialized_value(self, row, field_name, cache, files_zip, storage):
         cache_entry = f"{field_name}_relations"
@@ -5165,7 +5165,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         # so that eventually the view filters, sorts, etc are removed if needed.
         if not self.has_compatible_model_fields(field, old_field):
             update_collector.add_to_fields_type_changed(field)
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        update_collector.add_to_rebuild_field_dependencies(field)
         update_collector.add_field_with_pending_update_statement(
             field, expr, via_path_to_starting_table=via_path_to_starting_table
         )
@@ -5224,7 +5224,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
 
     def after_import_serialized(self, field, field_cache, id_mapping):
         field.save(recalculate=True, field_cache=field_cache)
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
     def after_rows_imported(
         self,

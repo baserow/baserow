@@ -332,6 +332,11 @@ class FieldUpdateCollector:
         # been made.
         self._fields_type_changed = set()
 
+        # Keep a set of all the fields where the dependencies must be rebuild for. That
+        # way, we can efficiently call the rebuild_dependencies method in bulk to reduce
+        # the number of queries.
+        self._field_rebuild_dependencies = set()
+
     def _init_update_statement_collector(self):
         return PathBasedUpdateStatementCollector(
             self._starting_table,
@@ -411,6 +416,16 @@ class FieldUpdateCollector:
         if len(self._fields_type_changed) > 0:
             fields_type_changed.send(self, fields=list(self._fields_type_changed))
             self._fields_type_changed = set()
+
+        if len(self._field_rebuild_dependencies) > 0:
+            from baserow.contrib.database.fields.dependencies.handler import (
+                FieldDependencyHandler,
+            )
+
+            FieldDependencyHandler.rebuild_dependencies(
+                list(self._field_rebuild_dependencies), field_cache
+            )
+            self._field_rebuild_dependencies = set()
 
         return updated_rows_count
 
@@ -493,3 +508,6 @@ class FieldUpdateCollector:
 
     def add_to_fields_type_changed(self, field: Field):
         self._fields_type_changed.add(field)
+
+    def add_to_rebuild_field_dependencies(self, field: Field):
+        self._field_rebuild_dependencies.add(field)
