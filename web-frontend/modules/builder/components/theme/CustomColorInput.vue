@@ -12,7 +12,7 @@
       @input="(newValue) => updateExistingColor(newValue)"
     />
     
-    <ButtonIcon icon="iconoir-bin" @click="deleteCustomColor" />
+    <ButtonIcon icon="iconoir-bin" @click="$emit('deleteCustomColor')" />
   </div>
 </template>
 
@@ -30,13 +30,6 @@ export default {
     },
     updateExistingColor(newValue) {
       this.$emit('input', {name: this.value.name, color: newValue})
-    },
-
-    deleteCustomColor() {
-      console.log('color to be deleted!')
-      // const updatedCustomColors = [...this.values.custom_colors]
-      // updatedCustomColors.splice(index, 1)
-      // this.values.custom_colors = updatedCustomColors
     },
   },
 }

@@ -60,6 +60,7 @@
           :key="customColor.name"
           :value="customColor"
           @input="updateCustomColor(index, $event)"
+          @deleteCustomColor="deleteCustomColor(index)"
         />
 
         <div class="color-theme-config-block__custom-color-container">
