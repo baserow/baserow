@@ -56,7 +56,7 @@
     <ThemeConfigBlockSection :title="$t('colorThemeConfigBlock.customColors')">
       <template #default>
         <CustomColorInput
-          v-for="(customColor, index) in localCustomColors"
+          v-for="(customColor, index) in values.custom_colors"
           :key="customColor.name"
           :value="customColor"
           @input="updateCustomColor(index, $event)"
@@ -90,31 +90,18 @@ export default {
   data() {
     return {
       values: {},
-      localCustomColors: [],
     }
   },
   computed: {
     customColorPrefix() {
       return this.$t('colorThemeConfigBlock.customColorPrefix')
     },
-    customColors() {
-      return this.values.custom_colors
-    }
-  },
-  watch: {
-    customColors: {
-      handler(newValue) {
-        console.log('setting localCustomColors to: ', newValue)
-        this.localCustomColors = JSON.parse(JSON.stringify(newValue))
-      }
-    }
   },
   methods: {
     updateCustomColor(index, updatedValue) {
-      const updatedColors = [...this.localCustomColors]
+      const updatedColors = [...this.values.custom_colors]
       updatedColors[index] = { ...updatedValue }
       this.values.custom_colors = updatedColors
-
     },
     isAllowedKey(key) {
       return (
