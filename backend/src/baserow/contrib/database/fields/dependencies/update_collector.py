@@ -335,7 +335,7 @@ class FieldUpdateCollector:
         # Keep a set of all the fields where the dependencies must be rebuild for. That
         # way, we can efficiently call the rebuild_dependencies method in bulk to reduce
         # the number of queries.
-        self._field_rebuild_dependencies = set()
+        self._rebuild_field_dependencies = set()
 
     def _init_update_statement_collector(self):
         return PathBasedUpdateStatementCollector(
@@ -413,24 +413,30 @@ class FieldUpdateCollector:
             deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
         )
 
+        return updated_rows_count
+
+    def apply_fields_type_changed(self, field_cache: FieldCache):
         if len(self._fields_type_changed) > 0:
             fields_type_changed.send(self, fields=list(self._fields_type_changed))
             self._fields_type_changed = set()
 
-        if len(self._field_rebuild_dependencies) > 0:
+    def apply_rebuild_field_dependencies(self, field_cache: FieldCache):
+        if len(self._rebuild_field_dependencies) > 0:
             from baserow.contrib.database.fields.dependencies.handler import (
                 FieldDependencyHandler,
             )
 
             FieldDependencyHandler.rebuild_dependencies(
-                list(self._field_rebuild_dependencies), field_cache
+                list(self._rebuild_field_dependencies), field_cache
             )
-            self._field_rebuild_dependencies = set()
-
-        return updated_rows_count
+            self._rebuild_field_dependencies = set()
 
     def apply_updates_and_get_updated_fields(
-        self, field_cache: FieldCache, skip_search_updates=False
+        self,
+        field_cache: FieldCache,
+        skip_search_updates=False,
+        skip_fields_type_changed=False,
+        skip_rebuild_field_dependencies=False,
     ) -> List[Field]:
         """
         Triggers all update statements to be executed in the correct order in as few
@@ -460,6 +466,12 @@ class FieldUpdateCollector:
         # will only send signals for the newly updated fields.
         self._pending_field_updates = FieldUpdatesTracker()
         self._update_statement_collector = self._init_update_statement_collector()
+
+        if not skip_fields_type_changed:
+            self.apply_fields_type_changed(field_cache)
+
+        if not skip_rebuild_field_dependencies:
+            self.apply_rebuild_field_dependencies(field_cache)
 
         return updated_fields
 
@@ -510,4 +522,4 @@ class FieldUpdateCollector:
         self._fields_type_changed.add(field)
 
     def add_to_rebuild_field_dependencies(self, field: Field):
-        self._field_rebuild_dependencies.add(field)
+        self._rebuild_field_dependencies.add(field)
