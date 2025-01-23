@@ -47,15 +47,16 @@ export default {
   name: 'ImportFromAirtable',
   components: { AirtableImportForm },
   mixins: [error, jobProgress],
+  props: {
+    workspace: {
+      type: Object,
+      required: true,
+    },
+  },
   data() {
     return {
       loading: false,
     }
-  },
-  computed: {
-    ...mapGetters({
-      selectedWorkspaceId: 'workspace/selectedId',
-    }),
   },
   beforeDestroy() {
     this.stopPollIfRunning()
@@ -71,7 +72,7 @@ export default {
 
       try {
         const { data } = await AirtableService(this.$client).create(
-          this.selectedWorkspaceId,
+          this.workspace.id,
           values.airtableUrl
         )
         this.startJobPoller(data)

@@ -33,6 +33,21 @@ import form from '@baserow/modules/core/mixins/form'
 export default {
   name: 'ApplicationForm',
   mixins: [form],
+  props: {
+    defaultName: {
+      type: String,
+      required: false,
+      default: '',
+    },
+    loading: {
+      type: Boolean,
+      required: true,
+    },
+    workspace: {
+      type: Object,
+      required: true,
+    },
+  },
   data() {
     return {
       values: {
