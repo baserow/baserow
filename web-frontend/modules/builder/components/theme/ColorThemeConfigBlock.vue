@@ -57,7 +57,7 @@
       <template #default>
         <CustomColorInput
           v-for="(customColor, index) in values.custom_colors"
-          :key="customColor.name"
+          :key="customColor.value"
           :value="customColor"
           @input="updateCustomColor(index, $event)"
           @deleteCustomColor="deleteCustomColor(index)"
@@ -82,6 +82,8 @@
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import CustomColorInput from '@baserow/modules/builder/components/theme/CustomColorInput.vue'
+
+const COLOR_ID_LENGTH = 5
 
 export default {
   name: 'ColorThemeConfigBlock',
@@ -138,7 +140,7 @@ export default {
       const colorName = `${this.customColorPrefix} ${newColorId}`
       const newCustomColor = {
         name: colorName,
-        value: colorName,
+        value: this.generateColorId(),
         // Initializes the color to a predictable default.
         color: this.values.primary_color,
       }
@@ -167,6 +169,21 @@ export default {
       updatedCustomColors[index].color = newValue
       this.values.custom_colors = updatedCustomColors
     },
+
+    /**
+     * Generate a random string for the Custom Color's ID.
+     * 
+     * By using a unique ID, the actual custom color's name can be updated
+     * without changing the identify of the item.
+     */
+    generateColorId() {
+      const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+      let result = ''
+      for (let i = 0; i < COLOR_ID_LENGTH; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+      return result
+    }
   },
 }
 </script>
