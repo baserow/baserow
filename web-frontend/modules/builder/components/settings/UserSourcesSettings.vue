@@ -96,6 +96,7 @@
       >
         {{ $t('action.back') }}
       </ButtonText>
+
       <Button
         :disabled="actionInProgress || invalidForm"
         :loading="actionInProgress"
@@ -134,7 +135,7 @@ export default {
       showCreateForm: false,
       editedUserSource: null,
       actionInProgress: false,
-      invalidForm: false,
+      invalidForm: true,
     }
   },
   computed: {
@@ -170,7 +171,7 @@ export default {
       return this.$registry.get('userSource', userSource.type)
     },
     onValueChange() {
-      this.invalidForm = !this.$refs.userSourceForm.isFormValid(true)
+      this.invalidForm = !this.$refs.userSourceForm.isValid()
     },
     async showForm(userSourceToEdit) {
       if (userSourceToEdit) {
@@ -185,7 +186,7 @@ export default {
       this.showCreateForm = false
       this.editedUserSource = null
       this.hideError()
-      this.invalidForm = false
+      this.invalidForm = true
     },
     async createUserSource(values) {
       this.actionInProgress = true

@@ -26,9 +26,7 @@ export default {
     }
   },
   mounted() {
-    for (const [key, value] of Object.entries(this.getDefaultValues())) {
-      this.values[key] = value
-    }
+    this.values = Object.assign({}, this.values, this.getDefaultValues())
   },
   watch: {
     values: {
@@ -162,7 +160,9 @@ export default {
     isFormValid(deep = false) {
       // Some forms might not do any validation themselves. If they don't, then they
       // are by definition valid if their children are valid.c
+      console.log(this.v$)
       const thisFormInvalid = 'v$' in this && this.v$.$invalid
+      console.log(!thisFormInvalid && this.areChildFormsValid(deep))
       return !thisFormInvalid && this.areChildFormsValid(deep)
     },
     /**

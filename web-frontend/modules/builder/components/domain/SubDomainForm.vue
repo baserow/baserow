@@ -8,10 +8,7 @@
         v$.domainPrefix.$errors[0]?.$message || serverErrorMessage
       "
     >
-      <FormInput
-        v-model="v$.domainPrefix.$model"
-        @input="serverErrors.domain_name = null"
-      >
+      <FormInput v-model="v$.domainPrefix.$model" @input="handleInput">
         <template #suffix> .{{ domain }} </template>
       </FormInput>
     </FormGroup>
@@ -51,6 +48,13 @@ export default {
   watch: {
     domainPrefix(value) {
       this.values.domain_name = `${value}.${this.domain}`
+    },
+  },
+  methods: {
+    handleInput() {
+      this.serverErrors.domain_name = null
+      this.v$.domainPrefix.$touch()
+      this.$emit('error', this.v$.$error)
     },
   },
   validations() {

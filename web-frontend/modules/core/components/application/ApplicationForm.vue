@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <FormGroup
-      :error="v$.values.name.$invalid"
+      :error="v$.values.name.$error"
       small-label
       :label="$t('applicationForm.nameLabel')"
       required
@@ -10,7 +10,7 @@
         ref="name"
         v-model="values.name"
         size="large"
-        :error="v$.values.name.$invalid"
+        :error="v$.values.name.$error"
         @focus.once="$event.target.select()"
         @blur="v$.values.name.$touch"
       >

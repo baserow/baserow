@@ -304,7 +304,7 @@ export default {
             minValue(fontSizeMin)
           ),
           maxValue: helpers.withMessage(
-            this.$t('error.maxValueField', { max: fontSizeMax }),
+            this.$t('error.maxValueField', { max: bodyFontSizeMax }),
             maxValue(bodyFontSizeMax)
           ),
         },

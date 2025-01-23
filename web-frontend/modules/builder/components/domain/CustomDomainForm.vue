@@ -9,7 +9,7 @@
       <FormInput
         v-model="v$.values.domain_name.$model"
         size="large"
-        @input="serverErrors.domain_name = null"
+        @input="handleInput"
         @blur="v$.values.domain_name.$touch"
       />
     </FormGroup>
@@ -43,6 +43,13 @@ export default {
           ? this.$t('domainForm.notUniqueDomain')
           : ''
         : ''
+    },
+  },
+  methods: {
+    handleInput() {
+      this.serverErrors.domain_name = null
+      this.v$.values.domain_name.$touch()
+      this.$emit('error', this.v$.$error)
     },
   },
   validations() {

@@ -58,7 +58,7 @@
         :placeholder="$t('tableElementForm.itemsPerPagePlaceholder')"
         :to-value="(value) => parseInt(value)"
         type="number"
-        @blur="v$.values.items_per_page.$touch()"
+        @blur="v$.values.items_per_page.$touch"
       />
     </FormGroup>
 
@@ -321,8 +321,8 @@ export default {
         return this.element.data_source_id
       },
       set(newValue) {
-        const oldValue = this.v$.values.data_source_id.$model
-        this.v$.values.data_source_id.$model = newValue
+        const oldValue = this.values.data_source_id
+        this.values.data_source_id = newValue
         if (newValue !== oldValue && newValue) {
           this.refreshFieldsFromDataSource()
         }

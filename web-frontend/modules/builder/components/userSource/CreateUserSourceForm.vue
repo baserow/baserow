@@ -115,6 +115,9 @@ export default {
     handleServerError() {
       return false
     },
+    isValid() {
+      return !this.v$.$invalid && this.v$.$dirty
+    },
   },
   validations() {
     return {

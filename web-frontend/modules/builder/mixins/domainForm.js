@@ -19,11 +19,6 @@ export default {
     },
   },
   watch: {
-    'v$.$error': {
-      handler(val) {
-        this.$emit('error', val)
-      },
-    },
     hasServerErrors: {
       handler(val) {
         this.$emit('error', val)
