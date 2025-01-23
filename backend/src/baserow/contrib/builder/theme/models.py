@@ -24,12 +24,24 @@ class ThemeConfigBlock(models.Model):
 
 
 class ColorThemeConfigBlock(ThemeConfigBlock):
-    primary_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#5190efff")
-    secondary_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#0eaa42ff")
-    border_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#d7d8d9ff")
-    main_success_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#12D452")
-    main_warning_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#FCC74A")
-    main_error_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#FF5A4A")
+    primary_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#5190efff"
+    )
+    secondary_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#0eaa42ff"
+    )
+    border_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#d7d8d9ff"
+    )
+    main_success_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#12D452"
+    )
+    main_warning_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#FCC74A"
+    )
+    main_error_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#FF5A4A"
+    )
     custom_colors = models.JSONField(default=list, db_default=[])
 
 
@@ -45,7 +57,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.REGULAR,
         db_default=FontWeights.REGULAR,
     )
-    body_text_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff")
+    body_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     body_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -62,7 +76,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.BOLD,
         db_default=FontWeights.BOLD,
     )
-    heading_1_text_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff")
+    heading_1_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     heading_1_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -79,7 +95,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.SEMI_BOLD,
         db_default=FontWeights.SEMI_BOLD,
     )
-    heading_2_text_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff")
+    heading_2_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     heading_2_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -96,7 +114,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.MEDIUM,
         db_default=FontWeights.MEDIUM,
     )
-    heading_3_text_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff")
+    heading_3_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     heading_3_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -113,7 +133,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.MEDIUM,
         db_default=FontWeights.MEDIUM,
     )
-    heading_4_text_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff")
+    heading_4_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     heading_4_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -130,7 +152,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.REGULAR,
         db_default=FontWeights.REGULAR,
     )
-    heading_5_text_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff")
+    heading_5_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     heading_5_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -147,7 +171,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.REGULAR,
         db_default=FontWeights.REGULAR,
     )
-    heading_6_text_color = models.CharField(max_length=COLOR_FIELD_MAX_LENGTH, default="#202128")
+    heading_6_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#202128"
+    )
     heading_6_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
