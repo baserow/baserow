@@ -35,8 +35,6 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
-
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
 import jobProgress from '@baserow/modules/core/mixins/jobProgress'
