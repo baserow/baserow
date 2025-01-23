@@ -40,6 +40,7 @@ from .exceptions import (
     AirtableImportNotRespectingConfig,
     AirtableShareIsNotABase,
 )
+from .import_rapport import AirtableImportRapport
 
 User = get_user_model()
 
@@ -199,6 +200,7 @@ class AirtableHandler:
         table: dict,
         column: dict,
         config: AirtableImportConfig,
+        import_rapport: AirtableImportRapport,
     ) -> Union[Tuple[None, None, None], Tuple[Field, FieldType, AirtableColumnType]]:
         """
         Converts the provided Airtable column dict to the right Baserow field object.
@@ -208,6 +210,8 @@ class AirtableHandler:
         :param column: The Airtable column dict. These values will be converted to
             Baserow format.
         :param config: Additional configuration related to the import.
+        :param import_rapport: Used to collect what wasn't imported to rapport to the
+            user.
         :return: The converted Baserow field, field type and the Airtable column type.
         """
 
@@ -215,9 +219,7 @@ class AirtableHandler:
             baserow_field,
             airtable_column_type,
         ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-            table,
-            column,
-            config,
+            table, column, config, import_rapport
         )
 
         if baserow_field is None:
@@ -247,17 +249,20 @@ class AirtableHandler:
 
     @staticmethod
     def to_baserow_row_export(
+        table: dict,
         row_id_mapping: Dict[str, Dict[str, int]],
         column_mapping: Dict[str, dict],
         row: dict,
         index: int,
         files_to_download: Dict[str, str],
         config: AirtableImportConfig,
+        import_rapport: AirtableImportRapport,
     ) -> dict:
         """
         Converts the provided Airtable record to a Baserow row by looping over the field
         types and executing the `from_airtable_column_value_to_serialized` method.
 
+        :param table: The Airtable table dict.
         :param row_id_mapping: A mapping containing the table as key as the value is
             another mapping where the Airtable row id maps the Baserow row id.
         :param column_mapping: A mapping where the Airtable column id is the value and
@@ -269,6 +274,8 @@ class AirtableHandler:
             be downloaded. The key is the file name and the value the URL. Additional
             files can be added to this dict.
         :param config: Additional configuration related to the import.
+        :param import_rapport: Used to collect what wasn't imported to rapport to the
+            user.
         :return: The converted row in Baserow export format.
         """
 
@@ -300,11 +307,14 @@ class AirtableHandler:
                 "airtable_column_type"
             ].to_baserow_export_serialized_value(
                 row_id_mapping,
+                table,
+                row,
                 mapping_values["raw_airtable_column"],
                 mapping_values["baserow_field"],
                 column_value,
                 files_to_download,
                 config,
+                import_rapport,
             )
             exported_row[f"field_{column_id}"] = baserow_serialized_value
 
@@ -380,6 +390,8 @@ class AirtableHandler:
         :param schema: An object containing the schema of the Airtable base.
         :param tables: a list containing the table data.
         :param config: Additional configuration related to the import.
+        :param import_rapport: Used to collect what wasn't imported to rapport to the
+            user.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
         :param download_files_buffer: Optionally a file buffer can be provided to store
@@ -387,6 +399,11 @@ class AirtableHandler:
         :return: The converted Airtable base in Baserow export format and a zip file
             containing the user files.
         """
+
+        # This instance allows collecting what we weren't able to import, like
+        # incompatible fields, filters, etc. This will later be used to create a table
+        # with an overview of what wasn't imported.
+        import_rapport = AirtableImportRapport()
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
         converting_progress = progress.create_child(
@@ -440,12 +457,20 @@ class AirtableHandler:
                     baserow_field,
                     baserow_field_type,
                     airtable_column_type,
-                ) = cls.to_baserow_field(table, column, config)
+                ) = cls.to_baserow_field(table, column, config, import_rapport)
                 converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
 
                 # None means that none of the field types know how to parse this field,
                 # so we must ignore it.
                 if baserow_field is None:
+                    options = json.dumps(column.get("typeOptions", {}))
+                    import_rapport.add_failed(
+                        column["name"],
+                        "Field",
+                        table["name"],
+                        f"""No support for field type {column["type"]} with
+{options}""",
+                    )
                     continue
 
                 # Construct a mapping where the Airtable column id is the key and the
@@ -483,7 +508,9 @@ class AirtableHandler:
                         baserow_field,
                         baserow_field_type,
                         airtable_column_type,
-                    ) = cls.to_baserow_field(table, airtable_column, config)
+                    ) = cls.to_baserow_field(
+                        table, airtable_column, config, import_rapport
+                    )
                     baserow_field.primary = True
                     field_mapping["primary_id"] = {
                         "baserow_field": baserow_field,
@@ -507,12 +534,14 @@ class AirtableHandler:
             for row_index, row in enumerate(tables[table["id"]]["rows"]):
                 exported_rows.append(
                     cls.to_baserow_row_export(
+                        table,
                         row_id_mapping,
                         field_mapping,
                         row,
                         row_index,
                         files_to_download_for_table,
                         config,
+                        import_rapport,
                     )
                 )
                 converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
@@ -528,6 +557,16 @@ class AirtableHandler:
             view_id += 1
             empty_serialized_grid_view["id"] = view_id
             exported_views = [empty_serialized_grid_view]
+
+            # Loop over all views to add them to them as failed to the import rapport
+            # because the views are not yet supported.
+            for view in table["views"]:
+                import_rapport.add_failed(
+                    view["name"],
+                    "View",
+                    table["name"],
+                    "Views are not yet supported by the Airtable import",
+                )
 
             exported_table = DatabaseExportSerializedStructure.table(
                 id=table["id"],
@@ -549,6 +588,19 @@ class AirtableHandler:
                 if url in signed_user_content_urls:
                     url = signed_user_content_urls[url]
                 files_to_download[file_name] = url
+
+        # Just to be really clear that the automations and interfaces are not included.
+        import_rapport.add_failed(
+            "All automations", "Automations", "", "Baserow doesn't support automations."
+        )
+        import_rapport.add_failed(
+            "All interfaces", "Interfaces", "", "Baserow doesn't support interfaces."
+        )
+
+        # @TODO docs
+        exported_tables.append(
+            import_rapport.get_baserow_export_table(len(schema["tableSchemas"]) + 1)
+        )
 
         exported_database = CoreExportSerializedStructure.application(
             id=1,
