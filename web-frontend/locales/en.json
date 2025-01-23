@@ -267,6 +267,7 @@
     "nrMonthsFromNow": "months from now",
     "nrYearsFromNow": "years from now",
     "exactDate": "exact date",
+    "exactDateTime": "exact date and time",
     "isBefore": "is before",
     "isAfter": "is after",
     "isOnOrBefore": "is on or before",

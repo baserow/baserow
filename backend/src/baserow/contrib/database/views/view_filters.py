@@ -1622,6 +1622,7 @@ class DateFilterOperators(Enum):
     NR_MONTHS_FROM_NOW = "nr_months_from_now"
     NR_YEARS_FROM_NOW = "nr_years_from_now"
     EXACT_DATE = "exact_date"
+    EXACT_DATETIME = "exact_datetime"
 
 
 DATE_FILTER_OPERATOR_FROM_VALUE = {
@@ -1729,6 +1730,10 @@ DATE_FILTER_OPERATOR_BOUNDS = {
         filter_date,
         filter_date + relativedelta(days=1),
     ),
+    DateFilterOperators.EXACT_DATETIME: lambda filter_date: DateFilterBounds(
+        filter_date,
+        filter_date + relativedelta(minutes=1),
+    ),
 }
 
 DATE_FILTER_OPERATOR_DELTA_MAP = {
@@ -1779,11 +1784,16 @@ class DateMultiStepViewFilterType(ViewFilterType):
         :return: The date that should be used to filter the field.
         """
 
-        if operator == DateFilterOperators.EXACT_DATE.value:
+        print("get_filter_date")
+
+        if operator in [DateFilterOperators.EXACT_DATE.value, DateFilterOperators.EXACT_DATETIME]:
+            print("  filter_value =", filter_value)
+
             try:
                 return parser.isoparser().parse_isodate(filter_value)
             except ValueError:
                 datetime_value = parser.isoparse(filter_value)
+                print("  datetime_value =", datetime_value)
                 if datetime_value.tzinfo is None:
                     return datetime_value.replace(tzinfo=timezone)
             return datetime_value.astimezone(timezone)
@@ -1866,7 +1876,7 @@ class DateMultiStepViewFilterType(ViewFilterType):
         return python_timezone, validated_filter_value, operator
 
     def is_empty_filter(self, operator: str, filter_value: str) -> bool:
-        if operator not in ("exact_date", "nr_days_ago", "nr_days_from_now"):
+        if operator not in ("exact_date", "exact_datetime", "nr_days_ago", "nr_days_from_now"):
             return False
         return filter_value == DATE_FILTER_EMPTY_VALUE
 

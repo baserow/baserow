@@ -798,6 +798,11 @@ const DateFilterOperators = {
     stringKey: 'viewFilter.exactDate',
     hasDateInputValue: true,
   },
+  EXACT_DATETIME: {
+    value: 'exact_datetime',
+    stringKey: 'viewFilter.exactDateTime',
+    hasDateInputValue: true,
+  },
 }
 
 const parseFilterValueAsDate = (
@@ -909,6 +914,10 @@ const DATE_FILTER_OPERATOR_BOUNDS = {
     filterDate.startOf('day'),
     filterDate.clone().add(1, 'days'),
   ],
+  [DateFilterOperators.EXACT_DATETIME.value]: (filterDatetime) => [
+    filterDatetime.startOf('day'),
+    filterDatetime.clone().add(1, 'minutes'),
+  ],
 }
 
 const DATE_FILTER_OPERATOR_DELTA_MAP = {
@@ -918,6 +927,13 @@ const DATE_FILTER_OPERATOR_DELTA_MAP = {
     timezone
   ) => {
     return parseFilterValueAsDate(filterValue, timezone)
+  },
+  [DateFilterOperators.EXACT_DATETIME.value]: (
+    filterDatetime,
+    filterValue,
+    timezone
+  ) => {
+    return parseFilterValueAsDate(filterValue, timezone, 'YYYY-MM-DD HH:mm')
   },
   // days
   [DateFilterOperators.NR_DAYS_AGO.value]: (filterDate, filterValue) => {
