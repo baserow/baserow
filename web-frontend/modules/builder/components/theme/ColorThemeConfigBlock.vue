@@ -172,18 +172,19 @@ export default {
 
     /**
      * Generate a random string for the Custom Color's ID.
-     * 
+     *
      * By using a unique ID, the actual custom color's name can be updated
      * without changing the identify of the item.
      */
     generateColorId() {
-      const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+      const chars =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
       let result = ''
       for (let i = 0; i < COLOR_ID_LENGTH; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length))
       }
       return result
-    }
+    },
   },
 }
 </script>

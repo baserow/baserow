@@ -39,7 +39,7 @@
       v-if="!label && hasLabelSlot"
       class="control__label"
       :class="{ 'control__label--small': smallLabel }"
-      >
+    >
       <slot name="label"></slot>
       <span v-if="hasAfterLabelSlot" class="control__after-label"
         ><slot name="after-label"

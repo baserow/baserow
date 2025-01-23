@@ -208,7 +208,7 @@
 
 /** Temporary workaround until we find a better solution. */
 .flex-grow-1:has(.color-input__input) {
-  width: 0px;
+  width: 0;
 }
 
 .align-items-center {
