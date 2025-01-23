@@ -18,22 +18,30 @@ NPMBIN:=npm
 
 help:
 	@echo "web-frontend makefile. available targets:"
-	@echo " make build - dummy build target"
+	@echo " make build - build for production"
 	@echo " make install - install deps locally"
 	@echo " make lint - run lint/style tools"
 	@echo " make lint-fix - run lint/style tools and fix the code"
 	@echo " make test - run tests"
-	@echo " make clean - noop target"
+	@echo " make clean - clean .nuxt dir"
+	@echo " make clean-all - clean compiled app and node modules"
 	@echo " make run-dev - run development server"
 
 clean:
-	@echo 'nothing to clean yet'
+	rm -fr .nuxt/
 
 clean-all: clean
 	rm -fr node_modules/
 
-build:
-	@echo "this is just a dummy target. no build here yet."
+.nuxt/index.js:
+	(cd modules/ && rm -f baserow_premium && ln -s ../../premium/web-frontend/modules/baserow_premium .) || true
+	(cd modules/  && rm -f baserow_enterprise && ln -s ../../enterprise/web-frontend/modules/baserow_enterprise .) || true
+	$(YARNBIN) build-local
+	# cleanup
+	$(cd modules/ && rm -f baserow_premium baserow_enterprise)
+
+build: install .nuxt/index.js
+
 
 package-build: build
 

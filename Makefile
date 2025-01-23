@@ -9,10 +9,11 @@ WORKDIR:=$(shell $(REALPATH) $(shell pwd))
 
 SUBDIRS:=backend web-frontend
 DOCKERCLI:=docker
-DOCKERC:=$(DOCKERCLI) compose
+DOCKERC:=$(DOCKERCLI) compose --env-file .env.docker
 
 DOCKER_SPLIT_CONF:=-f docker-compose.yml -f docker-compose.dev.yml
-DOCKER_ALL_IN_ONE_CONF:=-f deploy/all-in-one/docker-compose.yml -f deploy/all-in-one/docker-compose.dev.yml
+DOCKER_ALL_IN_ONE_CONF:=-f deploy/all-in-one/docker-compose.dev.yml
+ALL_IN_ONE_CONTAINER_NAME:=baserow_all_in_one_dev
 
 .PHONY: install build .callsubcmd $(SUBDIRS) help package-build test tests\
 		lint lint-fix docker-lint changelog\
@@ -50,6 +51,7 @@ help:
 	@echo " make docker-allinone-build - build all-in-one dev container"
 	@echo " make docker-allinone-start - start all-in-one dev container"
 	@echo " make docker-allinone-stop - stop all-in-one dev container"
+	@echo " make docker-allinone-reload - reload supervised processes in the all-in-one container"
 	@echo ""
 
 
@@ -142,8 +144,19 @@ docker-lint:
 	docker build -f backend/Dockerfile . -t baserow_backend
 	docker build -f web-frontend/Dockerfile . -t baserow_web-frontend
 
+# builds production and dev all-in-one
+# very slow
+.docker-build-all-in-one: .docker-build-standalone-images
+	# produces web-frontend/.nuxt
+	# required by prod deployment
+	(cd web-frontend && make build)
+	# produces `baserow` image
+    # needed by deploy/all-in-one/dev.Dockerfile
+    # needed by deploy/all-in-one/docker-compose.dev.yml
+	$(DOCKERC) -f deploy/all-in-one/docker-compose.yml build
+
 docker-allinone-build: DOCKER_CONFIG_FILES=$(DOCKER_ALL_IN_ONE_CONF)
-docker-allinone-build: .docker-build-standalone-images .docker-build
+docker-allinone-build: .docker-build-all-in-one .docker-build
 
 docker-allinone-start: DOCKER_CONFIG_FILES=$(DOCKER_ALL_IN_ONE_CONF)
 docker-allinone-start: docker-allinone-build .docker-start
@@ -151,16 +164,26 @@ docker-allinone-start: docker-allinone-build .docker-start
 docker-allinone-stop: DOCKER_CONFIG_FILES=$(DOCKER_ALL_IN_ONE_CONF)
 docker-allinone-stop: .docker-stop
 
+# tag locally, so we don't need to pull
+docker-allinone-tag: docker-allinone-build
+	$(DOCKER) tag baserow:latest baserow/baserow:latest
+
+
 docker-allinone-restart: docker-allinone-stop docker-allinone-start
 
 docker-allinone-shell:
-	$(DOCKERC) $(DOCKER_ALL_IN_ONE_CONF) exec baserow_all_in_one bash
+	$(DOCKERC) $(DOCKER_ALL_IN_ONE_CONF) exec $(ALL_IN_ONE_CONTAINER_NAME)  bash
+
+# tell supervisor to reread configs and restart processes
+docker-allinone-reload:
+	$(DOCKERC) $(DOCKER_ALL_IN_ONE_CONF) exec $(ALL_IN_ONE_CONTAINER_NAME)  bash -c 'kill -HUP 1'
+
 
 docker-allinone-attach:
-	$(DOCKERC) $(DOCKER_ALL_IN_ONE_CONF) attach baserow_all_in_one
+	$(DOCKERC) $(DOCKER_ALL_IN_ONE_CONF) attach $(ALL_IN_ONE_CONTAINER_NAME)
 
 docker-allinone-logs:
-	$(DOCKERC) $(DOCKER_ALL_IN_ONE_CONF) logs -tf baserow_all_in_one
+	$(DOCKERC) $(DOCKER_ALL_IN_ONE_CONF) logs -tf $(ALL_IN_ONE_CONTAINER_NAME)
 
 docker-backend-shell:
 	$(DOCKERC) $(DOCKER_SPLIT_CONF) exec backend bash
