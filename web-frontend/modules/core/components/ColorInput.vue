@@ -19,7 +19,7 @@
           '--selected-color': actualValue,
         }"
       />
-      <span>{{ displayValue }}</span>
+      <span class="color-input__text">{{ displayValue }}</span>
     </div>
   </div>
 </template>
