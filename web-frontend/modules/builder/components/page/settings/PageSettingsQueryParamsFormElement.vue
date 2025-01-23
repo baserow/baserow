@@ -32,12 +32,11 @@
           ></DropdownItem>
         </Dropdown>
       </div>
-      <a
+      <ButtonIcon
         class="filters__remove page-settings-query-params__remove"
-        @click.stop="deleteQueryParam(index)"
-      >
-        <i class="iconoir-bin"></i>
-      </a>
+        icon="iconoir-bin"
+        @click="deleteQueryParam(index)"
+      />
     </div>
 
     <template #helper>

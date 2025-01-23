@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("builder", "0043_page_query_params"),
+        ("builder", "0048_page_query_params"),
     ]
 
     operations = [

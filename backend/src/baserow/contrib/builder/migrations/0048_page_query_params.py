@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("builder", "0042_footerelement_headerelement"),
+        ("builder", "0047_repeatelement_horizontal_gap_and_more"),
     ]
 
     operations = [
