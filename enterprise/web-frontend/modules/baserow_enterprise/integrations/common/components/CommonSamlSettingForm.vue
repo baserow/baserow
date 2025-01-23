@@ -82,17 +82,17 @@ export default {
   data() {
     return { inError: false }
   },
-  watch: {
-    '$v.$anyDirty'() {
-      this.checkValidity()
-    },
-  },
   computed: {
     relayStateUrls() {
       return this.authProviderType.getRelayStateUrls(this.userSource)
     },
     acsUrl() {
       return this.authProviderType.getAcsUrl(this.userSource)
+    },
+  },
+  watch: {
+    '$v.$anyDirty'() {
+      this.checkValidity()
     },
   },
   methods: {

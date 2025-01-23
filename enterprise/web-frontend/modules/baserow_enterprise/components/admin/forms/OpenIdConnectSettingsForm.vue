@@ -45,6 +45,12 @@
         <div v-else-if="$v.values.base_url.$dirty && !$v.values.base_url.url">
           {{ $t('oauthSettingsForm.invalidBaseUrl') }}
         </div>
+        <div v-else-if="serverErrors.base_url?.code === 'duplicate_url'">
+          {{ $t('oauthSettingsForm.duplicateBaseUrl') }}
+        </div>
+        <div v-else-if="serverErrors.base_url?.code === 'invalid_url'">
+          {{ $t('oauthSettingsForm.invalidBaseUrl') }}
+        </div>
         <div v-else-if="!!serverErrors.base_url">
           {{ $t('oauthSettingsForm.invalidBaseUrl') }}
         </div>

@@ -51,7 +51,7 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
     permission_classes = (AllowAny,)
 
     @extend_schema(
-        tags=["Auth"],
+        tags=["User sources"],
         request=CommonSAMLResponseSerializer,
         operation_id="auth_provider_saml_acs_url",
         description=(

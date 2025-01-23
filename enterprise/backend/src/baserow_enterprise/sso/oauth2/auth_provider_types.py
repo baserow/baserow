@@ -178,11 +178,9 @@ class BaseOAuth2AuthProviderMixin:
             UserInfo(
                 name=name,
                 email=oauth_response_data.get("email"),
-                # TODO
                 workspace_invitation_token=request_data.get(
                     "workspace_invitation_token", None
                 ),
-                # TODO
                 language=request_data.get("language", None),
             ),
             request_data.get("original", ""),
@@ -210,14 +208,8 @@ class BaseOAuth2AuthProviderMixin:
 
 class OAuth2AuthProviderMixin(BaseOAuth2AuthProviderMixin):
     """
-    Mixin that can be used together with a subclass of AuthProviderType
-    to reuse some common OAuth2 logic.
-
-    Expects the following to be set:
-    - self.type
-    - self.model_class
-    - self.AUTHORIZATION_URL
-    - self.SCOPE
+    OAuth 2 provider mixin for all baserow auth provider mixin based on OAuth 2
+    authentication protocol.
     """
 
     def get_api_urls(self):
@@ -314,7 +306,7 @@ class GitHubAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
 
     def get_user_info(
         self, instance: GitHubAuthProviderModel, code: str, session: SessionBase
-    ) -> Tuple[UserInfo, str]:
+    ) -> Tuple[UserInfo, dict]:
         """
         Queries the provider to obtain user info data (name and email).
 
@@ -428,8 +420,8 @@ class FacebookAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
 
 class OpenIdConnectAuthProviderTypeMixin:
     """
-    The OpenId authentication provider type allows users to
-    login using OAuth2 through OpenId Connect compatible provider.
+    The OpenId authentication provider mixin that contains shared methods and properties
+    for this kind of authentication. To be mixed with OAuth2 mixin as well.
     """
 
     type = "openid_connect"
@@ -506,4 +498,9 @@ class OpenIdConnectAuthProviderTypeMixin:
 class OpenIdConnectAuthProviderType(
     OpenIdConnectAuthProviderTypeMixin, OAuth2AuthProviderMixin, AuthProviderType
 ):
+    """
+    The OpenId authentication provider type allows users to
+    login using OAuth2 through OpenId Connect compatible provider.
+    """
+
     model_class = OpenIdConnectAuthProviderModel

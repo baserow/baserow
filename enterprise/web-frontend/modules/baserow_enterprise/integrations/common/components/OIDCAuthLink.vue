@@ -1,22 +1,17 @@
 <template>
-  <div>
-    <ABButton
-      @click.prevent="login()"
-      class="oidc-auth-link"
-      v-for="authProvider in authProviders"
-      :key="authProvider.id"
-    >
-      {{ getLabel(authProvider) }}
-    </ABButton>
+  <div class="oidc-auth-link__wrapper">
+    <div v-for="authProvider in authProviders" :key="authProvider.id">
+      <ABButton @click.prevent="login(authProvider)">
+        {{ getLabel(authProvider) }}
+      </ABButton>
+    </div>
   </div>
 </template>
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
 
 export default {
-  components: { ThemeProvider },
   mixins: [form],
   props: {
     userSource: { type: Object, required: true },
@@ -63,7 +58,7 @@ export default {
         provider: this.authProviderType.getProviderName(authProvider),
       })
     },
-    async login() {
+    async login(authProvider) {
       await this.beforeLogin()
 
       this.loading = true
@@ -78,6 +73,7 @@ export default {
 
       // Add the current url as get parameter to be redirected here after the login.
       urlWithParams.searchParams.append('original', window.location)
+      urlWithParams.searchParams.append('iss', authProvider.base_url)
 
       window.location = urlWithParams.toString()
     },

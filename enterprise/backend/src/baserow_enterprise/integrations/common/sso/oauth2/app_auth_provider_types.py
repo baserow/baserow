@@ -1,6 +1,7 @@
 import urllib
 
 from django.conf import settings
+from django.db.models import QuerySet
 from django.urls import include, path, reverse
 
 from rest_framework import serializers
@@ -21,7 +22,10 @@ from .models import OpenIdConnectAppAuthProviderModel
 
 
 class OAuth2AppAuthProviderMixin(BaseOAuth2AuthProviderMixin):
-    """ """
+    """
+    OAuth 2 provider mixin for all app auth provider mixin based on OAuth 2
+    authentication protocol.
+    """
 
     def get_api_urls(self):
         from baserow_enterprise.api.integrations.common.sso.oauth2.views import (
@@ -58,12 +62,34 @@ class OAuth2AppAuthProviderMixin(BaseOAuth2AuthProviderMixin):
         )
 
 
+def validate_unique_oidc_base_url(base_url, base_queryset: QuerySet, instance=None):
+    queryset = base_queryset.filter(base_url=base_url)
+    print("queryset", queryset)
+    if instance:
+        queryset = queryset.exclude(id=instance.id)
+    print("queryset", queryset)
+    if queryset.exists():
+        raise serializers.ValidationError(
+            {
+                "base_url": {
+                    "detail": (
+                        "You cannot have two OIDC providers with the same base_url, "
+                        "please choose a unique URL for each OIDC provider."
+                    ),
+                    "code": "duplicate_url",
+                }
+            }
+        )
+    return base_url
+
+
 def validate_wellknown_urls(value):
     try:
         OpenIdConnectAuthProviderTypeMixin.get_wellknown_urls(value)
     except InvalidProviderUrl as exc:
         raise serializers.ValidationError(
-            "The specified URL doesn't point to a valid provider of the provider type."
+            detail="The specified URL doesn't point to a valid provider of the provider type.",
+            code="invalid_url",
         ) from exc
 
     return value
@@ -73,12 +99,15 @@ class OpenIdConnectAppAuthProviderType(
     OpenIdConnectAuthProviderTypeMixin, OAuth2AppAuthProviderMixin, AppAuthProviderType
 ):
     """
-    TODO
+    The OpenId authentication app auth provider type allows users to
+    login builder application using OAuth2 through OpenId Connect compatible provider.
     """
 
     model_class = OpenIdConnectAppAuthProviderModel
 
     compatible_user_source_types = [LocalBaserowUserSourceType.type]
+
+    public_serializer_field_names = ["name", "base_url"]
 
     class SerializedDict(
         OpenIdConnectAuthProviderTypeMixin.OpenIdConnectSerializedDict,
@@ -93,3 +122,26 @@ class OpenIdConnectAppAuthProviderType(
             help_text="The provider base url.",
         ),
     }
+
+    def before_create(self, user, **values):
+        user_source = values["user_source"]
+        if "base_url" in values:
+            validate_unique_oidc_base_url(
+                values["base_url"],
+                base_queryset=OpenIdConnectAppAuthProviderModel.objects.filter(
+                    user_source=user_source
+                ),
+            )
+        return super().before_create(user, **values)
+
+    def before_update(self, user, auth_provider, **values):
+        if "base_url" in values:
+            user_source = values.get("user_source", auth_provider.user_source)
+            validate_unique_oidc_base_url(
+                values["base_url"],
+                base_queryset=OpenIdConnectAppAuthProviderModel.objects.filter(
+                    user_source=user_source
+                ),
+                instance=auth_provider,
+            )
+        return super().before_update(user, auth_provider, **values)

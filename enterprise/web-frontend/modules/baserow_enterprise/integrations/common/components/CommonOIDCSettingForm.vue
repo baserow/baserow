@@ -30,10 +30,10 @@
               </span>
               <span
                 class="common-oidc-setting-form__url-dest"
+                :title="callback.url"
                 @click.prevent="
                   ;[copyToClipboard(callback.url), $refs.copiedACS.show()]
                 "
-                :title="callback.url"
               >
                 {{ callback.previewUrl }}
               </span>

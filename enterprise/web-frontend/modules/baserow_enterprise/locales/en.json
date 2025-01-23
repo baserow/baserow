@@ -271,6 +271,7 @@
     "secretPlaceholder": "Provider's secret",
     "baseUrl": "URL",
     "baseUrlPlaceholder": "Provider's base URL",
+    "duplicateBaseUrl": "The entered URL already exists in another provider",
     "invalidBaseUrl": "The entered URL is not a valid provider URL",
     "callbackUrl": "Callback URL"
   },
