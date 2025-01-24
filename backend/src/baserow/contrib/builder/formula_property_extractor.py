@@ -103,9 +103,7 @@ def get_element_property_names(
 
         results = merge_dicts_no_duplicates(
             results,
-            element.get_type().extract_formula_properties(
-                element.specific, **formula_context
-            ),
+            element.get_type().extract_properties(element.specific, **formula_context),
         )
 
     return {"external": results}
@@ -137,7 +135,7 @@ def get_workflow_action_property_names(
             workflow_action.element_id, element_map
         )
 
-        found_properties = workflow_action.get_type().extract_formula_properties(
+        found_properties = workflow_action.get_type().extract_properties(
             workflow_action, **formula_context
         )
 
@@ -171,7 +169,7 @@ def get_data_source_property_names(
     for data_source in data_sources:
         results = merge_dicts_no_duplicates(
             results,
-            data_source.extract_formula_properties(data_source),
+            data_source.extract_properties(data_source),
         )
 
     return {"internal": results}

@@ -33,8 +33,8 @@ def test_saml_provider_get_login_url(api_client, data_fixture, enterprise_data_f
     auth_provider_1 = enterprise_data_fixture.create_saml_auth_provider(
         domain="test1.com"
     )
-    auth_provider_login = reverse("api:enterprise:sso:saml:login")
-    auth_provider_login_url = reverse("api:enterprise:sso:saml:login_url")
+    auth_provider_login = reverse("api:enterprise_sso_saml:login")
+    auth_provider_login_url = reverse("api:enterprise_sso_saml:login_url")
 
     _, unauthorized_token = data_fixture.create_user_and_token()
 
@@ -147,7 +147,7 @@ def test_user_cannot_initiate_saml_sso_without_enterprise_license(
     api_client, enterprise_data_fixture
 ):
     enterprise_data_fixture.create_saml_auth_provider(domain="test1.com")
-    response = api_client.get(reverse("api:enterprise:sso:saml:login"))
+    response = api_client.get(reverse("api:enterprise_sso_saml:login"))
     assert response.status_code == HTTP_302_FOUND
     assert (
         response.headers["Location"]
@@ -173,7 +173,7 @@ def test_user_can_initiate_saml_sso_with_enterprise_license(
     enterprise_data_fixture.create_saml_auth_provider(domain="test1.com")
     enterprise_data_fixture.enable_enterprise()
 
-    sp_sso_saml_login_url = reverse("api:enterprise:sso:saml:login")
+    sp_sso_saml_login_url = reverse("api:enterprise_sso_saml:login")
     original_relative_url = "database/1/table/1/"
     request_query_string = urlencode({"original": original_relative_url})
 
@@ -204,7 +204,7 @@ def test_user_can_initiate_saml_sso_with_enterprise_license(
 @override_settings(DEBUG=True)
 def test_saml_assertion_consumer_service(api_client, enterprise_data_fixture):
     user, _ = enterprise_data_fixture.create_enterprise_admin_user_and_token()
-    sp_sso_saml_acs_url = reverse("api:enterprise:sso:saml:acs")
+    sp_sso_saml_acs_url = reverse("api:enterprise_sso_saml:acs")
 
     (
         metadata,

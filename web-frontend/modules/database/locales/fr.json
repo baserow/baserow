@@ -72,7 +72,8 @@
         "webhooks": "Webhooks",
         "notSynced": "non synchronisé",
         "lastSynced": "Dernière synchronisation",
-        "sync": "Synchroniser la table"
+        "sync": "Synchroniser la table",
+        "updateSyncConfig": "Mettre à jour la configuration de la synchronisation"
     },
     "apiToken": {
         "create": "créer",
@@ -281,7 +282,8 @@
         "addField": "Ajouter un champ"
     },
     "selectRowContent": {
-        "search": "Rechercher dans la table"
+        "search": "Rechercher dans la table",
+        "hideFields": "Masquer les champs"
     },
     "rowEditModal": {
         "addField": "Ajouter un champ",
@@ -466,7 +468,8 @@
         "selected": "Sélectionné"
     },
     "viewFilter": {
-        "filter": "Filtre | 1 Filtre | {count} Filtres"
+        "filter": "Filtre | 1 Filtre | {count} Filtres",
+        "hasAllValuesEqual": "a toutes les valeurs égales"
     },
     "viewContext": {
         "exportView": "Exporter la vue",
@@ -526,7 +529,8 @@
         "tooManyItemsDescription": "Il n'est pas possible de mettre à jour plus de {limit} lignes à la fois, c'est pourquoi seule la première a été mise à jour.",
         "generateCellsValues": "Générer des valeurs avec l'IA",
         "AIValuesGenerationErrorTitle": "La génération de valeur par l'IA a échoué",
-        "AIValuesGenerationErrorMessage": "Veuillez vérifier votre API_KEY et le modèle sélectionné."
+        "AIValuesGenerationErrorMessage": "Veuillez vérifier votre API_KEY et le modèle sélectionné.",
+        "copyCellsWithHeader": "Copier les cellules avec l'en-tête"
     },
     "gridViewFieldLinkRow": {
         "unnamed": "Ligne sans nom {value}"
@@ -542,7 +546,8 @@
         "failedTitle": "L'export a échoué",
         "failedDescription": "L'export n'a pas pu aboutir en raison d'une erreur serveur.",
         "cancelledTitle": "Export annulé",
-        "cancelledDescription": "L'export a été annulé."
+        "cancelledDescription": "L'export a été annulé.",
+        "title": "Exporter {name}"
     },
     "exporterTypeChoices": {
         "formatLabel": "Vers quel format souhaitez-vous réaliser l'export ?"
@@ -563,7 +568,8 @@
         "recordSeparator": "Sép. d'enregistrement",
         "unitSeparator": "Sép. d'unité",
         "encodingLabel": "Encodage",
-        "firstRowIsHeaderLabel": "La première ligne contient l'entête"
+        "firstRowIsHeaderLabel": "La première ligne contient l'entête",
+        "includeHeader": "Inclure les noms de champs comme en-tête"
     },
     "apiDocsDatabase": {
         "pageTitle": "Documentation de l'API de la base {name}",
@@ -690,7 +696,10 @@
         "addCondition": "Ajouter une condition",
         "descriptionPlaceholder": "Description",
         "addConditionGroup": "Ajouter un groupe de conditions",
-        "showFieldAs": "Afficher le champ comme"
+        "showFieldAs": "Afficher le champ comme",
+        "includeAllSelectOptionsHelper": "Choisissez les options qui doivent être incluses dans le formulaire à l'aide de cette liste déroulante",
+        "noSelectOptions": "Il n'y a pas d'options disponibles.",
+        "includeAllSelectOptions": "inclure toutes les options sélectionnées"
     },
     "duplicateFieldContext": {
         "duplicate": "Dupliquer le champ",
@@ -1044,5 +1053,19 @@
         "port": "Port",
         "username": "Identifiant",
         "password": "Mot de passe"
+    },
+    "configureDataSyncSettings": {
+        "title": "Modifier la synchronisation des données",
+        "syncTable": "Synchroniser lors de l'enregistrement"
+    },
+    "configureDataSyncModal": {
+        "title": "Synchronisation des données",
+        "syncedFields": "Champs synchronisés",
+        "syncSettings": "Paramètres de synchronisation"
+    },
+    "configureDataSyncVisibleFields": {
+        "title": "Modifier les champs synchronisés",
+        "fields": "Champs synchronisés",
+        "syncTable": "Synchroniser lors de l'enregistrement"
     }
 }

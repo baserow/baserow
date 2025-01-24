@@ -2,6 +2,7 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple
 from uuid import uuid4
 
 from baserow_premium.license.handler import LicenseHandler
+from loguru import logger
 
 from baserow.contrib.database.fields.field_types import SingleSelectFieldType
 from baserow.contrib.database.views.handler import ViewHandler
@@ -77,22 +78,31 @@ class SelectColorValueProviderType(PremiumDecoratorValueProviderType):
             new_conf["field_id"] = None
             view_handler.update_decoration(decoration, value_provider_conf=new_conf)
 
-    def after_field_type_change(self, field):
+    def after_fields_type_change(self, fields):
         """
         Unset the field if the type is not a select anymore.
         """
 
         from baserow.contrib.database.fields.registries import field_type_registry
 
-        field_type = field_type_registry.get_by_model(field.specific_class)
+        not_single_select_fields = [
+            field
+            for field in fields
+            if (
+                field_type_registry.get_by_model(field.specific_class).type
+                != SingleSelectFieldType.type
+            )
+        ]
 
-        view_handler = ViewHandler()
+        if len(not_single_select_fields) > 0:
+            view_handler = ViewHandler()
 
-        if field_type.type != SingleSelectFieldType.type:
             queryset = ViewDecoration.objects.filter(
-                view__table=field.table,
+                view__table_id__in=[f.table_id for f in not_single_select_fields],
                 value_provider_type=SelectColorValueProviderType.type,
-                value_provider_conf__field_id=field.id,
+                value_provider_conf__field_id__in=[
+                    f.id for f in not_single_select_fields
+                ],
             )
 
             for decoration in queryset.all():
@@ -128,18 +138,22 @@ class ConditionalColorValueProviderType(PremiumDecoratorValueProviderType):
             if "id" not in color:
                 color["id"] = str(uuid4())
 
+            new_filters = []
             for color_filter in color["filters"]:
-                new_value = (
-                    id_mapping["database_field_select_options"].get(
-                        int(color_filter["value"])
-                    )
-                    if "database_field_select_options" in id_mapping
-                    and str(color_filter["value"]).isdigit()
-                    else color_filter["value"]
-                )
-                color_filter["value"] = new_value
                 new_field_id = id_mapping["database_fields"][color_filter["field"]]
                 color_filter["field"] = new_field_id
+                try:
+                    filter_type = view_filter_type_registry.get(
+                        color_filter.get("type")
+                    )
+                    imported_value = filter_type.set_import_serialized_value(
+                        color_filter["value"], id_mapping
+                    )
+                    color_filter["value"] = imported_value
+                    new_filters.append(color_filter)
+                except Exception as err:
+                    logger.warning(f"Cannot import filter value: {color_filter}: {err}")
+            color["filters"] = new_filters
 
         return value
 
@@ -237,20 +251,23 @@ class ConditionalColorValueProviderType(PremiumDecoratorValueProviderType):
             if modified:
                 view_handler.update_decoration(decoration, value_provider_conf=new_conf)
 
-    def after_field_type_change(self, field):
+    def after_fields_type_change(self, fields):
         """
         Remove filters type that are not compatible anymore from configuration
         """
 
+        field_per_id = {f.id: f for f in fields}
         queryset = ViewDecoration.objects.filter(
-            view__table=field.table,
+            view__table__in=[f.table_id for f in fields],
             value_provider_type=ConditionalColorValueProviderType.type,
         )
 
         view_handler = ViewHandler()
 
         def compatible_filter_only(filter):
-            if filter["field"] != field.id:
+            field = field_per_id.get(filter["field"], None)
+
+            if not field:
                 return filter
 
             filter_type = view_filter_type_registry.get(filter["type"])

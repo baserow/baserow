@@ -418,11 +418,8 @@ class FormulaHandler(metaclass=baserow_trace_methods(tracer)):
             to be correct.
         """
 
-        from baserow.contrib.database.views.handler import ViewHandler
-
         field.save(field_cache=field_cache)
         recreate_formula_field_if_needed(field, old_field, force_recreate_column)
-        ViewHandler().field_type_changed(field)
 
         return FormulaHandler.baserow_expression_to_update_django_expression(
             field.cached_typed_internal_expression,

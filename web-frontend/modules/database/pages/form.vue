@@ -69,9 +69,16 @@ export default {
       const statusCode = e.response?.status
       // password protect forms require authentication
       if (statusCode === 401) {
+        // Combine the path and query parameters to get the full URL
+        const path = route.path
+        const queryParams = route.query
+        const queryString = Object.keys(queryParams).length
+          ? '?' + new URLSearchParams(queryParams).toString()
+          : ''
+        const original = path + queryString
         return redirect({
           name: 'database-public-view-auth',
-          query: { original: route.path },
+          query: { original },
         })
       } else {
         return error({ statusCode: 404, message: 'Form not found.' })
@@ -268,8 +275,8 @@ export default {
         const value = values[valueName]
         const ref = this.$refs.form.$refs['field-' + field.field.id][0]
 
-        // If the field required and empty or if the value has a validation error, then
-        // we don't want to submit the form, focus on the field and top the loading.
+        // If the field is required but empty or if the value has a validation error, then
+        // we don't want to submit the form, focus on the field and stop the loading.
         if (
           (field.required && fieldType.isEmpty(field.field, value)) ||
           fieldType.getValidationError(field.field, value) !== null ||

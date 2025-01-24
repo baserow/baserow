@@ -66,6 +66,7 @@ class ICalCalendarDataSyncType(DataSyncType):
     model_class = ICalCalendarDataSync
     allowed_fields = ["ical_url"]
     serializer_field_names = ["ical_url"]
+    request_serializer_field_names = ["ical_url"]
 
     def get_properties(self, instance) -> List[DataSyncProperty]:
         return [

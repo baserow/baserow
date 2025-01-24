@@ -4,10 +4,16 @@ import { routes } from './routes'
 
 import en from './locales/en.json'
 import fr from './locales/fr.json'
+import nl from './locales/nl.json'
+import de from './locales/de.json'
+import es from './locales/es.json'
+import it from './locales/it.json'
+import pl from './locales/pl.json'
+import ko from './locales/ko.json'
 
 export default function () {
   this.nuxt.hook('i18n:extend-messages', (additionalMessages) => {
-    additionalMessages.push({ en, fr })
+    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
   })
 
   // Register new alias to the web-frontend directory.

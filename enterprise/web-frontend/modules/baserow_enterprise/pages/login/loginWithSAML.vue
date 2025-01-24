@@ -1,12 +1,12 @@
 <template>
-  <div>
+  <div class="auth__wrapper">
     <div v-if="!redirectImmediately">
       <div class="auth__logo">
         <nuxt-link :to="{ name: 'index' }">
           <Logo />
         </nuxt-link>
       </div>
-      <div class="auth__head auth__head--more-margin">
+      <div class="auth__head">
         <h1 class="auth__head-title">
           {{ $t('loginWithSaml.signInWithSaml') }}
         </h1>
@@ -17,7 +17,7 @@
           :label="$t('field.emailAddress')"
           required
           :error="fieldHasErrors('email') || loginRequestError"
-          class="margin-bottom-2"
+          class="mb-24"
         >
           <FormInput
             ref="email"
@@ -42,7 +42,7 @@
           </template>
         </FormGroup>
       </form>
-      <div class="auth__actions">
+      <div class="auth__action mb-32">
         <Button
           full-width
           size="large"
@@ -55,7 +55,7 @@
       </div>
       <div>
         <ul class="auth__action-links">
-          <li v-if="passwordLoginEnabled">
+          <li v-if="passwordLoginEnabled" class="auth__action-link">
             {{ $t('loginWithSaml.loginText') }}
             <nuxt-link :to="{ name: 'login' }">
               {{ $t('action.login') }}
@@ -90,21 +90,17 @@ export default {
     if (store.getters['settings/get'].show_admin_signup_page === true) {
       return redirect({ name: 'signup' })
     }
-
     // if this page is accessed directly, load the login options to
     // populate the page with all the authentication providers
     if (!store.getters['authProvider/getLoginOptionsLoaded']) {
       await store.dispatch('authProvider/fetchLoginOptions')
     }
-
     const samlLoginOptions = store.getters[
       'authProvider/getLoginOptionsForType'
     ](new SamlAuthProviderType().getType())
-
     if (!samlLoginOptions) {
       return redirect({ name: 'login', query: route.query }) // no SAML provider enabled
     }
-
     // in case the email is not necessary or provided via workspace invitation,
     // redirect the user directly to the SAML provider
     const { invitation } = await workspaceInvitationToken.asyncData({
@@ -124,7 +120,6 @@ export default {
         return { values: { email: invitation?.email }, loginRequestError: true }
       }
     }
-
     return { redirectUrl: samlLoginOptions.redirect_url }
   },
   data() {

@@ -302,7 +302,7 @@ export const parseDurationValue = (
 
   // If the value is a number, we assume it's already in seconds (i.e. from the backend).
   if (Number.isFinite(inputValue)) {
-    return inputValue > 0 ? inputValue : null
+    return inputValue
   }
 
   let multiplier = 1

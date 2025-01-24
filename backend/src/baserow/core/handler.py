@@ -18,6 +18,7 @@ from django.db.models import Count, Prefetch, Q, QuerySet
 from django.utils import translation
 from django.utils.translation import gettext as _
 
+import zipstream
 from itsdangerous import URLSafeSerializer
 from loguru import logger
 from opentelemetry import trace
@@ -88,6 +89,7 @@ from .registries import (
 from .signals import (
     application_created,
     application_deleted,
+    application_imported,
     application_updated,
     applications_reordered,
     before_workspace_deleted,
@@ -1498,6 +1500,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             include_permission_data=True,
             reduce_disk_space_usage=False,
             is_duplicate=True,
+            exclude_sensitive_data=False,
         )
         # export the application
         specific_application = application.specific
@@ -1649,18 +1652,24 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         storage = storage or get_default_storage()
+        zip_stream = zipstream.ZipStream(
+            compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+            compress_type=zipstream.ZIP_DEFLATED,
+        )
 
-        with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
-            exported_applications = []
-            applications = workspace.application_set.all()
-            for a in applications:
-                application = a.specific
-                application_type = application_type_registry.get_by_model(application)
-                with application_type.export_safe_transaction_context(application):
-                    exported_application = application_type.export_serialized(
-                        application, import_export_config, files_zip, storage
-                    )
-                exported_applications.append(exported_application)
+        exported_applications = []
+        applications = workspace.application_set.all()
+        for a in applications:
+            application = a.specific
+            application_type = application_type_registry.get_by_model(application)
+            with application_type.export_safe_transaction_context(application):
+                exported_application = application_type.export_serialized(
+                    application, import_export_config, zip_stream, storage
+                )
+            exported_applications.append(exported_application)
+
+        for chunk in zip_stream:
+            files_buffer.write(chunk)
 
         return exported_applications
 
@@ -2048,15 +2057,19 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Because a user has initiated the creation of applications, we need to
         # call the `application_created` signal for each created application.
+        #
+        # The `application_imported` signal is sent to ensure that any
+        # post-import logic is executed, e.g. configuring integrations.
         for application in applications:
             application_type = application_type_registry.get_by_model(application)
             application.installed_from_template = template
-            application_created.send(
-                self,
-                application=application,
-                user=user,
-                type_name=application_type.type,
-            )
+            for signal in [application_created, application_imported]:
+                signal.send(
+                    self,
+                    application=application,
+                    user=user,
+                    type_name=application_type.type,
+                )
 
         Application.objects.bulk_update(applications, ["installed_from_template"])
 

@@ -68,7 +68,7 @@ def fill_table_fields(limit, table, shuffle_fields=False):
     allowed_field_list = [
         f
         for f in all_kwargs_per_type.items()
-        if f[0] not in ["link_row", "count", "rollup", "lookup"]
+        if f[0] not in ["link_row", "count", "rollup", "lookup", "ai"]
     ]
     if shuffle_fields:
         # This is a helper cli command, randomness is not being used for any security
@@ -97,7 +97,7 @@ def create_field_for_every_type(table):
     first_user = table.database.workspace.users.first()
     i = 0
     for field_type_name, all_possible_kwargs in all_kwargs_per_type.items():
-        if field_type_name in ["link_row", "count", "rollup", "lookup"]:
+        if field_type_name in ["link_row", "count", "rollup", "lookup", "ai"]:
             continue
         for kwargs in all_possible_kwargs:
             kwargs.pop("primary", None)

@@ -1,15 +1,6 @@
 {
     "premium": {
-        "user": {
-            "isStaff": "Personel",
-            "isWorkspaceAdmin": "Jest administratorem grupy",
-            "active": "Aktywny",
-            "deactivated": "Dezaktywowany"
-        },
         "adminType": {
-            "dashboard": "Dashboard",
-            "users": "Użytkownicy",
-            "workspaces": "Grupy",
             "licenses": "Zarządzaj licencjami"
         },
         "viewType": {
@@ -74,83 +65,6 @@
     "registerLicenseForm": {
         "licenseKey": "Klucz licencyjny"
     },
-    "workspacesAdminTable": {
-        "allWorkspaces": "Wszystkie grupy",
-        "id": "ID",
-        "name": "Nazwa",
-        "members": "Członkowie",
-        "applications": "Aplikacje",
-        "created": "Utworzony",
-        "seatsTaken": "Zajęte miejsca",
-        "storageUsage": "Wykorzystana pamięć (MB)",
-        "freeUsers": "Bezpłatni użytkownicy",
-        "rowCount": "Liczba wierszy",
-        "usageHelpText": "Obliczane co noc, gdy włączone jest ustawienie śledzenia wykorzystania grupy"
-    },
-    "editWorkspaceContext": {
-        "delete": "Usunąć na stałe"
-    },
-    "deleteWorkspaceModal": {
-        "title": "Usuń {name}",
-        "confirmation": "Czy na pewno chcesz usunąć grupę: {name}?",
-        "comment": "Grupa zostanie trwale usunięta, wraz z powiązanymi z nią aplikacjami. Nie ma możliwości cofnięcia tej akcji.",
-        "delete": "Usuń grupę {name}"
-    },
-    "activeUsers": {
-        "newUsers": "Nowi użytkownicy",
-        "activeUsers": "Aktywni użytkownicy"
-    },
-    "usersAdminTable": {
-        "allUsers": "Wszystkich użytkowników",
-        "id": "ID",
-        "username": "Nazwa użytkownika",
-        "name": "Nazwa",
-        "workspaces": "Grupy",
-        "lastLogin": "Ostatnie logowanie",
-        "dateJoined": "Zapisany",
-        "active": "Aktywny"
-    },
-    "editUserContext": {
-        "changePassword": "Zmiana hasła",
-        "delete": "Trwałe usuwanie",
-        "impersonate": "Podszywać się pod"
-    },
-    "changePasswordForm": {
-        "newPassword": "Nowe hasło",
-        "repeatPassword": "Powtórz hasło",
-        "changePassword": "Zmień hasło",
-        "error": {
-            "doesntMatch": "To pole musi być zgodne z Twoim hasłem."
-        }
-    },
-    "userForm": {
-        "fullName": "Pełne imię i nazwisko",
-        "email": "E-mail",
-        "isActive": "Jest aktywny",
-        "warning": {
-            "changeEmail": "Zmiana adresu e-mail użytkownika oznacza, że kiedy zaloguje się on do systemu, będzie musiał użyć nowego adresu e-mail. Musi to zostać zakomunikowane temu użytkownikowi.",
-            "inactiveUser": "Kiedy użytkownik jest oznaczony jako nieaktywny, nie może się zalogować.",
-            "userStaff": "Nadanie użytkownikowi statusu pracownika daje mu dostęp administratora do wszystkich użytkowników, wszystkich obszarów roboczych i możliwość odebrania uprawnień pracownikom."
-        },
-        "error": {
-            "invalidName": "Podaj prawidłowe imię i nazwisko, musi mieć więcej niż 2 litery i mniej niż 150.",
-            "invalidEmail": "Proszę wpisać prawidłowy adres e-mail."
-        }
-    },
-    "changeUserPasswordModal": {
-        "changePassword": "Zmień hasło dla {username}"
-    },
-    "deleteUserModal": {
-        "title": "Usuń {username}",
-        "confirmation": "Czy na pewno chcesz usunąć użytkownika: {name}?",
-        "comment1": "Konto użytkownika zostanie usunięte, jednak obszary robocze, których użytkownik jest członkiem, będą nadal istnieć. Obszar roboczy użytkownika nie zostanie usunięty, nawet jeśli ten użytkownik jest ostatnim użytkownikiem w obszarze roboczym. Usunięcie ostatniego użytkownika w obszarze roboczym uniemożliwia każdemu dostęp do tego obszaru roboczego.",
-        "comment2": "Po usunięciu użytkownika możliwe jest, że nowy użytkownik zarejestruje się ponownie używając adresu e-mail usuniętego użytkownika. Aby uniemożliwić im ponowne zarejestrowanie się, należy dezaktywować użytkownika i nie usuwać go.",
-        "delete": "Usuń użytkownika {username}"
-    },
-    "editUserModal": {
-        "delete": "Usuń użytkownika",
-        "edit": "Edytuj { username }"
-    },
     "tableJSONExporter": {
         "encoding": "Kodowanie"
     },
@@ -180,22 +94,6 @@
         "uncategorized": "Bez kategorii",
         "tryAgain": "Spróbuj ponownie",
         "new": "Nowy"
-    },
-    "dashboard": {
-        "title": "Pulpit",
-        "totals": "Ogółem",
-        "totalUsers": "Użytkownicy ogółem",
-        "totalWorkspaces": "Grupy ogółem",
-        "totalApplications": "Aplikacje ogółem",
-        "newUsers": "Nowi użytkownicy",
-        "newUsers24h": "Nowi użytkownicy w ciągu ostatnich 24 godzin",
-        "newUsers7days": "Nowi użytkownicy w ciągu ostatnich 7 dni",
-        "newUsers30days": "Nowi użytkownicy w ciągu ostatnich 30 dni",
-        "activeUsers": "Aktywni użytkownicy",
-        "activeUsers24h": "Aktywni użytkownicy w ciągu ostatnich 24 godzin",
-        "activeUsers7days": "Aktywni użytkownicy w ciągu ostatnich 7 dni",
-        "activeUsers30days": "Aktywni użytkownicy w ciągu ostatnich 30 dni",
-        "viewAll": "Zobacz wszystkie"
     },
     "premiumFeatures": {
         "rowComments": "Komentarze do wierszy",

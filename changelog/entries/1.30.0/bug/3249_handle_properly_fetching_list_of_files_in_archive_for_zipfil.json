@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Handle properly fetching list of files in archive for zipfile and zipstream",
+    "issue_number": 3249,
+    "bullet_points": [],
+    "created_at": "2024-12-02"
+}

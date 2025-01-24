@@ -23,7 +23,7 @@
       >
         <div
           v-for="(name, index) in selectedName"
-          :key="name"
+          :key="index"
           class="select-options__dropdown-option"
           :class="'background-color--' + selectedColor[index]"
         >

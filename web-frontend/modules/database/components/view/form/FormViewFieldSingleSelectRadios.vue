@@ -1,5 +1,8 @@
 <template>
   <div>
+    <div v-if="field.select_options.length === 0" class="control--messages">
+      <p>{{ $t('formViewField.noSelectOptions') }}</p>
+    </div>
     <RadioGroup
       :model-value="valueId"
       :options="options"

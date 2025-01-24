@@ -10,8 +10,13 @@
       <Editable
         ref="rename"
         :value="page.name"
+        class="side-bar-builder__link-text"
         @change="renamePage(builder, page, $event)"
       ></Editable>
+      <i
+        v-if="page.visibility === visibilityLoggedIn"
+        class="iconoir-eye-off"
+      ></i>
     </a>
 
     <a
@@ -79,6 +84,7 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapGetters } from 'vuex'
+import { VISIBILITY_LOGGED_IN } from '@baserow/modules/builder/constants'
 
 export default {
   name: 'SidebarItemBuilder',
@@ -117,6 +123,9 @@ export default {
           this.builder.workspace.id
         )
       )
+    },
+    visibilityLoggedIn() {
+      return VISIBILITY_LOGGED_IN
     },
     ...mapGetters({ duplicateJob: 'page/getDuplicateJob' }),
   },

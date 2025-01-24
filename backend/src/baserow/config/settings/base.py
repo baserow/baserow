@@ -15,6 +15,7 @@ import posthog
 import sentry_sdk
 from corsheaders.defaults import default_headers
 from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from baserow.cachalot_patch import patch_cachalot_for_baserow
 from baserow.config.settings.utils import (
@@ -319,6 +320,11 @@ BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = int(
     os.getenv("BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS")
     or 600
 )
+BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
+    # Default TTL is 5 minutes
+    os.getenv("BASEROW_BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS")
+    or 300
+)
 
 
 def install_cachalot():
@@ -385,6 +391,7 @@ LANGUAGES = [
     ("es", "Spanish"),
     ("it", "Italian"),
     ("pl", "Polish"),
+    ("ko", "Korean"),
 ]
 
 TIME_ZONE = "UTC"
@@ -492,7 +499,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.29.1",
+    "VERSION": "1.30.1",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -604,6 +611,13 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
+BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = int(
+    Decimal(os.getenv("BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB", 1024 * 1024)) * 1024 * 1024
+)  # ~1TB by default
+
+BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = int(
+    os.getenv("BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB", 512)
+)
 
 # Allows accessing and setting values on a dictionary like an object. Using this
 # we can pass plugin authors and other functions a `settings` object which can modify
@@ -641,6 +655,9 @@ if sum(ALL_STORAGE_ENABLED_VARS) > 1:
 if AWS_STORAGE_ENABLED:
     BASE_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
     AWS_S3_FILE_OVERWRITE = False
+    # This is needed to write the media file in a single call to `files_zip.writestr`
+    # as described here: https://github.com/kobotoolbox/kobocat/issues/475
+    AWS_S3_FILE_BUFFER_SIZE = BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
     set_settings_from_env_if_present(
         AttrDict(vars()),
         [
@@ -833,13 +850,6 @@ MEDIA_ROOT = os.getenv("MEDIA_ROOT", "/baserow/media")
 # Indicates the directory where the user files and user thumbnails are stored.
 USER_FILES_DIRECTORY = "user_files"
 USER_THUMBNAILS_DIRECTORY = "thumbnails"
-BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = int(
-    Decimal(os.getenv("BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB", 1024 * 1024)) * 1024 * 1024
-)  # ~1TB by default
-
-BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = int(
-    os.getenv("BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB", 512)
-)
 
 EXPORT_FILES_DIRECTORY = "export_files"
 EXPORT_CLEANUP_INTERVAL_MINUTES = 5
@@ -945,6 +955,13 @@ BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT = RateLimit.from_string(
     os.getenv("BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT", "5/h")
 )
 
+login_action_limit_from_env = os.getenv("BASEROW_LOGIN_ACTION_LOG_LIMIT")
+BASEROW_LOGIN_ACTION_LOG_LIMIT = (
+    RateLimit.from_string(login_action_limit_from_env)
+    if login_action_limit_from_env
+    else RateLimit(period_in_seconds=60 * 5, number_of_calls=1)
+)
+
 # Configurable thumbnails that are going to be generated when a user uploads an image
 # file.
 USER_THUMBNAILS = {"tiny": [None, 21], "small": [48, 48], "card_cover": [300, 160]}
@@ -1040,6 +1057,9 @@ BASEROW_WEBHOOKS_URL_REGEX_BLACKLIST = [
 ]
 BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS = int(
     os.getenv("BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS", "10")
+)
+BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK = (
+    int(os.getenv("BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK", "0")) or None
 )
 
 # ======== WARNING ========
@@ -1258,12 +1278,14 @@ for plugin in [*BASEROW_BUILT_IN_PLUGINS, *BASEROW_BACKEND_PLUGIN_NAMES]:
 
 SENTRY_BACKEND_DSN = os.getenv("SENTRY_BACKEND_DSN")
 SENTRY_DSN = SENTRY_BACKEND_DSN or os.getenv("SENTRY_DSN")
+SENTRY_DENYLIST = DEFAULT_DENYLIST + ["username", "email", "name"]
 
 if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration(signals_spans=False, middleware_spans=False)],
         send_default_pii=False,
+        event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
     )
 
@@ -1272,6 +1294,15 @@ BASEROW_OPENAI_ORGANIZATION = os.getenv("BASEROW_OPENAI_ORGANIZATION", "") or No
 BASEROW_OPENAI_MODELS = os.getenv("BASEROW_OPENAI_MODELS", "")
 BASEROW_OPENAI_MODELS = (
     BASEROW_OPENAI_MODELS.split(",") if BASEROW_OPENAI_MODELS else []
+)
+
+BASEROW_OPENROUTER_API_KEY = os.getenv("BASEROW_OPENROUTER_API_KEY", None)
+BASEROW_OPENROUTER_ORGANIZATION = (
+    os.getenv("BASEROW_OPENROUTER_ORGANIZATION", "") or None
+)
+BASEROW_OPENROUTER_MODELS = os.getenv("BASEROW_OPENROUTER_MODELS", "")
+BASEROW_OPENROUTER_MODELS = (
+    BASEROW_OPENROUTER_MODELS.split(",") if BASEROW_OPENROUTER_MODELS else []
 )
 
 BASEROW_ANTHROPIC_API_KEY = os.getenv("BASEROW_ANTHROPIC_API_KEY", None)
@@ -1302,4 +1333,13 @@ BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST = (
     BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST.split(",")
     if BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST
     else []
+)
+
+# Default compression level for creating zip files. This setting balances the need to
+# save resources when compressing media files with the need to save space when
+# compressing text files.
+BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL = 5
+
+BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
+    os.getenv("BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE", "") or 10
 )

@@ -72,7 +72,8 @@
         "webhooks": "Webhooks",
         "lastSynced": "Laatst gesynchroniseerd",
         "notSynced": "niet gesynchroniseerd",
-        "sync": "Sync tabel"
+        "sync": "Sync tabel",
+        "updateSyncConfig": "Sync-configuratie bijwerken"
     },
     "apiToken": {
         "create": "aanmaken",
@@ -281,7 +282,8 @@
         "addField": "veld toevoegen"
     },
     "selectRowContent": {
-        "search": "Zoek rijen"
+        "search": "Zoek rijen",
+        "hideFields": "Velden verbergen"
     },
     "rowEditModal": {
         "addField": "veld toevoegen",
@@ -466,7 +468,8 @@
         "selected": "Geselecteerd"
     },
     "viewFilter": {
-        "filter": "Filter | 1 Filter | {count} Filters"
+        "filter": "Filter | 1 Filter | {count} Filters",
+        "hasAllValuesEqual": "heeft alle waarden gelijk"
     },
     "viewContext": {
         "exportView": "Weergave exporteren",
@@ -526,7 +529,8 @@
         "tooManyItemsDescription": "Het is niet mogelijk om meer dan {limit} rijen tegelijk bij te werken, dus we hebben alleen de eerste bijgewerkt.",
         "generateCellsValues": "Genereer waardes met AI",
         "AIValuesGenerationErrorTitle": "AI-waardegeneratie mislukt",
-        "AIValuesGenerationErrorMessage": "Controleer alsjeblieft je API_KEY en controleer het geselecteerde model."
+        "AIValuesGenerationErrorMessage": "Controleer alsjeblieft je API_KEY en controleer het geselecteerde model.",
+        "copyCellsWithHeader": "Cellen met koptekst kopiëren"
     },
     "gridViewFieldLinkRow": {
         "unnamed": "onbenoemde rij {value}"
@@ -542,7 +546,8 @@
         "failedTitle": "Export mislukt",
         "failedDescription": "De export is mislukt door een serverfout.",
         "cancelledTitle": "Export Geannuleerd",
-        "cancelledDescription": "De export werd geannuleerd."
+        "cancelledDescription": "De export werd geannuleerd.",
+        "title": "Exporteer {name}"
     },
     "exporterTypeChoices": {
         "formatLabel": "Naar welk formaat wil je exporteren?"
@@ -563,7 +568,8 @@
         "recordSeparator": "record-scheidingsteken",
         "unitSeparator": "unit-scheidingsteken",
         "encodingLabel": "Codering",
-        "firstRowIsHeaderLabel": "Eerste rij is header"
+        "firstRowIsHeaderLabel": "Eerste rij is header",
+        "includeHeader": "Veldnamen opnemen als koptekst"
     },
     "apiDocsDatabase": {
         "pageTitle": "{name} database API documentatie",
@@ -687,7 +693,10 @@
         "addCondition": "Voorwaarde toevoegen",
         "descriptionPlaceholder": "Beschrijving",
         "addConditionGroup": "Voorwaarde groep toevoegen",
-        "showFieldAs": "Toon veld als"
+        "showFieldAs": "Toon veld als",
+        "includeAllSelectOptionsHelper": "Kies de keuzes die in het formulier moeten worden opgenomen met behulp van deze dropdown",
+        "noSelectOptions": "Er zijn geen keuzes beschikbaar.",
+        "includeAllSelectOptions": "inclusief alle keuzes"
     },
     "duplicateFieldContext": {
         "duplicate": "Dupliceer veld",
@@ -1044,5 +1053,19 @@
         "schema": "Schema",
         "description": "Synchroniseert een PostgreSQL tabel met een Baserow tabel die overeenkomt met de onderstaande gegevens. Let op dat wanneer de synchronisatie start, het alle rijen in de opgegeven tabel zal selecteren. Hoewel Baserow alleen gegevens selecteert, raden we sterk aan om de gebruiker te beperken tot een alleen-lezen verbinding.",
         "port": "Poort"
+    },
+    "configureDataSyncModal": {
+        "title": "Data sync",
+        "syncedFields": "Gesynchroniseerde velden",
+        "syncSettings": "Sync instellingen"
+    },
+    "configureDataSyncVisibleFields": {
+        "fields": "Gesynchroniseerde velden",
+        "syncTable": "Sync bij opslaan",
+        "title": "Gesynchroniseerde velden wijzigen"
+    },
+    "configureDataSyncSettings": {
+        "title": "Verander data sync",
+        "syncTable": "Sync bij opslaan"
     }
 }

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.db import connection
 
 import pytest
 import responses
@@ -25,10 +26,11 @@ from baserow.contrib.database.data_sync.models import (
 from baserow.contrib.database.data_sync.registries import DataSyncTypeRegistry
 from baserow.contrib.database.fields.exceptions import CannotDeletePrimaryField
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import LongTextField, TextField
+from baserow.contrib.database.fields.models import Field, LongTextField, TextField
 from baserow.contrib.database.views.models import GridView
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.models import TrashEntry
 
 ICAL_FEED_WITH_ONE_ITEMS = """BEGIN:VCALENDAR
 VERSION:2.0
@@ -440,6 +442,98 @@ def test_create_data_sync_table_automatically_add_unique_properties(
     assert fields[0].primary is True
     assert fields[1].name == "Start date"
     assert fields[1].primary is False
+
+
+@pytest.mark.django_db
+def test_update_data_sync_table_without_permissions(data_fixture):
+    user = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "dtend"],
+        ical_url="https://baserow.io",
+    )
+
+    with pytest.raises(UserNotInWorkspace):
+        DataSyncHandler().update_data_sync_table(
+            user=user_2,
+            data_sync=data_sync,
+            synced_properties=["uid", "dtstart", "summary"],
+            ical_url="http://localhost/ics.ics",
+        )
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.table.signals.table_updated.send")
+def test_update_data_sync_table(send_mock, data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "dtend"],
+        ical_url="https://baserow.io",
+    )
+
+    data_sync = handler.update_data_sync_table(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["uid", "dtstart", "summary"],
+        ical_url="http://localhost/ics.ics",
+    )
+
+    assert isinstance(data_sync, ICalCalendarDataSync)
+    assert data_sync.id
+    assert data_sync.table.name == "Test"
+    assert data_sync.table.database_id == database.id
+    assert data_sync.ical_url == "http://localhost/ics.ics"
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 3
+    assert fields[0].name == "Unique ID"
+    assert isinstance(fields[0], TextField)
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+    assert fields[0].immutable_type is True
+    assert fields[0].immutable_properties is True
+    assert fields[1].name == "Start date"
+    assert fields[1].primary is False
+    assert fields[1].date_format == "ISO"
+    assert fields[1].date_include_time is True
+    assert fields[1].date_time_format == "24"
+    assert fields[1].date_show_tzinfo is True
+    assert fields[1].read_only is True
+    assert fields[1].immutable_properties is False
+    assert fields[2].name == "Summary"
+    assert fields[2].primary is False
+    assert fields[2].read_only is True
+
+    properties = DataSyncSyncedProperty.objects.filter(data_sync=data_sync).order_by(
+        "id"
+    )
+    assert len(properties) == 3
+    assert properties[0].key == "uid"
+    assert properties[0].field_id == fields[0].id
+    assert properties[1].key == "dtstart"
+    assert properties[1].field_id == fields[1].id
+    assert properties[2].key == "summary"
+    assert properties[2].field_id == fields[2].id
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["table"].id == data_sync.table_id
+    assert send_mock.call_args[1]["user"] == user
 
 
 @pytest.mark.django_db
@@ -1435,6 +1529,58 @@ def test_set_data_sync_synced_properties(data_fixture):
 
 @pytest.mark.django_db
 @responses.activate
+def test_set_data_sync_synced_properties_correctly_removing_field(data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_TWO_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart"],
+        ical_url="https://baserow.io/ical.ics",
+    )
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            SELECT COUNT(*) FROM information_schema.columns
+            WHERE table_name = 'database_table_{data_sync.table_id}'"""
+        )
+        before_number_of_columns = cursor.fetchone()[0]
+
+    handler.set_data_sync_synced_properties(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["uid"],
+    )
+
+    assert Field.objects_and_trash.filter(table=data_sync.table).count() == 1
+    assert TrashEntry.objects.all().count() == 0
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            SELECT COUNT(*) FROM information_schema.columns
+            WHERE table_name = 'database_table_{data_sync.table_id}'"""
+        )
+        after_number_of_columns = cursor.fetchone()[0]
+
+    assert after_number_of_columns == before_number_of_columns - 1
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_delete_sync_data_sync_table(data_fixture):
     responses.add(
         responses.GET,
@@ -1523,6 +1669,37 @@ def test_delete_non_unique_primary_data_sync_field(data_fixture):
     FieldHandler().delete_field(user, non_unique_primary_field)
 
     assert data_sync.table.field_set.all().count() == 3
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_delete_field_and_then_sync(data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart"],
+        ical_url="https://baserow.io/ical.ics",
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    FieldHandler().delete_field(user, fields[1])
+
+    data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    assert data_sync.last_error is None
 
 
 @pytest.mark.field_duration

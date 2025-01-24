@@ -7,6 +7,8 @@ from baserow_enterprise.sso.saml.exceptions import InvalidSamlResponse
 
 
 class SAMLResponseSerializer(serializers.Serializer):
+    query_param_serializer = SsoLoginRequestSerializer
+
     SAMLResponse = serializers.CharField(
         required=True, help_text="The encoded SAML response from the IdP."
     )
@@ -25,11 +27,12 @@ class SAMLResponseSerializer(serializers.Serializer):
         parsed_relay_state = urlparse(relay_state)
         query_params = dict(parse_qsl(parsed_relay_state.query))
         if query_params:
-            request_data_serializer = SsoLoginRequestSerializer(data=query_params)
+            request_data_serializer = self.query_param_serializer(data=query_params)
             if request_data_serializer.is_valid():
                 data["saml_request_data"] = request_data_serializer.validated_data
             else:
                 raise InvalidSamlResponse("Invalid RelayState query parameters.")
+
         data["RelayState"] = parsed_relay_state._replace(query="").geturl()
 
         return data

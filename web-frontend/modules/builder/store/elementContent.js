@@ -183,8 +183,6 @@ const actions = {
       return
     }
 
-    commit('SET_LOADING', { element, value: true })
-
     try {
       if (serviceType.isValid(dataSource)) {
         let rangeToFetch = range
@@ -198,7 +196,6 @@ const actions = {
 
           // Everything is already loaded we can quit now
           if (!rangeToFetch) {
-            commit('SET_LOADING', { element, value: false })
             return
           }
           rangeToFetch = [rangeToFetch[0], rangeToFetch[1] - rangeToFetch[0]]
@@ -209,6 +206,7 @@ const actions = {
           service = PublishedBuilderService
         }
 
+        commit('SET_LOADING', { element, value: true })
         const { data } = await service(this.app.$client).dispatch(
           dataSource.id,
           dispatchContext,
@@ -236,10 +234,13 @@ const actions = {
         } else {
           // The service type returns a single row of results, we'll set the
           // content using the element's schema property. Not how there's no
-          // range for paging, all results are set at once.
+          // range for paging, all results are set at once. We default to an
+          // empty array if the property doesn't exist, this will happen if
+          // the property has been removed since the initial configuration.
+          const propertyValue = data[element.schema_property] || []
           commit('SET_CONTENT', {
             element,
-            value: data[element.schema_property],
+            value: propertyValue,
           })
         }
 

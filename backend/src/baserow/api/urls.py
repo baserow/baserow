@@ -2,8 +2,13 @@ from django.urls import include, path
 
 from drf_spectacular.views import SpectacularRedocView
 
-from baserow.core.registries import application_type_registry, plugin_registry
+from baserow.core.registries import (
+    application_type_registry,
+    auth_provider_type_registry,
+    plugin_registry,
+)
 
+from .admin import urls as admin_urls
 from .applications import urls as application_urls
 from .auth_provider import urls as auth_provider_urls
 from .health import urls as health_urls
@@ -43,6 +48,7 @@ urlpatterns = (
         path("snapshots/", include(snapshots_urls, namespace="snapshots")),
         path("_health/", include(health_urls, namespace="health")),
         path("notifications/", include(notifications_urls, namespace="notifications")),
+        path("admin/", include(admin_urls, namespace="admin")),
         path(
             "",
             include(integrations_urls, namespace="integrations"),
@@ -53,5 +59,6 @@ urlpatterns = (
         ),
     ]
     + application_type_registry.api_urls
+    + auth_provider_type_registry.api_urls
     + plugin_registry.api_urls
 )

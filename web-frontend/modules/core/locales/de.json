@@ -814,5 +814,109 @@
     },
     "templateCard": {
         "viewMore": "Mehr anzeigen"
+    },
+    "user": {
+        "isStaff": "Ist Personal",
+        "isWorkspaceAdmin": "Ist Arbeitsbereichadministrator",
+        "active": "Aktiv",
+        "deactivated": "Deaktiviert"
+    },
+    "adminType": {
+        "dashboard": "Dashboard",
+        "users": "Benutzer",
+        "workspaces": "Arbeitsbereiche"
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "Alle Arbeitsbereiche",
+        "id": "ID",
+        "name": "Name",
+        "members": "Mitglieder",
+        "applications": "Anwendungen",
+        "created": "Erstellt",
+        "rowCount": "Anzahl der Zeilen",
+        "freeUsers": "Kostenlose Benutzer",
+        "seatsTaken": "Sitze besetzt",
+        "storageUsage": "Verwendeter Speicherplatz (MB)",
+        "usageHelpText": "Wird nachts berechnet, wenn die Einstellung \"Arbeitsbereichsnutzung verfolgen\" aktiviert ist"
+    },
+    "editWorkspaceContext": {
+        "delete": "Dauerhaft löschen"
+    },
+    "deleteWorkspaceModal": {
+        "title": "Löschen {name}",
+        "confirmation": "Sind Sie sicher, dass Sie den Arbeitsbereich löschen wollen: {name}?",
+        "comment": "Der Arbeitsbereich wird dauerhaft gelöscht, einschließlich der zugehörigen Anwendungen. Es ist nicht möglich, diese Aktion rückgängig zu machen.",
+        "delete": "Arbeitsbereich {name} löschen"
+    },
+    "activeUsers": {
+        "newUsers": "Neuer Benutzer",
+        "activeUsers": "Aktive Nutzer"
+    },
+    "usersAdminTable": {
+        "allUsers": "Alle Benutzer",
+        "id": "ID",
+        "username": "Benutzername",
+        "name": "Name",
+        "workspaces": "Arbeitsbereiche",
+        "lastLogin": "Zuletzt angemeldet",
+        "dateJoined": "Angemeldet",
+        "active": "Aktiv"
+    },
+    "editUserContext": {
+        "changePassword": "Passwort ändern",
+        "delete": "Dauerhaft löschen",
+        "impersonate": "Imitieren"
+    },
+    "changePasswordForm": {
+        "newPassword": "Neues Passwort",
+        "repeatPassword": "Passwort wiederholen",
+        "changePassword": "Passwort ändern",
+        "error": {
+            "doesntMatch": "Dieses Feld muss mit Ihrem Passwortfeld übereinstimmen."
+        }
+    },
+    "userForm": {
+        "fullName": "Vollständiger Name",
+        "email": "Email",
+        "isActive": "Ist aktiv",
+        "warning": {
+            "changeEmail": "Die Änderung der E-Mail-Adresse des Benutzers bedeutet, dass er sich mit der neuen E-Mail-Adresse anmelden muss, wenn er sich anmeldet. Dies muss dem Benutzer mitgeteilt werden.",
+            "inactiveUser": "Wenn ein Benutzer als inaktiv markiert ist, kann er sich nicht mehr anmelden.",
+            "userStaff": "Wenn Sie einen Benutzer zu einem Mitarbeiter machen, erhält dieser Administratorenzugriff auf alle Benutzer und Arbeitsbereiche sowie die Möglichkeit, Ihren eigenen Mitarbeitern die Berechtigungen zu entziehen."
+        },
+        "error": {
+            "invalidName": "Bitte geben Sie einen gültigen vollständigen Namen ein. Er muss länger als 2 Buchstaben und kürzer als 150 sein.",
+            "invalidEmail": "Bitte geben Sie eine gültige E-Mail Adresse ein."
+        }
+    },
+    "changeUserPasswordModal": {
+        "changePassword": "Passwort für {Benutzername} ändern"
+    },
+    "deleteUserModal": {
+        "title": "Löschen {username}",
+        "confirmation": "Sind Sie sicher, dass Sie den Benutzer löschen möchten: {name}?",
+        "comment1": "Das Benutzerkonto wird gelöscht, aber die Arbeitsbereiche, in denen der Benutzer Mitglied ist, bleiben bestehen. Die Benutzergruppe wird nicht gelöscht, auch wenn dieser Benutzer der letzte Benutzer in dem Arbeitsbereich ist. Durch das Löschen des letzten Benutzers in einem Arbeitsbereich wird verhindert, dass jemand auf diesen Arbeitsbereich zugreifen kann.",
+        "comment2": "Nach dem Löschen eines Benutzers ist es möglich, dass sich ein neuer Benutzer mit der E-Mail-Adresse des gelöschten Benutzers erneut anmeldet. Um sicherzustellen, dass sie sich nicht erneut anmelden können, deaktivieren Sie den Benutzer und löschen Sie ihn nicht.",
+        "delete": "Benutzer {username} löschen"
+    },
+    "editUserModal": {
+        "delete": "Benutzer löschen",
+        "edit": "Bearbeiten { username }"
+    },
+    "adminDashboard": {
+        "title": "Dashboard",
+        "totals": "Summen",
+        "totalUsers": "Anzahl der Benutzer",
+        "totalWorkspaces": "Gesamtzahl der Arbeitsbereiche",
+        "totalApplications": "Gesamtanzahl der Anträge",
+        "newUsers": "Neue Benutzer",
+        "newUsers24h": "Neue Benutzer in den letzten 24 Stunden",
+        "newUsers7days": "Neue Benutzer in den letzten 7 Tagen",
+        "newUsers30days": "Neue Benutzer in den letzten 30 Tagen",
+        "activeUsers": "Aktive Benutzer",
+        "activeUsers24h": "Aktive Benutzer in den letzten 24 Stunden",
+        "activeUsers7days": "Aktive Benutzer in den letzten 7 Tagen",
+        "activeUsers30days": "Aktive Benutzer in den letzten 30 Tagen",
+        "viewAll": "Alle anzeigen"
     }
 }

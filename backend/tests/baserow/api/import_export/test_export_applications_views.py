@@ -159,6 +159,7 @@ def test_exporting_empty_workspace(
             assert json_data == {
                 "version": EXPORT_FORMAT_VERSION,
                 "baserow_version": VERSION,
+                "checksums": {},
                 "applications": {},
                 "configuration": {"only_structure": False},
                 "total_files": 2,
@@ -246,10 +247,8 @@ def test_exporting_workspace_with_single_empty_database(
             assert exported_database["id"] == database.id
             assert exported_database["type"] == "database"
             assert exported_database["name"] == database_name
-            assert exported_database["files"]["data"]["file"] is not None
-            assert exported_database["files"]["data"]["checksum"] is not None
-            assert exported_database["files"]["media"]["file"] is not None
-            assert exported_database["files"]["media"]["checksum"] is not None
+            assert exported_database["files"]["schema"] is not None
+            assert exported_database["files"]["schema"] in json_data["checksums"]
 
 
 @pytest.mark.import_export_workspace

@@ -1,15 +1,6 @@
 {
     "premium": {
-        "user": {
-            "isStaff": "Is personeel",
-            "isWorkspaceAdmin": "Is werkruimte beheerder",
-            "active": "Ingeschakeld",
-            "deactivated": "Uitgeschakeld"
-        },
         "adminType": {
-            "dashboard": "Dashboard",
-            "users": "Gebruikers",
-            "workspaces": "Werkruimtes",
             "licenses": "Licenties"
         },
         "viewType": {
@@ -19,7 +10,8 @@
         },
         "exporterType": {
             "json": "Exporteren naar JSON",
-            "xml": "Exporteren naar XML"
+            "xml": "Exporteren naar XML",
+            "excel": "Exporteren naar Excel"
         },
         "deactivated": "Beschikbaar in de premium versie"
     },
@@ -70,83 +62,6 @@
     "registerLicenseForm": {
         "licenseKey": "Licentiesleutel"
     },
-    "workspacesAdminTable": {
-        "allWorkspaces": "Alle werkruimtes",
-        "id": "ID",
-        "name": "Naam",
-        "members": "Leden",
-        "applications": "Applicaties",
-        "created": "Aangemaakt",
-        "seatsTaken": "Plekken bezet",
-        "usageHelpText": "Wordt 's nachts berekend wanneer de instelling voor het gebruik van werkruimtes is ingeschakeld",
-        "rowCount": "Aantal rijen",
-        "freeUsers": "Gratis gebruikers",
-        "storageUsage": "Opslag gebruikt (MB)"
-    },
-    "editWorkspaceContext": {
-        "delete": "Permanent verwijderen"
-    },
-    "deleteWorkspaceModal": {
-        "title": "Verwijder {name}",
-        "confirmation": "Weet je zeker dat je de werkruimte: {name} wilt verwijderen?",
-        "comment": "De werkruimte wordt permanent verwijderd, inclusief de bijbehorende applicaties. Het is niet mogelijk deze actie ongedaan te maken.",
-        "delete": "Werkruimte {name} verwijderen"
-    },
-    "activeUsers": {
-        "newUsers": "Nieuwe gebruikers",
-        "activeUsers": "Actieve gebruikers"
-    },
-    "usersAdminTable": {
-        "allUsers": "Alle gebruikers",
-        "id": "ID",
-        "username": "Gebruikersnaam",
-        "name": "Naam",
-        "workspaces": "Werkruimtes",
-        "lastLogin": "Laatste login",
-        "dateJoined": "Ingeschreven",
-        "active": "Ingeschakeld"
-    },
-    "editUserContext": {
-        "changePassword": "Wachtwoord wijzigen",
-        "delete": "Permanent verwijderen",
-        "impersonate": "Imiteer"
-    },
-    "changePasswordForm": {
-        "newPassword": "Nieuw wachtwoord",
-        "repeatPassword": "Herhaal wachtwoord",
-        "changePassword": "Wachtwoord wijzigen",
-        "error": {
-            "doesntMatch": "Dit veld moet overeenkomen met je wachtwoordveld."
-        }
-    },
-    "userForm": {
-        "fullName": "Volledige naam",
-        "email": "E-mail",
-        "isActive": "Is actief",
-        "warning": {
-            "changeEmail": "Als het e-mailadres van deze gebruiker wordt gewijzigd, moet hij/zij dit nieuwe e-mailadres gebruiken wanneer hij/zij zich aanmeldt. Dit moet aan de gebruiker worden gecommuniceerd.",
-            "inactiveUser": "Wanneer een gebruiker als inactief wordt gemarkeerd, kan deze zich niet meer aanmelden.",
-            "userStaff": "Door de gebruiker personeel te maken, krijgt deze beheerderstoegang tot alle gebruikers en alle werkruimtes, met de mogelijkheid om de eigen personeelsrechten in te trekken."
-        },
-        "error": {
-            "invalidName": "Voer een geldige volledige naam in. De naam moet langer zijn dan 2 letters en minder dan 150.",
-            "invalidEmail": "Voer een geldig e-mail adres in."
-        }
-    },
-    "changeUserPasswordModal": {
-        "changePassword": "Wijzig wachtwoord voor {gebruikersnaam}"
-    },
-    "deleteUserModal": {
-        "title": "Verwijder {gebruikersnaam}",
-        "confirmation": "Weet je zeker dat je de gebruiker: {name} wilt verwijderen?",
-        "comment1": "De gebruikersaccount wordt verwijderd, maar de werkruimtes waar die gebruiker lid van is blijven bestaan. De gebruikers werkruimte wordt niet verwijderd, zelfs als deze gebruiker de laatste gebruiker in de werkruimtes is. Door de laatste gebruiker in een werkruimte te verwijderen kan niemand meer toegang krijgen tot die werkruimte.",
-        "comment2": "Na het verwijderen van een gebruiker is het mogelijk dat een nieuwe gebruiker zich opnieuw aanmeldt met het e-mailadres van de verwijderde gebruiker. Om ervoor te zorgen dat ze zich niet opnieuw kunnen aanmelden, deactiveer de gebruiker in plaats van deze te verwijderen.",
-        "delete": "Verwijder gebruiker {gebruikersnaam}"
-    },
-    "editUserModal": {
-        "delete": "Gebruiker verwijderen",
-        "edit": "Bewerk { gebruikersnaam }"
-    },
     "tableJSONExporter": {
         "encoding": "Codering"
     },
@@ -176,22 +91,6 @@
         "uncategorized": "Zonder categorie",
         "tryAgain": "Probeer het nog eens",
         "new": "Nieuw"
-    },
-    "dashboard": {
-        "title": "Dashboard",
-        "totals": "Totalen",
-        "totalUsers": "Totaal gebruikers",
-        "totalWorkspaces": "Totaal werkruimte",
-        "totalApplications": "Totaal aanvragen",
-        "newUsers": "Nieuwe gebruikers",
-        "newUsers24h": "Nieuwe gebruikers laatste 24 uur",
-        "newUsers7days": "Nieuwe gebruikers laatste 7 dagen",
-        "newUsers30days": "Nieuwe gebruikers laatste 30 dagen",
-        "activeUsers": "Actieve gebruikers",
-        "activeUsers24h": "Actieve gebruikers laatste 24 uur",
-        "activeUsers7days": "Actieve gebruikers laatste 7 dagen",
-        "activeUsers30days": "Actieve gebruikers laatste 30 dagen",
-        "viewAll": "Alles bekijken"
     },
     "licenses": {
         "titleNoLicenses": "Geen licenties gevonden",
@@ -448,5 +347,8 @@
         "text": "Tekst",
         "textDescription": "Genereert vrije tekst op basis van de prompt.",
         "choiceDescription": "Kiest slechts één van de veldopties."
+    },
+    "tableExcelExporter": {
+        "includeHeader": "Veldnamen opnemen als koptekst"
     }
 }

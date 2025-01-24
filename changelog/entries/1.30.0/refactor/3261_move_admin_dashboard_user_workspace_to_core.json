@@ -1,0 +1,7 @@
+{
+  "type": "refactor",
+  "message": "Moved instance admin dashboard, user, and workspace to the open source core.",
+  "issue_number": 3241,
+  "bullet_points": [],
+  "created_at": "2024-12-06"
+}

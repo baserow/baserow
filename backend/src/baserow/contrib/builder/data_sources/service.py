@@ -218,25 +218,34 @@ class DataSourceService:
             if page.builder_id != data_source.page.builder_id:
                 raise PageNotInBuilder(page.id)
 
+        # The service type we're using for preparing the values. If we're not
+        # changing service types, then it's `service_type`, otherwise below we
+        # swap to `new_service_type` instead.
+        service_type_for_preparation = service_type
+
         new_service_type = kwargs.get("new_service_type", None)
         if new_service_type:
             # Verify the new `service_type` is dispatch-able by DISPATCH_DATA_SOURCE.
             if new_service_type.dispatch_type != DispatchTypes.DISPATCH_DATA_SOURCE:
                 raise InvalidServiceTypeDispatchSource()
+            # If we're changing service types, we need to prepare the values with
+            # the new one, instead of the old one.
+            service_type_for_preparation = new_service_type
 
-        if service_type:
+        if service_type_for_preparation:
             service = data_source.service.specific if data_source.service_id else None
-            prepared_values = service_type.prepare_values(
+            prepared_values = service_type_for_preparation.prepare_values(
                 kwargs, user, instance=service
             )
-            prepared_values["service_type"] = service_type
         else:
             prepared_values = kwargs
 
         if page is not None:
             prepared_values["page"] = page
 
-        data_source = self.handler.update_data_source(data_source, **prepared_values)
+        data_source = self.handler.update_data_source(
+            data_source, service_type, **prepared_values
+        )
 
         data_source_updated.send(self, data_source=data_source, user=user)
 
@@ -305,9 +314,9 @@ class DataSourceService:
 
         results = self.handler.dispatch_data_sources(data_sources, dispatch_context)
 
-        # When public_formula_fields is None, it indicates that filtering
+        # When public_allowed_properties is None, it indicates that filtering
         # shouldn't be applied, thus the results are returned without changes.
-        if dispatch_context.public_formula_fields is None:
+        if dispatch_context.public_allowed_properties is None:
             return results
 
         # We filter the fields before returning the result
@@ -317,7 +326,7 @@ class DataSourceService:
                 new_results[data_source.id] = results[data_source.id]
                 continue
 
-            field_names = dispatch_context.public_formula_fields.get(
+            field_names = dispatch_context.public_allowed_properties.get(
                 "external", {}
             ).get(data_source.service.id, [])
 

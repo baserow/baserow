@@ -310,8 +310,9 @@ def test_update_view_group_by(api_client, data_fixture):
     group_by_1 = data_fixture.create_view_group_by(user=user, order="DESC")
     group_by_2 = data_fixture.create_view_group_by()
     group_by_3 = data_fixture.create_view_group_by(view=group_by_1.view, order="ASC")
-    field_1 = data_fixture.create_text_field(table=group_by_1.view.table)
-    link_row_field = data_fixture.create_link_row_field(table=group_by_1.view.table)
+    table = group_by_1.view.table
+    field_1 = data_fixture.create_text_field(table=table)
+    password_field = data_fixture.create_password_field(table=table)
     field_2 = data_fixture.create_text_field()
 
     response = api_client.patch(
@@ -371,7 +372,7 @@ def test_update_view_group_by(api_client, data_fixture):
             "api:database:views:group_by_item",
             kwargs={"view_group_by_id": group_by_1.id},
         ),
-        {"field": link_row_field.id},
+        {"field": password_field.id},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )

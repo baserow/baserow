@@ -42,14 +42,24 @@ class DataSyncProperty(ABC):
     formatted, but `False` for select options because those should be a fixed set.
     """
 
-    def __init__(self, key, name):
+    initially_selected = True
+    """
+    Indicates whether the property must automatically be toggled on before the users
+    creates the data sync. This can be used if there are many properties, the user must
+    be automatically use them all.
+    """
+
+    def __init__(self, key, name, initially_selected=True):
         """
         :param key: A unique key that must never be changed.
         :param name: Human-readable name of the property.
+        :param initially_selected: If true, then the property is suggested to be
+            enabled.
         """
 
         self.key = key
         self.name = name
+        self.initially_selected = initially_selected
 
     @abstractmethod
     def to_baserow_field(self) -> Field:

@@ -64,6 +64,21 @@ export const routes = [
     component: path.resolve(__dirname, 'pages/admin/health.vue'),
   },
   {
+    name: 'admin-dashboard',
+    path: '/admin/dashboard',
+    component: path.resolve(__dirname, 'pages/admin/dashboard.vue'),
+  },
+  {
+    name: 'admin-users',
+    path: '/admin/users',
+    component: path.resolve(__dirname, 'pages/admin/users.vue'),
+  },
+  {
+    name: 'admin-workspaces',
+    path: '/admin/workspaces',
+    component: path.resolve(__dirname, 'pages/admin/workspaces.vue'),
+  },
+  {
     name: 'style-guide',
     path: '/style-guide',
     component: path.resolve(__dirname, 'pages/styleGuide.vue'),

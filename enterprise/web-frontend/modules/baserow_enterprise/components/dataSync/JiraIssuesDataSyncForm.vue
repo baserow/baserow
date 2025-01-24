@@ -13,6 +13,7 @@
         v-model="values.jira_url"
         size="large"
         :error="fieldHasErrors('jira_url')"
+        :disabled="disabled"
         @focus.once="$event.target.select()"
         @blur="$v.values.jira_url.$touch()"
       />
@@ -39,6 +40,7 @@
         v-model="values.jira_username"
         size="large"
         :error="fieldHasErrors('jira_username')"
+        :disabled="disabled"
         @focus.once="$event.target.select()"
         @blur="$v.values.jira_username.$touch()"
       />
@@ -59,6 +61,14 @@
       required
       small-label
       class="margin-bottom-2"
+      :protected-edit="update"
+      @enabled-protected-edit="allowedValues.push('jira_api_token')"
+      @disable-protected-edit="
+        ;[
+          allowedValues.splice(allowedValues.indexOf('jira_api_token'), 1),
+          delete values['jira_api_token'],
+        ]
+      "
     >
       <template #label>{{ $t('jiraIssuesDataSync.apiToken') }}</template>
       <FormInput
@@ -66,6 +76,7 @@
         v-model="values.jira_api_token"
         size="large"
         :error="fieldHasErrors('jira_api_token')"
+        :disabled="disabled"
         @focus.once="$event.target.select()"
         @blur="$v.values.jira_api_token.$touch()"
       />
@@ -83,7 +94,6 @@
 
     <FormGroup
       :helper-text="$t('jiraIssuesDataSync.projectKeyHelper')"
-      required
       small-label
     >
       <template #label>{{ $t('jiraIssuesDataSync.projectKey') }}</template>
@@ -91,6 +101,7 @@
         ref="jira_project_key"
         v-model="values.jira_project_key"
         size="large"
+        :disabled="disabled"
         @focus.once="$event.target.select()"
       />
     </FormGroup>
@@ -98,34 +109,50 @@
 </template>
 
 <script>
-import { required, url } from 'vuelidate/lib/validators'
+import { required, url, requiredIf } from 'vuelidate/lib/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'JiraIssuesDataSyncForm',
   mixins: [form],
+  props: {
+    update: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
   data() {
+    const allowedValues = ['jira_url', 'jira_username', 'jira_project_key']
+    if (!this.update) {
+      allowedValues.push('jira_api_token')
+    }
     return {
-      allowedValues: [
-        'jira_url',
-        'jira_username',
-        'jira_api_token',
-        'jira_project_key',
-      ],
+      allowedValues,
       values: {
         jira_url: '',
         jira_username: '',
-        jira_api_token: '',
         jira_project_key: '',
       },
     }
   },
-  validations: {
-    values: {
-      jira_url: { required, url },
-      jira_username: { required },
-      jira_api_token: { required },
-    },
+  validations() {
+    return {
+      values: {
+        jira_url: { required, url },
+        jira_username: { required },
+        jira_api_token: {
+          required: requiredIf(() => {
+            return this.allowedValues.includes('jira_api_token')
+          }),
+        },
+      },
+    }
   },
 }
 </script>

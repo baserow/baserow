@@ -42,10 +42,10 @@
       <div class="col col-6">
         <FormGroup
           small-label
-          :label="$t('tableCSVExporter.firstRowIsHeaderLabel')"
+          :label="$t('tableCSVExporter.includeHeader')"
           required
         >
-          <Checkbox v-model="values.csv_first_row_header" :disabled="loading">{{
+          <Checkbox v-model="values.csv_include_header" :disabled="loading">{{
             $t('common.yes')
           }}</Checkbox>
         </FormGroup>
@@ -73,7 +73,7 @@ export default {
   data() {
     return {
       values: {
-        csv_first_row_header: true,
+        csv_include_header: true,
         export_charset: 'utf-8',
         csv_column_separator: ',',
       },

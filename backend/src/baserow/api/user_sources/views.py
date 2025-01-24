@@ -21,6 +21,7 @@ from baserow.api.applications.errors import (
 from baserow.api.authentication import JSONWebTokenAuthentication
 from baserow.api.decorators import (
     map_exceptions,
+    require_request_data_type,
     validate_body,
     validate_body_custom_fields,
 )
@@ -293,9 +294,10 @@ class UserSourceView(APIView):
             AppAuthenticationProviderTypeDoesNotExist: ERROR_AUTH_PROVIDER_TYPE_DOES_NOT_EXIST,
         }
     )
+    @require_request_data_type(dict)
     def patch(self, request, user_source_id: int):
         """
-        Update an user_source.
+        Update a user_source.
         """
 
         user_source = UserSourceHandler().get_user_source_for_update(user_source_id)

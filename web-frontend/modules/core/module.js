@@ -11,6 +11,7 @@ import de from './locales/de.json'
 import es from './locales/es.json'
 import it from './locales/it.json'
 import pl from './locales/pl.json'
+import ko from './locales/ko.json'
 import { setDefaultResultOrder } from 'dns'
 const { readFileSync } = require('fs')
 
@@ -143,6 +144,7 @@ export default function CoreModule(options) {
     { code: 'es', name: 'Español', file: 'es.json' },
     { code: 'it', name: 'Italiano', file: 'it.json' },
     { code: 'pl', name: 'Polski (Beta)', file: 'pl.json' },
+    { code: 'ko', name: '한국인', file: 'ko.json' },
   ]
 
   this.requireModule([
@@ -164,7 +166,7 @@ export default function CoreModule(options) {
   ])
 
   this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
-    additionalMessages.push({ en, fr, nl, de, es, it, pl })
+    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
   })
 
   // Serve the static directory
@@ -234,6 +236,8 @@ export default function CoreModule(options) {
   // Add a default authentication middleware. In order to add a new middleware the
   // middleware.js file has to be changed.
   this.options.router.middleware.push('authentication')
+
+  this.options.router.middleware.push('impersonate')
 
   // This template will output the contents of the original Iconoir scss file, but
   // it changes increases the default stroke with for all icons.

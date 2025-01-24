@@ -1,17 +1,40 @@
 <template>
   <div>
-    <div class="select-row-modal__search">
-      <i class="iconoir-search select-row-modal__search-icon"></i>
-      <input
-        ref="search"
-        v-model="visibleSearch"
-        type="text"
-        :placeholder="$t('selectRowContent.search')"
-        class="select-row-modal__search-input"
-        @input="doSearch(visibleSearch, false)"
-        @keydown.enter="doSearch(visibleSearch, true)"
-        @keydown.up.down="$refs.search.blur()"
-      />
+    <div class="select-row-modal__head">
+      <div class="select-row-modal__search">
+        <i class="iconoir-search select-row-modal__search-icon"></i>
+        <input
+          ref="search"
+          v-model="visibleSearch"
+          type="text"
+          :placeholder="$t('selectRowContent.search')"
+          class="select-row-modal__search-input"
+          @input="doSearch(visibleSearch, false)"
+          @keydown.enter="doSearch(visibleSearch, true)"
+          @keydown.up.down="$refs.search.blur()"
+        />
+      </div>
+      <div class="select-row-modal__fields">
+        <Button
+          ref="fieldsButton"
+          size="tiny"
+          type="secondary"
+          icon="iconoir-eye-off"
+          @click="toggleFieldsContext"
+        >
+          {{ $t('selectRowContent.hideFields') }}
+        </Button>
+        <ViewFieldsContext
+          ref="fieldsContext"
+          :database="{}"
+          :view="{}"
+          :fields="fields || []"
+          :field-options="fieldOptionsIncludingOverride"
+          @update-all-field-options="updateAllFieldOptions"
+          @update-field-options-of-field="updateFieldOptionsOfField"
+          @update-order="orderFieldOptions"
+        ></ViewFieldsContext>
+      </div>
     </div>
     <div
       class="select-row-modal__rows"
@@ -23,6 +46,7 @@
         v-if="metaDataLoaded && firstPageLoaded"
         :fixed-fields="[primary]"
         :fields="fields"
+        :field-options="fieldOptionsIncludingOverride"
         :rows="rows"
         :full-height="true"
         :can-add-row="true"
@@ -33,6 +57,7 @@
         :show-row-id="true"
         @add-row="$refs.rowCreateModal.show()"
         @row-click="select($event)"
+        @update-field-width="updateFieldWidth"
       >
         <template #footLeft>
           <Paginator
@@ -60,6 +85,7 @@
 
 <script>
 import debounce from 'lodash/debounce'
+import merge from 'lodash/extend'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import FieldService from '@baserow/modules/database/services/field'
@@ -72,17 +98,19 @@ import Paginator from '@baserow/modules/core/components/Paginator'
 import RowCreateModal from '@baserow/modules/database/components/row/RowCreateModal'
 import { prepareRowForRequest } from '@baserow/modules/database/utils/row'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
-import {
-  filterVisibleFieldsFunction,
-  sortFieldsByOrderAndIdFunction,
-} from '@baserow/modules/database/utils/view'
 import { GridViewType } from '@baserow/modules/database/viewTypes'
 import SimpleGrid from '@baserow/modules/database/components/view/grid/SimpleGrid.vue'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
+import ViewFieldsContext from '@baserow/modules/database/components/view/ViewFieldsContext'
+import { clone } from '@baserow/modules/core/utils/object'
+import { getData, setData } from '@baserow/modules/core/utils/indexedDB'
+
+const databaseName = 'SelectRowContent'
+const storeName = 'FieldOptions'
 
 export default {
   name: 'SelectRowContent',
-  components: { Paginator, RowCreateModal, SimpleGrid },
+  components: { ViewFieldsContext, Paginator, RowCreateModal, SimpleGrid },
   props: {
     tableId: {
       type: Number,
@@ -113,6 +141,11 @@ export default {
       required: false,
       default: () => ({}),
     },
+    persistentFieldOptionsKey: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   data() {
     return {
@@ -125,6 +158,7 @@ export default {
       firstPageLoaded: false,
       primary: null,
       fields: null,
+      fieldOptions: {},
       rows: [],
       search: '',
       visibleSearch: '',
@@ -133,6 +167,7 @@ export default {
       lastHoveredRow: null,
       addRowHover: false,
       searchDebounce: null,
+      fieldOptionsOverride: {},
     }
   },
   computed: {
@@ -165,6 +200,54 @@ export default {
     },
     selectedRows() {
       return this.value.map(({ id }) => id)
+    },
+    /**
+     * Merges the fieldOptions and fieldOptionsOverride deep, so that we're visually
+     * rendering what the user has configured.
+     */
+    fieldOptionsIncludingOverride() {
+      const fieldOptions = clone(this.fieldOptions)
+      Object.keys(this.fieldOptionsOverride).forEach((key) => {
+        if (!Object.prototype.hasOwnProperty.call(fieldOptions, key)) {
+          fieldOptions[key] = {}
+        }
+        fieldOptions[key] = merge(
+          {},
+          fieldOptions[key],
+          this.fieldOptionsOverride[key]
+        )
+      })
+      return fieldOptions
+    },
+  },
+  watch: {
+    /**
+     * Stores the overrides into the local storage, so order, visibilty, etc only
+     * persists for the user that configured it.
+     */
+    async fieldOptionsOverride(value) {
+      // There is no need to store the values in the local storage if the persistent
+      // key is not set because we can't compute a unique key.
+      if (!this.persistentFieldOptionsKey) {
+        return
+      }
+
+      // Remove the not existing keys because the related fields might have been
+      // deleted in the meantime, and so we're keeping the local storage clean.
+      value = Object.fromEntries(
+        Object.entries(value).filter((key) => {
+          return Object.prototype.hasOwnProperty.call(this.fieldOptions, key[0])
+        })
+      )
+
+      try {
+        await setData(
+          databaseName,
+          storeName,
+          this.persistentFieldOptionsKey,
+          value
+        )
+      } catch (error) {}
     },
   },
   async mounted() {
@@ -250,9 +333,16 @@ export default {
         const {
           data: { field_options: fieldOptions },
         } = await ViewService(this.$client).fetchFieldOptions(views[0].id)
-        this.fields = this.fields
-          .filter(filterVisibleFieldsFunction(fieldOptions))
-          .sort(sortFieldsByOrderAndIdFunction(fieldOptions))
+        this.fieldOptions = fieldOptions
+
+        if (this.persistentFieldOptionsKey) {
+          const override = await getData(
+            databaseName,
+            storeName,
+            this.persistentFieldOptionsKey
+          )
+          this.fieldOptionsOverride = override || {}
+        }
       } catch (error) {
         notifyIf(error, 'view')
       }
@@ -356,22 +446,63 @@ export default {
         // state. We can do that by using the same function that is used by the
         // realtime update. (`viewType.rowCreated`)
         const view = this.$store.getters['view/getSelected']
-        const viewType = this.$registry.get('view', view.type)
-        viewType.rowCreated(
-          { store: this.$store },
-          this.table.id,
-          this.allFields,
-          rowCreated,
-          {},
-          'page/'
-        )
 
-        this.select(populateRow(rowCreated))
+        // The `view.type` check ensures that the Builder doesn't crash when
+        // creating a new row in the Data Source modal.
+        //
+        // In AB's Data Source modal, it is possible to create a new row for
+        // fields of the type "Link to table". Since there is no selected view,
+        // there is no view type.
+        if (view.type) {
+          const viewType = this.$registry.get('view', view.type)
+          viewType.rowCreated(
+            { store: this.$store },
+            this.table.id,
+            this.allFields,
+            rowCreated,
+            {},
+            'page/'
+          )
+          this.select(populateRow(rowCreated))
+        }
 
         callback()
       } catch (error) {
         callback(error)
       }
+    },
+    toggleFieldsContext() {
+      this.$refs.fieldsContext.toggle(this.$refs.fieldsButton.$el)
+    },
+    updateAllFieldOptions({ newFieldOptions, oldFieldOptions }) {
+      const override = clone(this.fieldOptionsOverride)
+      Object.keys(newFieldOptions).forEach((key) => {
+        if (!Object.prototype.hasOwnProperty.call(override, key)) {
+          override[key] = {}
+        }
+        override[key] = merge({}, override[key], newFieldOptions[key])
+      })
+      this.fieldOptionsOverride = override
+    },
+    updateFieldOptionsOfField({ field, values }) {
+      const override = clone(this.fieldOptionsOverride)
+      const key = field.id.toString()
+      override[field.id.toString()] = merge({}, override[key] || {}, values)
+      this.fieldOptionsOverride = override
+    },
+    orderFieldOptions({ order }) {
+      const override = clone(this.fieldOptionsOverride)
+      order.forEach((fieldId, index) => {
+        const id = fieldId.toString()
+        if (!Object.prototype.hasOwnProperty.call(override, id)) {
+          override[id] = {}
+        }
+        override[id].order = index
+      })
+      this.fieldOptionsOverride = override
+    },
+    updateFieldWidth({ field, width }) {
+      this.updateFieldOptionsOfField({ field, values: { width } })
     },
   },
 }

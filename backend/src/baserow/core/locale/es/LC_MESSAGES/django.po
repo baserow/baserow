@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2024-04-23 18:07+0000\n"
-"Last-Translator: gallegonovato <fran-carro@hotmail.es>\n"
+"PO-Revision-Date: 2024-12-16 15:08+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/baserow/"
 "backend-core/es/>\n"
 "Language: es\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.5-dev\n"
+"X-Generator: Weblate 5.9\n"
 
 #: src/baserow/core/action/scopes.py:9
 #, python-format
@@ -47,8 +47,8 @@ msgid ""
 "Group (%(group_id)s) name changed from \"%(original_group_name)s\" to "
 "\"%(group_name)s.\""
 msgstr ""
-"El nombre del grupo (%(group_id)s) ha cambiado de \"%(original_group_name)s"
-"\" a \"%(group_name)s.\""
+"El nombre del grupo (%(group_id)s) ha cambiado de \"%(original_group_name)s\""
+" a \"%(group_name)s.\""
 
 #: src/baserow/core/actions.py:237
 msgid "Order groups"
@@ -100,8 +100,8 @@ msgid ""
 "Application (%(application_id)s) of type %(application_type)s renamed from "
 "\"%(original_application_name)s\" to \"%(application_name)s\""
 msgstr ""
-"Aplicación (%(application_id)s) de tipo %(application_type)s renombrada de "
-"\"%(original_application_name)s\" a \"%(application_name)s\""
+"Aplicación (%(application_id)s) de tipo %(application_type)s renombrada de \""
+"%(original_application_name)s\" a \"%(application_name)s\""
 
 #: src/baserow/core/actions.py:579
 msgid "Duplicate application"
@@ -115,8 +115,8 @@ msgid ""
 "\" (%(original_application_id)s)"
 msgstr ""
 "Aplicación \"%(application_name)s\" (%(application_id)s) de tipo "
-"%(application_type)s duplicada de \"%(original_application_name)s"
-"\" (%(original_application_id)s)"
+"%(application_type)s duplicada de \"%(original_application_name)s\" "
+"(%(original_application_id)s)"
 
 #: src/baserow/core/actions.py:658
 msgid "Install template"
@@ -285,8 +285,8 @@ msgid ""
 "<strong>%(first_name)s</strong> has invited you to collaborate on <strong>"
 "%(group_name)s</strong>."
 msgstr ""
-"<strong>%(first_name)s</strong> te ha invitado a colaborar en <strong>"
-"%(group_name)s</strong>."
+"<strong>%(first_name)s</strong> te ha invitado a colaborar en "
+"<strong>%(group_name)s</strong>."
 
 #: src/baserow/core/templates/baserow/core/group_invitation.html:163
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:167

@@ -14,6 +14,7 @@ from rest_framework.serializers import Serializer
 from baserow.contrib.database.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.core.auth_provider.registries import AuthenticationProviderTypeRegistry
 from baserow.core.exceptions import SubjectTypeNotExist
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder
 
 from .exceptions import (
@@ -96,6 +97,13 @@ class ImportExportConfig:
     only_structure: bool = False
     """
     Whether or not the export should include the user data
+    """
+
+    exclude_sensitive_data: bool = True
+    """
+    When True, during an export any sensitive fields defined in the
+    `sensitive_fields` list will have their serialized values set to None. This
+    ensures that sensitive data are excluded from the exported workspace file.
     """
 
 
@@ -394,8 +402,9 @@ class ApplicationType(
         self,
         application: "Application",
         import_export_config: ImportExportConfig,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
+        progress_builder: Optional[ChildProgressBuilder] = None,
     ):
         """
         Exports the application to a serialized dict that can be imported by the
@@ -410,9 +419,13 @@ class ApplicationType(
         :type storage: Storage or None
         :param import_export_config: provides configuration options for the
             import/export process to customize how it works.
+        :param progress_builder: If provided will be used to build a child progress bar
+            and report on this methods progress to the parent of the progress_builder.
         :return: The exported and serialized application.
         :rtype: dict
         """
+
+        progress = ChildProgressBuilder.build(progress_builder, child_total=1)
 
         structure = CoreExportSerializedStructure.application(
             id=application.id,
@@ -424,6 +437,7 @@ class ApplicationType(
         structure = self.export_serialized_structure_with_registry(
             application.get_root(), application, structure, import_export_config
         )
+        progress.increment()
         return structure
 
     def import_serialized(
@@ -505,6 +519,13 @@ class ApplicationType(
 
     def enhance_queryset(self, queryset):
         return queryset
+
+    def get_default_application_urls(self, application: "Application") -> list[str]:
+        """
+        Returns the default frontend urls of the application if any.
+        """
+
+        return []
 
 
 ApplicationSubClassInstance = TypeVar(

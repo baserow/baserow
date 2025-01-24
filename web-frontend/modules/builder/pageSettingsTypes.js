@@ -1,5 +1,6 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import PageSettings from '@baserow/modules/builder/components/page/settings/PageSettings'
+import PageVisibilitySettings from '@baserow/modules/builder/components/page/settings/PageVisibilitySettings'
 
 export class PageSettingType extends Registerable {
   static getType() {
@@ -16,6 +17,10 @@ export class PageSettingType extends Registerable {
 
   get component() {
     return null
+  }
+
+  getOrder() {
+    return this.order
   }
 }
 
@@ -34,5 +39,31 @@ export class PagePageSettingsType extends PageSettingType {
 
   get component() {
     return PageSettings
+  }
+
+  getOrder() {
+    return 10
+  }
+}
+
+export class PageVisibilitySettingsType extends PageSettingType {
+  static getType() {
+    return 'page_visibility'
+  }
+
+  get name() {
+    return this.app.i18n.t('pageVisibilitySettingsTypes.pageName')
+  }
+
+  get icon() {
+    return 'iconoir-eye-empty'
+  }
+
+  get component() {
+    return PageVisibilitySettings
+  }
+
+  getOrder() {
+    return 20
   }
 }

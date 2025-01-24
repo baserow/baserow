@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fix corrupted export being created on s3 like storages",
+    "issue_number": 3197,
+    "bullet_points": [],
+    "created_at": "2024-11-15"
+}

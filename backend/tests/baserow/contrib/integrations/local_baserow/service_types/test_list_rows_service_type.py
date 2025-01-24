@@ -1,8 +1,6 @@
 from collections import defaultdict
 from unittest.mock import MagicMock, Mock, patch
 
-from django.test import override_settings
-
 import pytest
 
 from baserow.contrib.builder.data_sources.service import DataSourceService
@@ -899,72 +897,6 @@ def test_order_by_is_applied_depending_on_views_sorts(
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.integrations.local_baserow.service_types.CoreHandler")
-@override_settings(FEATURE_FLAGS=[])
-def test_only_is_not_applied_when_behind_feature_flag(mock_core_handler, data_fixture):
-    """
-    Test to ensure that the queryset's only() is not applied when the feature
-    flag is missing.
-    """
-
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    table, _, _ = data_fixture.build_table(
-        user=user,
-        columns=[
-            ("Name", "text"),
-            ("My Color", "text"),
-        ],
-        rows=[
-            ["BMW", "Blue"],
-            ["Audi", "Orange"],
-        ],
-    )
-    view = data_fixture.create_grid_view(user, table=table)
-    integration = data_fixture.create_local_baserow_integration(
-        application=page.builder, user=user
-    )
-
-    service = data_fixture.create_local_baserow_list_rows_service(
-        integration=integration,
-        view=view,
-        table=table,
-    )
-
-    service_type = LocalBaserowListRowsUserServiceType()
-
-    mock_queryset = MagicMock()
-
-    mock_objects = MagicMock()
-    mock_objects.enhance_by_fields.return_value = mock_queryset
-
-    mock_model = MagicMock()
-    mock_objects = mock_model.objects.all.return_value = mock_objects
-
-    mock_table = MagicMock()
-    mock_table.get_model.return_value = mock_model
-
-    resolved_values = {
-        "table": mock_table,
-    }
-
-    service_type.get_dispatch_search = MagicMock(return_value=None)
-    service_type.get_dispatch_filters = MagicMock(return_value=mock_queryset)
-    service_type.get_dispatch_sorts = MagicMock(return_value=(None, mock_queryset))
-
-    field_names = {
-        "all": {service.id: ["field_42", "field_43"]},
-        "external": {service.id: ["field_42", "field_43"]},
-        "internal": {service.id: ["field_42", "field_43"]},
-    }
-
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
-    service_type.dispatch_data(service, resolved_values, dispatch_context)
-
-    mock_queryset.only.assert_not_called()
-
-
-@pytest.mark.django_db
 def test_can_dispatch_table_with_deleted_field(data_fixture):
     """
     Test that we can dispatch a table when a field has been deleted but still
@@ -1006,7 +938,7 @@ def test_can_dispatch_table_with_deleted_field(data_fixture):
     # We delete the field but it should just be ignored.
     fields[1].delete()
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
     result = service.get_type().dispatch(service, dispatch_context)
 
@@ -1053,7 +985,7 @@ def test_can_dispatch_interesting_table(data_fixture):
         "internal": {},
     }
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
     # If this dispatch doesn't fail while all the fields are excluded from the result
     # means that the enhance_by_field is filtered to only used field.
@@ -1072,7 +1004,7 @@ def test_can_dispatch_interesting_table(data_fixture):
         order=0,
     )
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
     assert len(result["results"][0].keys()) == 1 + 1
 
@@ -1084,7 +1016,7 @@ def test_can_dispatch_interesting_table(data_fixture):
         service=service, field=single_select_field, order_by=SORT_ORDER_ASC, order=0
     )
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
     assert len(result["results"][0].keys()) == 1 + 1
 
     service_sort.delete()
@@ -1093,7 +1025,7 @@ def test_can_dispatch_interesting_table(data_fixture):
     service.search_query = "'A'"
     service.save()
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
     assert len(result["results"][0].keys()) == 1 + 1
 
 
@@ -1127,7 +1059,7 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
         "has_next_page": False,
     }
 
-    dispatch_data["public_formula_fields"] = field_names
+    dispatch_data["public_allowed_properties"] = field_names
 
     results = service_type.dispatch_transform(dispatch_data)
 

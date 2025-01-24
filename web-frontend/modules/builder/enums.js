@@ -12,7 +12,7 @@ import {
   UserDataProviderType,
 } from '@baserow/modules/builder/dataProviderTypes'
 
-export const PLACEMENTS = {
+export const DIRECTIONS = {
   BEFORE: 'before',
   AFTER: 'after',
   LEFT: 'left',
@@ -83,12 +83,24 @@ export const BACKGROUND_MODES = {
   FIT: 'fit',
 }
 
+export const PAGE_PLACES = {
+  HEADER: 'header',
+  CONTENT: 'content',
+  FOOTER: 'footer',
+}
+
 export const WIDTH_TYPES = {
   SMALL: { value: 'small', name: 'widthTypes.small' },
   MEDIUM: { value: 'medium', name: 'widthTypes.medium' },
   NORMAL: { value: 'normal', name: 'widthTypes.normal' },
   FULL: { value: 'full', name: 'widthTypes.fullBleed' },
   FULL_WIDTH: { value: 'full-width', name: 'widthTypes.fullWidth' },
+}
+
+export const SHARE_TYPES = {
+  ALL: 'all',
+  ONLY: 'only',
+  EXCEPT: 'except',
 }
 
 /**
@@ -153,4 +165,35 @@ export const CHOICE_OPTION_TYPES = {
 export const LINK_VARIANTS = {
   LINK: 'link',
   BUTTON: 'button',
+}
+
+export const DATE_FORMATS = {
+  EU: {
+    format: 'DD/MM/YYYY',
+    name: 'common.dateFormatEU',
+    example: '25/04/2024',
+  },
+  US: {
+    format: 'MM/DD/YYYY',
+    name: 'common.dateFormatUS',
+    example: '04/25/2024',
+  },
+  ISO: {
+    format: 'YYYY-MM-DD',
+    name: 'common.dateFormatISO',
+    example: '2024-04-25',
+  },
+}
+
+export const TIME_FORMATS = {
+  24: {
+    format: 'HH:mm',
+    name: 'common.timeFormat24Hour',
+    example: '23:00',
+  },
+  12: {
+    format: 'hh:mm A',
+    name: 'common.timeFormat12Hour',
+    example: '11:00 PM',
+  },
 }

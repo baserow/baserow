@@ -4,6 +4,7 @@ import pytest
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.pages.models import Page
 from baserow.core.user_sources.registries import user_source_type_registry
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
@@ -13,6 +14,9 @@ def data_source_fixture(data_fixture):
     """A fixture to help test the PublicDispatchDataSourceView view."""
 
     user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+
     table, fields, rows = data_fixture.build_table(
         user=user,
         columns=[
@@ -24,21 +28,29 @@ def data_source_fixture(data_fixture):
             ["Banana", "Yellow"],
             ["Cherry", "Purple"],
         ],
+        database=database,
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    builder_to = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=builder, published_to=builder_to)
+    public_page = data_fixture.create_builder_page(builder=builder_to)
+
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
+
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
     return {
         "user": user,
         "token": token,
         "page": page,
+        "public_page": public_page,
         "integration": integration,
         "table": table,
         "rows": rows,
         "fields": fields,
+        "builder_to": builder_to,
     }
 
 
@@ -78,7 +90,9 @@ def data_source_element_roles_fixture(data_fixture):
     }
 
 
-def create_user_table_and_role(data_fixture, user, builder, user_role):
+def create_user_table_and_role(
+    data_fixture, user, builder, user_role, integration=None
+):
     """Helper to create a User table with a particular user role."""
 
     # Create the user table for the user_source
@@ -96,9 +110,11 @@ def create_user_table_and_role(data_fixture, user, builder, user_role):
     )
     email_field, name_field, password_field, role_field = user_fields
 
-    integration = data_fixture.create_local_baserow_integration(
-        user=user, application=builder
-    )
+    if integration is None:
+        integration = data_fixture.create_local_baserow_integration(
+            user=user, application=builder
+        )
+
     user_source = data_fixture.create_user_source(
         user_source_type_registry.get("local_baserow").model_class,
         application=builder,
@@ -526,6 +542,325 @@ def test_dispatch_data_sources_list_rows_with_elements_and_role(
             expected_results.append({})
 
     assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        str(data_source.id): {
+            "has_next_page": False,
+            "results": expected_results,
+        },
+    }
+
+
+@pytest.mark.django_db
+def test_dispatch_data_sources_page_visibility_all_returns_elements(
+    api_client, data_fixture, data_source_fixture
+):
+    """
+    Test the DispatchDataSourcesView endpoint when the Page visibility allows
+    access to the user.
+
+    If the page's visibility is set to 'all' and the user is anonymous, the
+    endpoint should return elements.
+    """
+
+    page = data_source_fixture["page"]
+    page.visibility = Page.VISIBILITY_TYPES.ALL
+    page.save()
+
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=data_source_fixture["user"],
+        page=page,
+        integration=data_source_fixture["integration"],
+        table=data_source_fixture["table"],
+    )
+
+    # Create an element containing a formula
+    field = data_source_fixture["fields"][0]
+    data_fixture.create_builder_heading_element(
+        page=page,
+        value=f"get('data_source.{data_source.id}.0.field_{field.id}')",
+    )
+
+    url = reverse(
+        "api:builder:domains:public_dispatch_all",
+        kwargs={"page_id": page.id},
+    )
+
+    response = api_client.post(url, {}, format="json")
+
+    # Since Page visiblity is 'all', the response should contain the resolved
+    # formula even if the user is not logged in.
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        str(data_source.id): {
+            "has_next_page": False,
+            "results": [
+                {f"field_{field.id}": "Apple"},
+                {f"field_{field.id}": "Banana"},
+                {f"field_{field.id}": "Cherry"},
+            ],
+        },
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "roles",
+    [
+        [],
+        ["foo_role"],
+    ],
+)
+def test_dispatch_data_sources_page_visibility_logged_in_allow_all_returns_elements(
+    api_client, data_fixture, data_source_fixture, roles
+):
+    """
+    Test the DispatchDataSourcesView endpoint when the Page visibility allows
+    access to the user.
+
+    If the page's visibility is set to 'logged-in' and the role_type is set to
+    'allow_all', the endpoint should return elements regardless of the user's
+    current role.
+    """
+
+    page = data_source_fixture["public_page"]
+    page.visibility = Page.VISIBILITY_TYPES.LOGGED_IN
+    page.role_type = Page.ROLE_TYPES.ALLOW_ALL
+    page.roles = roles
+    page.save()
+
+    integration = data_source_fixture["integration"]
+    user = data_source_fixture["user"]
+    user_source, _ = create_user_table_and_role(
+        data_fixture,
+        user,
+        data_source_fixture["builder_to"],
+        "foo_role",
+        integration=integration,
+    )
+    user_source_user = UserSourceUser(
+        user_source, None, 1, "foo_username", "foo@bar.com"
+    )
+    user_token = user_source_user.get_refresh_token().access_token
+
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=data_source_fixture["user"],
+        page=page,
+        integration=data_source_fixture["integration"],
+        table=data_source_fixture["table"],
+    )
+
+    # Create an element containing a formula
+    field = data_source_fixture["fields"][0]
+    data_fixture.create_builder_heading_element(
+        page=page,
+        value=f"get('data_source.{data_source.id}.0.field_{field.id}')",
+    )
+
+    url = reverse(
+        "api:builder:domains:public_dispatch_all",
+        kwargs={"page_id": page.id},
+    )
+
+    response = api_client.post(
+        url, {}, format="json", HTTP_AUTHORIZATION=f"JWT {user_token}"
+    )
+
+    # Since the request was made with an anonymous user and the Page visiblity
+    # is 'logged-in', the response should *not* contain any resolved formulas.
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        str(data_source.id): {
+            "has_next_page": False,
+            "results": [
+                {f"field_{field.id}": "Apple"},
+                {f"field_{field.id}": "Banana"},
+                {f"field_{field.id}": "Cherry"},
+            ],
+        },
+    }
+
+
+@pytest.mark.django_db
+def test_dispatch_data_sources_page_visibility_logged_in_returns_no_elements_for_anon(
+    api_client, data_fixture, data_source_fixture
+):
+    """
+    Test the DispatchDataSourcesView endpoint when the Page visibility denies
+    access to the user.
+
+    If the page's visibility is set to 'logged-in' and the user is anonymous, the
+    endpoint should return zero elements.
+    """
+
+    page = data_source_fixture["page"]
+    page.visibility = Page.VISIBILITY_TYPES.LOGGED_IN
+    page.save()
+
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=data_source_fixture["user"],
+        page=page,
+        integration=data_source_fixture["integration"],
+        table=data_source_fixture["table"],
+    )
+
+    # Create an element containing a formula
+    data_fixture.create_builder_heading_element(
+        page=page,
+        value=f"get('data_source.{data_source.id}.0.field_{data_source_fixture['fields'][0].id}')",
+    )
+
+    url = reverse(
+        "api:builder:domains:public_dispatch_all",
+        kwargs={"page_id": page.id},
+    )
+
+    response = api_client.post(url, {}, format="json")
+
+    # Since the request was made with an anonymous user and the Page visiblity
+    # is 'logged-in', the response should *not* contain any resolved formulas.
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        str(data_source.id): {
+            "has_next_page": False,
+            "results": [{}] * 3,
+        },
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "user_role,role_type,roles,is_allowed",
+    [
+        (
+            "foo_role",
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            # Allowed because "foo_role" isn't excluded
+            True,
+        ),
+        (
+            "foo_role",
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["bar_role"],
+            # Allowed because "foo_role" isn't excluded
+            True,
+        ),
+        (
+            "",
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["bar_role"],
+            # Allowed because "" isn't excluded
+            True,
+        ),
+        (
+            "foo_role",
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            # Disallowed because "foo_role" is excluded
+            False,
+        ),
+        (
+            "foo_role",
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            # Allowed because "foo_role" isn't excluded
+            True,
+        ),
+        (
+            "",
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            # Disallowed because "" isn't excluded
+            False,
+        ),
+        (
+            "foo_role",
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            [],
+            # Disallowed because "foo_role" isn't excluded
+            False,
+        ),
+        (
+            "foo_role",
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            # Allowed because "foo_role" is excluded
+            True,
+        ),
+    ],
+)
+def test_dispatch_data_sources_page_visibility_logged_in_allow_all_except(
+    api_client,
+    data_fixture,
+    data_source_fixture,
+    user_role,
+    role_type,
+    roles,
+    is_allowed,
+):
+    """
+    Test the DispatchDataSourcesView endpoint when the Page visibility allows
+    access to the user.
+
+    If the page's visibility is set to 'logged-in' and the role_type is set to
+    'allow_all', the endpoint should return elements regardless of the user's
+    current role.
+    """
+
+    page = data_source_fixture["public_page"]
+    page.visibility = Page.VISIBILITY_TYPES.LOGGED_IN
+    page.role_type = role_type
+    page.roles = roles
+    page.save()
+
+    integration = data_source_fixture["integration"]
+    user = data_source_fixture["user"]
+    user_source, _ = create_user_table_and_role(
+        data_fixture,
+        user,
+        data_source_fixture["builder_to"],
+        user_role,
+        integration=integration,
+    )
+    user_source_user = UserSourceUser(
+        user_source, None, 1, "foo_username", "foo@bar.com"
+    )
+    user_token = user_source_user.get_refresh_token().access_token
+
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=data_source_fixture["table"],
+    )
+
+    # Create an element containing a formula
+    field = data_source_fixture["fields"][0]
+    data_fixture.create_builder_heading_element(
+        page=page,
+        value=f"get('data_source.{data_source.id}.0.field_{field.id}')",
+    )
+
+    url = reverse(
+        "api:builder:domains:public_dispatch_all",
+        kwargs={"page_id": page.id},
+    )
+
+    response = api_client.post(
+        url, {}, format="json", HTTP_AUTHORIZATION=f"JWT {user_token}"
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+    if is_allowed:
+        expected_results = [
+            {f"field_{field.id}": "Apple"},
+            {f"field_{field.id}": "Banana"},
+            {f"field_{field.id}": "Cherry"},
+        ]
+    else:
+        expected_results = [{}, {}, {}]
+
     assert response.json() == {
         str(data_source.id): {
             "has_next_page": False,

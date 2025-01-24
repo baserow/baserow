@@ -2,18 +2,22 @@
   background-color: $color-neutral-50;
 }
 
-.auth__page {
+.auth__container {
   position: relative;
   z-index: 1;
-  margin: 0 auto;
-  padding: 48px 0;
-  max-width: 92%;
-  width: 520px;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh; /* handle the issue of the  view port full height on Safari iOS https://stackoverflow.com/questions/76303977/svh-units-not-working-properly-in-mobile-safari */
+  justify-content: center;
+  align-items: center;
+  display: table-cell;
+  vertical-align: middle;
 }
 
 .auth__logo {
   height: 16px;
-  margin-bottom: 48px;
+
+  @extend %mb-24;
 
   & img {
     height: 100%;
@@ -25,21 +29,27 @@
   justify-content: space-between;
   align-items: baseline;
   width: 100%;
-  margin-bottom: 24px;
+
+  @extend %mb-32;
 }
 
-.auth__head--more-margin {
-  margin-bottom: 48px;
+.auth__head-text {
+  font-size: 13px;
+  color: $palette-neutral-900;
+
+  a {
+    font-weight: 500;
+  }
 }
 
 .auth__head-title {
   word-break: break-word;
-  margin: 0;
+  margin: 0 0 16px;
   padding: 0;
-}
 
-.auth__action {
-  margin: 24px 0;
+  &:last-child {
+    margin-bottom: 16px;
+  }
 }
 
 .auth__control {
@@ -80,26 +90,60 @@
 .auth__action-links {
   list-style: none;
   padding: 0;
-  margin-top: 40px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
-  li {
-    display: block;
-    color: $color-neutral-700;
-    padding: 8px 0;
-    font-size: 14px;
+.auth__action-link {
+  display: block;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+  color: $palette-neutral-900;
 
-    a {
-      color: $color-neutral-700;
-      border-bottom: 1px solid rgba($color-neutral-700, 0.25);
-
-      &:hover {
-        text-decoration: none;
-        border-bottom: 1px solid rgba($color-neutral-700, 0.7);
-      }
-    }
+  a {
+    font-weight: 500;
   }
 }
 
 .auth__error-help {
   margin: 32px 0;
+}
+
+.auth__separator {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: $palette-neutral-900;
+  margin: 24px 0;
+
+  &::before,
+  &::after {
+    content: '';
+    height: 1px;
+    background-color: $palette-neutral-200;
+    flex-grow: 1;
+  }
+
+  &::before {
+    margin-right: 16px;
+  }
+
+  &::after {
+    margin-left: 16px;
+  }
+}
+
+.auth__wrapper {
+  max-width: 486px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.auth__wrapper--small-centered {
+  max-width: 380px;
+  text-align: center;
 }

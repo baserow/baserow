@@ -1,0 +1,922 @@
+{
+    "paginator": {
+        "page": "페이지",
+        "of": "{pages} 중"
+    },
+    "copied": {
+        "label": "복사 완료!"
+    },
+    "sidebarApplication": {
+        "rename": "이름 변경",
+        "duplicate": "복제",
+        "viewTrash": "휴지통 보기",
+        "delete": "삭제",
+        "snapshots": "스냅샷"
+    },
+    "duplicateApplicationJobType": {
+        "duplicating": "복제 중",
+        "duplicatedTitle": "애플리케이션이 복제되었습니다"
+    },
+    "InstallTemplateJobType": {
+        "installing": "설치 중",
+        "installedTitle": "템플릿이 설치되었습니다"
+    },
+    "sidebar": {
+        "createWorkspace": "작업공간 생성",
+        "addNewWorkspace": "새 작업공간 추가",
+        "inviteOthers": "다른 사람 초대",
+        "members": "멤버",
+        "logoff": "로그아웃",
+        "errorNoWorkspace": "작업공간이 없습니다.",
+        "adminTools": "관리자 도구",
+        "home": "홈",
+        "dashboard": "대시보드",
+        "trash": "휴지통",
+        "settings": "내 설정",
+        "notifications": "알림",
+        "adminSettings": "관리자 설정",
+        "general": "일반",
+        "people": "사람들",
+        "licenses": "라이선스"
+    },
+    "accountForm": {
+        "nameLabel": "이름",
+        "languageLabel": "인터페이스 언어"
+    },
+    "accountSettings": {
+        "title": "계정",
+        "changedTitle": "변경됨",
+        "changedDescription": "계정 정보가 변경되었습니다.",
+        "submitButton": "계정 업데이트"
+    },
+    "settingsModal": {
+        "title": "내 설정"
+    },
+    "notificationPanel": {
+        "title": "알림",
+        "markAllAsRead": "모두 읽음으로 표시",
+        "clearAll": "모두 지우기",
+        "noNotificationTitle": "알림이 없습니다",
+        "noNotification": "중요한 업데이트와 Baserow에서 언급될 때 알려드리겠습니다.",
+        "newNotificationsAvailable": "새로운 알림이 있습니다",
+        "refresh": "새로고침"
+    },
+    "clearAllNotificationsConfirmModal": {
+        "title": "모든 알림을 지우시겠습니까?",
+        "message": "모든 알림이 영구적으로 삭제되며 다시 볼 수 없습니다."
+    },
+    "passwordSettings": {
+        "title": "비밀번호 변경",
+        "changedTitle": "비밀번호가 변경되었습니다",
+        "changedDescription": "비밀번호가 변경되었습니다. 다음에 로그인할 때 새 비밀번호를 사용해야 합니다.",
+        "oldPasswordLabel": "이전 비밀번호",
+        "oldPasswordRequiredError": "이전 비밀번호가 필요합니다.",
+        "newPasswordLabel": "새 비밀번호",
+        "repeatNewPasswordLabel": "새 비밀번호 재입력",
+        "repeatNewPasswordMatchError": "이 필드는 새 비밀번호 필드와 일치해야 합니다.",
+        "submitButton": "비밀번호 변경",
+        "errorInvalidOldPasswordTitle": "잘못된 비밀번호",
+        "errorInvalidOldPasswordMessage": "이전 비밀번호가 잘못되어 비밀번호를 변경할 수 없습니다."
+    },
+    "deleteAccountSettings": {
+        "title": "계정 삭제",
+        "description": "현재 비밀번호를 입력하고 버튼을 클릭하여 계정 삭제를 예약할 수 있습니다. 계정은 {days}일 후에 영구적으로 삭제됩니다. 그 동안 다시 로그인하면 계정 삭제가 취소됩니다.",
+        "workspaceNoticeDescription": "계정이 영구적으로 삭제되면, 마지막으로 활성화된 관리자 권한을 가진 사용자일 경우 해당 작업공간과 관련된 모든 데이터도 삭제됩니다. 아래 표시된 작업공간은 당신이 유일한 관리자이기 때문에 삭제될 것입니다. 삭제를 방지하려면 계정을 삭제하기 전에 다른 사용자에게 관리자를 부여해야 합니다.",
+        "orphanWorkspaces": "유예 기간 후 영구적으로 삭제됩니다",
+        "orphanWorkspaceMemberCount": "공유된 사용자 없음|한 명의 사용자와 공유됨|{count}명의 사용자와 공유됨",
+        "password": "비밀번호",
+        "passwordConfirm": "비밀번호 재입력",
+        "repeatPasswordMatchError": "이 필드는 첫 번째 비밀번호 필드와 일치해야 합니다.",
+        "submitButton": "계정 삭제",
+        "errorInvalidPasswordTitle": "잘못된 비밀번호",
+        "errorInvalidPasswordMessage": "비밀번호가 잘못되어 계정을 삭제할 수 없습니다.",
+        "errorUserIsLastAdminTitle": "마지막 관리자",
+        "errorUserIsLastAdminMessage": "당신은 이 Baserow 인스턴스의 마지막 관리자이기 때문에 계정을 삭제할 수 없습니다.",
+        "accountDeletedSuccessTitle": "계정 삭제가 예약되었습니다",
+        "accountDeletedSuccessMessage": "계정이 삭제 예정으로 예약되었습니다.",
+        "workspaceLoadingError": "작업공간 확인 실패",
+        "workspaceLoadingErrorDescription": "삭제될 작업공간을 확인하지 못했습니다. 페이지를 새로고침해 주세요."
+    },
+    "error": {
+        "alreadyExistsTitle": "사용자가 이미 존재합니다",
+        "alreadyExistsMessage": "제공된 이메일 주소를 가진 사용자가 이미 존재합니다.",
+        "passwordRequired": "비밀번호가 필요합니다.",
+        "invalidEmail": "유효한 이메일 주소를 입력하세요.",
+        "disabledAccountTitle": "계정 비활성화됨",
+        "disabledAccountMessage": "이 사용자 계정은 비활성화되었습니다.",
+        "incorrectCredentialTitle": "잘못된 자격 증명",
+        "incorrectCredentialMessage": "제공된 이메일 주소나 비밀번호가 잘못되었습니다.",
+        "inputRequired": "입력이 필요합니다.",
+        "disabledPasswordProviderTitle": "비밀번호 인증이 비활성화되었습니다.",
+        "disabledPasswordProviderMessage": "다른 인증 제공자를 사용하세요."
+    },
+    "field": {
+        "language": "언어",
+        "emailAddress": "이메일 주소",
+        "name": "이름",
+        "password": "비밀번호",
+        "passwordRepeat": "비밀번호 재입력"
+    },
+    "invitationTitle": "초대",
+    "invitationMessage": "{invitedBy}님이 {workspace}에 당신을 초대했습니다.",
+    "workspaceForm": {
+        "nameLabel": "이름"
+    },
+    "leaveWorkspaceModal": {
+        "title": "{workspace} 나가기",
+        "message": "작업공간 {workspace}을 정말로 나가시겠습니까? 관련 애플리케이션에 더 이상 접근할 수 없으며, 다시 접근하려면 관리자 중 한 명이 다시 초대해야 합니다. 작업공간을 나가면 삭제되지 않습니다. 다른 모든 멤버는 여전히 접근할 수 있습니다. 마지막 관리자라면 유지 관리되지 않기 때문에 작업공간을 나갈 수 없습니다.",
+        "leave": "작업공간 나가기"
+    },
+    "exportWorkspaceModal": {
+        "title": "내보내기",
+        "description": "다른 Baserow 인스턴스의 .zip 파일을 업로드하여 기존 Baserow 데이터를 가져올 수 있습니다.",
+        "exportSettings": "내보내기 설정",
+        "export": "데이터 내보내기",
+        "reset": "새로 시작",
+        "cancel": "취소",
+        "download": "다운로드",
+        "importingState": "가져오는 중",
+        "noExports": "이 작업공간에는 아직 내보낸 내용이 없습니다.",
+        "created": "생성됨"
+    },
+    "exportWorkspaceForm": {
+        "exportSettingsLabel": "내보내기 설정",
+        "onlyStructureLabel": "구조만 내보내기",
+        "onlyStructureDescription": "활성화하면 애플리케이션의 구조만 내보내집니다. 데이터는 포함되지 않습니다."
+    },
+    "importWorkspaceModal": {
+        "title": "Baserow 데이터 가져오기",
+        "description": "다른 Baserow 인스턴스에서 내보낸 .zip 파일을 업로드하여 기존 Baserow 데이터를 가져올 수 있습니다.",
+        "import": "데이터 가져오기",
+        "upload": "업로드",
+        "cancel": "취소",
+        "done": "완료",
+        "close": "닫기",
+        "retry": "다시 시도",
+        "uploading": "업로드 중...",
+        "chooseFile": "파일 선택",
+        "selectApplications": "가져올 데이터 선택",
+        "deselectAll": "모두 선택 해제",
+        "selectAll": "모두 선택",
+        "databases": "데이터베이스",
+        "applications": "애플리케이션",
+        "successTitle": "Baserow 데이터를 성공적으로 가져왔습니다",
+        "successMessage": "{count}개의 애플리케이션을 가져왔습니다",
+        "signatureVerificationNote": "신뢰할 수 없는 소스의 zip 파일은 가져올 수 없습니다.",
+        "invalidResourceTitle": "잘못된 리소스",
+        "invalidResourceMessage": "제공된 파일은 유효한 Baserow 내보내기가 아닙니다.",
+        "untrustedPublicKeyTitle": "신뢰할 수 없는 서명",
+        "untrustedPublicKeyMessage": "제공된 파일은 신뢰할 수 없는 공개 키로 서명되었습니다. 관리자에게 공개 키를 신뢰할 수 있는 키 목록에 추가하거나 서명 확인을 비활성화하여 이 파일을 가져올 수 있도록 요청하세요."
+    },
+    "dashboardWorkspace": {
+        "createApplication": "새로 만들기"
+    },
+    "dashboardVerifyEmail": {
+        "title": "메일함을 확인하고 이메일을 인증하기 위한 링크를 클릭하세요.",
+        "resendConfirmationEmail": "확인 이메일 다시 보내기"
+    },
+    "resendEmailVerification": {
+        "confirmationEmailSentTitle": "확인 이메일 발송",
+        "confirmationEmailSentDescription": "확인 이메일이 발송되었습니다."
+    },
+    "verifyEmailAddress": {
+        "confirmation": "이메일 주소가 확인되었습니다.",
+        "goToDashboard": "대시보드로 이동",
+        "invalidToken": "유효하지 않은 확인 토큰입니다.",
+        "disabledPasswordProvider": "비밀번호 인증 제공자가 비활성화되었습니다.",
+        "emailMismatchWarning": "확인된 이메일이 현재 사용 중인 계정에 속하지 않음을 유의하세요."
+    },
+    "emailNotVerified": {
+        "title": "이메일 확인 필요",
+        "description": "메일함을 확인하고 링크를 클릭하세요. 확인되면 계정이 활성화됩니다.",
+        "resend": "확인 이메일 다시 보내기"
+    },
+    "workspaceInvitation": {
+        "title": "초대",
+        "message": "{by}님이 {workspace}에 당신을 초대했습니다.",
+        "reject": "거절",
+        "accept": "수락"
+    },
+    "workspaceInviteForm": {
+        "invitationFormTitle": "이메일로 초대",
+        "optionalMessagePlaceholder": "선택적 메시지",
+        "errorInvalidEmail": "유효한 이메일 주소를 입력하세요.",
+        "errorTooLongMessage": "메시지는 {amount}자 이하로 제한됩니다.",
+        "additionalRoles": "추가 역할"
+    },
+    "workspaceContext": {
+        "renameWorkspace": "작업공간 이름 변경",
+        "exportWorkspace": "데이터 내보내기",
+        "importWorkspace": "데이터 가져오기",
+        "settings": "설정",
+        "members": "멤버",
+        "auditLog": "감사 로그",
+        "viewTrash": "휴지통 보기",
+        "leaveWorkspace": "작업공간 나가기",
+        "deleteWorkspace": "작업공간 삭제"
+    },
+    "workspaceSettingsModal": {
+        "title": "작업공간 설정"
+    },
+    "workspaceSettingType": {
+        "generativeAI": "생성형 AI"
+    },
+    "generativeAIModelType": {
+        "openai": "OpenAI",
+        "openaiApiKeyLabel": "API 키",
+        "openaiApiKeyDescription": "통합을 활성화하려면 OpenAI API 키를 제공하세요. [API 키 받는 방법](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
+        "openaiOrganization": "조직 (선택 사항)",
+        "openaiModelsLabel": "사용 가능한 모델",
+        "openaiModelsDescription": "Baserow에서 사용할 수 있는 쉼표로 구분된 [OpenAI 모델](https://platform.openai.com/docs/models/continuous-model-upgrades)을 제공하세요. (예: `gpt-3.5-turbo,gpt-4`)",
+        "anthropic": "Anthropic",
+        "anthropicApiKeyLabel": "API 키",
+        "anthropicApiKeyDescription": "통합을 활성화하려면 Anthropic API 키를 제공하세요. [API 키 받는 방법](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicModelsLabel": "사용 가능한 모델",
+        "anthropicModelsDescription": "Baserow에서 사용할 수 있는 쉼표로 구분된 [Anthropic 모델](https://docs.anthropic.com/en/docs/about-claude/models)을 제공하세요. (예: `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "mistral": "Mistral",
+        "mistralApiKeyLabel": "API 키",
+        "mistralApiKeyDescription": "통합을 활성화하려면 Mistral API 키를 제공하세요. [API 키 받는 방법](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralModelsLabel": "사용 가능한 모델",
+        "mistralModelsDescription": "Baserow에서 사용할 수 있는 쉼표로 구분된 [Mistral 모델](https://docs.mistral.ai/getting-started/models/models_overview/)을 제공하세요. (예: `mistral-large-latest,mistral-small-latest`)",
+        "ollama": "Ollama",
+        "ollamaHostLabel": "호스트",
+        "ollamaHostDescription": "[Ollama](https://ollama.com/) 서버의 호스트 이름을 제공하세요. 일반적으로 로컬 기기에서 실행됩니다.",
+        "ollamaModelsLabel": "사용 가능한 모델",
+        "ollamaModelsDescription": "쉼표로 구분된 [Ollama 설치된 모델](https://ollama.com/library)을 제공하세요. 모델은 다운로드 및 설치되어야 사용 가능합니다. (예: `llama2,mistral`)",
+        "openRouterApiKeyDescription": "연동 하려면 OpenRouter API 키를 제공하세요. [API 키 받기](https://openrouter.ai/settings/keys).",
+        "openRouterApiKeyLabel": "API 키",
+        "openRouterModelsDescription": "Baserow에서 사용할 수 있는 [OpenRouter 모델](https://openrouter.ai/models) 의 목록을 쉼표로 구분하여 제공하세요. (예 : `openai/gpt-4o,anthropic/claude-3-haiku`)",
+        "openRouter": "OpenRouter",
+        "openRouterOrganization": "조직 (선택 사항)",
+        "openRouterModelsLabel": "활성화된 모델"
+    },
+    "generativeAIWorkspaceSettings": {
+        "title": "생성형 AI 설정",
+        "description": "이 설정은 작업공간 수준에서 생성형 AI 구성을 설정하는 데 사용됩니다. AI 필드와 같은 기능은 지원되는 모델의 API 키가 없기 때문에 비활성화될 수 있습니다. 여기에서 설정을 제공하여 이러한 기능을 활성화할 수 있습니다. 값을 비워두면 글로벌 인스턴스 설정으로 기본값이 설정됩니다. 작업공간의 모든 사람이 이러한 설정을 공유한다는 점에 유의하세요.",
+        "changedTitle": "설정이 올바르게 업데이트되었습니다",
+        "changedDescription": "설정이 업데이트되었으며 이제 이 작업공간에서 사용됩니다.",
+        "submitButton": "설정 업데이트",
+        "openSettings": "설정 열기",
+        "hideSettings": "설정 숨기기"
+    },
+    "createWorkspaceModal": {
+        "createNew": "새 작업공간 생성",
+        "defaultName": "제목 없는 작업공간",
+        "add": "작업공간 추가",
+        "permissionDeniedTitle": "권한 거부",
+        "permissionDeniedBody": "새 작업공간을 생성할 권한이 없습니다."
+    },
+    "templateCategories": {
+        "search": "템플릿 검색",
+        "title": "템플릿"
+    },
+    "templateHeader": {
+        "use": "이 템플릿 사용"
+    },
+    "trashSidebar": {
+        "title": "휴지통",
+        "unnamedWorkspace": "이름 없는 작업공간 {id}"
+    },
+    "trashContents": {
+        "message": "지난 {duration} 동안 삭제된 항목 복원",
+        "empty": "지난 3일 동안 삭제된 것이 없습니다.",
+        "emptyButtonTrashed": "{type}을(를) 영구적으로 삭제",
+        "emptyButtonNotTrashed": "이 {type}의 휴지통 비우기",
+        "unnamed": "이름 없는 {type} {id}"
+    },
+    "trashEmptyModal": {
+        "titleIsTrashed": "{name}을(를) 영구적으로 삭제하시겠습니까?",
+        "titleIsNotTrashed": "{name}의 휴지통을 비우시겠습니까?",
+        "messageIsTrashed": "이 작업은 영구적으로 삭제되며 모든 내용이 삭제됩니다. 이후에는 복구할 수 없습니다.",
+        "messageIsNotTrashed": "나열된 항목이 영구적으로 삭제됩니다. 이후에는 복구할 수 없습니다.",
+        "buttonIsTrashed": "영구적으로 삭제",
+        "buttonIsNotTrashed": "비우기"
+    },
+    "trashEntry": {
+        "deletedUser": "삭제된 사용자",
+        "fromParent": "{parent}에서",
+        "name": "{user}님이 {type} {title} {parent}을(를) 삭제했습니다",
+        "restore": "복원",
+        "andMore": "... 및 {count}개 더",
+        "unnamed": "이름 없는 {type} {id}"
+    },
+    "trashModal": {
+        "emptyTitle": "작업공간을 찾을 수 없습니다",
+        "emptyMessage": "어떤 작업공간의 멤버도 아닙니다. 데이터베이스와 같은 애플리케이션은 작업공간에 속하므로, 생성하려면 작업공간을 생성해야 합니다.",
+        "emptyMessageWithoutCreatePermission": "어떤 작업공간의 멤버도 아닙니다. 데이터베이스와 같은 애플리케이션은 작업공간에 속하므로, 관리자에게 초대를 받아야 합니다."
+    },
+    "uploadViaURLUserFileUpload": {
+        "title": "URL에서 업로드",
+        "urlLabel": "URL",
+        "urlError": "유효한 URL이 필요합니다."
+    },
+    "userFilesModal": {
+        "title": "업로드 방법"
+    },
+    "uploadFileUserFileUpload": {
+        "title": "내 장치에서 업로드",
+        "drop": "여기에 드롭",
+        "clickOrDrop": "여기를 클릭하거나 파일을 드롭하세요",
+        "retry": "다시 시도"
+    },
+    "uploadFileDropzone": {
+        "drop": "여기에 드롭",
+        "clickOrDrop": "여기를 클릭하거나 파일을 드롭하세요",
+        "errorTooManyFilesTitle": "파일이 너무 많습니다",
+        "errorTooManyFilesMessage": "한 개의 파일만 업로드할 수 있습니다",
+        "errorWrongFileTypeTitle": "잘못된 파일 유형",
+        "errorWrongFileTypeMessage": "{type} 유형의 파일은 업로드할 수 없습니다"
+    },
+    "createApplicationContext": {
+        "fromTemplate": "템플릿에서",
+        "fromTemplateDesc": "권장 템플릿 중 하나로 빠르게 시작",
+        "table": "테이블",
+        "tableDesc": "데이터베이스에서 데이터를 관리할 새 장소를 만듭니다.",
+        "importWorkspace": "데이터 가져오기",
+        "importWorkspaceDesc": "기존 데이터를 Baserow 인스턴스에서 추가합니다."
+    },
+    "applicationForm": {
+        "nameLabel": "이름",
+        "namePlaceholder": "이름 입력..."
+    },
+    "connectingToast": {
+        "title": "재연결 중",
+        "content": "서버와 재연결 중입니다."
+    },
+    "failedConnectingToast": {
+        "title": "실패",
+        "content": "서버에 연결하지 못했습니다. 페이지를 새로고침하세요.",
+        "action": "페이지 새로고침"
+    },
+    "authorizationErrorToast": {
+        "title": "인증 오류",
+        "content": "이 리소스를 볼 수 있는 권한이 없는 것 같습니다.",
+        "action": "페이지 새로고침"
+    },
+    "userSessionExpiredToast": {
+        "title": "세션 만료",
+        "content": "인증 토큰이 만료되어 로그아웃되었습니다. 다시 로그인하세요."
+    },
+    "userPasswordChangedToast": {
+        "title": "비밀번호 변경됨",
+        "content": "비밀번호가 변경되었습니다. 다시 로그인하세요."
+    },
+    "restoreToast": {
+        "restore": "삭제된 {type} 복원"
+    },
+    "copyingToast": {
+        "title": "복사 중...",
+        "content": "데이터 준비 중"
+    },
+    "PastingToast": {
+        "title": "붙여넣기 중...",
+        "content": "데이터 준비 중"
+    },
+    "clearingToast": {
+        "title": "지우는 중...",
+        "content": "데이터 준비 중"
+    },
+    "undoRedoToast": {
+        "undoingTitle": "실행 취소 중...",
+        "undoingText": "작업 실행 취소 중",
+        "undoneTitle": "실행 취소됨",
+        "undoneText": "작업이 실행 취소되었습니다",
+        "noMoreUndo": "더 이상 실행 취소할 작업이 없습니다",
+        "skippingUndoDueToError": "알 수 없는 오류로 인해 실행 취소에 실패하여 건너뜁니다.",
+        "redoingTitle": "다시 실행 중...",
+        "redoingText": "작업 다시 실행 중",
+        "redoneTitle": "다시 실행됨",
+        "redoneText": "작업이 다시 실행되었습니다",
+        "noMoreRedo": "더 이상 다시 실행할 작업이 없습니다",
+        "skippingRedoDueToError": "알 수 없는 오류로 인해 다시 실행에 실패하여 건너뜁니다.",
+        "failed": "실패"
+    },
+    "permissionsUpdatedToast": {
+        "title": "권한 업데이트됨",
+        "content": "이로 인해 접근할 수 있는 내용에 영향을 미칠 수 있습니다. 페이지를 새로고침하세요.",
+        "action": "새로고침"
+    },
+    "errorLayout": {
+        "notFound": "찾고 있는 페이지를 찾을 수 없습니다. 이는 URL이 잘못되었거나 이 페이지를 볼 수 있는 권한이 없기 때문일 수 있습니다.",
+        "error": "페이지를 로드하는 동안 문제가 발생했습니다. 개발자에게 이 문제가 통지되었습니다. 새로고침하거나 대시보드로 돌아가세요.",
+        "backDashboard": "대시보드로 돌아가기",
+        "backLogin": "로그인으로 돌아가기",
+        "wrong": "문제가 발생했습니다",
+        "refresh": "페이지 새로고침"
+    },
+    "dashboard": {
+        "title": "대시보드",
+        "alertTitle": "도움이 필요합니다!",
+        "alertText": "Baserow를 공유함으로써 제품을 개선하고 당신에게 더 유용하게 만들 수 있습니다.",
+        "tweetContent": "오픈 소스 노코드 데이터베이스 도구이자 Airtable 대안인 @baserow를 확인해보세요!",
+        "redditTitle": "'Baserow - 오픈 소스 노코드 데이터베이스",
+        "becomeGithubSponsor": "GitHub 후원자가 되기",
+        "starOnGitlab": "GitLab에서 별표하기",
+        "shareOnTwitter": "Twitter에서 공유",
+        "shareOnReddit": "Reddit에서 공유",
+        "shareOnFacebook": "Facebook에서 공유",
+        "shareOnLinkedIn": "LinkedIn에서 공유",
+        "suggestedTemplates": "추천 템플릿",
+        "resources": "리소스",
+        "knowledgeBase": "지식 베이스",
+        "knowledgeBaseMessage": "모든 질문에 대한 답변 찾기",
+        "tutorials": "튜토리얼",
+        "tutorialsMessage": "Baserow의 잠재력 발견",
+        "apiDocumentation": "API 문서",
+        "apiDocumentationMessage": "우리의 코드에 대해 더 알아보기",
+        "emptyWorkspace": "이 작업공간은 비어 있습니다",
+        "emptyWorkspaceMessage": "새 데이터베이스나 애플리케이션을 생성하여 시작하세요.",
+        "addNew": "새로 추가...",
+        "noWorkspace": "작업공간 없음",
+        "noWorkspaceDescription": "새 작업공간을 생성하여 시작하세요"
+    },
+    "dashboardApplication": {
+        "createdAt": "생성됨"
+    },
+    "templateCard": {
+        "viewMore": "더 보기"
+    },
+    "login": {
+        "title": "다시 오신 것을 환영합니다",
+        "emailPlaceholder": "이메일 주소를 입력하세요..",
+        "passwordPlaceholder": "비밀번호를 입력하세요..",
+        "forgotPassword": "비밀번호를 잊으셨나요?",
+        "signUpText": "Baserow를 처음 사용하시나요?",
+        "signUp": "가입하기",
+        "displayPasswordLogin": "이메일과 비밀번호로 로그인",
+        "redirecting": "인증 제공자로 리디렉션 중..."
+    },
+    "resetPassword": {
+        "title": "비밀번호 재설정",
+        "newPassword": "새 비밀번호",
+        "repeatNewPassword": "새 비밀번호 재입력",
+        "submit": "비밀번호 변경",
+        "changed": "비밀번호 변경됨",
+        "message": "새 비밀번호로 Baserow에 로그인할 수 있습니다.",
+        "errorInvalidLinkTitle": "유효하지 않은 링크",
+        "errorInvalidLinkMessage": "링크가 유효하지 않아 비밀번호를 재설정할 수 없습니다.",
+        "errorLinkExpiredTitle": "링크 만료",
+        "errorLinkExpiredMessage": "비밀번호 재설정 링크가 만료되었습니다. 다른 링크를 요청하세요.",
+        "disabled": "비밀번호 재설정이 비활성화됨",
+        "disabledMessage": "비밀번호를 재설정할 수 없습니다. 비활성화되었습니다."
+    },
+    "signup": {
+        "headTitle": "계정 생성",
+        "title": "회원가입",
+        "disabled": "회원가입이 비활성화됨",
+        "disabledMessage": "계정을 생성할 수 없습니다. 비활성화되었습니다.",
+        "requireFirstUser": "Baserow에 오신 것을 환영합니다!",
+        "requireFirstUserMessage": "관리자 사용자를 생성하려면 아래 양식을 작성하세요.",
+        "emailPlaceholder": "이메일 주소를 입력하세요..",
+        "namePlaceholder": "이름을 입력하세요..",
+        "passwordPlaceholder": "비밀번호를 입력하세요..",
+        "passwordRepeatPlaceholder": "비밀번호를 확인하세요..",
+        "loginText": "이미 계정이 있나요?",
+        "login": "로그인",
+        "agreeTerms": "계정을 생성함으로써 {0} {1} {2}에 동의합니다",
+        "terms": "이용 약관",
+        "privacyPolicy": "개인정보 보호정책"
+    },
+    "forgotPassword": {
+        "title": "비밀번호 찾기",
+        "message": "이메일 주소를 입력하면 비밀번호를 재설정할 수 있는 링크를 보내드립니다.",
+        "submit": "링크 보내기",
+        "confirmationTitle": "이메일을 확인하세요",
+        "confirmation": "{email}로 이메일을 보냈습니다. Baserow 비밀번호를 재설정할 수 있는 링크가 포함되어 있습니다.",
+        "disabled": "비밀번호 찾기가 비활성화됨",
+        "disabledMessage": "비밀번호를 재설정할 수 없습니다. 비활성화되었습니다.",
+        "loginText": "이미 계정과 비밀번호가 있습니까?",
+        "goBack": "돌아가기"
+    },
+    "settings": {
+        "settingsTitle": "관리자 설정",
+        "baserowInstanceId": "인스턴스 ID",
+        "instanceIdDescription": "인스턴스 ID는 Baserow 복사본의 고유 식별자입니다.",
+        "baserowVersion": "Baserow 버전",
+        "baserowVersionDescription": "이 인스턴스의 버전 번호입니다.",
+        "accountRestrictions": "계정 제한",
+        "settingAllowResetPasswordName": "비밀번호 재설정 허용",
+        "settingAllowResetPasswordDescription": "기본적으로 사용자는 비밀번호 재설정 링크를 요청할 수 있습니다.",
+        "settingAllowResetPasswordWarning": "비밀번호를 잊어버리면 시스템에서 자신을 잠글 수 있으며 액세스를 복원할 수 없습니다.",
+        "settingAllowNewAccountsName": "새 계정 생성 허용",
+        "settingAllowNewAccountsDescription": "기본적으로 Baserow 도메인에 방문하는 모든 사용자가 새 계정을 등록할 수 있습니다.",
+        "settingAllowSignupsViaWorkspaceInvitationsName": "작업공간 초대를 통한 회원가입 허용",
+        "settingAllowSignupsViaWorkspaceInvitationDescription": "새 계정 생성이 비활성화되어 있어도, 직접 초대된 사용자는 여전히 계정을 생성할 수 있습니다.",
+        "settingAllowNonStaffCreateWorkspaceOperation": "모두가 새 작업공간 생성 허용",
+        "settingAllowNonStaffCreateWorkspaceOperationDescription": "기본적으로 모든 사람이 새 작업공간을 생성할 수 있습니다. 이를 비활성화하여 직원만 새 작업공간을 생성할 수 있도록 합니다.",
+        "settingAllowNonStaffCreateWorkspaceOperationWarning": "새로운 사용자에게는 그들이 관리자인 작업공간이 자동으로 생성됩니다.",
+        "settingTrackWorkspaceUsage": "작업공간 사용량 추적",
+        "settingTrackWorkspaceUsageDescription": "작업공간별 행 및 파일 사용량을 집계하는 야간 작업을 활성화하여 프리미엄 작업공간 관리자 페이지에 표시됩니다.",
+        "userSettings": "사용자",
+        "settingUserDeletionGraceDelay": "삭제 유예 기간",
+        "settingUserDeletionGraceDelayDescription": "이것은 계정이 삭제되기로 예약된 후 로그인하지 않은 날 수입니다.",
+        "invalidAccountDeletionGraceDelay": "이 값은 필수이며 32000보다 작은 양의 정수여야 합니다",
+        "enabled": "활성화됨",
+        "maintenance": "유지 관리",
+        "emailVerification": "이메일 확인",
+        "emailVerificationDescription": "이메일 주소를 확인해야 하는지 여부를 제어합니다.",
+        "emailVerificationNoVerification": "확인 없음",
+        "emailVerificationRecommended": "권장",
+        "emailVerificationEnforced": "강제",
+        "settingsVerifyImportSignature": "가져오기 서명 확인",
+        "settingsVerifyImportSignatureDescription": "활성화되면, 가져온 데이터의 서명이 검증되어 데이터가 변조되지 않았는지 확인합니다."
+    },
+    "formSidebar": {
+        "actions": {
+            "addAll": "모두 추가",
+            "removeAll": "모두 제거",
+            "addField": "필드 추가"
+        },
+        "notifyUserOnSubmit": "제출 시 사용자에게 알림 받기",
+        "fieldsDescription": "모든 필드가 양식에 있습니다.",
+        "prefillOrHideInfoLink": "동적으로 미리 채우거나 숨기기",
+        "modal": {
+            "title": "필드를 동적으로 미리 채우거나 숨기기",
+            "descriptionPartOne": "사용자가 양식을 더 빨리 작성할 수 있도록 양식을 미리 채울 수 있습니다.",
+            "descriptionPartTwo": "양식에서 사용할 수 있는 모든 필드를 미리 채울 수 있습니다.",
+            "howToHide": {
+                "title": "필드를 숨기는 방법",
+                "description": "필드를 동적으로 숨기려면, 공개 양식 URL에 쿼리 매개변수를 추가할 수 있습니다. 이 쿼리 매개변수는 잠재적인 미래의 쿼리 매개변수와의 충돌을 피하기 위해 `hide_`로 접두어가 붙습니다."
+            },
+            "howToPrefill": {
+                "title": "양식을 미리 채우는 방법",
+                "description": "양식을 데이터로 미리 채우려면, 공개 양식 URL에 쿼리 매개변수를 추가할 수 있습니다. 이 쿼리 매개변수는 잠재적인 미래의 쿼리 매개변수와의 충돌을 피하기 위해 `prefill`로 접두어가 붙습니다."
+            },
+            "format": {
+                "title": "형식",
+                "description": "쿼리 매개변수의 형식은 다음과 같습니다:",
+                "codeSnippet": "?prefill_<field_name>=<value>"
+            },
+            "example": {
+                "title": "예제",
+                "description": "`이름`이라는 필드를 `마이크` 라는 값으로 미리 채우고 싶다면 아래 예제를 참고하세요",
+                "codeSnippet": "?prefill_Name=Mike"
+            },
+            "spaces": {
+                "title": "공백",
+                "description": "필드 이름의 공백은 쿼리 매개변수와의 문제를 피하기 위해 `+`로 대체됩니다.",
+                "codeSnippet": "?prefill_my+field=Mike"
+            },
+            "multipleValues": {
+                "title": "여러 값",
+                "description": "여러 필드를 미리 채우고 싶다면, 값 사이에 `,`를 추가하여 가능합니다.",
+                "codeSnippet": "?prefill_multi+select=Mike,John"
+            },
+            "specialFieldTypes": {
+                "title": "특수 필드 유형",
+                "description": "일반적으로 미리 채우기 값은 필드의 값과 동일합니다. 하지만 일부 예외가 있으며 값이 다른 값으로 변환됩니다.",
+                "ratingField": {
+                    "title": "평점 필드",
+                    "description": "평점 필드는 몇 개의 별이 채워져야 하는지를 나타내는 숫자를 수락합니다.",
+                    "codeSnippet": "?prefill_rating=3"
+                },
+                "linkRowField": {
+                    "title": "행 연결 필드",
+                    "description": "행 연결 필드는 선택 드롭다운에 표시되는 값을 수락할 수 있습니다.",
+                    "codeSnippet": "?prefill_link+row=Mike"
+                },
+                "selectField": {
+                    "title": "단일 선택 / 다중 선택 필드",
+                    "description": "단일 선택 필드는 선택 드롭다운에 표시되는 값을 수락할 수 있습니다. 다중 선택 필드도 마찬가지지만, 여러 값을 수락할 수 있습니다.",
+                    "codeSnippet": "?prefill_single+select=Mike"
+                },
+                "dateField": {
+                    "title": "날짜 필드",
+                    "description": "날짜 필드는 다음 형식의 날짜를 수락할 수 있으며, 필드의 날짜 형식을 사용하여 날짜를 구문 분석합니다.",
+                    "codeSnippet": "\n// 표준\nISO_8601\n\n// 일반 형식\n'YYYY-MM-DD',\n'YYYY-MM-DD hh:mm A',\n'YYYY-MM-DD HH:mm',\n\n// EU\n'DD/MM/YYYY', \n'DD/MM/YYYY hh:mm A', \n'DD/MM/YYYY HH:mm'\n\n// US\n'MM/DD/YYYY', \n'MM/DD/YYYY hh:mm A', \n'MM/DD/YYYY HH:mm'"
+                }
+            }
+        }
+    },
+    "job": {
+        "statePending": "시작 대기 중...",
+        "stateStarted": "시작됨...",
+        "stateFinished": "완료됨",
+        "stateFailed": "실패",
+        "errorJobCannotBeCancelledTitle": "취소할 수 없음",
+        "errorJobCannotBeCancelledDescription": "작업이 이미 완료되어 취소할 수 없습니다.\n첫 번째 스냅샷을 삭제하여 제거하세요.",
+        "errorJobAlreadyRunningTitle": "이미 실행 중",
+        "errorJobAlreadyRunningDescription": "다른 가져오기 작업이 이미 실행 중입니다. 새로운 작업을 시작하려면 해당 작업이 완료될 때까지 기다려야 합니다."
+    },
+    "datetime": {
+        "secondsAgo": "방금 전 | 1초 전 | {n}초 전",
+        "minutesAgo": "0분 전 | 1분 전 | {n}분 전",
+        "hoursAgo": "0시간 전 | 1시간 전 | {n}시간 전",
+        "daysAgo": "0일 전 | 1일 전 | {n}일 전",
+        "monthsAgo": "0개월 전 | 1개월 전 | {n}개월 전",
+        "yearsAgo": "0년 전 | 1년 전 | {n}년 전",
+        "lessThanMinuteAgo": "1분 미만 전",
+        "justNow": "방금 전"
+    },
+    "crudTableSearch": {
+        "search": "검색"
+    },
+    "membersSettings": {
+        "membersTabTitle": "멤버",
+        "invitesTabTitle": "초대",
+        "membersTable": {
+            "title": "{workspaceName}의 멤버 {userAmount}명",
+            "inviteMember": "멤버 초대",
+            "columns": {
+                "name": "이름",
+                "email": "이메일",
+                "role": "기본 역할",
+                "highestRole": "최고 역할",
+                "highestRoleHelpText": "이 작업공간의 어떤 것에서 직접 또는 팀에서 할당된 이 사용자의 최고 역할",
+                "teams": "팀"
+            },
+            "actions": {
+                "copyEmail": "이메일 복사",
+                "remove": "작업공간에서 제거"
+            }
+        },
+        "invitesTable": {
+            "title": "{workspaceName}의 대기 중인 초대 {invitesAmount}개",
+            "columns": {
+                "email": "이메일",
+                "message": "메시지",
+                "role": "기본 역할"
+            },
+            "actions": {
+                "copyEmail": "이메일 복사",
+                "remove": "초대 취소"
+            }
+        },
+        "membersInviteModal": {
+            "title": "작업공간 멤버 초대",
+            "submit": "초대 보내기",
+            "helpIconText": "선택한 역할은 이 작업공간에서 사용자의 기본 역할이 됩니다.",
+            "errors": {
+                "userAlreadyInWorkspace": {
+                    "title": "사용자가 이미 작업공간에 있습니다.",
+                    "text": "사용자가 이미 작업공간의 멤버인 경우 초대를 보낼 수 없습니다."
+                }
+            }
+        }
+    },
+    "memberSelectionList": {
+        "searchPlaceholder": "찾기 ...",
+        "selectedAmountLabel": "{count}개 선택됨"
+    },
+    "memberAssignmentModalFooter": {
+        "invite": "{count}명 초대",
+        "deselectAll": "모두 선택 해제",
+        "selectAll": "모두 선택"
+    },
+    "removeFromWorkspaceModal": {
+        "title": "작업공간에서 제거 확인",
+        "confirmation": "{name}을(를) {workspaceName}에서 제거하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+        "remove": "제거"
+    },
+    "editRoleContext": {
+        "billableRolesLink": "청구 가능한 역할 문서",
+        "additionalRoles": "추가 역할"
+    },
+    "highestPaidRoleField": {
+        "billable": "청구 가능"
+    },
+    "integrationCreateEditModal": {
+        "createTitle": "새로운 통합",
+        "editTitle": "통합 편집",
+        "warningTitle": "경고"
+    },
+    "integrationEditForm": {
+        "name": "통합 이름",
+        "namePlaceholder": "통합 이름 입력..."
+    },
+    "integrationDropdown": {
+        "addIntegration": "새 통합 추가",
+        "noIntegrations": "통합을 찾을 수 없습니다.",
+        "selectTypeFirst": "먼저 유형을 선택하세요",
+        "integrationPlaceholder": "통합 선택"
+    },
+    "dropdown": {
+        "empty": "사용 가능한 항목이 없습니다"
+    },
+    "richTextEditorMentionsList": {
+        "notFound": "사용자를 찾을 수 없습니다"
+    },
+    "workspaceInvitationAcceptedNotification": {
+        "title": "{sender}님이 {workspaceName}에 대한 초대를 수락했습니다",
+        "deletedUser": "삭제된 사용자"
+    },
+    "workspaceInvitationRejectedNotification": {
+        "title": "{sender}님이 {workspaceName}에 대한 초대를 거절했습니다",
+        "deletedUser": "삭제된 사용자"
+    },
+    "workspaceInvitationCreatedNotification": {
+        "title": "{sender}님이 {workspaceName}에 당신을 초대했습니다",
+        "deletedUser": "삭제된 사용자"
+    },
+    "versionUpgradeNotification": {
+        "title": "{version}이 출시되었습니다! 새로운 기능을 확인하세요."
+    },
+    "emailNotifications": {
+        "title": "이메일 알림",
+        "label": "멘션, 댓글 및 기타 알림",
+        "description": "이메일이 받은 편지함으로 전송되는 빈도를 구성합니다.",
+        "instant": "즉시",
+        "daily": "매일",
+        "weekly": "매주",
+        "never": "안 함",
+        "submitButton": "빈도 업데이트"
+    },
+    "formulaInputField": {
+        "errorInvalidFormula": "공식이 유효하지 않습니다."
+    },
+    "dataExplorer": {
+        "noMatchingNodesText": "일치하는 결과가 없습니다.",
+        "noProvidersText": "데이터 제공자를 찾을 수 없습니다. 예를 들어 데이터 소스나 페이지 매개변수를 추가하여 시작할 수 있습니다."
+    },
+    "richTextEditorBubbleMenu": {
+        "bold": "굵게",
+        "italic": "기울임꼴",
+        "underline": "밑줄",
+        "strikethrough": "취소선",
+        "link": "링크",
+        "linkEditPlaceholder": "링크 URL...",
+        "linkEditDone": "완료"
+    },
+    "richTextEditorFloatingMenu": {
+        "hierarchy": "계층 구조",
+        "lists": "목록",
+        "paragraph": "단락",
+        "heading1": "제목 1",
+        "heading2": "제목 2",
+        "heading3": "제목 3",
+        "orderedList": "번호 매기기 목록",
+        "unorderedList": "글머리 기호 목록",
+        "code": "코드",
+        "taskList": "작업 목록"
+    },
+    "selectAIModelForm": {
+        "AIType": "AI 유형",
+        "AIModel": "AI 모델",
+        "fileField": "파일 필드",
+        "temperatureLabel": "온도",
+        "temperatureDescription": "온도는 0에서 {max} 사이의 매개변수로, LLM의 응답 랜덤성을 조정합니다. 낮은 값은 집중된 답변을 제공하고, 높은 값은 창의성을 높입니다."
+    },
+    "onboarding": {
+        "title": "온보딩",
+        "creating": "첫 작업공간 생성 중",
+        "continue": "계속",
+        "skip": "지금은 건너뛰기",
+        "cancel": "설정 도움말을 원하지 않습니다",
+        "failedTitle": "문제가 발생했습니다",
+        "failedDescription": "온보딩이 완전히 완료되지 않았습니다. 일부 부분은 완료되었을 수 있습니다.",
+        "failedTryAgain": "다시 시도",
+        "failedSkip": "온보딩 건너뛰기"
+    },
+    "inviteStep": {
+        "title": "협업자 초대",
+        "description": "나중에 언제든지 추가할 수 있습니다.",
+        "collaboratorsLabel": "협업자"
+    },
+    "moreStep": {
+        "title": "조금 더 알려주세요",
+        "roleOrJob": "역할 또는 직함...",
+        "people": "팀에 몇 명이 있습니까?",
+        "country": "국가",
+        "share": "Baserow 팀과 이 정보를 공유하는 데 동의합니다"
+    },
+    "teamStep": {
+        "title": "함께 첫 작업공간을 만들어봅시다!",
+        "description": "어떤 팀에 속해 있나요?",
+        "marketingTeam": "마케팅",
+        "productAndDesignTeam": "제품 및 디자인",
+        "engineeringTeam": "엔지니어링",
+        "operationsTeam": "운영",
+        "itAndSupportTeam": "IT 및 지원",
+        "hrAndLegalTeam": "인사 및 법무",
+        "financeTeam": "재무",
+        "creativeProductionTeam": "크리에이티브 프로덕션",
+        "salesAndAccountManagementTeam": "영업 및 계정 관리",
+        "customerServiceTeam": "고객 서비스",
+        "manufacturingTeam": "제조",
+        "otherPersonalTeam": "기타 / 개인"
+    },
+    "workspaceStep": {
+        "title": "작업공간 생성",
+        "workspaceLabel": "작업공간 이름"
+    },
+    "colorInput": {
+        "default": "기본값"
+    },
+    "imageInput": {
+        "labelDescription": "업로드할 이미지를 선택하세요...",
+        "labelButton": "업로드"
+    },
+    "dataExplorerNode": {
+        "showMore": "더 많은 반복 표시"
+    },
+    "user": {
+        "isStaff": "직원 여부",
+        "isWorkspaceAdmin": "작업공간 관리자 여부",
+        "active": "활성",
+        "deactivated": "비활성화됨"
+    },
+    "adminType": {
+        "dashboard": "대시보드",
+        "users": "사용자",
+        "workspaces": "작업공간"
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "모든 작업공간",
+        "id": "ID",
+        "name": "이름",
+        "members": "멤버",
+        "applications": "애플리케이션",
+        "created": "생성됨",
+        "rowCount": "행 수",
+        "freeUsers": "무료 사용자",
+        "seatsTaken": "사용된 좌석",
+        "storageUsage": "사용된 저장소 (MB)",
+        "usageHelpText": "작업공간 사용 추적 설정이 활성화된 경우 매일 밤 계산됩니다"
+    },
+    "editWorkspaceContext": {
+        "delete": "영구 삭제"
+    },
+    "deleteWorkspaceModal": {
+        "title": "{name} 삭제",
+        "confirmation": "작업공간 {name}을(를) 삭제하시겠습니까?",
+        "comment": "작업공간은 관련된 애플리케이션과 함께 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+        "delete": "작업공간 {name} 삭제"
+    },
+    "activeUsers": {
+        "newUsers": "신규 사용자",
+        "activeUsers": "활성 사용자"
+    },
+    "usersAdminTable": {
+        "allUsers": "모든 사용자",
+        "username": "사용자 이름",
+        "name": "이름",
+        "workspaces": "작업공간",
+        "lastLogin": "마지막 로그인",
+        "dateJoined": "가입일",
+        "active": "활성"
+    },
+    "editUserContext": {
+        "changePassword": "비밀번호 변경",
+        "delete": "영구 삭제",
+        "impersonate": "사용자 가장"
+    },
+    "changePasswordForm": {
+        "newPassword": "새 비밀번호",
+        "repeatPassword": "비밀번호 재입력",
+        "changePassword": "비밀번호 변경",
+        "error": {
+            "doesntMatch": "이 필드는 비밀번호 필드와 일치해야 합니다."
+        }
+    },
+    "userForm": {
+        "fullName": "전체 이름",
+        "email": "이메일",
+        "isActive": "활성 여부",
+        "warning": {
+            "changeEmail": "이 사용자의 이메일 주소를 변경하면 로그인 시 새 이메일 주소를 사용해야 합니다. 이는 해당 사용자에게 전달되어야 합니다.",
+            "inactiveUser": "사용자가 비활성화되면 로그인할 수 없습니다.",
+            "userStaff": "사용자를 직원으로 지정하면 모든 사용자와 작업공간에 대한 관리자 액세스 권한이 부여되며, 본인의 직원 권한을 철회할 수 있습니다."
+        },
+        "error": {
+            "invalidName": "유효한 전체 이름을 입력하세요. 2자 이상 150자 이하여야 합니다.",
+            "invalidEmail": "유효한 이메일 주소를 입력하세요."
+        }
+    },
+    "changeUserPasswordModal": {
+        "changePassword": "{username}의 비밀번호 변경"
+    },
+    "deleteUserModal": {
+        "title": "{username} 삭제",
+        "confirmation": "사용자 {name}을(를) 삭제하시겠습니까?",
+        "comment1": "사용자 계정은 삭제되지만, 해당 사용자가 속한 작업공간은 계속 존재합니다. 해당 사용자가 작업공간의 마지막 사용자이더라도 사용자의 작업공간은 삭제되지 않습니다. 작업공간의 마지막 사용자를 삭제하면 해당 작업공간에 아무도 접근할 수 없게 됩니다.",
+        "comment2": "사용자를 삭제한 후 삭제된 사용자의 이메일 주소를 사용하여 새 사용자가 다시 가입할 수 있습니다. 다시 가입하지 못하도록 하려면 사용자를 삭제하지 않고 비활성화하세요.",
+        "delete": "사용자 {username} 삭제"
+    },
+    "editUserModal": {
+        "delete": "사용자 삭제",
+        "edit": "{username} 편집"
+    },
+    "adminDashboard": {
+        "title": "대시보드",
+        "totals": "합계",
+        "totalUsers": "전체 사용자",
+        "totalWorkspaces": "전체 작업공간",
+        "totalApplications": "전체 애플리케이션",
+        "newUsers": "신규 사용자",
+        "newUsers24h": "지난 24시간 동안 신규 사용자",
+        "newUsers7days": "지난 7일 동안 신규 사용자",
+        "newUsers30days": "지난 30일 동안 신규 사용자",
+        "activeUsers": "활성 사용자",
+        "activeUsers24h": "지난 24시간 동안 활성 사용자",
+        "activeUsers7days": "지난 7일 동안 활성 사용자",
+        "activeUsers30days": "지난 30일 동안 활성 사용자",
+        "viewAll": "모두 보기"
+    },
+    "formGroup": {
+        "protectedField": "이 필드는 보호되어 있습니다. 변경하려면 클릭하세요.",
+        "cancelProtectedField": "변경 취소"
+    },
+    "userSourceType": {
+        "userCountSummary": "{count} 사용자 ({lastUpdated})"
+    }
+}

@@ -1,15 +1,6 @@
 {
     "premium": {
-        "user": {
-            "isStaff": "É staff",
-            "isWorkspaceAdmin": "É administrador do grupo",
-            "active": "Ativo",
-            "deactivated": "Desativado"
-        },
         "adminType": {
-            "dashboard": "Painel",
-            "users": "Usuários",
-            "workspaces": "Grupos",
             "licenses": "Licenças"
         },
         "viewType": {
@@ -54,77 +45,6 @@
     "registerLicenseForm": {
         "licenseKey": "Chave de licença"
     },
-    "workspacesAdminTable": {
-        "allWorkspaces": "Todos grupos",
-        "id": "ID",
-        "name": "Nome",
-        "members": "Membros",
-        "applications": "Aplicações",
-        "created": "Criado"
-    },
-    "editWorkspaceContext": {
-        "delete": "Excluído permanentemente"
-    },
-    "deleteWorkspaceModal": {
-        "title": "Deletar {name}",
-        "confirmation": "Tem certeza de que deseja excluir o grupo: {name}?",
-        "comment": "O grupo será excluído permanentemente, incluindo os aplicativos relacionados. Não é possível desfazer esta ação.",
-        "delete": "Deletar grupo {name}"
-    },
-    "activeUsers": {
-        "newUsers": "Novos usuários",
-        "activeUsers": "Usuários ativos"
-    },
-    "usersAdminTable": {
-        "allUsers": "Todos usuários",
-        "id": "ID",
-        "username": "Nome de usuário",
-        "name": "Nome",
-        "workspaces": "Grupos",
-        "lastLogin": "Último login",
-        "dateJoined": "Inscrito",
-        "active": "Ativo"
-    },
-    "editUserContext": {
-        "changePassword": "Alterar senha",
-        "delete": "Excluído permanentemente"
-    },
-    "changePasswordForm": {
-        "newPassword": "Nova senha",
-        "repeatPassword": "Repetir a senha",
-        "changePassword": "Alterar a senha",
-        "error": {
-            "doesntMatch": "Este campo deve corresponder ao seu campo de senha."
-        }
-    },
-    "userForm": {
-        "fullName": "Nome completo",
-        "email": "E-mail",
-        "isActive": "Está ativo",
-        "warning": {
-            "changeEmail": "Alterar o endereço de e-mail deste usuário significa que, quando eles fizerem login, deverão usar o novo endereço de e-mail para fazer isso. Isso deve ser comunicado a esse usuário.",
-            "inactiveUser": "Quando um usuário é marcado como inativo, ele é impedido de entrar.",
-            "userStaff": "Tornar a equipe do usuário dá a eles acesso de administrador a todos os usuários, todos os grupos e a capacidade de revogar suas próprias permissões de equipe."
-        },
-        "error": {
-            "invalidName": "Insira um nome completo válido, deve ter mais de 2 letras e menos de 150.",
-            "invalidEmail": "Por favor insira um endereço de e-mail válido."
-        }
-    },
-    "changeUserPasswordModal": {
-        "changePassword": "Alterar senha para {username}"
-    },
-    "deleteUserModal": {
-        "title": "Deletar{username}",
-        "confirmation": "Tem certeza de que deseja excluir o usuário: {name}?",
-        "comment1": "A conta do usuário será excluída, mas os grupos dos quais o usuário é membro continuarão existindo. O grupo de usuários não será excluído, mesmo que este usuário seja o último usuário do grupo. A exclusão do último usuário de um grupo impede que qualquer pessoa possa acessar esse grupo.",
-        "comment2": "Depois de excluir um usuário, é possível que um novo usuário se inscreva novamente usando o endereço de e-mail do usuário excluído. Para garantir que eles não possam se inscrever novamente, desative o usuário e não o exclua.",
-        "delete": "Deletar usuário {username}"
-    },
-    "editUserModal": {
-        "delete": "Deletar usuário",
-        "edit": "Editar { username }"
-    },
     "tableJSONExporter": {
         "encoding": "Codificação"
     },
@@ -155,22 +75,6 @@
         "uncategorized": "Sem categoria",
         "tryAgain": "Tente novamente",
         "new": "Novo"
-    },
-    "dashboard": {
-        "title": "Painel de controle",
-        "totals": "Totais",
-        "totalUsers": "Total de usuários",
-        "totalWorkspaces": "Total de grupos",
-        "totalApplications": "Total de aplicações",
-        "newUsers": "Novos usuários",
-        "newUsers24h": "Novos usuários nas últimas 24 horas",
-        "newUsers7days": "Novos usuários nos últimos 7 dias",
-        "newUsers30days": "Novos usuários nos últimos 30 dias",
-        "activeUsers": "Usuários ativos",
-        "activeUsers24h": "Usuários ativos nos últimas 24 horas",
-        "activeUsers7days": "Usuários ativos nos últimos 7 dias",
-        "activeUsers30days": "Usuários ativos nos últimos 30 dias",
-        "viewAll": "Visualizar tudo"
     },
     "licenses": {
         "titleNoLicenses": "Sem licenças encontradas",

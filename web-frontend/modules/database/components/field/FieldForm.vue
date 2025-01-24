@@ -52,6 +52,7 @@
             :key="type"
             :icon="fieldType.iconClass"
             :name="fieldType.getName()"
+            :alias="fieldType.getAlias()"
             :value="fieldType.type"
             :disabled="
               (primary && !fieldType.canBePrimaryField) ||

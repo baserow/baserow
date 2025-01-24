@@ -741,14 +741,20 @@ class Progress:
         """
 
         self.total = total
-        self.progress = 0
+        self._progress = 0
+        self._last_progress = 0
+        self._last_state = None
         self.updated_events = []
         self.parent = parent
         self.represents_progress = represents_progress
         self.last_parent_progress = 0
 
+    @property
+    def progress(self):
+        return math.ceil(self._progress)
+
     def reset_with_total(self, total):
-        self.progress = 0
+        self._progress = self._last_progress = 0
         self.total = total
 
     def register_updated_event(self, event):
@@ -773,7 +779,7 @@ class Progress:
             "Downloading files."
         """
 
-        self.set_progress(self.progress + by, state)
+        self.set_progress(self._progress + by, state)
 
     def set_progress(self, progress: int, state: Optional[str] = None):
         """
@@ -785,23 +791,35 @@ class Progress:
             "Downloading files."
         """
 
-        self.progress = progress
+        if self.total == 0:
+            return
+
+        new_progress = min(progress, self.total)
+        new_progress_ratio = Decimal(new_progress) / self.total
+        new_progress_perc = math.ceil(new_progress_ratio * 100)
+
+        last_progress_ratio = Decimal(self._progress) / self.total
+        last_progress_perc = math.ceil(last_progress_ratio * 100)
+
+        last_progress = self._progress
+        last_state = self._last_state
+
+        self._progress = new_progress
 
         if self.parent is not None:
-            if self.progress >= self.total:
-                new_parent_progress = self.represents_progress
-            else:
-                new_parent_progress = math.ceil(
-                    (Decimal(self.progress) / self.total) * self.represents_progress
-                )
-            diff = new_parent_progress - self.last_parent_progress
-            self.last_parent_progress = new_parent_progress
-            if diff != 0:
+            last_parent_progress = self.last_parent_progress
+            new_parent_progress = new_progress_ratio * self.represents_progress
+            diff = new_parent_progress - last_parent_progress
+            if diff > 0 or state != last_state:
+                self.last_parent_progress = new_parent_progress
                 self.parent.increment(diff, state)
 
-        percentage = math.ceil(Decimal(self.progress) / self.total * 100)
-        for event in self.updated_events:
-            event(percentage, state)
+        # Run all the callbacks only if something has changed.
+        if new_progress_perc > last_progress_perc or state != last_state:
+            self._last_progress = last_progress
+            self._last_state = state
+            for event in self.updated_events:
+                event(new_progress_perc, state)
 
     def create_child(self, represents_progress: int, total: int):
         """
@@ -820,7 +838,9 @@ class Progress:
             parent=self, represents_progress=represents_progress, total=total
         )
 
-        if child_progress.progress >= child_progress.total:
+        # If the total is 0, we can just increment the parent progress by the
+        # represents progress because the child progress will never increment.
+        if total == 0:
             self.increment(represents_progress)
 
         return child_progress

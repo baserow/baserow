@@ -5,7 +5,7 @@ import applicationContextMixin from '@baserow/modules/builder/mixins/application
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 export default {
-  inject: ['workspace', 'builder', 'page', 'mode'],
+  inject: ['workspace', 'builder', 'currentPage', 'elementPage', 'mode'],
   mixins: [applicationContextMixin],
   props: {
     element: {
@@ -17,7 +17,7 @@ export default {
     workflowActionsInProgress() {
       const workflowActions = this.$store.getters[
         'workflowAction/getElementWorkflowActions'
-      ](this.page, this.element.id)
+      ](this.elementPage, this.element.id)
       const { recordIndexPath } = this.applicationContext
       const dispatchedById = this.elementType.uniqueElementId(
         this.element,
@@ -38,7 +38,7 @@ export default {
     },
     elementIsInError() {
       return this.elementType.isInError({
-        page: this.page,
+        page: this.elementPage,
         element: this.element,
         builder: this.builder,
       })
@@ -96,7 +96,7 @@ export default {
 
         const workflowActions = this.$store.getters[
           'workflowAction/getElementWorkflowActions'
-        ](this.page, this.element.id).filter(
+        ](this.elementPage, this.element.id).filter(
           ({ event: eventName }) => eventName === event.name
         )
 

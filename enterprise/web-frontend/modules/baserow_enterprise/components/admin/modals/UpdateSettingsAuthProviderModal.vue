@@ -11,7 +11,10 @@
       <component
         :is="getProviderAdminSettingsFormComponent()"
         ref="providerSettingsForm"
+        :auth-providers="appAuthProviderPerTypes"
         :auth-provider="authProvider"
+        :default-values="authProvider"
+        :auth-provider-type="authProviderType"
         @submit="onSettingsUpdated"
       >
         <div class="actions">
@@ -22,8 +25,8 @@
           </ul>
 
           <Button type="primary" :disabled="loading" :loading="loading">
-            {{ $t('action.save') }}</Button
-          >
+            {{ $t('action.save') }}
+          </Button>
         </div>
       </component>
     </div>
@@ -48,16 +51,30 @@ export default {
       loading: false,
     }
   },
+  computed: {
+    authProviderType() {
+      return this.$registry.get('authProvider', this.authProvider.type)
+    },
+    authProviders() {
+      return this.$store.getters['authProviderAdmin/getAll']
+    },
+    appAuthProviderPerTypes() {
+      return Object.fromEntries(
+        this.$registry
+          .getOrderedList('authProvider')
+          .map((authProviderType) => [
+            authProviderType.getType(),
+            this.authProviders[authProviderType.getType()].authProviders,
+          ])
+      )
+    },
+  },
   methods: {
     getProviderAdminSettingsFormComponent() {
-      return this.$registry
-        .get('authProvider', this.authProvider.type)
-        .getAdminSettingsFormComponent()
+      return this.authProviderType.getAdminSettingsFormComponent()
     },
     getProviderName() {
-      return this.$registry
-        .get('authProvider', this.authProvider.type)
-        .getProviderName(this.authProvider)
+      return this.authProviderType.getProviderName(this.authProvider)
     },
     async onSettingsUpdated(values) {
       this.loading = true

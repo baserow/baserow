@@ -1,22 +1,25 @@
 <template>
-  <ThemeProvider class="theme-settings">
-    <Tabs>
-      <Tab
-        v-for="themeConfigBlock in themeConfigBlocks"
-        :key="themeConfigBlock.getType()"
-        :title="themeConfigBlock.label"
-      >
-        <div class="padding-top-2">
-          <ThemeConfigBlock
-            ref="themeConfigBlocks"
-            :default-values="builder.theme"
-            :theme-config-block-type="themeConfigBlock"
-            @values-changed="update($event)"
-          />
-        </div>
-      </Tab>
-    </Tabs>
-  </ThemeProvider>
+  <div>
+    <h2 class="box__title">{{ $t('themeSettings.titleOverview') }}</h2>
+    <ThemeProvider class="theme-settings">
+      <Tabs>
+        <Tab
+          v-for="themeConfigBlock in themeConfigBlocks"
+          :key="themeConfigBlock.getType()"
+          :title="themeConfigBlock.label"
+        >
+          <div class="padding-top-2">
+            <ThemeConfigBlock
+              ref="themeConfigBlocks"
+              :default-values="builder.theme"
+              :theme-config-block-type="themeConfigBlock"
+              @values-changed="update($event)"
+            />
+          </div>
+        </Tab>
+      </Tabs>
+    </ThemeProvider>
+  </div>
 </template>
 
 <script>

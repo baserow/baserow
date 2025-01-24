@@ -12,7 +12,12 @@
           :error-message="getError('table_border_size')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.table_border_size" />
+          <PixelValueSelector
+            v-model="values.table_border_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`table_border_size`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.table_border_size"
@@ -47,7 +52,12 @@
           :error-message="getError('table_border_radius')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.table_border_radius" />
+          <PixelValueSelector
+            v-model="values.table_border_radius"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`table_border_radius`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.table_border_radius"
@@ -102,15 +112,59 @@
         <FormGroup
           horizontal-narrow
           small-label
+          class="margin-bottom-2"
+          :label="$t('tableThemeConfigBlock.fontWeight')"
+        >
+          <FontWeightSelector
+            v-model="values.table_header_font_weight"
+            :font="values.table_header_font_family"
+          />
+          <template #after-input>
+            <ResetButton
+              v-if="
+                values.table_header_font_family ===
+                theme?.table_header_font_family
+              "
+              v-model="values.table_header_font_weight"
+              :default-value="theme?.table_header_font_weight"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
           :label="$t('tableThemeConfigBlock.fontSize')"
           :error-message="getError('table_header_font_size')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.table_header_font_size" />
+          <PixelValueSelector
+            v-model="values.table_header_font_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`table_header_font_size`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.table_header_font_size"
               :default-value="theme?.table_header_font_size"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          required
+          :label="$t('tableThemeConfigBlock.alignment')"
+          class="margin-bottom-2"
+        >
+          <HorizontalAlignmentsSelector
+            v-model="values.table_header_text_alignment"
+          />
+
+          <template #after-input>
+            <ResetButton
+              v-model="values.table_header_text_alignment"
+              :default-value="theme?.table_header_text_alignment"
             />
           </template>
         </FormGroup>
@@ -130,24 +184,6 @@
             <ResetButton
               v-model="values.table_header_text_color"
               :default-value="theme?.table_header_text_color"
-            />
-          </template>
-        </FormGroup>
-        <FormGroup
-          horizontal-narrow
-          small-label
-          required
-          :label="$t('tableThemeConfigBlock.alignment')"
-          class="margin-bottom-2"
-        >
-          <HorizontalAlignmentsSelector
-            v-model="values.table_header_text_alignment"
-          />
-
-          <template #after-input>
-            <ResetButton
-              v-model="values.table_header_text_alignment"
-              :default-value="theme?.table_header_text_alignment"
             />
           </template>
         </FormGroup>
@@ -219,7 +255,10 @@
           :error-message="getPaddingError()"
           class="margin-bottom-2"
         >
-          <PaddingSelector v-model="padding" />
+          <PaddingSelector
+            v-model="padding"
+            :default-values-when-empty="paddingDefaults"
+          />
           <template #after-input>
             <ResetButton
               v-model="padding"
@@ -272,6 +311,9 @@
         >
           <PixelValueSelector
             v-model="values.table_horizontal_separator_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`table_horizontal_separator_size`]
+            "
           />
           <template #after-input>
             <ResetButton
@@ -306,7 +348,12 @@
           :error-message="getError('table_vertical_separator_size')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.table_vertical_separator_size" />
+          <PixelValueSelector
+            v-model="values.table_vertical_separator_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`table_vertical_separator_size`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.table_vertical_separator_size"
@@ -328,9 +375,11 @@ import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/T
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
+import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
 import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
 
 const minMax = {
   table_border_size: {
@@ -370,6 +419,7 @@ export default {
     ResetButton,
     HorizontalAlignmentsSelector,
     FontFamilySelector,
+    FontWeightSelector,
     PixelValueSelector,
     PaddingSelector,
   },
@@ -385,6 +435,14 @@ export default {
         { 'Header 1': 'Row 1 cell 1', 'Header 2': 'Row 1 cell 2' },
         { 'Header 1': 'Row 2 cell 1', 'Header 2': 'Row 2 cell 2' },
       ],
+      defaultValuesWhenEmpty: {
+        table_border_size: minMax.table_border_size.min,
+        table_border_radius: minMax.table_border_radius.min,
+        table_header_font_size: DEFAULT_FONT_SIZE_PX,
+        table_horizontal_separator_size:
+          minMax.table_horizontal_separator_size.min,
+        table_vertical_separator_size: minMax.table_vertical_separator_size.min,
+      },
     }
   },
   computed: {
@@ -402,6 +460,12 @@ export default {
     },
     onlyCell() {
       return this.extraArgs?.onlyCell
+    },
+    paddingDefaults() {
+      return {
+        vertical: minMax.table_cell_vertical_padding.min,
+        horizontal: minMax.table_cell_horizontal_padding.min,
+      }
     },
   },
   methods: {

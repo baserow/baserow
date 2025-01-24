@@ -50,6 +50,7 @@ def test_import_export_grid_view_w_decorator(data_fixture):
                 {
                     "filter_groups": [{"id": 1}],
                     "filters": [
+                        # no filter type, so it will be ignored in imported value
                         {"field": field.id, "group": 1, "value": ""},
                         {
                             "type": "single_select_equal",
@@ -59,10 +60,50 @@ def test_import_export_grid_view_w_decorator(data_fixture):
                         },
                     ],
                 },
+                # no filter type, so it will be ignored in imported value
                 {"filters": [{"field": field.id, "value": ""}]},
             ]
         },
         order=2,
+    )
+
+    view_decoration_3 = data_fixture.create_view_decoration(
+        view=grid_view,
+        type="left_border_color",
+        value_provider_type="conditional_color",
+        value_provider_conf={
+            "colors": [
+                {
+                    "filters": [
+                        {
+                            "type": "single_select_is_any_of",
+                            "field": single_select.id,
+                            "group": 1,
+                            "value": f"{option.id},100",
+                        },
+                        {
+                            "type": "boolean",
+                            "field": single_select.id,
+                            "group": 1,
+                            "value": f"true",
+                        },
+                        {
+                            "type": "invalid_filter",
+                            "field": single_select.id,
+                            "group": 1,
+                            "value": f"foobar",
+                        },
+                        {
+                            "type": "single_select_is_any_of",
+                            "field": single_select.id,
+                            "group": 1,
+                            "value": f"100,{option.id}",
+                        },
+                    ],
+                },
+            ]
+        },
+        order=3,
     )
 
     id_mapping = {
@@ -101,19 +142,64 @@ def test_import_export_grid_view_w_decorator(data_fixture):
         {
             "id": AnyStr(),  # a new id is generated for every inserted color
             "filters": [
-                {"field": imported_field.id, "group": 1, "value": ""},
+                # first filter will be ignored, because it's missing
+                # proper type value
                 {
                     "type": "single_select_equal",
                     "field": imported_single_select.id,
                     "group": 1,
-                    "value": imported_option.id,
+                    # filter value should be a string
+                    "value": str(imported_option.id),
                 },
             ],
             "filter_groups": [{"id": 1}],
         },
         {
             "id": AnyStr(),
-            "filters": [{"field": imported_field.id, "value": ""}],
+            # empty list because filter def is missing proper type value
+            "filters": [],
+        },
+    ]
+
+    assert view_decoration_3.id != imported_view_decorations[2].id
+    assert view_decoration_3.type == imported_view_decorations[2].type
+    assert (
+        view_decoration_3.value_provider_type
+        == imported_view_decorations[2].value_provider_type
+    )
+
+    # test a list of values with one value id not present in the mapping
+    assert imported_view_decorations[2].value_provider_conf["colors"] == [
+        {
+            "id": AnyStr(),  # a new id is generated for every inserted color
+            "filters": [
+                {
+                    "type": "single_select_is_any_of",
+                    "field": imported_single_select.id,
+                    "group": 1,
+                    # old 100 option will be scrapped, because
+                    # it's not in the mapping
+                    "value": f"{imported_option.id}",
+                },
+                # boolean should not be modified
+                {
+                    "type": "boolean",
+                    "field": imported_single_select.id,
+                    "group": 1,
+                    # old 100 option will be scrapped, because
+                    # it's not in the mapping
+                    "value": "true",
+                },
+                # no invalid_filter
+                {
+                    "type": "single_select_is_any_of",
+                    "field": imported_single_select.id,
+                    "group": 1,
+                    # old 100 option will be scrapped, because
+                    # it's not in the mapping
+                    "value": f"{imported_option.id}",
+                },
+            ],
         },
     ]
 

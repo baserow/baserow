@@ -15,7 +15,7 @@ from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import connection
 from django.db import models as django_models
 from django.db.models import Count, Q
-from django.db.models.expressions import F, OrderBy
+from django.db.models.expressions import OrderBy
 from django.db.models.query import QuerySet
 
 import jwt
@@ -32,7 +32,7 @@ from baserow.contrib.database.fields.field_filters import (
     FilterBuilder,
 )
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.operations import ReadFieldOperationType
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
@@ -75,7 +75,6 @@ from baserow.contrib.database.views.operations import (
     UpdateViewFilterGroupOperationType,
     UpdateViewFilterOperationType,
     UpdateViewGroupByOperationType,
-    UpdateViewOperationType,
     UpdateViewPublicOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
@@ -290,7 +289,7 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
 
     @classmethod
     def get_index(
-        cls, view: View, model: Optional[GeneratedTableModel]
+        cls, view: View, model: Optional[GeneratedTableModel] = None
     ) -> Optional[django_models.Index]:
         """
         Returns the model and the best possible index for the requested view.
@@ -311,7 +310,10 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         for view_sort_or_group_by in view.get_all_sorts():
             field_object = model._field_objects[view_sort_or_group_by.field_id]
             annotated_order_by = field_object["type"].get_order(
-                field_object["field"], field_object["name"], view_sort_or_group_by.order
+                field_object["field"],
+                field_object["name"],
+                view_sort_or_group_by.order,
+                table_model=model,
             )
 
             # It's enough to have one field that cannot be indexed to make the DB
@@ -321,7 +323,7 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
 
             field_order_bys.append(annotated_order_by)
 
-        index_fields = [order_by.order for order_by in field_order_bys]
+        index_fields = [o for ob in field_order_bys for o in ob.order_bys]
 
         if not index_fields:
             return None
@@ -347,7 +349,7 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         return cls.drop_index_if_unused(view)
 
     @classmethod
-    def after_field_changed_or_deleted(cls, field: Field):
+    def after_fields_changed_or_deleted(cls, fields: List[Field]):
         """
         Called when a field is deleted. This will remove any indexes that are no
         longer required.
@@ -356,7 +358,9 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         views_need_to_be_updated = View.objects.filter(
-            viewsort__field_id=field.pk, db_index_name__isnull=False
+            Q(viewsort__field_id__in=[field.id for field in fields])
+            | Q(viewgroupby__field_id__in=[field.id for field in fields]),
+            db_index_name__isnull=False,
         )
         for view in views_need_to_be_updated:
             cls.schedule_index_update(view)
@@ -942,7 +946,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         :param user: The user on whose behalf the view is updated.
         :param view: The view instance that needs to be updated.
-        :param data: The fields that need to be updated.
+        :param data: The properties that need to be updated.
         :raises ValueError: When the provided view not an instance of View.
         :return: The updated view instance.
         """
@@ -950,15 +954,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         if not isinstance(view, View):
             raise ValueError("The view is not an instance of View.")
 
-        workspace = view.table.database.workspace
-        CoreHandler().check_permissions(
-            user, UpdateViewOperationType.type, workspace=workspace, context=view
-        )
+        view_type = view_type_registry.get_by_model(view)
+        view_type.check_view_update_permissions(user, view, data)
+        view_type.before_view_update(data, view, user)
 
         old_view = deepcopy(view)
-
-        view_type = view_type_registry.get_by_model(view)
-        view_type.before_view_update(data, view, user)
 
         view_values = view_type.prepare_values(data, view.table, user)
         allowed_fields = [
@@ -998,6 +998,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         )
         view = set_allowed_attrs(view_values, allowed_attrs, view)
         if previous_public_value != view.public:
+            workspace = view.table.database.workspace
             CoreHandler().check_permissions(
                 user,
                 UpdateViewPublicOperationType.type,
@@ -1295,48 +1296,92 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         for view_type in view_type_registry.get_all():
             view_type.after_field_moved_between_tables(field, original_table_id)
 
-    def field_type_changed(self, field: Field):
+    def fields_type_changed(self, fields: List[Field]):
         """
         This method is called by the FieldHandler when the field type of a field has
-        changed. It could be that the field has filters or sortings that are not
-        compatible anymore. If that is the case then those need to be removed.
-        All view_type `after_field_type_change` of views that are linked to this field
-        are also called to react on this change.
+        changed. It could be that the field has filters, sortings, or other view
+        related things are not compatible anymore. If that is the case then those
+        need to be removed. All view_type `after_field_type_change` of views that are
+        linked to this field are also called to react on this change.
 
-        :param field: The new field object.
+        It's recommended to call this method in bulk instead of for every changed
+        field individually because it's not query efficient that way.
+
+        :param fields: The fields that have changed.
         """
 
-        field_type = field_type_registry.get_by_model(field.specific_class)
+        if len(fields) == 0:
+            return
 
-        # If the new field type does not support sorting then all sortings will be
-        # removed.
-        if not field_type.check_can_order_by(field):
-            deleted_count, _ = field.viewsort_set.all().delete()
+        # Keep track of the changed fields so that the
+        # `after_fields_changed_or_deleted` can be called in bulk and make it query
+        # efficient.
+        changed_fields = set()
+
+        fields_to_delete_sortings = [
+            f
+            for f in fields
+            if not field_type_registry.get_by_model(
+                f.specific_class
+            ).check_can_order_by(f)
+        ]
+
+        # If it's a primary field, we also need to remove any sortings on the
+        # link row fields pointing to this table.
+        primary_fields_table_ids = [
+            field.table_id for field in fields_to_delete_sortings if field.primary
+        ]
+        if len(primary_fields_table_ids) > 0:
+            related_fields = LinkRowField.objects.filter(
+                link_row_table_id__in=primary_fields_table_ids
+            )
+            fields_to_delete_sortings += list(related_fields)
+
+        if fields_to_delete_sortings:
+            deleted_count, _ = ViewSort.objects.filter(
+                field_id__in=[field.id for field in fields_to_delete_sortings]
+            ).delete()
             if deleted_count > 0:
-                ViewIndexingHandler.after_field_changed_or_deleted(field)
+                changed_fields.update(fields_to_delete_sortings)
 
-        # If the new field type does not support grouping then all group bys will be
-        # removed.
-        if not field_type.check_can_group_by(field):
-            deleted_count, _ = field.viewgroupby_set.all().delete()
+        fields_to_delete_groupings = [
+            f
+            for f in fields
+            if not field_type_registry.get_by_model(
+                f.specific_class
+            ).check_can_group_by(f)
+        ]
+        if fields_to_delete_groupings:
+            deleted_count, _ = ViewGroupBy.objects.filter(
+                field_id__in=[field.id for field in fields_to_delete_groupings]
+            ).delete()
             if deleted_count > 0:
-                ViewIndexingHandler.after_field_changed_or_deleted(field)
+                changed_fields.update(fields_to_delete_sortings)
 
-        # Check which filters are not compatible anymore and remove those.
-        for filter in field.viewfilter_set.all():
-            filter_type = view_filter_type_registry.get(filter.type)
+        if len(changed_fields) > 0:
+            ViewIndexingHandler.after_fields_changed_or_deleted(list(changed_fields))
 
-            if not filter_type.field_is_compatible(field):
-                filter.delete()
+        filters_to_check = ViewFilter.objects.filter(
+            field_id__in=[f.id for f in fields]
+        ).select_related("field")
+        incompatible_filter_ids = [
+            filter.id
+            for filter in filters_to_check
+            if not view_filter_type_registry.get(filter.type).field_is_compatible(
+                filter.field
+            )
+        ]
+        if len(incompatible_filter_ids) > 0:
+            ViewFilter.objects.filter(id__in=incompatible_filter_ids).delete()
 
         # Call view types hook
         for view_type in view_type_registry.get_all():
-            view_type.after_field_type_change(field)
+            view_type.after_fields_type_change(fields)
 
         for (
             decorator_value_provider_type
         ) in decorator_value_provider_type_registry.get_all():
-            decorator_value_provider_type.after_field_type_change(field)
+            decorator_value_provider_type.after_fields_type_change(fields)
 
     def field_value_updated(self, updated_fields: Union[Iterable[Field], Field]):
         """
@@ -1829,18 +1874,21 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             field_type = model._field_objects[view_sort_or_group_by.field_id]["type"]
 
             field_annotated_order_by = field_type.get_order(
-                field, field_name, view_sort_or_group_by.order
+                field,
+                field_name,
+                view_sort_or_group_by.order,
+                table_model=queryset.model,
             )
             field_annotation = field_annotated_order_by.annotation
-            field_order_by = field_annotated_order_by.order
+            field_order_bys = field_annotated_order_by.order_bys
 
             if field_annotation is not None:
                 queryset = queryset.annotate(**field_annotation)
 
-            order_by.append(field_order_by)
+            for fob in field_order_bys:
+                order_by.append(fob)
 
-        order_by.append(F("order").asc(nulls_first=True))
-        order_by.append(F("id").asc(nulls_first=True))
+        order_by.extend(("order", "id"))
 
         return order_by, queryset
 

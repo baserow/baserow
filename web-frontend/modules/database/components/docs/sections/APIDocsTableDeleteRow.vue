@@ -33,7 +33,20 @@
           </APIDocsParameter>
         </ul>
       </div>
-      <div v-else>
+      <h4 class="api-docs__heading-4">{{ $t('apiDocs.queryParameters') }}</h4>
+      <ul class="api-docs__parameters">
+        <APIDocsParameter
+          name="send_webhook_events"
+          :optional="true"
+          type="any"
+        >
+          <MarkdownIt
+            class="api-docs__content"
+            :content="$t('apiDocs.sendWebhookEventsDescription')"
+          />
+        </APIDocsParameter>
+      </ul>
+      <div v-if="batchMode === true">
         <h4 class="api-docs__heading-4">
           {{ $t('apiDocs.requestBodySchema') }}
         </h4>

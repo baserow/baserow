@@ -31,7 +31,7 @@
           <a
             v-if="!disableGroupBy"
             class="group-bys__remove"
-            @click.stop="deleteGroupBy(groupBy)"
+            @click="deleteGroupBy(groupBy)"
           >
             <i class="iconoir-cancel"></i>
           </a>
@@ -119,40 +119,31 @@
       </div>
       <div
         v-if="view.group_bys.length < availableFieldsLength && !disableGroupBy"
-        ref="addContextToggle"
         class="context__footer"
       >
         <ButtonText
+          ref="addDropdownToggle"
           icon="iconoir-plus"
-          @click="
-            $refs.addContext.toggle($refs.addContextToggle, 'bottom', 'left', 4)
-          "
+          @click="$refs.addDropdown.toggle($refs.addDropdownToggle.$el)"
         >
           {{ $t('viewGroupByContext.addGroupBy') }}</ButtonText
         >
-        <Context
-          ref="addContext"
-          class="group-bys__add-context"
-          overflow-scroll
-          max-height-if-outside-viewport
-        >
-          <ul ref="items" class="context__menu">
-            <li
-              v-for="field in fields"
-              v-show="isFieldAvailable(field)"
+        <div class="group-bys__add">
+          <Dropdown
+            ref="addDropdown"
+            :show-input="false"
+            :fixed-items="true"
+            @input="addGroupBy"
+          >
+            <DropdownItem
+              v-for="field in availableFields"
               :key="field.id"
-              class="context__menu-item"
-            >
-              <a class="context__menu-item-link" @click="addGroupBy(field)">
-                <i
-                  class="context__menu-item-icon"
-                  :class="field._.type.iconClass"
-                ></i>
-                {{ field.name }}
-              </a>
-            </li>
-          </ul>
-        </Context>
+              :name="field.name"
+              :value="field.id"
+              :icon="getFieldType(field).iconClass"
+            ></DropdownItem>
+          </Dropdown>
+        </div>
       </div>
     </div>
   </Context>
@@ -190,10 +181,16 @@ export default {
     availableFieldsLength() {
       return this.fields.filter(this.getCanGroupByInView).length
     },
+    availableFields() {
+      return this.fields.filter((f) => this.isFieldAvailable(f))
+    },
   },
   methods: {
+    getFieldType(field) {
+      return this.$registry.get('field', field.type)
+    },
     getCanGroupByInView(field) {
-      return this.$registry.get('field', field.type).getCanGroupByInView(field)
+      return this.getFieldType(field).getCanGroupByInView(field)
     },
     getField(fieldId) {
       for (const i in this.fields) {
@@ -207,14 +204,14 @@ export default {
       const allFieldIds = this.view.group_bys.map((groupBy) => groupBy.field)
       return this.getCanGroupByInView(field) && !allFieldIds.includes(field.id)
     },
-    async addGroupBy(field) {
-      this.$refs.addContext.hide()
+    async addGroupBy(fieldId) {
+      this.$refs.addDropdown.hide()
 
       try {
         await this.$store.dispatch('view/createGroupBy', {
           view: this.view,
           values: {
-            field: field.id,
+            field: fieldId,
             value: 'ASC',
           },
           readOnly: this.readOnly,

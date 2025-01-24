@@ -259,3 +259,274 @@ describe('MultipleCollaboratorsFieldType sorting', () => {
     expect(result).toBe(sortedChars)
   })
 })
+
+describe('LinkRowFieldType sorting text values according to collation', () => {
+  let testApp = null
+  let linkRowFieldType = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+    linkRowFieldType = testApp._app.$registry.registry.field.link_row
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test('Test sort matches backend', () => {
+    // This is a naive sorting test running on Node.js and thus not really testing
+    // collation sorting in the browsers where this functionality is mostly used The
+    // Peseta character in particular seems to be sorted differently in our Node.js,
+    // hence it will be ignored for this test
+    const sortedChars = fs
+      .readFileSync(
+        path.join(__dirname, '/../../../../tests/sorted_chars.txt'),
+        'utf8'
+      )
+      .replace(/^\uFEFF/, '') // strip BOM
+      .replace('₧', '') // ignore Peseta
+    const data = fs
+      .readFileSync(
+        path.join(__dirname, '/../../../../tests/all_chars.txt'),
+        'utf8'
+      )
+      .replace(/^\uFEFF/, '') // strip BOM
+      .replace('₧', '') // ignore Peseta
+    const rows = Array.from(data).map((value) => {
+      return { v: [{ value }] }
+    })
+    const relatedField = { type: 'text' }
+    const linkRowField = {
+      link_row_table_primary_field: relatedField,
+    }
+    const sortFunction = linkRowFieldType.getSort('v', 'ASC', linkRowField)
+    rows.sort(sortFunction)
+    const result = rows.map((v) => v.v[0].value).join('')
+    expect(result).toBe(sortedChars)
+  })
+})
+
+describe('LinkRowFieldType sorting with other primary fields', () => {
+  let testApp = null
+  let linkRowFieldType = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+    linkRowFieldType = testApp._app.$registry.registry.field.link_row
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test('Test ascending and descending order with number primary field', () => {
+    const testData = [
+      {
+        id: 1,
+        order: '1.00000000000000000000',
+        field_link: [
+          { id: 1, value: '100' },
+          { id: 2, value: '50' },
+        ],
+      },
+      {
+        id: 2,
+        order: '2.00000000000000000000',
+        field_link: [{ id: 3, value: '25' }],
+      },
+      {
+        id: 3,
+        order: '3.00000000000000000000',
+        field_link: [{ id: 4, value: '' }],
+      },
+      {
+        id: 4,
+        order: '4.00000000000000000000',
+        field_link: [],
+      },
+      {
+        id: 5,
+        order: '5.00000000000000000000',
+        field_link: [{ id: 5, value: '75' }],
+      },
+      {
+        id: 6,
+        order: '6.00000000000000000000',
+        field_link: [{ id: 6, value: '25' }],
+      },
+      {
+        id: 7,
+        order: '7.00000000000000000000',
+        field_link: [
+          { id: 1, value: '100' },
+          { id: 6, value: '25' },
+        ],
+      },
+    ]
+
+    const relatedField = {
+      type: 'number',
+      number_decimal_places: 0,
+    }
+    const linkRowField = {
+      link_row_table_primary_field: relatedField,
+    }
+    const sortASC = linkRowFieldType.getSort('field_link', 'ASC', linkRowField)
+    const sortDESC = linkRowFieldType.getSort(
+      'field_link',
+      'DESC',
+      linkRowField
+    )
+
+    testData.sort(sortASC)
+    let ids = testData.map((obj) => obj.id)
+    expect(ids).toEqual([4, 2, 6, 5, 7, 1, 3])
+
+    testData.sort(sortDESC)
+    ids = testData.map((obj) => obj.id)
+    expect(ids).toEqual([4, 3, 1, 7, 5, 2, 6])
+  })
+
+  test('Test ascending and descending order with duration primary field', () => {
+    const testData = [
+      {
+        id: 1,
+        order: '1.00000000000000000000',
+        field_link: [
+          { id: 1, value: '0:01:40' },
+          { id: 2, value: '0:00:50' },
+        ],
+      },
+      {
+        id: 2,
+        order: '2.00000000000000000000',
+        field_link: [{ id: 3, value: '0:00:25' }],
+      },
+      {
+        id: 3,
+        order: '3.00000000000000000000',
+        field_link: [{ id: 4, value: '' }],
+      },
+      {
+        id: 4,
+        order: '4.00000000000000000000',
+        field_link: [],
+      },
+      {
+        id: 5,
+        order: '5.00000000000000000000',
+        field_link: [{ id: 5, value: '0:01:15' }],
+      },
+      {
+        id: 6,
+        order: '6.00000000000000000000',
+        field_link: [{ id: 6, value: '0:00:25' }],
+      },
+      {
+        id: 7,
+        order: '7.00000000000000000000',
+        field_link: [
+          { id: 1, value: '0:01:40' },
+          { id: 6, value: '0:00:25' },
+        ],
+      },
+    ]
+
+    const relatedField = {
+      type: 'duration',
+      duration_format: 'h:mm:ss',
+    }
+    const linkRowField = {
+      link_row_table_primary_field: relatedField,
+    }
+    const sortASC = linkRowFieldType.getSort('field_link', 'ASC', linkRowField)
+    const sortDESC = linkRowFieldType.getSort(
+      'field_link',
+      'DESC',
+      linkRowField
+    )
+
+    testData.sort(sortASC)
+    let ids = testData.map((obj) => obj.id)
+    // Nulls first, then sorted by the lowest number value in the linked rows
+    expect(ids).toEqual([4, 2, 6, 5, 7, 1, 3])
+
+    testData.sort(sortDESC)
+    ids = testData.map((obj) => obj.id)
+    // Nulls first, then sorted by the highest number value in the linked rows
+    expect(ids).toEqual([4, 3, 1, 7, 5, 2, 6])
+  })
+
+  test('Test ascending and descending order with date primary field', () => {
+    const testData = [
+      {
+        id: 1,
+        order: '1.00000000000000000000',
+        field_link: [
+          { id: 1, value: '06/12/2024 11:30' },
+          { id: 2, value: '06/12/2024 01:00' },
+        ],
+      },
+      {
+        id: 2,
+        order: '2.00000000000000000000',
+        field_link: [{ id: 3, value: '05/12/2024 07:00' }],
+      },
+      {
+        id: 3,
+        order: '3.00000000000000000000',
+        field_link: [{ id: 4, value: '' }],
+      },
+      {
+        id: 4,
+        order: '4.00000000000000000000',
+        field_link: [],
+      },
+      {
+        id: 5,
+        order: '5.00000000000000000000',
+        field_link: [{ id: 5, value: '06/12/2024 09:00' }],
+      },
+      {
+        id: 6,
+        order: '6.00000000000000000000',
+        field_link: [{ id: 6, value: '05/12/2024 07:00' }],
+      },
+      {
+        id: 7,
+        order: '7.00000000000000000000',
+        field_link: [
+          { id: 1, value: '06/12/2024 11:30' },
+          { id: 6, value: '05/12/2024 07:00' },
+        ],
+      },
+    ]
+
+    const relatedField = {
+      type: 'date',
+      date_format: 'EU',
+      date_time_format: '24',
+      date_include_time: true,
+      date_force_timezone: 'UTC',
+    }
+    const linkRowField = {
+      link_row_table_primary_field: relatedField,
+    }
+    const sortASC = linkRowFieldType.getSort('field_link', 'ASC', linkRowField)
+    const sortDESC = linkRowFieldType.getSort(
+      'field_link',
+      'DESC',
+      linkRowField
+    )
+
+    testData.sort(sortASC)
+    let ids = testData.map((obj) => obj.id)
+    // Nulls first, then sorted by the lowest number value in the linked rows
+    expect(ids).toEqual([4, 2, 6, 5, 7, 1, 3])
+
+    testData.sort(sortDESC)
+    ids = testData.map((obj) => obj.id)
+    // Nulls first, then sorted by the highest number value in the linked rows
+    expect(ids).toEqual([4, 3, 1, 7, 5, 2, 6])
+  })
+})

@@ -22,12 +22,28 @@
 ## @param global.baserow.domain Configure the domain for the frontend application.
 ## @param global.baserow.backendDomain Configure the domain for the backend application.
 ## @param global.baserow.objectsDomain Configure the domain for the external facing minio api.
+## @param global.baserow.containerSecurityContext.enabled Enabled containers' Security Context
+## @param global.baserow.containerSecurityContext.seLinuxOptions [object,nullable] Set SELinux options in container
+## @param global.baserow.containerSecurityContext.runAsUser Set containers' Security Context runAsUser
+## @param global.baserow.containerSecurityContext.runAsGroup Set containers' Security Context runAsGroup
+## @param global.baserow.containerSecurityContext.runAsNonRoot Set container's Security Context runAsNonRoot
+## @param global.baserow.containerSecurityContext.privileged Set container's Security Context privileged
+## @param global.baserow.containerSecurityContext.readOnlyRootFilesystem Set container's Security Context readOnlyRootFilesystem
+## @param global.baserow.containerSecurityContext.allowPrivilegeEscalation Set container's Security Context allowPrivilegeEscalation
+## @param global.baserow.containerSecurityContext.capabilities.drop List of capabilities to be dropped
+## @param global.baserow.containerSecurityContext.capabilities.add List of capabilities to be added
+## @param global.baserow.containerSecurityContext.seccompProfile.type Set container's Security Context seccomp profile
+## @param global.baserow.securityContext.enabled Enable security context
+## @param global.baserow.securityContext.fsGroupChangePolicy Set filesystem group change policy
+## @param global.baserow.securityContext.sysctls Set kernel settings using the sysctl interface
+## @param global.baserow.securityContext.supplementalGroups Set filesystem extra groups
+## @param global.baserow.securityContext.fsGroup Group ID for the pod
 ##
 global:
   baserow:
     imageRegistry: baserow
     image:
-      tag: 1.29.1
+      tag: 1.30.1
     imagePullSecrets: []
     serviceAccount:
       shared: true
@@ -43,6 +59,28 @@ global:
     domain: cluster.local
     backendDomain: api.cluster.local
     objectsDomain: objects.cluster.local
+
+    securityContext:
+      enabled: false
+      fsGroupChangePolicy: "Always"
+      sysctls: []
+      supplementalGroups: []
+      fsGroup: ""
+
+    containerSecurityContext:
+      enabled: false
+      seLinuxOptions: {}
+      runAsUser: ""
+      runAsGroup: ""
+      runAsNonRoot: ""
+      privileged: false
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        add: []
+        drop: []
+      seccompProfile:
+        type: ""
 
 ## @section Baserow Configuration
 ## Configuration for the Baserow application
@@ -112,6 +150,23 @@ backendConfigMap:
 ## @param migration.envFrom ConfigMaps or Secrets to be used as environment variables
 ## @param migration.volumes Volumes for the migration job
 ## @param migration.volumeMounts Volume mounts for the migration job
+## @param migration.securityContext.enabled Enable security context
+## @param migration.securityContext.fsGroupChangePolicy Set filesystem group change policy
+## @param migration.securityContext.sysctls Set kernel settings using the sysctl interface
+## @param migration.securityContext.supplementalGroups Set filesystem extra groups
+## @param migration.securityContext.fsGroup Group ID for the pod
+## @param migration.containerSecurityContext.enabled Enabled containers' Security Context
+## @param migration.containerSecurityContext.seLinuxOptions [object,nullable] Set SELinux options in container
+## @param migration.containerSecurityContext.runAsUser Set containers' Security Context runAsUser
+## @param migration.containerSecurityContext.runAsGroup Set containers' Security Context runAsGroup
+## @param migration.containerSecurityContext.runAsNonRoot Set container's Security Context runAsNonRoot
+## @param migration.containerSecurityContext.privileged Set container's Security Context privileged
+## @param migration.containerSecurityContext.readOnlyRootFilesystem Set container's Security Context readOnlyRootFilesystem
+## @param migration.containerSecurityContext.allowPrivilegeEscalation Set container's Security Context allowPrivilegeEscalation
+## @param migration.containerSecurityContext.capabilities.drop List of capabilities to be dropped
+## @param migration.containerSecurityContext.capabilities.add List of capabilities to be added
+## @param migration.containerSecurityContext.seccompProfile.type Set container's Security Context seccomp profile
+
 migration:
   enabled: true
   image:
@@ -124,6 +179,26 @@ migration:
   envFrom: []
   volumes: []
   volumeMounts: []
+  securityContext:
+    enabled: false
+    fsGroupChangePolicy: ""
+    sysctls: ""
+    supplementalGroups: ""
+    fsGroup: ""
+  containerSecurityContext:
+    enabled: false
+    seLinuxOptions: {}
+    runAsUser: ""
+    runAsGroup: ""
+    runAsNonRoot: ""
+    privileged: false
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      add: []
+      drop: []
+    seccompProfile:
+      type: ""
 
 ## @section Baserow Backend ASGI Configuration
 ## Configuration for the ASGI server that serves the Baserow backend application.
@@ -155,6 +230,14 @@ migration:
 ## @param baserow-backend-asgi.readinessProbe.periodSeconds How often (in seconds) to perform the probe.
 ## @param baserow-backend-asgi.readinessProbe.successThreshold Minimum consecutive successes for the probe to be considered successful after having failed.
 ## @param baserow-backend-asgi.readinessProbe.timeoutSeconds Number of seconds after which the probe times out.
+
+## Autoscaling Configuration
+## Automatically adjust the number of replicas based on CPU and memory utilization.
+## @param baserow-backend-asgi.autoscaling.enabled Enable autoscaling
+## @param baserow-backend-asgi.autoscaling.minReplicas Minimum number of replicas
+## @param baserow-backend-asgi.autoscaling.maxReplicas Maximum number of replicas
+## @param baserow-backend-asgi.autoscaling.targetCPUUtilizationPercentage Target CPU utilization percentage for autoscaling
+## @param baserow-backend-asgi.autoscaling.targetMemoryUtilizationPercentage Target memory utilization percentage for autoscaling
 baserow-backend-asgi:
   image:
     repository: backend
@@ -183,6 +266,13 @@ baserow-backend-asgi:
     periodSeconds: 30
     successThreshold: 1
     timeoutSeconds: 5
+
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
 
 ## @section Baserow Backend WSGI Configuration
 ## Configuration for the WSGI server that serves the Baserow backend application.
@@ -214,6 +304,15 @@ baserow-backend-asgi:
 ## @param baserow-backend-wsgi.readinessProbe.periodSeconds How often (in seconds) to perform the probe.
 ## @param baserow-backend-wsgi.readinessProbe.successThreshold Minimum consecutive successes for the probe to be considered successful after having failed.
 ## @param baserow-backend-wsgi.readinessProbe.timeoutSeconds Number of seconds after which the probe times out.
+
+## Autoscaling Configuration
+## Automatically adjust the number of replicas based on CPU and memory utilization.
+## @param baserow-backend-wsgi.autoscaling.enabled Enable autoscaling
+## @param baserow-backend-wsgi.autoscaling.minReplicas Minimum number of replicas
+## @param baserow-backend-wsgi.autoscaling.maxReplicas Maximum number of replicas
+## @param baserow-backend-wsgi.autoscaling.targetCPUUtilizationPercentage Target CPU utilization percentage for autoscaling
+## @param baserow-backend-wsgi.autoscaling.targetMemoryUtilizationPercentage Target memory utilization percentage for autoscaling
+
 baserow-backend-wsgi:
   image:
     repository: backend
@@ -245,6 +344,12 @@ baserow-backend-wsgi:
     successThreshold: 1
     timeoutSeconds: 5
 
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
 ## @section Baserow Web Frontend Configuration
 ## Configuration for the Web Frontend server that serves the Baserow backend application.
 ## This section includes the Docker image repository and arguments for running the Web Frontend server,
@@ -289,6 +394,15 @@ baserow-backend-wsgi:
 ## @param baserow-frontend.mountConfiguration.backend If enabled, all the backend service configurations and secrets will be mounted.
 ## @param baserow-frontend.mountConfiguration.frontend If enabled, all the frontend service configurations and secrets will be mounted.
 ## @param baserow-frontend.service.targetPort The port the Web Frontend server listens on.
+
+## Autoscaling Configuration
+## Automatically adjust the number of replicas based on CPU and memory utilization.
+## @param baserow-frontend.autoscaling.enabled Enable autoscaling
+## @param baserow-frontend.autoscaling.minReplicas Minimum number of replicas
+## @param baserow-frontend.autoscaling.maxReplicas Maximum number of replicas
+## @param baserow-frontend.autoscaling.targetCPUUtilizationPercentage Target CPU utilization percentage for autoscaling
+## @param baserow-frontend.autoscaling.targetMemoryUtilizationPercentage Target memory utilization percentage for autoscaling
+
 baserow-frontend:
   image:
     repository: web-frontend
@@ -322,17 +436,26 @@ baserow-frontend:
     successThreshold: 1
     timeoutSeconds: 5
 
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
 ## @section Baserow Celery beat Configuration
 ## Configuration for the Celery beat workers that process background tasks for the Baserow application.
 ## This section includes the Docker image repository and arguments for running the Celery beat workers,
 ## @param baserow-celery-beat-worker.image.repository Docker image repository for the Celery beat worker.
 ## @param baserow-celery-beat-worker.args Arguments passed to the Celery beat worker.
+## @param baserow-celery-beat-worker.replicaCount Number of replicas for the Celery beat worker.
 ## @param baserow-celery-beat-worker.service.create Set to false to disable creating a service for the Celery beat worker.
 baserow-celery-beat-worker:
   image:
     repository: backend
   args:
     - celery-beat
+  replicaCount: 1
   service:
     create: false
 
@@ -341,12 +464,14 @@ baserow-celery-beat-worker:
 ## This section includes the Docker image repository and arguments for running the Celery export worker,
 ## @param baserow-celery-export-worker.image.repository Docker image repository for the Celery export worker.
 ## @param baserow-celery-export-worker.args Arguments passed to the Celery export worker.
+## @param baserow-celery-export-worker.replicaCount Number of replicas for the Celery export worker.
 ## @param baserow-celery-export-worker.service.create Set to false to disable creating a service for the Celery beat worker.
 baserow-celery-export-worker:
   image:
     repository: backend
   args:
     - celery-exportworker
+  replicaCount: 1
   service:
     create: false
 
@@ -355,6 +480,7 @@ baserow-celery-export-worker:
 ## This section includes the Docker image repository and arguments for running the Celery worker,
 ## @param baserow-celery-worker.image.repository Docker image repository for the Celery worker.
 ## @param baserow-celery-worker.args Arguments passed to the Celery worker.
+## @param baserow-celery-worker.replicaCount Number of replicas for the Celery worker.
 ## @param baserow-celery-worker.service.create Set to false to disable creating a service for the Celery beat worker.
 ## Liveness Probe Configuration
 ## Ensures the Celery worker is alive and can handle requests. If the liveness probe fails, Kubernetes restarts the container.
@@ -378,6 +504,7 @@ baserow-celery-worker:
     repository: backend
   args:
     - celery-worker
+  replicaCount: 1
   service:
     create: false
   livenessProbe:
@@ -409,12 +536,14 @@ baserow-celery-worker:
 ## @param baserow-celery-flower.enabled Set to true to enable the Celery Flower monitoring tool.
 ## @param baserow-celery-flower.image.repository Docker image repository for the Celery Flower monitoring tool.
 ## @param baserow-celery-flower.args Arguments passed to the Celery Flower monitoring tool.
+## @param baserow-celery-flower.replicaCount Number of replicas for the Celery Flower monitoring tool.
 baserow-celery-flower:
   enabled: false
   image:
     repository: backend
   args:
     - celery-flower
+  replicaCount: 1
 
 ## @section Ingress Configuration
 ## Configuration for the Ingress resource

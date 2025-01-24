@@ -7,6 +7,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NO
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.db import specific_iterator
 
@@ -1047,3 +1048,64 @@ def test_can_convert_from_text_output_type_to_text_field(
     # Converting text ai field to text field should keep the values because the text
     # field conversion is automatically used.
     assert getattr(rows[0], f"field_{field.id}") == "Test"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_link_row_field_can_be_sorted_when_linking_an_ai_field(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    table_b = premium_data_fixture.create_database_table(user=user)
+    primary_b = premium_data_fixture.create_ai_field(
+        table=table_b, primary=True, order=1, ai_output_type="choice"
+    )
+
+    opt_1 = premium_data_fixture.create_select_option(
+        field=primary_b, value="a", color="blue", order=0
+    )
+    opt_2 = premium_data_fixture.create_select_option(
+        field=primary_b, value="b", color="green", order=0
+    )
+
+    row_b1, row_b2 = RowHandler().force_create_rows(
+        user,
+        table_b,
+        [
+            {primary_b.db_column: opt_1.id},
+            {primary_b.db_column: opt_2.id},
+        ],
+    )
+
+    table_a, table_b, link_field = premium_data_fixture.create_two_linked_tables(
+        user=user, table_b=table_b
+    )
+
+    model_a = table_a.get_model()
+    RowHandler().force_create_rows(
+        user,
+        table_a,
+        [{link_field.db_column: [row_b.id]} for row_b in [row_b1, row_b2]],
+        model=model_a,
+    )
+
+    result = list(
+        model_a.objects.all()
+        .order_by_fields_string(link_field.db_column)
+        .values_list("id", flat=True)
+    )
+    assert result == [row_b1.id, row_b2.id]
+
+    # The sorting should work also for `ai_output_type="text"`
+
+    FieldHandler().update_field(
+        user=user,
+        field=primary_b,
+        ai_output_type="text",
+    )
+
+    model_a = table_a.get_model()
+    result = list(
+        model_a.objects.all()
+        .order_by_fields_string(f"-{link_field.db_column}")  # Descending order
+        .values_list("id", flat=True)
+    )
+    assert result == [row_b2.id, row_b1.id]

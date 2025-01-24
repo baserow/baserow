@@ -8,6 +8,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.webhooks.registries import webhook_event_type_registry
 from baserow.contrib.database.ws.rows.signals import serialize_rows_values
+from baserow.test_utils.helpers import AnyStr
 
 
 @pytest.mark.django_db()
@@ -188,7 +189,9 @@ def test_rows_updated_event_type(data_fixture):
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"field_{text_field.id}": "New Test value",
-                f"field_{link_row_field.id}": [{"id": 1, "value": "Lookup 1"}],
+                f"field_{link_row_field.id}": [
+                    {"id": 1, "value": "Lookup 1", "order": AnyStr()}
+                ],
             }
         ],
         "old_items": [
@@ -196,7 +199,9 @@ def test_rows_updated_event_type(data_fixture):
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"field_{text_field.id}": "Old Test value",
-                f"field_{link_row_field.id}": [{"id": 1, "value": "Lookup 1"}],
+                f"field_{link_row_field.id}": [
+                    {"id": 1, "value": "Lookup 1", "order": AnyStr()}
+                ],
             }
         ],
     }
@@ -223,7 +228,9 @@ def test_rows_updated_event_type(data_fixture):
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"{text_field.name}": "New Test value",
-                f"{link_row_field.name}": [{"id": 1, "value": "Lookup 1"}],
+                f"{link_row_field.name}": [
+                    {"id": 1, "value": "Lookup 1", "order": AnyStr()}
+                ],
             }
         ],
         "old_items": [
@@ -231,7 +238,9 @@ def test_rows_updated_event_type(data_fixture):
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"{text_field.name}": "Old Test value",
-                f"{link_row_field.name}": [{"id": 1, "value": "Lookup 1"}],
+                f"{link_row_field.name}": [
+                    {"id": 1, "value": "Lookup 1", "order": AnyStr()}
+                ],
             }
         ],
     }

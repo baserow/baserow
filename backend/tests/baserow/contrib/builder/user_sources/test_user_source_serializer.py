@@ -1,6 +1,7 @@
 """Test the UserSourceSerializer serializer."""
 
 import pytest
+from pytest_unordered import unordered
 
 from baserow.api.user_sources.serializers import UserSourceSerializer
 
@@ -23,6 +24,8 @@ def test_serializer_has_expected_fields(user_source):
     """Ensure the serializer returns the expected fields."""
 
     expected_fields = [
+        "user_count",
+        "user_count_updated_at",
         "application_id",
         "auth_providers",
         "id",
@@ -34,4 +37,4 @@ def test_serializer_has_expected_fields(user_source):
     ]
 
     serializer = UserSourceSerializer(instance=user_source)
-    assert sorted(serializer.data.keys()) == expected_fields
+    assert list(serializer.data.keys()) == unordered(expected_fields)

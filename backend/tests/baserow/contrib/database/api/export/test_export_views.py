@@ -421,3 +421,131 @@ def test_exporting_csv_table_writes_file_to_storage(
             )
             with open(file_path, "r", encoding="utf-8") as written_file:
                 assert written_file.read() == expected
+
+
+@pytest.mark.django_db
+def test_exporting_csv_with_formatted_number_field(
+    data_fixture, api_client, tmpdir, settings, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    price_field = data_fixture.create_number_field(
+        table=table, name="price", order=0, number_prefix="$"
+    )
+    percent_field = data_fixture.create_number_field(
+        table=table, name="percent", order=1, number_suffix="%"
+    )
+    mixed_field = data_fixture.create_number_field(
+        table=table, name="mixed_field", order=2, number_prefix="$", number_suffix="%"
+    )
+    mixed_negative_field = data_fixture.create_number_field(
+        table=table,
+        name="mixed_negative_field",
+        order=3,
+        number_prefix="$",
+        number_suffix="%",
+        number_negative=True,
+    )
+    number_field_separator = data_fixture.create_number_field(
+        table=table,
+        name="number_field_separator",
+        order=4,
+        number_decimal_places=2,
+        number_separator="SPACE_COMMA",
+    )
+    fully_formatted = data_fixture.create_number_field(
+        table=table,
+        name="fully_formatted",
+        order=5,
+        number_prefix="$",
+        number_suffix="%",
+        number_decimal_places=2,
+        number_separator="SPACE_PERIOD",
+        number_negative=True,
+    )
+
+    grid_view = data_fixture.create_grid_view(table=table)
+
+    row_handler = RowHandler()
+    row_handler.create_row(
+        user=user,
+        table=table,
+        values={
+            price_field.id: 123000,
+            percent_field.id: "456000.00",
+            mixed_field.id: "789000.00",
+            mixed_negative_field.id: "-135000.33",
+            number_field_separator.id: "123456.78",
+            fully_formatted.id: "-123456.78",
+        },
+    )
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
+
+        run_time = parse_datetime("2020-02-01 01:00").replace(tzinfo=timezone.utc)
+        # DRF uses some custom internal date time formatting, use the field itself
+        # so the test doesn't break if we set a different default timezone format etc
+        expected_created_at = DateTimeField().to_representation(run_time)
+        with freeze_time(run_time):
+            token = data_fixture.generate_token(user)
+            with django_capture_on_commit_callbacks(execute=True):
+                response = api_client.post(
+                    reverse(
+                        "api:database:export:export_table",
+                        kwargs={"table_id": table.id},
+                    ),
+                    data={
+                        "view_id": grid_view.id,
+                        "exporter_type": "csv",
+                        "export_charset": "utf-8",
+                        "csv_include_header": "True",
+                        "csv_column_separator": ",",
+                    },
+                    format="json",
+                    HTTP_AUTHORIZATION=f"JWT {token}",
+                )
+            response_json = response.json()
+            job_id = response_json["id"]
+            assert response_json == {
+                "id": job_id,
+                "created_at": expected_created_at,
+                "exported_file_name": None,
+                "exporter_type": "csv",
+                "progress_percentage": 0.0,
+                "state": "pending",
+                "status": "pending",
+                "table": table.id,
+                "view": grid_view.id,
+                "url": None,
+            }
+            response = api_client.get(
+                reverse("api:database:export:get", kwargs={"job_id": job_id}),
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+            json = response.json()
+            filename = json["exported_file_name"]
+            assert json == {
+                "id": job_id,
+                "created_at": expected_created_at,
+                "exported_file_name": filename,
+                "exporter_type": "csv",
+                "progress_percentage": 100.0,
+                "state": "finished",
+                "status": "finished",
+                "table": table.id,
+                "view": grid_view.id,
+                "url": f"http://localhost:8000/media/export_files/{filename}",
+            }
+
+            file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
+            assert file_path.isfile()
+            expected = (
+                "\ufeff"
+                "id,price,percent,mixed_field,mixed_negative_field,number_field_separator,fully_formatted\n"
+                "1,$123000,456000%,$789000%,'-$135000%,\"123 456,78\",'-$123 456.78%\n"
+            )
+            with open(file_path, "r", encoding="utf-8") as written_file:
+                assert written_file.read() == expected

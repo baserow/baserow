@@ -308,7 +308,7 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, models.QuerySet):
         :rtype: QuerySet
         """
 
-        order_by = split_comma_separated_string(order_string)
+        order_by_fields = split_comma_separated_string(order_string)
 
         if user_field_names:
             field_object_dict = {
@@ -318,7 +318,8 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, models.QuerySet):
             field_object_dict = self.model._field_objects
 
         annotations = {}
-        for index, order in enumerate(order_by):
+        order_by = []
+        for order in order_by_fields:
             if user_field_names:
                 field_name_or_id = self._get_field_name(order)
             else:
@@ -346,13 +347,14 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, models.QuerySet):
                 )
 
             field_annotated_order_by = field_type.get_order(
-                field, field_name, order_direction
+                field, field_name, order_direction, table_model=self.model
             )
 
             if field_annotated_order_by.annotation is not None:
                 annotations = {**annotations, **field_annotated_order_by.annotation}
-            field_order_by = field_annotated_order_by.order
-            order_by[index] = field_order_by
+            field_order_bys = field_annotated_order_by.order_bys
+            for field_order_by in field_order_bys:
+                order_by.append(field_order_by)
 
         order_by.append("order")
         order_by.append("id")
@@ -603,6 +605,15 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
             raise ValueError(f"Field {field_name} not found.")
 
     @classmethod
+    def get_field_object_by_id(cls, field_id: int, include_trash: bool = False):
+        field_objects = cls.get_field_objects(include_trash)
+
+        try:
+            return next(filter(lambda f: f["field"].id == field_id, field_objects))
+        except StopIteration:
+            raise ValueError(f"Field with ID {field_id} not found.")
+
+    @classmethod
     def get_field_object_by_user_field_name(
         cls, field_name: str, include_trash: bool = False
     ):
@@ -678,6 +689,18 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
     @classmethod
     def get_fields(cls, include_trash=False):
         return [o["field"] for o in cls.get_field_objects(include_trash)]
+
+    @classmethod
+    def get_primary_field(self):
+        field_objects = self.get_field_objects()
+
+        try:
+            field_object = next(
+                filter(lambda f: f["field"].primary is True, field_objects)
+            )
+            return field_object["field"]
+        except StopIteration:
+            return None
 
     class Meta:
         abstract = True
@@ -1265,7 +1288,14 @@ class Table(
                 fields_query = fields_query.filter(name__in=field_names)
 
         if isinstance(fields_query, QuerySet):
-            fields_query = specific_iterator(fields_query)
+            fields_query = specific_iterator(
+                fields_query,
+                per_content_type_queryset_hook=(
+                    lambda model, queryset: field_type_registry.get_by_model(
+                        model
+                    ).enhance_field_queryset(queryset, model)
+                ),
+            )
 
         # Create a combined list of fields that must be added and belong to the this
         # table.

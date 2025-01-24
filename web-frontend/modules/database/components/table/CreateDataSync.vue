@@ -6,7 +6,7 @@
       :default-name="getDefaultName()"
       @submitted="submitted"
     >
-      <component :is="dataSyncComponent" />
+      <component :is="dataSyncComponent" :disabled="loadingProperties" />
     </TableForm>
     <Error :error="error"></Error>
     <div class="align-right">
@@ -25,7 +25,7 @@
     <FormGroup small-label class="margin-top-3">
       <template #label> {{ $t('createDataSync.fields') }}</template>
       <SwitchInput
-        v-for="property in properties"
+        v-for="property in orderedProperties"
         :key="property.key"
         class="margin-top-2"
         small
@@ -60,18 +60,16 @@
 </template>
 
 <script>
-import error from '@baserow/modules/core/mixins/error'
-import jobProgress from '@baserow/modules/core/mixins/jobProgress'
 import TableForm from '@baserow/modules/database/components/table/TableForm'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 import DataSyncService from '@baserow/modules/database/services/dataSync'
 import { clone } from '@baserow/modules/core/utils/object'
-import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
+import dataSync from '@baserow/modules/database/mixins/dataSync'
 
 export default {
   name: 'CreateDataSync',
   components: { TableForm },
-  mixins: [error, jobProgress],
+  mixins: [dataSync],
   props: {
     database: {
       type: Object,
@@ -84,11 +82,8 @@ export default {
   },
   data() {
     return {
-      loadingProperties: false,
-      loadedProperties: false,
       formValues: null,
       properties: null,
-      syncedProperties: null,
       creatingTable: false,
       createdTable: null,
     }
@@ -114,9 +109,6 @@ export default {
       }
     },
   },
-  beforeDestroy() {
-    this.stopPollIfRunning()
-  },
   methods: {
     hide() {
       this.stopPollIfRunning()
@@ -126,44 +118,9 @@ export default {
       const baseName = this.$t('createTableModal.defaultName')
       return getNextAvailableNameInSequence(baseName, excludeNames)
     },
-    getFieldTypeIconClass(fieldType) {
-      return this.$registry.get('field', fieldType).getIconClass()
-    },
     async submitted(formValues) {
-      formValues.type = this.chosenType
       this.formValues = formValues
-
-      this.loadingProperties = true
-      this.hideError()
-
-      try {
-        const { data } = await DataSyncService(this.$client).fetchProperties(
-          formValues
-        )
-        this.loadedProperties = true
-        this.properties = data
-        this.syncedProperties = data.map((p) => p.key)
-      } catch (error) {
-        if (error.handler && error.handler.code === 'ERROR_SYNC_ERROR') {
-          this.showError(
-            this.$t('dataSyncType.syncError'),
-            error.handler.detail
-          )
-          error.handler.handled()
-          return
-        }
-        this.handleError(error)
-      } finally {
-        this.loadingProperties = false
-      }
-    },
-    toggleVisibleField(key) {
-      const index = this.syncedProperties.findIndex((f) => key === f)
-      if (index > -1) {
-        this.syncedProperties.splice(index, 1)
-      } else {
-        this.syncedProperties.push(key)
-      }
+      await this.fetchNonExistingProperties(this.chosenType, formValues)
     },
     async create() {
       this.hideError()
@@ -187,10 +144,7 @@ export default {
           database: this.database,
           data: this.createdTable,
         })
-        const { data: job } = await DataSyncService(this.$client).syncTable(
-          this.createdTable.data_sync.id
-        )
-        this.startJobPoller(job)
+        await this.syncTable(this.createdTable)
       } catch (error) {
         this.handleError(error)
       } finally {
@@ -206,20 +160,6 @@ export default {
         },
       })
       this.$emit('hide')
-    },
-    onJobFailed() {
-      const error = new ResponseErrorMessage(
-        this.$t('createDataSync.error'),
-        this.job.human_readable_error
-      )
-      this.stopPollAndHandleError(error)
-    },
-    onJobPollingError(error) {
-      this.stopPollAndHandleError(error)
-    },
-    stopPollAndHandleError(error) {
-      this.stopPollIfRunning()
-      error.handler ? this.handleError(error) : this.showError(error)
     },
   },
 }

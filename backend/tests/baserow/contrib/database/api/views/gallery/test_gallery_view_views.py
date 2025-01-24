@@ -11,7 +11,6 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
-from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
 
@@ -970,16 +969,9 @@ def test_list_rows_public_with_query_param_filter(api_client, data_fixture):
 def test_list_rows_public_with_query_param_order(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(database=table.database)
     public_field = data_fixture.create_text_field(table=table, name="public")
     hidden_field = data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
-    )
+    password_field = data_fixture.create_password_field(table=table, name="password")
     gallery_view = data_fixture.create_gallery_view(table=table, user=user, public=True)
     data_fixture.create_gallery_view_field_option(
         gallery_view, public_field, hidden=False
@@ -988,7 +980,7 @@ def test_list_rows_public_with_query_param_order(api_client, data_fixture):
         gallery_view, hidden_field, hidden=True
     )
     data_fixture.create_gallery_view_field_option(
-        gallery_view, link_row_field, hidden=False
+        gallery_view, password_field, hidden=False
     )
 
     first_row = RowHandler().create_row(
@@ -1024,7 +1016,7 @@ def test_list_rows_public_with_query_param_order(api_client, data_fixture):
         "api:database:views:gallery:public_rows", kwargs={"slug": gallery_view.slug}
     )
     response = api_client.get(
-        f"{url}?order_by=field_{link_row_field.id}",
+        f"{url}?order_by=field_{password_field.id}",
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -1313,16 +1305,10 @@ def test_list_rows_public_only_searches_by_visible_columns(
 def test_list_rows_with_query_param_order(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(database=table.database)
     text_field = data_fixture.create_text_field(table=table, name="text")
     hidden_field = data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
-    )
+    password_field = data_fixture.create_password_field(table=table, name="password")
+
     gallery_view = data_fixture.create_gallery_view(
         table=table, user=user, create_options=False
     )
@@ -1333,7 +1319,7 @@ def test_list_rows_with_query_param_order(api_client, data_fixture):
         gallery_view, hidden_field, hidden=True
     )
     data_fixture.create_gallery_view_field_option(
-        gallery_view, link_row_field, hidden=False
+        gallery_view, password_field, hidden=False
     )
     first_row = RowHandler().create_row(
         user, table, values={"text": "a", "hidden": "a"}, user_field_names=True
@@ -1369,7 +1355,7 @@ def test_list_rows_with_query_param_order(api_client, data_fixture):
 
     # sorting on unsupported field
     response = api_client.get(
-        f"{url}?order_by=field_{link_row_field.id}",
+        f"{url}?order_by=field_{password_field.id}",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()

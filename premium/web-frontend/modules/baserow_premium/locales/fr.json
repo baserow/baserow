@@ -1,17 +1,5 @@
 {
     "premium": {
-        "user": {
-            "isStaff": "Est collaborateur",
-            "isWorkspaceAdmin": "Est l'administrateur du projet",
-            "active": "Actif",
-            "deactivated": "Inactif"
-        },
-        "adminType": {
-            "dashboard": "Statistiques",
-            "users": "Utilisateurs",
-            "workspaces": "Projets",
-            "licenses": "Gérer les licences"
-        },
         "viewType": {
             "kanban": "Kanban",
             "calendar": "Calendrier",
@@ -19,9 +7,13 @@
         },
         "exporterType": {
             "json": "Exporter vers JSON",
-            "xml": "Exporter vers XML"
+            "xml": "Exporter vers XML",
+            "excel": "Exporter vers Excel"
         },
-        "deactivated": "Disponible en version premium"
+        "deactivated": "Disponible en version premium",
+        "adminType": {
+            "licenses": "Gérer les licences"
+        }
     },
     "rowCommentSidebar": {
         "onlyPremium": "Les commentaires de lignes sont disponibles dans la version premium.",
@@ -70,83 +62,6 @@
     "registerLicenseForm": {
         "licenseKey": "Clé de licence"
     },
-    "workspacesAdminTable": {
-        "allWorkspaces": "Liste des projets",
-        "id": "ID",
-        "name": "Nom",
-        "members": "Membres",
-        "applications": "Applications",
-        "created": "Créé le",
-        "seatsTaken": "Places occupées",
-        "storageUsage": "Stockage utilisé (Mo)",
-        "rowCount": "Nombre de lignes",
-        "freeUsers": "Utilisateurs gratuits",
-        "usageHelpText": "Calculé chaque nuit lorsque le paramètre de suivi de l'utilisation des projets est activé"
-    },
-    "editWorkspaceContext": {
-        "delete": "Supprimer définitivement"
-    },
-    "deleteWorkspaceModal": {
-        "title": "Supprimer {name}",
-        "confirmation": "Êtes-vous sûr·e de vouloir supprimer le projet : {name} ?",
-        "comment": "Le projet va être supprimé définitivement ainsi que ses applications liées. Il est impossible d'annuler cette action.",
-        "delete": "Supprimer le projet {name}"
-    },
-    "activeUsers": {
-        "newUsers": "Nouveaux utilisateurs",
-        "activeUsers": "Utilisateurs actifs"
-    },
-    "usersAdminTable": {
-        "allUsers": "Liste des utilisateurs",
-        "id": "ID",
-        "username": "Identifiant",
-        "name": "Nom",
-        "workspaces": "Projets",
-        "lastLogin": "Dernière connexion",
-        "dateJoined": "Date d'inscription",
-        "active": "Actif"
-    },
-    "editUserContext": {
-        "changePassword": "Modifier le mot de passe",
-        "delete": "Supprimer définitivement",
-        "impersonate": "Usurper"
-    },
-    "changePasswordForm": {
-        "newPassword": "Nouveau mot de passe",
-        "repeatPassword": "Répétez le mot de passe",
-        "changePassword": "Mettre à jour le mot de passe",
-        "error": {
-            "doesntMatch": "Les deux mots de passe ne correspondent pas."
-        }
-    },
-    "userForm": {
-        "fullName": "Nom complet",
-        "email": "Adresse électronique",
-        "isActive": "Est actif",
-        "warning": {
-            "changeEmail": "Si vous changez l'adresse électronique, l'utilisateur devra désormais utiliser celle-ci pour s'identifier. Ceci doit être signifié à l'utilisateur.",
-            "inactiveUser": "Un utilisateur inactif n'est plus en mesure de s'identifier.",
-            "userStaff": "Un collaborateur a accès à la liste des utilisateurs, des projets et peut changer les permissions de tous les utilisateurs."
-        },
-        "error": {
-            "invalidName": "Veuillez saisir un nom valide, il doit être composé de plus de 2 caractères et moins de 150.",
-            "invalidEmail": "Veuillez saisir une adresse électronique valide."
-        }
-    },
-    "changeUserPasswordModal": {
-        "changePassword": "Changer le mot de passe pour {username}"
-    },
-    "deleteUserModal": {
-        "title": "Supprimer {username}",
-        "confirmation": "Êtes-vous sûr·e de vouloir supprimer l'utilisateur : {name} ?",
-        "comment1": "Le compte de l'utilisateur va être supprimé, cependant les projets dont l'utilisateur est membre vont continuer d'exister. Ces projets ne seront pas supprimés même si cet utilisateur est le dernier utilisateur du projet. Supprimer le dernier utilisateur d'un projet interdit à quiconque d'y accéder de nouveau.",
-        "comment2": "Après avoir supprimé un utilisateur, il sera possible de créer un nouveau compte avec la même adresse email. Si vous souhaitez éviter que l'utilisateur puisse se connecter avec cette adresse, vous pouvez désactiver l'utilisateur plutôt que supprimer son compte.",
-        "delete": "Supprimer l'utilisateur {username}"
-    },
-    "editUserModal": {
-        "delete": "Supprimer l'utilisateur",
-        "edit": "Modifier {username}"
-    },
     "tableJSONExporter": {
         "encoding": "Encodage"
     },
@@ -176,22 +91,6 @@
         "uncategorized": "Sans catégorie",
         "tryAgain": "Essayer encore",
         "new": "Nouveau"
-    },
-    "dashboard": {
-        "title": "Statistiques",
-        "totals": "Résumé",
-        "totalUsers": "Nombre d'utilisateur",
-        "totalWorkspaces": "Nombre de projet",
-        "totalApplications": "Nombre d'application",
-        "newUsers": "Nouveaux utilisateurs",
-        "newUsers24h": "Sur les dernières 24h",
-        "newUsers7days": "sur les 7 derniers jours",
-        "newUsers30days": "Sur les 30 derniers jours",
-        "activeUsers": "Utilisateurs actifs",
-        "activeUsers24h": "Sur les dernières 24h",
-        "activeUsers7days": "sur les 7 derniers jours",
-        "activeUsers30days": "Sur les 30 derniers jours",
-        "viewAll": "Consulter"
     },
     "licenses": {
         "titleNoLicenses": "Aucune licences trouvée",
@@ -448,5 +347,8 @@
         "textDescription": "Génère un texte libre basé sur le prompt.",
         "choice": "Choix",
         "choiceDescription": "Ne choisit qu'une seule des options du champ."
+    },
+    "tableExcelExporter": {
+        "includeHeader": "Inclure les noms de champs comme en-tête"
     }
 }

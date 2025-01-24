@@ -54,6 +54,7 @@ from baserow.contrib.database.api.tokens.authentications import TokenAuthenticat
 from baserow.contrib.database.api.tokens.errors import ERROR_NO_PERMISSION_TO_TABLE
 from baserow.contrib.database.api.utils import (
     extract_link_row_joins_from_request,
+    extract_send_webhook_events_from_params,
     extract_user_field_names_from_params,
     get_include_exclude_fields,
 )
@@ -445,6 +446,16 @@ class RowsView(APIView):
                     "field names (e.g., field_123)."
                 ),
             ),
+            OpenApiParameter(
+                name="send_webhook_events",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.BOOL,
+                description=(
+                    "A flag query parameter that triggers webhooks after the operation,"
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    "Defaults to `true`"
+                ),
+            ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
@@ -514,6 +525,7 @@ class RowsView(APIView):
         )
 
         user_field_names = extract_user_field_names_from_params(request.GET)
+        send_webhook_events = extract_send_webhook_events_from_params(request.GET)
 
         model = table.get_model()
 
@@ -537,6 +549,7 @@ class RowsView(APIView):
                 model=model,
                 before_row=before_row,
                 user_field_names=user_field_names,
+                send_webhook_events=send_webhook_events,
             )
         except ValidationError as e:
             raise RequestBodyValidationException(detail=e.message)
@@ -771,6 +784,16 @@ class RowView(APIView):
                     "field names (e.g., field_123)."
                 ),
             ),
+            OpenApiParameter(
+                name="send_webhook_events",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.BOOL,
+                description=(
+                    "A flag query parameter that triggers webhooks after the operation,"
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    "Defaults to `true`"
+                ),
+            ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
@@ -833,6 +856,7 @@ class RowView(APIView):
         TokenHandler().check_table_permissions(request, "update", table, False)
 
         user_field_names = extract_user_field_names_from_params(request.GET)
+        send_webhook_events = extract_send_webhook_events_from_params(request.GET)
         field_ids, field_names = None, None
 
         if user_field_names:
@@ -852,7 +876,11 @@ class RowView(APIView):
         try:
             data["id"] = int(row_id)
             row = action_type_registry.get_by_type(UpdateRowsActionType).do(
-                request.user, table, [data], model
+                request.user,
+                table,
+                [data],
+                model=model,
+                send_webhook_events=send_webhook_events,
             )[0]
         except ValidationError as exc:
             raise RequestBodyValidationException(detail=exc.message) from exc
@@ -876,6 +904,16 @@ class RowView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="Deletes the row related to the value.",
+            ),
+            OpenApiParameter(
+                name="send_webhook_events",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.BOOL,
+                description=(
+                    "A flag query parameter that triggers webhooks after the operation,"
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    "Defaults to `true`"
+                ),
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -913,11 +951,13 @@ class RowView(APIView):
         table_id.
         """
 
+        send_webhook_events = extract_send_webhook_events_from_params(request.GET)
+
         table = TableHandler().get_table(table_id)
         TokenHandler().check_table_permissions(request, "delete", table, False)
 
         action_type_registry.get_by_type(DeleteRowActionType).do(
-            request.user, table, row_id
+            request.user, table, row_id, send_webhook_events=send_webhook_events
         )
 
         return Response(status=204)
@@ -961,6 +1001,16 @@ class RowMoveView(APIView):
                     "field names (e.g., field_123)."
                 ),
             ),
+            OpenApiParameter(
+                name="send_webhook_events",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.BOOL,
+                description=(
+                    "A flag query parameter that triggers webhooks after the operation,"
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    "Defaults to `true`"
+                ),
+            ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
@@ -1001,6 +1051,7 @@ class RowMoveView(APIView):
         TokenHandler().check_table_permissions(request, "update", table, False)
 
         user_field_names = extract_user_field_names_from_params(request.GET)
+        send_webhook_events = extract_send_webhook_events_from_params(request.GET)
 
         model = table.get_model()
 
@@ -1014,7 +1065,12 @@ class RowMoveView(APIView):
         )
 
         row = action_type_registry.get_by_type(MoveRowActionType).do(
-            request.user, table, row_id, before_row=before_row, model=model
+            request.user,
+            table,
+            row_id,
+            before_row=before_row,
+            model=model,
+            send_webhook_events=send_webhook_events,
         )
 
         serializer_class = get_row_serializer_class(
@@ -1053,6 +1109,16 @@ class BatchRowsView(APIView):
                     "empty value, will cause this endpoint to expect and return the "
                     "user-specified field names instead of the internal Baserow "
                     "field names (e.g., field_123)."
+                ),
+            ),
+            OpenApiParameter(
+                name="send_webhook_events",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.BOOL,
+                description=(
+                    "A flag query parameter that triggers webhooks after the operation,"
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    "Defaults to `true`"
                 ),
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
@@ -1120,6 +1186,7 @@ class BatchRowsView(APIView):
         model = table.get_model()
 
         user_field_names = extract_user_field_names_from_params(request.GET)
+        send_webhook_events = extract_send_webhook_events_from_params(request.GET)
         before_id = query_params.get("before")
         before_row = (
             RowHandler().get_row(request.user, table, before_id, model)
@@ -1139,7 +1206,12 @@ class BatchRowsView(APIView):
 
         try:
             rows = action_type_registry.get_by_type(CreateRowsActionType).do(
-                request.user, table, data["items"], before_row, model
+                request.user,
+                table,
+                data["items"],
+                before_row,
+                model=model,
+                send_webhook_events=send_webhook_events,
             )
         except ValidationError as exc:
             raise RequestBodyValidationException(detail=exc.message)
@@ -1171,6 +1243,16 @@ class BatchRowsView(APIView):
                     "empty value, will cause this endpoint to expect and return the "
                     "user-specified field names instead of the internal Baserow "
                     "field names (e.g., field_123)."
+                ),
+            ),
+            OpenApiParameter(
+                name="send_webhook_events",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.BOOL,
+                description=(
+                    "A flag query parameter that triggers webhooks after the operation,"
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    "Defaults to `true`"
                 ),
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
@@ -1237,6 +1319,7 @@ class BatchRowsView(APIView):
         model = table.get_model()
 
         user_field_names = extract_user_field_names_from_params(request.GET)
+        send_webhook_events = extract_send_webhook_events_from_params(request.GET)
 
         row_validation_serializer = get_row_serializer_class(
             model,
@@ -1253,7 +1336,11 @@ class BatchRowsView(APIView):
 
         try:
             rows = action_type_registry.get_by_type(UpdateRowsActionType).do(
-                request.user, table, data["items"], model
+                request.user,
+                table,
+                data["items"],
+                model=model,
+                send_webhook_events=send_webhook_events,
             )
         except ValidationError as e:
             raise RequestBodyValidationException(detail=e.message)
@@ -1279,6 +1366,16 @@ class BatchDeleteRowsView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="Deletes the rows in the table related to the value.",
+            ),
+            OpenApiParameter(
+                name="send_webhook_events",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.BOOL,
+                description=(
+                    "A flag query parameter that triggers webhooks after the operation,"
+                    " if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. "
+                    "Defaults to `true`"
+                ),
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -1327,10 +1424,13 @@ class BatchDeleteRowsView(APIView):
         table = TableHandler().get_table(table_id)
         TokenHandler().check_table_permissions(request, "delete", table, False)
 
+        send_webhook_events = extract_send_webhook_events_from_params(request.GET)
+
         action_type_registry.get_by_type(DeleteRowsActionType).do(
             request.user,
             table,
             row_ids=data["items"],
+            send_webhook_events=send_webhook_events,
         )
 
         return Response(status=204)

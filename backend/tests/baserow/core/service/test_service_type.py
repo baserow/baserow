@@ -51,7 +51,7 @@ def test_dispatch_passes_field_names(field_names, expected_field_names):
     type(mock_service).id = PropertyMock(return_value=100)
     mock_dispatch_context = MagicMock()
 
-    mock_dispatch_context.public_formula_fields = field_names
+    mock_dispatch_context.public_allowed_properties = field_names
 
     service_type.dispatch(mock_service, mock_dispatch_context)
 

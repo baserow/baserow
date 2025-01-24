@@ -11,9 +11,5 @@ class ImportExportResourceInBeingImported(Exception):
     message = """The resource is currently being imported."""
 
 
-class ImportExportCorruptedExportFile(Exception):
-    message = """Export file is corrupted"""
-
-
 class ImportExportResourceUntrustedSignature(Exception):
     message = """The signature of the resource is not trusted."""

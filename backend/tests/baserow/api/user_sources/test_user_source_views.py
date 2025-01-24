@@ -122,6 +122,8 @@ def test_create_user_source(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert response_json["type"] == "local_baserow"
+    assert response_json["user_count"] is None
+    assert response_json["user_count_updated_at"] is None
 
 
 @pytest.mark.django_db
@@ -193,7 +195,10 @@ def test_create_user_source_w_auth_providers(api_client, data_fixture):
             "name": "test",
             "integration_id": integration.id,
             "auth_providers": [
-                {"type": "local_baserow_password", "enabled": False, "domain": "test1"},
+                {
+                    "type": "local_baserow_password",
+                    "enabled": False,
+                },
             ],
         },
         format="json",
@@ -208,12 +213,85 @@ def test_create_user_source_w_auth_providers(api_client, data_fixture):
 
     assert response_json["auth_providers"] == [
         {
-            "domain": "test1",
             "id": first.id,
             "password_field_id": None,
             "type": "local_baserow_password",
+            "domain": None,
         },
     ]
+
+
+@pytest.mark.django_db
+def test_create_user_source_w_auth_providers_w_domain(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(application=application)
+
+    url = reverse("api:user_sources:list", kwargs={"application_id": application.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "local_baserow",
+            "name": "test",
+            "integration_id": integration.id,
+            "auth_providers": [
+                {
+                    "domain": "domain.com",
+                    "type": "local_baserow_password",
+                    "enabled": False,
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+
+    assert AppAuthProvider.objects.count() == 1
+    first = AppAuthProvider.objects.first()
+
+    assert response_json["auth_providers"] == [
+        {
+            "id": first.id,
+            "password_field_id": None,
+            "type": "local_baserow_password",
+            "domain": "domain.com",
+        },
+    ]
+
+
+@pytest.mark.django_db
+def test_create_user_source_w_auth_providers_w_wrong_domain(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(application=application)
+
+    url = reverse("api:user_sources:list", kwargs={"application_id": application.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "local_baserow",
+            "name": "test",
+            "integration_id": integration.id,
+            "auth_providers": [
+                {
+                    "domain": "baddomain",
+                    "type": "local_baserow_password",
+                    "enabled": False,
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
 
 @pytest.mark.django_db
@@ -237,7 +315,6 @@ def test_create_user_source_w_auth_provider_wrong_type(api_client, data_fixture)
             "integration_id": integration.id,
             "auth_providers": [
                 {
-                    "domain": "test_domain",
                     "enabled": True,
                     "type": app_auth_provider_type.type,
                 },
@@ -270,7 +347,6 @@ def test_create_user_source_w_auth_provider_missing_type(api_client, data_fixtur
             "integration_id": integration.id,
             "auth_providers": [
                 {
-                    "domain": "test_domain",
                     "enabled": True,
                     "type": "bad_type",
                 },
@@ -342,11 +418,14 @@ def test_create_user_source_bad_application_type(api_client, data_fixture):
 @pytest.mark.django_db
 def test_update_user_source(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    application = data_fixture.create_builder_application(user=user)
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_builder_application(workspace=workspace)
     user_source1 = data_fixture.create_user_source_with_first_type(
         application=application
     )
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, authorized_user=user
+    )
 
     url = reverse("api:user_sources:item", kwargs={"user_source_id": user_source1.id})
     response = api_client.patch(
@@ -357,8 +436,35 @@ def test_update_user_source(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["name"] == "newName"
-    assert response.json()["integration_id"] == integration.id
+    response_json = response.json()
+    assert response_json["name"] == "newName"
+    assert response_json["integration_id"] == integration.id
+    assert response_json["user_count"] is None
+    assert response_json["user_count_updated_at"] is None
+
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table)
+    email_field = data_fixture.create_email_field(table=table)
+    model = table.get_model(field_ids=[])
+    model.objects.create()
+    model.objects.create()
+    model.objects.create()
+
+    response = api_client.patch(
+        url,
+        {
+            "table_id": table.id,
+            "name_field_id": name_field.id,
+            "email_field_id": email_field.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["user_count"] == 3
+    assert response_json["user_count_updated_at"] is not None
 
 
 @pytest.mark.django_db
@@ -374,7 +480,11 @@ def test_update_user_source_w_auth_providers(api_client, data_fixture):
         url,
         {
             "auth_providers": [
-                {"type": "local_baserow_password", "enabled": False, "domain": "test1"},
+                {
+                    "type": "local_baserow_password",
+                    "enabled": False,
+                    "domain": "test2.com",
+                },
             ],
         },
         format="json",
@@ -388,7 +498,7 @@ def test_update_user_source_w_auth_providers(api_client, data_fixture):
 
     assert response.json()["auth_providers"] == [
         {
-            "domain": "test1",
+            "domain": "test2.com",
             "id": first.id,
             "password_field_id": None,
             "type": "local_baserow_password",
@@ -399,7 +509,11 @@ def test_update_user_source_w_auth_providers(api_client, data_fixture):
         url,
         {
             "auth_providers": [
-                {"type": "local_baserow_password", "enabled": False, "domain": "test3"},
+                {
+                    "type": "local_baserow_password",
+                    "enabled": False,
+                    "domain": "test3.com",
+                },
             ],
         },
         format="json",
@@ -411,7 +525,7 @@ def test_update_user_source_w_auth_providers(api_client, data_fixture):
 
     assert response.json()["auth_providers"] == [
         {
-            "domain": "test3",
+            "domain": "test3.com",
             "id": first.id,
             "password_field_id": None,
             "type": "local_baserow_password",

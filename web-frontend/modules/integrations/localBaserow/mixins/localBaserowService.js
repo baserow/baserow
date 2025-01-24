@@ -1,5 +1,4 @@
 export default {
-  inject: ['page'],
   props: {
     builder: {
       type: Object,
@@ -18,9 +17,6 @@ export default {
     },
   },
   computed: {
-    dataSourceLoading() {
-      return this.$store.getters['dataSource/getLoading'](this.page)
-    },
     /**
      * Used by `LocalBaserowTableServiceConditionalForm` so that when read,
      * we only provide filters which are from untrashed fields. When writing,
@@ -86,12 +82,6 @@ export default {
       if (oldValue && newValue !== oldValue) {
         this.tableLoading = true
       }
-    },
-    dataSourceLoading: {
-      handler() {
-        this.tableLoading = false
-      },
-      immediate: true,
     },
   },
   methods: {

@@ -18,7 +18,7 @@
       class="control__label"
       :class="{ 'control__label--small': smallLabel }"
     >
-      <span>{{ label }} </span>
+      <span>{{ label }}</span>
       <span v-if="!required" class="control__required">Optional</span>
       <HelpIcon
         v-if="helpIconTooltip"
@@ -30,21 +30,35 @@
         ]"
         :icon="'info-empty'"
       />
+      <span v-if="hasAfterLabelSlot" class="control__after-label"
+        ><slot name="after-label"
+      /></span>
     </label>
 
     <span
       v-if="!label && hasLabelSlot"
       class="control__label"
       :class="{ 'control__label--small': smallLabel }"
-      ><slot name="label"></slot
-    ></span>
+      ><slot name="label"></slot>
+      <span v-if="hasAfterLabelSlot" class="control__after-label"
+        ><slot name="after-label"
+      /></span>
+    </span>
 
-    <div class="control__wrapper">
+    <div v-if="protectedEdit && !protectedEditValue">
+      <a @click="enableProtectedEdit">{{ $t('formGroup.protectedField') }}</a>
+    </div>
+    <div v-else class="control__wrapper">
       <div
         class="control__elements"
         :class="{ 'control__elements--flex': $slots['after-input'] }"
       >
         <div class="flex-grow-1"><slot /></div>
+        <div v-if="protectedEdit && protectedEditValue" class="margin-top-1">
+          <a @click="disableProtectedEdit">{{
+            $t('formGroup.cancelProtectedField')
+          }}</a>
+        </div>
         <slot name="after-input"></slot>
       </div>
 
@@ -156,6 +170,20 @@ export default {
       required: false,
       default: '',
     },
+    /**
+     * If set to `true`, then it's not possible to change the value unless the user
+     * clicks a link first.
+     */
+    protectedEdit: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
+  data() {
+    return {
+      protectedEditValue: false,
+    }
   },
   computed: {
     hasError() {
@@ -167,6 +195,9 @@ export default {
     hasLabelSlot() {
       return !!this.$slots.label
     },
+    hasAfterLabelSlot() {
+      return !!this.$slots['after-label']
+    },
     hasWarningSlot() {
       return !!this.$slots.warning
     },
@@ -174,7 +205,7 @@ export default {
       return !!this.$slots.helper
     },
     hasAfterInputSlot() {
-      return !!this.$slots['after-input']
+      return Object.prototype.hasOwnProperty.call(this.$slots, 'after-input')
     },
     hasMessages() {
       return (
@@ -183,6 +214,16 @@ export default {
         this.hasWarningSlot ||
         this.hasHelperSlot
       )
+    },
+  },
+  methods: {
+    enableProtectedEdit() {
+      this.protectedEditValue = true
+      this.$emit('enabled-protected-edit')
+    },
+    disableProtectedEdit() {
+      this.protectedEditValue = false
+      this.$emit('disable-protected-edit')
     },
   },
 }

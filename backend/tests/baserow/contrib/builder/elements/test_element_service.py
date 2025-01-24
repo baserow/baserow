@@ -26,6 +26,11 @@ def pytest_generate_tests(metafunc):
 def test_create_element(element_created_mock, data_fixture, element_type):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
+    shared_page = page.builder.shared_page
+
+    if element_type.is_multi_page_element:
+        page = shared_page
+
     element1 = data_fixture.create_builder_heading_element(page=page, order="1.0000")
     element3 = data_fixture.create_builder_heading_element(page=page, order="2.0000")
 

@@ -68,7 +68,8 @@ describe('RecordSelectorElement', () => {
       },
       provide: {
         builder,
-        page,
+        currentPage: page,
+        elementPage: page,
         mode,
         applicationContext: { builder, page, mode },
         element,
@@ -161,7 +162,8 @@ describe('RecordSelectorElement', () => {
       },
       provide: {
         builder,
-        page,
+        currentPage: page,
+        elementPage: page,
         mode,
         applicationContext: { builder, page, mode, element },
         element,

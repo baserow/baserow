@@ -88,9 +88,9 @@ variables:
   # to run the manual job to build their own. If you want to build and use your own
   # then set PROJECT_PATH_FOR_CI_UTIL_IMAGE in your gitlab ci settings as a project
   # level variable to whichever project you want.
-  PROJECT_PATH_FOR_CI_UTIL_IMAGE: baserow/baserow
-  PROJECT_PATH_FOR_E2E_TEST_IMAGE: baserow/baserow
-  PROJECT_PATH_FOR_CI_DIND_IMAGE: baserow/baserow
+  PROJECT_PATH_FOR_CI_UTIL_IMAGE: $CI_PROJECT_PATH
+  PROJECT_PATH_FOR_E2E_TEST_IMAGE: $CI_PROJECT_PATH
+  PROJECT_PATH_FOR_CI_DIND_IMAGE: $CI_PROJECT_PATH
   # The image path for the helper CI util image that will be built and pushed to.
   CI_UTIL_IMAGE: $CI_REGISTRY/$PROJECT_PATH_FOR_CI_UTIL_IMAGE/ci/ci_util_image:latest
   # The image path for the E2E testing image that will be built and pushed to.

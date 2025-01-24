@@ -3,6 +3,7 @@ from zipfile import ZipFile
 
 from django.core.files.storage import Storage
 from django.db.models import Q, QuerySet
+from django.db.utils import DatabaseError, IntegrityError
 
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
@@ -10,6 +11,7 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
     DataSourceImproperlyConfigured,
+    DataSourceNameNotUniqueError,
 )
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.formula_importer import import_formula
@@ -20,6 +22,7 @@ from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import find_unused_name
 
 from .types import DataSourceForUpdate
@@ -246,7 +249,7 @@ class DataSourceHandler:
         """
         Finds an unused name for a page in a builder.
 
-        :param builder: The builder that the page belongs to.
+        :param page: The page that the data source will belong to.
         :param proposed_name: The name that is proposed to be used.
         :return: A unique name to use.
         """
@@ -290,9 +293,16 @@ class DataSourceHandler:
         else:
             service = None
 
-        data_source = DataSource.objects.create(
-            page=page, order=order, name=name, service=service
-        )
+        try:
+            data_source = DataSource.objects.create(
+                page=page, order=order, name=name, service=service
+            )
+        except IntegrityError as error:
+            # The only unique values are page and name, together.
+            if "unique" in str(error):
+                raise DataSourceNameNotUniqueError(name)
+            raise error
+
         data_source.save()
 
         return data_source
@@ -309,11 +319,14 @@ class DataSourceHandler:
         Updates a data_source and the related service with values.
 
         :param data_source: The data_source that should be updated.
+        :param service_type: The service type for the data_source's service.
         :param name: A new name for the data_source.
-        :param values: The values that should be set on the data_source.
+        :param page: The data source's page.
+        :param kwargs: The values that should be set on the data_source.
         :return: The updated data_source.
         """
 
+        new_service_type = None
         if "new_service_type" in kwargs:
             new_service_type = kwargs.pop("new_service_type")
 
@@ -341,7 +354,7 @@ class DataSourceHandler:
                 )
                 data_source.service = service
 
-        if data_source.service and kwargs:
+        if data_source.service and kwargs and new_service_type is None:
             service_to_update = self.service_handler.get_service_for_update(
                 data_source.service.id
             )
@@ -360,13 +373,20 @@ class DataSourceHandler:
         if name is not None:
             data_source.name = name
 
-        data_source.save()
+        try:
+            data_source.save()
+        except DatabaseError:
+            # If the `name` changes, on a PATCH Django will raise a `DatabaseError`
+            # exception if it's already in use on the page, instead of an
+            # `IntegrityError` like in `create_data_source`.
+            if name is not None:
+                raise DataSourceNameNotUniqueError(name)
 
         return data_source
 
     def delete_data_source(self, data_source: DataSource):
         """
-        Deletes an data_source.
+        Deletes a data_source.
 
         :param data_source: The to-be-deleted data_source.
         """
@@ -472,7 +492,7 @@ class DataSourceHandler:
     def export_data_source(
         self,
         data_source: DataSource,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
     ) -> DataSourceDict:

@@ -12,7 +12,7 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
-from baserow.test_utils.helpers import setup_interesting_test_table
+from baserow.test_utils.helpers import AnyStr, setup_interesting_test_table
 
 
 @pytest.mark.django_db
@@ -182,6 +182,48 @@ def test_get_table_serializer(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_table_serializer_number_formatting(data_fixture):
+    table = data_fixture.create_database_table(name="Sample")
+    data_fixture.create_number_field(
+        table=table, order=1, name="Prefix", number_negative=False, number_prefix="$"
+    )
+    data_fixture.create_number_field(
+        table=table, order=2, name="Suffix", number_negative=False, number_suffix="%"
+    )
+
+    data_fixture.create_number_field(
+        table=table,
+        order=2,
+        name="Prefix and Suffix",
+        number_negative=False,
+        number_prefix="$",
+        number_suffix="%",
+    )
+
+    model = table.get_model(attribute_names=True)
+    serializer_class = get_row_serializer_class(model=model)
+
+    # expect the result to be empty if not provided
+    serializer_instance = serializer_class(data={})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data == {
+        "prefix": None,
+        "suffix": None,
+        "prefix_and_suffix": None,
+    }
+
+    serializer_instance = serializer_class(
+        data={"prefix": 123, "suffix": 456, "prefix_and_suffix": 789}
+    )
+    assert serializer_instance.is_valid()
+
+    # Adding prefix and/or suffix doesn't impact value
+    assert serializer_instance.data["prefix"] == "123"
+    assert serializer_instance.data["suffix"] == "456"
+    assert serializer_instance.data["prefix_and_suffix"] == "789"
+
+
+@pytest.mark.django_db
 def test_get_example_row_serializer_class():
     request_serializer = get_example_row_serializer_class(example_type="post")
     response_serializer = get_example_row_serializer_class(example_type="get")
@@ -218,7 +260,7 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
         model, RowSerializer, is_response=True, user_field_names=True
     )
     serializer_instance = serializer_class([row], many=True)
-    assert json.loads(json.dumps(serializer_instance.data[0])) == json.loads(
+    expected_result = json.loads(
         json.dumps(
             {
                 "boolean": True,
@@ -241,9 +283,9 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                 "created_on_datetime_us": "2021-01-02T12:00:00Z",
                 "created_on_datetime_eu_tzone": "2021-01-02T12:00:00Z",
                 "decimal_link_row": [
-                    {"id": 1, "value": "1.234"},
-                    {"id": 2, "value": "-123.456"},
-                    {"id": 3, "value": ""},
+                    {"id": 1, "value": "1.234", "order": "1.00000000000000000000"},
+                    {"id": 2, "value": "-123.456", "order": "2.00000000000000000000"},
+                    {"id": 3, "value": "", "order": "3.00000000000000000000"},
                 ],
                 "duration_hm": 3660.0,
                 "duration_hms": 3666.0,
@@ -281,19 +323,37 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                     },
                 ],
                 "file_link_row": [
-                    {"id": 1, "value": "name.txt"},
-                    {"id": 2, "value": ""},
+                    {"id": 1, "value": "name.txt", "order": "1.00000000000000000000"},
+                    {"id": 2, "value": "", "order": "2.00000000000000000000"},
                 ],
                 "id": 2,
                 "link_row": [
-                    {"id": 1, "value": "linked_row_1"},
-                    {"id": 2, "value": "linked_row_2"},
-                    {"id": 3, "value": ""},
+                    {
+                        "id": 1,
+                        "value": "linked_row_1",
+                        "order": "1.00000000000000000000",
+                    },
+                    {
+                        "id": 2,
+                        "value": "linked_row_2",
+                        "order": "2.00000000000000000000",
+                    },
+                    {"id": 3, "value": "", "order": "3.00000000000000000000"},
                 ],
-                "self_link_row": [{"id": 1, "value": ""}],
+                "self_link_row": [
+                    {"id": 1, "value": "", "order": "1.00000000000000000000"},
+                ],
                 "link_row_without_related": [
-                    {"id": 1, "value": "linked_row_1"},
-                    {"id": 2, "value": "linked_row_2"},
+                    {
+                        "id": 1,
+                        "value": "linked_row_1",
+                        "order": "1.00000000000000000000",
+                    },
+                    {
+                        "id": 2,
+                        "value": "linked_row_2",
+                        "order": "2.00000000000000000000",
+                    },
                 ],
                 "long_text": "long_text",
                 "negative_decimal": "-1.2",
@@ -386,6 +446,8 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
             }
         )
     )
+    test_result = json.loads(json.dumps(serializer_instance.data[0]))
+    assert test_result == expected_result
 
 
 @pytest.mark.django_db
@@ -432,6 +494,8 @@ def test_remap_serialized_row_to_user_field_names(data_fixture):
     assert remapped_row == {
         "id": 1,
         "order": "1.00000000000000000000",
-        "Link": [{"id": 1, "value": "Lookup 1"}],
+        "Link": [
+            {"id": 1, "value": "Lookup 1", "order": AnyStr()},
+        ],
         "Test 1": "Test value",
     }

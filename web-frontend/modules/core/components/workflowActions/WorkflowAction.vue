@@ -39,7 +39,7 @@ export default {
   name: 'WorkflowAction',
   components: { WorkflowActionSelector },
   mixins: [applicationContext],
-  inject: ['page', 'builder', 'mode'],
+  inject: ['builder', 'elementPage', 'mode'],
   props: {
     availableWorkflowActionTypes: {
       type: Array,
@@ -75,8 +75,14 @@ export default {
         return
       }
 
+      const differences = Object.fromEntries(
+        Object.entries(values).filter(
+          ([key, value]) => !_.isEqual(value, this.workflowAction[key])
+        )
+      )
+
       // In this case there weren't any actual changes
-      if (_.isMatch(this.workflowAction, values)) {
+      if (Object.keys(differences).length === 0) {
         return
       }
       if (values.type) {
@@ -85,7 +91,7 @@ export default {
 
       try {
         await this.actionUpdateWorkflowAction({
-          page: this.page,
+          page: this.elementPage,
           workflowAction: this.workflowAction,
           values,
         })

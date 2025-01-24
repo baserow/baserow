@@ -51,7 +51,11 @@ class BaserowPremiumConfig(AppConfig):
 
         action_type_registry.register(GenerateFormulaWithAIActionType())
 
-        from .export.exporter_types import JSONTableExporter, XMLTableExporter
+        from .export.exporter_types import (
+            ExcelTableExporter,
+            JSONTableExporter,
+            XMLTableExporter,
+        )
         from .plugins import PremiumPlugin
         from .views.actions import RotateCalendarIcalSlugActionType
         from .views.decorator_types import (
@@ -69,6 +73,7 @@ class BaserowPremiumConfig(AppConfig):
 
         table_exporter_registry.register(JSONTableExporter())
         table_exporter_registry.register(XMLTableExporter())
+        table_exporter_registry.register(ExcelTableExporter())
 
         row_metadata_registry.register(RowCommentCountMetadataType())
         row_metadata_registry.register(RowCommentsNotificationModeMetadataType())

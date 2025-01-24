@@ -61,7 +61,7 @@ $file-field-modal-foot-height: 108px !default;
 
 $onboarding-breakpoint: 920px !default;
 
-$dashboard-breakpoint: 1100px;
+$dashboard-breakpoint: 900px;
 
 $builder-page-max-width: 1280px;
 
@@ -80,8 +80,10 @@ $baserow-icons: 'circle-empty', 'circle-checked', 'check-square', 'formula',
   'calendar', 'smile', 'smartphone', 'plus', 'heading-1', 'heading-2',
   'heading-3', 'paragraph', 'ordered-list', 'enlarge', 'share', 'settings',
   'up-down-arrows', 'application', 'groups', 'timeline', 'dashboard', 'jira',
-  'postgresql';
+  'postgresql', 'hubspot';
 
 $grid-view-row-height-small: 33px;
 $grid-view-row-height-medium: 55px;
 $grid-view-row-height-large: 99px;
+
+$spacings: 8, 12, 16, 24, 32;

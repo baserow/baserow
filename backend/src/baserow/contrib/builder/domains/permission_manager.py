@@ -4,6 +4,7 @@ from baserow.contrib.builder.data_sources.operations import (
     DispatchDataSourceOperationType,
     ListDataSourcesPageOperationType,
 )
+from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.elements.operations import ListElementsPageOperationType
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.workflow_actions.operations import (
@@ -19,8 +20,6 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
 )
 from baserow.core.user_sources.subjects import UserSourceUserSubjectType
-
-from .models import Domain
 
 User = get_user_model()
 
@@ -101,10 +100,7 @@ class AllowPublicBuilderManagerType(PermissionManagerType):
                     # give access to specific data.
                     continue
 
-            if (
-                builder.workspace is None
-                and Domain.objects.filter(published_to=builder).exists()
-            ):
+            if DomainHandler().get_domain_for_builder(builder) is not None:
                 # it's a public builder, we allow it.
                 result[check] = True
 

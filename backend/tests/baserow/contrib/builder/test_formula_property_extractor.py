@@ -305,15 +305,19 @@ def test_get_element_property_names_returns_property_names(data_fixture):
         data_source_1.service.id,
         data_source_2.service.id,
     ]
-    assert sorted(list(result["external"][data_source_1.service.id])) == [
-        # Since only the first two fields are used by elements in this page,
-        # we expect to see _only_ those two fields.
-        f"field_{fields[0].id}",
-        f"field_{fields[1].id}",
-    ]
-    assert sorted(list(result["external"][data_source_2.service.id])) == [
-        f"field_{fields[2].id}",
-    ]
+    assert sorted(list(result["external"][data_source_1.service.id])) == sorted(
+        [
+            # Since only the first two fields are used by elements in this page,
+            # we expect to see _only_ those two fields.
+            f"field_{fields[0].id}",
+            f"field_{fields[1].id}",
+        ]
+    )
+    assert sorted(list(result["external"][data_source_2.service.id])) == sorted(
+        [
+            f"field_{fields[2].id}",
+        ]
+    )
 
 
 @pytest.mark.django_db
@@ -897,7 +901,7 @@ def test_get_builder_used_property_names_returns_merged_property_names_integrati
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
-    shared_page = builder.page_set.get(shared=True)
+    shared_page = builder.shared_page
     page = data_fixture.create_builder_page(builder=builder)
     page2 = data_fixture.create_builder_page(builder=builder)
 
@@ -990,37 +994,51 @@ def test_get_builder_used_property_names_returns_merged_property_names_integrati
 
     assert results == {
         "all": {
-            data_source.service_id: [
-                f"field_{fields[0].id}",
-                f"field_{fields[2].id}",
-            ],
+            data_source.service_id: sorted(
+                [
+                    f"field_{fields[0].id}",
+                    f"field_{fields[2].id}",
+                ]
+            ),
             data_source_2.service_id: [f"field_{fields[2].id}"],
-            data_source_3.service_id: [
-                f"field_{fields[0].id}",
-                f"field_{fields[1].id}",
-                f"field_{fields[2].id}",
-            ],
-            data_source_4.service_id: [
-                f"field_{fields[0].id}",
-                f"field_{fields[2].id}",
-            ],
+            data_source_3.service_id: sorted(
+                [
+                    f"field_{fields[0].id}",
+                    f"field_{fields[1].id}",
+                    f"field_{fields[2].id}",
+                ]
+            ),
+            data_source_4.service_id: sorted(
+                [
+                    f"field_{fields[0].id}",
+                    f"field_{fields[2].id}",
+                ]
+            ),
         },
         "external": {
             data_source.service_id: [
                 f"field_{fields[0].id}",  # From heading_element_1
             ],
-            data_source_2.service_id: [f"field_{fields[2].id}"],  # From heading_elmt_3
-            data_source_3.service_id: [
-                f"field_{fields[0].id}",  # From workflow_action_1
-                f"field_{fields[1].id}",  # From heading_element_2
-            ],
+            data_source_2.service_id: [
+                f"field_{fields[2].id}"
+            ],  # From heading_element_3
+            data_source_3.service_id: sorted(
+                [
+                    f"field_{fields[0].id}",  # From workflow_action_1
+                    f"field_{fields[1].id}",  # From heading_element_2
+                ]
+            ),
             data_source_4.service_id: [
                 f"field_{fields[2].id}",  # From heading_element_4
             ],
         },
         "internal": {
             data_source.service_id: [f"field_{fields[2].id}"],  # From data_source_1
-            data_source_3.service_id: [f"field_{fields[2].id}"],  # From workflow_act_2
-            data_source_4.service_id: [f"field_{fields[0].id}"],  # From workflow_act_2
+            data_source_3.service_id: [
+                f"field_{fields[2].id}"
+            ],  # From workflow_action2
+            data_source_4.service_id: [
+                f"field_{fields[0].id}"
+            ],  # From workflow_action2
         },
     }

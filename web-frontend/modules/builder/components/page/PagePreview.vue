@@ -1,10 +1,10 @@
 <template>
-  <ThemeProvider
+  <div
     class="page-preview__wrapper"
     :class="`page-preview__wrapper--${deviceType.type}`"
     @click.self="actionSelectElement({ element: null })"
   >
-    <PreviewNavigationBar :page="page" :style="{ maxWidth }" />
+    <PreviewNavigationBar :page="currentPage" :style="{ maxWidth }" />
     <div ref="preview" class="page-preview" :style="{ 'max-width': maxWidth }">
       <div
         ref="previewScaled"
@@ -12,36 +12,101 @@
         tabindex="0"
         @keydown="handleKeyDown"
       >
-        <CallToAction
-          v-if="!elements.length"
-          class="page-preview__empty"
-          icon="baserow-icon-plus"
-          icon-color="neutral"
-          icon-size="large"
-          icon-rounded
-          @click="$refs.addElementModal.show()"
-        >
-          {{ $t('pagePreview.emptyMessage') }}
-        </CallToAction>
-        <div v-else class="page">
-          <ElementPreview
-            v-for="(element, index) in elements"
-            :key="element.id"
-            is-root-element
-            :element="element"
-            :is-first-element="index === 0"
-            :is-last-element="index === elements.length - 1"
-            :is-copying="copyingElementIndex === index"
-            :application-context-additions="{
-              recordIndexPath: [],
-            }"
-            @move="moveElement($event)"
-          />
-        </div>
+        <ThemeProvider class="page">
+          <template v-if="headerElements.length !== 0">
+            <header
+              class="page__header"
+              :class="{
+                'page__header--element-selected':
+                  pageSectionWithSelectedElement === 'header',
+              }"
+            >
+              <ElementPreview
+                v-for="(element, index) in headerElements"
+                :key="element.id"
+                :element="element"
+                :is-first-element="index === 0"
+                :is-copying="copyingElementIndex === index"
+                :application-context-additions="{
+                  recordIndexPath: [],
+                }"
+                @move="moveElement($event)"
+              />
+            </header>
+            <div class="page-preview__separator">
+              <span class="page-preview__separator-label">
+                {{ $t('pagePreview.header') }}
+              </span>
+            </div>
+          </template>
+          <template v-if="elements.length === 0">
+            <CallToAction
+              class="page-preview__empty"
+              icon="baserow-icon-plus"
+              icon-color="neutral"
+              icon-size="large"
+              icon-rounded
+              @click="$refs.addElementModal.show()"
+            >
+              {{ $t('pagePreview.emptyMessage') }}
+            </CallToAction>
+          </template>
+          <template v-else>
+            <div
+              class="page__content"
+              :class="{
+                'page__content--element-selected':
+                  pageSectionWithSelectedElement === 'content',
+              }"
+            >
+              <ElementPreview
+                v-for="(element, index) in elements"
+                :key="element.id"
+                :element="element"
+                :is-first-element="index === 0 && headerElements.length === 0"
+                :is-copying="copyingElementIndex === index"
+                :application-context-additions="{
+                  recordIndexPath: [],
+                }"
+                @move="moveElement($event)"
+              />
+            </div>
+          </template>
+          <template v-if="footerElements.length !== 0">
+            <div class="page-preview__separator">
+              <span class="page-preview__separator-label">
+                {{ $t('pagePreview.footer') }}
+              </span>
+            </div>
+            <footer
+              class="page__footer"
+              :class="{
+                'page__footer--element-selected':
+                  pageSectionWithSelectedElement === 'footer',
+              }"
+            >
+              <ElementPreview
+                v-for="(element, index) in footerElements"
+                :key="element.id"
+                :element="element"
+                :is-first-element="
+                  index === 0 &&
+                  headerElements.length === 0 &&
+                  elements.length === 0
+                "
+                :is-copying="copyingElementIndex === index"
+                :application-context-additions="{
+                  recordIndexPath: [],
+                }"
+                @move="moveElement($event)"
+              />
+            </footer>
+          </template>
+        </ThemeProvider>
       </div>
-      <AddElementModal ref="addElementModal" :page="page" />
+      <AddElementModal ref="addElementModal" :page="currentPage" />
     </div>
-  </ThemeProvider>
+  </div>
 </template>
 
 <script>
@@ -50,7 +115,7 @@ import { mapActions, mapGetters } from 'vuex'
 import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import PreviewNavigationBar from '@baserow/modules/builder/components/page/PreviewNavigationBar'
-import { PLACEMENTS } from '@baserow/modules/builder/enums'
+import { DIRECTIONS, PAGE_PLACES } from '@baserow/modules/builder/enums'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal.vue'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 
@@ -62,7 +127,7 @@ export default {
     ElementPreview,
     PreviewNavigationBar,
   },
-  inject: ['page', 'workspace'],
+  inject: ['builder', 'currentPage', 'workspace'],
   data() {
     return {
       // The element that is currently being copied
@@ -73,7 +138,7 @@ export default {
     }
   },
   computed: {
-    PLACEMENTS: () => PLACEMENTS,
+    DIRECTIONS: () => DIRECTIONS,
     ...mapGetters({
       deviceTypeSelected: 'page/getDeviceTypeSelected',
       elementSelected: 'element/getSelected',
@@ -81,10 +146,83 @@ export default {
       getClosestSiblingElement: 'element/getClosestSiblingElement',
     }),
     elements() {
-      return this.$store.getters['element/getRootElements'](this.page)
+      return this.$store.getters['element/getRootElements'](this.currentPage)
+    },
+    sharedPage() {
+      return this.$store.getters['page/getSharedPage'](this.builder)
+    },
+    sharedElements() {
+      return this.$store.getters['element/getRootElements'](this.sharedPage)
+    },
+    headerElements() {
+      return this.sharedElements.filter(
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace() ===
+          PAGE_PLACES.HEADER
+      )
+    },
+    footerElements() {
+      return this.sharedElements.filter(
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace() ===
+          PAGE_PLACES.FOOTER
+      )
     },
     elementSelectedId() {
       return this.elementSelected?.id
+    },
+    elementSelectedType() {
+      if (!this.elementSelected) {
+        return null
+      }
+      return this.$registry.get('element', this.elementSelected.type)
+    },
+    pageSectionWithSelectedElement() {
+      if (!this.elementSelected) {
+        return null
+      }
+      if (this.elementSelected.page_id === this.currentPage.id) {
+        return PAGE_PLACES.CONTENT
+      }
+      const ancestorWithPagePlace = this.$store.getters['element/getAncestors'](
+        this.elementSelectedPage,
+        this.elementSelected,
+        {
+          includeSelf: true,
+          predicate: (parentElement) => {
+            return (
+              this.$registry
+                .get('element', parentElement.type)
+                .getPagePlace() !== PAGE_PLACES.CONTENT
+            )
+          },
+        }
+      )[0]
+
+      return this.$registry
+        .get('element', ancestorWithPagePlace.type)
+        .getPagePlace()
+    },
+    elementsAround() {
+      if (!this.elementSelected) {
+        return null
+      }
+      return this.elementSelectedType.getElementsAround({
+        builder: this.builder,
+        page: this.currentPage,
+        element: this.elementSelected,
+        withSharedPage: true,
+      })
+    },
+    elementSelectedPage() {
+      if (this.elementSelected) {
+        // We use the page from the element itself
+        return this.$store.getters['page/getById'](
+          this.builder,
+          this.elementSelected.page_id
+        )
+      }
+      return null
     },
     deviceType() {
       return this.deviceTypeSelected
@@ -101,14 +239,14 @@ export default {
         return null
       }
       return this.$store.getters['element/getElementById'](
-        this.page,
+        this.elementSelectedPage,
         this.elementSelected.parent_element_id
       )
     },
     canCreateElement() {
       return this.$hasPermission(
         'builder.page.create_element',
-        this.page,
+        this.currentPage,
         this.workspace.id
       )
     },
@@ -156,9 +294,8 @@ export default {
     ...mapActions({
       actionDuplicateElement: 'element/duplicate',
       actionDeleteElement: 'element/delete',
-      actionMoveElement: 'element/moveElement',
       actionSelectElement: 'element/select',
-      actionSelectNextElement: 'element/selectNextElement',
+      actionMoveElement: 'element/move',
     }),
     preventScrollIfFocused(e) {
       if (this.$refs.previewScaled === document.activeElement) {
@@ -199,62 +336,57 @@ export default {
       previewScaled.style.width = `${currentWidth / scale}px`
       previewScaled.style.height = `${currentHeight / scale}px`
     },
+    async moveElement({ element, direction }) {
+      if (
+        !this.$hasPermission(
+          'builder.page.element.update',
+          element,
+          this.workspace.id
+        )
+      ) {
+        return
+      }
 
-    async moveElement(placement) {
+      const elementPage = this.$store.getters['page/getById'](
+        this.builder,
+        element.page_id
+      )
+
+      const elementType = this.$registry.get('element', element.type)
+
+      const nextPlaces = elementType.getNextPlaces({
+        builder: this.builder,
+        page: this.currentPage,
+        element,
+      })
+      if (nextPlaces[direction]) {
+        try {
+          await this.actionMoveElement({
+            page: elementPage,
+            elementId: element.id,
+            ...nextPlaces[direction],
+          })
+        } catch (error) {
+          notifyIf(error)
+        }
+      }
+    },
+    async moveSelectedElement(direction) {
       if (!this.elementSelected?.id || !this.canUpdateSelectedElement) {
         return
       }
-
-      const elementType = this.$registry.get(
-        'element',
-        this.elementSelected.type
-      )
-      const placementsDisabled = elementType.getPlacementsDisabled(
-        this.page,
-        this.elementSelected
-      )
-
-      if (placementsDisabled.includes(placement)) {
-        return
-      }
-
-      try {
-        await this.actionMoveElement({
-          page: this.page,
-          element: this.elementSelected,
-          placement,
-        })
-        await this.actionSelectElement({ element: this.elementSelected })
-      } catch (error) {
-        notifyIf(error)
-      }
+      await this.moveElement({
+        element: this.elementSelected,
+        direction,
+      })
     },
-    async selectNextElement(placement) {
+    async moveSelection(direction) {
       if (!this.elementSelected?.id) {
         return
       }
-
-      const elementType = this.$registry.get(
-        'element',
-        this.elementSelected.type
-      )
-      const placementsDisabled = elementType.getPlacementsDisabled(
-        this.page,
-        this.elementSelected
-      )
-
-      if (placementsDisabled.includes(placement)) {
-        return
-      }
-
-      try {
-        await this.actionSelectNextElement({
-          page: this.page,
-          element: this.elementSelected,
-          placement,
-        })
-      } catch (error) {
-        notifyIf(error)
+      const nextElement = this.elementsAround[direction]
+      if (nextElement) {
+        await this.actionSelectElement({ element: nextElement })
       }
     },
     async duplicateElement() {
@@ -265,7 +397,7 @@ export default {
       this.isDuplicating = true
       try {
         await this.actionDuplicateElement({
-          page: this.page,
+          page: this.elementSelectedPage,
           elementId: this.elementSelected.id,
         })
       } catch (error) {
@@ -278,12 +410,15 @@ export default {
         return
       }
       try {
-        const siblingElementToSelect = this.getClosestSiblingElement(
-          this.page,
-          this.elementSelected
-        )
+        const siblingElementToSelect =
+          this.elementsAround[DIRECTIONS.AFTER] ||
+          this.elementsAround[DIRECTIONS.BEFORE] ||
+          this.elementsAround[DIRECTIONS.LEFT] ||
+          this.elementsAround[DIRECTIONS.RIGHT] ||
+          this.parentOfElementSelected
+
         await this.actionDeleteElement({
-          page: this.page,
+          page: this.elementSelectedPage,
           elementId: this.elementSelected.id,
         })
         if (siblingElementToSelect?.id) {
@@ -299,7 +434,10 @@ export default {
       }
     },
     selectChildElement() {
-      const children = this.getChildren(this.page, this.elementSelected)
+      const children = this.getChildren(
+        this.elementSelectedPage,
+        this.elementSelected
+      )
       if (children.length) {
         this.actionSelectElement({ element: children[0] })
       }
@@ -310,30 +448,30 @@ export default {
       switch (e.key) {
         case 'ArrowUp':
           if (alternateAction) {
-            this.moveElement(PLACEMENTS.BEFORE)
+            this.moveSelectedElement(DIRECTIONS.BEFORE)
           } else {
-            this.selectNextElement(PLACEMENTS.BEFORE)
+            this.moveSelection(DIRECTIONS.BEFORE)
           }
           break
         case 'ArrowDown':
           if (alternateAction) {
-            this.moveElement(PLACEMENTS.AFTER)
+            this.moveSelectedElement(DIRECTIONS.AFTER)
           } else {
-            this.selectNextElement(PLACEMENTS.AFTER)
+            this.moveSelection(DIRECTIONS.AFTER)
           }
           break
         case 'ArrowLeft':
           if (alternateAction) {
-            this.moveElement(PLACEMENTS.LEFT)
+            this.moveSelectedElement(DIRECTIONS.LEFT)
           } else {
-            this.selectNextElement(PLACEMENTS.LEFT)
+            this.moveSelection(DIRECTIONS.LEFT)
           }
           break
         case 'ArrowRight':
           if (alternateAction) {
-            this.moveElement(PLACEMENTS.RIGHT)
+            this.moveSelectedElement(DIRECTIONS.RIGHT)
           } else {
-            this.selectNextElement(PLACEMENTS.RIGHT)
+            this.moveSelection(DIRECTIONS.RIGHT)
           }
           break
         case 'Backspace':

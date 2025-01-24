@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "handle null payload for file field",
+    "issue_number": 2906,
+    "bullet_points": [],
+    "created_at": "2024-12-18"
+}

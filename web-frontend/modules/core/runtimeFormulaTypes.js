@@ -8,6 +8,7 @@ import {
   InvalidNumberOfArguments,
 } from '@baserow/modules/core/formula/parser/errors'
 import { Node, VueNodeViewRenderer } from '@tiptap/vue-2'
+import { ensureString } from '@baserow/modules/core/utils/validator'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 import { mergeAttributes } from '@tiptap/core'
 import _ from 'lodash'
@@ -139,7 +140,7 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
   }
 
   execute(context, args) {
-    return args.join('')
+    return args.map((arg) => ensureString(arg)).join('')
   }
 
   validateNumberOfArgs(args) {

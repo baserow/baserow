@@ -39,7 +39,7 @@ class BatchBaggageSpanProcessor(BatchSpanProcessor):
             span.set_attribute(name, value)
 
 
-def setup_user_in_baggage_and_spans(user, request):
+def setup_user_in_baggage_and_spans(user, request=None):
     if otel_is_enabled():
         span = get_current_span()
 
@@ -55,7 +55,8 @@ def setup_user_in_baggage_and_spans(user, request):
 
         _set("user.id", "id", user, set_baggage=True)
         _set("user.untrusted_client_session_id", "untrusted_client_session_id", user)
-        _set("user.token_id", "user_token.id", request)
+        if request is not None:
+            _set("user.token_id", "user_token.id", request)
 
 
 def _baserow_trace_func(wrapped_func, tracer: Tracer):

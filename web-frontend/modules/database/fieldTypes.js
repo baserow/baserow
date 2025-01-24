@@ -15,13 +15,12 @@ import {
   isValidEmail,
   isValidURL,
 } from '@baserow/modules/core/utils/string'
+import { formulaFieldArrayFilterMixin } from '@baserow/modules/database/arrayFilterMixins'
 import {
-  hasValueContainsFilterMixin,
-  hasValueEqualFilterMixin,
-  hasValueContainsWordFilterMixin,
-  hasValueLengthIsLowerThanFilterMixin,
-  hasEmptyValueFilterMixin,
-} from '@baserow/modules/database/arrayFilterMixins'
+  parseNumberValue,
+  formatNumberValue,
+} from '@baserow/modules/database/utils/number'
+
 import moment from '@baserow/modules/core/moment'
 import guessFormat from 'moment-guess'
 import { Registerable } from '@baserow/modules/core/registry'
@@ -141,7 +140,6 @@ import FormViewFieldMultipleLinkRow from '@baserow/modules/database/components/v
 import FormViewFieldMultipleSelectCheckboxes from '@baserow/modules/database/components/view/form/FormViewFieldMultipleSelectCheckboxes'
 import FormViewFieldSingleSelectRadios from '@baserow/modules/database/components/view/form/FormViewFieldSingleSelectRadios'
 
-import { trueValues } from '@baserow/modules/core/utils/constants'
 import {
   getDateMomentFormat,
   getFieldTimezone,
@@ -151,6 +149,7 @@ import {
   filenameContainsFilter,
   genericContainsFilter,
   genericContainsWordFilter,
+  genericHasValueEqualFilter,
 } from '@baserow/modules/database/utils/fieldFilters'
 import GridViewFieldFormula from '@baserow/modules/database/components/view/grid/fields/GridViewFieldFormula'
 import FieldFormulaSubForm from '@baserow/modules/database/components/field/FieldFormulaSubForm'
@@ -162,7 +161,11 @@ import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database
 import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
-import _ from 'lodash'
+import _, { clone } from 'lodash'
+import { trueValues } from '@baserow/modules/core/utils/constants'
+import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber.vue'
+import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
+import FormViewFieldOptionsAllowedSelectOptions from '@baserow/modules/database/components/view/form/FormViewFieldOptionsAllowedSelectOptions'
 
 export class FieldType extends Registerable {
   /**
@@ -264,6 +267,25 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * This hook is called in the form view editing mode. It allows to change the
+   * field values per field type. These field values are only passed into the input
+   * component. The form view component is sometimes the same as the row edit modal
+   * field component, so unique changes can't always be made there. Hence this hook
+   * to prepare the values.
+   */
+  prepareFormViewFieldForFormEditInput(field) {
+    return field
+  }
+
+  /**
+   * Can optionally return a component that's rendered inside the form view, and can
+   * be used to configure field specific field options.
+   */
+  getFormViewFieldOptionsComponent(field) {
+    return null
+  }
+
+  /**
    * This component should represent the field's value in a row card display. To
    * improve performance, this component should be a functional component.
    */
@@ -314,7 +336,11 @@ export class FieldType extends Registerable {
     if (Array.isArray(value) && value.length === 0) {
       return true
     }
-    if (typeof val === 'object' && Object.keys(value).length === 0) {
+    if (
+      value !== null &&
+      typeof value === 'object' &&
+      Object.keys(value).length === 0
+    ) {
       return true
     }
     if (typeof value === 'string') {
@@ -677,6 +703,33 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Returns optionally input component for a field / filter type combination.
+   * This is called by FilterType to get the component. FilterType should provide
+   * a default if FieldType returns null.
+   *
+   * @returns {null}
+   */
+  getFilterInputComponent(field, filterType) {
+    return null
+  }
+
+  /**
+   * Return a valid filter value for the field type. This is used to parse the
+   * filter value from the frontend to the backend.
+   */
+  parseFilterValue(field, filterValue) {
+    return filterValue
+  }
+
+  /**
+   * Given a field value, format it as a string to be used in a filter value
+   * and sent to the backend.
+   */
+  formatFilterValue(field, value) {
+    return String(value ?? '')
+  }
+
+  /**
    * Is called for each field in the row when another field value in the row has
    * changed. Optionally, a different value can be returned here for that field. This
    * is for example used by the last modified field type to update the last modified
@@ -789,6 +842,15 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Parse a value of for the field type from a linked row item value. This can be
+   * used to convert values provided by a linked row item to the format that is used
+   * by the field type to sort, filter, etc. in the frontend.
+   */
+  parseFromLinkedRowItemValue(field, value) {
+    return value
+  }
+
+  /**
    * Indicates whether it's possible to select the field type when creating or updating the field.
    */
   isEnabled(workspace) {
@@ -808,6 +870,49 @@ export class FieldType extends Registerable {
   getDeactivatedClickModal(workspaceId) {
     return null
   }
+
+  /**
+   * Alternative text used when searching for the field.
+   */
+  getAlias() {
+    return null
+  }
+
+  toBaserowFormulaType(field) {
+    return this.getType()
+  }
+}
+
+class SelectOptionBaseFieldType extends FieldType {
+  prepareFormViewFieldForFormEditInput(field, fieldOptions) {
+    const updatedField = clone(field)
+    updatedField.select_options = updatedField.select_options.filter(
+      (selectOption) => {
+        return (
+          fieldOptions.include_all_select_options ||
+          fieldOptions.allowed_select_options.includes(selectOption.id)
+        )
+      }
+    )
+    return updatedField
+  }
+
+  getFormViewFieldOptionsComponent() {
+    return FormViewFieldOptionsAllowedSelectOptions
+  }
+
+  formatFilterValue(field, value) {
+    // Filter out any invalid option IDs before sending to the backend.
+    // This prevents confusion where invalid IDs might be interpreted as no option selected,
+    // but the backend will reject them.
+    const validOptionIds = field.select_options.map((option) =>
+      String(option.id)
+    )
+    return value
+      .split(',')
+      .filter((id) => validOptionIds.includes(String(id)))
+      .join(',')
+  }
 }
 
 export class TextFieldType extends FieldType {
@@ -822,6 +927,10 @@ export class TextFieldType extends FieldType {
   getName() {
     const { i18n } = this.app
     return i18n.t('fieldType.singleLineText')
+  }
+
+  getAlias() {
+    return 'string'
   }
 
   getFormComponent() {
@@ -909,6 +1018,10 @@ export class LongTextFieldType extends FieldType {
   getName() {
     const { i18n } = this.app
     return i18n.t('fieldType.longText')
+  }
+
+  getAlias() {
+    return 'multiline multi-line rich string'
   }
 
   getFormComponent() {
@@ -1019,6 +1132,10 @@ export class LinkRowFieldType extends FieldType {
     return i18n.t('fieldType.linkToTable')
   }
 
+  getAlias() {
+    return 'foreign key'
+  }
+
   getFormComponent() {
     return FieldLinkRowSubForm
   }
@@ -1063,8 +1180,121 @@ export class LinkRowFieldType extends FieldType {
     return []
   }
 
+  getCanGroupByInView(field) {
+    const relatedField = field.link_row_table_primary_field
+    const relatedFieldType = this.app.$registry.get('field', relatedField.type)
+    return relatedFieldType.getCanGroupByInView(relatedField)
+  }
+
+  getGroupValueFromRowValue(field, value) {
+    return (value || []).map((row) => row.id)
+  }
+
+  getRowValueFromGroupValue(field, value) {
+    return (value || []).map((rowId) => ({ id: rowId }))
+  }
+
+  isEqual(field, value1, value2) {
+    const value1Ids = value1.map((v) => v.id)
+    const value2Ids = value2.map((v) => v.id)
+
+    return _.isEqual(value1Ids, value2Ids)
+  }
+
   getCanSortInView(field) {
-    return false
+    const relatedField = field.link_row_table_primary_field
+    const relatedFieldType = this.app.$registry.get('field', relatedField.type)
+    return relatedFieldType.getCanSortInView(relatedField)
+  }
+
+  getSort(name, order, field) {
+    const relatedPrimaryField = field.link_row_table_primary_field
+    const relatedPrimaryFieldType = this.app.$registry.get(
+      'field',
+      relatedPrimaryField.type
+    )
+    const relatedSortFunc = relatedPrimaryFieldType.getSort(
+      name,
+      order,
+      relatedPrimaryField
+    )
+    const relatedParseFunc = (item) => {
+      return relatedPrimaryFieldType.parseFromLinkedRowItemValue(
+        relatedPrimaryField,
+        item?.value
+      )
+    }
+
+    return (a, b) => {
+      const valuesA = a[name].map(relatedParseFunc)
+      const valuesB = b[name].map(relatedParseFunc)
+      const lenA = valuesA.length
+      const lenB = valuesB.length
+
+      // nulls (empty arrays) first
+      if (lenA === 0 && lenB !== 0) {
+        return -1
+      } else if (lenA !== 0 && lenB === 0) {
+        return 1
+      }
+
+      for (let i = 0; i < Math.max(valuesA.length, valuesB.length); i++) {
+        let compared = 0
+
+        const isAdefined = valuesA[i] !== undefined
+        const isBdefined = valuesB[i] !== undefined
+
+        if (isAdefined && isBdefined) {
+          const isAnull = valuesA[i] === null
+          const isBnull = valuesB[i] === null
+          if (!isAnull && !isBnull) {
+            compared = relatedSortFunc(
+              { [name]: valuesA[i] },
+              { [name]: valuesB[i] }
+            )
+          } else if (!isAnull) {
+            // Postgres sort nulls last in arrays, so we do the same here.
+            compared = order === 'ASC' ? -1 : 1
+          } else if (!isBnull) {
+            compared = order === 'ASC' ? 1 : -1
+          }
+        } else if (isAdefined) {
+          // Different lengths with the same initial values, the shorter array comes first.
+          compared = order === 'ASC' ? 1 : -1
+        } else if (isBdefined) {
+          compared = order === 'ASC' ? -1 : 1
+        }
+        if (compared !== 0) {
+          return compared
+        }
+      }
+
+      // The arrays have the same length and all values are the same.
+      // Let's compare the order and the id of the linked row items.
+      for (let i = 0; i < a[name].length; i++) {
+        const orderA = new BigNumber(a[name][i].order)
+        const orderB = new BigNumber(b[name][i].order)
+        if (!orderA.isEqualTo(orderB)) {
+          return order === 'ASC'
+            ? orderA.minus(orderB).toNumber()
+            : orderB.minus(orderA).toNumber()
+        }
+      }
+
+      // If the order is the same, we compare the id of the linked row items to
+      // match the backend behavior.
+      for (let i = 0; i < a[name].length; i++) {
+        const aId = a[name][i].id
+        const bId = b[name][i].id
+        if (aId !== bId) {
+          return order === 'ASC' ? aId - bId : bId - aId
+        }
+      }
+
+      // Exactly the same items. The order will be determined by the next
+      // order by in the list, either another field or rows' order and id.
+      return 0
+    }
   }
 
   getCanBePrimaryField() {
@@ -1283,8 +1513,22 @@ export class NumberFieldType extends FieldType {
     return RowHistoryFieldNumber
   }
 
+  getFilterInputComponent(field, filterType) {
+    return ViewFilterTypeNumber
+  }
+
   getSortIndicator() {
     return ['text', '1', '9']
+  }
+
+  /**
+   * When searching a cell's value, this should return the value to match the user's
+   * search term against. We can't use `toHumanReadableString` here as it needs to be
+   * consistent with the backend, and the backend doesn't know about the formatting
+   * that `toHumanReadableString` uses.
+   */
+  toSearchableString(field, value, delimiter = ', ') {
+    return value ? String(value) : ''
   }
 
   getSort(name, order) {
@@ -1311,12 +1555,8 @@ export class NumberFieldType extends FieldType {
       const numberB = new BigNumber(b[name])
 
       return order === 'ASC'
-        ? numberA.isLessThan(numberB)
-          ? -1
-          : 1
-        : numberB.isLessThan(numberA)
-        ? -1
-        : 1
+        ? numberA.minus(numberB).toNumber()
+        : numberB.minus(numberA).toNumber()
     }
   }
 
@@ -1325,19 +1565,12 @@ export class NumberFieldType extends FieldType {
       return null
     }
 
-    // Transform any commas to dots
-    const valueWithDots =
-      typeof value === 'string'
-        ? NumberFieldType.unlocalizeString(value)
-        : value
-
-    if (isNaN(parseFloat(valueWithDots)) || !isFinite(valueWithDots)) {
+    const nrValue = new BigNumber(value)
+    if (nrValue.isNaN() || !nrValue.isFinite()) {
       return this.app.i18n.t('fieldErrors.invalidNumber')
     }
-    if (
-      valueWithDots.split('.')[0].replace('-', '').length >
-      NumberFieldType.getMaxNumberLength()
-    ) {
+    const maxVal = new BigNumber(`10e${NumberFieldType.getMaxNumberLength()}`)
+    if (nrValue.absoluteValue().isGreaterThanOrEqualTo(maxVal)) {
       return this.app.i18n.t('fieldErrors.maxDigits', {
         max: NumberFieldType.getMaxNumberLength(),
       })
@@ -1349,17 +1582,22 @@ export class NumberFieldType extends FieldType {
    * First checks if the value is numeric, if that is the case, the number is going
    * to be formatted.
    */
-  prepareValueForPaste(field, clipboardData) {
-    const value = clipboardData
-    if (
-      isNaN(parseFloat(value)) ||
-      !isFinite(value) ||
-      value.split('.')[0].replace('-', '').length >
-        NumberFieldType.getMaxNumberLength()
-    ) {
-      return null
+  prepareValueForPaste(field, clipboardData, richClipboardData) {
+    let value = clipboardData
+    const parsedRichValue =
+      richClipboardData != null ? new BigNumber(richClipboardData) : null
+    if (parsedRichValue !== null && !parsedRichValue.isNaN()) {
+      value = parsedRichValue
     }
-    return this.constructor.formatNumber(field, value)
+    return this.parseInputValue(field, value)
+  }
+
+  prepareValueForCopy(field, value) {
+    return NumberFieldType.formatNumber(field, new BigNumber(value))
+  }
+
+  prepareRichValueForCopy(field, value) {
+    return new BigNumber(value).toString()
   }
 
   /**
@@ -1368,32 +1606,11 @@ export class NumberFieldType extends FieldType {
    * they will be set to 0.
    */
   static formatNumber(field, value) {
-    const valueWithDots =
-      typeof value === 'string'
-        ? NumberFieldType.unlocalizeString(value)
-        : value
-
-    if (
-      valueWithDots === '' ||
-      isNaN(valueWithDots) ||
-      valueWithDots === undefined ||
-      valueWithDots === null
-    ) {
-      return null
-    }
-    let number = new BigNumber(valueWithDots)
-    if (!field.number_negative && number.isLessThan(0)) {
-      number = 0
-    }
-    return number.toFixed(field.number_decimal_places)
+    return formatNumberValue(field, value)
   }
 
   toHumanReadableString(field, value, delimiter = ', ') {
     return NumberFieldType.formatNumber(field, value)
-  }
-
-  static unlocalizeString(value) {
-    return value.replace(/,/g, '.')
   }
 
   getDocsDataType(field) {
@@ -1446,9 +1663,27 @@ export class NumberFieldType extends FieldType {
   }
 
   parseInputValue(field, value) {
-    return parseFloat(value)
+    return parseNumberValue(field, value)
+  }
+
+  prepareValueForUpdate(field, value) {
+    return parseNumberValue(field, value)
+  }
+
+  parseFromLinkedRowItemValue(field, value) {
+    if (value === '') {
+      return null
+    }
+    return new BigNumber(value)
+  }
+
+  parseFilterValue(field, value) {
+    const res = parseNumberValue(field, String(value ?? ''), false)
+    return res === null || res.isNaN() ? '' : res.toString()
   }
 }
+
+BigNumber.config({ EXPONENTIAL_AT: NumberFieldType.getMaxNumberLength() })
 
 export class RatingFieldType extends FieldType {
   static getMaxNumberLength() {
@@ -1602,6 +1837,10 @@ export class BooleanFieldType extends FieldType {
     return i18n.t('fieldType.boolean')
   }
 
+  getAlias() {
+    return 'checkbox'
+  }
+
   getGridViewFieldComponent() {
     return GridViewFieldBoolean
   }
@@ -1647,7 +1886,19 @@ export class BooleanFieldType extends FieldType {
       clipboardData = ''
     }
     const value = clipboardData.toLowerCase().trim()
+    return this._prepareValue(value)
+  }
+
+  _prepareValue(value) {
     return trueValues.includes(value)
+  }
+
+  parseInputValue(field, value) {
+    return this._prepareValue(value)
+  }
+
+  parseFromLinkedRowItemValue(field, value) {
+    return this._prepareValue(value)
   }
 
   getDocsDataType(field) {
@@ -1685,6 +1936,26 @@ export class BooleanFieldType extends FieldType {
   getCanGroupByInView(field) {
     return true
   }
+
+  getHasValueEqualFilterFunction(field, negate = false) {
+    const that = this
+    return (cellValue, filterValue) => {
+      const value = that._prepareValue(filterValue)
+      const out = genericHasValueEqualFilter(cellValue, value)
+      if (negate) {
+        return filterValue === '' || !out
+      }
+      return filterValue === '' || out
+    }
+  }
+
+  getHasNotValueEqualFilterFunction(field) {
+    return this.getHasValueEqualFilterFunction(field, true)
+  }
+
+  parseFilterValue(field, value) {
+    return this.parseInputValue(field, String(value ?? ''))
+  }
 }
 
 class BaseDateFieldType extends FieldType {
@@ -1710,6 +1981,10 @@ class BaseDateFieldType extends FieldType {
 
   getSort(name, order) {
     return (a, b) => {
+      if (moment.isMoment(a[name]) && moment.isMoment(b[name])) {
+        return order === 'ASC' ? a[name].diff(b[name]) : b[name].diff(a[name])
+      }
+
       if (a[name] === b[name]) {
         return 0
       }
@@ -1791,7 +2066,7 @@ class BaseDateFieldType extends FieldType {
   static getDateFormatsOptionsForValue(field, value) {
     let formats = [moment.ISO_8601]
 
-    const timeFormats = value.includes(':')
+    const timeFormats = value?.includes(':')
       ? ['', ' H:m', ' H:m A', ' H:m:s', ' H:m:s A']
       : ['']
 
@@ -1799,7 +2074,7 @@ class BaseDateFieldType extends FieldType {
       return dateFormats.flatMap((df) => timeFormats.map((tf) => `${df}${tf}`))
     }
 
-    const containsDash = value.includes('-')
+    const containsDash = value?.includes('-')
     const s = containsDash ? '-' : '/'
 
     const usFieldFormats = getDateTimeFormatsFor(
@@ -1843,6 +2118,10 @@ class BaseDateFieldType extends FieldType {
       date.tz(timezone, true)
     }
     return date
+  }
+
+  parseFromLinkedRowItemValue(field, value) {
+    return this.parseInputValue(field, value)
   }
 
   formatValue(field, value) {
@@ -1902,6 +2181,10 @@ class BaseDateFieldType extends FieldType {
       )
     }
     return super.isEqual(field, value1, value2)
+  }
+
+  toBaserowFormulaType(field) {
+    return 'date'
   }
 }
 
@@ -2011,6 +2294,10 @@ export class LastModifiedFieldType extends CreatedOnLastModifiedBaseFieldType {
     return i18n.t('fieldType.lastModified')
   }
 
+  getAlias() {
+    return 'last updated'
+  }
+
   getDocsDescription(field) {
     return super.getDocsDescription(
       field,
@@ -2065,6 +2352,10 @@ export class LastModifiedByFieldType extends FieldType {
   getName() {
     const { i18n } = this.app
     return i18n.t('fieldType.lastModifiedBy')
+  }
+
+  getAlias() {
+    return 'last updated by'
   }
 
   getFormViewFieldComponents(field) {
@@ -2414,6 +2705,10 @@ export class DurationFieldType extends FieldType {
     return FunctionalGridViewFieldDuration
   }
 
+  getFilterInputComponent(field, filterType) {
+    return ViewFilterTypeDuration
+  }
+
   getCanImport() {
     return true
   }
@@ -2455,6 +2750,10 @@ export class DurationFieldType extends FieldType {
     const format = field.duration_format
     const preparedValue = parseDurationValue(value, format)
     return roundDurationValueToFormat(preparedValue, format)
+  }
+
+  parseFromLinkedRowItemValue(field, value) {
+    return this.parseInputValue(field, value)
   }
 
   toHumanReadableString(field, value, delimiter = ', ') {
@@ -2699,6 +2998,10 @@ export class FileFieldType extends FieldType {
     return i18n.t('fieldType.file')
   }
 
+  getAlias() {
+    return 'upload attachment document'
+  }
+
   getGridViewFieldComponent() {
     return GridViewFieldFile
   }
@@ -2876,7 +3179,7 @@ export class FileFieldType extends FieldType {
   }
 }
 
-export class SingleSelectFieldType extends FieldType {
+export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   static getType() {
     return 'single_select'
   }
@@ -2937,6 +3240,10 @@ export class SingleSelectFieldType extends FieldType {
       const stringB = b[name] === null ? '' : '' + b[name].value
       return collatedStringCompare(stringA, stringB, order)
     }
+  }
+
+  parseFromLinkedRowItemValue(field, value) {
+    return value ? { value } : null
   }
 
   prepareValueForUpdate(field, value) {
@@ -3094,7 +3401,7 @@ export class SingleSelectFieldType extends FieldType {
   }
 }
 
-export class MultipleSelectFieldType extends FieldType {
+export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
   static getType() {
     return 'multiple_select'
   }
@@ -3122,6 +3429,11 @@ export class MultipleSelectFieldType extends FieldType {
 
   getRowEditFieldComponent(field) {
     return RowEditFieldMultipleSelect
+  }
+
+  parseFromLinkedRowItemValue(field, value) {
+    // FIXME: what if the option value contains a comma?
+    return value.split(',').map((value) => ({ value: value.trim() }))
   }
 
   getFormViewFieldComponents(field) {
@@ -3155,9 +3467,9 @@ export class MultipleSelectFieldType extends FieldType {
       const valuesA = a[name]
       const valuesB = b[name]
       const stringA =
-        valuesA.length > 0 ? valuesA.map((obj) => obj.value).join('') : ''
+        valuesA.length > 0 ? valuesA.map((obj) => obj.value).join(', ') : ''
       const stringB =
-        valuesB.length > 0 ? valuesB.map((obj) => obj.value).join('') : ''
+        valuesB.length > 0 ? valuesB.map((obj) => obj.value).join(', ') : ''
 
       return collatedStringCompare(stringA, stringB, order)
     }
@@ -3479,11 +3791,7 @@ export class PhoneNumberFieldType extends FieldType {
 }
 
 export class FormulaFieldType extends mix(
-  hasEmptyValueFilterMixin,
-  hasValueEqualFilterMixin,
-  hasValueContainsFilterMixin,
-  hasValueContainsWordFilterMixin,
-  hasValueLengthIsLowerThanFilterMixin,
+  formulaFieldArrayFilterMixin,
   FieldType
 ) {
   static getType() {
@@ -3525,6 +3833,18 @@ export class FormulaFieldType extends mix(
     return i18n.t('fieldType.formula')
   }
 
+  parseFilterValue(field, value) {
+    return this.getFormulaType(field)?.parseFilterValue(field, value)
+  }
+
+  formatFilterValue(field, value) {
+    return this.getFormulaType(field)?.formatFilterValue(field, value)
+  }
+
+  getFormulaType(field) {
+    return this.app.$registry.get('formula_type', field.formula_type)
+  }
+
   getGridViewFieldComponent() {
     return GridViewFieldFormula
   }
@@ -3541,27 +3861,27 @@ export class FormulaFieldType extends mix(
     return RowCardFieldFormula
   }
 
+  getFilterInputComponent(field, filterType) {
+    return this.getFormulaType(field)?.getFilterInputComponent(
+      field,
+      filterType
+    )
+  }
+
   _mapFormulaTypeToFieldType(formulaType) {
     return this.app.$registry.get('formula_type', formulaType).getFieldType()
   }
 
   getCardValueHeight(field) {
-    return (
-      this.app.$registry
-        .get('formula_type', field.formula_type)
-        .getCardComponent().height || 0
-    )
+    return this.getFormulaType(field)?.getCardComponent().height || 0
   }
 
   getCanSortInView(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getCanSortInView(field)
+    return this.getFormulaType(field)?.getCanSortInView(field)
   }
 
   getSort(name, order, field) {
-    return this.app.$registry
-      .get('formula_type', field.formula_type)
-      .getSort(name, order, field)
+    return this.getFormulaType(field)?.getSort(name, order, field)
   }
 
   getEmptyValue(field) {
@@ -3569,9 +3889,7 @@ export class FormulaFieldType extends mix(
   }
 
   getDocsDataType(field) {
-    return this.app.$registry
-      .get('formula_type', field.formula_type)
-      .getDocsDataType(field)
+    return this.getFormulaType(field)?.getDocsDataType(field)
   }
 
   getDocsDescription(field) {
@@ -3583,14 +3901,11 @@ export class FormulaFieldType extends mix(
   }
 
   getDocsResponseExample(field) {
-    return this.app.$registry
-      .get('formula_type', field.formula_type)
-      .getDocsResponseExample(field)
+    return this.getFormulaType(field)?.getDocsResponseExample(field)
   }
 
   prepareValueForCopy(field, value) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.prepareValueForCopy(field, value)
+    return this.getFormulaType(field)?.prepareValueForCopy(field, value)
   }
 
   getContainsFilterFunction(field) {
@@ -3610,15 +3925,11 @@ export class FormulaFieldType extends mix(
   }
 
   toHumanReadableString(field, value) {
-    return this.app.$registry
-      .get('formula_type', field.formula_type)
-      .toHumanReadableString(field, value)
+    return this.getFormulaType(field)?.toHumanReadableString(field, value)
   }
 
   getSortIndicator(field) {
-    return this.app.$registry
-      .get('formula_type', field.formula_type)
-      .getSortIndicator(field)
+    return this.getFormulaType(field)?.getSortIndicator(field)
   }
 
   getFormComponent() {
@@ -3650,51 +3961,29 @@ export class FormulaFieldType extends mix(
   }
 
   canRepresentDate(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.canRepresentDate(field)
+    return this.getFormulaType(field)?.canRepresentDate(field)
   }
 
   getCanGroupByInView(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.canGroupByInView(field)
+    return this.getFormulaType(field)?.canGroupByInView(field)
   }
 
   parseInputValue(field, value) {
-    const underlyingFieldType = this.app.$registry.get(
-      'field',
-      this._mapFormulaTypeToFieldType(field.formula_type)
-    )
+    const underlyingFieldType = this.getFormulaType(field)
     return underlyingFieldType.parseInputValue(field, value)
   }
 
+  parseFromLinkedRowItemValue(field, value) {
+    const underlyingFieldType = this.getFormulaType(field)
+    return underlyingFieldType.parseFromLinkedRowItemValue(field, value)
+  }
+
   canRepresentFiles(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.canRepresentFiles(field)
+    return this.getFormulaType(field)?.canRepresentFiles(field)
   }
 
-  getHasEmptyValueFilterFunction(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getHasEmptyValueFilterFunction(field)
-  }
-
-  getHasValueEqualFilterFunction(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getHasValueEqualFilterFunction(field)
-  }
-
-  getHasValueContainsFilterFunction(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getHasValueContainsFilterFunction(field)
-  }
-
-  getHasValueContainsWordFilterFunction(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getHasValueContainsWordFilterFunction(field)
-  }
-
-  getHasValueLengthIsLowerThanFilterFunction(field) {
-    const subType = this.app.$registry.get('formula_type', field.formula_type)
-    return subType.getHasValueLengthIsLowerThanFilterFunction(field)
+  toBaserowFormulaType(field) {
+    return this.getFormulaType(field).toBaserowFormulaType(field)
   }
 }
 
@@ -3788,9 +4077,17 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     return 'iconoir-community'
   }
 
+  parseFromLinkedRowItemValue(field, value) {
+    return this.app.store.getters['workspace/getUserByEmail'](value) || null
+  }
+
   getName() {
     const { i18n } = this.app
     return i18n.t('fieldType.multipleCollaborators')
+  }
+
+  getAlias() {
+    return 'people person team'
   }
 
   getFormComponent() {

@@ -1,3 +1,6 @@
+import typing
+from enum import Enum
+
 from django.contrib.postgres.aggregates.mixins import OrderableAggMixin
 from django.db import NotSupportedError
 from django.db.models import (
@@ -123,6 +126,8 @@ class BaserowFilterExpression(Expression):
     define the template.
     """
 
+    template: typing.ClassVar[str]
+
     def __init__(self, field_name: F, value: Value, output_field: Field):
         super().__init__(output_field=output_field)
         self.field_name = field_name
@@ -144,15 +149,33 @@ class BaserowFilterExpression(Expression):
 
         return c
 
-    def as_sql(self, compiler, connection, template=None):
-        sql_value, params_value = compiler.compile(self.value)
-
-        template = template or self.template
-        data = {
+    def get_template_data(self, sql_value) -> dict:
+        return {
             "field_name": f'"{self.field_name.field.column}"',
             "value": sql_value,
         }
-        return template % data, params_value
+
+    def render_template_as_sql(
+        self, filter_value: str, template: str | None = None
+    ) -> str:
+        """
+        Renders the template with the given sql_value and returns the result. If a
+        custom template is provided, it will be used instead of the default one.
+
+        :param filter_value: The value that will be used in the template.
+        :param template: The custom template to use. If not provided, the default one
+            will be used.
+        :return: The rendered template with data that will be used as SQL.
+        """
+
+        template = template or self.template
+        data = self.get_template_data(filter_value)
+        return template % data
+
+    def as_sql(self, compiler, connection, template=None):
+        sql_value, sql_params = compiler.compile(self.value)
+        sql_query = self.render_template_as_sql(sql_value, template)
+        return sql_query, sql_params
 
 
 class FileNameContainsExpr(BaserowFilterExpression):
@@ -160,39 +183,11 @@ class FileNameContainsExpr(BaserowFilterExpression):
     template = (
         f"""
         EXISTS(
-            SELECT attached_files ->> 'visible_name'
+            SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as attached_files
             WHERE UPPER(attached_files ->> 'visible_name') LIKE UPPER(%(value)s)
         )
         """  # nosec B608
-    )
-    # fmt: on
-
-
-class JSONArrayContainsValueExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT filtered_field ->> 'value'
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE UPPER(filtered_field ->> 'value') LIKE UPPER(%(value)s)
-        )
-        """  # nosec B608
-    )
-    # fmt: on
-
-
-class JSONArrayContainsValueSimilarToExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT filtered_field ->> 'value'
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE UPPER(filtered_field ->> 'value') SIMILAR TO %(value)s
-        )
-        """  # nosec B608 %(value)s
     )
     # fmt: on
 
@@ -202,7 +197,7 @@ class JSONArrayContainsValueLengthLowerThanExpr(BaserowFilterExpression):
     template = (
         f"""
         EXISTS(
-            SELECT filtered_field ->> 'value'
+            SELECT 1
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE LENGTH(filtered_field ->> 'value') < %(value)s
         )
@@ -211,43 +206,66 @@ class JSONArrayContainsValueLengthLowerThanExpr(BaserowFilterExpression):
     # fmt: on
 
 
-class JSONArrayEqualSelectOptionIdExpr(BaserowFilterExpression):
+class JSONArrayAllAreExpr(BaserowFilterExpression):
     # fmt: off
     template = (
         f"""
-        EXISTS(
-            SELECT filtered_field -> 'value' ->> 'id'
+        upper(%(value)s::text) = ALL(
+            SELECT upper(filtered_field ->> 'value')
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE (filtered_field -> 'value' ->> 'id') LIKE (%(value)s)
-        )
-        """  # nosec B608
-    )
-    # fmt: on
-
-
-class JSONArrayContainsSelectOptionValueExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT filtered_field -> 'value' ->> 'value'
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE UPPER(filtered_field -> 'value' ->> 'value') LIKE UPPER(%(value)s)
-        )
-        """  # nosec B608
-    )
-    # fmt: on
-
-
-class JSONArrayContainsSelectOptionValueSimilarToExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        r"""
-        EXISTS(
-            SELECT filtered_field -> 'value' ->> 'value'
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE filtered_field -> 'value' ->> 'value' ~* ('\y' || %(value)s || '\y')
-        )
+        ) AND JSONB_ARRAY_LENGTH(%(field_name)s) > 0
         """  # nosec B608 %(value)s
     )
     # fmt: on
+
+
+class ComparisonOperator(Enum):
+    """
+    An enumeration of the comparison operators that can be used to compare a number
+    field value.
+    """
+
+    EQUAL = "="
+    LOWER_THAN = "<"
+    LOWER_THAN_OR_EQUAL = "<="
+    HIGHER_THAN = ">"
+    HIGHER_THAN_OR_EQUAL = ">="
+
+
+class JSONArrayCompareNumericValueExpr(BaserowFilterExpression):
+    """
+    Base class for expressions that compare a numeric value in a JSON array.
+    Together with the field_name and value, a comparison operator must be provided to be
+    used in the template.
+    """
+
+    def __init__(
+        self,
+        field_name: F,
+        value: Value,
+        comparison_op: ComparisonOperator,
+        output_field: Field,
+    ):
+        super().__init__(field_name, value, output_field)
+        if not isinstance(comparison_op, ComparisonOperator):
+            raise ValueError(
+                f"comparison_op must be a ComparisonOperator, not {type(comparison_op)}"
+            )
+        self.comparison_op = comparison_op
+
+    # fmt: off
+    template = (
+        f"""
+            EXISTS(
+                SELECT 1
+                FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+                WHERE (filtered_field ->> 'value')::numeric %(comparison_op)s %(value)s::numeric
+            )
+            """  # nosec B608 %(value)s %(comparison_op)s
+    )
+    # fmt: on
+
+    def get_template_data(self, sql_value) -> dict:
+        data = super().get_template_data(sql_value)
+        data["comparison_op"] = self.comparison_op.value
+        return data

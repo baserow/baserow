@@ -34,7 +34,7 @@ export default {
       if (!this.element.data_source_id) {
         return null
       }
-      const pages = [this.page, this.sharedPage]
+      const pages = [this.currentPage, this.sharedPage]
       return this.getPagesDataSourceById(pages, this.element.data_source_id)
     },
     dataSourceType() {
@@ -50,10 +50,7 @@ export default {
       return this.getHasMorePage(this.element)
     },
     contentLoading() {
-      return (
-        this.$fetchState.pending ||
-        (this.getLoading(this.element) && !this.elementIsInError)
-      )
+      return this.getLoading(this.element) && !this.elementIsInError
     },
     dispatchContext() {
       return DataProviderType.getAllDataSourceDispatchContext(
@@ -73,7 +70,7 @@ export default {
     },
     elementIsInError() {
       return this.elementType.isInError({
-        page: this.page,
+        page: this.elementPage,
         element: this.element,
         builder: this.builder,
       })
@@ -112,7 +109,7 @@ export default {
   },
   async fetch() {
     if (!this.elementIsInError && this.elementType.fetchAtLoad) {
-      await this.fetchContent([0, this.element.items_per_page], true)
+      await this.fetchContent([0, this.element.items_per_page])
     }
   },
   methods: {
@@ -134,7 +131,7 @@ export default {
       }
       try {
         await this.fetchElementContent({
-          page: this.page,
+          page: this.elementPage,
           element: this.element,
           dataSource: this.dataSource,
           data: this.dispatchContext,

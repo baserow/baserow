@@ -46,6 +46,7 @@ export class DataSourceDataProviderType extends DataProviderType {
           applicationContext
         ),
         dataSources,
+        mode: applicationContext.mode,
       }
     )
   }
@@ -770,7 +771,10 @@ export class PreviousActionDataProviderType extends DataProviderType {
   }
 
   getActionDispatchContext(applicationContext) {
-    return this.getDataContent(applicationContext)
+    return {
+      ...this.getDataContent(applicationContext),
+      current_dispatch_id: applicationContext.currentDispatchId,
+    }
   }
 
   getDataChunk(applicationContext, path) {

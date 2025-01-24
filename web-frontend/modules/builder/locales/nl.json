@@ -24,7 +24,9 @@
         "pathTitle": "Pad",
         "pathParamsSubtitleTutorial": "Pad parameters kunnen worden gebruikt om gegevens dynamisch te laden, afhankelijk van de opgegeven parameter. Voeg :parameter toe aan het pad om er een toe te voegen.",
         "nameTitle": "Naam",
-        "pathSubtitle": "Een parameter kan worden toegevoegd via :parameter"
+        "pathSubtitle": "Een parameter kan worden toegevoegd via :parameter",
+        "namePlaceholder": "Voer een naam in...",
+        "pathPlaceholder": "Voer een pad in..."
     },
     "builderForm": {
         "submit": "Applicatie toevoegen"
@@ -51,7 +53,8 @@
     },
     "elementsContext": {
         "searchPlaceholder": "Zoek elementen",
-        "noElements": "Geen elementen gevonden"
+        "noElements": "Geen elementen gevonden",
+        "noPageElements": "Geen elementen gevonden voor deze pagina"
     },
     "elementType": {
         "heading": "Kop",
@@ -85,7 +88,20 @@
         "choice": "Keuze",
         "choiceDescription": "Voor enkele/meervoudige waarde selectie",
         "recordSelector": "Recordkiezer",
-        "recordSelectorDescription": "Een gerelateerde recordkiezer"
+        "recordSelectorDescription": "Een gerelateerde recordkiezer",
+        "header": "Multi-pagina header",
+        "headerDescription": "Een container gedeeld over pagina's",
+        "footer": "Multi-pagina footer",
+        "footerDescription": "Een container gedeeld over pagina's",
+        "notAllowedUnlessTop": "Dit element is alleen toegestaan bovenaan de pagina",
+        "notAllowedUnlessBottom": "Dit element is alleen toegestaan onderaan de pagina",
+        "notAllowedUnlessHeader": "Dit element is alleen toegestaan in de pagina header",
+        "notAllowedUnlessFooter": "Dit element is alleen toegestaan in de footer van de pagina",
+        "notAllowedInsideContainer": "Dit element is niet toegestaan in een container",
+        "notAllowedInsideSameType": "Dit element is niet toegestaan in een container van hetzelfde type",
+        "notAllowedLocation": "Dit element is niet toegestaan op deze locatie",
+        "dateTimePicker": "Datum tijd kiezer",
+        "dateTimePickerDescription": "Een invoerveld voor datum en tijd"
     },
     "addElementButton": {
         "label": "Element"
@@ -93,7 +109,8 @@
     "addElementModal": {
         "title": "Nieuw element toevoegen",
         "searchPlaceholder": "Zoek elementen",
-        "disabledElementTooltip": "Niet beschikbaar binnen dit element"
+        "disabledElementTooltip": "Niet beschikbaar binnen dit element",
+        "elementInProgress": "Element toevoegen..."
     },
     "duplicatePageJobType": {
         "duplicating": "Dupliceren",
@@ -357,7 +374,8 @@
         "nameFieldLabel": "Naam",
         "nameFieldPlaceholder": "Voer een naam in...",
         "integrationFieldLabel": "Integratie",
-        "authTitle": "Authenticatie"
+        "authTitle": "Authenticatie",
+        "addProvider": "Provider toevoegen"
     },
     "mainThemeConfigBlock": {
         "colorsLabel": "Kleuren",
@@ -512,7 +530,9 @@
         "none": "Geen"
     },
     "pagePreview": {
-        "emptyMessage": "Klik om het eerste element te maken"
+        "emptyMessage": "Klik om het eerste element te maken",
+        "header": "HEADER",
+        "footer": "FOOTER"
     },
     "eventTypes": {
         "submitLabel": "Op versturen",
@@ -868,7 +888,8 @@
         "noDataSources": "Geen gegevensbronnen beschikbaar",
         "label": "Gegevensbron",
         "shared": "gedeeld",
-        "pageOnly": "deze pagina"
+        "pageOnly": "deze pagina",
+        "noSharedDataSources": "Geen gedeelde gegevensbronnen beschikbaar"
     },
     "recordSelectorElementForm": {
         "selectRecordsFrom": "Records selecteren uit",
@@ -905,5 +926,54 @@
     "recordSelectorElement": {
         "emptyAdhocState": "Geen rijen gevonden die overeenkomen met '{query}'.",
         "emptyState": "Geen rijen gevonden."
+    },
+    "common": {
+        "dateFormatEU": "Europees",
+        "dateFormatTitle": "Datum formaat",
+        "dateFormatUS": "VS",
+        "dateFormatISO": "ISO",
+        "timeFormatTitle": "Tijdformaat",
+        "timeFormat24Hour": "24 uur",
+        "timeFormat12Hour": "12 uur"
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "Inclusief tijd",
+        "invalidDateError": "Ongeldige datum. Controleer of de ingevoerde datum overeenkomt met het opgegeven formaat."
+    },
+    "themeSettings": {
+        "titleOverview": "Thema"
+    },
+    "pageVisibilitySettingsTypes": {
+        "pageName": "Zichtbaarheid",
+        "logInPageWarningTitle": "De login pagina is niet ingesteld",
+        "logInPagewarningMessage": "Als een anonieme gebruiker deze pagina probeert te openen, wordt hij doorgestuurd naar een inlogpagina. Stel de login pagina in bij de algemene instellingen van de applicatie.",
+        "logInPageInfoTitle": "Anonieme gebruikers worden omgeleid",
+        "logInPageInfoMessage": "Anonieme gebruikers die deze pagina proberen te openen, worden doorgestuurd naar de {logInPageName} pagina."
+    },
+    "pageVisibilitySettings": {
+        "title": "Zichtbaarheid",
+        "allVisitors": "Alle bezoekers",
+        "loggedInVisitors": "Aangemelde bezoekers",
+        "description": "Wie kan deze pagina zien"
+    },
+    "pageEditor": {
+        "pageNotFound": "Pagina niet gevonden"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownDescription": "Selecteer de aanmeldpagina waar niet-ingelogde gebruikers naar moeten worden omgeleid als ze een pagina met verboden proberen te openen.",
+        "pageDropdownLabel": "Login pagina",
+        "pageDropdownPlaceholder": "Selecteer een pagina"
+    },
+    "multiPageContainerElementForm": {
+        "pagePosition": "Positie",
+        "behaviour": "Gedrag",
+        "display": "Weergave",
+        "selectAll": "Selecteer alles",
+        "deselectAll": "Deselecteer alles"
+    },
+    "pageShareType": {
+        "except": "Geselecteerde pagina's uitsluiten",
+        "all": "Op alle pagina's",
+        "only": "Alleen op geselecteerde pagina's"
     }
 }

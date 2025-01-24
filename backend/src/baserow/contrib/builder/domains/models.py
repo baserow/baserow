@@ -1,3 +1,6 @@
+from urllib.parse import urlparse
+
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import CASCADE, SET_NULL
@@ -79,6 +82,16 @@ class Domain(
 
     class Meta:
         ordering = ("order",)
+
+    def get_public_url(self):
+        """
+        Returns the URL for this domain.
+        """
+
+        # Parse the PUBLIC_WEB_FRONTEND_URL to extract the scheme and port
+        parsed_url = urlparse(settings.PUBLIC_WEB_FRONTEND_URL)
+        port_string = f":{parsed_url.port}" if parsed_url.port else ""
+        return f"{parsed_url.scheme}://{self.domain_name}{port_string}"
 
     @classmethod
     def get_last_order(cls, builder):

@@ -20,13 +20,17 @@ import nl from '@baserow_enterprise/locales/nl.json'
 import de from '@baserow_enterprise/locales/de.json'
 import es from '@baserow_enterprise/locales/es.json'
 import it from '@baserow_enterprise/locales/it.json'
+import ko from '@baserow_enterprise/locales/ko.json'
 import {
   EnterpriseWithoutSupportLicenseType,
   EnterpriseLicenseType,
 } from '@baserow_enterprise/licenseTypes'
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
 import { LocalBaserowUserSourceType } from '@baserow_enterprise/integrations/userSourceTypes'
-import { LocalBaserowPasswordAppAuthProviderType } from '@baserow_enterprise/integrations/appAuthProviderTypes'
+import {
+  LocalBaserowPasswordAppAuthProviderType,
+  SamlAppAuthProviderType,
+} from '@baserow_enterprise/integrations/appAuthProviderTypes'
 import { AuthFormElementType } from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
@@ -43,7 +47,11 @@ import {
   JiraIssuesDataSyncType,
   GitHubIssuesDataSyncType,
   GitLabIssuesDataSyncType,
+  HubspotContactsDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
+import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
+
+import { FF_AB_SSO } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -57,6 +65,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('de', de)
     i18n.mergeLocaleMessage('es', es)
     i18n.mergeLocaleMessage('it', it)
+    i18n.mergeLocaleMessage('ko', ko)
   }
 
   app.$registry.register('plugin', new EnterprisePlugin(context))
@@ -113,6 +122,13 @@ export default (context) => {
     new LocalBaserowPasswordAppAuthProviderType(context)
   )
 
+  if (app.$featureFlagIsEnabled(FF_AB_SSO)) {
+    app.$registry.register(
+      'appAuthProvider',
+      new SamlAppAuthProviderType(context)
+    )
+  }
+
   app.$registry.register('roles', new EnterpriseAdminRoleType(context))
   app.$registry.register('roles', new EnterpriseMemberRoleType(context))
   app.$registry.register('roles', new EnterpriseBuilderRoleType(context))
@@ -128,4 +144,10 @@ export default (context) => {
   app.$registry.register('dataSync', new JiraIssuesDataSyncType(context))
   app.$registry.register('dataSync', new GitHubIssuesDataSyncType(context))
   app.$registry.register('dataSync', new GitLabIssuesDataSyncType(context))
+  app.$registry.register('dataSync', new HubspotContactsDataSyncType(context))
+
+  app.$registry.register(
+    'configureDataSync',
+    new PeriodicIntervalFieldsConfigureDataSyncType(context)
+  )
 }

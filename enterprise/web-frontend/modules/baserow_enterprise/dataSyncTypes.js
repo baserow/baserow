@@ -6,6 +6,7 @@ import EnterpriseModal from '@baserow_enterprise/components/EnterpriseModal'
 import JiraIssuesDataSyncForm from '@baserow_enterprise/components/dataSync/JiraIssuesDataSyncForm'
 import GitHubIssuesDataSyncForm from '@baserow_enterprise/components/dataSync/GitHubIssuesDataSyncForm'
 import GitLabIssuesDataSyncForm from '@baserow_enterprise/components/dataSync/GitLabIssuesDataSyncForm'
+import HubspotContactsDataSyncForm from '@baserow_enterprise/components/dataSync/HubspotContactsDataSyncForm'
 
 export class LocalBaserowTableDataSyncType extends DataSyncType {
   static getType() {
@@ -104,6 +105,33 @@ export class GitLabIssuesDataSyncType extends DataSyncType {
 
   getFormComponent() {
     return GitLabIssuesDataSyncForm
+  }
+
+  isDeactivated(workspaceId) {
+    return !this.app.$hasFeature(EnterpriseFeatures.DATA_SYNC, workspaceId)
+  }
+
+  getDeactivatedClickModal() {
+    return EnterpriseModal
+  }
+}
+
+export class HubspotContactsDataSyncType extends DataSyncType {
+  static getType() {
+    return 'hubspot_contacts'
+  }
+
+  getIconClass() {
+    return 'baserow-icon-hubspot'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('enterpriseDataSyncType.hubspotContacts')
+  }
+
+  getFormComponent() {
+    return HubspotContactsDataSyncForm
   }
 
   isDeactivated(workspaceId) {

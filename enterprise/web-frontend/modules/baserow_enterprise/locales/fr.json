@@ -97,14 +97,17 @@
         "addProvider": "Ajouter fournisseur"
     },
     "authProviderTypes": {
-        "password": "Authentification par e-mail et mot de passe"
+        "password": "Authentification par e-mail et mot de passe",
+        "ssoSamlProviderName": "SAML SSO : {domain}",
+        "saml": "Fournisseur SAML SSO",
+        "ssoSamlProviderNameUnconfigured": "SAML SSO non configuré"
     },
     "editAuthProviderMenuContext": {
         "delete": "Supprimer",
         "edit": "Modifier"
     },
     "samlSettingsForm": {
-        "domain": "Domaine",
+        "domain": "Domaine SAML",
         "domainPlaceholder": "Insérez le nom de domaine de l’entreprise...",
         "domainAlreadyExists": "Un fournisseur SAML existe déjà pour ce domaine",
         "metadata": "Métadonnées",
@@ -312,7 +315,8 @@
         "notConfigured": "Non configurée"
     },
     "appAuthProviderType": {
-        "localBaserowPassword": "Courriel/Mot de passe"
+        "localBaserowPassword": "Courriel/Mot de passe",
+        "commonSaml": "Saml SSO"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Sélectionner le champ du mot de passe",
@@ -350,7 +354,8 @@
         "localBaserowTable": "Synchroniser la table Baserow",
         "jiraIssues": "Synchroniser les tickets Jira",
         "githubIssues": "Synchroniser les tickets GitHub",
-        "gitlabIssues": "Synchroniser les tickets GitLab"
+        "gitlabIssues": "Synchroniser les tickets GitLab",
+        "hubspotContacts": "Synchroniser les contacts HubSpot"
     },
     "localBaserowTableDataSync": {
         "name": "ID table source",
@@ -387,5 +392,24 @@
         "projectIdHelper": "L'ID du projet à partir duquel vous souhaitez synchroniser les tickets. Vous pouvez le trouver en allant sur la page de votre projet (par exemple https://gitlab.com/baserow/baserow), en cliquant sur les trois points dans le coin supérieur droit, puis sur \"Copier l'ID du projet : 12345678'.",
         "accessToken": "Jeton d'accès",
         "projectId": "ID du projet"
+    },
+    "samlAuthLink": {
+        "placeholderWithSaml": "{login} avec SAML",
+        "provideEmail": "Indiquez l'adresse courriel de votre compte SAML",
+        "loginWithSaml": "Se connecter avec SAML",
+        "emailPlaceholder": "Saisissez votre courriel..."
+    },
+    "commonSamlSettingModal": {
+        "acsTitle": "URL d'authentification par domaine (Cliquez pour copier)",
+        "title": "Éditer le fournisseur d'identité",
+        "relayStateTitle": "Relay State URL par défaut par domaine (Cliquez pour copier)",
+        "preview": "Aperçu"
+    },
+    "hubspotContactsDataSync": {
+        "accessTokenHelper": "Pour générer un jeton d'accès à une application privée dans HubSpot, cliquez sur Paramètres dans la barre supérieure, naviguez vers Intégrations > Apps privées, et créez une nouvelle application privée. Attribuez les portées suivantes : crm.objects.contacts.read, crm.schemas.contacts.read, et crm.objects.custom.read. Enfin, cliquez sur Créer une application pour générer le jeton.",
+        "accessToken": "Jeton d'accès à l'application privée"
+    },
+    "commonSamlSettingForm": {
+        "authProviderInError": "Veuillez modifier ce fournisseur pour corriger l'erreur."
     }
 }

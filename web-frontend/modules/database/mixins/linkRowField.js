@@ -1,4 +1,5 @@
 import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
+import BigNumber from 'bignumber.js'
 
 export default {
   computed: {
@@ -64,13 +65,23 @@ export default {
 
       // Prepare the new value with all the relations and emit that value to the
       // parent.
-      const newValue = JSON.parse(JSON.stringify(value))
       const rowValue = this.$registry
         .get('field', primary.type)
         .toHumanReadableString(primary, row[`field_${primary.id}`])
-      newValue.push({
-        id: row.id,
-        value: rowValue,
+      // The backend sort by order first and then by id, but we don't have the order
+      // here, so we just sort by id
+      const valueCopy = JSON.parse(JSON.stringify(value))
+      const newValue = [
+        ...valueCopy,
+        { id: row.id, value: rowValue, order: row.order },
+      ].toSorted((a, b) => {
+        const orderA = new BigNumber(a.order)
+        const orderB = new BigNumber(b.order)
+        return orderA.isLessThan(orderB)
+          ? -1
+          : orderA.isEqualTo(orderB)
+          ? a.id - b.id
+          : 1
       })
       this.$emit('update', newValue, value)
     },

@@ -201,3 +201,25 @@ Create envFrom options
 {{ toYaml .Values.envFrom }}
 {{- end }}
 {{- end }}
+
+{{/*
+PodSecurityContext combine the global and local PodSecurityContexts
+*/}}
+{{- define "baserow.podSecurityContext" -}}
+{{- if .Values.securityContext.enabled }}
+{{- omit .Values.securityContext "enabled" | toYaml  }}
+{{- else if .Values.global.baserow.securityContext.enabled }}
+{{- omit .Values.global.baserow.securityContext "enabled" | toYaml }}
+{{- end }}
+{{- end }}
+
+{{/*
+ContainerSecurityContext combine the global and local ContainerSecurityContexts
+*/}}
+{{- define "baserow.containerSecurityContext" -}}
+{{- if .Values.containerSecurityContext.enabled }}
+{{- omit .Values.containerSecurityContext "enabled" | toYaml  }}
+{{- else if .Values.global.baserow.containerSecurityContext.enabled }}
+{{- omit .Values.global.baserow.containerSecurityContext "enabled" | toYaml }}
+{{- end }}
+{{- end }}

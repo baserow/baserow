@@ -18,6 +18,9 @@ import {
   prepareMultiStepDateValue,
   DATE_FILTER_VALUE_SEPARATOR,
   splitMultiStepDateValue,
+  DATE_FILTER_OPERATOR_DELTA_MAP,
+  DATE_FILTER_OPERATOR_BOUNDS,
+  DateFilterOperators,
 } from '@baserow/modules/database/utils/date'
 import { isNumeric } from '@baserow/modules/core/utils/string'
 import ViewFilterTypeFileTypeDropdown from '@baserow/modules/database/components/view/ViewFilterTypeFileTypeDropdown'
@@ -25,8 +28,6 @@ import ViewFilterTypeCollaborators from '@baserow/modules/database/components/vi
 import {
   FormulaFieldType,
   NumberFieldType,
-  RatingFieldType,
-  DurationFieldType,
 } from '@baserow/modules/database/fieldTypes'
 
 export class ViewFilterType extends Registerable {
@@ -97,7 +98,7 @@ export class ViewFilterType extends Registerable {
    * example be used to convert the value to a number.
    */
   prepareValue(value, field) {
-    return value
+    return String(value ?? '')
   }
 
   /**
@@ -131,16 +132,36 @@ export class ViewFilterType extends Registerable {
    * list provided by getCompatibleFieldTypes to calculate this.
    */
   fieldIsCompatible(field) {
-    for (const typeOrFunc of this.getCompatibleFieldTypes()) {
+    const valuesMap = this.getCompatibleFieldTypes().map((type) => [type, true])
+    return this.getCompatibleFieldValue(field, valuesMap, false)
+  }
+
+  /**
+   * Given a field and a map of field types to values, this method will return the
+   * value that is compatible with the field. If no value is found the notFoundValue
+   * will be returned.
+   * This can be used to verify if a field is compatible with a filter type or to
+   * return the correct component for the filter input.
+   *
+   * @param {object} field The field object that should be checked.
+   * @param {object} valuesMap A list of tuple where the key is the field type or a function
+   * that takes a field and returns a boolean and the value is the value that should be
+   * returned if the field is compatible.
+   * @param {any} notFoundValue The value that should be returned if no compatible value
+   * is found.
+   * @returns {any} The value that is compatible with the field or the notFoundValue.
+   */
+  getCompatibleFieldValue(field, valuesMap, notFoundValue = null) {
+    for (const [typeOrFunc, value] of valuesMap) {
       if (typeOrFunc instanceof Function) {
         if (typeOrFunc(field)) {
-          return true
+          return value
         }
       } else if (field.type === typeOrFunc) {
-        return true
+        return value
       }
     }
-    return false
+    return notFoundValue
   }
 
   /**
@@ -166,7 +187,179 @@ export class ViewFilterType extends Registerable {
   }
 }
 
-export class EqualViewFilterType extends ViewFilterType {
+/**
+ * Base class for field-type specific filtering details.
+ *
+ * In some cases we want to have per field-type handling of certain aspects of
+ * a filter: input component selection and value parsing logic.
+ *
+ * This is a base class defining common interface for such customizations
+ */
+class SpecificFieldViewFilterHandler {
+  getInputComponent() {
+    return null
+  }
+
+  parseRowValue(value, field, fieldType) {
+    return value
+  }
+
+  parseFilterValue(value, field, fieldType) {
+    return value
+  }
+}
+
+/**
+ * Handle duration-specific filtering aspects:
+ *
+ * * input component should understand duration formats
+ * * values should be parsed to duration value (a number of seconds).
+ *
+ *
+ * Parsing is especially important because duration parsing result depends on duration
+ * format picked. Filter value is passed as a string, and in case of duration, backend
+ * will send a number of seconds. This, however, may be parsed as a number of minutes
+ * or hours if a duration format picked uses minutes or hours as a lowest unit (i.e.
+ * `d h m` or `d h` format).
+ *
+ * In case of parsing, this class ensures that a number string is passed as a Number
+ * type to be consistent with backend's behavior.
+ *
+ */
+class DurationFieldViewFilterHandler extends SpecificFieldViewFilterHandler {
+  getInputComponent() {
+    return ViewFilterTypeDuration
+  }
+
+  _parseDuration(value, field, fieldType) {
+    if (String(value === null ? '' : value).trim() === '') {
+      return null
+    }
+
+    const parsedValue = Number(value)
+    if (_.isFinite(parsedValue)) {
+      value = parsedValue
+    }
+    return fieldType.parseInputValue(field, value)
+  }
+
+  parseRowValue(value, field, fieldType) {
+    // already processed, can be returned as-is.
+    if (_.isInteger(value)) {
+      return value
+    }
+    return fieldType.parseInputValue(field, value)
+  }
+
+  parseFilterValue(value, field, fieldType) {
+    return this._parseDuration(value, field, fieldType)
+  }
+}
+
+class TextLikeFieldViewFilterHandler extends SpecificFieldViewFilterHandler {
+  getInputComponent() {
+    return ViewFilterTypeText
+  }
+
+  parseRowValue(value, field, fieldType) {
+    return (value === null ? '' : value).toString().toLowerCase().trim()
+  }
+
+  parseFilterValue(value, field, fieldType) {
+    return (value === null ? '' : value).toString().toLowerCase().trim()
+  }
+}
+
+class RatingFieldViewFilterHandler extends SpecificFieldViewFilterHandler {
+  getInputComponent() {
+    return ViewFilterTypeRating
+  }
+
+  parseRowValue(value, field, fieldType) {
+    if (value === '' || value === null) {
+      return NaN
+    }
+    return Number(value.toString().toLowerCase().trim())
+  }
+
+  parseFilterValue(value, field, fieldType) {
+    if (value === '' || value === null) {
+      return NaN
+    }
+    return Number(value.toString().toLowerCase().trim())
+  }
+}
+
+class NumberFieldViewFilterHandler extends SpecificFieldViewFilterHandler {
+  getInputComponent() {
+    return ViewFilterTypeNumber
+  }
+
+  _parseNumberValue(value) {
+    if (value === '' || value === null) {
+      return NaN
+    }
+    return Number(value.toString().toLowerCase().trim())
+  }
+
+  parseRowValue(value, field, fieldType) {
+    return this._parseNumberValue(value)
+  }
+
+  parseFilterValue(value, field, fieldType) {
+    return this._parseNumberValue(value)
+  }
+}
+
+class SpecificFieldFilterType extends ViewFilterType {
+  getFieldsMapping() {
+    const map = [
+      ['duration', new DurationFieldViewFilterHandler()],
+      [
+        FormulaFieldType.compatibleWithFormulaTypes('duration'),
+        new DurationFieldViewFilterHandler(),
+      ],
+      ['rating', new RatingFieldViewFilterHandler()],
+      ['number', new NumberFieldViewFilterHandler()],
+      [
+        FormulaFieldType.compatibleWithFormulaTypes('number'),
+        new NumberFieldViewFilterHandler(),
+      ],
+      ['autonumber', new NumberFieldViewFilterHandler()],
+    ]
+    return map
+  }
+
+  getSpecificFieldFilterType(field) {
+    const map = this.getFieldsMapping()
+    return this.getCompatibleFieldValue(
+      field,
+      map,
+      new TextLikeFieldViewFilterHandler()
+    )
+  }
+
+  getMatchesParsedValues(rowValue, filterValue, field, fieldType) {
+    const specificFieldType = this.getSpecificFieldFilterType(field)
+    const parsedRowValue = specificFieldType.parseRowValue(
+      rowValue,
+      field,
+      fieldType
+    )
+    const parsedFilterValue = specificFieldType.parseFilterValue(
+      filterValue,
+      field,
+      fieldType
+    )
+    return { rowVal: parsedRowValue, filterVal: parsedFilterValue }
+  }
+
+  getInputComponent(field) {
+    return this.getSpecificFieldFilterType(field).getInputComponent()
+  }
+}
+
+export class EqualViewFilterType extends SpecificFieldFilterType {
   static getType() {
     return 'equal'
   }
@@ -176,15 +369,6 @@ export class EqualViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.is')
   }
 
-  getInputComponent(field) {
-    const inputComponent = {
-      [RatingFieldType.getType()]: ViewFilterTypeRating,
-      [NumberFieldType.getType()]: ViewFilterTypeNumber,
-      [DurationFieldType.getType()]: ViewFilterTypeDuration,
-    }
-    return inputComponent[field?.type] || ViewFilterTypeText
-  }
-
   getCompatibleFieldTypes() {
     return [
       'text',
@@ -201,6 +385,7 @@ export class EqualViewFilterType extends ViewFilterType {
         'text',
         'char',
         'number',
+        'duration',
         'url'
       ),
     ]
@@ -210,14 +395,18 @@ export class EqualViewFilterType extends ViewFilterType {
     if (rowValue === null) {
       rowValue = ''
     }
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
 
-    rowValue = rowValue.toString().toLowerCase().trim()
-    filterValue = filterValue.toString().toLowerCase().trim()
-    return filterValue === '' || rowValue === filterValue
+    return filterVal === '' || rowVal === filterVal
   }
 }
 
-export class NotEqualViewFilterType extends ViewFilterType {
+export class NotEqualViewFilterType extends SpecificFieldFilterType {
   static getType() {
     return 'not_equal'
   }
@@ -227,15 +416,6 @@ export class NotEqualViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.isNot')
   }
 
-  getInputComponent(field) {
-    const inputComponent = {
-      [RatingFieldType.getType()]: ViewFilterTypeRating,
-      [NumberFieldType.getType()]: ViewFilterTypeNumber,
-      [DurationFieldType.getType()]: ViewFilterTypeDuration,
-    }
-    return inputComponent[field?.type] || ViewFilterTypeText
-  }
-
   getCompatibleFieldTypes() {
     return [
       'text',
@@ -252,6 +432,7 @@ export class NotEqualViewFilterType extends ViewFilterType {
         'text',
         'char',
         'number',
+        'duration',
         'url'
       ),
     ]
@@ -262,9 +443,13 @@ export class NotEqualViewFilterType extends ViewFilterType {
       rowValue = ''
     }
 
-    rowValue = rowValue.toString().toLowerCase().trim()
-    filterValue = filterValue.toString().toLowerCase().trim()
-    return filterValue === '' || rowValue !== filterValue
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
+    return filterVal === '' || rowVal !== filterVal
   }
 }
 
@@ -405,7 +590,8 @@ export class ContainsViewFilterType extends ViewFilterType {
         'number',
         'date',
         'url',
-        'single_select'
+        'single_select',
+        'multiple_select'
       ),
     ]
   }
@@ -452,7 +638,8 @@ export class ContainsNotViewFilterType extends ViewFilterType {
         'number',
         'date',
         'url',
-        'single_select'
+        'single_select',
+        'multiple_select'
       ),
     ]
   }
@@ -488,7 +675,8 @@ export class ContainsWordViewFilterType extends ViewFilterType {
         'text',
         'char',
         'url',
-        'single_select'
+        'single_select',
+        'multiple_select'
       ),
     ]
   }
@@ -552,219 +740,7 @@ export class LengthIsLowerThanViewFilterType extends ViewFilterType {
   }
 }
 
-const DateFilterOperators = {
-  TODAY: { value: 'today', stringKey: 'viewFilter.today' },
-  YESTERDAY: { value: 'yesterday', stringKey: 'viewFilter.yesterday' },
-  TOMORROW: { value: 'tomorrow', stringKey: 'viewFilter.tomorrow' },
-  ONE_WEEK_AGO: { value: 'one_week_ago', stringKey: 'viewFilter.oneWeekAgo' },
-  THIS_WEEK: { value: 'this_week', stringKey: 'viewFilter.thisWeek' },
-  NEXT_WEEK: { value: 'next_week', stringKey: 'viewFilter.nextWeek' },
-  ONE_MONTH_AGO: {
-    value: 'one_month_ago',
-    stringKey: 'viewFilter.oneMonthAgo',
-  },
-  THIS_MONTH: { value: 'this_month', stringKey: 'viewFilter.thisMonth' },
-  NEXT_MONTH: { value: 'next_month', stringKey: 'viewFilter.nextMonth' },
-  ONE_YEAR_AGO: { value: 'one_year_ago', stringKey: 'viewFilter.oneYearAgo' },
-  THIS_YEAR: { value: 'this_year', stringKey: 'viewFilter.thisYear' },
-  NEXT_YEAR: { value: 'next_year', stringKey: 'viewFilter.nextYear' },
-  NR_DAYS_AGO: {
-    value: 'nr_days_ago',
-    stringKey: 'viewFilter.nrDaysAgo',
-    hasNrInputValue: true,
-  },
-  NR_DAYS_FROM_NOW: {
-    value: 'nr_days_from_now',
-    stringKey: 'viewFilter.nrDaysFromNow',
-    hasNrInputValue: true,
-  },
-  NR_WEEKS_AGO: {
-    value: 'nr_weeks_ago',
-    stringKey: 'viewFilter.nrWeeksAgo',
-    hasNrInputValue: true,
-  },
-  NR_WEEKS_FROM_NOW: {
-    value: 'nr_weeks_from_now',
-    stringKey: 'viewFilter.nrWeeksFromNow',
-    hasNrInputValue: true,
-  },
-  NR_MONTHS_AGO: {
-    value: 'nr_months_ago',
-    stringKey: 'viewFilter.nrMonthsAgo',
-    hasNrInputValue: true,
-  },
-  NR_MONTHS_FROM_NOW: {
-    value: 'nr_months_from_now',
-    stringKey: 'viewFilter.nrMonthsFromNow',
-    hasNrInputValue: true,
-  },
-  NR_YEARS_AGO: {
-    value: 'nr_years_ago',
-    stringKey: 'viewFilter.nrYearsAgo',
-    hasNrInputValue: true,
-  },
-  NR_YEARS_FROM_NOW: {
-    value: 'nr_years_from_now',
-    stringKey: 'viewFilter.nrYearsFromNow',
-    hasNrInputValue: true,
-  },
-  EXACT_DATE: {
-    value: 'exact_date',
-    stringKey: 'viewFilter.exactDate',
-    hasDateInputValue: true,
-  },
-}
-
-const parseFilterValueAsDate = (
-  filterValue,
-  timezone = null,
-  dateFormat = 'YYYY-MM-DD'
-) => {
-  const filterDate = moment.utc(filterValue, dateFormat, true)
-  if (!filterDate.isValid()) {
-    throw new Error('Invalid date format')
-  } else if (timezone) {
-    filterDate.tz(timezone, true)
-  }
-  return filterDate
-}
-
-const parseFilterValueAsNumber = (filterValue) => {
-  try {
-    return parseInt(filterValue)
-  } catch {
-    return null
-  }
-}
-
-// Please be aware that momentjs modifies filterDate in place, so
-// make sure to clone it before modifying it.
-const DATE_FILTER_OPERATOR_BOUNDS = {
-  [DateFilterOperators.TODAY.value]: (filterDate) => [
-    filterDate.startOf('day'),
-    filterDate.clone().add(1, 'days'),
-  ],
-  [DateFilterOperators.YESTERDAY.value]: (filterDate) => [
-    filterDate.subtract(1, 'days').startOf('day'),
-    filterDate.clone().add(1, 'days'),
-  ],
-  [DateFilterOperators.TOMORROW.value]: (filterDate) => [
-    filterDate.add(1, 'days').startOf('day'),
-    filterDate.clone().add(1, 'days'),
-  ],
-  [DateFilterOperators.ONE_WEEK_AGO.value]: (filterDate) => [
-    filterDate.subtract(1, 'weeks').startOf('week').add(1, 'days'), // Start of the week is Sunday, so add 1 day to get Monday.
-    filterDate.clone().add(1, 'weeks'),
-  ],
-  [DateFilterOperators.ONE_MONTH_AGO.value]: (filterDate) => [
-    filterDate.subtract(1, 'months').startOf('month'),
-    filterDate.clone().add(1, 'months'),
-  ],
-  [DateFilterOperators.ONE_YEAR_AGO.value]: (filterDate) => [
-    filterDate.subtract(1, 'years').startOf('year'),
-    filterDate.clone().add(1, 'year'),
-  ],
-  [DateFilterOperators.THIS_WEEK.value]: (filterDate) => [
-    filterDate.startOf('week').add(1, 'days'), // Start of the week is Sunday, so add 1 day to get Monday.
-    filterDate.clone().add(1, 'week'),
-  ],
-  [DateFilterOperators.THIS_MONTH.value]: (filterDate) => [
-    filterDate.startOf('month'),
-    filterDate.clone().add(1, 'months'),
-  ],
-  [DateFilterOperators.THIS_YEAR.value]: (filterDate) => [
-    filterDate.startOf('year'),
-    filterDate.clone().add(1, 'years'),
-  ],
-  [DateFilterOperators.NEXT_WEEK.value]: (filterDate) => [
-    filterDate.add(1, 'weeks').startOf('week').add(1, 'days'), // Start of the week is Sunday, so add 1 day to get Monday.
-    filterDate.clone().add(1, 'week'),
-  ],
-  [DateFilterOperators.NEXT_MONTH.value]: (filterDate) => [
-    filterDate.add(1, 'months').startOf('month'),
-    filterDate.clone().add(1, 'months'),
-  ],
-  [DateFilterOperators.NEXT_YEAR.value]: (filterDate) => [
-    filterDate.add(1, 'years').startOf('year'),
-    filterDate.clone().add(1, 'years'),
-  ],
-  [DateFilterOperators.NR_DAYS_AGO.value]: (filterDate) => [
-    filterDate.startOf('day'),
-    filterDate.clone().add(1, 'days'),
-  ],
-  [DateFilterOperators.NR_WEEKS_AGO.value]: (filterDate) => [
-    filterDate.startOf('week').add(1, 'days'), // Start of the week is Sunday, so add 1 day to get Monday.
-    filterDate.clone().add(1, 'weeks'),
-  ],
-  [DateFilterOperators.NR_MONTHS_AGO.value]: (filterDate) => [
-    filterDate.startOf('month'),
-    filterDate.clone().add(1, 'months'),
-  ],
-  [DateFilterOperators.NR_YEARS_AGO.value]: (filterDate) => [
-    filterDate.startOf('year'),
-    filterDate.clone().add(1, 'years'),
-  ],
-  [DateFilterOperators.NR_DAYS_FROM_NOW.value]: (filterDate) => [
-    filterDate.startOf('day'),
-    filterDate.clone().add(1, 'days'),
-  ],
-  [DateFilterOperators.NR_WEEKS_FROM_NOW.value]: (filterDate) => [
-    filterDate.startOf('week').add(1, 'days'), // Start of the week is Sunday, so add 1 day to get Monday.
-    filterDate.clone().add(1, 'weeks'),
-  ],
-  [DateFilterOperators.NR_MONTHS_FROM_NOW.value]: (filterDate) => [
-    filterDate.startOf('month'),
-    filterDate.clone().add(1, 'months'),
-  ],
-  [DateFilterOperators.NR_YEARS_FROM_NOW.value]: (filterDate) => [
-    filterDate.startOf('year'),
-    filterDate.clone().add(1, 'years'),
-  ],
-  [DateFilterOperators.EXACT_DATE.value]: (filterDate) => [
-    filterDate.startOf('day'),
-    filterDate.clone().add(1, 'days'),
-  ],
-}
-
-const DATE_FILTER_OPERATOR_DELTA_MAP = {
-  [DateFilterOperators.EXACT_DATE.value]: (
-    filterDate,
-    filterValue,
-    timezone
-  ) => {
-    return parseFilterValueAsDate(filterValue, timezone)
-  },
-  // days
-  [DateFilterOperators.NR_DAYS_AGO.value]: (filterDate, filterValue) => {
-    return filterDate.subtract(parseFilterValueAsNumber(filterValue), 'days')
-  },
-  [DateFilterOperators.NR_DAYS_FROM_NOW.value]: (filterDate, filterValue) => {
-    return filterDate.add(parseFilterValueAsNumber(filterValue), 'days')
-  },
-  // weeks
-  [DateFilterOperators.NR_WEEKS_AGO.value]: (filterDate, filterValue) => {
-    return filterDate.subtract(parseFilterValueAsNumber(filterValue), 'weeks')
-  },
-  [DateFilterOperators.NR_WEEKS_FROM_NOW.value]: (filterDate, filterValue) => {
-    return filterDate.add(parseFilterValueAsNumber(filterValue), 'weeks')
-  },
-  // months
-  [DateFilterOperators.NR_MONTHS_AGO.value]: (filterDate, filterValue) => {
-    return filterDate.subtract(parseFilterValueAsNumber(filterValue), 'months')
-  },
-  [DateFilterOperators.NR_MONTHS_FROM_NOW.value]: (filterDate, filterValue) => {
-    return filterDate.add(parseFilterValueAsNumber(filterValue), 'months')
-  },
-  // years
-  [DateFilterOperators.NR_YEARS_AGO.value]: (filterDate, filterValue) => {
-    return filterDate.subtract(parseFilterValueAsNumber(filterValue), 'years')
-  },
-  [DateFilterOperators.NR_YEARS_FROM_NOW.value]: (filterDate, filterValue) => {
-    return filterDate.add(parseFilterValueAsNumber(filterValue), 'years')
-  },
-}
-
-export class DateMultiStepViewFilterType extends ViewFilterType {
+export class BaseDateMultiStepViewFilterType extends ViewFilterType {
   getExample() {
     return 'UTC??today'
   }
@@ -804,15 +780,6 @@ export class DateMultiStepViewFilterType extends ViewFilterType {
     return []
   }
 
-  getCompatibleFieldTypes() {
-    return [
-      'date',
-      'last_modified',
-      'created_on',
-      FormulaFieldType.compatibleWithFormulaTypes('date'),
-    ]
-  }
-
   prepareValue(value, field, filterChanged = false) {
     const sep = DATE_FILTER_VALUE_SEPARATOR
     const [, filterValue, operator] = splitMultiStepDateValue(value, sep)
@@ -822,9 +789,17 @@ export class DateMultiStepViewFilterType extends ViewFilterType {
       : `${timezone}${sep}${filterValue}${sep}${operator}`
   }
 
+  localizeRowValue(rowValue, timezone) {
+    const localizedRowValue = moment.utc(rowValue)
+    if (timezone !== null) {
+      localizedRowValue.tz(timezone)
+    }
+    return localizedRowValue
+  }
+
   rowMatches(rowDate, lowerBound, upperBound) {
     throw new Error(
-      'The rowAndFilterValueMatches method must be implemented for every filter.'
+      'The rowMatches method must be implemented for every filter.'
     )
   }
 
@@ -857,14 +832,22 @@ export class DateMultiStepViewFilterType extends ViewFilterType {
     }
 
     // Localize the filter date and the row date.
-    const rowDate = moment.utc(rowValue)
-    if (timezone !== null) {
-      rowDate.tz(timezone)
-    }
+    const rowDate = this.localizeRowValue(rowValue, timezone)
     const [lowerBound, upperBound] =
       DATE_FILTER_OPERATOR_BOUNDS[operatorValue](filterDate)
 
     return this.rowMatches(rowDate, lowerBound, upperBound, timezone)
+  }
+}
+
+export class DateMultiStepViewFilterType extends BaseDateMultiStepViewFilterType {
+  getCompatibleFieldTypes() {
+    return [
+      'date',
+      'last_modified',
+      'created_on',
+      FormulaFieldType.compatibleWithFormulaTypes('date'),
+    ]
   }
 }
 
@@ -2032,17 +2015,9 @@ export class DateEqualsDayOfMonthViewFilterType extends LocalizedDateViewFilterT
 // Base filter type for basic numeric comparisons. It defines common logic for
 // 'lower than', 'lower than or equal', 'higher than' and 'higher than or equal'
 // view filter types.
-export class NumericComparisonViewFilterType extends ViewFilterType {
+export class NumericComparisonViewFilterType extends SpecificFieldFilterType {
   getExample() {
     return '100'
-  }
-
-  getInputComponent(field) {
-    const inputComponent = {
-      [RatingFieldType.getType()]: ViewFilterTypeRating,
-      [DurationFieldType.getType()]: ViewFilterTypeDuration,
-    }
-    return inputComponent[field?.type] || ViewFilterTypeNumber
   }
 
   getCompatibleFieldTypes() {
@@ -2051,7 +2026,7 @@ export class NumericComparisonViewFilterType extends ViewFilterType {
       'rating',
       'autonumber',
       'duration',
-      FormulaFieldType.compatibleWithFormulaTypes('number'),
+      FormulaFieldType.compatibleWithFormulaTypes('number', 'duration'),
     ]
   }
 
@@ -2076,9 +2051,17 @@ export class HigherThanViewFilterType extends NumericComparisonViewFilterType {
       return true
     }
 
-    const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
-    return Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal > fltVal
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
+    return (
+      Number.isFinite(rowVal) &&
+      Number.isFinite(filterVal) &&
+      rowVal > filterVal
+    )
   }
 }
 
@@ -2097,10 +2080,16 @@ export class HigherThanOrEqualViewFilterType extends NumericComparisonViewFilter
       return true
     }
 
-    const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
     return (
-      Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal >= fltVal
+      Number.isFinite(rowVal) &&
+      Number.isFinite(filterVal) &&
+      rowVal >= filterVal
     )
   }
 }
@@ -2119,10 +2108,18 @@ export class LowerThanViewFilterType extends NumericComparisonViewFilterType {
     if (filterValue === '') {
       return true
     }
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
 
-    const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
-    return Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal < fltVal
+    return (
+      Number.isFinite(rowVal) &&
+      Number.isFinite(filterVal) &&
+      rowVal < filterVal
+    )
   }
 }
 
@@ -2141,10 +2138,17 @@ export class LowerThanOrEqualViewFilterType extends NumericComparisonViewFilterT
       return true
     }
 
-    const rowVal = fieldType.parseInputValue(field, rowValue)
-    const fltVal = fieldType.parseInputValue(field, filterValue)
+    const { rowVal, filterVal } = this.getMatchesParsedValues(
+      rowValue,
+      filterValue,
+      field,
+      fieldType
+    )
+
     return (
-      Number.isFinite(rowVal) && Number.isFinite(fltVal) && rowVal <= fltVal
+      Number.isFinite(rowVal) &&
+      Number.isFinite(filterVal) &&
+      rowVal <= filterVal
     )
   }
 }
@@ -2287,10 +2291,12 @@ export class SingleSelectIsAnyOfViewFilterType extends ViewFilterType {
    * @private
    */
   _prepareValue(value, field) {
-    if (value === '') {
+    if (value == null || value === '') {
       return null
     }
-    const _parsed = this.app.$papa.stringToArray(value).map((v) => parseInt(v))
+    const _parsed = this.app.$papa
+      .stringToArray(String(value))
+      .map((v) => parseInt(v))
     return _.uniq(_parsed)
   }
 
@@ -2331,20 +2337,37 @@ export class MultipleSelectHasFilterType extends ViewFilterType {
   }
 
   getInputComponent() {
-    return ViewFilterTypeSelectOptions
+    return ViewFilterTypeMultipleSelectOptions
   }
 
   getCompatibleFieldTypes() {
-    return ['multiple_select']
+    return [
+      'multiple_select',
+      FormulaFieldType.compatibleWithFormulaTypes('multiple_select'),
+    ]
+  }
+
+  prepareValue(value, field) {
+    return (this._prepareValue(value, field) || []).join(',')
+  }
+
+  _prepareValue(value, field) {
+    if (value == null || value === '') {
+      return null
+    }
+    const _parsed = this.app.$papa
+      .stringToArray(String(value))
+      .map((v) => parseInt(v))
+    return _.uniq(_parsed)
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isNumeric(filterValue)) {
-      return true
-    }
-
-    const filterValueId = parseInt(filterValue)
-    return rowValue.some((option) => option.id === filterValueId)
+    const parsedValue = this._prepareValue(filterValue)
+    return (
+      parsedValue === null ||
+      (rowValue?.length &&
+        rowValue.some((opt) => _.includes(parsedValue, opt?.id)))
+    )
   }
 }
 
@@ -2363,20 +2386,37 @@ export class MultipleSelectHasNotFilterType extends ViewFilterType {
   }
 
   getInputComponent() {
-    return ViewFilterTypeSelectOptions
+    return ViewFilterTypeMultipleSelectOptions
   }
 
   getCompatibleFieldTypes() {
-    return ['multiple_select']
+    return [
+      'multiple_select',
+      FormulaFieldType.compatibleWithFormulaTypes('multiple_select'),
+    ]
+  }
+
+  prepareValue(value, field) {
+    return (this._prepareValue(value, field) || []).join(',')
+  }
+
+  _prepareValue(value, field) {
+    if (value == null || value === '') {
+      return null
+    }
+    const _parsed = this.app.$papa
+      .stringToArray(String(value))
+      .map((v) => parseInt(v))
+    return _.uniq(_parsed)
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isNumeric(filterValue)) {
-      return true
-    }
-
-    const filterValueId = parseInt(filterValue)
-    return !rowValue.some((option) => option.id === filterValueId)
+    const parsedValue = this._prepareValue(filterValue)
+    return (
+      parsedValue === null ||
+      rowValue?.length === 0 ||
+      rowValue.every((opt) => !_.includes(parsedValue, opt?.id))
+    )
   }
 }
 
@@ -2547,6 +2587,9 @@ export class BooleanViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
+    if (filterValue === null) {
+      filterValue = false
+    }
     filterValue = trueValues.includes(
       filterValue.toString().toLowerCase().trim()
     )
@@ -2737,9 +2780,12 @@ export class EmptyViewFilterType extends ViewFilterType {
         'boolean',
         'date',
         'number',
+        'duration',
         'url',
         'single_select',
-        FormulaFieldType.arrayOf('single_file')
+        'multiple_select',
+        FormulaFieldType.arrayOf('single_file'),
+        FormulaFieldType.arrayOf('boolean')
       ),
     ]
   }
@@ -2801,9 +2847,12 @@ export class NotEmptyViewFilterType extends ViewFilterType {
         'boolean',
         'date',
         'number',
+        'duration',
         'url',
         'single_select',
-        FormulaFieldType.arrayOf('single_file')
+        'multiple_select',
+        FormulaFieldType.arrayOf('single_file'),
+        FormulaFieldType.arrayOf('boolean')
       ),
     ]
   }

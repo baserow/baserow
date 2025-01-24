@@ -1,5 +1,16 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, List, NoReturn, Optional, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    NoReturn,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
@@ -8,13 +19,18 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField as PostgresJSONField
 from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
-from django.db import models as django_models
 from django.db.models import (
+    Aggregate,
     BooleanField,
     CharField,
     Count,
     DurationField,
     Expression,
+    ExpressionWrapper,
+    F,
+)
+from django.db.models import Field as DjangoField
+from django.db.models import (
     IntegerField,
     JSONField,
     Model,
@@ -214,6 +230,21 @@ class FieldType(
 
         return value
 
+    def parse_field_value_for_db(self, instance: Field, value: Any) -> Any:
+        """
+        This method parses a value for a given field type and a field instance. It
+        fallback to the `prepare_value_for_db` method if not implemented, but it can be
+        customized for read_only fields where it's not possible to prepare the value for
+        the database, but they can be used as primary field in a table and so rows might
+        be queried by value.
+
+        :param instance: The field instance.
+        :param value: The value that needs to be validated.
+        :return: The modified value that could be directly saved in the database.
+        """
+
+        return self.prepare_value_for_db(instance, value)
+
     def get_search_expression(self, field: Field, queryset: QuerySet) -> Expression:
         """
         When a field/row is created, updated or restored, this `FieldType` method
@@ -317,6 +348,18 @@ class FieldType(
 
         return queryset
 
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        """
+        This hook can be used to enhance a queryset when fetching multiple fields of a
+        table. This is used when retrieving the fields of a table in the table view
+        to, for example, retrieve the primary field of the related table for the link
+        row field.
+        """
+
+        return queryset
+
     def enhance_queryset_in_bulk(
         self, queryset: QuerySet, field_objects: List[dict], **kwargs
     ) -> QuerySet:
@@ -343,7 +386,7 @@ class FieldType(
     def empty_query(
         self,
         field_name: str,
-        model_field: django_models.Field,
+        model_field: DjangoField,
         field: Field,
     ) -> Q:
         """
@@ -808,7 +851,11 @@ class FieldType(
         """
 
     def get_order(
-        self, field, field_name, order_direction
+        self,
+        field: Type[Field],
+        field_name: str,
+        order_direction: str,
+        table_model: Optional["GeneratedTableModel"] = None,
     ) -> OptionallyAnnotatedOrderBy:
         """
         This hook can be called to generate a different order by expression.
@@ -822,17 +869,15 @@ class FieldType(
         get_value_for_filter method.
 
         :param field: The related field object instance.
-        :type field: Field
         :param field_name: The name of the field.
-        :type field_name: str
-        :param order_direction: The sort order direction.
-        :type order_direction: str (Either "ASC" or "DESC")
+        :param order_direction: The sort order direction (either "ASC" or "DESC").
+        :param table_model: The table model instance that the field is part of,
+            if available.
         :return: Either the expression that is added directly to the
             model.objects.order(), an AnnotatedOrderBy class or None.
-        :rtype: Optional[Expression, AnnotatedOrderBy, None]
         """
 
-        field_expr = django_models.F(field_name)
+        field_expr = self.get_sortable_column_expression(field, field_name)
 
         if order_direction == "ASC":
             field_order_by = field_expr.asc(nulls_first=True)
@@ -1474,11 +1519,7 @@ class FieldType(
             back to the starting table the first field change occurred.
         """
 
-        from baserow.contrib.database.fields.dependencies.handler import (
-            FieldDependencyHandler,
-        )
-
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        update_collector.add_to_rebuild_field_dependencies(field)
 
         from baserow.contrib.database.views.handler import ViewHandler
 
@@ -1588,6 +1629,21 @@ class FieldType(
         """
 
         return self._can_group_by
+
+    def get_sortable_column_expression(
+        self, field: Field, field_name: str
+    ) -> Expression | F:
+        """
+        Returns the expression that can be used to sort the field in the database.
+        By default, it will just return the field name, but for example for a
+        SingleSelectField, the select option value should be returned.
+
+        :param field: The field where to get the sortable column expression for.
+        :param field_name: The name of the field in the table.
+        :return: The expression that can be used to sort the field in the database.
+        """
+
+        return F(field_name)
 
     def get_group_by_field_unique_value(
         self, field: Field, field_name: str, value: Any
@@ -1784,6 +1840,57 @@ class FieldType(
 
         return value1 == value2
 
+    def parse_filter_value(
+        self, field: "Field", model_field: DjangoField, value: str
+    ) -> Any:
+        """
+        Prepare a non-empty value string to be used in a view filter, verifying if it is
+        compatible with the given field and model_field. This method must be called
+        before the value is passed to the filter method that requires it. This is useful
+        to ensure that comparisons are done correctly and that the value is correctly
+        prepared for the database, like converting a string to a date object or a
+        number.
+
+        :param field: The field instance that the value belongs to.
+        :param model_field: The model field that the value must be prepared for.
+        :param value: The value that must be prepared for filtering.
+        :return: The prepared value or None if the value is an empty string.
+        :raises ValueError: If the value is not compatible for the given field and
+            model_field.
+        """
+
+        if value == "":
+            return None
+
+        try:
+            return model_field.get_prep_value(value)
+        except ValidationError as e:
+            raise ValueError(str(e))
+
+    def get_formula_reference_to_model_field(
+        self,
+        model_field: DjangoField,
+        db_column: str,
+        already_in_subquery: bool,
+    ) -> Expression:
+        """
+        Returns a formula-compatible expression for referencing a model field.
+
+        :param model_field: The Django model field to be referenced in the formula.
+        :param db_column: The database column name or annotation name. For m2m fields
+                that are aggregated, this might differ from model_field.name.
+        :param already_in_subquery: Boolean indicating if the reference is within a
+                subquery context. Required for proper aggregation in certain field
+                types.
+        :return: A database expression that can be used to reference the model field in
+            formulas.
+        """
+
+        return ExpressionWrapper(
+            F(db_column),
+            output_field=model_field,
+        )
+
 
 class ReadOnlyFieldType(FieldType):
     read_only = True
@@ -1810,6 +1917,18 @@ class ReadOnlyFieldType(FieldType):
         raise ValidationError(
             f"Field of type {self.type} is read only and should not be set manually."
         )
+
+    def parse_field_value_for_db(self, instance: Field, value: Any) -> Any:
+        """
+        Consider the value as valid if the field serializer can properly serialize it.
+        """
+
+        try:
+            return self.get_serializer_field(instance).to_internal_value(value)
+        except serializers.ValidationError:
+            raise ValidationError(
+                f"Field of type {self.type} is read only and should not be set manually."
+            )
 
     def get_export_serialized_value(
         self,
@@ -1853,6 +1972,21 @@ class ManyToManyGroupByMixin:
     that the field type must set the `_can_group_by` property to `True`.
     """
 
+    def _get_group_by_agg_expression(self, field_name: str) -> Expression:
+        """
+        Returns the aggregation expression that can be used to group by the field. By
+        default it will return an ArrayAgg expression that will aggregate all the
+        related field values.
+
+        :param field_name: The name of the field in the table.
+        :return: The aggregation expression that can be used to group by the field.
+        """
+
+        return ArrayAgg(
+            f"{field_name}__id",
+            filter=Q(**{f"{field_name}__isnull": False}),
+        )
+
     def get_group_by_field_unique_value(
         self, field: Field, field_name: str, value: Any
     ) -> Any:
@@ -1869,10 +2003,7 @@ class ManyToManyGroupByMixin:
                 base_queryset.filter(id=OuterRef("id"))
                 .annotate(
                     res=Coalesce(
-                        ArrayAgg(
-                            f"{field_name}__id",
-                            filter=Q(**{f"{field_name}__id__isnull": False}),
-                        ),
+                        self._get_group_by_agg_expression(field_name),
                         Value([], output_field=ArrayField(IntegerField())),
                     ),
                 )
@@ -2105,9 +2236,7 @@ class FieldAggregationType(Instance):
             for t in self.compatible_field_types
         )
 
-    def _get_raw_aggregation(
-        self, model_field: django_models.Field, field: Field
-    ) -> django_models.Aggregate:
+    def _get_raw_aggregation(self, model_field: DjangoField, field: Field) -> Aggregate:
         """
         Returns the raw aggregation that should be used for the field aggregation
         type.
@@ -2120,7 +2249,7 @@ class FieldAggregationType(Instance):
         return self.raw_type().get_aggregation(field.db_column, model_field, field)
 
     def _get_aggregation_dict(
-        self, queryset: QuerySet, model_field: django_models.Field, field: Field
+        self, queryset: QuerySet, model_field: DjangoField, field: Field
     ) -> dict:
         """
         Returns a dictinary defining the aggregation for the queryset.aggregate

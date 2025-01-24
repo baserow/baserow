@@ -75,6 +75,19 @@ caddy:
       onDemandAsk: http://:9765/healthz
 ```
 
+## Autoscaling configuration
+For each Baserow component, a HorizontalPodAutoscaler can be configured individually. The following example enables autoscaling on the wsgi backend deployment.
+
+```yaml
+baserow-backend-wsgi:
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10 
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+```
+
 ```yaml
       onDemandAsk: "http://my-baserow-baserow-backend-wsgi/api/builder/domains/ask-public-domain-exists/"
 ```
@@ -185,24 +198,40 @@ caddy:
 
 ### Global parameters
 
-| Name                                                         | Description                                                                             | Value                   |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------- |
-| `global.baserow.imageRegistry`                               | Global Docker image registry                                                            | `baserow`               |
-| `global.baserow.imagePullSecrets`                            | Global Docker registry secret names as an array                                         | `[]`                    |
-| `global.baserow.image.tag`                                   | Global Docker image tag                                                                 | `1.29.1`                |
-| `global.baserow.serviceAccount.shared`                       | Set to true to share the service account between all application components.            | `true`                  |
-| `global.baserow.serviceAccount.create`                       | Set to true to create a service account to share between all application components.    | `true`                  |
-| `global.baserow.serviceAccount.name`                         | Configure a name for service account to share between all application components.       | `baserow`               |
-| `global.baserow.serviceAccount.annotations`                  | Configure annotations for the shared service account.                                   | `{}`                    |
-| `global.baserow.serviceAccount.automountServiceAccountToken` | Automount the service account token to the pods.                                        | `false`                 |
-| `global.baserow.backendConfigMap`                            | Configure a name for the backend configmap.                                             | `backend-config`        |
-| `global.baserow.backendSecret`                               | Configure a name for the backend secret.                                                | `backend-secret`        |
-| `global.baserow.frontendConfigMap`                           | Configure a name for the frontend configmap.                                            | `frontend-config`       |
-| `global.baserow.sharedConfigMap`                             | Configure a name for the shared configmap.                                              | `shared-config`         |
-| `global.baserow.envFrom`                                     | Configure secrets or configMaps to be used as environment variables for all components. | `[]`                    |
-| `global.baserow.domain`                                      | Configure the domain for the frontend application.                                      | `cluster.local`         |
-| `global.baserow.backendDomain`                               | Configure the domain for the backend application.                                       | `api.cluster.local`     |
-| `global.baserow.objectsDomain`                               | Configure the domain for the external facing minio api.                                 | `objects.cluster.local` |
+| Name                                                               | Description                                                                             | Value                   |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------- |
+| `global.baserow.imageRegistry`                                     | Global Docker image registry                                                            | `baserow`               |
+| `global.baserow.imagePullSecrets`                                  | Global Docker registry secret names as an array                                         | `[]`                    |
+| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `1.30.1`                |
+| `global.baserow.serviceAccount.shared`                             | Set to true to share the service account between all application components.            | `true`                  |
+| `global.baserow.serviceAccount.create`                             | Set to true to create a service account to share between all application components.    | `true`                  |
+| `global.baserow.serviceAccount.name`                               | Configure a name for service account to share between all application components.       | `baserow`               |
+| `global.baserow.serviceAccount.annotations`                        | Configure annotations for the shared service account.                                   | `{}`                    |
+| `global.baserow.serviceAccount.automountServiceAccountToken`       | Automount the service account token to the pods.                                        | `false`                 |
+| `global.baserow.backendConfigMap`                                  | Configure a name for the backend configmap.                                             | `backend-config`        |
+| `global.baserow.backendSecret`                                     | Configure a name for the backend secret.                                                | `backend-secret`        |
+| `global.baserow.frontendConfigMap`                                 | Configure a name for the frontend configmap.                                            | `frontend-config`       |
+| `global.baserow.sharedConfigMap`                                   | Configure a name for the shared configmap.                                              | `shared-config`         |
+| `global.baserow.envFrom`                                           | Configure secrets or configMaps to be used as environment variables for all components. | `[]`                    |
+| `global.baserow.domain`                                            | Configure the domain for the frontend application.                                      | `cluster.local`         |
+| `global.baserow.backendDomain`                                     | Configure the domain for the backend application.                                       | `api.cluster.local`     |
+| `global.baserow.objectsDomain`                                     | Configure the domain for the external facing minio api.                                 | `objects.cluster.local` |
+| `global.baserow.containerSecurityContext.enabled`                  | Enabled containers' Security Context                                                    | `false`                 |
+| `global.baserow.containerSecurityContext.seLinuxOptions`           | Set SELinux options in container                                                        | `{}`                    |
+| `global.baserow.containerSecurityContext.runAsUser`                | Set containers' Security Context runAsUser                                              | `""`                    |
+| `global.baserow.containerSecurityContext.runAsGroup`               | Set containers' Security Context runAsGroup                                             | `""`                    |
+| `global.baserow.containerSecurityContext.runAsNonRoot`             | Set container's Security Context runAsNonRoot                                           | `""`                    |
+| `global.baserow.containerSecurityContext.privileged`               | Set container's Security Context privileged                                             | `false`                 |
+| `global.baserow.containerSecurityContext.readOnlyRootFilesystem`   | Set container's Security Context readOnlyRootFilesystem                                 | `false`                 |
+| `global.baserow.containerSecurityContext.allowPrivilegeEscalation` | Set container's Security Context allowPrivilegeEscalation                               | `false`                 |
+| `global.baserow.containerSecurityContext.capabilities.drop`        | List of capabilities to be dropped                                                      | `[]`                    |
+| `global.baserow.containerSecurityContext.capabilities.add`         | List of capabilities to be added                                                        | `[]`                    |
+| `global.baserow.containerSecurityContext.seccompProfile.type`      | Set container's Security Context seccomp profile                                        | `""`                    |
+| `global.baserow.securityContext.enabled`                           | Enable security context                                                                 | `false`                 |
+| `global.baserow.securityContext.fsGroupChangePolicy`               | Set filesystem group change policy                                                      | `Always`                |
+| `global.baserow.securityContext.sysctls`                           | Set kernel settings using the sysctl interface                                          | `[]`                    |
+| `global.baserow.securityContext.supplementalGroups`                | Set filesystem extra groups                                                             | `[]`                    |
+| `global.baserow.securityContext.fsGroup`                           | Group ID for the pod                                                                    | `""`                    |
 
 ### Baserow Configuration
 
@@ -239,83 +268,114 @@ caddy:
 
 ### Migration Job Configuration
 
-| Name                          | Description                                               | Value     |
-| ----------------------------- | --------------------------------------------------------- | --------- |
-| `migration.enabled`           | Enabled the migration job                                 | `true`    |
-| `migration.image.repository`  | Migration job Docker image repository                     | `backend` |
-| `migration.priorityClassName` | Kubernetes priority class name for the migration job      | `""`      |
-| `migration.nodeSelector`      | Node labels for pod assignment                            | `{}`      |
-| `migration.tolerations`       | Tolerations for pod assignment                            | `[]`      |
-| `migration.affinity`          | Affinity settings for pod assignment                      | `[]`      |
-| `migration.extraEnv`          | Extra environment variables for the migration job         | `[]`      |
-| `migration.envFrom`           | ConfigMaps or Secrets to be used as environment variables | `[]`      |
-| `migration.volumes`           | Volumes for the migration job                             | `[]`      |
-| `migration.volumeMounts`      | Volume mounts for the migration job                       | `[]`      |
+| Name                                                          | Description                                               | Value     |
+| ------------------------------------------------------------- | --------------------------------------------------------- | --------- |
+| `migration.enabled`                                           | Enabled the migration job                                 | `true`    |
+| `migration.image.repository`                                  | Migration job Docker image repository                     | `backend` |
+| `migration.priorityClassName`                                 | Kubernetes priority class name for the migration job      | `""`      |
+| `migration.nodeSelector`                                      | Node labels for pod assignment                            | `{}`      |
+| `migration.tolerations`                                       | Tolerations for pod assignment                            | `[]`      |
+| `migration.affinity`                                          | Affinity settings for pod assignment                      | `[]`      |
+| `migration.extraEnv`                                          | Extra environment variables for the migration job         | `[]`      |
+| `migration.envFrom`                                           | ConfigMaps or Secrets to be used as environment variables | `[]`      |
+| `migration.volumes`                                           | Volumes for the migration job                             | `[]`      |
+| `migration.volumeMounts`                                      | Volume mounts for the migration job                       | `[]`      |
+| `migration.securityContext.enabled`                           | Enable security context                                   | `false`   |
+| `migration.securityContext.fsGroupChangePolicy`               | Set filesystem group change policy                        | `""`      |
+| `migration.securityContext.sysctls`                           | Set kernel settings using the sysctl interface            | `""`      |
+| `migration.securityContext.supplementalGroups`                | Set filesystem extra groups                               | `""`      |
+| `migration.securityContext.fsGroup`                           | Group ID for the pod                                      | `""`      |
+| `migration.containerSecurityContext.enabled`                  | Enabled containers' Security Context                      | `false`   |
+| `migration.containerSecurityContext.seLinuxOptions`           | Set SELinux options in container                          | `{}`      |
+| `migration.containerSecurityContext.runAsUser`                | Set containers' Security Context runAsUser                | `""`      |
+| `migration.containerSecurityContext.runAsGroup`               | Set containers' Security Context runAsGroup               | `""`      |
+| `migration.containerSecurityContext.runAsNonRoot`             | Set container's Security Context runAsNonRoot             | `""`      |
+| `migration.containerSecurityContext.privileged`               | Set container's Security Context privileged               | `false`   |
+| `migration.containerSecurityContext.readOnlyRootFilesystem`   | Set container's Security Context readOnlyRootFilesystem   | `false`   |
+| `migration.containerSecurityContext.allowPrivilegeEscalation` | Set container's Security Context allowPrivilegeEscalation | `false`   |
+| `migration.containerSecurityContext.capabilities.drop`        | List of capabilities to be dropped                        | `[]`      |
+| `migration.containerSecurityContext.capabilities.add`         | List of capabilities to be added                          | `[]`      |
+| `migration.containerSecurityContext.seccompProfile.type`      | Set container's Security Context seccomp profile          | `""`      |
 
 ### Baserow Backend ASGI Configuration
 
-| Name                                                      | Description                                                                                  | Value                                                                                   |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `baserow-backend-asgi.image.repository`                   | Docker image repository for the ASGI server.                                                 | `backend`                                                                               |
-| `baserow-backend-asgi.args`                               | Arguments passed to the ASGI server.                                                         | `["gunicorn"]`                                                                          |
-| `baserow-backend-asgi.livenessProbe.exec.command`         | The command used to check the liveness of the ASGI server.                                   | `["/bin/bash","-c","/baserow/backend/docker/docker-entrypoint.sh backend-healthcheck"]` |
-| `baserow-backend-asgi.livenessProbe.failureThreshold`     | Number of times the probe can fail before the container is restarted.                        | `3`                                                                                     |
-| `baserow-backend-asgi.livenessProbe.initialDelaySeconds`  | Delay before the liveness probe is initiated after the container starts.                     | `120`                                                                                   |
-| `baserow-backend-asgi.livenessProbe.periodSeconds`        | How often (in seconds) to perform the probe.                                                 | `30`                                                                                    |
-| `baserow-backend-asgi.livenessProbe.successThreshold`     | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`                                                                                     |
-| `baserow-backend-asgi.livenessProbe.timeoutSeconds`       | Number of seconds after which the probe times out.                                           | `5`                                                                                     |
-| `baserow-backend-asgi.readinessProbe.exec.command`        | The command used to check the readiness of the ASGI server.                                  | `["/bin/bash","-c","/baserow/backend/docker/docker-entrypoint.sh backend-healthcheck"]` |
-| `baserow-backend-asgi.readinessProbe.failureThreshold`    | Number of times the probe can fail before the container is restarted.                        | `3`                                                                                     |
-| `baserow-backend-asgi.readinessProbe.initialDelaySeconds` | Delay before the readiness probe is initiated after the container starts.                    | `120`                                                                                   |
-| `baserow-backend-asgi.readinessProbe.periodSeconds`       | How often (in seconds) to perform the probe.                                                 | `30`                                                                                    |
-| `baserow-backend-asgi.readinessProbe.successThreshold`    | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`                                                                                     |
-| `baserow-backend-asgi.readinessProbe.timeoutSeconds`      | Number of seconds after which the probe times out.                                           | `5`                                                                                     |
+| Name                                                                 | Description                                                                                  | Value                                                                                   |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `baserow-backend-asgi.image.repository`                              | Docker image repository for the ASGI server.                                                 | `backend`                                                                               |
+| `baserow-backend-asgi.args`                                          | Arguments passed to the ASGI server.                                                         | `["gunicorn"]`                                                                          |
+| `baserow-backend-asgi.livenessProbe.exec.command`                    | The command used to check the liveness of the ASGI server.                                   | `["/bin/bash","-c","/baserow/backend/docker/docker-entrypoint.sh backend-healthcheck"]` |
+| `baserow-backend-asgi.livenessProbe.failureThreshold`                | Number of times the probe can fail before the container is restarted.                        | `3`                                                                                     |
+| `baserow-backend-asgi.livenessProbe.initialDelaySeconds`             | Delay before the liveness probe is initiated after the container starts.                     | `120`                                                                                   |
+| `baserow-backend-asgi.livenessProbe.periodSeconds`                   | How often (in seconds) to perform the probe.                                                 | `30`                                                                                    |
+| `baserow-backend-asgi.livenessProbe.successThreshold`                | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`                                                                                     |
+| `baserow-backend-asgi.livenessProbe.timeoutSeconds`                  | Number of seconds after which the probe times out.                                           | `5`                                                                                     |
+| `baserow-backend-asgi.readinessProbe.exec.command`                   | The command used to check the readiness of the ASGI server.                                  | `["/bin/bash","-c","/baserow/backend/docker/docker-entrypoint.sh backend-healthcheck"]` |
+| `baserow-backend-asgi.readinessProbe.failureThreshold`               | Number of times the probe can fail before the container is restarted.                        | `3`                                                                                     |
+| `baserow-backend-asgi.readinessProbe.initialDelaySeconds`            | Delay before the readiness probe is initiated after the container starts.                    | `120`                                                                                   |
+| `baserow-backend-asgi.readinessProbe.periodSeconds`                  | How often (in seconds) to perform the probe.                                                 | `30`                                                                                    |
+| `baserow-backend-asgi.readinessProbe.successThreshold`               | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`                                                                                     |
+| `baserow-backend-asgi.readinessProbe.timeoutSeconds`                 | Number of seconds after which the probe times out.                                           | `5`                                                                                     |
+| `baserow-backend-asgi.autoscaling.enabled`                           | Enable autoscaling                                                                           | `false`                                                                                 |
+| `baserow-backend-asgi.autoscaling.minReplicas`                       | Minimum number of replicas                                                                   | `2`                                                                                     |
+| `baserow-backend-asgi.autoscaling.maxReplicas`                       | Maximum number of replicas                                                                   | `10`                                                                                    |
+| `baserow-backend-asgi.autoscaling.targetCPUUtilizationPercentage`    | Target CPU utilization percentage for autoscaling                                            | `80`                                                                                    |
+| `baserow-backend-asgi.autoscaling.targetMemoryUtilizationPercentage` | Target memory utilization percentage for autoscaling                                         | `80`                                                                                    |
 
 ### Baserow Backend WSGI Configuration
 
-| Name                                                      | Description                                                                                  | Value                                                                                   |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `baserow-backend-wsgi.image.repository`                   | Docker image repository for the WSGI server.                                                 | `backend`                                                                               |
-| `baserow-backend-wsgi.args`                               | Arguments passed to the WSGI server.                                                         | `["gunicorn-wsgi","--timeout","120"]`                                                   |
-| `baserow-backend-wsgi.livenessProbe.exec.command`         | The command used to check the liveness of the WSGI server.                                   | `["/bin/bash","-c","/baserow/backend/docker/docker-entrypoint.sh backend-healthcheck"]` |
-| `baserow-backend-wsgi.livenessProbe.failureThreshold`     | Number of times the probe can fail before the container is restarted.                        | `3`                                                                                     |
-| `baserow-backend-wsgi.livenessProbe.initialDelaySeconds`  | Delay before the liveness probe is initiated after the container starts.                     | `120`                                                                                   |
-| `baserow-backend-wsgi.livenessProbe.periodSeconds`        | How often (in seconds) to perform the probe.                                                 | `30`                                                                                    |
-| `baserow-backend-wsgi.livenessProbe.successThreshold`     | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`                                                                                     |
-| `baserow-backend-wsgi.livenessProbe.timeoutSeconds`       | Number of seconds after which the probe times out.                                           | `5`                                                                                     |
-| `baserow-backend-wsgi.readinessProbe.exec.command`        | The command used to check the readiness of the wsgi server.                                  | `["/bin/bash","-c","/baserow/backend/docker/docker-entrypoint.sh backend-healthcheck"]` |
-| `baserow-backend-wsgi.readinessProbe.failureThreshold`    | Number of times the probe can fail before the container is restarted.                        | `3`                                                                                     |
-| `baserow-backend-wsgi.readinessProbe.initialDelaySeconds` | Delay before the readiness probe is initiated after the container starts.                    | `120`                                                                                   |
-| `baserow-backend-wsgi.readinessProbe.periodSeconds`       | How often (in seconds) to perform the probe.                                                 | `30`                                                                                    |
-| `baserow-backend-wsgi.readinessProbe.successThreshold`    | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`                                                                                     |
-| `baserow-backend-wsgi.readinessProbe.timeoutSeconds`      | Number of seconds after which the probe times out.                                           | `5`                                                                                     |
+| Name                                                                 | Description                                                                                  | Value                                                                                   |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `baserow-backend-wsgi.image.repository`                              | Docker image repository for the WSGI server.                                                 | `backend`                                                                               |
+| `baserow-backend-wsgi.args`                                          | Arguments passed to the WSGI server.                                                         | `["gunicorn-wsgi","--timeout","120"]`                                                   |
+| `baserow-backend-wsgi.livenessProbe.exec.command`                    | The command used to check the liveness of the WSGI server.                                   | `["/bin/bash","-c","/baserow/backend/docker/docker-entrypoint.sh backend-healthcheck"]` |
+| `baserow-backend-wsgi.livenessProbe.failureThreshold`                | Number of times the probe can fail before the container is restarted.                        | `3`                                                                                     |
+| `baserow-backend-wsgi.livenessProbe.initialDelaySeconds`             | Delay before the liveness probe is initiated after the container starts.                     | `120`                                                                                   |
+| `baserow-backend-wsgi.livenessProbe.periodSeconds`                   | How often (in seconds) to perform the probe.                                                 | `30`                                                                                    |
+| `baserow-backend-wsgi.livenessProbe.successThreshold`                | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`                                                                                     |
+| `baserow-backend-wsgi.livenessProbe.timeoutSeconds`                  | Number of seconds after which the probe times out.                                           | `5`                                                                                     |
+| `baserow-backend-wsgi.readinessProbe.exec.command`                   | The command used to check the readiness of the wsgi server.                                  | `["/bin/bash","-c","/baserow/backend/docker/docker-entrypoint.sh backend-healthcheck"]` |
+| `baserow-backend-wsgi.readinessProbe.failureThreshold`               | Number of times the probe can fail before the container is restarted.                        | `3`                                                                                     |
+| `baserow-backend-wsgi.readinessProbe.initialDelaySeconds`            | Delay before the readiness probe is initiated after the container starts.                    | `120`                                                                                   |
+| `baserow-backend-wsgi.readinessProbe.periodSeconds`                  | How often (in seconds) to perform the probe.                                                 | `30`                                                                                    |
+| `baserow-backend-wsgi.readinessProbe.successThreshold`               | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`                                                                                     |
+| `baserow-backend-wsgi.readinessProbe.timeoutSeconds`                 | Number of seconds after which the probe times out.                                           | `5`                                                                                     |
+| `baserow-backend-wsgi.autoscaling.enabled`                           | Enable autoscaling                                                                           | `false`                                                                                 |
+| `baserow-backend-wsgi.autoscaling.minReplicas`                       | Minimum number of replicas                                                                   | `2`                                                                                     |
+| `baserow-backend-wsgi.autoscaling.maxReplicas`                       | Maximum number of replicas                                                                   | `10`                                                                                    |
+| `baserow-backend-wsgi.autoscaling.targetCPUUtilizationPercentage`    | Target CPU utilization percentage for autoscaling                                            | `80`                                                                                    |
+| `baserow-backend-wsgi.autoscaling.targetMemoryUtilizationPercentage` | Target memory utilization percentage for autoscaling                                         | `80`                                                                                    |
 
 ### Baserow Web Frontend Configuration
 
-| Name                                                  | Description                                                                                  | Value          |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------- |
-| `baserow-frontend.image.repository`                   | Docker image repository for the Web Frontend server.                                         | `web-frontend` |
-| `baserow-frontend.args`                               | Arguments passed to the Web Frontend server.                                                 | `["nuxt"]`     |
-| `baserow-frontend.workingDir`                         | Working Directory for the container.                                                         | `""`           |
-| `baserow-frontend.livenessProbe.httpGet.path`         | The path to check for the liveness probe.                                                    | `/_health`     |
-| `baserow-frontend.livenessProbe.httpGet.port`         | The port to check for the liveness probe.                                                    | `3000`         |
-| `baserow-frontend.livenessProbe.httpGet.scheme`       | The scheme to use for the liveness probe.                                                    | `HTTP`         |
-| `baserow-frontend.livenessProbe.failureThreshold`     | Number of times the probe can fail before the container is restarted.                        | `3`            |
-| `baserow-frontend.livenessProbe.initialDelaySeconds`  | Delay before the liveness probe is initiated after the container starts.                     | `5`            |
-| `baserow-frontend.livenessProbe.periodSeconds`        | How often (in seconds) to perform the probe.                                                 | `30`           |
-| `baserow-frontend.livenessProbe.successThreshold`     | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`            |
-| `baserow-frontend.livenessProbe.timeoutSeconds`       | Number of seconds after which the probe times out.                                           | `5`            |
-| `baserow-frontend.readinessProbe.httpGet.path`        | The path to check for the readiness probe.                                                   | `/_health`     |
-| `baserow-frontend.readinessProbe.httpGet.port`        | The port to check for the readiness probe.                                                   | `3000`         |
-| `baserow-frontend.readinessProbe.httpGet.scheme`      | The scheme to use for the readiness probe.                                                   | `HTTP`         |
-| `baserow-frontend.readinessProbe.failureThreshold`    | Number of times the probe can fail before the container is restarted.                        | `3`            |
-| `baserow-frontend.readinessProbe.initialDelaySeconds` | Delay before the readiness probe is initiated after the container starts.                    | `5`            |
-| `baserow-frontend.readinessProbe.periodSeconds`       | How often (in seconds) to perform the probe.                                                 | `30`           |
-| `baserow-frontend.readinessProbe.successThreshold`    | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`            |
-| `baserow-frontend.readinessProbe.timeoutSeconds`      | Number of seconds after which the probe times out.                                           | `5`            |
-| `baserow-frontend.mountConfiguration.backend`         | If enabled, all the backend service configurations and secrets will be mounted.              | `false`        |
-| `baserow-frontend.mountConfiguration.frontend`        | If enabled, all the frontend service configurations and secrets will be mounted.             | `true`         |
-| `baserow-frontend.service.targetPort`                 | The port the Web Frontend server listens on.                                                 | `3000`         |
+| Name                                                             | Description                                                                                  | Value          |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------- |
+| `baserow-frontend.image.repository`                              | Docker image repository for the Web Frontend server.                                         | `web-frontend` |
+| `baserow-frontend.args`                                          | Arguments passed to the Web Frontend server.                                                 | `["nuxt"]`     |
+| `baserow-frontend.workingDir`                                    | Working Directory for the container.                                                         | `""`           |
+| `baserow-frontend.livenessProbe.httpGet.path`                    | The path to check for the liveness probe.                                                    | `/_health`     |
+| `baserow-frontend.livenessProbe.httpGet.port`                    | The port to check for the liveness probe.                                                    | `3000`         |
+| `baserow-frontend.livenessProbe.httpGet.scheme`                  | The scheme to use for the liveness probe.                                                    | `HTTP`         |
+| `baserow-frontend.livenessProbe.failureThreshold`                | Number of times the probe can fail before the container is restarted.                        | `3`            |
+| `baserow-frontend.livenessProbe.initialDelaySeconds`             | Delay before the liveness probe is initiated after the container starts.                     | `5`            |
+| `baserow-frontend.livenessProbe.periodSeconds`                   | How often (in seconds) to perform the probe.                                                 | `30`           |
+| `baserow-frontend.livenessProbe.successThreshold`                | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`            |
+| `baserow-frontend.livenessProbe.timeoutSeconds`                  | Number of seconds after which the probe times out.                                           | `5`            |
+| `baserow-frontend.readinessProbe.httpGet.path`                   | The path to check for the readiness probe.                                                   | `/_health`     |
+| `baserow-frontend.readinessProbe.httpGet.port`                   | The port to check for the readiness probe.                                                   | `3000`         |
+| `baserow-frontend.readinessProbe.httpGet.scheme`                 | The scheme to use for the readiness probe.                                                   | `HTTP`         |
+| `baserow-frontend.readinessProbe.failureThreshold`               | Number of times the probe can fail before the container is restarted.                        | `3`            |
+| `baserow-frontend.readinessProbe.initialDelaySeconds`            | Delay before the readiness probe is initiated after the container starts.                    | `5`            |
+| `baserow-frontend.readinessProbe.periodSeconds`                  | How often (in seconds) to perform the probe.                                                 | `30`           |
+| `baserow-frontend.readinessProbe.successThreshold`               | Minimum consecutive successes for the probe to be considered successful after having failed. | `1`            |
+| `baserow-frontend.readinessProbe.timeoutSeconds`                 | Number of seconds after which the probe times out.                                           | `5`            |
+| `baserow-frontend.mountConfiguration.backend`                    | If enabled, all the backend service configurations and secrets will be mounted.              | `false`        |
+| `baserow-frontend.mountConfiguration.frontend`                   | If enabled, all the frontend service configurations and secrets will be mounted.             | `true`         |
+| `baserow-frontend.service.targetPort`                            | The port the Web Frontend server listens on.                                                 | `3000`         |
+| `baserow-frontend.autoscaling.enabled`                           | Enable autoscaling                                                                           | `false`        |
+| `baserow-frontend.autoscaling.minReplicas`                       | Minimum number of replicas                                                                   | `2`            |
+| `baserow-frontend.autoscaling.maxReplicas`                       | Maximum number of replicas                                                                   | `10`           |
+| `baserow-frontend.autoscaling.targetCPUUtilizationPercentage`    | Target CPU utilization percentage for autoscaling                                            | `80`           |
+| `baserow-frontend.autoscaling.targetMemoryUtilizationPercentage` | Target memory utilization percentage for autoscaling                                         | `80`           |
 
 ### Baserow Celery beat Configuration
 
@@ -323,6 +383,7 @@ caddy:
 | --------------------------------------------- | ---------------------------------------------------------------------- | ----------------- |
 | `baserow-celery-beat-worker.image.repository` | Docker image repository for the Celery beat worker.                    | `backend`         |
 | `baserow-celery-beat-worker.args`             | Arguments passed to the Celery beat worker.                            | `["celery-beat"]` |
+| `baserow-celery-beat-worker.replicaCount`     | Number of replicas for the Celery beat worker.                         | `1`               |
 | `baserow-celery-beat-worker.service.create`   | Set to false to disable creating a service for the Celery beat worker. | `false`           |
 
 ### Baserow Celery export worker Configuration
@@ -331,6 +392,7 @@ caddy:
 | ----------------------------------------------- | ---------------------------------------------------------------------- | ------------------------- |
 | `baserow-celery-export-worker.image.repository` | Docker image repository for the Celery export worker.                  | `backend`                 |
 | `baserow-celery-export-worker.args`             | Arguments passed to the Celery export worker.                          | `["celery-exportworker"]` |
+| `baserow-celery-export-worker.replicaCount`     | Number of replicas for the Celery export worker.                       | `1`                       |
 | `baserow-celery-export-worker.service.create`   | Set to false to disable creating a service for the Celery beat worker. | `false`                   |
 
 ### Baserow Celery worker Configuration
@@ -339,6 +401,7 @@ caddy:
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `baserow-celery-worker.image.repository`                   | Docker image repository for the Celery worker.                                               | `backend`                                                                                     |
 | `baserow-celery-worker.args`                               | Arguments passed to the Celery worker.                                                       | `["celery-worker"]`                                                                           |
+| `baserow-celery-worker.replicaCount`                       | Number of replicas for the Celery worker.                                                    | `1`                                                                                           |
 | `baserow-celery-worker.service.create`                     | Set to false to disable creating a service for the Celery beat worker.                       | `false`                                                                                       |
 | `baserow-celery-worker.livenessProbe.exec.command`         | The command used to check the liveness of the WSGI server.                                   | `["/bin/bash","-c","/baserow/backend/docker/docker-entrypoint.sh celery-worker-healthcheck"]` |
 | `baserow-celery-worker.livenessProbe.failureThreshold`     | Number of times the probe can fail before the container is restarted.                        | `3`                                                                                           |
@@ -360,6 +423,7 @@ caddy:
 | `baserow-celery-flower.enabled`          | Set to true to enable the Celery Flower monitoring tool.       | `false`             |
 | `baserow-celery-flower.image.repository` | Docker image repository for the Celery Flower monitoring tool. | `backend`           |
 | `baserow-celery-flower.args`             | Arguments passed to the Celery Flower monitoring tool.         | `["celery-flower"]` |
+| `baserow-celery-flower.replicaCount`     | Number of replicas for the Celery Flower monitoring tool.      | `1`                 |
 
 ### Ingress Configuration
 

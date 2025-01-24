@@ -2,6 +2,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from baserow.api.serializers import NonValidatingPrimaryKeyRelatedField
 from baserow.api.user_files.serializers import UserFileField
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
 from baserow.contrib.database.fields.models import Field
@@ -40,6 +41,15 @@ class FormViewFieldOptionsSerializer(serializers.ModelSerializer):
     condition_groups = FormViewFieldOptionsConditionGroupSerializer(
         many=True, required=False
     )
+    # Use `NonValidatingPrimaryKeyRelatedField` because this serializer is
+    # not initialized as one single serializer. Using the `PrimaryKeyRelatedField`
+    # results in N number of queries. The provided IDs are validated further down in
+    # the code.
+    allowed_select_options = NonValidatingPrimaryKeyRelatedField(
+        required=False,
+        many=True,
+        queryset=None,
+    )
 
     class Meta:
         model = FormViewFieldOptions
@@ -54,6 +64,8 @@ class FormViewFieldOptionsSerializer(serializers.ModelSerializer):
             "conditions",
             "condition_groups",
             "field_component",
+            "include_all_select_options",
+            "allowed_select_options",
         )
 
     def validate(self, data):
@@ -116,9 +128,18 @@ class PublicFormViewFieldOptionsSerializer(FieldSerializer):
     # @TODO show correct API docs discriminated by field type.
     @extend_schema_field(PublicFormViewFieldSerializer)
     def get_field(self, instance):
-        return field_type_registry.get_serializer(
+        # If not all the select options must be included, then we'll override the
+        # `select_options` of the field with the `allowed_select_options` so that the
+        # original select options are not exposed publicly to visitors of the form that
+        # don't have full access to the Baserow table.
+        if not instance.include_all_select_options:
+            instance.field._prefetched_objects_cache[
+                "select_options"
+            ] = instance._prefetched_objects_cache["allowed_select_options"]
+        data = field_type_registry.get_serializer(
             instance.field, PublicFormViewFieldSerializer
         ).data
+        return data
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_name(self, instance):

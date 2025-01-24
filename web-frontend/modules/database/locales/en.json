@@ -67,7 +67,8 @@
     "webhooks": "Webhooks",
     "lastSynced": "Last synced",
     "notSynced": "not synced",
-    "sync": "Sync table"
+    "sync": "Sync table",
+    "updateSyncConfig": "Update sync configuration"
   },
   "duplicateTableJobType": {
     "duplicating": "Duplicating",
@@ -271,7 +272,16 @@
     "integer": "Integer",
     "decimal": "Decimal",
     "decimalPlacesLabel": "Decimal places",
-    "allowNegative": "Allow negative"
+    "allowNegative": "Allow negative",
+    "separatorLabel": "Thousand and decimal separator",
+    "prefixPlaceholder": "Prefix",
+    "suffixPlaceholder": "Suffix",
+    "prefixAndSuffixLabel": "Prefix / suffix",
+    "spaceComma": "Space, comma (1 000 000,00)",
+    "spacePeriod": "Space, period (1 000 000.00)",
+    "commaPeriod": "Comma, period (1,000,000.00)",
+    "periodComma": "Period, comma (1.000.000,00)",
+    "noFormatting": "No formatting"
   },
   "fieldDurationSubForm": {
     "durationFormatLabel": "Duration format"
@@ -318,7 +328,8 @@
     "addField": "Add field"
   },
   "selectRowContent": {
-    "search": "Search rows"
+    "search": "Search rows",
+    "hideFields": "Hide fields"
   },
   "rowEditModal": {
     "addField": "Add field",
@@ -568,7 +579,16 @@
     "selected": "Selected"
   },
   "viewFilter": {
-    "filter": "Filter | 1 Filter | {count} Filters"
+    "filter": "Filter | 1 Filter | {count} Filters",
+    "hasAllValuesEqual": "has all values equal",
+    "hasValueHigherThan": "has value higher than",
+    "hasValueHigherThanOrEqual": "has value higher than or equal",
+    "hasValueLowerThan": "has value lower than",
+    "hasValueLowerThanOrEqual": "has value lower than or equal",
+    "hasNotValueHigherThan": "doesn't have value higher than",
+    "hasNotValueHigherThanOrEqual": "doesn't have value higher than or equal",
+    "hasNotValueLowerThan": "doesn't have value lower than",
+    "hasNotValueLowerThanOrEqual": "doesn't have value lower than or equal"
   },
   "viewContext": {
     "exportView": "Export view",
@@ -625,6 +645,7 @@
     "deleteRow": "Delete row",
     "deleteRows": "Delete rows",
     "copyCells": "Copy cells",
+    "copyCellsWithHeader": "Copy cells with header",
     "generateCellsValues": "Generate values with AI",
     "rowCount": "No rows | 1 row | {count} rows",
     "hiddenRowsInsertedTitle": "Rows added",
@@ -663,6 +684,7 @@
     "externalWarning": "Opening your file via an external service exposes your file to their servers."
   },
   "exportTableModal": {
+    "title": "Export {name}",
     "failedTitle": "Export Failed",
     "failedDescription": "The export failed due to a server error.",
     "cancelledTitle": "Export Cancelled",
@@ -687,7 +709,7 @@
     "recordSeparator": "record separator",
     "unitSeparator": "unit separator",
     "encodingLabel": "Encoding",
-    "firstRowIsHeaderLabel": "First row is header"
+    "includeHeader": "Include field names as header"
   },
   "apiDocsDatabase": {
     "pageTitle": "{name} database API documentation",
@@ -703,6 +725,7 @@
     "back": "Back to dashboard"
   },
   "viewAggregationType": {
+    "count": "Count",
     "emptyCount": "Empty",
     "notEmptyCount": "Filled",
     "emptyPercentage": "Percent empty",
@@ -764,10 +787,13 @@
   "formViewField": {
     "required": "required",
     "descriptionPlaceholder": "Description",
+    "includeAllSelectOptions": "include all select options",
+    "includeAllSelectOptionsHelper": "Choose the select options that must be included in the form using this dropdown",
     "showWhenMatchingConditions": "show when conditions are met",
     "addCondition": "Add condition",
     "addConditionGroup": "Add condition group",
-    "showFieldAs": "Show field as"
+    "showFieldAs": "Show field as",
+    "noSelectOptions": "There are no select options available."
   },
   "duplicateFieldContext": {
     "duplicate": "Duplicate field",
@@ -1005,5 +1031,19 @@
     "small": "Small",
     "medium": "Medium",
     "large": "Large"
+  },
+  "configureDataSyncModal": {
+    "title": "Data sync",
+    "syncedFields": "Synced fields",
+    "syncSettings": "Sync settings"
+  },
+  "configureDataSyncVisibleFields": {
+    "title": "Change synced fields",
+    "fields": "Synced fields",
+    "syncTable": "Sync when save"
+  },
+  "configureDataSyncSettings": {
+    "title": "Change data sync",
+    "syncTable": "Sync when save"
   }
 }

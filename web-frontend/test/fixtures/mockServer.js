@@ -14,6 +14,13 @@ import {
   createGalleryRows,
   createGalleryView,
 } from '@baserow/test/fixtures/gallery'
+import {
+  expectUserDeleted,
+  expectUserUpdated,
+  expectUserUpdatedRespondsWithError,
+  createUsersForAdmin,
+  aUser,
+} from '@baserow/test/fixtures/user'
 
 /**
  * MockServer is responsible for being the single place where we mock out calls to the
@@ -217,5 +224,25 @@ export class MockServer {
 
   resetMockEndpoints() {
     this.mock.reset()
+  }
+
+  expectUserDeleted(userId) {
+    expectUserDeleted(this.mock, userId)
+  }
+
+  expectUserUpdated(user, changes) {
+    expectUserUpdated(this.mock, user, changes)
+  }
+
+  expectUserUpdatedRespondsWithError(user, error) {
+    expectUserUpdatedRespondsWithError(this.mock, user, error)
+  }
+
+  thereAreUsers(users, page, options = {}) {
+    createUsersForAdmin(this.mock, users, page, options)
+  }
+
+  aUser(user = {}) {
+    return aUser(user)
   }
 }

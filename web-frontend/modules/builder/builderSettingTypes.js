@@ -91,10 +91,6 @@ export class ThemeBuilderSettingsType extends BuilderSettingType {
   get component() {
     return ThemeSettings
   }
-
-  get componentPadding() {
-    return false
-  }
 }
 
 export class DomainsBuilderSettingsType extends BuilderSettingType {

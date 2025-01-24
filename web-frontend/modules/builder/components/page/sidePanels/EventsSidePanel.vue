@@ -22,13 +22,8 @@ export default {
   name: 'EventsSidePanel',
   components: { Event },
   mixins: [elementSidePanel],
-  inject: ['applicationContext'],
   provide() {
     return {
-      applicationContext: {
-        ...this.applicationContext,
-        element: this.element,
-      },
       dataProvidersAllowed: DATA_PROVIDERS_ALLOWED_WORKFLOW_ACTIONS,
     }
   },
@@ -38,7 +33,7 @@ export default {
     },
     workflowActions() {
       return this.$store.getters['workflowAction/getElementWorkflowActions'](
-        this.page,
+        this.elementPage,
         this.element.id
       )
     },

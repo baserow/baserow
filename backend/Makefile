@@ -32,6 +32,8 @@ VGUNICORN:=$(VENV_DIR)/bin/gunicorn
 
 # will be used if no DJANGO_SETTINGS_MODULE is provided
 DJANGO_SETTINGS_MODULE:=baserow.config.settings.dev
+# ip:port to use when running dev server
+RUNSERVER_BIND:=0.0.0.0:8000
 
 VENV_TOUCH:=$(VENV_DIR)/bin/activate
 DOCKER:=docker
@@ -53,7 +55,8 @@ BACKEND_TESTS_DIRS_FROM_ROOT=backend/tests/ premium/backend/tests/ enterprise/ba
 	clean clean-all package-build package-clean deps deps-clean deps-install deps-install-dev deps-upgrade\
 	lint lint-fix lint-python format sort make-translations compile-translations\
 	test test-builder test-builder-parallel test-compat test-compat-parallel test-coverage test-parallel \
-	test-regenerate-ci-durations ci-test-python ci-check-startup-python ci-coverage-report fix
+	test-regenerate-ci-durations ci-test-python ci-check-startup-python ci-coverage-report fix\
+	run-dev
 
 
 # This is a first target in the file, will be executed as default if no targets
@@ -75,6 +78,7 @@ help:
 	@echo "   make deps-upgrade - recalculate dependencies with versions upgrade"
 	@echo " make deps-install - install runtime deps"
 	@echo " make deps-install-dev - install development deps"
+	@echo " make run-dev - run development server"
 
 
 # touchfile for venv. If this file is present, the target won't be executed
@@ -249,3 +253,5 @@ deps-clean:
 	rm -f requirements/base.txt
 	rm -f requirements/base.txt
 
+run-dev: .check-dev
+	$(VBASEROW) runserver $(RUNSERVER_BIND)

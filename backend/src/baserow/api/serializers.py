@@ -1,6 +1,8 @@
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+from rest_framework.relations import PrimaryKeyRelatedField
 
 from baserow.core.context import clear_current_workspace_id, set_current_workspace_id
 from baserow.core.storage import get_default_storage
@@ -146,3 +148,20 @@ class FileURLSerializerMixin(serializers.Serializer):
         path = handler.export_file_path(name)
         storage = get_default_storage()
         return storage.url(path)
+
+
+class NonValidatingPrimaryKeyRelatedField(PrimaryKeyRelatedField):
+    def get_queryset(self):
+        return None
+
+    def to_representation(self, value):
+        if isinstance(value, int):
+            return value
+        else:
+            return value.pk
+
+    def to_internal_value(self, data):
+        try:
+            return int(data)
+        except (ValueError, TypeError):
+            raise ValidationError(f"Invalid ID: {data}")

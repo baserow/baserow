@@ -62,8 +62,13 @@ export default {
     PageSettingsNameFormElement,
   },
   mixins: [form],
-  inject: ['workspace', 'builder', 'page'],
+  inject: ['workspace', 'builder'],
   props: {
+    page: {
+      type: Object,
+      required: false,
+      default: null,
+    },
     isCreation: {
       type: Boolean,
       required: false,

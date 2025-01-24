@@ -927,78 +927,91 @@ def test_get_data_sync_properties(enterprise_data_fixture, api_client):
             "key": "jira_id",
             "name": "Jira Issue ID",
             "field_type": "text",
+            "initially_selected": True,
         },
         {
             "field_type": "text",
             "key": "summary",
             "name": "Summary",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "long_text",
             "key": "description",
             "name": "Description",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "text",
             "key": "assignee",
             "name": "Assignee",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "text",
             "key": "reporter",
             "name": "Reporter",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "text",
             "key": "labels",
             "name": "Labels",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "date",
             "key": "created",
             "name": "Created Date",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "date",
             "key": "updated",
             "name": "Updated Date",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "date",
             "key": "resolved",
             "name": "Resolved Date",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "date",
             "key": "due",
             "name": "Due Date",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "text",
             "key": "status",
             "name": "State",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "text",
             "key": "project",
             "name": "Project",
             "unique_primary": False,
+            "initially_selected": True,
         },
         {
             "field_type": "url",
             "key": "url",
             "name": "Issue URL",
             "unique_primary": False,
+            "initially_selected": True,
         },
     ]
 
@@ -1092,3 +1105,50 @@ def test_async_sync_data_sync_table_without_license(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_data_sync(enterprise_data_fixture, api_client):
+    enterprise_data_fixture.enable_enterprise()
+    user, token = enterprise_data_fixture.create_user_and_token()
+    database = enterprise_data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="jira_issues",
+        synced_properties=["jira_id"],
+        jira_url="https://test.atlassian.net",
+        jira_project_key="",
+        jira_username="test@test.nl",
+        jira_api_token="test_token",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json == {
+        "id": data_sync.id,
+        "type": "jira_issues",
+        "synced_properties": [
+            {
+                "field_id": data_sync.table.field_set.all().first().id,
+                "key": "jira_id",
+                "unique_primary": True,
+            }
+        ],
+        "last_sync": None,
+        "last_error": None,
+        # The `jira_api_token` should not be in here.
+        "jira_url": "https://test.atlassian.net",
+        "jira_project_key": "",
+        "jira_username": "test@test.nl",
+    }

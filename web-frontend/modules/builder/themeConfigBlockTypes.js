@@ -7,6 +7,7 @@ import ImageThemeConfigBlock from '@baserow/modules/builder/components/theme/Ima
 import PageThemeConfigBlock from '@baserow/modules/builder/components/theme/PageThemeConfigBlock'
 import InputThemeConfigBlock from '@baserow/modules/builder/components/theme/InputThemeConfigBlock'
 import TableThemeConfigBlock from '@baserow/modules/builder/components/theme/TableThemeConfigBlock'
+import { FONT_WEIGHTS } from '@baserow/modules/builder/fontWeights'
 import {
   resolveColor,
   colorRecommendation,
@@ -53,6 +54,12 @@ export class ThemeStyle {
     return this.addIfExists(theme, propName, styleName, (v) => {
       const fontFamilyType = this.$registry.get('fontFamily', v)
       return `"${fontFamilyType.name}","${fontFamilyType.safeFont}"`
+    })
+  }
+
+  addFontWeightIfExists(theme, propName, styleName) {
+    return this.addIfExists(theme, propName, styleName, (v) => {
+      return FONT_WEIGHTS[v]
     })
   }
 
@@ -191,6 +198,7 @@ export class ColorThemeConfigBlockType extends ThemeConfigBlockType {
 
   getColorVariables(theme) {
     const { i18n } = this.app
+    const customColors = theme.custom_colors ? [...theme.custom_colors] : []
     return [
       {
         name: i18n.t('colorThemeConfigBlockType.transparent'),
@@ -227,6 +235,7 @@ export class ColorThemeConfigBlockType extends ThemeConfigBlockType {
         value: 'error',
         color: theme.main_error_color,
       },
+      ...customColors,
     ]
   }
 
@@ -275,11 +284,17 @@ export class TypographyThemeConfigBlockType extends ThemeConfigBlockType {
         `heading_${level}_font_family`,
         `--heading-h${level}-font-family`
       )
+      style.addFontWeightIfExists(
+        theme,
+        `heading_${level}_font_weight`,
+        `--heading-h${level}-font-weight`
+      )
     })
     style.addPixelValueIfExists(theme, `body_font_size`)
     style.addColorIfExists(theme, `body_text_color`)
     style.addIfExists(theme, `body_text_alignment`)
     style.addFontFamilyIfExists(theme, `body_font_family`)
+    style.addFontWeightIfExists(theme, `body_font_weight`)
 
     return style.toObject()
   }
@@ -329,6 +344,7 @@ export class ButtonThemeConfigBlockType extends ThemeConfigBlockType {
         }[v])
     )
     style.addFontFamilyIfExists(theme, `button_font_family`)
+    style.addFontWeightIfExists(theme, `button_font_weight`)
     style.addPixelValueIfExists(theme, `button_font_size`)
     style.addPixelValueIfExists(theme, `button_border_radius`)
     style.addPixelValueIfExists(theme, `button_border_size`)
@@ -377,6 +393,8 @@ export class LinkThemeConfigBlockType extends ThemeConfigBlockType {
       const fontFamilyType = this.app.$registry.get('fontFamily', v)
       return `"${fontFamilyType.name}","${fontFamilyType.safeFont}"`
     })
+    style.addPixelValueIfExists(theme, `link_font_size`)
+    style.addFontWeightIfExists(theme, `link_font_weight`)
     return style.toObject()
   }
 
@@ -430,6 +448,11 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
       'image_constraint',
       baseTheme?.image_constraint
     )
+    const imageBorderRadius = get(
+      theme,
+      'image_border_radius',
+      baseTheme?.image_border_radius
+    )
 
     if (Object.prototype.hasOwnProperty.call(theme, 'image_max_width')) {
       style.style['--image-wrapper-width'] = `${imageMaxWidth}%`
@@ -463,6 +486,12 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
           style.style['--image-height'] = '100%'
           style.style['--image-max-width'] = 'none'
           break
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(theme, 'image_border_radius')) {
+      if (imageBorderRadius) {
+        style.style['--image-border-radius'] = `${imageBorderRadius}px`
       }
     }
 
@@ -541,6 +570,7 @@ export class InputThemeConfigBlockType extends ThemeConfigBlockType {
     style.addColorIfExists(theme, 'label_text_color')
     style.addFontFamilyIfExists(theme, `label_font_family`)
     style.addPixelValueIfExists(theme, `label_font_size`)
+    style.addFontWeightIfExists(theme, `label_font_weight`)
 
     style.addColorIfExists(theme, 'input_text_color')
     style.addColorRecommendationIfExists(
@@ -550,6 +580,7 @@ export class InputThemeConfigBlockType extends ThemeConfigBlockType {
     )
     style.addFontFamilyIfExists(theme, `input_font_family`)
     style.addPixelValueIfExists(theme, `input_font_size`)
+    style.addFontWeightIfExists(theme, `input_font_weight`)
     style.addColorIfExists(theme, 'input_background_color')
     style.addColorRecommendationIfExists(
       theme,
@@ -600,6 +631,7 @@ export class TableThemeConfigBlockType extends ThemeConfigBlockType {
     style.addColorIfExists(theme, 'table_header_background_color')
     style.addColorIfExists(theme, 'table_header_text_color')
     style.addPixelValueIfExists(theme, `table_header_font_size`)
+    style.addFontWeightIfExists(theme, `table_header_font_weight`)
     style.addFontFamilyIfExists(theme, `table_header_font_family`)
     style.addIfExists(theme, `table_header_text_alignment`)
 

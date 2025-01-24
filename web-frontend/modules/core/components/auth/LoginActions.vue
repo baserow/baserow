@@ -1,6 +1,10 @@
 <template>
   <ul class="auth__action-links">
-    <li v-for="loginAction in loginActions" :key="loginAction.name">
+    <li
+      v-for="loginAction in loginActions"
+      :key="loginAction.name"
+      class="auth__action-link"
+    >
       <component
         :is="getLoginActionComponent(loginAction)"
         :options="loginAction"

@@ -1,0 +1,610 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-07-16 13:47+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: pt_PT\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+
+#: src/baserow/contrib/database/action/scopes.py:9
+#, python-format
+msgid "in database \"%(database_name)s\" (%(database_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/database/action/scopes.py:13
+#, python-format
+msgid ""
+"in table \"%(table_name)s\" (%(table_id)s) of database "
+"\"%(database_name)s\" (%(database_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/database/action/scopes.py:19
+#, python-format
+msgid ""
+"in view \"%(view_name)s\" (%(view_id)s) of table "
+"\"%(table_name)s\" (%(table_id)s) in database "
+"\"%(database_name)s\" (%(database_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/database/airtable/actions.py:22
+msgid "Import database from Airtable"
+msgstr ""
+
+#: src/baserow/contrib/database/airtable/actions.py:24
+#, python-format
+msgid ""
+"Imported database "
+"\"%(installed_application_name)s\" (%(installed_application_id)s) from "
+"Airtable share ID \"%(airtable_share_id)s\""
+msgstr ""
+
+#: src/baserow/contrib/database/application_types.py:236
+msgid "Table"
+msgstr ""
+
+#: src/baserow/contrib/database/export/actions.py:20
+msgid "Export Table"
+msgstr ""
+
+#: src/baserow/contrib/database/export/actions.py:21
+#, python-format
+msgid "View \"%(view_name)s\" (%(view_id)s) exported to %(export_type)s"
+msgstr ""
+
+#: src/baserow/contrib/database/export/actions.py:89
+#, python-format
+msgid "Table \"%(table_name)s\" (%(table_id)s) exported to %(export_type)s"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/actions.py:36
+msgid "Update field"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/actions.py:37
+#, python-format
+msgid "Field \"%(field_name)s\" (%(field_id)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/actions.py:340
+msgid "Create field"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/actions.py:341
+#, python-format
+msgid "Field \"%(field_name)s\" (%(field_id)s) created"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/actions.py:434
+msgid "Delete field"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/actions.py:435
+#, python-format
+msgid "Field \"%(field_name)s\" (%(field_id)s) deleted"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/actions.py:507
+msgid "Duplicate field"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/actions.py:509
+#, python-format
+msgid ""
+"Field \"%(field_name)s\" (%(field_id)s) duplicated (with_data=%(with_data)s) "
+"from field \"%(original_field_name)s\" (%(original_field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/actions.py:592
+msgid "Change primary field"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/actions.py:594
+#, python-format
+msgid ""
+"Primary field of table %(table_name)s was changed to "
+"%(new_primary_field_name)s"
+msgstr ""
+
+#: src/baserow/contrib/database/fields/models.py:371
+#: src/baserow/contrib/database/fields/models.py:519
+msgid "The format of the duration."
+msgstr ""
+
+#: src/baserow/contrib/database/fields/notification_types.py:53
+#, python-format
+msgid ""
+"%(sender)s assigned you to %(field_name)s in row %(row_name)s in "
+"%(table_name)s."
+msgstr ""
+
+#: src/baserow/contrib/database/fields/notification_types.py:181
+#, python-format
+msgid ""
+"%(sender)s mentioned you in %(field_name)s in row %(row_name)s in "
+"%(table_name)s."
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:46
+#, python-format
+msgid "%(first_name)s's company"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:53
+msgid "Customers"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:55
+#: src/baserow/contrib/database/plugins.py:77
+#: src/baserow/contrib/database/table/handler.py:624
+#: src/baserow/contrib/database/table/handler.py:637
+msgid "Name"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:56
+msgid "Last name"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:57
+#: src/baserow/contrib/database/table/handler.py:625
+msgid "Notes"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:58
+#: src/baserow/contrib/database/plugins.py:79
+#: src/baserow/contrib/database/table/handler.py:626
+msgid "Active"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:75
+msgid "Projects"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:78
+msgid "Started"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:84
+msgid "Calculator"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:85
+msgid "Turing machine"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:86
+msgid "Computer architecture"
+msgstr ""
+
+#: src/baserow/contrib/database/plugins.py:87
+msgid "Cellular Automata"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:32
+msgid "Create row"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:32
+#, python-format
+msgid "Row (%(row_id)s) created"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:117
+msgid "Create rows"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:117
+#, python-format
+msgid "Rows (%(row_ids)s) created"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:203
+msgid "Import rows"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:203
+#, python-format
+msgid "Rows (%(row_ids)s) imported"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:284
+msgid "Delete row"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:284
+#, python-format
+msgid "Row (%(row_id)s) deleted"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:350
+msgid "Delete rows"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:350
+#, python-format
+msgid "Rows (%(row_ids)s) deleted"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:497
+msgid "Move row"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:497
+#, python-format
+msgid "Row (%(row_id)s) moved"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:607
+msgid "Update row"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:607
+#, python-format
+msgid "Row (%(row_id)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:707
+msgid "Update rows"
+msgstr ""
+
+#: src/baserow/contrib/database/rows/actions.py:707
+#, python-format
+msgid "Rows (%(row_ids)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/database/table/actions.py:26
+msgid "Create table"
+msgstr ""
+
+#: src/baserow/contrib/database/table/actions.py:27
+#, python-format
+msgid "Table \"%(table_name)s\" (%(table_id)s) created"
+msgstr ""
+
+#: src/baserow/contrib/database/table/actions.py:104
+msgid "Delete table"
+msgstr ""
+
+#: src/baserow/contrib/database/table/actions.py:105
+#, python-format
+msgid "Table \"%(table_name)s\" (%(table_id)s) deleted"
+msgstr ""
+
+#: src/baserow/contrib/database/table/actions.py:160
+msgid "Order tables"
+msgstr ""
+
+#: src/baserow/contrib/database/table/actions.py:161
+msgid "Tables order changed"
+msgstr ""
+
+#: src/baserow/contrib/database/table/actions.py:224
+msgid "Update table"
+msgstr ""
+
+#: src/baserow/contrib/database/table/actions.py:226
+#, python-format
+msgid ""
+"Table (%(table_id)s) name changed from \"%(original_table_name)s\" to "
+"\"%(table_name)s\""
+msgstr ""
+
+#: src/baserow/contrib/database/table/actions.py:296
+msgid "Duplicate table"
+msgstr ""
+
+#: src/baserow/contrib/database/table/actions.py:298
+#, python-format
+msgid ""
+"Table \"%(table_name)s\" (%(table_id)s) duplicated from "
+"\"%(original_table_name)s\" (%(original_table_id)s) "
+msgstr ""
+
+#: src/baserow/contrib/database/table/handler.py:528
+msgid "Grid"
+msgstr ""
+
+#: src/baserow/contrib/database/table/handler.py:586
+#, python-format
+msgid "Field %d"
+msgstr ""
+
+#: src/baserow/contrib/database/tokens/actions.py:21
+msgid "Create DB token"
+msgstr ""
+
+#: src/baserow/contrib/database/tokens/actions.py:23
+#, python-format
+msgid ""
+"A Database Token with name \"%(token_name)s\" (%(token_id)s) has been created"
+msgstr ""
+
+#: src/baserow/contrib/database/tokens/actions.py:58
+msgid "Update DB token name"
+msgstr ""
+
+#: src/baserow/contrib/database/tokens/actions.py:60
+#, python-format
+msgid ""
+"The Database Token (%(token_name)s) name changed from "
+"\"%(original_token_name)s\" to \"%(token_name)s\""
+msgstr ""
+
+#: src/baserow/contrib/database/tokens/actions.py:102
+msgid "Update DB token permissions"
+msgstr ""
+
+#: src/baserow/contrib/database/tokens/actions.py:104
+#, python-format
+msgid ""
+"The Database Token \"%(token_name)s\" (%(token_id)s) permissions has been "
+"updated"
+msgstr ""
+
+#: src/baserow/contrib/database/tokens/actions.py:163
+msgid "Rotate DB token key"
+msgstr ""
+
+#: src/baserow/contrib/database/tokens/actions.py:164
+#, python-format
+msgid "The Database Token \"%(token_name)s\" (%(token_id)s) has been rotated"
+msgstr ""
+
+#: src/baserow/contrib/database/tokens/actions.py:200
+msgid "Delete DB token"
+msgstr ""
+
+#: src/baserow/contrib/database/tokens/actions.py:201
+#, python-format
+msgid "The Database Token \"%(token_name)s\" (%(token_id)s) has been deleted"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:42
+msgid "Create a view filter"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:43
+#, python-format
+msgid "View filter created on field \"%(field_name)s\" (%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:152
+msgid "Update a view filter"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:153
+#, python-format
+msgid "View filter updated on field \"%(field_name)s\" (%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:284
+msgid "Delete a view filter"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:285
+#, python-format
+msgid "View filter deleted from field \"%(field_name)s\" (%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:394
+msgid "Create a view filter group"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:395
+msgid "View filter group created"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:488
+msgid "Update a view filter group"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:489
+#, python-format
+msgid "View filter group updated to \"%(filter_type)s\""
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:589
+msgid "Delete a view filter group"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:590
+msgid "View filter group deleted"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:744
+msgid "Create a view sort"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:745
+#, python-format
+msgid "View sorted on field \"%(field_name)s\" (%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:829
+msgid "Update a view sort"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:830
+#, python-format
+msgid "View sort updated on field \"%(field_name)s\" (%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:938
+msgid "Delete a view sort"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:939
+#, python-format
+msgid "View sort deleted from field \"%(field_name)s\" (%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1024
+msgid "Order views"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1024
+msgid "Views order changed"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1095
+msgid "Update view field options"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1096
+msgid "ViewFieldOptions updated"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1197
+msgid "View slug URL updated"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1198
+msgid "View changed public slug URL"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1271
+msgid "Update view"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1272
+#, python-format
+msgid "View \"%(view_name)s\" (%(view_id)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1353
+msgid "Create view"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1354
+#, python-format
+msgid "View \"%(view_name)s\" (%(view_id)s) created"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1428
+msgid "Duplicate view"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1430
+#, python-format
+msgid ""
+"View \"%(view_name)s\" (%(view_id)s) duplicated from view "
+"\"%(original_view_name)s\" (%(original_view_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1504
+msgid "Delete view"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1505
+#, python-format
+msgid "View \"%(view_name)s\" (%(view_id)s) deleted"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1567
+msgid "Create decoration"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1568
+#, python-format
+msgid "View decoration %(decorator_id)s created"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1672
+msgid "Update decoration"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1673
+#, python-format
+msgid "View decoration %(decorator_id)s updated"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1810
+msgid "Delete decoration"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1811
+#, python-format
+msgid "View decoration %(decorator_id)s deleted"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1907
+msgid "Create a view group"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:1908
+#, python-format
+msgid "View grouped on field \"%(field_name)s\" (%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:2008
+msgid "Update a view group"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:2009
+#, python-format
+msgid "View group by updated on field \"%(field_name)s\" (%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:2137
+msgid "Delete a view group"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:2138
+#, python-format
+msgid "View group by deleted from field \"%(field_name)s\" (%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/views/notification_types.py:84
+#, python-format
+msgid "%(form_name)s has been submitted in %(table_name)s"
+msgstr ""
+
+#: src/baserow/contrib/database/views/notification_types.py:101
+#, python-format
+msgid "and 1 more field"
+msgid_plural "and %(count)s more fields"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/baserow/contrib/database/webhooks/actions.py:20
+msgid "Create Webhook"
+msgstr ""
+
+#: src/baserow/contrib/database/webhooks/actions.py:22
+#, python-format
+msgid ""
+"Webhook \"%(webhook_name)s\" (%(webhook_id)s) as %(webhook_request_method)s "
+"to %(webhook_url)s\" created"
+msgstr ""
+
+#: src/baserow/contrib/database/webhooks/actions.py:88
+msgid "Delete Webhook"
+msgstr ""
+
+#: src/baserow/contrib/database/webhooks/actions.py:90
+#, python-format
+msgid ""
+"Webhook \"%(webhook_name)s\" (%(webhook_id)s) as %(webhook_request_method)s "
+"to %(webhook_url)s\" deleted"
+msgstr ""
+
+#: src/baserow/contrib/database/webhooks/actions.py:152
+msgid "Update Webhook"
+msgstr ""
+
+#: src/baserow/contrib/database/webhooks/actions.py:154
+#, python-format
+msgid ""
+"Webhook \"%(webhook_name)s\" (%(webhook_id)s) as %(webhook_request_method)s "
+"to %(webhook_url)s\" updated"
+msgstr ""

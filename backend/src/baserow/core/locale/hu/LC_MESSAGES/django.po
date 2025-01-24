@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2024-04-20 16:54+0000\n"
+"PO-Revision-Date: 2024-12-16 15:08+0000\n"
 "Last-Translator: Norbert Bartus <nbartus21@gmail.com>\n"
 "Language-Team: Hungarian <https://hosted.weblate.org/projects/baserow/"
 "backend-core/hu/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.5-dev\n"
+"X-Generator: Weblate 5.9\n"
 
 #: src/baserow/core/action/scopes.py:9
 #, python-format

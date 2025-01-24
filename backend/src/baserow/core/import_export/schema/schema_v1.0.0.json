@@ -58,32 +58,11 @@
                   "files": {
                     "type": "object",
                     "properties": {
-                      "data": {
-                        "type": "object",
-                        "properties": {
-                          "file": {
-                            "type": "string"
-                          },
-                          "checksum": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["file", "checksum"]
-                      },
-                      "media": {
-                        "type": "object",
-                        "properties": {
-                          "file": {
-                            "type": "string"
-                          },
-                          "checksum": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["file", "checksum"]
+                      "schema": {
+                          "type": "string"
                       }
                     },
-                    "required": ["data"]
+                    "required": ["schema"]
                   }
                 },
                 "required": ["id", "type", "name", "uuid", "files"]
@@ -121,35 +100,14 @@
                   "total_files": {
                     "type": "integer"
                   },
-                  "files": {
+                  "files":{
                     "type": "object",
                     "properties": {
-                      "data": {
-                        "type": "object",
-                        "properties": {
-                          "file": {
-                            "type": "string"
-                          },
-                          "checksum": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["file", "checksum"]
-                      },
-                      "media": {
-                        "type": "object",
-                        "properties": {
-                          "file": {
-                            "type": "string"
-                          },
-                          "checksum": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["file", "checksum"]
+                      "schema": {
+                          "type": "string"
                       }
                     },
-                    "required": ["data"]
+                    "required": ["schema"]
                   }
                 },
                 "required": ["id", "type", "name", "uuid", "files"]
@@ -190,32 +148,11 @@
                   "files": {
                     "type": "object",
                     "properties": {
-                      "data": {
-                        "type": "object",
-                        "properties": {
-                          "file": {
-                            "type": "string"
-                          },
-                          "checksum": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["file", "checksum"]
-                      },
-                      "media": {
-                        "type": "object",
-                        "properties": {
-                          "file": {
-                            "type": "string"
-                          },
-                          "checksum": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["file", "checksum"]
+                      "schema": {
+                          "type": "string"
                       }
                     },
-                    "required": ["data"]
+                    "required": ["schema"]
                   }
                 },
                 "required": ["id", "type", "name", "uuid", "files"]
@@ -226,5 +163,14 @@
       }
     }
   },
-  "required": ["version", "configuration", "applications"]
+  "checksums": {
+    "type": "object",
+    "patternProperties": {
+      ".*": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "required": ["version", "configuration", "applications",  "checksums"]
 }

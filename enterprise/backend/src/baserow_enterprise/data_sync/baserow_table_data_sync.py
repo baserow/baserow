@@ -12,7 +12,10 @@ from rest_framework import serializers
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.models import DataSyncSyncedProperty
 from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
-from baserow.contrib.database.data_sync.utils import compare_date
+from baserow.contrib.database.data_sync.utils import (
+    compare_date,
+    update_baserow_field_select_options,
+)
 from baserow.contrib.database.fields.field_types import (
     AutonumberFieldType,
     BooleanFieldType,
@@ -35,7 +38,6 @@ from baserow.contrib.database.fields.models import (
     DateField,
     Field,
     NumberField,
-    SelectOption,
     TextField,
 )
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -43,6 +45,9 @@ from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationType
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_iterator, specific_queryset
 from baserow.core.handler import CoreHandler
 from baserow.core.utils import ChildProgressBuilder
@@ -139,7 +144,6 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
 
         if new_metadata is None:
             new_metadata = {}
-        new_metadata["select_options_mapping"] = {}
 
         # Based on the existing mapping, we can figure out which select options must
         # be created, updated, and deleted in the synced field.
@@ -147,61 +151,12 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
         if existing_metadata:
             existing_mapping = existing_metadata.get("select_options_mapping", {})
 
-        # Collect existing select options and prepare new field options. By storing
-        # them all in a list, we can loop over them and decide if they should be
-        # created, updated, or deleted.
-        source_field_options = self.field.select_options.all()
-        target_field_options = [
-            SelectOption(
-                value=field_option.value,
-                color=field_option.color,
-                order=field_option.order,
-                field=baserow_field,
-            )
-            for field_option in source_field_options
-        ]
-
-        # Prepare lists to track which options need to be created, updated, or deleted.
-        to_create = []
-        to_update = []
-        to_delete_ids = set(existing_mapping.values())
-
-        # Loop through the new options to decide on create or update actions.
-        for existing_option, new_option in zip(
-            source_field_options, target_field_options
-        ):
-            target_id = existing_mapping.get(str(existing_option.id))
-
-            # If a target_id exists in the mapping, we update, otherwise, we create new.
-            if target_id:
-                new_option.id = target_id
-                to_update.append((new_option, existing_option.id))
-                to_delete_ids.discard(target_id)
-            else:
-                to_create.append((new_option, existing_option.id))
-
-        if to_create:
-            created_select_options = SelectOption.objects.bulk_create(
-                [r[0] for r in to_create]
-            )
-            for created_option, existing_option_id in zip(
-                created_select_options, [r[1] for r in to_create]
-            ):
-                new_metadata["select_options_mapping"][
-                    str(existing_option_id)
-                ] = created_option.id
-
-        if to_update:
-            SelectOption.objects.bulk_update(
-                [r[0] for r in to_update], fields=["value", "color", "order", "field"]
-            )
-            for updated_option, existing_option_id in to_update:
-                new_metadata["select_options_mapping"][
-                    str(existing_option_id)
-                ] = updated_option.id
-
-        if to_delete_ids:
-            SelectOption.objects.filter(id__in=to_delete_ids).delete()
+        select_options_mapping = update_baserow_field_select_options(
+            self.field.select_options.all(),
+            baserow_field,
+            existing_mapping,
+        )
+        new_metadata["select_options_mapping"] = select_options_mapping
 
         return new_metadata
 
@@ -223,13 +178,19 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
 class LocalBaserowTableDataSyncType(DataSyncType):
     type = "local_baserow_table"
     model_class = LocalBaserowTableDataSync
-    allowed_fields = ["source_table_id", "authorized_user_id"]
-    serializer_field_names = ["source_table_id"]
+    allowed_fields = ["source_table_id", "source_table_view_id", "authorized_user_id"]
+    serializer_field_names = ["source_table_id", "source_table_view_id"]
     serializer_field_overrides = {
         "source_table_id": serializers.IntegerField(
             help_text="The ID of the source table that must be synced.",
             required=True,
             allow_null=False,
+        ),
+        "source_table_view_id": serializers.IntegerField(
+            help_text="If provided, then only the visible fields and rows matching the "
+            "filters will be synced.",
+            required=False,
+            allow_null=True,
         ),
     }
 
@@ -255,7 +216,7 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             instance.authorized_user = user
             instance.save()
 
-    def _get_table(self, instance):
+    def _get_table_and_view(self, instance):
         try:
             table = TableHandler().get_table(instance.source_table_id)
         except TableDoesNotExist:
@@ -270,19 +231,45 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         ):
             raise SyncError("The authorized user doesn't have access to the table.")
 
-        return table
+        view = None
+        view_id = instance.source_table_view_id
+        if view_id is not None:
+            try:
+                view = (
+                    ViewHandler()
+                    .get_view_as_user(
+                        instance.authorized_user,
+                        instance.source_table_view_id,
+                        table_id=table.id,
+                    )
+                    .specific
+                )
+            except ViewDoesNotExist:
+                raise SyncError(f"The view with id {view_id} does not exist.")
+
+        return table, view
 
     def get_properties(self, instance) -> List[DataSyncProperty]:
-        table = self._get_table(instance)
+        table, view = self._get_table_and_view(instance)
         # The `table_id` is not set if when just listing the properties using the
-        # `DataSyncPropertiesView` endpoint, but it will be set when creating the view.
+        # `DataSyncTypePropertiesView` endpoint, but it will be set when creating the
+        # view.
         if instance.table_id:
             LicenseHandler.raise_if_workspace_doesnt_have_feature(
                 DATA_SYNC, instance.table.database.workspace
             )
-        fields = specific_iterator(
-            table.field_set.all().prefetch_related("select_options")
-        )
+
+        field_queryset = table.field_set.all().prefetch_related("select_options")
+
+        # If a view is provided, then we don't want to expose hidden fields,
+        # so we filter on the visible options to prevent that.
+        if view:
+            view_type = view_type_registry.get_by_model(view)
+            visible_field_options = view_type.get_visible_field_options_in_order(view)
+            visible_field_ids = {o.field_id for o in visible_field_options}
+            field_queryset = field_queryset.filter(id__in=visible_field_ids)
+
+        fields = specific_iterator(field_queryset)
         properties = [RowIDDataSyncProperty("id", "Row ID")]
 
         return properties + [
@@ -306,7 +293,7 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         # that must completed. We're therefore using working with a total of 10 where
         # most of it is related to fetching the row values.
         progress = ChildProgressBuilder.build(progress_builder, child_total=10)
-        table = self._get_table(instance)
+        table, view = self._get_table_and_view(instance)
         enabled_properties = DataSyncSyncedProperty.objects.filter(
             data_sync=instance
         ).prefetch_related(
@@ -314,8 +301,16 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         )
         enabled_property_field_ids = [p.key for p in enabled_properties]
         model = table.get_model()
+        queryset = model.objects.all()
+
+        # If a view is provided then we must not expose rows that don't match the
+        # filters.
+        if view:
+            queryset = ViewHandler().apply_filters(view, queryset)
+            queryset = ViewHandler().apply_sorting(view, queryset)
+
         progress.increment(by=1)  # makes the total `1`
-        rows_queryset = model.objects.all().values(*["id"] + enabled_property_field_ids)
+        rows_queryset = queryset.values(*["id"] + enabled_property_field_ids)
         progress.increment(by=7)  # makes the total `8`
 
         # Loop over all properties and rows to prepare the value if needed .This is

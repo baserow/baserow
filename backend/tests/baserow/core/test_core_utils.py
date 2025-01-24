@@ -269,62 +269,77 @@ def test_nested_progress():
     assert args[0][0] == 20
     assert args[0][1] is None
 
-    sub_progress_2 = progress.create_child(20, 5 * 120)
+    sub_progress_2 = progress.create_child(20, 5 * 100)
     for i in range(0, 5):
-        for i2 in range(0, 100):
+        for i2 in range(0, 75):
             sub_progress_2.increment()
-        sub_progress_2.increment(by=20, state="Sub progress 2 second")
+        sub_progress_2.increment(by=25, state="Sub progress 2 second")
 
+    assert mock_event.call_count == 21
     args = mock_event.call_args
+    # called only once everytime the percentange or the state change
+    assert [arg[0][0] for arg in mock_event.call_args_list] == list(range(20, 41))
     assert args[0][0] == 40
-    assert args[0][1] is None
+    assert args[0][1] == "Sub progress 2 second"
 
     sub_progress_3_builder = progress.create_child_builder(40)
     sub_progress_3 = ChildProgressBuilder.build(sub_progress_3_builder, 100)
 
+    # 10% of 40% -> 4%
     sub_progress_3_1 = sub_progress_3.create_child(10, 4)
     sub_progress_3_1.increment(by=2)
     sub_progress_3_1.increment()
     sub_progress_3_1.increment()
 
+    assert mock_event.call_count == 24
+    assert [arg[0][0] for arg in mock_event.call_args_list[-3:]] == [42, 43, 44]
     args = mock_event.call_args
     assert args[0][0] == 44
     assert args[0][1] is None
 
+    # 10% of 40% -> 4%
     sub_progress_3_2 = sub_progress_3.create_child(10, 11)
     for i in range(0, 11):
         sub_progress_3_2.increment()
 
     args = mock_event.call_args
+    assert mock_event.call_count == 28
+    assert [arg[0][0] for arg in mock_event.call_args_list[-4:]] == [45, 46, 47, 48]
     assert args[0][0] == 48
     assert args[0][1] is None
 
+    # 10% of 40% -> 4%
     sub_progress_3.create_child(10, 0)
+    assert mock_event.call_count == 29
     args = mock_event.call_args
     assert args[0][0] == 52
     assert args[0][1] is None
 
+    # 10% of 40% -> 4%
     sub_progress_3_4_builder = sub_progress_3.create_child_builder(10)
     ChildProgressBuilder.build(sub_progress_3_4_builder, 0)
+    assert mock_event.call_count == 30
     args = mock_event.call_args
     assert args[0][0] == 56
     assert args[0][1] is None
 
-    sub_progress_3_5 = sub_progress_3.create_child(55, 5 * 120)
+    # 55% of 40% -> 22%
+    sub_progress_3_5 = sub_progress_3.create_child(55, 5 * 100)
     for i in range(0, 5):
-        sub_progress_3_5_1 = sub_progress_3_5.create_child(100, 100)
+        sub_progress_3_5_1 = sub_progress_3_5.create_child(75, 100)
         for i2 in range(0, 100):
             sub_progress_3_5_1.increment()
-        sub_progress_3_5.increment(20)
+        sub_progress_3_5.increment(25)
 
     args = mock_event.call_args
     assert args[0][0] == 78
     assert args[0][1] is None
 
+    # 5% of 40% -> 2%
     sub_progress_3_6 = sub_progress_3.create_child(5, 1)
     sub_progress_3_6.increment()
 
-    assert mock_event.call_count == 52
+    assert mock_event.call_count == 53
     args = mock_event.call_args
     assert args[0][0] == 80
     assert args[0][1] is None

@@ -1,0 +1,1009 @@
+{
+    "webhookModal": {
+        "title": "",
+        "createWebhook": "",
+        "backToList": ""
+    },
+    "deleteWebhookModal": {
+        "title": "",
+        "deleteButton": "",
+        "body": ""
+    },
+    "webhookList": {
+        "noWebhooksMessage": ""
+    },
+    "testWebhookModal": {
+        "title": "",
+        "unreachable": ""
+    },
+    "webhookForm": {
+        "inputLabels": {
+            "name": "",
+            "value": "",
+            "requestMethod": "",
+            "url": "",
+            "userFieldNames": "",
+            "events": "",
+            "headers": "",
+            "example": ""
+        },
+        "errors": {
+            "urlField": "",
+            "invalidHeaders": ""
+        },
+        "checkbox": {
+            "sendUserFieldNames": ""
+        },
+        "radio": {
+            "allEvents": "",
+            "customEvents": ""
+        },
+        "triggerButton": "",
+        "deactivated": {
+            "title": "",
+            "content": "",
+            "activate": ""
+        },
+        "triggerWhenFieldsHaveChanged": "",
+        "helpTriggerWhenFieldsHaveChanged": ""
+    },
+    "webhook": {
+        "details": "",
+        "lastCall": "",
+        "noCalls": "",
+        "callLog": "",
+        "triggerDescription": ""
+    },
+    "createWebhook": {
+        "errorTableWebhookMaxLimitExceededTitle": "",
+        "errorTableWebhookMaxLimitExceededDescription": ""
+    },
+    "sidebar": {
+        "viewAPI": "",
+        "createTable": ""
+    },
+    "sidebarItem": {
+        "exportTable": "",
+        "webhooks": "",
+        "lastSynced": "",
+        "notSynced": "",
+        "sync": ""
+    },
+    "duplicateTableJobType": {
+        "duplicating": "",
+        "duplicatedTitle": ""
+    },
+    "apiToken": {
+        "create": "",
+        "read": "",
+        "update": "",
+        "delete": "",
+        "tokenPrefix": "",
+        "viewAPIDocs": "",
+        "generateNewToken": "",
+        "showOrHide": "",
+        "copyToClipboard": "",
+        "showDatabases": ""
+    },
+    "apiTokenSettings": {
+        "title": "",
+        "createToken": "",
+        "noTokensMessage": "",
+        "hasFullPermissions": "",
+        "hasOnlySelectedPermissions": "",
+        "noPermissions": "",
+        "createNewTitle": "",
+        "backToOverview": ""
+    },
+    "apiTokenForm": {
+        "nameLabel": "",
+        "workspaceLabel": ""
+    },
+    "apiDocsSelectDatabase": {
+        "needOneDatabase": ""
+    },
+    "apiDocsExample": {
+        "requestSample": "",
+        "responseSample": "",
+        "userFieldNames": ""
+    },
+    "apiDocsParameter": {
+        "optional": "",
+        "defaultValue": ""
+    },
+    "apiDocsTableGetRow": {
+        "description": "",
+        "rowId": ""
+    },
+    "apiDocsErrors": {
+        "errorCode": "",
+        "name": "",
+        "description": "",
+        "okDescription": "",
+        "badRequestDescription": "",
+        "unauthorizedDescription": "",
+        "notFoundDescription": "",
+        "requestEntityTooLargeDescription": "",
+        "internalErrorDescription": "",
+        "badGatewayDescription": "",
+        "unavailableDescription": ""
+    },
+    "apiDocsTableFields": {
+        "tableTitle": "",
+        "tableId": "",
+        "description": "",
+        "id": "",
+        "name": "",
+        "type": "",
+        "compatibleFilters": ""
+    },
+    "apiDocsTableListRows": {
+        "description": "",
+        "page": "",
+        "size": "",
+        "userFieldNames": "",
+        "search": "",
+        "orderBy": "",
+        "filters": "",
+        "filter": "",
+        "filterLink": "",
+        "filterType": "",
+        "include": "",
+        "exclude": "",
+        "viewId": "",
+        "filtersBuilder": "",
+        "join": ""
+    },
+    "apiDocsIntro": {
+        "intro": "",
+        "autoDocDescription": "",
+        "databaseId": "",
+        "jsClient": "",
+        "pythonClient": ""
+    },
+    "apiDocsTableListFields": {
+        "description": "",
+        "resultFieldProperties": "",
+        "id": "",
+        "name": "",
+        "tableId": "",
+        "order": "",
+        "primary": "",
+        "type": "",
+        "extraProps": "",
+        "readOnly": "",
+        "descriptionField": ""
+    },
+    "apiDocsTableDeleteRow": {
+        "description": "",
+        "rowId": ""
+    },
+    "apiDocsTableDeleteRows": {
+        "description": "",
+        "items": ""
+    },
+    "apiDocsTableMoveRow": {
+        "description": "",
+        "rowId": "",
+        "before": ""
+    },
+    "apiDocsUploadFile": {
+        "description": "",
+        "file": ""
+    },
+    "apiDocsUploadFileViaURL": {
+        "description": "",
+        "url": ""
+    },
+    "apiDocsTableUpdateRow": {
+        "description": "",
+        "rowId": "",
+        "before": ""
+    },
+    "apiDocsTableUpdateRows": {
+        "description": "",
+        "id": ""
+    },
+    "apiDocsTableCreateRow": {
+        "description": "",
+        "before": ""
+    },
+    "apiDocsTableCreateRows": {
+        "description": "",
+        "before": ""
+    },
+    "apiDocsAuth": {
+        "description": "",
+        "settingsLink": ""
+    },
+    "apiDocsFilters": {
+        "filter": "",
+        "exampleValue": "",
+        "example": "",
+        "field": "",
+        "deprecated": ""
+    },
+    "apiDocsFiltersBuilderModal": {
+        "title": "",
+        "userFieldNames": "",
+        "json": "",
+        "queryParameter": ""
+    },
+    "fieldTextSubForm": {
+        "placeholder": ""
+    },
+    "fieldSingleSelectSubForm": {
+        "optionsLabel": ""
+    },
+    "fieldSingleSelectDropdown": {
+        "notFound": ""
+    },
+    "fieldmultipleCollaboratorsDropdown": {
+        "notFound": ""
+    },
+    "fieldDateSubForm": {
+        "dateFormatLabel": "",
+        "dateFormatEuropean": "",
+        "dateFormatUS": "",
+        "dateFormatISO": "",
+        "includeTimeLabel": "",
+        "showTimezoneLabel": "",
+        "forceTimezoneLabel": "",
+        "forceTimezoneValue": "",
+        "addTimezoneOffsetLabel": "",
+        "subTimezoneOffsetLabel": "",
+        "timeFormatLabel": "",
+        "24Hour": "",
+        "12Hour": ""
+    },
+    "fieldLinkRowSubForm": {
+        "noTable": "",
+        "selectTableLabel": "",
+        "hasRelatedFieldLabel": "",
+        "limitToView": "",
+        "limitToViewDescription": ""
+    },
+    "fieldSelectOptions": {
+        "add": ""
+    },
+    "fieldNumberSubForm": {
+        "typeLabel": "",
+        "integer": "",
+        "decimal": "",
+        "decimalPlacesLabel": "",
+        "allowNegative": ""
+    },
+    "fieldDurationSubForm": {
+        "durationFormatLabel": ""
+    },
+    "fieldContext": {
+        "editField": "",
+        "deleteField": "",
+        "hideField": "",
+        "showField": "",
+        "changePrimaryField": ""
+    },
+    "fieldForm": {
+        "name": "",
+        "description": "",
+        "fieldAlreadyExists": "",
+        "nameNotAllowed": "",
+        "nameTooLong": "",
+        "addDescription": ""
+    },
+    "fieldSelectThroughFieldSubForm": {
+        "noTable": "",
+        "selectThroughFieldLabel": ""
+    },
+    "fieldRollupSubForm": {
+        "label": "",
+        "selectTargetFieldLabel": ""
+    },
+    "fieldLookupSubForm": {
+        "selectTargetFieldLabel": ""
+    },
+    "fieldFormulaNumberSubForm": {
+        "typeLabel": "",
+        "integer": "",
+        "decimal": "",
+        "decimalPlacesLabel": "",
+        "allowNegative": ""
+    },
+    "fieldRatingSubForm": {
+        "maxValue": "",
+        "color": "",
+        "style": ""
+    },
+    "rowCreateModal": {
+        "addField": ""
+    },
+    "selectRowContent": {
+        "search": ""
+    },
+    "rowEditModal": {
+        "addField": "",
+        "showHiddenFields": "",
+        "hideHiddenFields": ""
+    },
+    "rowEditFieldMultipleSelect": {
+        "addOption": ""
+    },
+    "rowEditFieldMultipleCollaborators": {
+        "addCollaborator": ""
+    },
+    "rowEditFieldFile": {
+        "addFile": "",
+        "sizes": {
+            "0": "",
+            "1": "",
+            "2": "",
+            "3": "",
+            "4": "",
+            "5": ""
+        }
+    },
+    "rowEditFieldLinkRow": {
+        "addLink": ""
+    },
+    "tableCSVImporter": {
+        "chooseFileLabel": "",
+        "chooseFileDescription": "",
+        "chooseFile": "",
+        "columnSeparator": "",
+        "recordSeparator": "",
+        "unitSeparator": "",
+        "encoding": "",
+        "firstRowHeader": "",
+        "limitFileSize": "",
+        "limitError": "",
+        "emptyCSV": ""
+    },
+    "importer": {
+        "fieldDefaultName": "",
+        "loading": "",
+        "decoding": "",
+        "parsing": "",
+        "preparing": "",
+        "inProgress": ""
+    },
+    "tableForm": {
+        "name": ""
+    },
+    "tableXMLImporter": {
+        "fileLabel": "",
+        "fileDescription": "",
+        "chooseButton": "",
+        "processingError": "",
+        "emptyError": "",
+        "limitFileSize": "",
+        "limitError": ""
+    },
+    "tableJSONImporter": {
+        "fileLabel": "",
+        "fileDescription": "",
+        "chooseButton": "",
+        "encodingLabel": "",
+        "processingError": "",
+        "arrayError": "",
+        "emptyError": "",
+        "limitFileSize": "",
+        "limitError": ""
+    },
+    "tablePasteImporter": {
+        "pasteLabel": "",
+        "pasteDescription": "",
+        "firstRowHeader": "",
+        "limitError": ""
+    },
+    "createTableModal": {
+        "title": "",
+        "defaultName": "",
+        "importLabel": "",
+        "newTable": ""
+    },
+    "createTable": {
+        "showTable": "",
+        "addButton": "",
+        "uploading": "",
+        "preparing": "",
+        "importError": "",
+        "stateRowCreation": "",
+        "statePreValidation": "",
+        "stateCreateTable": ""
+    },
+    "importErrorReport": {
+        "reportTitleFailure": "",
+        "reportTitleSuccess": "",
+        "reportMessage": ""
+    },
+    "importFileModal": {
+        "defaultName": "",
+        "additionalImportTitle": "",
+        "importLabel": "",
+        "newTable": "",
+        "showTable": "",
+        "importButton": "",
+        "uploading": "",
+        "preparing": "",
+        "importError": "",
+        "fieldMappingTitle": "",
+        "fieldMappingDescription": "",
+        "selectImportMessage": "",
+        "filePreview": "",
+        "importPreview": ""
+    },
+    "formulaAdvancedEditContext": {
+        "textAreaFormulaInputPlaceholder": "",
+        "fields": "",
+        "functions": "",
+        "operators": "",
+        "fieldType": ""
+    },
+    "fieldFormulaInitialSubForm": {
+        "formulaInputPlaceholder": "",
+        "refreshFormulaOptions": ""
+    },
+    "fieldLongTextSubForm": {
+        "enableRichTextFormatting": ""
+    },
+    "formulaFieldItemDescription": {
+        "syntax": "",
+        "examples": ""
+    },
+    "viewSearchContext": {
+        "searchInRows": "",
+        "hideNotMatching": ""
+    },
+    "viewsContext": {
+        "searchView": "",
+        "noViews": "",
+        "collaborative": ""
+    },
+    "viewFilterTypeLinkRow": {
+        "unnamed": "",
+        "choose": ""
+    },
+    "viewFieldConditionsForm": {
+        "addCondition": "",
+        "addConditionGroup": ""
+    },
+    "viewFilterContext": {
+        "addFilter": "",
+        "addFilterGroup": "",
+        "disableAllFilters": "",
+        "noFilterTitle": "",
+        "noFilterText": "",
+        "where": "",
+        "and": "",
+        "or": "",
+        "relatedFieldNotFound": "",
+        "filterTypeNotFound": "",
+        "noCompatibleFilterTypesErrorTitle": "",
+        "noCompatibleFilterTypesErrorMessage": ""
+    },
+    "viewFilterTypeFileTypeDropdown": {
+        "image": "",
+        "document": ""
+    },
+    "createViewModal": {
+        "createNew": "",
+        "add": ""
+    },
+    "createViewLink": {
+        "inCompatibleWithDataSync": ""
+    },
+    "shareViewLink": {
+        "shareViewText": "",
+        "shareView": "",
+        "createPrivateLink": "",
+        "shareViewTitle": "",
+        "sharedViewTitle": "",
+        "sharedViewDescription": "",
+        "disableLink": "",
+        "generateNewUrl": "",
+        "copyURL": "",
+        "EnablePassword": "",
+        "DisablePassword": "",
+        "ChangePassword": "",
+        "notSharedYetText": ""
+    },
+    "viewGroupByContext": {
+        "noGroupByTitle": "",
+        "noGroupByText": "",
+        "groupBy": "",
+        "thenBy": "",
+        "addGroupBy": ""
+    },
+    "viewGroupBy": {
+        "groupBy": ""
+    },
+    "viewSortContext": {
+        "noSortTitle": "",
+        "noSortText": "",
+        "sortBy": "",
+        "thenBy": "",
+        "addSort": ""
+    },
+    "viewSort": {
+        "sort": ""
+    },
+    "viewDecorator": {
+        "decorator": ""
+    },
+    "viewRotateSlugModal": {
+        "title": "",
+        "refreshWarning": "",
+        "generateNewURL": ""
+    },
+    "shareViewEnablePasswordModal": {
+        "newPasswordTitle": "",
+        "newPasswordDescription": "",
+        "newPasswordSave": "",
+        "changePasswordTitle": "",
+        "changePasswordDescription": "",
+        "changePasswordSave": ""
+    },
+    "shareViewDisablePasswordModal": {
+        "title": "",
+        "description": "",
+        "disable": ""
+    },
+    "publicViewAuthLogin": {
+        "title": "",
+        "description": "",
+        "enter": "",
+        "error": {
+            "incorrectPasswordTitle": "",
+            "incorrectPasswordText": ""
+        }
+    },
+    "viewFieldsContext": {
+        "coverField": "",
+        "noCover": "",
+        "search": "",
+        "hideAll": "",
+        "showAll": ""
+    },
+    "viewFilterTypeBoolean": {
+        "selected": ""
+    },
+    "viewFilter": {
+        "filter": ""
+    },
+    "viewContext": {
+        "exportView": "",
+        "duplicateView": "",
+        "renameView": "",
+        "toPersonal": "",
+        "toCollaborative": "",
+        "webhooks": "",
+        "importFile": "",
+        "deleteView": ""
+    },
+    "deleteViewModal": {
+        "title": "",
+        "description": "",
+        "delete": ""
+    },
+    "viewForm": {
+        "name": "",
+        "whoCanEdit": ""
+    },
+    "viewOwnershipType": {
+        "collaborative": "",
+        "personal": ""
+    },
+    "galleryViewHeader": {
+        "customizeCards": ""
+    },
+    "gridViewHide": {
+        "hideField": ""
+    },
+    "gridViewFieldType": {
+        "insertLeft": "",
+        "insertRight": "",
+        "createFilter": "",
+        "duplicate": "",
+        "sortField": "",
+        "hideField": "",
+        "dataSyncField": ""
+    },
+    "gridViewRow": {
+        "rowNotMatchingFilters": "",
+        "rowNotMatchingSearch": "",
+        "rowHasMoved": ""
+    },
+    "gridView": {
+        "selectRow": "",
+        "insertRowAbove": "",
+        "insertRowBelow": "",
+        "duplicateRow": "",
+        "copyRowURL": "",
+        "copiedRowURL": "",
+        "copiedRowURLMessage": "",
+        "enlargeRow": "",
+        "deleteRow": "",
+        "deleteRows": "",
+        "copyCells": "",
+        "generateCellsValues": "",
+        "rowCount": "",
+        "hiddenRowsInsertedTitle": "",
+        "hiddenRowsInsertedMessage": "",
+        "tooManyItemsTitle": "",
+        "tooManyItemsDescription": "",
+        "AIValuesGenerationErrorTitle": "",
+        "AIValuesGenerationErrorMessage": ""
+    },
+    "gridViewFieldFile": {
+        "dropHere": "",
+        "dropFileHere": ""
+    },
+    "gridViewFieldLinkRow": {
+        "unnamed": ""
+    },
+    "gridViewIdentifierOptions": {
+        "id": "",
+        "count": ""
+    },
+    "gridViewRowsAddContext": {
+        "title": "",
+        "choice": ""
+    },
+    "formViewMeta": {
+        "includeRowId": ""
+    },
+    "formViewMetaControls": {
+        "whenSubmittedLabel": "",
+        "showMessage": "",
+        "urlRedirect": "",
+        "theMessage": "",
+        "theURL": ""
+    },
+    "previewAny": {
+        "externalWarning": ""
+    },
+    "exportTableModal": {
+        "failedTitle": "",
+        "failedDescription": "",
+        "cancelledTitle": "",
+        "cancelledDescription": ""
+    },
+    "exporterTypeChoices": {
+        "formatLabel": ""
+    },
+    "exportTableForm": {
+        "viewLabel": "",
+        "typeError": ""
+    },
+    "exportTableLoadingBar": {
+        "export": "",
+        "download": ""
+    },
+    "exportTableDropdown": {
+        "exportEntireTable": ""
+    },
+    "tableCSVExporter": {
+        "columnSeparatorLabel": "",
+        "recordSeparator": "",
+        "unitSeparator": "",
+        "encodingLabel": "",
+        "firstRowIsHeaderLabel": ""
+    },
+    "apiDocsDatabase": {
+        "pageTitle": "",
+        "back": "",
+        "openDatabase": ""
+    },
+    "apiDocsComponent": {
+        "title": "",
+        "intro": "",
+        "settings": "",
+        "selectApplicationTitle": "",
+        "signIn": "",
+        "back": ""
+    },
+    "viewAggregationType": {
+        "emptyCount": "",
+        "notEmptyCount": "",
+        "emptyPercentage": "",
+        "notEmptyPercentage": "",
+        "checkedCount": "",
+        "notCheckedCount": "",
+        "checkedPercentage": "",
+        "notCheckedPercentage": "",
+        "min": "",
+        "max": "",
+        "earliestDate": "",
+        "earliestDateShort": "",
+        "latestDate": "",
+        "latestDateShort": "",
+        "uniqueCount": "",
+        "sum": "",
+        "average": "",
+        "median": "",
+        "stdDev": "",
+        "stdDevShort": "",
+        "variance": ""
+    },
+    "databaseForm": {
+        "importLabel": "",
+        "emptyLabel": "",
+        "airtableLabel": ""
+    },
+    "importFromAirtable": {
+        "airtableShareLinkTitle": "",
+        "airtableShareLinkDescription": "",
+        "airtableShareLinkBeta": "",
+        "airtableShareLinkPaste": "",
+        "importButtonLabel": "",
+        "openButtonLabel": "",
+        "importError": "",
+        "statePending": "",
+        "stateFailed": "",
+        "stateFinished": "",
+        "stateDownloadingBase": "",
+        "stateConverting": "",
+        "stateDownloadingFiles": "",
+        "stateImporting": "",
+        "stateImportingTable": "",
+        "errorJobAlreadyRunningTitle": "",
+        "errorJobAlreadyRunningDescription": "",
+        "linkError": ""
+    },
+    "chooseSingleSelectField": {
+        "addSelectField": "",
+        "warningWhenNothingToChooseOrCreate": ""
+    },
+    "viewDecoratorContext": {
+        "addDecorator": ""
+    },
+    "databaseDashboardResourceLinks": {
+        "title": "",
+        "description": ""
+    },
+    "formViewField": {
+        "required": "",
+        "descriptionPlaceholder": "",
+        "showWhenMatchingConditions": "",
+        "addCondition": "",
+        "addConditionGroup": "",
+        "showFieldAs": ""
+    },
+    "duplicateFieldContext": {
+        "duplicate": "",
+        "cloneData": "",
+        "readOnlyField": ""
+    },
+    "changePrimaryFieldModal": {
+        "title": "",
+        "change": "",
+        "primaryFieldLabel": "",
+        "existingPrimary": ""
+    },
+    "snapshotsModal": {
+        "title": "",
+        "description": "",
+        "descriptionLimits": "",
+        "createLabel": "",
+        "create": "",
+        "cancel": "",
+        "snapshotRestoredErrorTitle": "",
+        "snapshotRestoredErrorMessage": "",
+        "snapshotDeletedErrorTitle": "",
+        "snapshotDeletedErrorMessage": "",
+        "limitReached": "",
+        "snapshot": "",
+        "importingState": "",
+        "reset": "",
+        "noSnapshots": ""
+    },
+    "deleteSnapshotModal": {
+        "title": "",
+        "content": "",
+        "confirm": ""
+    },
+    "snapshotListItem": {
+        "restore": "",
+        "delete": "",
+        "created": ""
+    },
+    "formViewModeType": {
+        "form": "",
+        "formDescription": ""
+    },
+    "formViewHeader": {
+        "mode": "",
+        "preview": "",
+        "fields": ""
+    },
+    "formViewModePreviewForm": {
+        "addCoverImage": "",
+        "addLogo": "",
+        "titlePlaceholder": "",
+        "descriptionPlaceholder": "",
+        "noFields": ""
+    },
+    "table": {
+        "adjacentRow": {
+            "toast": {
+                "notFound": {
+                    "next": {
+                        "title": "",
+                        "message": ""
+                    },
+                    "previous": {
+                        "title": "",
+                        "message": ""
+                    }
+                },
+                "error": {
+                    "title": "",
+                    "message": ""
+                }
+            }
+        },
+        "chooseView": ""
+    },
+    "fileField": {
+        "errorEmptyFileNameTitle": "",
+        "errorEmptyFileNameMessage": ""
+    },
+    "fieldCollaboratorSubForm": {
+        "notifyUserWhenAdded": ""
+    },
+    "collaboratorAddedToRowNotification": {
+        "title": "",
+        "deletedUser": ""
+    },
+    "formSubmittedNotification": {
+        "title": "",
+        "moreValues": ""
+    },
+    "rowHistorySidebar": {
+        "name": "",
+        "empty": "",
+        "you": ""
+    },
+    "fieldPasswordSubForm": {
+        "description": ""
+    },
+    "rowEditFieldPassword": {
+        "setPassword": ""
+    },
+    "rowHistoryFieldPassword": {
+        "passwordSet": "",
+        "passwordUpdated": "",
+        "passwordDeleted": ""
+    },
+    "dataProviderTypes": {
+        "fieldsName": ""
+    },
+    "userMentionInRichTextFieldNotification": {
+        "title": "",
+        "deletedUser": ""
+    },
+    "databaseImportStep": {
+        "title": "",
+        "description": "",
+        "tableNameLabel": ""
+    },
+    "databaseScratchTrackFieldsStep": {
+        "title": "",
+        "description": "",
+        "fieldName": "",
+        "fieldType": "",
+        "fieldDescription": "",
+        "fieldDetails": "",
+        "fieldNumber": "",
+        "fieldDate": "",
+        "fieldBoolean": "",
+        "fieldDuration": "",
+        "fieldUrl": "",
+        "fieldEmail": "",
+        "fieldRating": "",
+        "fieldCategory": "",
+        "fieldKickoffDate": "",
+        "fieldDueDate": "",
+        "fieldBudget": "",
+        "fieldCompleted": "",
+        "fieldNotes": "",
+        "fieldRole": "",
+        "fieldPhone": "",
+        "fieldActive": "",
+        "fieldEstimatedDays": "",
+        "fieldStartDate": "",
+        "fieldEndDate": "",
+        "projectsCategoryDesign": "",
+        "projectsCategoryDevelopment": "",
+        "projectsCategoryMarketing": "",
+        "projectsNotesRow1": "",
+        "projectsNotesRow2": "",
+        "projectsNotesRow3": "",
+        "teamsRoleDesigner": "",
+        "teamsRoleDeveloper": "",
+        "teamsRoleMarketer": "",
+        "tasksDetailsRow1": "",
+        "tasksDetailsRow2": "",
+        "tasksDetailsRow3": "",
+        "campaignsDetailsRow1": "",
+        "campaignsDetailsRow2": "",
+        "campaignsDetailsRow3": "",
+        "customFieldsDescriptionRow1": "",
+        "customFieldsDescriptionRow2": "",
+        "customFieldsDescriptionRow3": ""
+    },
+    "databaseScratchTrackStep": {
+        "title": "",
+        "description": "",
+        "addYourOwn": "",
+        "tableName": "",
+        "rowName": "",
+        "thisIncludes": "",
+        "projects": "",
+        "productsRow1": "",
+        "productsRow2": "",
+        "productsRow3": "",
+        "teams": "",
+        "teamsRow1": "",
+        "teamsRow2": "",
+        "teamsRow3": "",
+        "tasks": "",
+        "tasksRow1": "",
+        "tasksRow2": "",
+        "tasksRow3": "",
+        "campaigns": "",
+        "campaignsRow1": "",
+        "campaignsRow2": "",
+        "campaignsRow3": ""
+    },
+    "databaseStep": {
+        "title": "",
+        "description": "",
+        "databaseNameLabel": "",
+        "scratch": "",
+        "import": "",
+        "airtable": ""
+    },
+    "ViewFilterTypeDateUpgradeToMultiStep": {
+        "migrateButtonText": "",
+        "migrateButtonTooltip": ""
+    },
+    "dataSyncType": {
+        "syncError": "",
+        "icalCalendar": "",
+        "postgresql": ""
+    },
+    "iCalCalendarDataSync": {
+        "name": "",
+        "description": ""
+    },
+    "postgreSQLDataSync": {
+        "description": "",
+        "host": "",
+        "username": "",
+        "password": "",
+        "database": "",
+        "schema": "",
+        "table": "",
+        "port": "",
+        "sslMode": ""
+    },
+    "createDataSync": {
+        "next": "",
+        "fields": "",
+        "create": "",
+        "error": ""
+    },
+    "syncTableModal": {
+        "title": "",
+        "description": "",
+        "sync": "",
+        "hide": ""
+    },
+    "gridViewRowHeight": {
+        "name": "",
+        "small": "",
+        "medium": "",
+        "large": ""
+    }
+}

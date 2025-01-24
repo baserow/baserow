@@ -1,8 +1,14 @@
+import os
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from io import BytesIO
+from typing import List, Optional, Type
 from unittest.mock import patch
 
 from django.apps.registry import apps
+from django.contrib.auth import get_user_model
 from django.db import connection, connections
+from django.db.models import F
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
 
@@ -27,16 +33,23 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.fields.field_types import LinkRowFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import Field, LinkRowField, TextField
+from baserow.contrib.database.fields.models import (
+    Field,
+    LinkRowField,
+    SelectOption,
+    TextField,
+)
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.utils.duration import H_M_S
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.handler import CoreHandler
-from baserow.core.models import TrashEntry
+from baserow.core.models import TrashEntry, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
-from baserow.test_utils.helpers import AnyInt
+from baserow.test_utils.helpers import AnyInt, AnyStr
 
 
 @pytest.mark.django_db
@@ -1480,8 +1493,8 @@ def test_link_row_field_can_link_same_table(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert response_json[f"field_{link_row.id}"] == [
-        {"id": row_1.id, "value": "Tesla"},
-        {"id": row_2.id, "value": "Amazon"},
+        {"id": row_1.id, "value": "Tesla", "order": AnyStr()},
+        {"id": row_2.id, "value": "Amazon", "order": AnyStr()},
     ]
 
     # can be trashed and restored
@@ -2281,3 +2294,669 @@ def test_dont_export_deleted_relations(data_fixture):
     )
     serialized_table_a = get_serialized_table_a(serialized)
     assert serialized_table_a["rows"][0][link_field.db_column] == [row_b2.id]
+
+
+@dataclass
+class LinkRowOrderSetup:
+    table: Table
+    primary_field: Field
+    rows: List[GeneratedTableModel]
+    comparable_field: Optional[Type[Field]] = None
+
+
+def read_all_chars():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    with open(
+        dir_path + "/../../../../../../tests/all_chars.txt", mode="r", encoding="utf-8"
+    ) as f:
+        all_chars = f.read()
+    return all_chars
+
+
+def setup_table_with_single_select_pk(user, data_fixture):
+    table = data_fixture.create_database_table(user=user)
+    primary_field = data_fixture.create_single_select_field(
+        table=table, order=1, name="Single select", primary=True
+    )
+    comparable_field = data_fixture.create_text_field(table=table, order=2, name="f")
+
+    all_chars = read_all_chars()
+    options = SelectOption.objects.bulk_create(
+        [
+            SelectOption(field=primary_field, value=char, order=i)
+            for (i, char) in enumerate(all_chars)
+        ]
+    )
+    rows_values = [
+        {
+            f"{primary_field.db_column}": opt.id,
+            f"{comparable_field.db_column}": char,
+        }
+        for (char, opt) in zip(all_chars, options)
+    ]
+
+    rows = RowHandler().force_create_rows(user, table, rows_values)
+    return LinkRowOrderSetup(table, primary_field, rows, comparable_field)
+
+
+def setup_table_with_multiple_select_pk(user, data_fixture):
+    table = data_fixture.create_database_table(user=user)
+    primary_field = data_fixture.create_multiple_select_field(
+        table=table, order=1, name="Multiple select", primary=True
+    )
+    comparable_field = data_fixture.create_text_field(table=table, order=2, name="f")
+
+    all_chars = read_all_chars()
+    opts = SelectOption.objects.bulk_create(
+        [
+            SelectOption(field=primary_field, value=char, order=i)
+            for (i, char) in enumerate(all_chars)
+        ]
+    )
+
+    rows_values = [
+        {
+            f"{primary_field.db_column}": [opts[i].id, opts[i - 1 if i > 0 else -1].id],
+            f"{comparable_field.db_column}": char,
+        }
+        for (i, char) in enumerate(all_chars)
+    ]
+
+    rows = RowHandler().force_create_rows(user, table, rows_values)
+    return LinkRowOrderSetup(table, primary_field, rows, comparable_field)
+
+
+def setup_table_with_text_pk(user, data_fixture):
+    table = data_fixture.create_database_table(user=user)
+    primary_field = data_fixture.create_text_field(
+        table=table, order=1, name="Text", primary=True
+    )
+
+    all_chars = read_all_chars()
+
+    model = table.get_model()
+    rows = model.objects.bulk_create(
+        [model(**{primary_field.db_column: char}) for char in all_chars]
+    )
+    return LinkRowOrderSetup(table, primary_field, rows, primary_field)
+
+
+def setup_table_with_collaborator_pk(user, data_fixture):
+    table = data_fixture.create_database_table(user=user)
+    primary_field = data_fixture.create_multiple_collaborators_field(
+        table=table, order=1, name="collab", primary=True
+    )
+    comparable_field = data_fixture.create_text_field(table=table, order=2, name="f")
+
+    all_chars = read_all_chars()
+    workspace = table.database.workspace
+
+    User = get_user_model()
+    users = User.objects.bulk_create(
+        [
+            User(
+                first_name=char,
+                username=f"user{i}@test.it",
+                email=f"user{i}@test.it",
+            )
+            for (i, char) in enumerate(all_chars, start=1)
+        ]
+    )
+    WorkspaceUser.objects.bulk_create(
+        [
+            WorkspaceUser(workspace=workspace, user=usr, order=i)
+            for (i, usr) in enumerate(users, start=1)
+        ]
+    )
+
+    rows = RowHandler().force_create_rows(
+        user,
+        table,
+        [
+            {
+                f"{primary_field.db_column}": [{"id": usr.id, "name": usr.first_name}],
+                f"{comparable_field.db_column}": usr.first_name,
+            }
+            for usr in users
+        ],
+    )
+    return LinkRowOrderSetup(table, primary_field, rows, comparable_field)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "setup_func",
+    [
+        setup_table_with_single_select_pk,
+        setup_table_with_multiple_select_pk,
+        setup_table_with_text_pk,
+        setup_table_with_collaborator_pk,
+    ],
+)
+def test_text_field_type_get_order_with_collation(setup_func, data_fixture):
+    user = data_fixture.create_user()
+    res = setup_func(user, data_fixture)
+    table_b = res.table
+
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(
+        user=user, table_b=table_b
+    )
+
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    with open(
+        dir_path + "/../../../../../../tests/sorted_chars.txt",
+        mode="r",
+        encoding="utf-8",
+    ) as f:
+        sorted_chars = f.read()
+
+    model_a = table_a.get_model()
+    RowHandler().force_create_rows(
+        user,
+        table_a,
+        [{link_field.db_column: [row_b.id]} for row_b in res.rows],
+        model=model_a,
+    )
+
+    result = "".join(
+        model_a.objects.all()
+        .order_by_fields_string(link_field.db_column)
+        .annotate(res=F(f"{link_field.db_column}__{res.comparable_field.db_column}"))
+        .values_list("res", flat=True)
+    )
+
+    assert result == sorted_chars
+
+
+def setup_table_with_duration_pk(user, data_fixture):
+    table = data_fixture.create_database_table(user=user)
+    primary_field = data_fixture.create_duration_field(
+        table=table, order=1, primary=True, duration_format=H_M_S
+    )
+    comparable_field = data_fixture.create_number_field(table=table, order=2)
+
+    values = [
+        (1, 100),
+        (2, 50),
+        (3, 25),
+        (4, None),
+        (5, 75),
+        (6, 25),
+    ]
+
+    model = table.get_model()
+    rows = model.objects.bulk_create(
+        [
+            model(
+                id=index,
+                **{
+                    primary_field.db_column: timedelta(seconds=value) if value else None
+                },
+            )
+            for (index, value) in values
+        ]
+    )
+    return LinkRowOrderSetup(table, primary_field, comparable_field, rows)
+
+
+def setup_table_with_number_pk(user, data_fixture):
+    table = data_fixture.create_database_table(user=user)
+    primary_field = data_fixture.create_number_field(
+        table=table, order=1, primary=True, number_negative=True
+    )
+
+    values = [
+        (1, 100),
+        (2, 50),
+        (3, 25),
+        (4, None),
+        (5, 75),
+        (6, 25),
+    ]
+
+    model = table.get_model()
+    rows = model.objects.bulk_create(
+        [
+            model(id=index, **{primary_field.db_column: value})
+            for (index, value) in values
+        ]
+    )
+    return LinkRowOrderSetup(table, primary_field, rows)
+
+
+def setup_table_with_date_pk(user, data_fixture):
+    table = data_fixture.create_database_table(user=user)
+    primary_field = data_fixture.create_date_field(
+        table=table, order=1, primary=True, date_include_time=True
+    )
+
+    values = [
+        (1, "2024-12-06T11:30:00Z"),
+        (2, "2024-12-06T01:00:00Z"),
+        (3, "2024-12-05T07:00:00Z"),
+        (4, None),
+        (5, "2024-12-06T09:00:00Z"),
+        (6, "2024-12-05T07:00:00Z"),
+    ]
+
+    model = table.get_model()
+    rows = model.objects.bulk_create(
+        [
+            model(
+                id=index,
+                **{
+                    primary_field.db_column: datetime.fromisoformat(value)
+                    if value
+                    else None
+                },
+            )
+            for (index, value) in values
+        ]
+    )
+    return LinkRowOrderSetup(table, primary_field, rows)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "setup_func",
+    [
+        setup_table_with_duration_pk,
+        setup_table_with_number_pk,
+        setup_table_with_date_pk,
+    ],
+)
+def test_text_field_type_get_order_without_collation(setup_func, data_fixture):
+    user = data_fixture.create_user()
+    res = setup_func(user, data_fixture)
+    table_b = res.table
+
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(
+        user=user, table_b=table_b
+    )
+
+    values = [
+        (1, [1, 2]),
+        (2, [3]),
+        (3, [4]),
+        (4, []),
+        (5, [5]),
+        (6, [6]),
+        (7, [1, 6]),
+    ]
+
+    model_a = table_a.get_model()
+    rows = model_a.objects.bulk_create([model_a(id=index) for (index, _) in values])
+    for row, (_, linked_ids) in zip(rows, values):
+        for linked_id in linked_ids:
+            getattr(row, link_field.db_column).add(linked_id)
+
+    result = list(
+        model_a.objects.all()
+        .order_by_fields_string(link_field.db_column)
+        .values_list("id", flat=True)
+    )
+    assert result == [4, 2, 6, 5, 7, 1, 3]
+
+    result = list(
+        model_a.objects.all()
+        .order_by_fields_string(f"-{link_field.db_column}")
+        .values_list("id", flat=True)
+    )
+    assert result == [4, 3, 1, 7, 5, 6, 2]
+
+
+@pytest.mark.django_db
+def test_get_group_by_metadata_in_rows_with_many_to_many_field(data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+
+    row_b1, row_b2, row_b3 = RowHandler().force_create_rows(
+        user=user,
+        table=table_b,
+        rows_values=[{}, {}, {}],
+    )
+
+    RowHandler().force_create_rows(
+        user=user,
+        table=table_a,
+        rows_values=[
+            {
+                f"field_{link_a_to_b.id}": [],
+            },
+            {
+                f"field_{link_a_to_b.id}": [],
+            },
+            {
+                f"field_{link_a_to_b.id}": [row_b1.id],
+            },
+            {
+                f"field_{link_a_to_b.id}": [row_b1.id],
+            },
+            {
+                f"field_{link_a_to_b.id}": [row_b2.id],
+            },
+            {
+                f"field_{link_a_to_b.id}": [row_b2.id],
+            },
+            {
+                f"field_{link_a_to_b.id}": [
+                    row_b1.id,
+                    row_b2.id,
+                ],
+            },
+            {
+                f"field_{link_a_to_b.id}": [
+                    row_b2.id,
+                    row_b1.id,
+                ],
+            },
+            {
+                f"field_{link_a_to_b.id}": [
+                    row_b2.id,
+                    row_b3.id,
+                ],
+            },
+        ],
+    )
+
+    model = table_a.get_model()
+
+    queryset = model.objects.all().enhance_by_fields()
+    rows = list(queryset)
+
+    handler = ViewHandler()
+    counts = handler.get_group_by_metadata_in_rows([link_a_to_b], rows, queryset)
+
+    # Resolve the queryset, so that we can do a comparison.
+    for c in counts.keys():
+        counts[c] = list(counts[c])
+
+    assert counts == {
+        link_a_to_b: unordered(
+            [
+                {"count": 2, f"field_{link_a_to_b.id}": []},
+                {
+                    "count": 2,
+                    f"field_{link_a_to_b.id}": [row_b1.id],
+                },
+                {
+                    "count": 2,
+                    f"field_{link_a_to_b.id}": [row_b1.id, row_b2.id],
+                },
+                {
+                    "count": 2,
+                    f"field_{link_a_to_b.id}": [row_b2.id],
+                },
+                {
+                    "count": 1,
+                    f"field_{link_a_to_b.id}": [row_b2.id, row_b3.id],
+                },
+            ]
+        )
+    }
+
+
+@pytest.mark.django_db
+def test_list_rows_with_group_by_link_row_to_multiple_select_field(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+    multiple_select_field = data_fixture.create_multiple_select_field(table=table_b)
+    select_option_1 = data_fixture.create_select_option(
+        field=multiple_select_field,
+        order=1,
+        value="Option 1",
+        color="blue",
+    )
+    select_option_2 = data_fixture.create_select_option(
+        field=multiple_select_field,
+        order=2,
+        value="Option 2",
+        color="blue",
+    )
+    select_option_3 = data_fixture.create_select_option(
+        field=multiple_select_field,
+        order=3,
+        value="Option 2",
+        color="blue",
+    )
+    grid = data_fixture.create_grid_view(table=table_a)
+    data_fixture.create_view_group_by(view=grid, field=link_a_to_b)
+
+    row_b1, row_b2 = RowHandler().force_create_rows(
+        user=user,
+        table=table_b,
+        rows_values=[
+            {
+                f"field_{multiple_select_field.id}": [
+                    select_option_1.id,
+                    select_option_2.id,
+                    select_option_3.id,
+                ],
+            },
+            {
+                f"field_{multiple_select_field.id}": [
+                    select_option_2.id,
+                    select_option_3.id,
+                ],
+            },
+        ],
+    )
+
+    RowHandler().force_create_rows(
+        user=user,
+        table=table_a,
+        rows_values=[
+            {f"field_{link_a_to_b.id}": [row_b1.id]},
+            {f"field_{link_a_to_b.id}": [row_b1.id, row_b2.id]},
+        ],
+    )
+
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
+    response = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token}"})
+    response_json = response.json()
+
+    assert response_json["group_by_metadata"] == {
+        f"field_{link_a_to_b.id}": unordered(
+            [
+                {
+                    f"field_{link_a_to_b.id}": [row_b1.id],
+                    "count": 1,
+                },
+                {
+                    f"field_{link_a_to_b.id}": [row_b1.id, row_b2.id],
+                    "count": 1,
+                },
+            ]
+        ),
+    }
+
+
+@pytest.mark.django_db
+def test_get_group_by_metadata_in_rows_link_row_field(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+    multiple_select_field = data_fixture.create_multiple_select_field(table=table)
+    ms_option_1 = data_fixture.create_select_option(
+        field=multiple_select_field,
+        order=1,
+        value="A",
+        color="blue",
+    )
+    ms_option_2 = data_fixture.create_select_option(
+        field=multiple_select_field,
+        order=2,
+        value="B",
+        color="blue",
+    )
+
+    single_select_field = data_fixture.create_single_select_field(table=table)
+    ss_option_1 = data_fixture.create_select_option(
+        field=single_select_field,
+        order=1,
+        value="1",
+        color="blue",
+    )
+    ss_option_2 = data_fixture.create_select_option(
+        field=single_select_field,
+        order=2,
+        value="2",
+        color="blue",
+    )
+
+    RowHandler().force_create_rows(
+        user=user,
+        table=table,
+        rows_values=[
+            {
+                f"field_{text_field.id}": "Row 1",
+                f"field_{multiple_select_field.id}": [],
+                f"field_{single_select_field.id}": None,
+            },
+            {
+                f"field_{text_field.id}": "Row 2",
+                f"field_{multiple_select_field.id}": [],
+                f"field_{single_select_field.id}": ss_option_1.id,
+            },
+            {
+                f"field_{text_field.id}": "Row 3",
+                f"field_{multiple_select_field.id}": [ms_option_1.id],
+                f"field_{single_select_field.id}": ss_option_1.id,
+            },
+            {
+                f"field_{text_field.id}": "Row 4",
+                f"field_{multiple_select_field.id}": [ms_option_1.id],
+                f"field_{single_select_field.id}": ss_option_2.id,
+            },
+            {
+                f"field_{text_field.id}": "Row 5",
+                f"field_{multiple_select_field.id}": [ms_option_2.id],
+                f"field_{single_select_field.id}": ss_option_2.id,
+            },
+            {
+                f"field_{text_field.id}": "Row 6",
+                f"field_{multiple_select_field.id}": [ms_option_2.id],
+            },
+            {
+                f"field_{text_field.id}": "Row 7",
+                f"field_{multiple_select_field.id}": [
+                    ms_option_1.id,
+                    ms_option_2.id,
+                ],
+            },
+            {
+                f"field_{text_field.id}": "Row 8",
+                f"field_{multiple_select_field.id}": [
+                    ms_option_1.id,
+                    ms_option_2.id,
+                ],
+            },
+            {
+                f"field_{text_field.id}": "Row 9",
+                f"field_{multiple_select_field.id}": [
+                    ms_option_2.id,
+                    ms_option_1.id,
+                ],
+            },
+        ],
+    )
+
+    model = table.get_model()
+
+    queryset = model.objects.all().enhance_by_fields()
+    rows = list(queryset)
+
+    handler = ViewHandler()
+    counts = handler.get_group_by_metadata_in_rows(
+        [multiple_select_field, single_select_field], rows, queryset
+    )
+
+    # Resolve the queryset, so that we can do a comparison.
+    for c in counts.keys():
+        counts[c] = list(counts[c])
+
+    assert counts == {
+        multiple_select_field: unordered(
+            [
+                {"count": 2, f"field_{multiple_select_field.id}": []},
+                {
+                    "count": 2,
+                    f"field_{multiple_select_field.id}": [ms_option_1.id],
+                },
+                {
+                    "count": 2,
+                    f"field_{multiple_select_field.id}": [
+                        ms_option_1.id,
+                        ms_option_2.id,
+                    ],
+                },
+                {
+                    "count": 2,
+                    f"field_{multiple_select_field.id}": [ms_option_2.id],
+                },
+                {
+                    "count": 1,
+                    f"field_{multiple_select_field.id}": [
+                        ms_option_2.id,
+                        ms_option_1.id,
+                    ],
+                },
+            ]
+        ),
+        single_select_field: unordered(
+            [
+                {
+                    f"field_{single_select_field.id}": ss_option_1.id,
+                    f"field_{multiple_select_field.id}": [ms_option_1.id],
+                    "count": 1,
+                },
+                {
+                    f"field_{single_select_field.id}": ss_option_1.id,
+                    f"field_{multiple_select_field.id}": [],
+                    "count": 1,
+                },
+                {
+                    f"field_{single_select_field.id}": ss_option_2.id,
+                    f"field_{multiple_select_field.id}": [ms_option_1.id],
+                    "count": 1,
+                },
+                {
+                    f"field_{single_select_field.id}": ss_option_2.id,
+                    f"field_{multiple_select_field.id}": [ms_option_2.id],
+                    "count": 1,
+                },
+                {
+                    f"field_{single_select_field.id}": None,
+                    f"field_{multiple_select_field.id}": [
+                        ms_option_1.id,
+                        ms_option_2.id,
+                    ],
+                    "count": 2,
+                },
+                {
+                    f"field_{single_select_field.id}": None,
+                    f"field_{multiple_select_field.id}": [ms_option_2.id],
+                    "count": 1,
+                },
+                {
+                    f"field_{single_select_field.id}": None,
+                    f"field_{multiple_select_field.id}": [
+                        ms_option_2.id,
+                        ms_option_1.id,
+                    ],
+                    "count": 1,
+                },
+                {
+                    f"field_{single_select_field.id}": None,
+                    f"field_{multiple_select_field.id}": [],
+                    "count": 1,
+                },
+            ]
+        ),
+    }

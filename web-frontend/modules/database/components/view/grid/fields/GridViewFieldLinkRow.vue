@@ -48,6 +48,7 @@
       :view-id="field.link_row_limit_selection_view_id"
       :value="value"
       :multiple="true"
+      :persistent-field-options-key="getPersistentFieldOptionsKey(field.id)"
       @selected="addValue(value, $event)"
       @unselected="removeValue({}, value, $event.row.id)"
       @hidden="hideModal"
@@ -68,6 +69,7 @@
 <script>
 import { mapGetters } from 'vuex'
 
+import { getPersistentFieldOptionsKey } from '@baserow/modules/database/utils/field'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import linkRowField from '@baserow/modules/database/mixins/linkRowField'
@@ -131,6 +133,9 @@ export default {
     }
   },
   methods: {
+    getPersistentFieldOptionsKey(fieldId) {
+      return getPersistentFieldOptionsKey(fieldId)
+    },
     select() {
       // While the field is selected we want to open the select row toast by pressing
       // the enter key.

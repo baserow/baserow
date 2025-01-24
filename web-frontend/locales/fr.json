@@ -13,7 +13,9 @@
         "beta": "Bêta",
         "disabled": "Désactivé·e",
         "enabled": "Activé·e",
-        "summarize": "Résumer"
+        "summarize": "Résumer",
+        "or": "ou",
+        "and": "et"
     },
     "action": {
         "upload": "Envoyer",
@@ -45,7 +47,10 @@
         "reset": "Réinitialiser",
         "logout": "Déconnexion",
         "set": "Définir",
-        "backToHome": "Retour à l'accueil"
+        "backToHome": "Retour à l'accueil",
+        "close": "Fermer",
+        "hide": "Cacher",
+        "getStarted": "Commencer"
     },
     "adminType": {
         "settings": "Paramètres",
@@ -266,7 +271,9 @@
         "hasNotEmptyValue": "n'a pas de valeur vide",
         "hasValueContainsWord": "a une valeur contenant le mot",
         "hasValueLengthIsLowerThan": "a une longueur de valeur inférieure à",
-        "hasNotValueContainsWord": "n'a pas de valeur contenant le mot"
+        "hasNotValueContainsWord": "n'a pas de valeur contenant le mot",
+        "hasNoneSelectOptionEqual": "n'a pas d'option égale à",
+        "hasAnySelectOptionEqual": "à l'une des options égales à"
     },
     "viewType": {
         "grid": "Tableau",
@@ -436,7 +443,8 @@
         "uploadFile": "Téléverser un fichier",
         "uploadFileViaUrl": "Téléverser un fichier via une URL",
         "uploadFileDescription": "La section multipart `file` contenant le contenu du fichier.",
-        "uploadFileViaUrlDescription": "Téléverse un fichier sur Baserow en le récupérant depuis l'URL fournie."
+        "uploadFileViaUrlDescription": "Téléverse un fichier sur Baserow en le récupérant depuis l'URL fournie.",
+        "sendWebhookEventsDescription": "Un paramètre de requête qui déclenche des webhooks après l'opération, s'il vaut `y`, `yes`, `true`, `t`, `on`, `1`, `or` et s'il est vide. La valeur par défaut est `true`"
     },
     "exporterType": {
         "csv": "Exporter vers CSV"

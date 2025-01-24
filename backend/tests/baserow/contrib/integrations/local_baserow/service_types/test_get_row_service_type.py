@@ -767,7 +767,7 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
         "baserow_table_model": MagicMock(),
         "data": [],
     }
-    dispatch_data["public_formula_fields"] = field_names
+    dispatch_data["public_allowed_properties"] = field_names
 
     results = service_type.dispatch_transform(dispatch_data)
 
@@ -860,7 +860,7 @@ def test_can_dispatch_interesting_table(data_fixture):
         "internal": {},
     }
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
     # If this dispatch doesn't fail while all the fields are excluded from the result
     # means that the enhance_by_field is filtered to only used field.
@@ -877,7 +877,7 @@ def test_can_dispatch_interesting_table(data_fixture):
         order=0,
     )
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
     assert len(result.keys()) == 1 + 1
 
@@ -889,7 +889,7 @@ def test_can_dispatch_interesting_table(data_fixture):
         service=service, field=single_select_field, order_by=SORT_ORDER_ASC, order=0
     )
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
     assert len(result.keys()) == 1 + 1
 
     service_sort.delete()
@@ -898,5 +898,5 @@ def test_can_dispatch_interesting_table(data_fixture):
     service.search_query = "'A'"
     service.save()
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
     assert len(result.keys()) == 1 + 1

@@ -28,6 +28,16 @@
         <APIDocsParameter name="before_id" type="integer" :optional="true">
           {{ $t('apiDocsTableMoveRow.before') }}
         </APIDocsParameter>
+        <APIDocsParameter
+          name="send_webhook_events"
+          :optional="true"
+          type="any"
+        >
+          <MarkdownIt
+            class="api-docs__content"
+            :content="$t('apiDocs.sendWebhookEventsDescription')"
+          />
+        </APIDocsParameter>
       </ul>
     </div>
     <div class="api-docs__right">

@@ -13,7 +13,9 @@
         "beta": "Beta",
         "enabled": "Activado",
         "disabled": "Desactivado",
-        "summarize": "Resumir"
+        "summarize": "Resumir",
+        "or": "o",
+        "and": "y"
     },
     "action": {
         "upload": "Subir",
@@ -45,7 +47,10 @@
         "reset": "Restablecer",
         "logout": "Cerrar la sesión",
         "set": "Establecer",
-        "backToHome": "Volver al inicio"
+        "backToHome": "Volver al inicio",
+        "getStarted": "Empezar",
+        "close": "Cerrar",
+        "hide": "Ocultar"
     },
     "adminType": {
         "settings": "Ajustes",
@@ -266,7 +271,9 @@
         "hasNotValueContains": "no contiene un valor",
         "hasNotValueContainsWord": "el valor no contiene una palabra",
         "hasValueLengthIsLowerThan": "tiene un valor inferior a",
-        "hasValueContainsWord": "el valor contiene una palabra"
+        "hasValueContainsWord": "el valor contiene una palabra",
+        "hasAnySelectOptionEqual": "tiene cualquier opción de selección igual",
+        "hasNoneSelectOptionEqual": "no tiene la opción de seleccionar una igual"
     },
     "viewType": {
         "grid": "Cuadrícula",
@@ -436,7 +443,8 @@
         "uploadFileDescription": "La multiparte `archivo` que contiene el contenido del archivo.",
         "uploadFileViaUrl": "Subir el archivo a través de la URL",
         "uploadFileViaUrlDescription": "Sube un archivo a Baserow descargándolo de la URL proporcionada.",
-        "fileUploads": "Carga de archivos"
+        "fileUploads": "Carga de archivos",
+        "sendWebhookEventsDescription": "Un parámetro de consulta de bandera que activa los webhooks después de la operación, si se configura en `y`, `yes`, `true`, `t`, `on`, `1` o se deja vacío. El valor predeterminado es `true`"
     },
     "exporterType": {
         "csv": "Exportar a CSV"

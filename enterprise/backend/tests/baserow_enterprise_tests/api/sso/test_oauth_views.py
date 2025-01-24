@@ -52,7 +52,7 @@ def test_oauth2_login_feature_not_active(api_client, enterprise_data_fixture):
     )
 
     response = api_client.get(
-        reverse("api:enterprise:sso:oauth2:login", kwargs={"provider_id": provider.id}),
+        reverse("api:enterprise_sso_oauth2:login", kwargs={"provider_id": provider.id}),
         format="json",
     )
 
@@ -68,7 +68,7 @@ def test_oauth2_login_feature_not_active(api_client, enterprise_data_fixture):
 def test_oauth2_login_provider_doesnt_exist(api_client, enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
     response = api_client.get(
-        reverse("api:enterprise:sso:oauth2:login", kwargs={"provider_id": 50}),
+        reverse("api:enterprise_sso_oauth2:login", kwargs={"provider_id": 50}),
         format="json",
     )
 
@@ -88,7 +88,7 @@ def test_oauth2_login_with_url_param(api_client, enterprise_data_fixture):
     )
     response = api_client.get(
         reverse(
-            "api:enterprise:sso:oauth2:login",
+            "api:enterprise_sso_oauth2:login",
             kwargs={"provider_id": provider.id},
         )
         + "?original=templates&workspace_invitation_token=t&language=en",
@@ -118,7 +118,7 @@ def test_oauth2_callback_feature_not_active(api_client, enterprise_data_fixture)
 
     response = api_client.get(
         reverse(
-            "api:enterprise:sso:oauth2:callback", kwargs={"provider_id": provider.id}
+            "api:enterprise_sso_oauth2:callback", kwargs={"provider_id": provider.id}
         ),
         format="json",
     )
@@ -135,7 +135,7 @@ def test_oauth2_callback_feature_not_active(api_client, enterprise_data_fixture)
 def test_oauth2_callback_provider_doesnt_exist(api_client, enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
     response = api_client.get(
-        reverse("api:enterprise:sso:oauth2:callback", kwargs={"provider_id": 50}),
+        reverse("api:enterprise_sso_oauth2:callback", kwargs={"provider_id": 50}),
         format="json",
     )
 
@@ -167,7 +167,7 @@ def test_oauth2_callback_signup_success(api_client, enterprise_data_fixture):
 
         response = api_client.get(
             reverse(
-                "api:enterprise:sso:oauth2:callback",
+                "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
             + "?code=validcode",
@@ -211,7 +211,7 @@ def test_oauth2_callback_signup_set_language(api_client, enterprise_data_fixture
 
         response = api_client.get(
             reverse(
-                "api:enterprise:sso:oauth2:callback",
+                "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
             + "?code=validcode",
@@ -263,7 +263,7 @@ def test_oauth2_callback_signup_workspace_invitation(
 
         response = api_client.get(
             reverse(
-                "api:enterprise:sso:oauth2:callback",
+                "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
             + "?code=validcode",
@@ -318,7 +318,7 @@ def test_oauth2_callback_signup_workspace_invitation_email_mismatch(
 
         response = api_client.get(
             reverse(
-                "api:enterprise:sso:oauth2:callback",
+                "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
             + "?code=validcode",
@@ -360,7 +360,7 @@ def test_oauth2_callback_signup_disabled(api_client, enterprise_data_fixture):
 
         response = api_client.get(
             reverse(
-                "api:enterprise:sso:oauth2:callback",
+                "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
             + "?code=validcode",
@@ -408,7 +408,7 @@ def test_oauth2_callback_login_success(
 
         response = api_client.get(
             reverse(
-                "api:enterprise:sso:oauth2:callback",
+                "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
             + "?code=validcode",
@@ -460,7 +460,7 @@ def test_oauth2_callback_login_deactivated_user(
 
         response = api_client.get(
             reverse(
-                "api:enterprise:sso:oauth2:callback",
+                "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
             + "?code=validcode",
@@ -505,7 +505,7 @@ def test_oauth2_callback_login_different_provider(
 
         response = api_client.get(
             reverse(
-                "api:enterprise:sso:oauth2:callback",
+                "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
             + "?code=validcode",
@@ -549,7 +549,7 @@ def test_oauth2_callback_login_auth_flow_error(
 
         response = api_client.get(
             reverse(
-                "api:enterprise:sso:oauth2:callback",
+                "api:enterprise_sso_oauth2:callback",
                 kwargs={"provider_id": provider.id},
             )
             + "?code=validcode",

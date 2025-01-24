@@ -1,15 +1,6 @@
 {
   "premium": {
-    "user": {
-      "isStaff": "Is staff",
-      "isWorkspaceAdmin": "Is workspace admin",
-      "active": "Active",
-      "deactivated": "Deactivated"
-    },
     "adminType": {
-      "dashboard": "Dashboard",
-      "users": "Users",
-      "workspaces": "Workspaces",
       "licenses": "Manage licenses"
     },
     "viewType": {
@@ -19,7 +10,8 @@
     },
     "exporterType": {
       "json": "Export to JSON",
-      "xml": "Export to XML"
+      "xml": "Export to XML",
+      "excel": "Export to Excel"
     },
     "deactivated": "Available in premium version"
   },
@@ -90,87 +82,14 @@
   "registerLicenseForm": {
     "licenseKey": "License key"
   },
-  "workspacesAdminTable": {
-    "allWorkspaces": "All workspaces",
-    "id": "ID",
-    "name": "Name",
-    "members": "Members",
-    "applications": "Applications",
-    "created": "Created",
-    "rowCount": "Row count",
-    "freeUsers": "Free users",
-    "seatsTaken": "Seats taken",
-    "storageUsage": "Storage Used (MB)",
-    "usageHelpText": "Calculated nightly when the track workspace usage setting is enabled"
-  },
-  "editWorkspaceContext": {
-    "delete": "Permanently delete"
-  },
-  "deleteWorkspaceModal": {
-    "title": "Delete {name}",
-    "confirmation": "Are you sure you want to delete the workspace: {name}?",
-    "comment": "The workspace will be permanently deleted, including the related applications. It is not possible to undo this action.",
-    "delete": "Delete workspace {name}"
-  },
-  "activeUsers": {
-    "newUsers": "New users",
-    "activeUsers": "Active users"
-  },
-  "usersAdminTable": {
-    "allUsers": "All users",
-    "username": "Username",
-    "name": "Name",
-    "workspaces": "Workspaces",
-    "lastLogin": "Last login",
-    "dateJoined": "Signed up",
-    "active": "Active"
-  },
-  "editUserContext": {
-    "changePassword": "Change password",
-    "delete": "Permanently delete",
-    "impersonate": "Impersonate"
-  },
-  "changePasswordForm": {
-    "newPassword": "New password",
-    "repeatPassword": "Repeat password",
-    "changePassword": "Change password",
-    "error": {
-      "doesntMatch": "This field must match your password field."
-    }
-  },
-  "userForm": {
-    "fullName": "Full name",
-    "email": "Email",
-    "isActive": "Is active",
-    "warning": {
-      "changeEmail": "Changing this users email address means when they sign in they must use the new email address to do so. This must be communicated with that user.",
-      "inactiveUser": "When a user is marked as inactive they are prevented from signing in.",
-      "userStaff": "Making the user staff gives them admin access to all users, all workspaces and the ability to revoke your own staff permissions."
-    },
-    "error": {
-      "invalidName": "Please enter a valid full name, it must be longer than 2 letters and less than 150.",
-      "invalidEmail": "Please enter a valid e-mail address."
-    }
-  },
-  "changeUserPasswordModal": {
-    "changePassword": "Change password for {username}"
-  },
-  "deleteUserModal": {
-    "title": "Delete {username}",
-    "confirmation": "Are you sure you want to delete the user: {name}?",
-    "comment1": "The user account will be deleted, however the workspaces that user is a member of will continue existing. The users workspace will not be deleted, even if this user is the last user in the workspace. Deleting the last user in a workspace prevents anyone being able to access that workspace.",
-    "comment2": "After deleting a user it is possible for a new user to sign up again using the deleted users email address. To ensure they cannot sign up again instead deactivate the user and do not delete them.",
-    "delete": "Delete user {username}"
-  },
-  "editUserModal": {
-    "delete": "Delete user",
-    "edit": "Edit { username }"
-  },
   "tableJSONExporter": {
     "encoding": "Encoding"
   },
   "tableXMLExporter": {
     "encoding": "Encoding"
+  },
+  "tableExcelExporter": {
+    "includeHeader": "Include field names as header"
   },
   "kanbanViewStackContext": {
     "createCard": "Create card",
@@ -249,29 +168,12 @@
   "timelineGridRow": {
     "days": "0 | 1 day | {count} days"
   },
-  "dashboard": {
-    "title": "Dashboard",
-    "totals": "Totals",
-    "totalUsers": "Total users",
-    "totalWorkspaces": "Total workspaces",
-    "totalApplications": "Total applications",
-    "newUsers": "New users",
-    "newUsers24h": "New users last 24 hours",
-    "newUsers7days": "New users last 7 days",
-    "newUsers30days": "New users last 30 days",
-    "activeUsers": "Active users",
-    "activeUsers24h": "Active users last 24 hours",
-    "activeUsers7days": "Active users last 7 days",
-    "activeUsers30days": "Active users last 30 days",
-    "viewAll": "View all"
-  },
   "premiumFeatures": {
     "rowComments": "Row comments",
     "kanbanView": "Kanban view",
     "calendarView": "Calendar view",
     "timelineView": "Timeline view",
     "exports": "JSON and XML export",
-    "admin": "Admin functionality",
     "rowColoring": "Row coloring",
     "surveyForm": "Survey form",
     "publicLogoRemoval": "Public logo removal",

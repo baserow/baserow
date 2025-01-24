@@ -1,10 +1,8 @@
 <template>
-  <div>
-    <div class="box__message">
-      <div class="box__message-icon">
-        <i class="iconoir-mail-out"></i>
-      </div>
-      <p class="box__message-text">
+  <div class="auth__wrapper">
+    <div class="auth__wrapper auth__wrapper--small-centered">
+      <ButtonIcon icon="iconoir-mail-out" />
+      <p>
         {{ $t('verifyEmailAddress.confirmation') }}
       </p>
       <p v-if="emailMismatchWarning">

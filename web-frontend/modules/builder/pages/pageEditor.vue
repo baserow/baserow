@@ -1,6 +1,6 @@
 <template>
   <div class="page-editor">
-    <PageHeader :page="page" />
+    <PageHeader />
     <div class="layout__col-2-2 page-editor__content">
       <div :style="{ width: `calc(100% - ${panelWidth}px)` }">
         <PagePreview />
@@ -34,7 +34,7 @@ export default {
     return {
       workspace: this.workspace,
       builder: this.builder,
-      page: this.page,
+      currentPage: this.currentPage,
       mode,
       formulaComponent: ApplicationBuilderFormulaInput,
       applicationContext: this.applicationContext,
@@ -92,7 +92,7 @@ export default {
     next()
   },
   layout: 'app',
-  async asyncData({ store, params, error, $registry }) {
+  async asyncData({ store, params, error, $registry, app }) {
     const builderId = parseInt(params.builderId)
     const pageId = parseInt(params.pageId)
 
@@ -115,7 +115,14 @@ export default {
 
       const page = store.getters['page/getById'](builder, pageId)
 
-      await builderApplicationType.loadExtraData(builder, page, mode)
+      if (page.shared) {
+        return error({
+          statusCode: 404,
+          message: app.i18n.t('pageEditor.pageNotFound'),
+        })
+      }
+
+      await builderApplicationType.loadExtraData(builder, mode)
 
       await Promise.all([
         store.dispatch('dataSource/fetch', {
@@ -139,14 +146,17 @@ export default {
 
       data.workspace = workspace
       data.builder = builder
-      data.page = page
+      data.currentPage = page
     } catch (e) {
       // In case of a network error we want to fail hard.
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
       }
 
-      return error({ statusCode: 404, message: 'page not found.' })
+      return error({
+        statusCode: 404,
+        message: app.i18n.t('pageEditor.pageNotFound'),
+      })
     }
 
     return data
@@ -155,12 +165,13 @@ export default {
     applicationContext() {
       return {
         builder: this.builder,
-        page: this.page,
         mode,
       }
     },
     dataSources() {
-      return this.$store.getters['dataSource/getPageDataSources'](this.page)
+      return this.$store.getters['dataSource/getPageDataSources'](
+        this.currentPage
+      )
     },
     sharedPage() {
       return this.$store.getters['page/getSharedPage'](this.builder)
@@ -173,7 +184,7 @@ export default {
     dispatchContext() {
       return DataProviderType.getAllDataSourceDispatchContext(
         this.$registry.getAll('builderDataProvider'),
-        this.applicationContext
+        { ...this.applicationContext, page: this.currentPage }
       )
     },
     // Separate dispatch context for application level shared data sources
@@ -195,7 +206,7 @@ export default {
         this.$store.dispatch(
           'dataSourceContent/debouncedFetchPageDataSourceContent',
           {
-            page: this.page,
+            page: this.currentPage,
             data: this.dispatchContext,
             mode: this.mode,
           }
@@ -227,7 +238,7 @@ export default {
           this.$store.dispatch(
             'dataSourceContent/debouncedFetchPageDataSourceContent',
             {
-              page: this.page,
+              page: this.currentPage,
               data: newDispatchContext,
               mode: this.mode,
             }

@@ -1,7 +1,6 @@
 from django.db import transaction
 from django.utils import translation
 
-from baserow_premium.api.admin.views import APIListingView
 from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -10,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_202_ACCEPTED
 from rest_framework.views import APIView
 
+from baserow.api.admin.views import APIListingView
 from baserow.api.decorators import (
     map_exceptions,
     validate_body,

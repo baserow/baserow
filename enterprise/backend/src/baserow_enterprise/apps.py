@@ -174,6 +174,12 @@ class BaserowEnterpriseConfig(AppConfig):
             LocalBaserowPasswordAppAuthProviderType()
         )
 
+        from baserow_enterprise.integrations.common.sso.saml.app_auth_provider_types import (
+            SamlAppAuthProviderType,
+        )
+
+        app_auth_provider_type_registry.register(SamlAppAuthProviderType())
+
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
             AuthFormElementType,
@@ -187,6 +193,7 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.data_sync.data_sync_types import (
             GitHubIssuesDataSyncType,
             GitLabIssuesDataSyncType,
+            HubspotContactsDataSyncType,
             JiraIssuesDataSyncType,
             LocalBaserowTableDataSyncType,
         )
@@ -195,6 +202,13 @@ class BaserowEnterpriseConfig(AppConfig):
         data_sync_type_registry.register(JiraIssuesDataSyncType())
         data_sync_type_registry.register(GitHubIssuesDataSyncType())
         data_sync_type_registry.register(GitLabIssuesDataSyncType())
+        data_sync_type_registry.register(HubspotContactsDataSyncType())
+
+        from baserow_enterprise.data_sync.actions import (
+            UpdatePeriodicDataSyncIntervalActionType,
+        )
+
+        action_type_registry.register(UpdatePeriodicDataSyncIntervalActionType())
 
         # Create default roles
         post_migrate.connect(sync_default_roles_after_migrate, sender=self)

@@ -4,6 +4,9 @@ from zipfile import ZipFile
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
+from baserow.contrib.builder.data_providers.registries import (
+    builder_data_provider_type_registry,
+)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
@@ -182,6 +185,11 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
         :return: The result of dispatching the workflow action.
         """
 
-        return ServiceHandler().dispatch_service(
+        result = ServiceHandler().dispatch_service(
             workflow_action.service.specific, dispatch_context
         )
+
+        for data_provider in builder_data_provider_type_registry.get_all():
+            data_provider.post_dispatch(dispatch_context, workflow_action, result)
+
+        return result

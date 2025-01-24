@@ -1751,12 +1751,12 @@ def test_view_aggregations_cache_invalidation_with_dependant_fields(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    # Cache version should be incremented
+    # Cache version should not increment because the number field didn't change type.
     assert (
         cache.get(
             f"aggregation_version__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
         )
-        == 13
+        == 12
     )
 
     check_table_2_aggregation_values(
@@ -1767,7 +1767,7 @@ def test_view_aggregations_cache_invalidation_with_dependant_fields(
         f"aggregation_value__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
     ) == {
         "value": Decimal(22201),
-        "version": 13,
+        "version": 12,
     }
 
     # Delete number field
@@ -1784,13 +1784,13 @@ def test_view_aggregations_cache_invalidation_with_dependant_fields(
         f"aggregation_value__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
     ) == {
         "value": Decimal(22201),
-        "version": 13,
+        "version": 12,
     }
     assert (
         cache.get(
             f"aggregation_version__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
         )
-        == 14
+        == 13
     )
 
     check_table_2_aggregation_values({}, "after field deletion")
@@ -1800,13 +1800,13 @@ def test_view_aggregations_cache_invalidation_with_dependant_fields(
         f"aggregation_value__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
     ) == {
         "value": Decimal(22201),
-        "version": 13,
+        "version": 12,
     }
     assert (
         cache.get(
             f"aggregation_version__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
         )
-        == 14
+        == 13
     )
 
     # Restore deleted field
@@ -1836,13 +1836,13 @@ def test_view_aggregations_cache_invalidation_with_dependant_fields(
         f"aggregation_value__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
     ) == {
         "value": Decimal(22201),
-        "version": 13,
+        "version": 12,
     }
     assert (
         cache.get(
             f"aggregation_version__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
         )
-        == 14
+        == 13
     )
 
 
@@ -3673,22 +3673,15 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
 def test_list_rows_with_query_param_order(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(database=table.database)
     text_field = data_fixture.create_text_field(table=table, name="text")
     hidden_field = data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
-    )
+    password_field = data_fixture.create_password_field(table=table, name="password")
     grid_view = data_fixture.create_grid_view(
         table=table, user=user, create_options=False
     )
     data_fixture.create_grid_view_field_option(grid_view, text_field, hidden=False)
     data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
-    data_fixture.create_grid_view_field_option(grid_view, link_row_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, password_field, hidden=False)
     first_row = RowHandler().create_row(
         user, table, values={"text": "a", "hidden": "a"}, user_field_names=True
     )
@@ -3721,7 +3714,7 @@ def test_list_rows_with_query_param_order(api_client, data_fixture):
 
     # sorting on unsupported field
     response = api_client.get(
-        f"{url}?order_by=field_{link_row_field.id}",
+        f"{url}?order_by=field_{password_field.id}",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()
@@ -3733,22 +3726,15 @@ def test_list_rows_with_query_param_order(api_client, data_fixture):
 def test_list_rows_public_with_query_param_order(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(database=table.database)
     public_field = data_fixture.create_text_field(table=table, name="public")
     hidden_field = data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
-    )
+    password_field = data_fixture.create_password_field(table=table, name="password")
     grid_view = data_fixture.create_grid_view(
         table=table, user=user, public=True, create_options=False
     )
     data_fixture.create_grid_view_field_option(grid_view, public_field, hidden=False)
     data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
-    data_fixture.create_grid_view_field_option(grid_view, link_row_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, password_field, hidden=False)
 
     first_row = RowHandler().create_row(
         user, table, values={"public": "a", "hidden": "y"}, user_field_names=True
@@ -3783,7 +3769,7 @@ def test_list_rows_public_with_query_param_order(api_client, data_fixture):
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     response = api_client.get(
-        f"{url}?order_by=field_{link_row_field.id}",
+        f"{url}?order_by=field_{password_field.id}",
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -3794,24 +3780,17 @@ def test_list_rows_public_with_query_param_order(api_client, data_fixture):
 def test_list_rows_public_with_query_param_group_by(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    table_2 = data_fixture.create_database_table(database=table.database)
     public_field = data_fixture.create_text_field(table=table, name="public")
     public_field_2 = data_fixture.create_text_field(table=table, name="public2")
     hidden_field = data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
-    )
+    password_field = data_fixture.create_password_field(table=table, name="password")
     grid_view = data_fixture.create_grid_view(
         table=table, user=user, public=True, create_options=False
     )
     data_fixture.create_grid_view_field_option(grid_view, public_field, hidden=False)
     data_fixture.create_grid_view_field_option(grid_view, public_field_2, hidden=False)
     data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
-    data_fixture.create_grid_view_field_option(grid_view, link_row_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, password_field, hidden=False)
 
     first_row = RowHandler().create_row(
         user,
@@ -3880,7 +3859,7 @@ def test_list_rows_public_with_query_param_group_by(api_client, data_fixture):
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     response = api_client.get(
-        f"{url}?group_by=field_{link_row_field.id}",
+        f"{url}?group_by=field_{password_field.id}",
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -4234,7 +4213,6 @@ def test_grid_view_link_row_lookup_view(api_client, data_fixture):
     assert len(response_json["results"]) == 3
     assert response_json["results"][0]["id"] == i1.id
     assert response_json["results"][0]["value"] == "Test 1"
-    assert len(response_json["results"][0]) == 2
     assert response_json["results"][1]["id"] == i2.id
     assert response_json["results"][2]["id"] == i3.id
 

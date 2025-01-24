@@ -22,12 +22,6 @@ export default {
     DeviceSelector,
     PageActions,
   },
-  props: {
-    page: {
-      type: Object,
-      required: true,
-    },
-  },
   computed: {
     ...mapGetters({ deviceTypeSelected: 'page/getDeviceTypeSelected' }),
     deviceTypes() {

@@ -1,0 +1,56 @@
+.dashboard-widget {
+  border: 1px solid $palette-neutral-200;
+  box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
+  position: relative;
+
+  &:not(:first-child) {
+    margin-top: 24px;
+  }
+
+  @include rounded($rounded-md);
+}
+
+.dashboard-widget--selected {
+  outline: 1.5px solid #4e5cfe;
+  outline-offset: 8px;
+}
+
+.dashboard-widget--selectable {
+  border: 1px dashed #cdcecf;
+
+  &:hover {
+    cursor: pointer;
+  }
+}
+
+.dashboard-widget__loading {
+  min-height: 122.4px;
+  position: relative;
+
+  &::after {
+    @include loading;
+    @include absolute(50%, 50%, auto, auto);
+
+    content: '';
+    visibility: visible;
+    margin-top: -6px;
+    margin-right: -6px;
+  }
+}
+
+.dashboard-widget__name {
+  @include elevation($elevation-low);
+  @include absolute(-37px, auto, auto, 0);
+  @include rounded(80px);
+
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 12px;
+  letter-spacing: 0.2px;
+  background-color: #4e5cfe;
+  color: $white;
+  cursor: default;
+  padding: 4px 8px;
+  z-index: 1;
+}

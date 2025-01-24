@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fix invalid regular expression error raised when creating a formula with an invalid regex",
+    "issue_number": 1053,
+    "bullet_points": [],
+    "created_at": "2025-01-15"
+}

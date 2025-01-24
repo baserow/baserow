@@ -75,9 +75,9 @@
 }
 
 .group-bys__description {
-  flex: 0 0 50px;
-  width: 50px;
-  margin-right: 10px;
+  flex: 0 0 58px;
+  width: 58px;
+  margin-right: 2px;
 
   span {
     padding-left: 12px;
@@ -139,4 +139,8 @@
       background-color: $color-neutral-100;
     }
   }
+}
+
+.group-bys__add {
+  @include absolute(calc(100% + 4px), auto, auto, 0);
 }

@@ -20,17 +20,20 @@
           </template>
         </FormGroup>
         <FormGroup
-          v-if="!extraArgs?.noAlignment"
           horizontal-narrow
           small-label
           class="margin-bottom-2"
-          :label="$t('typographyThemeConfigBlock.textAlignment')"
+          :label="$t('typographyThemeConfigBlock.weight')"
         >
-          <HorizontalAlignmentsSelector v-model="values.body_text_alignment" />
+          <FontWeightSelector
+            v-model="values.body_font_weight"
+            :font="values.body_font_family"
+          />
           <template #after-input>
             <ResetButton
-              v-model="values.body_text_alignment"
-              :default-value="theme?.body_text_alignment"
+              v-if="values.body_font_family === theme?.body_font_family"
+              v-model="values.body_font_weight"
+              :default-value="theme?.body_font_weight"
             />
           </template>
         </FormGroup>
@@ -50,6 +53,7 @@
         >
           <PixelValueSelector
             v-model="values.body_font_size"
+            :default-value-when-empty="defaultValuesWhenEmpty[`body_font_size`]"
             class="typography-theme-config-block__input-number"
             @blur="$v.values[`body_font_size`].$touch()"
           />
@@ -57,6 +61,35 @@
             <ResetButton
               v-model="values.body_font_size"
               :default-value="theme?.body_font_size"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          v-if="!extraArgs?.noAlignment"
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('typographyThemeConfigBlock.textAlignment')"
+        >
+          <HorizontalAlignmentsSelector v-model="values.body_text_alignment" />
+          <template #after-input>
+            <ResetButton
+              v-model="values.body_text_alignment"
+              :default-value="theme?.body_text_alignment"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('typographyThemeConfigBlock.textAlignment')"
+        >
+          <HorizontalAlignmentsSelector v-model="values.body_text_alignment" />
+          <template #after-input>
+            <ResetButton
+              v-model="values.body_text_alignment"
+              :default-value="theme?.body_text_alignment"
             />
           </template>
         </FormGroup>
@@ -114,15 +147,20 @@
             horizontal-narrow
             small-label
             class="margin-bottom-2"
-            :label="$t('typographyThemeConfigBlock.textAlignment')"
+            :label="$t('typographyThemeConfigBlock.weight')"
           >
-            <HorizontalAlignmentsSelector
-              v-model="values[`heading_${level}_text_alignment`]"
+            <FontWeightSelector
+              v-model="values[`heading_${level}_font_weight`]"
+              :font="values[`heading_${level}_font_family`]"
             />
             <template #after-input>
               <ResetButton
-                v-model="values[`heading_${level}_text_alignment`]"
-                :default-value="theme?.[`heading_${level}_text_alignment`]"
+                v-if="
+                  values[`heading_${level}_font_family`] ===
+                  theme?.[`heading_${level}_font_family`]
+                "
+                v-model="values[`heading_${level}_font_weight`]"
+                :default-value="theme?.[`heading_${level}_font_weight`]"
               />
             </template>
           </FormGroup>
@@ -142,6 +180,9 @@
           >
             <PixelValueSelector
               v-model="values[`heading_${level}_font_size`]"
+              :default-value-when-empty="
+                defaultValuesWhenEmpty[`heading_${level}_font_size`]
+              "
               class="typography-theme-config-block__input-number"
               @blur="$v.values[`heading_${level}_font_size`].$touch()"
             />
@@ -149,6 +190,22 @@
               <ResetButton
                 v-model="values[`heading_${level}_font_size`]"
                 :default-value="theme?.[`heading_${level}_font_size`]"
+              />
+            </template>
+          </FormGroup>
+          <FormGroup
+            horizontal-narrow
+            small-label
+            class="margin-bottom-2"
+            :label="$t('typographyThemeConfigBlock.textAlignment')"
+          >
+            <HorizontalAlignmentsSelector
+              v-model="values[`heading_${level}_text_alignment`]"
+            />
+            <template #after-input>
+              <ResetButton
+                v-model="values[`heading_${level}_text_alignment`]"
+                :default-value="theme?.[`heading_${level}_text_alignment`]"
               />
             </template>
           </FormGroup>
@@ -194,7 +251,9 @@ import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/T
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
+import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
+import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
 
 const fontSizeMin = 1
 const fontSizeMax = 100
@@ -208,12 +267,22 @@ export default {
     ResetButton,
     HorizontalAlignmentsSelector,
     FontFamilySelector,
+    FontWeightSelector,
     PixelValueSelector,
   },
   mixins: [themeConfigBlock],
   data() {
     return {
       values: {},
+      defaultValuesWhenEmpty: {
+        body_font_size: DEFAULT_FONT_SIZE_PX,
+        heading_1_font_size: 24,
+        heading_2_font_size: 20,
+        heading_3_font_size: 16,
+        heading_4_font_size: 16,
+        heading_5_font_size: 14,
+        heading_6_font_size: 14,
+      },
     }
   },
   computed: {

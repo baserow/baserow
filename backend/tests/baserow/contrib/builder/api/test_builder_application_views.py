@@ -7,6 +7,7 @@ from rest_framework.status import HTTP_200_OK
 
 from baserow.api.user_files.serializers import UserFileSerializer
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
 
 
@@ -170,15 +171,19 @@ def test_get_builder_application(api_client, data_fixture):
             "name": workspace.name,
             "generative_ai_models_enabled": {},
         },
+        "login_page_id": None,
         "pages": [
             {
-                "id": application.page_set.get(shared=True).id,
+                "id": application.shared_page.id,
                 "builder_id": application.id,
                 "order": 1,
                 "name": "__shared__",
                 "path": "__shared__",
                 "path_params": [],
                 "shared": True,
+                "visibility": Page.VISIBILITY_TYPES.ALL.value,
+                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+                "roles": [],
             },
         ],
     }
@@ -225,15 +230,19 @@ def test_list_builder_applications(api_client, data_fixture):
                 "name": workspace.name,
                 "generative_ai_models_enabled": {},
             },
+            "login_page_id": None,
             "pages": [
                 {
-                    "id": application.page_set.get(shared=True).id,
+                    "id": application.shared_page.id,
                     "builder_id": application.id,
                     "order": 1,
                     "name": "__shared__",
                     "path": "__shared__",
                     "path_params": [],
                     "shared": True,
+                    "visibility": Page.VISIBILITY_TYPES.ALL.value,
+                    "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+                    "roles": [],
                 },
             ],
         }

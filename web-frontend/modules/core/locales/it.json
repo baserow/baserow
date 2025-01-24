@@ -826,5 +826,110 @@
     },
     "templateCard": {
         "viewMore": "Vedi di più"
+    },
+    "user": {
+        "isStaff": "È staff",
+        "isWorkspaceAdmin": "È amministratore del progetto",
+        "active": "Attivo",
+        "deactivated": "Disattivato"
+    },
+    "adminType": {
+        "dashboard": "Dashboard",
+        "users": "Utenti",
+        "workspaces": "Progetti",
+        "licenses": "Gestisci le licenze"
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "Tutti i progetti",
+        "id": "ID",
+        "name": "Nome",
+        "members": "Membri",
+        "applications": "Applicazioni",
+        "created": "Creato",
+        "freeUsers": "Utenti gratuiti",
+        "usageHelpText": "Calcolato ogni notte se l'impostazione è attiva",
+        "seatsTaken": "Licenze assegnate",
+        "rowCount": "Numero di righe",
+        "storageUsage": "Spazio disco utilizzato (MB)"
+    },
+    "editWorkspaceContext": {
+        "delete": "Eliminato in modo permanente"
+    },
+    "deleteWorkspaceModal": {
+        "title": "Elimina {name}",
+        "confirmation": "Sei sicuro di voler eliminare il progetto: {name}?",
+        "comment": "Il progetto verrà eliminato in modo permanente, così come tutte le applicazioni associate. Non è possibile annullare questa azione.",
+        "delete": "Elimina progetto {name}"
+    },
+    "activeUsers": {
+        "newUsers": "Nuovi utenti",
+        "activeUsers": "Utenti attivi"
+    },
+    "usersAdminTable": {
+        "allUsers": "Tutti gli utenti",
+        "id": "ID",
+        "username": "Nome utente",
+        "name": "Nome",
+        "workspaces": "Progetti",
+        "lastLogin": "Ultimo accesso",
+        "dateJoined": "Registrato",
+        "active": "Attivo"
+    },
+    "editUserContext": {
+        "changePassword": "Modifica password",
+        "delete": "Eliminato in modo permanente",
+        "impersonate": "Impersona"
+    },
+    "changePasswordForm": {
+        "newPassword": "Nuova password",
+        "repeatPassword": "Ripeti la password",
+        "changePassword": "Modifica la password",
+        "error": {
+            "doesntMatch": "Questo campo deve corrispondere al campo password."
+        }
+    },
+    "userForm": {
+        "fullName": "Nome completo",
+        "email": "E-mail",
+        "isActive": "È attivo",
+        "warning": {
+            "changeEmail": "Questo è l'indirizzo che l'utente dovrà utilizzare per la registrazione. Se lo modifichi, assicurati di comunicarlo alla persone interessata.",
+            "inactiveUser": "Quando un utente è contrassegnato come non attivo non potrà più effettuare l'accesso.",
+            "userStaff": "I permessi di staff danno al personale l'accesso come amministratore a tutti gli utenti e a tutti i progetti."
+        },
+        "error": {
+            "invalidName": "Inserisci un nome completo valido, deve essere più lungo di 2 lettere e meno di 150.",
+            "invalidEmail": "Inserisci un indirizzo e-mail valido."
+        }
+    },
+    "changeUserPasswordModal": {
+        "changePassword": "Modifica password per {username}"
+    },
+    "deleteUserModal": {
+        "title": "Elimina {username}",
+        "confirmation": "Sei sicuro di voler eliminare l'utente: {name}?",
+        "comment1": "L'account sarà eliminato. Tuttavia, i progetti di cui l'utente è membro continueranno a esistere. L'eliminazione dell'ultimo utente del progetto impedirà a chiunque di accedere a quel progetto.",
+        "comment2": "L'utente eliminato potrà nuovamente iscriversi utilizzando la stessa email. Per assicurarti di impedire una nuova iscrizione, disattiva l'utente anziché eliminarlo.",
+        "delete": "Elimina utente {username}"
+    },
+    "editUserModal": {
+        "delete": "Elimina utente",
+        "edit": "Modifica {username}"
+    },
+    "adminDashboard": {
+        "title": "Dashboard",
+        "totals": "Totali",
+        "totalUsers": "Totale utenti",
+        "totalWorkspaces": "Totale progetti",
+        "totalApplications": "Totale applicazioni",
+        "newUsers": "Nuovi utenti",
+        "newUsers24h": "Nuovi utenti nelle ultime 24 ore",
+        "newUsers7days": "Nuovi utenti nelle ultimi 7 giorni",
+        "newUsers30days": "Nuovi utenti nelle ultimi 30 giorni",
+        "activeUsers": "Utenti attivi",
+        "activeUsers24h": "Utenti attivi nelle ultime 24 ore",
+        "activeUsers7days": "Utenti attivi nelle ultimi 7 giorni",
+        "activeUsers30days": "Utenti attivi nelle ultimi 30 giorni",
+        "viewAll": "Vedi tutti"
     }
 }

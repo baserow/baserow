@@ -124,6 +124,19 @@ def test_file_field_type(data_fixture):
     assert row.file[1] == user_file_3.serialize()
     assert row.file[2] == user_file_2.serialize()
 
+    # test for https://gitlab.com/baserow/baserow/-/issues/2906
+    updated_rows = row_handler.update_rows(
+        user=user,
+        table=table,
+        rows_values=[{"id": row.id, file.db_column: None}],
+        send_realtime_update=False,
+        send_webhook_events=False,
+        skip_search_update=True,
+    )
+
+    assert updated_rows.updated_rows[0].id == row.id
+    assert getattr(updated_rows.updated_rows[0], file.db_column) == []
+
     row = row_handler.update_row_by_id(
         user=user,
         table=table,

@@ -34,6 +34,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
 
 
@@ -50,18 +51,32 @@ class PageHandler:
         """
 
         if base_queryset is None:
-            base_queryset = Page.objects
+            base_queryset = Page.objects_with_shared
 
         try:
-            return base_queryset.select_related("builder", "builder__workspace").get(
-                id=page_id
-            )
+            return base_queryset.select_related("builder__workspace").get(id=page_id)
         except Page.DoesNotExist:
             raise PageDoesNotExist()
 
     def get_shared_page(self, builder: Builder) -> Page:
-        return Page.objects.select_related("builder", "builder__workspace").get(
+        """
+        Returns the shared page for the given builder.
+        """
+
+        return Page.objects_with_shared.select_related("builder__workspace").get(
             builder=builder, shared=True
+        )
+
+    def get_pages(self, builder, base_queryset: Optional[QuerySet] = None):
+        """
+        Returns all the page in the current builder.
+        """
+
+        if base_queryset is None:
+            base_queryset = Page.objects_with_shared.all()
+
+        return base_queryset.filter(builder=builder).select_related(
+            "builder__workspace"
         )
 
     def create_shared_page(self, builder: Builder) -> Page:
@@ -152,7 +167,7 @@ class PageHandler:
             self.is_page_path_unique(
                 page.builder,
                 path,
-                base_queryset=Page.objects.exclude(
+                base_queryset=Page.objects_with_shared.exclude(
                     id=page.id
                 ),  # We don't want to conflict with the current page
                 raises=True,
@@ -187,7 +202,7 @@ class PageHandler:
         """
 
         if base_qs is None:
-            base_qs = Page.objects.filter(builder=builder, shared=False)
+            base_qs = Page.objects.filter(builder=builder)
 
         try:
             full_order = Page.order_objects(base_qs, order)
@@ -344,7 +359,7 @@ class PageHandler:
         :return: If the path is unique
         """
 
-        queryset = Page.objects if base_queryset is None else base_queryset
+        queryset = Page.objects_with_shared if base_queryset is None else base_queryset
 
         existing_paths = queryset.filter(builder=builder).values_list("path", flat=True)
 
@@ -387,7 +402,7 @@ class PageHandler:
     def export_page(
         self,
         page: Page,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
     ) -> List[PageDict]:
@@ -434,6 +449,9 @@ class PageHandler:
             elements=serialized_elements,
             data_sources=serialized_data_sources,
             workflow_actions=serialized_workflow_actions,
+            visibility=page.visibility,
+            role_type=page.role_type,
+            roles=page.roles,
         )
 
     def _ops_count_for_import_page(
@@ -586,6 +604,9 @@ class PageHandler:
             page_instance.path = serialized_page["path"]
             page_instance.path_params = serialized_page["path_params"]
         else:
+            # Note: serialized pages exported before the page visibility feature
+            # will not contain the `visibility`, `role_type` or `roles` keys,
+            # so we use the default values for all three values instead.
             page_instance = Page.objects.create(
                 builder=builder,
                 name=serialized_page["name"],
@@ -593,6 +614,9 @@ class PageHandler:
                 path=serialized_page["path"],
                 path_params=serialized_page["path_params"],
                 shared=False,
+                visibility=serialized_page.get("visibility", Page.VISIBILITY_TYPES.ALL),
+                role_type=serialized_page.get("role_type", Page.ROLE_TYPES.ALLOW_ALL),
+                roles=serialized_page.get("roles", []),
             )
 
         id_mapping["builder_pages"][serialized_page["id"]] = page_instance.id

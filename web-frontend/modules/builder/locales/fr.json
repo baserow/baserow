@@ -21,7 +21,9 @@
         "pathParamsTitle": "Paramètres de chemin",
         "pathParamsSubtitle": "Sont définis par - :parameter - dans le chemin",
         "pathParamsSubtitleTutorial": "Les paramètres de chemin peuvent être utilisés pour charger dynamiquement les données, en fonction du paramètre fourni. Ajoutez - :parameter - au chemin pour en ajouter un.",
-        "pathTitle": "Chemin"
+        "pathTitle": "Chemin",
+        "namePlaceholder": "Saisir un nom...",
+        "pathPlaceholder": "Entrez un chemin..."
     },
     "builderSettingTypes": {
         "integrationsName": "Intégrations",
@@ -44,7 +46,8 @@
     },
     "elementsContext": {
         "searchPlaceholder": "Chercher des éléments",
-        "noElements": "Aucun élément trouvé"
+        "noElements": "Aucun élément trouvé",
+        "noPageElements": "Aucun élément trouvé pour cette page"
     },
     "elementType": {
         "heading": "Titre",
@@ -78,7 +81,20 @@
         "choice": "Sélecteur",
         "choiceDescription": "Pour la sélection d'une ou plusieurs valeurs",
         "recordSelector": "Sélecteur d'enregistrement",
-        "recordSelectorDescription": "Pour sélectionner les enregistrements d'une source"
+        "recordSelectorDescription": "Pour sélectionner les enregistrements d'une source",
+        "dateTimePicker": "Sélecteur de date",
+        "dateTimePickerDescription": "Un champ de saisie de la date et de l'heure",
+        "headerDescription": "Un conteneur partagé entre plusieurs pages",
+        "footer": "Pied de page multi-page",
+        "footerDescription": "Un conteneur partagé entre plusieurs pages",
+        "notAllowedUnlessTop": "Cet élément n'est autorisé qu'en haut de la page",
+        "notAllowedUnlessBottom": "Cet élément n'est autorisé qu'en bas de page",
+        "notAllowedUnlessHeader": "Cet élément n'est autorisé qu'à l'intérieur de l'en-tête de la page",
+        "notAllowedUnlessFooter": "Cet élément n'est autorisé qu'à l'intérieur du pied de page",
+        "notAllowedInsideSameType": "Cet élément n'est pas autorisé dans un conteneur du même type",
+        "header": "En-tête multi-pages",
+        "notAllowedInsideContainer": "Cet élément n'est pas autorisé à l'intérieur d'un conteneur",
+        "notAllowedLocation": "Cet élément n'est pas autorisé à cet endroit"
     },
     "elementMenu": {
         "moveDown": "Descendre",
@@ -93,7 +109,8 @@
     "addElementModal": {
         "title": "Ajouter un élément",
         "searchPlaceholder": "Chercher des éléments",
-        "disabledElementTooltip": "Non disponible à l'intérieur de cet élément"
+        "disabledElementTooltip": "Non disponible à l'intérieur de cet élément",
+        "elementInProgress": "Ajout d'un élément..."
     },
     "duplicatePageJobType": {
         "duplicating": "Duplication",
@@ -470,7 +487,8 @@
         "nameFieldLabel": "Nom",
         "nameFieldPlaceholder": "Saisir un nom...",
         "integrationFieldLabel": "Intégration",
-        "authTitle": "Authentification"
+        "authTitle": "Authentification",
+        "addProvider": "Ajouter un fournisseur"
     },
     "widthTypes": {
         "full": "Pleine largeur",
@@ -525,7 +543,9 @@
         "none": "Aucun"
     },
     "pagePreview": {
-        "emptyMessage": "Cliquez pour créer le premier élément"
+        "emptyMessage": "Cliquez pour créer un élément",
+        "header": "EN-TÊTE",
+        "footer": "PIED DE PAGE"
     },
     "formContainerElementForm": {
         "submitButtonLabel": "Bouton de soumission",
@@ -866,7 +886,8 @@
         "noDataSources": "Aucune source de données disponible",
         "label": "Source des données",
         "shared": "partagée",
-        "pageOnly": "cette page"
+        "pageOnly": "cette page",
+        "noSharedDataSources": "Aucune source de données partagée disponible"
     },
     "serviceSchemaPropertySelector": {
         "label": "Propriété",
@@ -907,5 +928,54 @@
     "recordSelectorElement": {
         "emptyAdhocState": "Aucun enregistrement correspondant à '{query}' n'a été trouvé.",
         "emptyState": "Aucun enregistrement n'a été trouvé."
+    },
+    "common": {
+        "dateFormatTitle": "Format de date",
+        "dateFormatEU": "Européen",
+        "dateFormatUS": "Américain",
+        "dateFormatISO": "ISO",
+        "timeFormatTitle": "Format de l'heure",
+        "timeFormat24Hour": "24 heures",
+        "timeFormat12Hour": "12 heures"
+    },
+    "pageVisibilitySettingsTypes": {
+        "pageName": "Visibilité",
+        "logInPageInfoTitle": "Les utilisateurs anonymes seront redirigés",
+        "logInPageInfoMessage": "Les utilisateurs anonymes qui tentent d'accéder à cette page seront redirigés vers la page « {logInPageName} ».",
+        "logInPageWarningTitle": "La page de connexion n'est pas définie",
+        "logInPagewarningMessage": "Lorsqu'un utilisateur anonyme tente d'accéder à cette page, il est redirigé vers la page de connexion. Veuillez définir la page de connexion dans les paramètres généraux de l'application."
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "Inclure l'heure",
+        "invalidDateError": "Date non valide. Veuillez vous assurer que la date saisie correspond au format indiqué."
+    },
+    "themeSettings": {
+        "titleOverview": "Thème"
+    },
+    "pageVisibilitySettings": {
+        "title": "Visibilité",
+        "allVisitors": "Tous les visiteurs",
+        "loggedInVisitors": "Visiteurs connectés",
+        "description": "Qui peut consulter cette page ?"
+    },
+    "pageEditor": {
+        "pageNotFound": "Page non trouvée"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownLabel": "Page de connexion",
+        "pageDropdownPlaceholder": "Sélectionner une page",
+        "pageDropdownDescription": "Sélectionnez la page de connexion vers laquelle les utilisateurs non connectés doivent être redirigés lorsqu'ils tentent d'accéder à une page restreinte."
+    },
+    "multiPageContainerElementForm": {
+        "display": "Affichage",
+        "pagePosition": "Position",
+        "behaviour": "Comportement",
+        "selectAll": "Sélectionner tout",
+        "deselectAll": "Désélectionner tout"
+    },
+    "pageShareType": {
+        "all": "Sur toutes les pages",
+        "except": "Exclure les pages sélectionnées",
+        "only": "Uniquement les pages sélectionnées"
     }
 }

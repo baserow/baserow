@@ -68,11 +68,34 @@
         <FormGroup
           horizontal-narrow
           small-label
+          class="margin-bottom-2"
+          :label="$t('buttonThemeConfigBlock.weight')"
+        >
+          <FontWeightSelector
+            v-model="values.button_font_weight"
+            :font="values.button_font_family"
+          />
+          <template #after-input>
+            <ResetButton
+              v-if="values.button_font_family === theme?.button_font_family"
+              v-model="values.button_font_weight"
+              :default-value="theme?.button_font_weight"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
           :label="$t('buttonThemeConfigBlock.size')"
           :error-message="getError('button_font_size')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.button_font_size" />
+          <PixelValueSelector
+            v-model="values.button_font_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`button_font_size`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.button_font_size"
@@ -87,7 +110,12 @@
           :error-message="getError('button_border_size')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.button_border_size" />
+          <PixelValueSelector
+            v-model="values.button_border_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`button_border_size`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.button_border_size"
@@ -102,7 +130,12 @@
           :error-message="getError('button_border_radius')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.button_border_radius" />
+          <PixelValueSelector
+            v-model="values.button_border_radius"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`button_border_radius`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.button_border_radius"
@@ -117,7 +150,10 @@
           :error-message="getPaddingError()"
           class="margin-bottom-2"
         >
-          <PaddingSelector v-model="padding" />
+          <PaddingSelector
+            v-model="padding"
+            :default-values-when-empty="paddingDefaults"
+          />
           <template #after-input>
             <ResetButton
               v-model="padding"
@@ -281,9 +317,11 @@ import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 import WidthSelector from '@baserow/modules/builder/components/WidthSelector'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
+import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
 import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
 
 const pixelSizeMin = 1
 const pixelSizeMax = 100
@@ -319,6 +357,7 @@ export default {
     WidthSelector,
     HorizontalAlignmentsSelector,
     FontFamilySelector,
+    FontWeightSelector,
     PixelValueSelector,
     PaddingSelector,
   },
@@ -326,6 +365,11 @@ export default {
   data() {
     return {
       values: {},
+      defaultValuesWhenEmpty: {
+        button_font_size: DEFAULT_FONT_SIZE_PX,
+        button_border_size: minMax.button_border_size.min,
+        button_border_radius: minMax.button_border_size.min,
+      },
     }
   },
   computed: {
@@ -355,6 +399,12 @@ export default {
         this.values.button_vertical_padding = newValue.vertical
         this.values.button_horizontal_padding = newValue.horizontal
       },
+    },
+    paddingDefaults() {
+      return {
+        vertical: minMax.button_vertical_padding.min,
+        horizontal: minMax.button_horizontal_padding.min,
+      }
     },
     pixedSizeMin() {
       return pixelSizeMin

@@ -157,10 +157,16 @@ class GitHubIssuesDataSyncType(DataSyncType):
         "github_issues_repo",
         "github_issues_api_token",
     ]
-    serializer_field_names = [
+    request_serializer_field_names = [
         "github_issues_owner",
         "github_issues_repo",
         "github_issues_api_token",
+    ]
+    # The `github_issues_api_token` should not be included because it's a secret value
+    # that must only be possible to set and not get.
+    serializer_field_names = [
+        "github_issues_owner",
+        "github_issues_repo",
     ]
 
     def prepare_sync_job_values(self, instance):
@@ -172,7 +178,8 @@ class GitHubIssuesDataSyncType(DataSyncType):
 
     def get_properties(self, instance) -> List[DataSyncProperty]:
         # The `table_id` is not set if when just listing the properties using the
-        # `DataSyncPropertiesView` endpoint, but it will be set when creating the view.
+        # `DataSyncTypePropertiesView` endpoint, but it will be set when creating the
+        # view.
         if instance.table_id:
             LicenseHandler.raise_if_workspace_doesnt_have_feature(
                 DATA_SYNC, instance.table.database.workspace

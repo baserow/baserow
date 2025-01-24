@@ -1,0 +1,7 @@
+{
+    "type": "feature",
+    "message": "Boolean lookup filters: empty/not empty/none of/any/all",
+    "issue_number": 3103,
+    "bullet_points": [],
+    "created_at": "2024-10-21"
+}

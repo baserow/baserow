@@ -1,4 +1,13 @@
 {
+  "common": {
+    "dateFormatTitle": "Date format",
+    "dateFormatEU": "European",
+    "dateFormatUS": "US",
+    "dateFormatISO": "ISO",
+    "timeFormatTitle": "Time format",
+    "timeFormat24Hour": "24 hour",
+    "timeFormat12Hour": "12 hour"
+  },
   "dataProviderType": {
     "dataSource": "Data records",
     "dataSourceContext": "Available options",
@@ -67,6 +76,7 @@
   },
   "elementsContext": {
     "searchPlaceholder": "Search elements",
+    "noPageElements": "No elements found for this page",
     "noElements": "No elements found"
   },
   "elementType": {
@@ -99,7 +109,20 @@
     "repeat": "Repeat",
     "repeatDescription": "A repeatable set of elements",
     "recordSelector": "Record selector",
-    "recordSelectorDescription": "A related record selector"
+    "recordSelectorDescription": "A related record selector",
+    "dateTimePicker": "Date time picker",
+    "dateTimePickerDescription": "A date and time input field",
+    "header": "Multi-page header",
+    "headerDescription": "A container shared across pages",
+    "footer": "Multi-page footer",
+    "footerDescription": "A container shared across pages",
+    "notAllowedUnlessTop": "This element is allowed only at the top of the page",
+    "notAllowedUnlessBottom": "This element is allowed only at the bottom of the page",
+    "notAllowedUnlessHeader": "This element is allowed only inside the page header",
+    "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
+    "notAllowedInsideContainer": "This element is not allowed inside a container",
+    "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
+    "notAllowedLocation": "This element is not allowed at this location"
   },
   "addElementButton": {
     "label": "Element"
@@ -107,7 +130,7 @@
   "addElementModal": {
     "title": "Add new element",
     "searchPlaceholder": "Search elements",
-    "disabledElementTooltip": "Unavailable inside this element"
+    "elementInProgress": "Adding element..."
   },
   "elementMenu": {
     "moveUp": "Move up",
@@ -125,13 +148,16 @@
     "style": "Style",
     "visibility": "Visibility",
     "events": "Events",
-    "eventsTabDeactivatedNoEvents": "This element doesn't support any events"
+    "eventsTabDeactivatedNoEvents": "This element doesn't support any events",
+    "eventsTabInError": "One or more actions are misconfigured."
   },
   "emptySidePanelState": {
     "message": "Click on one of the elements to see more details"
   },
   "pagePreview": {
-    "emptyMessage": "Click to create first element"
+    "emptyMessage": "Click to create an element",
+    "header": "HEADER",
+    "footer": "FOOTER"
   },
   "elementForms": {
     "textInputPlaceholder": "Enter text...",
@@ -190,6 +216,10 @@
     "inputTypePasswordLabel": "Password",
     "passwordTypeWarning": "Passwords are sensitive data. Please be careful how you handle and store passwords in your application."
   },
+  "dateTimePickerElementForm": {
+    "includeTime": "Include time",
+    "invalidDateError": "Invalid date. Please make sure the input date matches the given format."
+  },
   "imageElementForm": {
     "fileLabel": "Image",
     "invalidUrlError": "URL is invalid",
@@ -228,9 +258,12 @@
   "userSourceSettings": {
     "titleAddUserSource": "New user source",
     "titleUpdateUserSource": "Edit user source",
-    "noUserSourceMessage": "You have not yet add a user source to this application. You must add a user source if you want users being able to authenticate your application.",
+    "noUserSourceMessage": "You have not yet added a user source to this application. You must add a user source if you want users being able to authenticate your application.",
     "titleOverview": "User sources",
     "addUserSource": "Add user source"
+  },
+  "themeSettings": {
+    "titleOverview": "Theme"
   },
   "generalSettings": {
     "titleOverview": "General",
@@ -323,10 +356,23 @@
   "pageSettingsTypes": {
     "pageName": "Page"
   },
+  "pageVisibilitySettingsTypes": {
+    "pageName": "Visibility",
+    "logInPageWarningTitle": "The Login Page is not set",
+    "logInPagewarningMessage": "When an anonymous user attempts to access this page, they will be redirected to a login page. Please set the Login Page in the Application's General settings.",
+    "logInPageInfoTitle": "Anonymous users will be redirected",
+    "logInPageInfoMessage": "Anonymous users attempting to access this page will be redirected to the {logInPageName} page."
+  },
   "pageSettings": {
     "title": "Page",
     "pageUpdatedTitle": "Changed",
     "pageUpdatedDescription": "The page settings have been updated."
+  },
+  "pageVisibilitySettings": {
+    "title": "Visibility",
+    "allVisitors": "All visitors",
+    "loggedInVisitors": "Logged-in visitors",
+    "description": "Who can see this page"
   },
   "pageForm": {
     "defaultName": "Page",
@@ -343,6 +389,9 @@
   "pathParamTypes": {
     "textName": "Text",
     "numericName": "Numeric"
+  },
+  "pageEditor": {
+    "pageNotFound": "Page not found"
   },
   "publicPage": {
     "siteNotFound": "Site not found",
@@ -400,6 +449,11 @@
     "paddingLabel": "Padding",
     "marginLabel": "Margin"
   },
+  "radiusStyleForm": {
+    "cornerRadiusLabel": "Corner radius",
+    "backgroundRadiusLabel": "Background",
+    "borderRadiusLabel": "Border"
+  },
   "themeConfigBlockType": {
     "color": "Colors",
     "page": "Page",
@@ -417,7 +471,10 @@
     "borderColor": "Border",
     "successColor": "Success",
     "warningColor": "Warning",
-    "errorColor": "Error"
+    "errorColor": "Error",
+    "customColors": "Custom colors",
+    "addCustomColor": "Add custom color",
+    "customColorPrefix": "Custom"
   },
   "pageThemeConfigBlock": {
     "backgroundColor": "Background color",
@@ -438,9 +495,22 @@
     "headingValue": "Heading <h{i}>",
     "color": "Color",
     "size": "Size",
+    "weight": "Weight",
     "textAlignment": "Alignment",
     "bodyLabel": "Body",
     "fontFamily": "Font"
+  },
+  "fontWeightType": {
+    "thin": "Thin",
+    "extraLight": "Extra-light",
+    "light": "Light",
+    "regular": "Regular",
+    "medium": "Medium",
+    "semiBold": "Semi-bold",
+    "bold": "Bold",
+    "extraBold": "Extra-bold",
+    "black": "Black",
+    "extraBlack": "Extra-black"
   },
   "buttonThemeConfigBlock": {
     "backgroundColor": "Background color",
@@ -456,7 +526,8 @@
     "borderRadius": "Border radius",
     "padding": "Padding",
     "fontFamily": "Font",
-    "size": "Font size"
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "linkThemeConfigBlock": {
     "color": "Color",
@@ -464,7 +535,9 @@
     "defaultState": "Default state",
     "hoverState": "Hover state",
     "alignment": "Alignment",
-    "fontFamily": "Font"
+    "fontFamily": "Font",
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "inputThemeConfigBlock": {
     "label": "Label",
@@ -476,7 +549,8 @@
     "borderRadius": "Border radius",
     "padding": "Padding",
     "fontFamily": "Font",
-    "size": "Font size"
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "imageThemeConfigBlock": {
     "alignment": "Alignment",
@@ -489,7 +563,9 @@
     "imageConstraintCover": "Cover",
     "imageConstraintCoverDisabled": "Unavailable with empty max height.",
     "imageConstraintContain": "Contain",
-    "imageConstraintContainDisabled": "Unavailable with a max height."
+    "imageConstraintContainDisabled": "Unavailable with a max height.",
+    "imageBorderRadiusLabel": "Border radius",
+    "imageBorderRadiusPlaceholder": "Enter the image border radius."
   },
   "tableThemeConfigBlock": {
     "borderColor": "Border color",
@@ -502,6 +578,7 @@
     "fontFamily": "Font",
     "size": "Size",
     "fontSize": "Font size",
+    "fontWeight": "Font weight",
     "table": "Table",
     "header": "Header",
     "alignment": "Alignment",
@@ -600,7 +677,10 @@
     "orientationHorizontal": "Horizontal",
     "buttonLoadMoreLabel": "Show more label",
     "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
-    "propertySelectorMissingArrays": "No multiple valued fields found to repeat with."
+    "propertySelectorMissingArrays": "No multiple valued fields found to repeat with.",
+    "gapLabel": "Space between repetitions",
+    "gapVerticalLabel": "Vertical",
+    "gapHorizontalLabel": "Horizontal"
   },
   "recordSelectorElement": {
     "emptyAdhocState": "No records matching '{query}' found.",
@@ -684,7 +764,13 @@
     "nameFieldLabel": "Name",
     "nameFieldPlaceholder": "Enter a name...",
     "authTitle": "Authentication",
-    "integrationFieldLabel": "Integration"
+    "integrationFieldLabel": "Integration",
+    "addProvider": "Add provider"
+  },
+  "builderLoginPageForm": {
+    "pageDropdownLabel": "Login Page",
+    "pageDropdownPlaceholder": "Select a page",
+    "pageDropdownDescription": "Select the Login Page that non-logged in users should be redirected to when they attempt to access a restricted page."
   },
   "formContainerElement": {
     "submitDeactivatedText": "Complete all required fields to submit",
@@ -806,7 +892,20 @@
   "dataSourceDropdown": {
     "label": "Data source",
     "noDataSources": "No data sources available",
+    "noSharedDataSources": "No shared data sources available",
     "shared": "shared",
     "pageOnly": "this page"
+  },
+  "multiPageContainerElementForm": {
+    "pagePosition": "Position",
+    "behaviour": "Behaviour",
+    "display": "Display",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all"
+  },
+  "pageShareType": {
+    "all": "On all pages",
+    "only": "Only on selected pages",
+    "except": "Exclude selected pages"
   }
 }

@@ -12,7 +12,12 @@ from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     IncompatibleField,
 )
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import (
+    DEFAULT_DECIMAL_SEPARATOR,
+    DEFAULT_THOUSAND_SEPARATOR,
+    NUMBER_SEPARATORS,
+    Field,
+)
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.core.db import specific_iterator
 from baserow.core.utils import split_comma_separated_string
@@ -174,6 +179,20 @@ def extract_user_field_names_from_params(query_params):
     return str_to_bool(value)
 
 
+def extract_send_webhook_events_from_params(query_params) -> bool:
+    """
+    Extracts the send_webhook_events parameter from the query_params and returns
+    boolean value. Defaults to true if not provided or empty.
+    """
+
+    value = query_params.get("send_webhook_events")
+
+    if value is None or value == "":
+        return True
+
+    return str_to_bool(value)
+
+
 @dataclass
 class LinkedTargetField:
     field_id: int
@@ -276,3 +295,13 @@ def extract_link_row_joins_from_request(
                 raise FieldDoesNotExist() from ex
 
     return list(link_row_joins.values())
+
+
+def get_thousand_and_decimal_separator(value):
+    thousand_sep, decimal_sep = NUMBER_SEPARATORS.get(value, {}).get("separators", None)
+    if not thousand_sep or not decimal_sep:
+        thousand_sep, decimal_sep = (
+            DEFAULT_THOUSAND_SEPARATOR,
+            DEFAULT_DECIMAL_SEPARATOR,
+        )
+    return thousand_sep.value, decimal_sep.value

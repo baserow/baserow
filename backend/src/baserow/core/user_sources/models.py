@@ -37,7 +37,7 @@ class UserSource(
     UserSources provide a way to configure user authentication source within an
     application like the Application Builder.
 
-    An user_source can be associated with an application and it stores the data
+    A user_source can be associated with an application, and it stores the data
     required to use the corresponding external service. This data may include an API
     key for accessing an external database service, a user account for querying a
     Baserow database, as well as the necessary URL, credentials, and headers for making

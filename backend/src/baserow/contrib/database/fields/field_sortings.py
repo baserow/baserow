@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
+from django.db.models import F
 from django.db.models.expressions import OrderBy
 
 
@@ -18,7 +19,7 @@ class OptionallyAnnotatedOrderBy:
     order by expression.
     """
 
-    order: OrderBy
+    order: OrderBy | List[OrderBy]
     annotation: Optional[Dict[str, Any]] = None
     can_be_indexed: bool = False
 
@@ -29,13 +30,20 @@ class OptionallyAnnotatedOrderBy:
         of the OrderBy order.
 
         OrderBy expression for a field is always F(field_expression) or
-        Collate(F(field_expression)).
+        Collate(F(field_expression)) or a django Expression that can be
+        stringified.
         """
 
         if self.collation:
             return self.order.expression.source_expressions[0].name
-        else:
+        elif isinstance(self.order.expression, F):
             return self.order.expression.name
+        else:
+            return str(self.order.expression)
+
+    @property
+    def order_bys(self) -> List[OrderBy]:
+        return self.order if isinstance(self.order, (list, tuple)) else [self.order]
 
     @property
     def collation(self) -> str:

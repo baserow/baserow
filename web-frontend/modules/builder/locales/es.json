@@ -30,7 +30,9 @@
         "nameSubtitle": "Nombre único de la página",
         "pathParamsSubtitle": "Están definidos por el :parámetro en la ruta",
         "pathParamsSubtitleTutorial": "Los parámetros de ruta se pueden utilizar para cargar datos dinámicamente, en función del parámetro proporcionado. Añada el :parámetro a la ruta para añadir uno.",
-        "pathTitle": "Ruta"
+        "pathTitle": "Ruta",
+        "namePlaceholder": "Introduzca un nombre...",
+        "pathPlaceholder": "Introduzca una ruta..."
     },
     "headingElementForm": {
         "textError": "El valor es inválido.",
@@ -152,7 +154,20 @@
         "choice": "Selección",
         "choiceDescription": "Para la selección de uno o varios valores",
         "recordSelector": "Selector de registro",
-        "recordSelectorDescription": "Un selector de registros relacionados"
+        "recordSelectorDescription": "Un selector de registros relacionados",
+        "dateTimePicker": "Selector de fecha y hora",
+        "dateTimePickerDescription": "Un campo de entrada de fecha y hora",
+        "headerDescription": "Contenedor compartido en varias páginas",
+        "footer": "Pie de página de varias páginas",
+        "footerDescription": "Un contenedor compartido entre páginas",
+        "notAllowedUnlessBottom": "Este elemento solo está permitido en la parte inferior de la página",
+        "notAllowedUnlessHeader": "Este elemento solo está permitido dentro del encabezado de la página",
+        "notAllowedUnlessFooter": "Este elemento solo está permitido dentro del pie de página",
+        "notAllowedInsideContainer": "Este elemento no está permitido dentro de un contenedor",
+        "notAllowedInsideSameType": "Este elemento no está permitido en un contenedor del mismo tipo",
+        "notAllowedLocation": "Este elemento no está permitido en esta ubicación",
+        "header": "Encabezado de varias páginas",
+        "notAllowedUnlessTop": "Este elemento solo está permitido en la parte superior de la página"
     },
     "verticalAlignmentSelector": {
         "alignmentTop": "Arriba",
@@ -191,7 +206,8 @@
         "nameFieldLabel": "Nombre",
         "nameFieldPlaceholder": "Introduce un nombre...",
         "integrationFieldLabel": "Integración",
-        "authTitle": "Autenticación"
+        "authTitle": "Autenticación",
+        "addProvider": "Añadir proveedor"
     },
     "elementForms": {
         "urlInputPlaceholder": "Introducir URL...",
@@ -369,7 +385,8 @@
     "addElementModal": {
         "title": "Añadir nuevo elemento",
         "searchPlaceholder": "Buscar elementos",
-        "disabledElementTooltip": "No disponible dentro de este elemento"
+        "disabledElementTooltip": "No disponible dentro de este elemento",
+        "elementInProgress": "Añadiendo elemento..."
     },
     "domainTypes": {
         "subDomain": "Subdominio de {dominio}",
@@ -410,7 +427,8 @@
     },
     "elementsContext": {
         "searchPlaceholder": "Buscar elementos",
-        "noElements": "No se han encontrado elementos"
+        "noElements": "No se han encontrado elementos",
+        "noPageElements": "Sin elementos para esta página"
     },
     "textElementForm": {
         "textTitle": "Texto",
@@ -481,7 +499,9 @@
         "emptyValue": "Texto del enlace vacío..."
     },
     "pagePreview": {
-        "emptyMessage": "Haz clic para crear el primer elemento"
+        "emptyMessage": "Haz clic para crear un elemento",
+        "header": "ENCABEZAMIENTO",
+        "footer": "PIE DE PÁGINA"
     },
     "eventTypes": {
         "submitLabel": "Al enviar",
@@ -850,7 +870,8 @@
         "label": "Origen de los datos",
         "noDataSources": "Sin origen para los datos disponibles",
         "shared": "compartido",
-        "pageOnly": "esta página"
+        "pageOnly": "esta página",
+        "noSharedDataSources": "No hay fuentes de datos compartidas"
     },
     "recordSelectorElementForm": {
         "selectRecordsFrom": "Seleccionar registros de",
@@ -887,5 +908,54 @@
     "recordSelectorElement": {
         "emptyState": "No se han encontrado registros.",
         "emptyAdhocState": "No se han encontrado registros que coincidan con '{query}'."
+    },
+    "common": {
+        "dateFormatTitle": "Formato de la fecha",
+        "dateFormatEU": "Europeo",
+        "dateFormatISO": "ISO",
+        "timeFormatTitle": "Formato de hora",
+        "timeFormat24Hour": "24 horas",
+        "timeFormat12Hour": "12 horas",
+        "dateFormatUS": "Americano"
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "Incluir fecha y hora",
+        "invalidDateError": "Fecha no válida. Asegúrese de que la fecha ingresada coincida con el formato indicado."
+    },
+    "themeSettings": {
+        "titleOverview": "Tema"
+    },
+    "pageVisibilitySettingsTypes": {
+        "pageName": "Divulgación",
+        "logInPageWarningTitle": "La página de inicio de sesión no está configurada",
+        "logInPagewarningMessage": "Cuando un usuario anónimo intente acceder a esta página, será redirigido a una página de inicio de sesión. Establezca la página de inicio de sesión en la configuración general de la aplicación.",
+        "logInPageInfoMessage": "Los usuarios anónimos que intenten acceder a esta página serán redirigidos a la página {logInPageName}.",
+        "logInPageInfoTitle": "Los usuarios anónimos serán redirigidos"
+    },
+    "pageVisibilitySettings": {
+        "allVisitors": "Todos los visitantes",
+        "loggedInVisitors": "Visitantes registrados",
+        "description": "¿Quién puede ver esta página?",
+        "title": "Visibilidad"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownLabel": "Página de inicio de sesión",
+        "pageDropdownPlaceholder": "Seleccione una página",
+        "pageDropdownDescription": "Seleccione la página de inicio de sesión a la que deben redirigirse los usuarios que no hayan iniciado sesión cuando intenten acceder a una página restringida."
+    },
+    "multiPageContainerElementForm": {
+        "behaviour": "Comportamiento",
+        "display": "Visualizar",
+        "pagePosition": "Posición",
+        "selectAll": "Seleccionar todo",
+        "deselectAll": "Deseleccionar todo"
+    },
+    "pageShareType": {
+        "all": "En todas las páginas",
+        "only": "Solo en páginas seleccionadas",
+        "except": "Excluir páginas seleccionadas"
+    },
+    "pageEditor": {
+        "pageNotFound": "Página no encontrada"
     }
 }

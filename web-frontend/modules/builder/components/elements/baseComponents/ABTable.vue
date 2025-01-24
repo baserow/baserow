@@ -25,8 +25,13 @@
       </slot>
     </template>
     <template #empty-state>
-      <div class="ab-table__empty-message">
-        {{ emptyStateMessage }}
+      <div class="ab-table__empty-state">
+        <template v-if="contentLoading">
+          <div class="loading-spinner" />
+        </template>
+        <template v-else>
+          {{ $t('abTable.empty') }}
+        </template>
       </div>
     </template>
   </BaserowTable>

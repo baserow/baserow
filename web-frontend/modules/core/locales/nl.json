@@ -276,7 +276,8 @@
         "errorLinkExpiredTitle": "Link verlopen",
         "errorLinkExpiredMessage": "De link voor het resetten van je wachtwoord is verlopen. Vraag een nieuwe link aan.",
         "disabled": "Wachtwoord opnieuw instellen is uitgeschakeld",
-        "disabledMessage": "Het is niet mogelijk om het wachtwoord te resetten omdat het is uitgeschakeld."
+        "disabledMessage": "Het is niet mogelijk om het wachtwoord te resetten omdat het is uitgeschakeld.",
+        "message": "Je kunt nu inloggen op Baserow met je nieuwe wachtwoord."
     },
     "signup": {
         "headTitle": "Nieuw account aanmaken",
@@ -290,7 +291,10 @@
         "passwordRepeatPlaceholder": "Bevestig je wachtwoord.",
         "loginText": "Heb je al een account?",
         "emailPlaceholder": "Voer je e-mailadres in..",
-        "login": "Inloggen"
+        "login": "Inloggen",
+        "privacyPolicy": "Privacybeleid",
+        "agreeTerms": "Door een account aan te maken, gaat u akkoord met de {0} {1} {2}",
+        "terms": "Servicevoorwaarden"
     },
     "forgotPassword": {
         "title": "Wachtwoord vergeten",
@@ -299,7 +303,9 @@
         "confirmation": "Als je e-mailadres in onze database voorkomt, ontvangt je binnen enkele minuten op je e-mailadres een link om je wachtwoord opnieuw in te stellen.",
         "disabled": "Wachtwoord resetten is uitgeschakeld",
         "disabledMessage": "Het is niet mogelijk om een wachtwoord opnieuw in te stellen omdat het is uitgeschakeld.",
-        "loginText": "Heb je al een account en wachtwoord?"
+        "loginText": "Heb je al een account en wachtwoord?",
+        "confirmationTitle": "Controleer je e-mail",
+        "goBack": "Ga terug"
     },
     "settings": {
         "settingsTitle": "Beheerdersinstellingen",
@@ -752,7 +758,13 @@
         "anthropicModelsDescription": "Geef een lijst van door komma's gescheiden [Anthropic modellen] (https://docs.anthropic.com/en/docs/about-claude/models) die kunnen worden gebruikt in Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
         "mistralApiKeyLabel": "API-sleutel",
         "mistralModelsDescription": "Geef een lijst met door komma's gescheiden [Mistral modellen] (https://docs.mistral.ai/getting-started/models/models_overview/) die kunnen worden gebruikt in Baserow. (bijv. `mistral-large-latest,mistral-small-latest`)",
-        "mistralApiKeyDescription": "Geef een Mistral API-sleutel als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.mistral.ai/getting-started/quickstart/)."
+        "mistralApiKeyDescription": "Geef een Mistral API-sleutel als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.mistral.ai/getting-started/quickstart/).",
+        "openRouterApiKeyLabel": "API-sleutel",
+        "openRouterOrganization": "Organisatie (optioneel)",
+        "openRouter": "OpenRouter",
+        "openRouterModelsLabel": "Ingeschakelde modellen",
+        "openRouterModelsDescription": "Geef een lijst met door komma's gescheiden [OpenRouter modellen] (https://openrouter.ai/models) die kunnen worden gebruikt in Baserow. (bijv. `openai/gpt-4o,anthropic/claude-3-haiku`)",
+        "openRouterApiKeyDescription": "Geef een OpenRouter API-key op als u de integratie wilt inschakelen. [get an API key](https://openrouter.ai/settings/keys)."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Generatieve AI-instellingen",
@@ -892,5 +904,117 @@
         "invalidResourceMessage": "Het geleverde bestand is geen geldige Baserow export.",
         "untrustedPublicKeyTitle": "Onbetrouwbare handtekening",
         "untrustedPublicKeyMessage": "Het geleverde bestand is ondertekend met een onbetrouwbare openbare sleutel. Vraag je beheerder om de openbare sleutel toe te voegen aan de lijst van vertrouwde sleutels of de handtekeningverificatie uit te schakelen om dit bestand te kunnen importeren."
+    },
+    "user": {
+        "isStaff": "Is personeel",
+        "isWorkspaceAdmin": "Is werkruimte beheerder",
+        "active": "Ingeschakeld",
+        "deactivated": "Uitgeschakeld"
+    },
+    "adminType": {
+        "dashboard": "Dashboard",
+        "users": "Gebruikers",
+        "workspaces": "Werkruimtes",
+        "licenses": "Licenties"
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "Alle werkruimtes",
+        "id": "ID",
+        "name": "Naam",
+        "members": "Leden",
+        "applications": "Applicaties",
+        "created": "Aangemaakt",
+        "seatsTaken": "Plekken bezet",
+        "usageHelpText": "Wordt 's nachts berekend wanneer de instelling voor het gebruik van werkruimtes is ingeschakeld",
+        "rowCount": "Aantal rijen",
+        "freeUsers": "Gratis gebruikers",
+        "storageUsage": "Opslag gebruikt (MB)"
+    },
+    "editWorkspaceContext": {
+        "delete": "Permanent verwijderen"
+    },
+    "deleteWorkspaceModal": {
+        "title": "Verwijder {name}",
+        "confirmation": "Weet je zeker dat je de werkruimte: {name} wilt verwijderen?",
+        "comment": "De werkruimte wordt permanent verwijderd, inclusief de bijbehorende applicaties. Het is niet mogelijk deze actie ongedaan te maken.",
+        "delete": "Werkruimte {name} verwijderen"
+    },
+    "activeUsers": {
+        "newUsers": "Nieuwe gebruikers",
+        "activeUsers": "Actieve gebruikers"
+    },
+    "usersAdminTable": {
+        "allUsers": "Alle gebruikers",
+        "id": "ID",
+        "username": "Gebruikersnaam",
+        "name": "Naam",
+        "workspaces": "Werkruimtes",
+        "lastLogin": "Laatste login",
+        "dateJoined": "Ingeschreven",
+        "active": "Ingeschakeld"
+    },
+    "editUserContext": {
+        "changePassword": "Wachtwoord wijzigen",
+        "delete": "Permanent verwijderen",
+        "impersonate": "Imiteer"
+    },
+    "changePasswordForm": {
+        "newPassword": "Nieuw wachtwoord",
+        "repeatPassword": "Herhaal wachtwoord",
+        "changePassword": "Wachtwoord wijzigen",
+        "error": {
+            "doesntMatch": "Dit veld moet overeenkomen met je wachtwoordveld."
+        }
+    },
+    "userForm": {
+        "fullName": "Volledige naam",
+        "email": "E-mail",
+        "isActive": "Is actief",
+        "warning": {
+            "changeEmail": "Als het e-mailadres van deze gebruiker wordt gewijzigd, moet hij/zij dit nieuwe e-mailadres gebruiken wanneer hij/zij zich aanmeldt. Dit moet aan de gebruiker worden gecommuniceerd.",
+            "inactiveUser": "Wanneer een gebruiker als inactief wordt gemarkeerd, kan deze zich niet meer aanmelden.",
+            "userStaff": "Door de gebruiker personeel te maken, krijgt deze beheerderstoegang tot alle gebruikers en alle werkruimtes, met de mogelijkheid om de eigen personeelsrechten in te trekken."
+        },
+        "error": {
+            "invalidName": "Voer een geldige volledige naam in. De naam moet langer zijn dan 2 letters en minder dan 150.",
+            "invalidEmail": "Voer een geldig e-mail adres in."
+        }
+    },
+    "changeUserPasswordModal": {
+        "changePassword": "Wijzig wachtwoord voor {gebruikersnaam}"
+    },
+    "deleteUserModal": {
+        "title": "Verwijder {gebruikersnaam}",
+        "confirmation": "Weet je zeker dat je de gebruiker: {name} wilt verwijderen?",
+        "comment1": "De gebruikersaccount wordt verwijderd, maar de werkruimtes waar die gebruiker lid van is blijven bestaan. De gebruikers werkruimte wordt niet verwijderd, zelfs als deze gebruiker de laatste gebruiker in de werkruimtes is. Door de laatste gebruiker in een werkruimte te verwijderen kan niemand meer toegang krijgen tot die werkruimte.",
+        "comment2": "Na het verwijderen van een gebruiker is het mogelijk dat een nieuwe gebruiker zich opnieuw aanmeldt met het e-mailadres van de verwijderde gebruiker. Om ervoor te zorgen dat ze zich niet opnieuw kunnen aanmelden, deactiveer de gebruiker in plaats van deze te verwijderen.",
+        "delete": "Verwijder gebruiker {gebruikersnaam}"
+    },
+    "editUserModal": {
+        "delete": "Gebruiker verwijderen",
+        "edit": "Bewerk { gebruikersnaam }"
+    },
+    "adminDashboard": {
+        "title": "Dashboard",
+        "totals": "Totalen",
+        "totalUsers": "Totaal gebruikers",
+        "totalWorkspaces": "Totaal werkruimte",
+        "totalApplications": "Totaal aanvragen",
+        "newUsers": "Nieuwe gebruikers",
+        "newUsers24h": "Nieuwe gebruikers laatste 24 uur",
+        "newUsers7days": "Nieuwe gebruikers laatste 7 dagen",
+        "newUsers30days": "Nieuwe gebruikers laatste 30 dagen",
+        "activeUsers": "Actieve gebruikers",
+        "activeUsers24h": "Actieve gebruikers laatste 24 uur",
+        "activeUsers7days": "Actieve gebruikers laatste 7 dagen",
+        "activeUsers30days": "Actieve gebruikers laatste 30 dagen",
+        "viewAll": "Alles bekijken"
+    },
+    "formGroup": {
+        "protectedField": "Dit veld is beveiligd. Klik om te wijzigen.",
+        "cancelProtectedField": "Annuleer verandering"
+    },
+    "userSourceType": {
+        "userCountSummary": "{count} gebruikers ({lastUpdated})"
     }
 }

@@ -4,6 +4,7 @@ from .airtable import AirtableFixtures
 from .app_auth_provider import AppAuthProviderFixtures
 from .application import ApplicationFixtures
 from .auth_provider import AuthProviderFixtures
+from .dashboard_data_source import DashboardDataSourceFixtures
 from .data_source import DataSourceFixtures
 from .data_sync import DataSyncFixtures
 from .domain import DomainFixtures
@@ -29,6 +30,7 @@ from .user_source import UserSourceFixtures
 from .user_source_user import UserSourceUserFixtures
 from .view import ViewFixtures
 from .webhook import TableWebhookFixture
+from .widget import WidgetFixtures
 from .workflow_action import WorkflowActionFixture
 from .workspace import WorkspaceFixtures
 
@@ -65,6 +67,8 @@ class Fixtures(
     GenerativeAIFixtures,
     DataSyncFixtures,
     ImportExportWorkspaceFixtures,
+    DashboardDataSourceFixtures,
+    WidgetFixtures,
 ):
     def __init__(self, fake=None):
         self.fake = fake

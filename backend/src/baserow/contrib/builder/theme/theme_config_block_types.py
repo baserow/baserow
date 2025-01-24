@@ -1,3 +1,8 @@
+from typing import Any, Dict, Optional
+from zipfile import ZipFile
+
+from django.core.files.storage import Storage
+
 from rest_framework import serializers
 
 from baserow.core.user_files.handler import UserFileHandler
@@ -25,7 +30,16 @@ class TypographyThemeConfigBlockType(ThemeConfigBlockType):
     type = "typography"
     model_class = TypographyThemeConfigBlock
 
-    def import_serialized(self, parent, serialized_values, id_mapping):
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, int]],
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict[str, any]] = None,
+        **kwargs,
+    ):
         # Translate from old color property names to new names for compat with templates
         for level in range(3):
             if f"heading_{level+1}_color" in serialized_values:
@@ -33,7 +47,9 @@ class TypographyThemeConfigBlockType(ThemeConfigBlockType):
                     f"heading_{level+1}_text_color"
                 ] = serialized_values.pop(f"heading_{level+1}_color")
 
-        return super().import_serialized(parent, serialized_values, id_mapping)
+        return super().import_serialized(
+            parent, serialized_values, id_mapping, files_zip, storage, cache
+        )
 
 
 class ButtonThemeConfigBlockType(ThemeConfigBlockType):

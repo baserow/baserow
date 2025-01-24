@@ -33,6 +33,8 @@ class ElementDict(TypedDict):
     style_border_right_size: int
     style_padding_right: int
     style_margin_right: int
+    style_background_radius: int
+    style_border_radius: int
     style_background: str
     style_background_color: str
     style_background_file_id: str
@@ -56,6 +58,9 @@ class PageDict(TypedDict):
     elements: List[ElementDict]
     data_sources: List[DataSourceDict]
     workflow_actions: List[WorkflowAction]
+    visibility: Optional[str]
+    role_type: Optional[str]
+    roles: Optional[List[str]]
 
 
 class BuilderDict(TypedDict):
@@ -68,3 +73,4 @@ class BuilderDict(TypedDict):
     user_sources: List[UserSourceDictSubClass]
     theme: object
     favicon_file: Optional[dict]
+    login_page: Optional[PageDict]

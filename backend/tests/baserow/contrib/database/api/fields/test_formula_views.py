@@ -967,6 +967,9 @@ def test_can_type_a_valid_formula_field(data_fixture, api_client):
         "nullable": False,
         "array_formula_type": None,
         "number_decimal_places": 0,
+        "number_prefix": "",
+        "number_separator": "",
+        "number_suffix": "",
         "select_options": [],
     }
 

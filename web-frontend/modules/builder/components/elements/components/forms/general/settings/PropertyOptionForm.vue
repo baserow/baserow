@@ -60,7 +60,6 @@ export default {
   name: 'PropertyOptionForm',
   components: { BaserowTable },
   mixins: [form],
-  inject: ['page'],
   props: {
     dataSource: {
       type: Object,

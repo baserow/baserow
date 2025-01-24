@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import (
     map_exceptions,
+    require_request_data_type,
     validate_body,
     validate_body_custom_fields,
     validate_query_parameters,
@@ -193,7 +194,12 @@ class FieldsView(APIView):
         fields = specific_iterator(
             Field.objects.filter(table=table)
             .select_related("content_type")
-            .prefetch_related("select_options")
+            .prefetch_related("select_options"),
+            per_content_type_queryset_hook=(
+                lambda field, queryset: field_type_registry.get_by_model(
+                    field
+                ).enhance_field_queryset(queryset, field)
+            ),
         )
 
         data = [
@@ -413,6 +419,7 @@ class FieldView(APIView):
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
         }
     )
+    @require_request_data_type(dict)
     def patch(self, request, field_id):
         """Updates the field if the user belongs to the workspace."""
 

@@ -10,6 +10,7 @@ from baserow.core.management.commands.export_workspace_applications import (
     cli_import_export_config,
 )
 from baserow.core.models import Workspace
+from baserow.core.signals import application_imported
 
 
 class Command(BaseCommand):
@@ -74,5 +75,8 @@ class Command(BaseCommand):
 
             if files_buffer:
                 files_buffer.close()
+
+            for application in applications:
+                application_imported.send(self, application=application, user=None)
 
         self.stdout.write(f"{len(applications)} application(s) has/have been imported.")

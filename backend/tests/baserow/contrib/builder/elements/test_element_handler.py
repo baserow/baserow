@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.elements.element_types import (
     ColumnElementType,
@@ -27,8 +28,12 @@ def pytest_generate_tests(metafunc):
 @pytest.mark.django_db
 def test_create_element(data_fixture, element_type):
     page = data_fixture.create_builder_page()
+    shared_page = page.builder.shared_page
 
     pytest_params = element_type.get_pytest_params(data_fixture)
+
+    if element_type.is_multi_page_element:
+        page = shared_page
 
     element = ElementHandler().create_element(element_type, page=page, **pytest_params)
 
@@ -39,6 +44,34 @@ def test_create_element(data_fixture, element_type):
 
     assert element.order == 1
     assert Element.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_create_element_and_shared_page(data_fixture):
+    page = data_fixture.create_builder_page()
+    shared_page = page.builder.shared_page
+
+    regular_element_type = next(
+        filter(lambda t: not t.is_multi_page_element, element_type_registry.get_all())
+    )
+
+    with pytest.raises(DRFValidationError):
+        ElementHandler().create_element(
+            regular_element_type,
+            page=shared_page,
+            **regular_element_type.get_pytest_params(data_fixture),
+        )
+
+    shared_element_type = next(
+        filter(lambda t: t.is_multi_page_element, element_type_registry.get_all())
+    )
+
+    with pytest.raises(DRFValidationError):
+        ElementHandler().create_element(
+            shared_element_type,
+            page=page,
+            **regular_element_type.get_pytest_params(data_fixture),
+        )
 
 
 @pytest.mark.django_db
@@ -591,6 +624,16 @@ def test_get_ancestors(data_fixture, django_assert_num_queries):
     assert len(ancestors) == 2
     assert ancestors == [parent, grandparent]
 
+    # Second call is cached, no queries are made.
+    # Add a predicate to only return ancestors with a column_amount of 1.
+    with django_assert_num_queries(0):
+        ancestors = ElementHandler().get_ancestors(
+            child.id, page, predicate=lambda el: el.column_amount == 1
+        )
+
+    assert len(ancestors) == 1
+    assert ancestors == [grandparent]
+
 
 @pytest.mark.django_db
 def test_get_first_ancestor_of_type(data_fixture, django_assert_num_queries):
@@ -613,3 +656,77 @@ def test_get_first_ancestor_of_type(data_fixture, django_assert_num_queries):
     )
 
     assert nearest_column_ancestor.specific == grandparent
+
+
+@pytest.fixture
+def property_options_fixture(data_fixture):
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Fruit", "text"),
+            ("Color", "text"),
+        ],
+        rows=[
+            ["Apple", "Green"],
+            ["Blueberry", "Blue"],
+            ["Cherry", "Red"],
+        ],
+    )
+    view = data_fixture.create_grid_view(user, table=table)
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        view=view,
+        table=table,
+    )
+    table_element = data_fixture.create_builder_table_element(
+        page=page, data_source=data_source
+    )
+
+    return {
+        "table": table,
+        "table_element": table_element,
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "filterable,searchable,sortable",
+    [
+        (True, False, False),
+        (False, True, False),
+        (False, False, True),
+        (True, True, True),
+        (False, False, False),
+    ],
+)
+def test_get_element_property_options_returns_expected_options(
+    property_options_fixture, filterable, searchable, sortable
+):
+    table = property_options_fixture["table"]
+    filterable_field = table.field_set.get(name="Fruit")
+
+    table_element = property_options_fixture["table_element"]
+    table_element.property_options.create(
+        schema_property=filterable_field.db_column,
+        filterable=filterable,
+        searchable=searchable,
+        sortable=sortable,
+    )
+
+    result = ElementHandler().get_element_property_options(table_element)
+
+    assert result == {
+        filterable_field.db_column: {
+            "filterable": filterable,
+            "searchable": searchable,
+            "sortable": sortable,
+        },
+    }

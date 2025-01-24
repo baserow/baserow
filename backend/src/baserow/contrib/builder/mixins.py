@@ -6,7 +6,7 @@ from baserow.core.utils import merge_dicts_no_duplicates
 
 
 class BuilderInstanceWithFormulaMixin(InstanceWithFormulaMixin):
-    def extract_formula_properties(self, instance, **kwargs):
+    def extract_properties(self, instance, **kwargs):
         result = {}
 
         for formula in self.formula_generator(instance):

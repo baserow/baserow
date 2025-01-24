@@ -70,6 +70,7 @@ import ButtonIcon from '@baserow/modules/core/components/FormInput'
 FormGroup is a component that contains a label and a form input. It has several slots:
 
 -   label: The label of the form group. (can also be passed as a prop)
+-   label-after: An additional label that is shown after the main label.
 -   error: The error message of the form group.
 -   warning: The warning message of the form group.
 -   helper: A description of the form group. (can also be passed as a prop)
@@ -79,6 +80,9 @@ export const Template = (args, { argTypes }) => ({
     props: Object.keys(argTypes),
     template: `
     <FormGroup v-bind="$props">
+        <template v-if="${'after-label' in args}" v-slot:after-label>${
+        args['after-label']
+    }</template>
        <FormInput placeholder="Enter some text..." icon-left="iconoir-db" :error="${
            args.error
        }"></FormInput>
@@ -106,6 +110,18 @@ export const designConfig = {
         args={{
             helperText:
                 'We’ll use this address if we need to contact you about your account.',
+        }}
+    >
+        {Template.bind({})}
+    </Story>
+    <Story
+        name="w/ after label"
+        parameters={{
+            design: config(designConfig),
+        }}
+        args={{
+            'after-label': '<span>Forgot?</span>',
+            required: true,
         }}
     >
         {Template.bind({})}

@@ -18,7 +18,7 @@ export default {
   watch: {
     value(value) {
       if (!this.editing) {
-        this.copy = value
+        this.copy = this.prepareCopy(value)
       }
     },
   },
@@ -36,6 +36,12 @@ export default {
       }
 
       this.editing = true
+    },
+    prepareCopy(value) {
+      return value
+    },
+    prepareValue(copy) {
+      return copy
     },
     /**
      * Event that is called when the user finishes editing. If the value is not
@@ -88,7 +94,9 @@ export default {
      * then the error message is not showed in real time.
      */
     getError() {
-      return this.getValidationError(this.editing ? this.copy : this.value)
+      return this.getValidationError(
+        this.editing ? this.prepareValue(this.copy) : this.value
+      )
     },
   },
 }

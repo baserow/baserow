@@ -186,10 +186,7 @@ def test_domain_publishing(data_fixture):
     assert domain1.published_to is not None
     assert domain1.published_to.workspace is None
     assert domain1.published_to.page_set.count() == builder.page_set.count()
-    assert (
-        domain1.published_to.page_set.exclude(shared=True).first().element_set.count()
-        == 2
-    )
+    assert domain1.published_to.page_set.first().element_set.count() == 2
 
     assert Builder.objects.count() == 2
 
@@ -199,3 +196,34 @@ def test_domain_publishing(data_fixture):
     DomainHandler().publish(domain1, progress)
 
     assert Builder.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_get_domain_for_builder(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(workspace=None)
+    domain1 = data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=builder_to, domain_name="mytest.com"
+    )
+    domain2 = data_fixture.create_builder_custom_domain(
+        builder=builder, domain_name="mytest2.com"
+    )
+
+    assert (
+        DomainHandler().get_domain_for_builder(builder_to).domain_name == "mytest.com"
+    )
+
+    assert DomainHandler().get_domain_for_builder(builder) is None
+
+
+@pytest.mark.django_db
+def test_get_domain_public_url(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(workspace=None)
+    domain1 = data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=builder_to, domain_name="mytest.com"
+    )
+
+    assert domain1.get_public_url() == "http://mytest.com:3000"

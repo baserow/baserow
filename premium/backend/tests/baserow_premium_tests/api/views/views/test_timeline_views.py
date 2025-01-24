@@ -14,7 +14,6 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
-from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
 from baserow.test_utils.helpers import is_dict_subset
@@ -1332,15 +1331,10 @@ def test_list_rows_public_with_query_param_filter(api_client, premium_data_fixtu
 def test_list_rows_public_with_query_param_order(api_client, premium_data_fixture):
     user, token = premium_data_fixture.create_user_and_token()
     table = premium_data_fixture.create_database_table(user=user)
-    table_2 = premium_data_fixture.create_database_table(database=table.database)
     public_field = premium_data_fixture.create_text_field(table=table, name="public")
     hidden_field = premium_data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
+    password_field = premium_data_fixture.create_password_field(
+        table=table, name="password"
     )
     timeline_view = premium_data_fixture.create_timeline_view(
         table=table, user=user, public=True
@@ -1352,7 +1346,7 @@ def test_list_rows_public_with_query_param_order(api_client, premium_data_fixtur
         timeline_view, hidden_field, hidden=True
     )
     premium_data_fixture.create_timeline_view_field_option(
-        timeline_view, link_row_field, hidden=False
+        timeline_view, password_field, hidden=False
     )
 
     first_row = RowHandler().create_row(
@@ -1388,7 +1382,7 @@ def test_list_rows_public_with_query_param_order(api_client, premium_data_fixtur
         "api:database:views:timeline:public_rows", kwargs={"slug": timeline_view.slug}
     )
     response = api_client.get(
-        f"{url}?order_by=field_{link_row_field.id}",
+        f"{url}?order_by=field_{password_field.id}",
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -1695,15 +1689,10 @@ def test_list_rows_with_query_param_order(api_client, premium_data_fixture):
         has_active_premium_license=True,
     )
     table = premium_data_fixture.create_database_table(user=user)
-    table_2 = premium_data_fixture.create_database_table(database=table.database)
     text_field = premium_data_fixture.create_text_field(table=table, name="text")
     hidden_field = premium_data_fixture.create_text_field(table=table, name="hidden")
-    link_row_field = FieldHandler().create_field(
-        user=user,
-        table=table,
-        type_name="link_row",
-        name="Link",
-        link_row_table=table_2,
+    password_field = premium_data_fixture.create_password_field(
+        table=table, name="password"
     )
     timeline_view = premium_data_fixture.create_timeline_view(
         table=table, user=user, create_options=False
@@ -1715,7 +1704,7 @@ def test_list_rows_with_query_param_order(api_client, premium_data_fixture):
         timeline_view, hidden_field, hidden=True
     )
     premium_data_fixture.create_timeline_view_field_option(
-        timeline_view, link_row_field, hidden=False
+        timeline_view, password_field, hidden=False
     )
     first_row = RowHandler().create_row(
         user, table, values={"text": "a", "hidden": "a"}, user_field_names=True
@@ -1751,7 +1740,7 @@ def test_list_rows_with_query_param_order(api_client, premium_data_fixture):
 
     # sorting on unsupported field
     response = api_client.get(
-        f"{url}?order_by=field_{link_row_field.id}",
+        f"{url}?order_by=field_{password_field.id}",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()

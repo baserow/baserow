@@ -2,6 +2,7 @@ import { UserSourceType } from '@baserow/modules/core/userSourceTypes'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integrationTypes'
 import LocalBaserowUserSourceForm from '@baserow_enterprise/integrations/localBaserow/components/userSources/LocalBaserowUserSourceForm'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
+import moment from '@baserow/modules/core/moment'
 
 import {
   FormulaFieldType,
@@ -86,27 +87,33 @@ export class LocalBaserowUserSourceType extends UserSourceType {
       return this.app.i18n.t('localBaserowUserSourceType.notConfigured')
     }
 
-    if (!userSource.table_id) {
+    const databases = integration.context_data?.databases
+
+    const tableSelected = databases
+      .map((database) => database.tables)
+      .flat()
+      .find(({ id }) => id === userSource.table_id)
+
+    if (!tableSelected) {
       return `${integration.name} - ${this.app.i18n.t(
         'localBaserowUserSourceType.notConfigured'
       )}`
     }
 
-    for (const database of integration.context_data.databases) {
-      for (const table of database.tables) {
-        if (table.id === userSource.table_id) {
-          const summaryParts = [integration.name, table.name]
-          if (!userSource.email_field_id || !userSource.name_field_id) {
-            summaryParts.push(
-              this.app.i18n.t('localBaserowUserSourceType.notConfigured')
-            )
-          }
-          return summaryParts.join(' - ')
-        }
-      }
+    const summaryParts = [integration.name, tableSelected.name]
+    if (!userSource.email_field_id || !userSource.name_field_id) {
+      summaryParts.push(
+        this.app.i18n.t('localBaserowUserSourceType.notConfigured')
+      )
+    } else if (userSource.user_count_updated_at !== null) {
+      summaryParts.push(
+        this.app.i18n.t('userSourceType.userCountSummary', {
+          count: userSource.user_count,
+          lastUpdated: moment.utc(userSource.user_count_updated_at).fromNow(),
+        })
+      )
     }
-
-    return ''
+    return summaryParts.join(' - ')
   }
 
   get formComponent() {
@@ -117,17 +124,22 @@ export class LocalBaserowUserSourceType extends UserSourceType {
     if (!userSource.email_field_id || !userSource.name_field_id) {
       return {}
     }
-    if (userSource.auth_providers.length !== 1) {
-      return {}
-    }
-    const authProvider = userSource.auth_providers[0]
-    if (
-      authProvider.type !== 'local_baserow_password' ||
-      !authProvider.password_field_id
-    ) {
-      return {}
-    }
-    return { password: {} }
+
+    return userSource.auth_providers.reduce((acc, authProvider) => {
+      if (!acc[authProvider.type]) {
+        acc[authProvider.type] = []
+      }
+
+      const loginOptions = this.app.$registry
+        .get('appAuthProvider', authProvider.type)
+        .getLoginOptions(authProvider)
+
+      if (loginOptions) {
+        acc[authProvider.type].push(loginOptions)
+      }
+
+      return acc
+    }, {})
   }
 
   getOrder() {

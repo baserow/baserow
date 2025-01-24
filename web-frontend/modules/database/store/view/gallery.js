@@ -1,5 +1,4 @@
 import bufferedRows from '@baserow/modules/database/store/view/bufferedRows'
-import fieldOptions from '@baserow/modules/database/store/view/fieldOptions'
 import GalleryService from '@baserow/modules/database/services/view/gallery'
 
 export function populateRow(row, metadata = {}) {
@@ -12,24 +11,19 @@ export function populateRow(row, metadata = {}) {
 
 const galleryBufferedRows = bufferedRows({
   service: GalleryService,
-  populateRow,
+  customPopulateRow: populateRow,
 })
-
-const galleryFieldOptions = fieldOptions()
 
 export const state = () => ({
   ...galleryBufferedRows.state(),
-  ...galleryFieldOptions.state(),
 })
 
 export const mutations = {
   ...galleryBufferedRows.mutations,
-  ...galleryFieldOptions.mutations,
 }
 
 export const actions = {
   ...galleryBufferedRows.actions,
-  ...galleryFieldOptions.actions,
   async fetchInitial(
     { dispatch },
     { viewId, fields, adhocFiltering, adhocSorting }
@@ -47,7 +41,6 @@ export const actions = {
 
 export const getters = {
   ...galleryBufferedRows.getters,
-  ...galleryFieldOptions.getters,
 }
 
 export default {

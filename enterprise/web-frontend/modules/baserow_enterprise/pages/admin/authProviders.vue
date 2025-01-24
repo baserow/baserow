@@ -13,6 +13,7 @@
             @create="showCreateModal($event)"
           />
           <CreateAuthProviderModal
+            v-if="authProviderTypeToCreate"
             ref="createModal"
             :auth-provider-type="authProviderTypeToCreate"
             @created="$refs.createModal.hide()"
@@ -57,9 +58,15 @@ export default {
   },
   computed: {
     ...mapGetters({
+      authProviderMap: 'authProviderAdmin/getAll',
       authProviders: 'authProviderAdmin/getAllOrdered',
-      authProviderTypesCanBeCreated: 'authProviderAdmin/getCreatableTypes',
     }),
+    authProviderTypesCanBeCreated() {
+      return Object.values(this.$registry.getAll('authProvider')).filter(
+        (authProviderType) =>
+          authProviderType.canCreateNew(this.authProviderMap)
+      )
+    },
   },
   methods: {
     getAdminListComponent(authProvider) {
@@ -75,8 +82,10 @@ export default {
         4
       )
     },
-    showCreateModal(authProviderType) {
-      this.authProviderTypeToCreate = authProviderType.type
+    async showCreateModal(authProviderType) {
+      this.authProviderTypeToCreate = authProviderType
+      // Wait for the modal to appear in DOM
+      await this.$nextTick()
       this.$refs.createModal.show()
       this.$refs.createContext.hide()
     },

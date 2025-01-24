@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2022-04-22 09:57+0100\n"
-"Last-Translator: Allan Nordhøy <epost@anotheragency.no>\n"
+"PO-Revision-Date: 2024-12-16 15:08+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Norwegian Bokmål <https://hosted.weblate.org/projects/baserow/"
 "backend-core/nb_NO/>\n"
 "Language: nb_NO\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Poedit 3.0.1\n"
+"X-Generator: Weblate 5.9\n"
 
 #: src/baserow/core/action/scopes.py:9
 #, python-format
@@ -214,8 +214,8 @@ msgstr ""
 #| "%(group_name)s</strong>."
 msgid "%(user)s accepted your invitation to collaborate to %(workspace_name)s."
 msgstr ""
-"<strong>%(first_name)s</strong> har invitert deg til samarbeid på <strong>"
-"%(group_name)s</strong>."
+"<strong>%(first_name)s</strong> har invitert deg til samarbeid på "
+"<strong>%(group_name)s</strong>."
 
 #: src/baserow/core/notification_types.py:135
 #, fuzzy, python-format
@@ -224,8 +224,8 @@ msgstr ""
 #| "%(group_name)s</strong>."
 msgid "%(user)s rejected your invitation to collaborate to %(workspace_name)s."
 msgstr ""
-"<strong>%(first_name)s</strong> har invitert deg til samarbeid på <strong>"
-"%(group_name)s</strong>."
+"<strong>%(first_name)s</strong> har invitert deg til samarbeid på "
+"<strong>%(group_name)s</strong>."
 
 #: src/baserow/core/snapshots/actions.py:21
 msgid "Create Snapshot"
@@ -275,8 +275,8 @@ msgid ""
 "<strong>%(first_name)s</strong> has invited you to collaborate on <strong>"
 "%(group_name)s</strong>."
 msgstr ""
-"<strong>%(first_name)s</strong> har invitert deg til samarbeid på <strong>"
-"%(group_name)s</strong>."
+"<strong>%(first_name)s</strong> har invitert deg til samarbeid på "
+"<strong>%(group_name)s</strong>."
 
 #: src/baserow/core/templates/baserow/core/group_invitation.html:163
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:167
@@ -413,8 +413,8 @@ msgid ""
 "<strong>%(first_name)s</strong> has invited you to collaborate on <strong>"
 "%(workspace_name)s</strong>."
 msgstr ""
-"<strong>%(first_name)s</strong> har invitert deg til samarbeid på <strong>"
-"%(group_name)s</strong>."
+"<strong>%(first_name)s</strong> har invitert deg til samarbeid på "
+"<strong>%(group_name)s</strong>."
 
 #: src/baserow/core/trash/actions.py:20
 msgid "Empty trash"

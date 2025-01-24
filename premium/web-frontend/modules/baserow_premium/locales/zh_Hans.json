@@ -1,15 +1,6 @@
 {
     "premium": {
-        "user": {
-            "isStaff": "工作人员与否",
-            "isWorkspaceAdmin": "组管理员与否",
-            "active": "生效的",
-            "deactivated": "停用的"
-        },
         "adminType": {
-            "dashboard": "仪表板",
-            "users": "用户",
-            "workspaces": "团队",
             "licenses": "许可证"
         },
         "viewType": {
@@ -58,78 +49,6 @@
     "registerLicenseForm": {
         "licenseKey": "许可证码"
     },
-    "workspacesAdminTable": {
-        "allWorkspaces": "所有集体",
-        "id": "ID",
-        "name": "名字",
-        "members": "成员",
-        "applications": "应用",
-        "created": "创建"
-    },
-    "editWorkspaceContext": {
-        "delete": "永久删除"
-    },
-    "deleteWorkspaceModal": {
-        "title": "删除 {name}",
-        "confirmation": "你确定要删除集体：{name}？",
-        "comment": "该组将被永久删除,包括相关应用程序.此操作无法撤销.",
-        "delete": "删除集体{name}"
-    },
-    "activeUsers": {
-        "newUsers": "新用户",
-        "activeUsers": "活跃用户"
-    },
-    "usersAdminTable": {
-        "allUsers": "所有用户",
-        "id": "",
-        "username": "用户名",
-        "name": "名字",
-        "workspaces": "集体",
-        "lastLogin": "上次登录",
-        "dateJoined": "注册",
-        "active": "活跃的"
-    },
-    "editUserContext": {
-        "changePassword": "更改密码",
-        "delete": "永久删除",
-        "impersonate": "扮演"
-    },
-    "changePasswordForm": {
-        "newPassword": "新密码",
-        "repeatPassword": "重复密码",
-        "changePassword": "更改密码",
-        "error": {
-            "doesntMatch": "此字段必须与密码字段匹配."
-        }
-    },
-    "userForm": {
-        "fullName": "全名",
-        "email": "邮箱",
-        "isActive": "活动状态",
-        "warning": {
-            "changeEmail": "更改此用户的电子邮件地址意味着当他们登录时,必须使用新的电子邮件地址.这必须与该用户进行沟通.",
-            "inactiveUser": "当用户被标记为非活跃时,他们将无法登录.",
-            "userStaff": "让用户成为员工可以让他们对所有用户,所有组进行管理访问,并可以撤销您自己的员工权限."
-        },
-        "error": {
-            "invalidName": "请输入有效的全名,其长度必须大于2个字符,小于150个字符.",
-            "invalidEmail": "请输入有效的电子邮件地址."
-        }
-    },
-    "changeUserPasswordModal": {
-        "changePassword": "为{usermane}更改密码"
-    },
-    "deleteUserModal": {
-        "title": "删除{username}",
-        "confirmation": "你确定要删除这个用户：{name}？",
-        "comment1": "用户帐户将被删除,但用户所属的组将继续存在.即使此用户是组中的最后一个用户,也不会删除用户组.删除组中的最后一个用户将阻止任何人访问该组.",
-        "comment2": "删除用户后,新用户可以使用删除的用户电子邮件地址再次注册.为了确保他们不能再次注册,请禁用用户并不要删除他们.",
-        "delete": "删除用户{username}"
-    },
-    "editUserModal": {
-        "delete": "删除用户",
-        "edit": "编辑{ username }"
-    },
     "tableJSONExporter": {
         "encoding": "编码"
     },
@@ -159,22 +78,6 @@
         "uncategorized": "未分类",
         "tryAgain": "重试",
         "new": "新"
-    },
-    "dashboard": {
-        "title": "仪表盘",
-        "totals": "总计",
-        "totalUsers": "用户总数",
-        "totalWorkspaces": "组总数",
-        "totalApplications": "应用程序总数",
-        "newUsers": "新用户",
-        "newUsers24h": "最新 24 小时的新用户",
-        "newUsers7days": "最近7天的新用户",
-        "newUsers30days": "最近30天的新用户",
-        "activeUsers": "活跃用户",
-        "activeUsers24h": "活跃用户持续 24 小时",
-        "activeUsers7days": "活跃用户最近 7 天",
-        "activeUsers30days": "活跃用户最近 30 天",
-        "viewAll": "查看全部"
     },
     "licenses": {
         "titleNoLicenses": "未找到许可证",

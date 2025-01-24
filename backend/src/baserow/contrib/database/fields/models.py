@@ -1,4 +1,5 @@
 import typing
+from enum import Enum
 from typing import NewType
 
 from django.contrib.contenttypes.models import ContentType
@@ -69,6 +70,51 @@ RATING_STYLE_CHOICES = [
     ("thumbs-up", "Thumbs-up"),
     ("flag", "Flags"),
     ("smile", "Smile"),
+]
+
+
+# We use these constants to map the separators to the values used in the database.
+# The same variables are used in the frontend
+class THOUSAND_SEPARATORS(Enum):
+    SPACE = " "
+    COMMA = ","
+    PERIOD = "."
+    NONE = ""
+
+
+class DECIMAL_SEPARATORS(Enum):
+    COMMA = ","
+    PERIOD = "."
+
+
+DEFAULT_THOUSAND_SEPARATOR = THOUSAND_SEPARATORS.NONE
+DEFAULT_DECIMAL_SEPARATOR = DECIMAL_SEPARATORS.PERIOD
+
+NUMBER_SEPARATORS = {
+    "": {
+        "label": "No formatting",
+        "separators": (DEFAULT_THOUSAND_SEPARATOR, DEFAULT_DECIMAL_SEPARATOR),
+    },
+    "SPACE_COMMA": {
+        "label": "Space, comma",
+        "separators": (THOUSAND_SEPARATORS.SPACE, DECIMAL_SEPARATORS.COMMA),
+    },
+    "SPACE_PERIOD": {
+        "label": "Space, period",
+        "separators": (THOUSAND_SEPARATORS.SPACE, DECIMAL_SEPARATORS.PERIOD),
+    },
+    "COMMA_PERIOD": {
+        "label": "Comma, period",
+        "separators": (THOUSAND_SEPARATORS.COMMA, DECIMAL_SEPARATORS.PERIOD),
+    },
+    "PERIOD_COMMA": {
+        "label": "Period, comma",
+        "separators": (DECIMAL_SEPARATORS.PERIOD, THOUSAND_SEPARATORS.COMMA),
+    },
+}
+
+NUMBER_SEPARATOR_CHOICES = [
+    (key, value["label"]) for key, value in NUMBER_SEPARATORS.items()
 ]
 
 DURATION_FORMAT_CHOICES = [(k, v["name"]) for k, v in DURATION_FORMATS.items()]
@@ -301,6 +347,27 @@ class NumberField(Field):
     number_negative = models.BooleanField(
         default=False, help_text="Indicates if negative values are allowed."
     )
+    number_prefix = models.CharField(
+        max_length=10,
+        blank=True,
+        help_text="The prefix to use for the field.",
+        db_default="",
+        default="",
+    )
+    number_suffix = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="The suffix to use for the field.",
+        default="",
+        db_default="",
+    )
+    number_separator = models.CharField(
+        choices=NUMBER_SEPARATOR_CHOICES,
+        default=NUMBER_SEPARATOR_CHOICES[0][0],
+        db_default=NUMBER_SEPARATOR_CHOICES[0][0],
+        max_length=16,
+        help_text="The thousand and decimal separator to use for the field.",
+    )
 
     def save(self, *args, **kwargs):
         """Check if the number_decimal_places has a valid choice."""
@@ -389,6 +456,8 @@ class DurationField(Field):
 
 class LinkRowField(Field):
     THROUGH_DATABASE_TABLE_PREFIX = LINK_ROW_THROUGH_TABLE_PREFIX
+    RELATED_PPRIMARY_FIELD_ATTR = "primary_fields"
+
     link_row_table = models.ForeignKey(
         "database.Table",
         on_delete=models.CASCADE,
@@ -427,7 +496,15 @@ class LinkRowField(Field):
 
         return f"{self.THROUGH_DATABASE_TABLE_PREFIX}{self.link_row_relation_id}"
 
-    def get_related_primary_field(self):
+    @property
+    def link_row_table_primary_field(self):
+        # LinkRowFieldType.enhance_field_queryset prefetches the primary field
+        # into RELATED_PPRIMARY_FIELD_ATTR. Let's check if it's already there first.
+        if related_primary_field_set := getattr(
+            self.link_row_table, self.RELATED_PPRIMARY_FIELD_ATTR, None
+        ):
+            return related_primary_field_set[0]
+
         try:
             return self.link_row_table.field_set.get(primary=True)
         except Field.DoesNotExist:
@@ -496,6 +573,27 @@ class FormulaField(Field):
         default=None,
         null=True,
         help_text="The amount of digits allowed after the point.",
+    )
+    number_prefix = models.CharField(
+        max_length=10,
+        blank=True,
+        help_text="The prefix to use for the field.",
+        default="",
+        db_default="",
+    )
+    number_suffix = models.CharField(
+        max_length=10,
+        blank=True,
+        help_text="The suffix to use for the field.",
+        default="",
+        db_default="",
+    )
+    number_separator = models.CharField(
+        choices=NUMBER_SEPARATOR_CHOICES,
+        default=NUMBER_SEPARATOR_CHOICES[0][0],
+        db_default=NUMBER_SEPARATOR_CHOICES[0][0],
+        max_length=16,
+        help_text="The thousand and decimal separator to use for the field.",
     )
     date_format = models.CharField(
         choices=DATE_FORMAT_CHOICES,

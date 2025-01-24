@@ -1,15 +1,6 @@
 {
     "premium": {
-        "user": {
-            "isStaff": "Es staff",
-            "isWorkspaceAdmin": "Es administrador de grupo",
-            "active": "Activo",
-            "deactivated": "Desactivado"
-        },
         "adminType": {
-            "dashboard": "Tablero",
-            "users": "Usuarios",
-            "workspaces": "Grupos",
             "licenses": "Gestionar licencias"
         },
         "viewType": {
@@ -19,7 +10,8 @@
         },
         "exporterType": {
             "json": "Exportar a JSON",
-            "xml": "Exportar a XML"
+            "xml": "Exportar a XML",
+            "excel": "Exportar a Excel"
         },
         "deactivated": "Disponible en el plan Premium"
     },
@@ -70,83 +62,6 @@
     "registerLicenseForm": {
         "licenseKey": "Clave de licencia"
     },
-    "workspacesAdminTable": {
-        "allWorkspaces": "Todos los grupos",
-        "id": "ID",
-        "name": "Nombre",
-        "members": "Miembros",
-        "applications": "Aplicaciones",
-        "created": "Creado",
-        "seatsTaken": "Asientos ocupados",
-        "storageUsage": "Almacenamiento utilizado (MB)",
-        "usageHelpText": "Calculado por la noche cuando la configuración de uso grupal está habilitada",
-        "rowCount": "Recuento de filas",
-        "freeUsers": "Usuarios gratuitos"
-    },
-    "editWorkspaceContext": {
-        "delete": "Eliminado permanentemente"
-    },
-    "deleteWorkspaceModal": {
-        "title": "Eliminar {name}",
-        "confirmation": "¿Está seguro de que desea eliminar el grupo: {name}?",
-        "comment": "El grupo se eliminará de forma permanente, incluidas las aplicaciones relacionadas. No es posible deshacer esta acción.",
-        "delete": "Eliminar grupo {name}"
-    },
-    "activeUsers": {
-        "newUsers": "Nuevos usuarios",
-        "activeUsers": "Usuarios activos"
-    },
-    "usersAdminTable": {
-        "allUsers": "Todos los usuarios",
-        "id": "id",
-        "username": "Nombre de usuario",
-        "name": "Nombre",
-        "workspaces": "Grupos",
-        "lastLogin": "Último acceso",
-        "dateJoined": "Inscrito",
-        "active": "Activo"
-    },
-    "editUserContext": {
-        "changePassword": "Cambiar la contraseña",
-        "delete": "Borrar permanentemente",
-        "impersonate": "Suplantar"
-    },
-    "changePasswordForm": {
-        "newPassword": "Nueva contraseña",
-        "repeatPassword": "Repetir contraseña",
-        "changePassword": "Cambiar contraseña",
-        "error": {
-            "doesntMatch": "Este campo debe coincidir con su campo de contraseña."
-        }
-    },
-    "userForm": {
-        "fullName": "Nombre completo",
-        "email": "Email",
-        "isActive": "Está activo",
-        "warning": {
-            "changeEmail": "Cambiar la dirección de correo electrónico de este usuario significa que cuando inician sesión deben usar la nueva dirección de correo electrónico para hacerlo. Esto debe ser comunicado con ese usuario.",
-            "inactiveUser": "Cuando un usuario se marca como inactivo, no puede iniciar sesión.",
-            "userStaff": "Convertir al usuario en personal le da acceso de administrador a todos los usuarios, todos los espacios de trabajo, y la capacidad de revocar tus propios permisos de personal."
-        },
-        "error": {
-            "invalidName": "Ingrese un nombre completo válido, debe tener más de 2 letras y menos de 150.",
-            "invalidEmail": "Por favor, introduce una dirección de correo electrónico válida."
-        }
-    },
-    "changeUserPasswordModal": {
-        "changePassword": "Cambiar contraseña para {username}"
-    },
-    "deleteUserModal": {
-        "title": "Eliminar {username}",
-        "confirmation": "¿Está seguro de que desea eliminar el usuario: {name}?",
-        "comment1": "La cuenta de usuario se eliminará, pero los espacios de trabajo de los que el usuario es miembro seguirán existiendo. El espacio de trabajo del usuario no se eliminará, incluso si este usuario es el último usuario en el espacio de trabajo. Si se elimina el último usuario de un espacio de trabajo, nadie podrá acceder a ese espacio de trabajo.",
-        "comment2": "Después de eliminar un usuario, es posible que un nuevo usuario se registre nuevamente utilizando la dirección de correo electrónico de los usuarios eliminados. Para asegurarse de que no puedan volver a registrarse, desactive al usuario y no lo elimine.",
-        "delete": "Eliminar usuario {username}"
-    },
-    "editUserModal": {
-        "delete": "Eliminar usuario",
-        "edit": "Editar {username}"
-    },
     "tableJSONExporter": {
         "encoding": "Codificación"
     },
@@ -177,22 +92,6 @@
         "uncategorized": "Sin categorizar",
         "tryAgain": "Intentar otra vez",
         "new": "Nuevo"
-    },
-    "dashboard": {
-        "title": "Tablero",
-        "totals": "Totales",
-        "totalUsers": "Usuarios totales",
-        "totalWorkspaces": "Grupos totales",
-        "totalApplications": "Aplicaciones totales",
-        "newUsers": "Nuevos usuarios",
-        "newUsers24h": "Nuevos usuarios últimas 24 horas",
-        "newUsers7days": "Nuevos usuarios últimos 7 días",
-        "newUsers30days": "Nuevos usuarios últimos 30 días",
-        "activeUsers": "Usuarios activos",
-        "activeUsers24h": "Usuarios activos últimas 24 horas",
-        "activeUsers7days": "Usuarios activos últimos 7 días",
-        "activeUsers30days": "Usuarios activos últimos 30 días",
-        "viewAll": "Ver todo"
     },
     "licenses": {
         "titleNoLicenses": "No se encontraron licencias",
@@ -449,5 +348,8 @@
         "choice": "Elección",
         "textDescription": "Genera un texto libre basado en la pregunta.",
         "choiceDescription": "Elige sólo una de las opciones de campo."
+    },
+    "tableExcelExporter": {
+        "includeHeader": "Incluir nombres de campos como encabezado"
     }
 }

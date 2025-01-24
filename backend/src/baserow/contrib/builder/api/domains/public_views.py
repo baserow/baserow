@@ -43,6 +43,7 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.errors import ERROR_BUILDER_DOES_NOT_EXIST
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
+from baserow.contrib.builder.handler import BuilderHandler
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.service import BuilderService
@@ -227,15 +228,25 @@ class PublicDataSourcesView(APIView):
 
         data_sources = DataSourceService().get_data_sources(request.user, page)
 
+        handler = BuilderHandler()
+        public_properties = handler.get_builder_public_properties(
+            request.user, page.builder
+        )
+
+        allowed_fields = []
+        for fields in public_properties["external"].values():
+            allowed_fields.extend(fields)
+
         data = [
             service_type_registry.get_serializer(
                 data_source.service,
                 PublicDataSourceSerializer,
-                context={"data_source": data_source},
+                context={"data_source": data_source, "allowed_fields": allowed_fields},
             ).data
             for data_source in data_sources
             if data_source.service and data_source.service.integration_id
         ]
+
         return Response(data)
 
 
@@ -356,7 +367,7 @@ class PublicDispatchDataSourceView(APIView):
             request,
             data_source.page,
             element=element,
-            only_expose_public_formula_fields=True,
+            only_expose_public_allowed_properties=True,
         )
         response = DataSourceService().dispatch_data_source(
             request.user, data_source, dispatch_context
@@ -407,7 +418,7 @@ class PublicDispatchDataSourcesView(APIView):
 
         page = PageHandler().get_page(int(page_id))
         dispatch_context = BuilderDispatchContext(
-            request, page, only_expose_public_formula_fields=True
+            request, page, only_expose_public_allowed_properties=True
         )
         service_contents = DataSourceService().dispatch_page_data_sources(
             request.user, page, dispatch_context

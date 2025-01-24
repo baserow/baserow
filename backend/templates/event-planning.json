@@ -32,16 +32,24 @@
                             "id": 17430,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17431,
                             "type": "single_select",
                             "name": "Status",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "select_options": [
                                 {
                                     "id": 10038,
@@ -73,8 +81,12 @@
                             "id": 17433,
                             "type": "date",
                             "name": "Start Date",
+                            "description": null,
                             "order": 3,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_format": "ISO",
                             "date_include_time": false,
                             "date_time_format": "24",
@@ -85,8 +97,12 @@
                             "id": 17434,
                             "type": "date",
                             "name": "End Date",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_format": "ISO",
                             "date_include_time": false,
                             "date_time_format": "24",
@@ -97,8 +113,12 @@
                             "id": 17436,
                             "type": "link_row",
                             "name": "Schedules",
+                            "description": null,
                             "order": 6,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1903,
                             "link_row_related_field_id": 17442,
                             "link_row_limit_selection_view_id": null,
@@ -108,8 +128,12 @@
                             "id": 17704,
                             "type": "link_row",
                             "name": "Venue",
+                            "description": null,
                             "order": 7,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1904,
                             "link_row_related_field_id": 17705,
                             "link_row_limit_selection_view_id": null,
@@ -119,17 +143,21 @@
                             "id": 17730,
                             "type": "count",
                             "name": "Count registrations",
+                            "description": null,
                             "order": 9,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": false,
-                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17744
                         },
@@ -137,17 +165,21 @@
                             "id": 17731,
                             "type": "rollup",
                             "name": "Venue (name)",
+                            "description": null,
                             "order": 10,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": true,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17704,
                             "target_field_id": 17445,
@@ -157,17 +189,21 @@
                             "id": 17733,
                             "type": "formula",
                             "name": "Sold out %",
+                            "description": null,
                             "order": 11,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": false,
-                            "array_formula_type": null,
                             "number_decimal_places": 2,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "formula": "round(field('Count registrations') / max(lookup('Venue','Venue capacity')) * 100,2)",
                             "formula_type": "number"
@@ -176,8 +212,12 @@
                             "id": 17744,
                             "type": "link_row",
                             "name": "Registrations",
+                            "description": null,
                             "order": 12,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1934,
                             "link_row_related_field_id": 17742,
                             "link_row_limit_selection_view_id": null,
@@ -187,25 +227,33 @@
                             "id": 17746,
                             "type": "text",
                             "name": "Code",
+                            "description": null,
                             "order": 13,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17752,
                             "type": "formula",
                             "name": "Registration accounts",
+                            "description": null,
                             "order": 14,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": false,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "formula": "join(lookup('Registrations','Attendee e-mail'),' ')",
                             "formula_type": "text"
@@ -234,6 +282,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 50690,
@@ -373,6 +422,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51678,
@@ -512,6 +562,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51691,
@@ -626,6 +677,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51951,
@@ -758,6 +810,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51701,
@@ -890,6 +943,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51718,
@@ -1022,6 +1076,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51729,
@@ -1154,6 +1209,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51669,
@@ -1286,6 +1342,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51660,
@@ -1764,7 +1821,8 @@
                             "field_17746": "SES",
                             "field_17752": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 1904,
@@ -1775,31 +1833,47 @@
                             "id": 17445,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17446,
                             "type": "text",
                             "name": "City",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17447,
                             "type": "url",
                             "name": "Website",
+                            "description": null,
                             "order": 2,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17705,
                             "type": "link_row",
                             "name": "Events",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1902,
                             "link_row_related_field_id": 17704,
                             "link_row_limit_selection_view_id": null,
@@ -1809,17 +1883,21 @@
                             "id": 17706,
                             "type": "count",
                             "name": "Count events",
+                            "description": null,
                             "order": 5,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": false,
-                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17705
                         },
@@ -1827,8 +1905,12 @@
                             "id": 17710,
                             "type": "link_row",
                             "name": "Venue rooms",
+                            "description": null,
                             "order": 6,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1933,
                             "link_row_related_field_id": 17708,
                             "link_row_limit_selection_view_id": null,
@@ -1838,17 +1920,21 @@
                             "id": 17732,
                             "type": "rollup",
                             "name": "Venue capacity",
+                            "description": null,
                             "order": 7,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": true,
-                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17710,
                             "target_field_id": 17709,
@@ -1858,17 +1944,21 @@
                             "id": 17734,
                             "type": "count",
                             "name": "Count rooms",
+                            "description": null,
                             "order": 8,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": false,
-                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17710
                         }
@@ -1896,6 +1986,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 50705,
@@ -2001,6 +2092,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51741,
@@ -2106,6 +2198,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51749,
@@ -2211,6 +2304,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51757,
@@ -2424,7 +2518,8 @@
                             "field_17732": null,
                             "field_17734": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 1933,
@@ -2435,16 +2530,24 @@
                             "id": 17707,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17708,
                             "type": "link_row",
                             "name": "Venue",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1904,
                             "link_row_related_field_id": 17710,
                             "link_row_limit_selection_view_id": null,
@@ -2454,8 +2557,12 @@
                             "id": 17709,
                             "type": "number",
                             "name": "Capacity",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "number_decimal_places": 0,
                             "number_negative": false
                         },
@@ -2463,31 +2570,43 @@
                             "id": 17713,
                             "type": "boolean",
                             "name": "Projection",
+                            "description": null,
                             "order": 5,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17714,
                             "type": "boolean",
                             "name": "Internet",
+                            "description": null,
                             "order": 6,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17715,
                             "type": "rollup",
                             "name": "Venue (name)",
+                            "description": null,
                             "order": 7,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": true,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17708,
                             "target_field_id": 17445,
@@ -2497,8 +2616,12 @@
                             "id": 17716,
                             "type": "link_row",
                             "name": "Schedules",
+                            "description": null,
                             "order": 8,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1903,
                             "link_row_related_field_id": 17441,
                             "link_row_limit_selection_view_id": null,
@@ -2533,6 +2656,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51638,
@@ -2632,6 +2756,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51765,
@@ -2739,6 +2864,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51772,
@@ -2846,6 +2972,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51779,
@@ -2960,6 +3087,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51786,
@@ -3067,6 +3195,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51793,
@@ -3174,6 +3303,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51800,
@@ -3281,6 +3411,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51807,
@@ -3388,6 +3519,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51814,
@@ -3495,6 +3627,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51821,
@@ -3602,6 +3735,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51828,
@@ -4041,8 +4175,8 @@
                             "field_17714": "true",
                             "field_17715": null,
                             "field_17716": [
-                                22,
                                 27,
+                                22,
                                 31
                             ]
                         },
@@ -4064,8 +4198,8 @@
                             "field_17716": [
                                 23,
                                 28,
-                                30,
-                                33
+                                33,
+                                30
                             ]
                         },
                         {
@@ -4105,9 +4239,9 @@
                             "field_17715": null,
                             "field_17716": [
                                 24,
+                                34,
                                 26,
-                                29,
-                                34
+                                29
                             ]
                         },
                         {
@@ -4144,8 +4278,8 @@
                             "field_17715": null,
                             "field_17716": [
                                 11,
-                                17,
-                                21
+                                21,
+                                17
                             ]
                         },
                         {
@@ -4182,8 +4316,8 @@
                             "field_17715": null,
                             "field_17716": [
                                 12,
-                                13,
                                 15,
+                                13,
                                 18,
                                 20
                             ]
@@ -4226,7 +4360,8 @@
                             "field_17715": null,
                             "field_17716": []
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 1903,
@@ -4237,16 +4372,24 @@
                             "id": 17437,
                             "type": "text",
                             "name": "Title",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17438,
                             "type": "single_select",
                             "name": "Type",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "select_options": [
                                 {
                                     "id": 9710,
@@ -4290,8 +4433,12 @@
                             "id": 17439,
                             "type": "date",
                             "name": "Start",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_format": "ISO",
                             "date_include_time": true,
                             "date_time_format": "24",
@@ -4302,8 +4449,12 @@
                             "id": 17440,
                             "type": "date",
                             "name": "End",
+                            "description": null,
                             "order": 3,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_format": "ISO",
                             "date_include_time": true,
                             "date_time_format": "24",
@@ -4314,8 +4465,12 @@
                             "id": 17441,
                             "type": "link_row",
                             "name": "Room",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1933,
                             "link_row_related_field_id": 17716,
                             "link_row_limit_selection_view_id": null,
@@ -4325,8 +4480,12 @@
                             "id": 17442,
                             "type": "link_row",
                             "name": "Events",
+                            "description": null,
                             "order": 6,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1902,
                             "link_row_related_field_id": 17436,
                             "link_row_limit_selection_view_id": null,
@@ -4336,8 +4495,12 @@
                             "id": 17443,
                             "type": "link_row",
                             "name": "Speakers",
+                            "description": null,
                             "order": 7,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1905,
                             "link_row_related_field_id": 17455,
                             "link_row_limit_selection_view_id": null,
@@ -4347,17 +4510,21 @@
                             "id": 17717,
                             "type": "rollup",
                             "name": "Projector",
+                            "description": null,
                             "order": 9,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": false,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17441,
                             "target_field_id": 17713,
@@ -4367,17 +4534,21 @@
                             "id": 17718,
                             "type": "rollup",
                             "name": "Internet",
+                            "description": null,
                             "order": 10,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": false,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17441,
                             "target_field_id": 17714,
@@ -4387,17 +4558,21 @@
                             "id": 17735,
                             "type": "rollup",
                             "name": "Room (name)",
+                            "description": null,
                             "order": 11,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": true,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17441,
                             "target_field_id": 17707,
@@ -4407,17 +4582,21 @@
                             "id": 17736,
                             "type": "rollup",
                             "name": "Event (name)",
+                            "description": null,
                             "order": 12,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": true,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17442,
                             "target_field_id": 17430,
@@ -4427,17 +4606,21 @@
                             "id": 17750,
                             "type": "formula",
                             "name": "Start (format)",
+                            "description": null,
                             "order": 13,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": true,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "formula": "datetime_format_tz(field('Start'),'MM-DD at  hh24:mi','Europe/Amsterdam')",
                             "formula_type": "text"
@@ -4446,17 +4629,21 @@
                             "id": 17751,
                             "type": "formula",
                             "name": "End (format)",
+                            "description": null,
                             "order": 14,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": true,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "formula": "datetime_format_tz(field('End'),'MM-DD at  hh24:mi','Europe/Amsterdam')",
                             "formula_type": "text"
@@ -4485,6 +4672,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 50697,
@@ -4633,6 +4821,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51835,
@@ -4786,6 +4975,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51844,
@@ -4921,6 +5111,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51859,
@@ -5059,6 +5250,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51870,
@@ -5197,6 +5389,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51881,
@@ -5412,7 +5605,6 @@
                                 3
                             ],
                             "field_17443": [
-                                1,
                                 22
                             ],
                             "field_17717": null,
@@ -5467,9 +5659,6 @@
                                 3
                             ],
                             "field_17443": [
-                                4,
-                                5,
-                                2,
                                 23,
                                 25,
                                 26
@@ -5546,8 +5735,6 @@
                                 3
                             ],
                             "field_17443": [
-                                6,
-                                7,
                                 27,
                                 28
                             ],
@@ -5575,9 +5762,6 @@
                                 3
                             ],
                             "field_17443": [
-                                2,
-                                3,
-                                8,
                                 23,
                                 24,
                                 29
@@ -5605,9 +5789,7 @@
                             "field_17442": [
                                 3
                             ],
-                            "field_17443": [
-                                9
-                            ],
+                            "field_17443": [],
                             "field_17717": null,
                             "field_17718": null,
                             "field_17735": null,
@@ -5632,8 +5814,6 @@
                                 3
                             ],
                             "field_17443": [
-                                4,
-                                5,
                                 25,
                                 26
                             ],
@@ -5661,7 +5841,6 @@
                                 3
                             ],
                             "field_17443": [
-                                7,
                                 28
                             ],
                             "field_17717": null,
@@ -6303,7 +6482,8 @@
                             "field_17750": null,
                             "field_17751": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 1905,
@@ -6314,32 +6494,48 @@
                             "id": 17449,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17450,
                             "type": "text",
                             "name": "Company",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17451,
                             "type": "text",
                             "name": "Role",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17455,
                             "type": "link_row",
                             "name": "Schedules",
+                            "description": null,
                             "order": 6,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1903,
                             "link_row_related_field_id": 17443,
                             "link_row_limit_selection_view_id": null,
@@ -6349,30 +6545,46 @@
                             "id": 17719,
                             "type": "long_text",
                             "name": "Biography",
+                            "description": null,
                             "order": 7,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "long_text_enable_rich_text": false
                         },
                         {
                             "id": 17720,
                             "type": "email",
                             "name": "Email",
+                            "description": null,
                             "order": 8,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17721,
                             "type": "phone_number",
                             "name": "Phone",
+                            "description": null,
                             "order": 9,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17722,
                             "type": "multiple_select",
                             "name": "Expertises",
+                            "description": null,
                             "order": 10,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "select_options": [
                                 {
                                     "id": 10039,
@@ -6560,24 +6772,32 @@
                             "id": 17725,
                             "type": "file",
                             "name": "Picture",
+                            "description": null,
                             "order": 11,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17737,
                             "type": "count",
                             "name": "Count schedules",
+                            "description": null,
                             "order": 12,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": false,
-                            "array_formula_type": null,
                             "number_decimal_places": 0,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17455
                         },
@@ -6585,17 +6805,21 @@
                             "id": 17738,
                             "type": "rollup",
                             "name": "Event name",
+                            "description": null,
                             "order": 13,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": true,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17455,
                             "target_field_id": 17736,
@@ -6625,6 +6849,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 50709,
@@ -6755,6 +6980,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51905,
@@ -6887,6 +7113,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51893,
@@ -7040,6 +7267,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51916,
@@ -7859,7 +8087,8 @@
                             "field_17737": null,
                             "field_17738": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 1906,
@@ -7870,46 +8099,70 @@
                             "id": 17456,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17457,
                             "type": "text",
                             "name": "Company",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17458,
                             "type": "text",
                             "name": "Job role",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17459,
                             "type": "email",
                             "name": "Email",
+                            "description": null,
                             "order": 3,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17740,
                             "type": "password",
                             "name": "Password",
+                            "description": null,
                             "order": 4,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17745,
                             "type": "link_row",
                             "name": "Registrations",
+                            "description": null,
                             "order": 5,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1934,
                             "link_row_related_field_id": 17743,
                             "link_row_limit_selection_view_id": null,
@@ -7933,6 +8186,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 50716,
@@ -8316,7 +8570,8 @@
                                 21
                             ]
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 1934,
@@ -8327,17 +8582,21 @@
                             "id": 17741,
                             "type": "formula",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": false,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "formula": "concat(min(lookup('Event','Code')),'-',min(lookup('Attendee','Email')))",
                             "formula_type": "text"
@@ -8346,8 +8605,12 @@
                             "id": 17742,
                             "type": "link_row",
                             "name": "Event",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1902,
                             "link_row_related_field_id": 17744,
                             "link_row_limit_selection_view_id": null,
@@ -8357,8 +8620,12 @@
                             "id": 17743,
                             "type": "link_row",
                             "name": "Attendee",
+                            "description": null,
                             "order": 2,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "link_row_table_id": 1906,
                             "link_row_related_field_id": 17745,
                             "link_row_limit_selection_view_id": null,
@@ -8368,15 +8635,23 @@
                             "id": 17747,
                             "type": "boolean",
                             "name": "Paid",
+                            "description": null,
                             "order": 3,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17748,
                             "type": "created_on",
                             "name": "Created on",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_format": "ISO",
                             "date_include_time": true,
                             "date_time_format": "24",
@@ -8387,17 +8662,21 @@
                             "id": 17749,
                             "type": "rollup",
                             "name": "Event (name)",
+                            "description": null,
                             "order": 5,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": true,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17742,
                             "target_field_id": 17430,
@@ -8407,17 +8686,21 @@
                             "id": 17753,
                             "type": "rollup",
                             "name": "Attendee e-mail",
+                            "description": null,
                             "order": 6,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "date_include_time": null,
+                            "duration_format": null,
                             "date_format": null,
+                            "error": null,
                             "date_show_tzinfo": null,
                             "nullable": true,
-                            "array_formula_type": null,
                             "number_decimal_places": null,
+                            "array_formula_type": null,
                             "date_time_format": null,
-                            "duration_format": null,
-                            "error": null,
                             "date_force_timezone": null,
                             "through_field_id": 17743,
                             "target_field_id": 17459,
@@ -8447,6 +8730,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51964,
@@ -8541,6 +8825,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51977,
@@ -8643,6 +8928,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 51983,
@@ -9158,7 +9444,8 @@
                             "field_17749": null,
                             "field_17753": null
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 },
                 {
                     "id": 1908,
@@ -9169,16 +9456,24 @@
                             "id": 17467,
                             "type": "text",
                             "name": "Name",
+                            "description": null,
                             "order": 0,
                             "primary": true,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17468,
                             "type": "single_select",
                             "name": "Type",
+                            "description": null,
                             "order": 1,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "select_options": [
                                 {
                                     "id": 9788,
@@ -9246,37 +9541,57 @@
                             "id": 17469,
                             "type": "boolean",
                             "name": "Preferred",
+                            "description": null,
                             "order": 2,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17470,
                             "type": "url",
                             "name": "Website",
+                            "description": null,
                             "order": 3,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17471,
                             "type": "text",
                             "name": "Contact Name",
+                            "description": null,
                             "order": 4,
                             "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
                             "text_default": ""
                         },
                         {
                             "id": 17472,
                             "type": "email",
                             "name": "Contact Email",
+                            "description": null,
                             "order": 5,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         },
                         {
                             "id": 17473,
                             "type": "phone_number",
                             "name": "Contact Phone",
+                            "description": null,
                             "order": 6,
-                            "primary": false
+                            "primary": false,
+                            "read_only": false,
+                            "immutable_type": false,
+                            "immutable_properties": false
                         }
                     ],
                     "views": [
@@ -9296,6 +9611,7 @@
                             "decorations": [],
                             "public": false,
                             "row_identifier_type": "id",
+                            "row_height_size": "small",
                             "field_options": [
                                 {
                                     "id": 50727,
@@ -9494,24 +9810,60 @@
                             "field_17472": "jessica@eventstaffingsolutions.com",
                             "field_17473": "+1-555-000-1111"
                         }
-                    ]
+                    ],
+                    "data_sync": null
                 }
             ]
         },
         {
             "pages": [
                 {
-                    "id": 194,
-                    "name": "Homepage",
-                    "order": 1,
-                    "path": "/",
-                    "path_params": [],
+                    "id": 1471,
+                    "name": "__shared__",
+                    "order": 0,
+                    "path": "__shared__",
+                    "path_params": {},
+                    "shared": true,
                     "elements": [
                         {
-                            "id": 2774,
+                            "id": 40330,
+                            "order": "1.00000000000000000000",
+                            "type": "header",
+                            "parent_element_id": null,
+                            "place_in_container": null,
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {},
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 10,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 10,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 0,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 0,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "share_type": "all",
+                            "pages": []
+                        },
+                        {
+                            "id": 40331,
                             "order": "1.00000000000000000000",
                             "type": "image",
-                            "parent_element_id": null,
+                            "parent_element_id": 40330,
                             "place_in_container": null,
                             "visibility": "all",
                             "role_type": "allow_all",
@@ -9540,17 +9892,17 @@
                             "style_width": "normal",
                             "image_source_type": "upload",
                             "image_file_id": {
-                                "name": "VBUt4qBUOItxJWiTfHfOZSRZrFfE8jtJ_d570910b4de568550dc3e4548e3233094024b77f3ddab2102aaddce3023fd13f.png",
-                                "original_name": "marketing-header.png"
+                                "name": "IYxovwCoEsQatEcZGPEOm78RvPCw887P_d570910b4de568550dc3e4548e3233094024b77f3ddab2102aaddce3023fd13f.png",
+                                "original_name": "template-header.png"
                             },
                             "image_url": "",
                             "alt_text": ""
                         },
                         {
-                            "id": 2775,
+                            "id": 40333,
                             "order": "1.00000000000000000000",
-                            "type": "link",
-                            "parent_element_id": 2772,
+                            "type": "text",
+                            "parent_element_id": 40332,
                             "place_in_container": "0",
                             "visibility": "all",
                             "role_type": "allow_all",
@@ -9577,31 +9929,22 @@
                             "style_background_file_id": null,
                             "style_background_mode": "fill",
                             "style_width": "normal",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 197,
-                            "page_parameters": [
-                                {
-                                    "name": "user_id",
-                                    "value": "get('user.id')"
-                                }
-                            ],
-                            "navigate_to_url": "",
-                            "target": "self",
-                            "value": "concat('Logged in as ',get('user.username'),' (',get('user.email'),')')",
-                            "variant": "link"
+                            "value": "concat('\ud83d\udd11 Logged in as **', get('user.username'), '** (', get('user.role'), ')')",
+                            "format": "markdown"
                         },
                         {
-                            "id": 2776,
+                            "id": 40334,
                             "order": "1.00000000000000000000",
                             "type": "button",
-                            "parent_element_id": 2772,
+                            "parent_element_id": 40332,
                             "place_in_container": "1",
                             "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {
                                 "button": {
-                                    "button_alignment": "right"
+                                    "button_alignment": "right",
+                                    "button_font_size": 12
                                 }
                             },
                             "style_border_top_color": "border",
@@ -9625,76 +9968,33 @@
                             "style_background_file_id": null,
                             "style_background_mode": "fill",
                             "style_width": "normal",
-                            "value": "'Logout'"
+                            "value": "'LOGOUT'"
                         },
                         {
-                            "id": 2777,
-                            "order": "1.00000000000000000000",
-                            "type": "link",
-                            "parent_element_id": 2773,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "link": {
-                                    "link_text_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 195,
-                            "page_parameters": [],
-                            "navigate_to_url": "",
-                            "target": "self",
-                            "value": "'Sign in'",
-                            "variant": "link"
-                        },
-                        {
-                            "id": 2772,
+                            "id": 40332,
                             "order": "2.00000000000000000000",
                             "type": "column",
-                            "parent_element_id": null,
+                            "parent_element_id": 40330,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
                             "style_border_top_color": "border",
-                            "style_border_top_size": 4,
-                            "style_padding_top": 10,
+                            "style_border_top_size": 0,
+                            "style_padding_top": 0,
                             "style_margin_top": 0,
                             "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 4,
-                            "style_padding_bottom": 10,
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 0,
                             "style_margin_bottom": 0,
                             "style_border_left_color": "border",
                             "style_border_left_size": 0,
-                            "style_padding_left": 20,
+                            "style_padding_left": 10,
                             "style_margin_left": 0,
                             "style_border_right_color": "border",
                             "style_border_right_size": 0,
-                            "style_padding_right": 20,
+                            "style_padding_right": 10,
                             "style_margin_right": 0,
                             "style_background": "none",
                             "style_background_color": "#ffffffff",
@@ -9704,424 +10004,30 @@
                             "column_amount": 2,
                             "column_gap": 20,
                             "alignment": "center"
-                        },
-                        {
-                            "id": 2778,
-                            "order": "2.00000000000000000000",
-                            "type": "link",
-                            "parent_element_id": 2773,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "link": {
-                                    "link_text_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 196,
-                            "page_parameters": [],
-                            "navigate_to_url": "",
-                            "target": "self",
-                            "value": "'Sign up'",
-                            "variant": "link"
-                        },
-                        {
-                            "id": 2773,
-                            "order": "3.00000000000000000000",
-                            "type": "column",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "not-logged",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 4,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 4,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "column_amount": 2,
-                            "column_gap": 20,
-                            "alignment": "center"
-                        },
-                        {
-                            "id": 2779,
-                            "order": "4.00000000000000000000",
-                            "type": "heading",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "logged-in",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "value": "'My events'",
-                            "level": 2
-                        },
-                        {
-                            "id": 2780,
-                            "order": "4.33333333333333303727",
-                            "type": "table",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "logged-in",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "data_source_id": 357,
-                            "items_per_page": 20,
-                            "button_load_more_label": "",
-                            "fields": [
-                                {
-                                    "uid": "81e87040-5676-463a-b633-ac83bcd297b5",
-                                    "name": "Name",
-                                    "type": "text",
-                                    "styles": {},
-                                    "config": {
-                                        "value": "get('current_record.field_17430')"
-                                    }
-                                },
-                                {
-                                    "uid": "cf1c0c1a-0b9a-4b19-95f4-3e4a7f94029f",
-                                    "name": "Start Date",
-                                    "type": "text",
-                                    "styles": {},
-                                    "config": {
-                                        "value": "get('current_record.field_17433')"
-                                    }
-                                },
-                                {
-                                    "uid": "9c934cc0-ed98-4abc-b69e-1425cde82657",
-                                    "name": "End Date",
-                                    "type": "text",
-                                    "styles": {},
-                                    "config": {
-                                        "value": "get('current_record.field_17434')"
-                                    }
-                                },
-                                {
-                                    "uid": "68994d12-973f-4139-94ea-541390ee0a26",
-                                    "name": "Venue",
-                                    "type": "text",
-                                    "styles": {},
-                                    "config": {
-                                        "value": "get('current_record.field_17704.*.value')"
-                                    }
-                                },
-                                {
-                                    "uid": "46964657-1855-411f-b4f9-37800cb2b090",
-                                    "name": "Details",
-                                    "type": "link",
-                                    "styles": {},
-                                    "config": {
-                                        "navigation_type": "page",
-                                        "navigate_to_page_id": 199,
-                                        "page_parameters": [
-                                            {
-                                                "name": "event_id",
-                                                "value": "get('current_record.id')"
-                                            }
-                                        ],
-                                        "navigate_to_url": "",
-                                        "target": "self",
-                                        "link_name": ""
-                                    }
-                                }
-                            ],
-                            "orientation": {
-                                "tablet": "horizontal",
-                                "desktop": "horizontal",
-                                "smartphone": "vertical"
-                            }
-                        },
-                        {
-                            "id": 2781,
-                            "order": "4.50000000000000000000",
-                            "type": "heading",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "value": "'Events open for registration'",
-                            "level": 2
-                        },
-                        {
-                            "id": 2782,
-                            "order": "5.00000000000000000000",
-                            "type": "table",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "data_source_id": 356,
-                            "items_per_page": 20,
-                            "button_load_more_label": "",
-                            "fields": [
-                                {
-                                    "uid": "a1531168-0810-4972-b6c0-f781216fd433",
-                                    "name": "Name",
-                                    "type": "text",
-                                    "styles": {
-                                        "cell": {}
-                                    },
-                                    "config": {
-                                        "value": "concat(get('current_record.field_17430'),' (',get('current_record.field_17746'),')')"
-                                    }
-                                },
-                                {
-                                    "uid": "2d017901-c1c0-4b7a-8b65-020c937d41ac",
-                                    "name": "Start Date",
-                                    "type": "text",
-                                    "styles": {},
-                                    "config": {
-                                        "value": "get('current_record.field_17433')"
-                                    }
-                                },
-                                {
-                                    "uid": "40b7b5b6-3190-445d-9423-ca22fa132249",
-                                    "name": "End Date",
-                                    "type": "text",
-                                    "styles": {},
-                                    "config": {
-                                        "value": "get('current_record.field_17434')"
-                                    }
-                                },
-                                {
-                                    "uid": "5f9aa2cd-e771-44dd-a0ee-b899cb350667",
-                                    "name": "Venue",
-                                    "type": "text",
-                                    "styles": {},
-                                    "config": {
-                                        "value": "get('current_record.field_17704.*.value')"
-                                    }
-                                },
-                                {
-                                    "uid": "42c9801d-a3f8-454e-8a40-f66ea7449396",
-                                    "name": "Sold out %",
-                                    "type": "text",
-                                    "styles": {},
-                                    "config": {
-                                        "value": "concat(get('current_record.field_17733'),'%')"
-                                    }
-                                },
-                                {
-                                    "uid": "739cbe7b-1a5f-419e-87cd-fbdc6689b365",
-                                    "name": "Details",
-                                    "type": "link",
-                                    "styles": {},
-                                    "config": {
-                                        "navigation_type": "page",
-                                        "navigate_to_page_id": 198,
-                                        "page_parameters": [
-                                            {
-                                                "name": "event_id",
-                                                "value": "get('current_record.id')"
-                                            }
-                                        ],
-                                        "navigate_to_url": "",
-                                        "target": "self",
-                                        "link_name": ""
-                                    }
-                                }
-                            ],
-                            "orientation": {
-                                "tablet": "horizontal",
-                                "desktop": "horizontal",
-                                "smartphone": "vertical"
-                            }
                         }
                     ],
-                    "data_sources": [
-                        {
-                            "id": 356,
-                            "name": "Open for registration",
-                            "order": "1.00000000000000000000",
-                            "service": {
-                                "id": 414,
-                                "integration_id": 36,
-                                "type": "local_baserow_list_rows",
-                                "table_id": 1902,
-                                "view_id": 7369,
-                                "sortings": [],
-                                "search_query": "",
-                                "filter_type": "AND",
-                                "filters": [
-                                    {
-                                        "field_id": 17752,
-                                        "type": "doesnt_contain_word",
-                                        "value": "get('user.email')",
-                                        "value_is_formula": true
-                                    }
-                                ]
-                            }
-                        },
-                        {
-                            "id": 357,
-                            "name": "My registrations",
-                            "order": "2.00000000000000000000",
-                            "service": {
-                                "id": 415,
-                                "integration_id": 36,
-                                "type": "local_baserow_list_rows",
-                                "table_id": 1902,
-                                "view_id": 7229,
-                                "sortings": [],
-                                "search_query": "",
-                                "filter_type": "AND",
-                                "filters": [
-                                    {
-                                        "field_id": 17752,
-                                        "type": "contains_word",
-                                        "value": "get('user.email')",
-                                        "value_is_formula": true
-                                    }
-                                ]
-                            }
-                        }
-                    ],
+                    "data_sources": [],
                     "workflow_actions": [
                         {
-                            "id": 300,
+                            "id": 5361,
                             "type": "logout",
                             "order": 1,
-                            "page_id": 194,
-                            "element_id": 2776,
+                            "page_id": 1471,
+                            "element_id": 40334,
                             "event": "click"
                         }
-                    ]
+                    ],
+                    "visibility": "all",
+                    "role_type": "allow_all",
+                    "roles": []
                 },
                 {
                     "id": 195,
                     "name": "Sign in",
-                    "order": 2,
+                    "order": 1,
                     "path": "/sign-in",
                     "path_params": [],
+                    "shared": false,
                     "elements": [
                         {
                             "id": 2783,
@@ -10294,14 +10200,18 @@
                             "navigate_to_url": "",
                             "target": "self"
                         }
-                    ]
+                    ],
+                    "visibility": "all",
+                    "role_type": "allow_all",
+                    "roles": []
                 },
                 {
                     "id": 196,
                     "name": "Sign up",
-                    "order": 3,
+                    "order": 2,
                     "path": "/sign-up",
                     "path_params": [],
+                    "shared": false,
                     "elements": [
                         {
                             "id": 2790,
@@ -10669,14 +10579,14 @@
                                 "row_id": "",
                                 "field_mappings": [
                                     {
-                                        "field_id": 17745,
-                                        "value": "",
-                                        "enabled": false
-                                    },
-                                    {
                                         "field_id": 17456,
                                         "value": "get('form_data.2790')",
                                         "enabled": true
+                                    },
+                                    {
+                                        "field_id": 17745,
+                                        "value": "",
+                                        "enabled": false
                                     },
                                     {
                                         "field_id": 17457,
@@ -10724,7 +10634,381 @@
                             "navigate_to_url": "",
                             "target": "self"
                         }
-                    ]
+                    ],
+                    "visibility": "all",
+                    "role_type": "allow_all",
+                    "roles": []
+                },
+                {
+                    "id": 194,
+                    "name": "Homepage",
+                    "order": 3,
+                    "path": "/",
+                    "path_params": [],
+                    "shared": false,
+                    "elements": [
+                        {
+                            "id": 2779,
+                            "order": "4.00000000000000000000",
+                            "type": "heading",
+                            "parent_element_id": null,
+                            "place_in_container": null,
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {},
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 10,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 10,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 20,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 20,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "value": "'My events'",
+                            "level": 2
+                        },
+                        {
+                            "id": 2780,
+                            "order": "4.33333333333333303727",
+                            "type": "table",
+                            "parent_element_id": null,
+                            "place_in_container": null,
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {},
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 10,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 10,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 20,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 20,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "data_source_id": 357,
+                            "items_per_page": 20,
+                            "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_17430",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17431",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_17433",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_17434",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                }
+                            ],
+                            "fields": [
+                                {
+                                    "uid": "8630bb52-2237-469b-a45c-048c848cbdab",
+                                    "name": "Name",
+                                    "type": "link",
+                                    "styles": {},
+                                    "config": {
+                                        "navigation_type": "page",
+                                        "navigate_to_page_id": 199,
+                                        "page_parameters": [
+                                            {
+                                                "name": "event_id",
+                                                "value": "get('current_record.id')"
+                                            }
+                                        ],
+                                        "navigate_to_url": "",
+                                        "target": "self",
+                                        "link_name": "get('current_record.field_17430')",
+                                        "variant": "link"
+                                    }
+                                },
+                                {
+                                    "uid": "cf1c0c1a-0b9a-4b19-95f4-3e4a7f94029f",
+                                    "name": "Start Date",
+                                    "type": "text",
+                                    "styles": {},
+                                    "config": {
+                                        "value": "get('current_record.field_17433')"
+                                    }
+                                },
+                                {
+                                    "uid": "9c934cc0-ed98-4abc-b69e-1425cde82657",
+                                    "name": "End Date",
+                                    "type": "text",
+                                    "styles": {},
+                                    "config": {
+                                        "value": "get('current_record.field_17434')"
+                                    }
+                                },
+                                {
+                                    "uid": "68994d12-973f-4139-94ea-541390ee0a26",
+                                    "name": "Venue",
+                                    "type": "text",
+                                    "styles": {},
+                                    "config": {
+                                        "value": "get('current_record.field_17704.*.value')"
+                                    }
+                                }
+                            ],
+                            "orientation": {
+                                "tablet": "vertical",
+                                "desktop": "horizontal",
+                                "smartphone": "vertical"
+                            }
+                        },
+                        {
+                            "id": 2781,
+                            "order": "4.50000000000000000000",
+                            "type": "heading",
+                            "parent_element_id": null,
+                            "place_in_container": null,
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {},
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 10,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 10,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 20,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 20,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "value": "'Events open for registration'",
+                            "level": 2
+                        },
+                        {
+                            "id": 2782,
+                            "order": "5.00000000000000000000",
+                            "type": "table",
+                            "parent_element_id": null,
+                            "place_in_container": null,
+                            "visibility": "all",
+                            "role_type": "allow_all",
+                            "roles": [],
+                            "styles": {},
+                            "style_border_top_color": "border",
+                            "style_border_top_size": 0,
+                            "style_padding_top": 10,
+                            "style_margin_top": 0,
+                            "style_border_bottom_color": "border",
+                            "style_border_bottom_size": 0,
+                            "style_padding_bottom": 10,
+                            "style_margin_bottom": 0,
+                            "style_border_left_color": "border",
+                            "style_border_left_size": 0,
+                            "style_padding_left": 20,
+                            "style_margin_left": 0,
+                            "style_border_right_color": "border",
+                            "style_border_right_size": 0,
+                            "style_padding_right": 20,
+                            "style_margin_right": 0,
+                            "style_background": "none",
+                            "style_background_color": "#ffffffff",
+                            "style_background_file_id": null,
+                            "style_background_mode": "fill",
+                            "style_width": "normal",
+                            "data_source_id": 356,
+                            "items_per_page": 20,
+                            "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_17430",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17431",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_17433",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_17434",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                }
+                            ],
+                            "fields": [
+                                {
+                                    "uid": "d8642b24-ba55-45fc-bfd8-79650544b0c3",
+                                    "name": "Name",
+                                    "type": "link",
+                                    "styles": {},
+                                    "config": {
+                                        "navigation_type": "page",
+                                        "navigate_to_page_id": 198,
+                                        "page_parameters": [
+                                            {
+                                                "name": "event_id",
+                                                "value": "get('current_record.id')"
+                                            }
+                                        ],
+                                        "navigate_to_url": "",
+                                        "target": "self",
+                                        "link_name": "get('current_record.field_17430')",
+                                        "variant": "link"
+                                    }
+                                },
+                                {
+                                    "uid": "2d017901-c1c0-4b7a-8b65-020c937d41ac",
+                                    "name": "Start Date",
+                                    "type": "text",
+                                    "styles": {},
+                                    "config": {
+                                        "value": "get('current_record.field_17433')"
+                                    }
+                                },
+                                {
+                                    "uid": "40b7b5b6-3190-445d-9423-ca22fa132249",
+                                    "name": "End Date",
+                                    "type": "text",
+                                    "styles": {},
+                                    "config": {
+                                        "value": "get('current_record.field_17434')"
+                                    }
+                                },
+                                {
+                                    "uid": "5f9aa2cd-e771-44dd-a0ee-b899cb350667",
+                                    "name": "Venue",
+                                    "type": "text",
+                                    "styles": {},
+                                    "config": {
+                                        "value": "get('current_record.field_17704.*.value')"
+                                    }
+                                },
+                                {
+                                    "uid": "42c9801d-a3f8-454e-8a40-f66ea7449396",
+                                    "name": "Sold out %",
+                                    "type": "text",
+                                    "styles": {},
+                                    "config": {
+                                        "value": "concat(get('current_record.field_17733'),'%')"
+                                    }
+                                }
+                            ],
+                            "orientation": {
+                                "tablet": "vertical",
+                                "desktop": "horizontal",
+                                "smartphone": "vertical"
+                            }
+                        }
+                    ],
+                    "data_sources": [
+                        {
+                            "id": 356,
+                            "name": "Open for registration",
+                            "order": "1.00000000000000000000",
+                            "service": {
+                                "id": 414,
+                                "integration_id": 36,
+                                "type": "local_baserow_list_rows",
+                                "table_id": 1902,
+                                "view_id": 7369,
+                                "sortings": [],
+                                "search_query": "",
+                                "filter_type": "AND",
+                                "filters": [
+                                    {
+                                        "field_id": 17752,
+                                        "type": "doesnt_contain_word",
+                                        "value": "get('user.email')",
+                                        "value_is_formula": true
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "id": 357,
+                            "name": "My registrations",
+                            "order": "2.00000000000000000000",
+                            "service": {
+                                "id": 415,
+                                "integration_id": 36,
+                                "type": "local_baserow_list_rows",
+                                "table_id": 1902,
+                                "view_id": 7229,
+                                "sortings": [],
+                                "search_query": "",
+                                "filter_type": "AND",
+                                "filters": [
+                                    {
+                                        "field_id": 17752,
+                                        "type": "contains_word",
+                                        "value": "get('user.email')",
+                                        "value_is_formula": true
+                                    }
+                                ]
+                            }
+                        }
+                    ],
+                    "workflow_actions": [],
+                    "visibility": "logged-in",
+                    "role_type": "allow_all",
+                    "roles": []
                 },
                 {
                     "id": 197,
@@ -10737,6 +11021,7 @@
                             "type": "numeric"
                         }
                     ],
+                    "shared": false,
                     "elements": [
                         {
                             "id": 2803,
@@ -10777,45 +11062,6 @@
                             "is_multiline": false,
                             "rows": 3,
                             "input_type": "text"
-                        },
-                        {
-                            "id": 2806,
-                            "order": "1.00000000000000000000",
-                            "type": "image",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "image_source_type": "upload",
-                            "image_file_id": {
-                                "name": "VBUt4qBUOItxJWiTfHfOZSRZrFfE8jtJ_d570910b4de568550dc3e4548e3233094024b77f3ddab2102aaddce3023fd13f.png",
-                                "original_name": "marketing-header.png"
-                            },
-                            "image_url": "",
-                            "alt_text": ""
                         },
                         {
                             "id": 2804,
@@ -10863,7 +11109,7 @@
                             "type": "heading",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -10978,7 +11224,7 @@
                             "type": "form_container",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -11054,6 +11300,21 @@
                                 "row_id": "get('page_parameter.user_id')",
                                 "field_mappings": [
                                     {
+                                        "field_id": 17456,
+                                        "value": "get('form_data.2803')",
+                                        "enabled": true
+                                    },
+                                    {
+                                        "field_id": 17457,
+                                        "value": "get('form_data.2804')",
+                                        "enabled": true
+                                    },
+                                    {
+                                        "field_id": 17458,
+                                        "value": "get('form_data.2805')",
+                                        "enabled": true
+                                    },
+                                    {
                                         "field_id": 17459,
                                         "value": "",
                                         "enabled": false
@@ -11067,21 +11328,6 @@
                                         "field_id": 17745,
                                         "value": "",
                                         "enabled": false
-                                    },
-                                    {
-                                        "field_id": 17458,
-                                        "value": "get('form_data.2805')",
-                                        "enabled": true
-                                    },
-                                    {
-                                        "field_id": 17456,
-                                        "value": "get('form_data.2803')",
-                                        "enabled": true
-                                    },
-                                    {
-                                        "field_id": 17457,
-                                        "value": "get('form_data.2804')",
-                                        "enabled": true
                                     }
                                 ]
                             }
@@ -11096,7 +11342,10 @@
                             "title": "'\u2705 Success'",
                             "description": "concat('The account for ',get('data_source.358.field_17456'),' has been updated')"
                         }
-                    ]
+                    ],
+                    "visibility": "logged-in",
+                    "role_type": "allow_all",
+                    "roles": []
                 },
                 {
                     "id": 198,
@@ -11109,170 +11358,8 @@
                             "type": "numeric"
                         }
                     ],
+                    "shared": false,
                     "elements": [
-                        {
-                            "id": 2812,
-                            "order": "1.00000000000000000000",
-                            "type": "image",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "image_source_type": "upload",
-                            "image_file_id": {
-                                "name": "VBUt4qBUOItxJWiTfHfOZSRZrFfE8jtJ_d570910b4de568550dc3e4548e3233094024b77f3ddab2102aaddce3023fd13f.png",
-                                "original_name": "marketing-header.png"
-                            },
-                            "image_url": "",
-                            "alt_text": ""
-                        },
-                        {
-                            "id": 2813,
-                            "order": "1.00000000000000000000",
-                            "type": "link",
-                            "parent_element_id": 2809,
-                            "place_in_container": "0",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 197,
-                            "page_parameters": [
-                                {
-                                    "name": "user_id",
-                                    "value": "get('user.id')"
-                                }
-                            ],
-                            "navigate_to_url": "",
-                            "target": "self",
-                            "value": "concat('Logged in as ',get('user.username'),' (',get('user.email'),')')",
-                            "variant": "link"
-                        },
-                        {
-                            "id": 2814,
-                            "order": "1.00000000000000000000",
-                            "type": "button",
-                            "parent_element_id": 2809,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "button": {
-                                    "button_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "value": "'Logout'"
-                        },
-                        {
-                            "id": 2815,
-                            "order": "1.00000000000000000000",
-                            "type": "link",
-                            "parent_element_id": 2810,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "link": {
-                                    "link_text_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 195,
-                            "page_parameters": [],
-                            "navigate_to_url": "",
-                            "target": "self",
-                            "value": "'Sign in'",
-                            "variant": "link"
-                        },
                         {
                             "id": 2816,
                             "order": "1.00000000000000000000",
@@ -11308,119 +11395,6 @@
                             "style_width": "normal",
                             "value": "concat(get('current_record.field_17438.value'),': ',get('current_record.field_17437'))",
                             "level": 4
-                        },
-                        {
-                            "id": 2809,
-                            "order": "2.00000000000000000000",
-                            "type": "column",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "logged-in",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 4,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 4,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "column_amount": 2,
-                            "column_gap": 20,
-                            "alignment": "center"
-                        },
-                        {
-                            "id": 2817,
-                            "order": "2.00000000000000000000",
-                            "type": "link",
-                            "parent_element_id": 2810,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "link": {
-                                    "link_text_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 196,
-                            "page_parameters": [],
-                            "navigate_to_url": "",
-                            "target": "self",
-                            "value": "'Sign up'",
-                            "variant": "link"
-                        },
-                        {
-                            "id": 2810,
-                            "order": "3.00000000000000000000",
-                            "type": "column",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "not-logged",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 4,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 4,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "column_amount": 2,
-                            "column_gap": 20,
-                            "alignment": "center"
                         },
                         {
                             "id": 2818,
@@ -11462,7 +11436,7 @@
                             "type": "button",
                             "parent_element_id": null,
                             "place_in_container": null,
-                            "visibility": "logged-in",
+                            "visibility": "all",
                             "role_type": "allow_all",
                             "roles": [],
                             "styles": {},
@@ -11591,6 +11565,33 @@
                             "data_source_id": 360,
                             "items_per_page": 20,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_17437",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17438",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17439",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_17440",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                }
+                            ],
                             "orientation": "vertical",
                             "items_per_row": {
                                 "tablet": 2,
@@ -11676,14 +11677,6 @@
                     ],
                     "workflow_actions": [
                         {
-                            "id": 311,
-                            "type": "logout",
-                            "order": 1,
-                            "page_id": 198,
-                            "element_id": 2814,
-                            "event": "click"
-                        },
-                        {
                             "id": 312,
                             "type": "create_row",
                             "order": 1,
@@ -11698,6 +11691,11 @@
                                 "row_id": "",
                                 "field_mappings": [
                                     {
+                                        "field_id": 17742,
+                                        "value": "get('data_source.359.id')",
+                                        "enabled": true
+                                    },
+                                    {
                                         "field_id": 17743,
                                         "value": "get('user.id')",
                                         "enabled": true
@@ -11706,11 +11704,6 @@
                                         "field_id": 17747,
                                         "value": "",
                                         "enabled": false
-                                    },
-                                    {
-                                        "field_id": 17742,
-                                        "value": "get('data_source.359.id')",
-                                        "enabled": true
                                     }
                                 ]
                             }
@@ -11738,7 +11731,10 @@
                             "navigate_to_url": "",
                             "target": "self"
                         }
-                    ]
+                    ],
+                    "visibility": "logged-in",
+                    "role_type": "allow_all",
+                    "roles": []
                 },
                 {
                     "id": 199,
@@ -11751,170 +11747,8 @@
                             "type": "numeric"
                         }
                     ],
+                    "shared": false,
                     "elements": [
-                        {
-                            "id": 2826,
-                            "order": "1.00000000000000000000",
-                            "type": "image",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "image_source_type": "upload",
-                            "image_file_id": {
-                                "name": "VBUt4qBUOItxJWiTfHfOZSRZrFfE8jtJ_d570910b4de568550dc3e4548e3233094024b77f3ddab2102aaddce3023fd13f.png",
-                                "original_name": "marketing-header.png"
-                            },
-                            "image_url": "",
-                            "alt_text": ""
-                        },
-                        {
-                            "id": 2827,
-                            "order": "1.00000000000000000000",
-                            "type": "link",
-                            "parent_element_id": 2823,
-                            "place_in_container": "0",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 197,
-                            "page_parameters": [
-                                {
-                                    "name": "user_id",
-                                    "value": "get('user.id')"
-                                }
-                            ],
-                            "navigate_to_url": "",
-                            "target": "self",
-                            "value": "concat('Logged in as ',get('user.username'),' (',get('user.email'),')')",
-                            "variant": "link"
-                        },
-                        {
-                            "id": 2828,
-                            "order": "1.00000000000000000000",
-                            "type": "button",
-                            "parent_element_id": 2823,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "button": {
-                                    "button_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "value": "'Logout'"
-                        },
-                        {
-                            "id": 2829,
-                            "order": "1.00000000000000000000",
-                            "type": "link",
-                            "parent_element_id": 2824,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "link": {
-                                    "link_text_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 195,
-                            "page_parameters": [],
-                            "navigate_to_url": "",
-                            "target": "self",
-                            "value": "'Sign in'",
-                            "variant": "link"
-                        },
                         {
                             "id": 2830,
                             "order": "1.00000000000000000000",
@@ -11950,119 +11784,6 @@
                             "style_width": "normal",
                             "value": "concat(get('current_record.field_17438.value'),': ',get('current_record.field_17437'))",
                             "level": 4
-                        },
-                        {
-                            "id": 2823,
-                            "order": "2.00000000000000000000",
-                            "type": "column",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "logged-in",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 4,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 4,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "column_amount": 2,
-                            "column_gap": 20,
-                            "alignment": "center"
-                        },
-                        {
-                            "id": 2831,
-                            "order": "2.00000000000000000000",
-                            "type": "link",
-                            "parent_element_id": 2824,
-                            "place_in_container": "1",
-                            "visibility": "all",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {
-                                "link": {
-                                    "link_text_alignment": "right"
-                                }
-                            },
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 0,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 0,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 0,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 0,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "navigation_type": "page",
-                            "navigate_to_page_id": 196,
-                            "page_parameters": [],
-                            "navigate_to_url": "",
-                            "target": "self",
-                            "value": "'Sign up'",
-                            "variant": "link"
-                        },
-                        {
-                            "id": 2824,
-                            "order": "3.00000000000000000000",
-                            "type": "column",
-                            "parent_element_id": null,
-                            "place_in_container": null,
-                            "visibility": "not-logged",
-                            "role_type": "allow_all",
-                            "roles": [],
-                            "styles": {},
-                            "style_border_top_color": "border",
-                            "style_border_top_size": 4,
-                            "style_padding_top": 10,
-                            "style_margin_top": 0,
-                            "style_border_bottom_color": "border",
-                            "style_border_bottom_size": 2,
-                            "style_padding_bottom": 10,
-                            "style_margin_bottom": 0,
-                            "style_border_left_color": "border",
-                            "style_border_left_size": 0,
-                            "style_padding_left": 20,
-                            "style_margin_left": 0,
-                            "style_border_right_color": "border",
-                            "style_border_right_size": 0,
-                            "style_padding_right": 20,
-                            "style_margin_right": 0,
-                            "style_background": "none",
-                            "style_background_color": "#ffffffff",
-                            "style_background_file_id": null,
-                            "style_background_mode": "fill",
-                            "style_width": "normal",
-                            "column_amount": 2,
-                            "column_gap": 20,
-                            "alignment": "center"
                         },
                         {
                             "id": 2832,
@@ -12200,6 +11921,33 @@
                             "data_source_id": 362,
                             "items_per_page": 20,
                             "button_load_more_label": "",
+                            "schema_property": null,
+                            "property_options": [
+                                {
+                                    "schema_property": "field_17438",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": true
+                                },
+                                {
+                                    "schema_property": "field_17439",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_17440",
+                                    "filterable": true,
+                                    "sortable": true,
+                                    "searchable": false
+                                },
+                                {
+                                    "schema_property": "field_17437",
+                                    "filterable": false,
+                                    "sortable": true,
+                                    "searchable": true
+                                }
+                            ],
                             "orientation": "vertical",
                             "items_per_row": {
                                 "tablet": 2,
@@ -12283,16 +12031,10 @@
                             }
                         }
                     ],
-                    "workflow_actions": [
-                        {
-                            "id": 315,
-                            "type": "logout",
-                            "order": 1,
-                            "page_id": 199,
-                            "element_id": 2828,
-                            "event": "click"
-                        }
-                    ]
+                    "workflow_actions": [],
+                    "visibility": "logged-in",
+                    "role_type": "allow_all",
+                    "roles": []
                 }
             ],
             "integrations": [
@@ -12379,10 +12121,10 @@
                 "input_vertical_padding": 8,
                 "input_horizontal_padding": 12,
                 "table_border_color": "#000000FF",
-                "table_border_size": 1,
+                "table_border_size": 0,
                 "table_border_radius": 0,
-                "table_header_background_color": "#edededff",
-                "table_header_text_color": "#000000ff",
+                "table_header_background_color": "primary",
+                "table_header_text_color": "#ffffffff",
                 "table_header_font_size": 13,
                 "table_header_font_family": "inter",
                 "table_header_text_alignment": "left",
@@ -12393,7 +12135,7 @@
                 "table_cell_horizontal_padding": 20,
                 "table_vertical_separator_color": "#000000FF",
                 "table_vertical_separator_size": 0,
-                "table_horizontal_separator_color": "#000000FF",
+                "table_horizontal_separator_color": "border",
                 "table_horizontal_separator_size": 1
             },
             "user_sources": [
@@ -12420,6 +12162,190 @@
                 }
             ],
             "favicon_file": null,
+            "login_page": {
+                "id": 195,
+                "name": "Sign in",
+                "order": 1,
+                "path": "/sign-in",
+                "path_params": [],
+                "shared": false,
+                "elements": [
+                    {
+                        "id": 2783,
+                        "order": "1.00000000000000000000",
+                        "type": "image",
+                        "parent_element_id": null,
+                        "place_in_container": null,
+                        "visibility": "all",
+                        "role_type": "allow_all",
+                        "roles": [],
+                        "styles": {},
+                        "style_border_top_color": "border",
+                        "style_border_top_size": 0,
+                        "style_padding_top": 10,
+                        "style_margin_top": 0,
+                        "style_border_bottom_color": "border",
+                        "style_border_bottom_size": 0,
+                        "style_padding_bottom": 10,
+                        "style_margin_bottom": 0,
+                        "style_border_left_color": "border",
+                        "style_border_left_size": 0,
+                        "style_padding_left": 20,
+                        "style_margin_left": 0,
+                        "style_border_right_color": "border",
+                        "style_border_right_size": 0,
+                        "style_padding_right": 20,
+                        "style_margin_right": 0,
+                        "style_background": "none",
+                        "style_background_color": "#ffffffff",
+                        "style_background_file_id": null,
+                        "style_background_mode": "fill",
+                        "style_width": "normal",
+                        "image_source_type": "upload",
+                        "image_file_id": {
+                            "name": "VBUt4qBUOItxJWiTfHfOZSRZrFfE8jtJ_d570910b4de568550dc3e4548e3233094024b77f3ddab2102aaddce3023fd13f.png",
+                            "original_name": "marketing-header.png"
+                        },
+                        "image_url": "",
+                        "alt_text": ""
+                    },
+                    {
+                        "id": 2784,
+                        "order": "2.00000000000000000000",
+                        "type": "heading",
+                        "parent_element_id": null,
+                        "place_in_container": null,
+                        "visibility": "all",
+                        "role_type": "allow_all",
+                        "roles": [],
+                        "styles": {},
+                        "style_border_top_color": "border",
+                        "style_border_top_size": 0,
+                        "style_padding_top": 10,
+                        "style_margin_top": 0,
+                        "style_border_bottom_color": "border",
+                        "style_border_bottom_size": 0,
+                        "style_padding_bottom": 10,
+                        "style_margin_bottom": 0,
+                        "style_border_left_color": "border",
+                        "style_border_left_size": 0,
+                        "style_padding_left": 20,
+                        "style_margin_left": 0,
+                        "style_border_right_color": "border",
+                        "style_border_right_size": 0,
+                        "style_padding_right": 20,
+                        "style_margin_right": 0,
+                        "style_background": "none",
+                        "style_background_color": "#ffffffff",
+                        "style_background_file_id": null,
+                        "style_background_mode": "fill",
+                        "style_width": "normal",
+                        "value": "'\ud83d\udd11 Sign in '",
+                        "level": 2
+                    },
+                    {
+                        "id": 2785,
+                        "order": "3.00000000000000000000",
+                        "type": "auth_form",
+                        "parent_element_id": null,
+                        "place_in_container": null,
+                        "visibility": "all",
+                        "role_type": "allow_all",
+                        "roles": [],
+                        "styles": {
+                            "login_button": {
+                                "button_alignment": "center",
+                                "button_horizontal_padding": 24
+                            }
+                        },
+                        "style_border_top_color": "border",
+                        "style_border_top_size": 1,
+                        "style_padding_top": 10,
+                        "style_margin_top": 0,
+                        "style_border_bottom_color": "border",
+                        "style_border_bottom_size": 1,
+                        "style_padding_bottom": 10,
+                        "style_margin_bottom": 0,
+                        "style_border_left_color": "border",
+                        "style_border_left_size": 0,
+                        "style_padding_left": 20,
+                        "style_margin_left": 0,
+                        "style_border_right_color": "border",
+                        "style_border_right_size": 0,
+                        "style_padding_right": 20,
+                        "style_margin_right": 0,
+                        "style_background": "none",
+                        "style_background_color": "#ffffffff",
+                        "style_background_file_id": null,
+                        "style_background_mode": "fill",
+                        "style_width": "small",
+                        "user_source_id": 23,
+                        "login_button_label": "'Sign in'"
+                    },
+                    {
+                        "id": 2786,
+                        "order": "4.00000000000000000000",
+                        "type": "link",
+                        "parent_element_id": null,
+                        "place_in_container": null,
+                        "visibility": "all",
+                        "role_type": "allow_all",
+                        "roles": [],
+                        "styles": {
+                            "link": {
+                                "link_text_alignment": "center"
+                            }
+                        },
+                        "style_border_top_color": "border",
+                        "style_border_top_size": 0,
+                        "style_padding_top": 10,
+                        "style_margin_top": 0,
+                        "style_border_bottom_color": "border",
+                        "style_border_bottom_size": 0,
+                        "style_padding_bottom": 10,
+                        "style_margin_bottom": 0,
+                        "style_border_left_color": "border",
+                        "style_border_left_size": 0,
+                        "style_padding_left": 20,
+                        "style_margin_left": 0,
+                        "style_border_right_color": "border",
+                        "style_border_right_size": 0,
+                        "style_padding_right": 20,
+                        "style_margin_right": 0,
+                        "style_background": "none",
+                        "style_background_color": "#ffffffff",
+                        "style_background_file_id": null,
+                        "style_background_mode": "fill",
+                        "style_width": "normal",
+                        "navigation_type": "page",
+                        "navigate_to_page_id": 196,
+                        "page_parameters": [],
+                        "navigate_to_url": "",
+                        "target": "self",
+                        "value": "'No account? No problem. Sign up instead'",
+                        "variant": "link"
+                    }
+                ],
+                "data_sources": [],
+                "workflow_actions": [
+                    {
+                        "id": 301,
+                        "type": "open_page",
+                        "order": 1,
+                        "page_id": 195,
+                        "element_id": 2785,
+                        "event": "after_login",
+                        "navigation_type": "page",
+                        "navigate_to_page_id": 194,
+                        "page_parameters": [],
+                        "navigate_to_url": "",
+                        "target": "self"
+                    }
+                ],
+                "visibility": "all",
+                "role_type": "allow_all",
+                "roles": []
+            },
             "id": 425,
             "name": "Attendees App",
             "order": 3,

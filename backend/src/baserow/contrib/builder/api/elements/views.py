@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import (
     map_exceptions,
+    require_request_data_type,
     validate_body,
     validate_body_custom_fields,
 )
@@ -133,6 +134,7 @@ class ElementsView(APIView):
     @map_exceptions(
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
+            ElementNotInSamePage: ERROR_ELEMENT_NOT_IN_SAME_PAGE,
         }
     )
     @validate_body_custom_fields(
@@ -199,6 +201,7 @@ class ElementView(APIView):
             CollectionElementPropertyOptionsNotUnique: ERROR_ELEMENT_PROPERTY_OPTIONS_NOT_UNIQUE,
         }
     )
+    @require_request_data_type(dict)
     def patch(self, request, element_id: int):
         """
         Update an element.

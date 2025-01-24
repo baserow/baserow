@@ -1,0 +1,63 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-07-16 13:47+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ko\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: src/baserow/contrib/builder/builder_beta_init_application.py:45
+msgid "Homepage"
+msgstr "홈페이지"
+
+#: src/baserow/contrib/builder/builder_beta_init_application.py:46
+msgid "Examples"
+msgstr "예시"
+
+#: src/baserow/contrib/builder/builder_beta_init_application.py:47
+msgid "Customers"
+msgstr "고객"
+
+#: src/baserow/contrib/builder/builder_beta_init_application.py:48
+msgid "List rows"
+msgstr "행 목록"
+
+#: src/baserow/contrib/builder/builder_beta_init_application.py:49
+msgid "Local Baserow"
+msgstr "로컬 Baserow"
+
+#: src/baserow/contrib/builder/builder_beta_init_application.py:50
+msgid "Name"
+msgstr "이름"
+
+#: src/baserow/contrib/builder/builder_beta_init_application.py:51
+msgid "Last name"
+msgstr "성"
+
+#: src/baserow/contrib/builder/data_providers/data_provider_types.py:342
+#, python-format
+msgid "%(user_source_name)s member"
+msgstr "%(user_source_name)s 멤버"
+
+#: src/baserow/contrib/builder/data_sources/service.py:128
+msgid "Data source"
+msgstr "데이터 소스"
+
+#: src/baserow/contrib/builder/elements/mixins.py:309
+#: src/baserow/contrib/builder/elements/mixins.py:314
+#: src/baserow/contrib/builder/elements/mixins.py:319
+#, python-format
+msgid "Column %(count)s"
+msgstr "열 %(count)s"

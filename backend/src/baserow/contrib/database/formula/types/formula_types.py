@@ -18,16 +18,23 @@ from baserow.contrib.database.fields.expressions import (
     extract_jsonb_list_values_to_array,
     json_extract_path,
 )
+from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
 from baserow.contrib.database.fields.filter_support.base import (
+    HasAllValuesEqualFilterSupport,
+    HasNumericValueComparableToFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
+    get_array_json_filter_expression,
+    get_jsonb_contains_filter_expr,
+    get_jsonb_contains_word_filter_expr,
 )
-from baserow.contrib.database.fields.filter_support.exceptions import (
-    FilterNotSupportedException,
+from baserow.contrib.database.fields.filter_support.multiple_select import (
+    MultipleSelectFormulaTypeFilterSupport,
+    get_jsonb_has_any_in_value_filter_expr,
 )
 from baserow.contrib.database.fields.filter_support.single_select import (
     SingleSelectFormulaTypeFilterSupport,
@@ -46,8 +53,15 @@ from baserow.contrib.database.formula.ast.tree import (
     BaserowIntegerLiteral,
     BaserowStringLiteral,
 )
+from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    ComparisonOperator,
+    JSONArrayCompareNumericValueExpr,
+)
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.formula.types.exceptions import UnknownFormulaType
+from baserow.contrib.database.formula.types.filter_support import (
+    BaserowFormulaArrayFilterSupportMixin,
+)
 from baserow.contrib.database.formula.types.formula_type import (
     BaserowFormulaInvalidType,
     BaserowFormulaType,
@@ -60,7 +74,21 @@ from baserow.core.utils import list_to_comma_separated_string
 
 
 class BaserowJSONBObjectBaseType(BaserowFormulaValidType, ABC):
-    pass
+    def parse_filter_value(self, field, model_field, value):
+        """
+        Since the subclasses don't have a baserow_field_type or data might be stored
+        differently due to the JSONB nature, return the value as is here and let the
+        filter method handle it.
+        """
+
+        from baserow.contrib.database.fields.registries import field_type_registry
+
+        if self.baserow_field_type is None:
+            return value if value != "" else None
+
+        return field_type_registry.get(self.baserow_field_type).parse_filter_value(
+            field, model_field, value
+        )
 
 
 class BaserowFormulaBaseTextType(BaserowFormulaTypeHasEmptyBaserowExpression):
@@ -109,7 +137,7 @@ class BaserowFormulaBaseTextType(BaserowFormulaTypeHasEmptyBaserowExpression):
 
 class BaserowFormulaTextType(
     HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
+    HasValueEqualFilterSupport,
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
     HasValueLengthIsLowerThanFilterSupport,
@@ -307,18 +335,38 @@ class BaserowFormulaButtonType(BaserowFormulaLinkType):
 
 
 class BaserowFormulaNumberType(
-    BaserowFormulaTypeHasEmptyBaserowExpression, BaserowFormulaValidType
+    HasValueEmptyFilterSupport,
+    HasValueEqualFilterSupport,
+    HasValueContainsFilterSupport,
+    HasNumericValueComparableToFilterSupport,
+    BaserowFormulaTypeHasEmptyBaserowExpression,
+    BaserowFormulaValidType,
 ):
     type = "number"
     baserow_field_type = "number"
-    user_overridable_formatting_option_fields = ["number_decimal_places"]
+    user_overridable_formatting_option_fields = [
+        "number_decimal_places",
+        "number_prefix",
+        "number_suffix",
+        "number_separator",
+    ]
     MAX_DIGITS = 50
     can_order_by_in_array = True
     can_group_by = True
 
-    def __init__(self, number_decimal_places: int, **kwargs):
+    def __init__(
+        self,
+        number_decimal_places: int,
+        number_prefix: str = "",
+        number_suffix: str = "",
+        number_separator: str = "",
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.number_decimal_places = number_decimal_places
+        self.number_prefix = number_prefix
+        self.number_suffix = number_suffix
+        self.number_separator = number_separator
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -424,12 +472,28 @@ class BaserowFormulaNumberType(
             ),
         )
 
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return None
+
+    def get_in_array_is_query(
+        self, field_name: str, value: str, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        return get_array_json_filter_expression(
+            JSONArrayCompareNumericValueExpr,
+            field_name,
+            Value(value),
+            comparison_op=ComparisonOperator.EQUAL,
+        )
+
     def __str__(self) -> str:
         return f"number({self.number_decimal_places})"
 
 
 class BaserowFormulaBooleanType(
-    BaserowFormulaTypeHasEmptyBaserowExpression, BaserowFormulaValidType
+    HasAllValuesEqualFilterSupport,
+    HasValueEqualFilterSupport,
+    BaserowFormulaTypeHasEmptyBaserowExpression,
+    BaserowFormulaValidType,
 ):
     type = "boolean"
     baserow_field_type = "boolean"
@@ -460,6 +524,13 @@ class BaserowFormulaBooleanType(
         self, expr: "BaserowExpression[BaserowFormulaValidType]"
     ):
         return expr
+
+    def get_in_array_is_query(
+        self, field_name: str, value: bool, model_field: models.Field, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [str(value).lower()], query_path="$[*].value"
+        )
 
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
         return JSONBSingleKeyArrayExpression(
@@ -718,7 +789,9 @@ class BaserowFormulaDurationType(
         )
 
 
-class BaserowFormulaDateType(BaserowFormulaValidType):
+class BaserowFormulaDateType(
+    HasValueEmptyFilterSupport, HasValueContainsFilterSupport, BaserowFormulaValidType
+):
     type = "date"
     baserow_field_type = "date"
     user_overridable_formatting_option_fields = [
@@ -767,6 +840,9 @@ class BaserowFormulaDateType(BaserowFormulaValidType):
     @property
     def subtractable_types(self) -> List[Type["BaserowFormulaValidType"]]:
         return [type(self), BaserowFormulaDateIntervalType, BaserowFormulaDurationType]
+
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return None
 
     def add(
         self,
@@ -995,11 +1071,7 @@ class BaserowFormulaSingleFileType(BaserowJSONBObjectBaseType):
 
 
 class BaserowFormulaArrayType(
-    HasValueEmptyFilterSupport,
-    HasValueFilterSupport,
-    HasValueContainsFilterSupport,
-    HasValueContainsWordFilterSupport,
-    HasValueLengthIsLowerThanFilterSupport,
+    BaserowFormulaArrayFilterSupportMixin,
     BaserowFormulaValidType,
 ):
     type = "array"
@@ -1167,46 +1239,6 @@ class BaserowFormulaArrayType(
     def contains_query(self, field_name, value, model_field, field):
         return Q()
 
-    def get_in_array_is_query(self, field_name, value, model_field, field):
-        if not isinstance(self.sub_type, HasValueFilterSupport):
-            raise FilterNotSupportedException()
-
-        return self.sub_type.get_in_array_is_query(
-            field_name, value, model_field, field
-        )
-
-    def get_in_array_empty_query(self, field_name, model_field, field):
-        if not isinstance(self.sub_type, HasValueEmptyFilterSupport):
-            raise FilterNotSupportedException()
-
-        return self.sub_type.get_in_array_empty_query(field_name, model_field, field)
-
-    def get_in_array_contains_query(self, field_name, value, model_field, field):
-        if not isinstance(self.sub_type, HasValueContainsFilterSupport):
-            raise FilterNotSupportedException()
-
-        return self.sub_type.get_in_array_contains_query(
-            field_name, value, model_field, field
-        )
-
-    def get_in_array_contains_word_query(self, field_name, value, model_field, field):
-        if not isinstance(self.sub_type, HasValueContainsWordFilterSupport):
-            raise FilterNotSupportedException()
-
-        return self.sub_type.get_in_array_contains_word_query(
-            field_name, value, model_field, field
-        )
-
-    def get_in_array_length_is_lower_than_query(
-        self, field_name, value, model_field, field
-    ):
-        if not isinstance(self.sub_type, HasValueLengthIsLowerThanFilterSupport):
-            raise FilterNotSupportedException()
-
-        return self.sub_type.get_in_array_length_is_lower_than_query(
-            field_name, value, model_field, field
-        )
-
     def get_alter_column_prepare_old_value(self, connection, from_field, to_field):
         return "p_in = '';"
 
@@ -1261,7 +1293,7 @@ class BaserowFormulaArrayType(
         return self.sub_type.can_order_by_in_array
 
     def get_order(
-        self, field, field_name, order_direction
+        self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         expr = self.sub_type.get_order_by_in_array_expr(
             field, field_name, order_direction
@@ -1283,10 +1315,8 @@ class BaserowFormulaArrayType(
         return None
 
     def check_if_compatible_with(self, compatible_formula_types: List[str]):
-        return (
-            self.type in compatible_formula_types
-            or str(self) in compatible_formula_types
-        )
+        self_as_str = self.formula_array_type_as_str(self.sub_type.type)
+        return self_as_str in compatible_formula_types
 
     def __str__(self) -> str:
         return self.formula_array_type_as_str(self.sub_type)
@@ -1318,6 +1348,9 @@ class BaserowFormulaArrayType(
                 read_only=True,
             )
         }
+
+    def parse_filter_value(self, field, model_field, value):
+        return self.sub_type.parse_filter_value(field, model_field, value)
 
 
 class BaserowFormulaSingleSelectType(
@@ -1423,7 +1456,7 @@ class BaserowFormulaSingleSelectType(
         return True
 
     def get_order(
-        self, field, field_name, order_direction
+        self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
         field_expr = F(f"{field_name}__value")
 
@@ -1472,7 +1505,9 @@ class BaserowFormulaSingleSelectType(
         }
 
 
-class BaserowFormulaMultipleSelectType(BaserowJSONBObjectBaseType):
+class BaserowFormulaMultipleSelectType(
+    MultipleSelectFormulaTypeFilterSupport, BaserowJSONBObjectBaseType
+):
     type = "multiple_select"
     baserow_field_type = "multiple_select"
     can_order_by = False
@@ -1492,6 +1527,10 @@ class BaserowFormulaMultipleSelectType(BaserowJSONBObjectBaseType):
 
     def get_alter_column_prepare_old_value(self, connection, from_field, to_field):
         return "p_in = '';"
+
+    @property
+    def can_represent_select_options(self) -> bool:
+        return True
 
     @property
     def db_column_fields(self) -> Set[str]:
@@ -1580,6 +1619,12 @@ class BaserowFormulaMultipleSelectType(BaserowJSONBObjectBaseType):
     ) -> BaserowExpression[BaserowFormulaType]:
         return formula_function_registry.get("multiple_select_count")(arg)
 
+    def contains_query(self, field_name, value, model_field, field):
+        return get_jsonb_contains_filter_expr(model_field, value)
+
+    def contains_word_query(self, field_name, value, model_field, field):
+        return get_jsonb_contains_word_filter_expr(model_field, value)
+
 
 BASEROW_FORMULA_TYPES = [
     BaserowFormulaInvalidType,
@@ -1640,12 +1685,29 @@ def calculate_number_type(
     arg_types: List[BaserowFormulaNumberType], min_decimal_places=0
 ):
     max_number_decimal_places = min_decimal_places
+    number_prefix = ""
+    number_suffix = ""
+    number_separator = ""
+    number_settings_set = False
     for a in arg_types:
         max_number_decimal_places = max(
             max_number_decimal_places, a.number_decimal_places
         )
+        if not number_settings_set and (
+            a.number_prefix or a.number_suffix or a.number_separator
+        ):
+            # If we have not set the number settings yet, we will use the first
+            number_prefix = a.number_prefix
+            number_suffix = a.number_suffix
+            number_separator = a.number_separator
+            number_settings_set = True
 
-    return BaserowFormulaNumberType(number_decimal_places=max_number_decimal_places)
+    return BaserowFormulaNumberType(
+        number_decimal_places=max_number_decimal_places,
+        number_prefix=number_prefix,
+        number_suffix=number_suffix,
+        number_separator=number_separator,
+    )
 
 
 def _lookup_formula_type_from_string(formula_type_string):

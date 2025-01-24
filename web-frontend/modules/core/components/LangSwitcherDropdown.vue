@@ -2,6 +2,7 @@
   <Dropdown
     ref="dropdown"
     v-model="language"
+    class="dropdown--floating-left"
     :show-search="false"
     v-bind="$attrs"
   >

@@ -149,7 +149,7 @@ const testData = {
     },
     {
       inputValue: 25.2193712987,
-      expectedResult: '25.22',
+      expectedResult: 25.2193712987,
       context: {
         rowCount: 100,
         field: {
@@ -175,7 +175,7 @@ const testData = {
     },
     {
       inputValue: 25.2193712987,
-      expectedResult: '25.22',
+      expectedResult: 25.2193712987,
       context: {
         rowCount: 100,
         field: {
@@ -201,7 +201,7 @@ const testData = {
     },
     {
       inputValue: 25.2193712987,
-      expectedResult: '25.22',
+      expectedResult: 25.2193712987,
       context: {
         rowCount: 100,
         field: {
@@ -227,7 +227,7 @@ const testData = {
     },
     {
       inputValue: 25.2193712987,
-      expectedResult: '25.22',
+      expectedResult: 25.2193712987,
       context: {
         rowCount: 100,
         field: {
@@ -294,7 +294,7 @@ const testDataError = {
   average: [
     {
       inputValue: null,
-      expectedResult: null,
+      expectedResult: '',
       context: {
         rowCount: 100,
         field: {
@@ -307,7 +307,7 @@ const testDataError = {
     },
     {
       inputValue: null,
-      expectedResult: null,
+      expectedResult: '',
       context: {
         rowCount: 100,
         field: {
@@ -320,7 +320,7 @@ const testDataError = {
   std_dev: [
     {
       inputValue: null,
-      expectedResult: null,
+      expectedResult: '',
       context: {
         rowCount: 100,
         field: {
@@ -333,7 +333,7 @@ const testDataError = {
     },
     {
       inputValue: null,
-      expectedResult: null,
+      expectedResult: '',
       context: {
         rowCount: 100,
         field: {
@@ -346,7 +346,7 @@ const testDataError = {
   variance: [
     {
       inputValue: null,
-      expectedResult: null,
+      expectedResult: '',
       context: {
         rowCount: 100,
         field: {
@@ -359,7 +359,7 @@ const testDataError = {
     },
     {
       inputValue: null,
-      expectedResult: null,
+      expectedResult: '',
       context: {
         rowCount: 100,
         field: {

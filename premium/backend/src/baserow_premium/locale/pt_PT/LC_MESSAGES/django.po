@@ -1,0 +1,64 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-05-01 19:55+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: pt_PT\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+
+#: src/baserow_premium/fields/actions.py:19
+msgid "Generate Formula With AI"
+msgstr ""
+
+#: src/baserow_premium/fields/actions.py:20
+#, python-format
+msgid "Generate formula with AI using \"%(ai_type)s\" and \"%(ai_model)s\""
+msgstr ""
+
+#: src/baserow_premium/row_comments/actions.py:23
+msgid "Create row comment"
+msgstr ""
+
+#: src/baserow_premium/row_comments/actions.py:24
+#, python-format
+msgid "Comment (%(comment_id)s) has been added to row (%(row_id)s)"
+msgstr ""
+
+#: src/baserow_premium/row_comments/actions.py:108
+msgid "Update row comment"
+msgstr ""
+
+#: src/baserow_premium/row_comments/actions.py:109
+#, python-format
+msgid "Comment (%(comment_id)s) has been updated in row (%(row_id)s)"
+msgstr ""
+
+#: src/baserow_premium/row_comments/actions.py:203
+msgid "Delete row comment"
+msgstr ""
+
+#: src/baserow_premium/row_comments/actions.py:204
+#, python-format
+msgid "Comment (%(comment_id)s) has been deleted from row (%(row_id)s)"
+msgstr ""
+
+#: src/baserow_premium/row_comments/notification_types.py:76
+#, python-format
+msgid "%(user)s mentioned you in row %(row_name)s in %(table_name)s."
+msgstr ""
+
+#: src/baserow_premium/row_comments/notification_types.py:129
+#, python-format
+msgid "%(user)s posted a comment in row %(row_name)s in %(table_name)s."
+msgstr ""

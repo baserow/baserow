@@ -174,7 +174,10 @@ class BuilderConfig(AppConfig):
             CheckboxElementType,
             ChoiceElementType,
             ColumnElementType,
+            DateTimePickerElementType,
+            FooterElementType,
             FormContainerElementType,
+            HeaderElementType,
             HeadingElementType,
             IFrameElementType,
             ImageElementType,
@@ -201,6 +204,9 @@ class BuilderConfig(AppConfig):
         element_type_registry.register(ChoiceElementType())
         element_type_registry.register(CheckboxElementType())
         element_type_registry.register(IFrameElementType())
+        element_type_registry.register(DateTimePickerElementType())
+        element_type_registry.register(HeaderElementType())
+        element_type_registry.register(FooterElementType())
 
         from .domains.domain_types import CustomDomainType, SubDomainType
         from .domains.registries import domain_type_registry

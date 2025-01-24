@@ -4,7 +4,7 @@ import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockT
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
 
 export default {
-  inject: ['workspace', 'builder', 'page', 'mode'],
+  inject: ['workspace', 'builder', 'elementPage', 'mode'],
   mixins: [element, applicationContextMixin],
   props: {
     element: {

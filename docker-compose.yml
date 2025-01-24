@@ -154,6 +154,7 @@ x-backend-variables: &backend-variables
   BASEROW_MAX_CONCURRENT_USER_REQUESTS:
   BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT:
   BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT:
+  BASEROW_LOGIN_ACTION_LOG_LIMIT:
   BASEROW_OSS_ONLY:
   OTEL_TRACES_SAMPLER:
   OTEL_TRACES_SAMPLER_ARG:
@@ -164,6 +165,7 @@ x-backend-variables: &backend-variables
   BASEROW_CACHALOT_UNCACHABLE_TABLES:
   BASEROW_CACHALOT_TIMEOUT:
   BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS:
+  BASEROW_BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS:
   BASEROW_AUTO_INDEX_VIEW_ENABLED:
   BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED:
   BASEROW_DISABLE_LOCKED_MIGRATIONS:
@@ -175,6 +177,9 @@ x-backend-variables: &backend-variables
   BASEROW_OPENAI_API_KEY:
   BASEROW_OPENAI_ORGANIZATION:
   BASEROW_OPENAI_MODELS:
+  BASEROW_OPENROUTER_API_KEY:
+  BASEROW_OPENROUTER_ORGANIZATION:
+  BASEROW_OPENROUTER_MODELS:
   BASEROW_ANTHROPIC_API_KEY:
   BASEROW_ANTHROPIC_MODELS:
   BASEROW_MISTRAL_API_KEY:
@@ -190,6 +195,10 @@ x-backend-variables: &backend-variables
   BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE:
   BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST:
   BASEROW_ASGI_HTTP_MAX_CONCURRENCY: ${BASEROW_ASGI_HTTP_MAX_CONCURRENCY:-}
+  BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK:
+  BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE:
+  BASEROW_ENTERPRISE_PERIODIC_DATA_SYNC_CHECK_INTERVAL_MINUTES:
+  BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS:
 
 
 services:
@@ -217,7 +226,7 @@ services:
       local:
 
   backend:
-    image: baserow/backend:1.29.1
+    image: baserow/backend:1.30.1
     restart: unless-stopped
 
     environment:
@@ -231,7 +240,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:1.29.1
+    image: baserow/web-frontend:1.30.1
     restart: unless-stopped
     environment:
       BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
@@ -267,7 +276,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:1.29.1
+    image: baserow/backend:1.30.1
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -284,7 +293,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:1.29.1
+    image: baserow/backend:1.30.1
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -301,7 +310,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:1.29.1
+    image: baserow/backend:1.30.1
     restart: unless-stopped
     command: celery-beat
     environment:
@@ -338,6 +347,7 @@ services:
 
   redis:
     image: redis:6
+    restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD:?}
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]

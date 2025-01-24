@@ -455,14 +455,15 @@ def test_search_all_fields_queryset(data_fixture, search_mode):
 @pytest.mark.django_db
 def test_order_by_fields_string_queryset(data_fixture):
     table = data_fixture.create_database_table(name="Cars")
-    table_2 = data_fixture.create_database_table(database=table.database)
     name_field = data_fixture.create_text_field(table=table, order=0, name="Name")
     color_field = data_fixture.create_text_field(table=table, order=1, name="Color")
     price_field = data_fixture.create_number_field(table=table, order=2, name="Price")
     description_field = data_fixture.create_long_text_field(
         table=table, order=3, name="Description"
     )
-    link_field = data_fixture.create_link_row_field(table=table, link_row_table=table_2)
+    password_field = data_fixture.create_password_field(
+        table=table, order=4, name="Password"
+    )
     single_select_field = data_fixture.create_single_select_field(
         table=table, name="Single"
     )
@@ -477,36 +478,48 @@ def test_order_by_fields_string_queryset(data_fixture):
         field=single_select_field, value="B", color="red"
     )
     option_c = data_fixture.create_select_option(
-        field=single_select_field, value="C", color="blue"
+        field=multiple_select_field, value="C", color="blue"
     )
     option_d = data_fixture.create_select_option(
-        field=single_select_field, value="D", color="red"
+        field=multiple_select_field, value="D", color="red"
     )
 
-    model = table.get_model(attribute_names=True)
-    row_1 = model.objects.create(
-        name="BMW",
-        color="Blue",
-        price=10000,
-        description="Sports car.",
-        single=option_a,
-    )
-    getattr(row_1, "multi").set([option_c.id])
-    row_2 = model.objects.create(
-        name="Audi",
-        color="Orange",
-        price=20000,
-        description="This is the most expensive car we have.",
-        single=option_b,
-    )
-    getattr(row_2, "multi").set([option_d.id])
-    row_3 = model.objects.create(
-        name="Volkswagen", color="White", price=5000, description="A very old car."
-    )
-    row_4 = model.objects.create(
-        name="Volkswagen", color="Green", price=4000, description="Strange color."
+    row_1, row_2, row_3, row_4 = RowHandler().force_create_rows(
+        user=None,
+        table=table,
+        rows_values=[
+            {
+                name_field.db_column: "BMW",
+                color_field.db_column: "Blue",
+                price_field.db_column: 10000,
+                description_field.db_column: "Sports car.",
+                single_select_field.db_column: option_a.id,
+                multiple_select_field.db_column: [option_c.id],
+            },
+            {
+                name_field.db_column: "Audi",
+                color_field.db_column: "Orange",
+                price_field.db_column: 20000,
+                description_field.db_column: "This is the most expensive car we have.",
+                single_select_field.db_column: option_b.id,
+                multiple_select_field.db_column: [option_d.id],
+            },
+            {
+                name_field.db_column: "Volkswagen",
+                color_field.db_column: "White",
+                price_field.db_column: 5000,
+                description_field.db_column: "A very old car.",
+            },
+            {
+                name_field.db_column: "Volkswagen",
+                color_field.db_column: "Green",
+                price_field.db_column: 4000,
+                description_field.db_column: "Strange color.",
+            },
+        ],
     )
 
+    model = table.get_model()
     with pytest.raises(OrderByFieldNotFound):
         model.objects.all().order_by_fields_string("xxxx")
 
@@ -525,7 +538,7 @@ def test_order_by_fields_string_queryset(data_fixture):
         )
 
     with pytest.raises(OrderByFieldNotPossible):
-        model.objects.all().order_by_fields_string(f"field_{link_field.id}")
+        model.objects.all().order_by_fields_string(f"field_{password_field.id}")
 
     results = model.objects.all().order_by_fields_string(f"-field_{price_field.id}")
     assert results[0].id == row_2.id
@@ -549,12 +562,16 @@ def test_order_by_fields_string_queryset(data_fixture):
     assert results[2].id == row_4.id
     assert results[3].id == row_2.id
 
-    row_5 = model.objects.create(
-        name="Audi",
-        color="Red",
-        price=2000,
-        description="Old times",
-        order=Decimal("0.1"),
+    row_5 = RowHandler().force_create_row(
+        user=None,
+        table=table,
+        values={
+            name_field.db_column: "Audi",
+            color_field.db_column: "Red",
+            price_field.db_column: 2000,
+            description_field.db_column: "Old times",
+        },
+        before=row_1,
     )
 
     row_2.order = Decimal("0.1")
@@ -616,10 +633,7 @@ def test_order_by_fields_string_queryset_with_user_field_names(data_fixture):
             ["Volkswagen", "Green", 4000, "Strange color."],
         ],
     )
-    table_2 = data_fixture.create_database_table(database=table.database)
-    link_field = data_fixture.create_link_row_field(
-        table=table, link_row_table=table_2, name="Link Field"
-    )
+    password_field = data_fixture.create_password_field(table=table, name="Password")
 
     model = table.get_model()
 
@@ -633,7 +647,7 @@ def test_order_by_fields_string_queryset_with_user_field_names(data_fixture):
 
     with pytest.raises(OrderByFieldNotPossible):
         model.objects.all().order_by_fields_string(
-            link_field.name, user_field_names=True
+            password_field.name, user_field_names=True
         )
 
     results = model.objects.all().order_by_fields_string(

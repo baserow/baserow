@@ -1,0 +1,439 @@
+{
+    "premium": {
+        "user": {
+            "isStaff": "",
+            "isWorkspaceAdmin": "",
+            "active": "",
+            "deactivated": ""
+        },
+        "adminType": {
+            "dashboard": "",
+            "users": "",
+            "workspaces": "",
+            "licenses": ""
+        },
+        "viewType": {
+            "kanban": "",
+            "timeline": "",
+            "calendar": ""
+        },
+        "exporterType": {
+            "json": "",
+            "xml": ""
+        },
+        "deactivated": ""
+    },
+    "premiumModal": {
+        "title": "",
+        "description": "",
+        "viewPricing": ""
+    },
+    "rowCommentSidebar": {
+        "onlyPremium": "",
+        "readOnlyNoComment": "",
+        "noComment": "",
+        "comment": "",
+        "more": "",
+        "name": ""
+    },
+    "rowComment": {
+        "you": "",
+        "anonymous": "",
+        "creating": "",
+        "updating": "",
+        "deleting": "",
+        "created": "",
+        "edited": "",
+        "commentTrashed": "",
+        "errorUserNotCommentAuthorTitle": "",
+        "errorUserNotCommentAuthor": "",
+        "errorInvalidCommentMentionTitle": "",
+        "errorInvalidCommentMention": ""
+    },
+    "rowCommentContext": {
+        "edit": "",
+        "delete": ""
+    },
+    "rowCommentMentionNotification": {
+        "title": "",
+        "deletedUser": ""
+    },
+    "rowCommentNotification": {
+        "title": "",
+        "deletedUser": ""
+    },
+    "trashType": {
+        "row_comment": ""
+    },
+    "registerLicenseModal": {
+        "titleRegisterLicense": "",
+        "registerLicense": "",
+        "viewPricing": "",
+        "licenseDescription": "",
+        "licenseError": {
+            "invalidTitle": "",
+            "invalid": "",
+            "unsupportedTitle": "",
+            "unsupported": "",
+            "expiredTitle": "",
+            "expired": "",
+            "duplicateTitle": "",
+            "duplicate": "",
+            "instanceMismatchTitle": "",
+            "instanceMismatch": ""
+        }
+    },
+    "disconnectLicenseModal": {
+        "disconnectLicense": "",
+        "disconnectDescription": ""
+    },
+    "registerLicenseForm": {
+        "licenseKey": ""
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "",
+        "id": "",
+        "name": "",
+        "members": "",
+        "applications": "",
+        "created": "",
+        "rowCount": "",
+        "freeUsers": "",
+        "seatsTaken": "",
+        "storageUsage": "",
+        "usageHelpText": ""
+    },
+    "editWorkspaceContext": {
+        "delete": ""
+    },
+    "deleteWorkspaceModal": {
+        "title": "",
+        "confirmation": "",
+        "comment": "",
+        "delete": ""
+    },
+    "activeUsers": {
+        "newUsers": "",
+        "activeUsers": ""
+    },
+    "usersAdminTable": {
+        "allUsers": "",
+        "username": "",
+        "name": "",
+        "workspaces": "",
+        "lastLogin": "",
+        "dateJoined": "",
+        "active": ""
+    },
+    "editUserContext": {
+        "changePassword": "",
+        "delete": "",
+        "impersonate": ""
+    },
+    "changePasswordForm": {
+        "newPassword": "",
+        "repeatPassword": "",
+        "changePassword": "",
+        "error": {
+            "doesntMatch": ""
+        }
+    },
+    "userForm": {
+        "fullName": "",
+        "email": "",
+        "isActive": "",
+        "warning": {
+            "changeEmail": "",
+            "inactiveUser": "",
+            "userStaff": ""
+        },
+        "error": {
+            "invalidName": "",
+            "invalidEmail": ""
+        }
+    },
+    "changeUserPasswordModal": {
+        "changePassword": ""
+    },
+    "deleteUserModal": {
+        "title": "",
+        "confirmation": "",
+        "comment1": "",
+        "comment2": "",
+        "delete": ""
+    },
+    "editUserModal": {
+        "delete": "",
+        "edit": ""
+    },
+    "tableJSONExporter": {
+        "encoding": ""
+    },
+    "tableXMLExporter": {
+        "encoding": ""
+    },
+    "kanbanViewStackContext": {
+        "createCard": "",
+        "editStack": "",
+        "deleteStack": "",
+        "delete": "",
+        "deleteDescription": ""
+    },
+    "kanbanViewHeader": {
+        "stackBy": "",
+        "stackedBy": "",
+        "customizeCards": ""
+    },
+    "kanbanViewOptionForm": {
+        "selectOption": ""
+    },
+    "kanbanViewStakedBy": {
+        "title": "",
+        "chooseField": ""
+    },
+    "kanbanViewStack": {
+        "uncategorized": "",
+        "tryAgain": "",
+        "new": ""
+    },
+    "calendarViewType": {
+        "sharedViewText": "",
+        "sharedViewEnableSyncToExternalCalendar": "",
+        "sharedViewDisableSyncToExternalCalendar": "",
+        "sharedViewDescription": "",
+        "sharedViewTitle": ""
+    },
+    "calendarViewHeader": {
+        "displayBy": "",
+        "displayedBy": "",
+        "labels": ""
+    },
+    "timelineViewHeader": {
+        "dateSettings": "",
+        "labels": ""
+    },
+    "selectDateFieldContext": {
+        "save": ""
+    },
+    "timelineDateSettingsForm": {
+        "startDateField": "",
+        "endDateField": "",
+        "noCompatibleDateFields": "",
+        "incompatibleFieldsErrorTitle": "",
+        "incompatibleFieldsErrorMessage": "",
+        "forceTimezone": "",
+        "includeTime": "",
+        "dateOnly": ""
+    },
+    "timelineTimescaleContext": {
+        "hour": "",
+        "day": "",
+        "week": "",
+        "month": "",
+        "quarter": "",
+        "year": "",
+        "disabledTooltip": ""
+    },
+    "initTimelineViewSettings": {
+        "settings": ""
+    },
+    "viewDateSelector": {
+        "today": ""
+    },
+    "calendarMonthDay": {
+        "hiddenRowsCount": ""
+    },
+    "calendarMonthDayExpanded": {
+        "tryAgain": ""
+    },
+    "timelineGridRow": {
+        "days": ""
+    },
+    "dashboard": {
+        "title": "",
+        "totals": "",
+        "totalUsers": "",
+        "totalWorkspaces": "",
+        "totalApplications": "",
+        "newUsers": "",
+        "newUsers24h": "",
+        "newUsers7days": "",
+        "newUsers30days": "",
+        "activeUsers": "",
+        "activeUsers24h": "",
+        "activeUsers7days": "",
+        "activeUsers30days": "",
+        "viewAll": ""
+    },
+    "premiumFeatures": {
+        "rowComments": "",
+        "kanbanView": "",
+        "calendarView": "",
+        "timelineView": "",
+        "exports": "",
+        "admin": "",
+        "rowColoring": "",
+        "surveyForm": "",
+        "publicLogoRemoval": "",
+        "personalViews": "",
+        "aiFeatures": ""
+    },
+    "licenses": {
+        "titleNoLicenses": "",
+        "titleLicenses": "",
+        "noLicensesDescription": "",
+        "getLicense": "",
+        "baserowInstanceId": "",
+        "registerLicense": "",
+        "licenceId": "",
+        "premium": "",
+        "expired": "",
+        "validity": "",
+        "seats": ""
+    },
+    "license": {
+        "title": "",
+        "users": "",
+        "description": "",
+        "seatLeft": "",
+        "fillSeats": "",
+        "removeAll": "",
+        "licenseId": "",
+        "addUser": "",
+        "plan": "",
+        "premium": "",
+        "expired": "",
+        "validFrom": "",
+        "validThrough": "",
+        "validThroughDescription": "",
+        "lastCheck": "",
+        "lastCheckDescription": "",
+        "checkNow": "",
+        "seats": "",
+        "licensedTo": "",
+        "applications": "",
+        "unlimited": "",
+        "rowUsage": "",
+        "storeUsage": "",
+        "disconnectLicense": "",
+        "disconnectDescription": "",
+        "moreSeatsNeededTitle": "",
+        "contactSalesMoreSeats": "",
+        "automaticSeatsProgressBarStatus": "",
+        "premiumFeatureName": "",
+        "enterpriseFeatureName": "",
+        "supportFeatureName": ""
+    },
+    "viewDecoratorType": {
+        "leftBorderColor": "",
+        "leftBorderColorDescription": "",
+        "backgroundColor": "",
+        "backgroundColorDescription": "",
+        "onlyForPremium": "",
+        "onlyOneDecoratorPerView": ""
+    },
+    "decoratorValueProviderType": {
+        "singleSelectColor": "",
+        "singleSelectColorDescription": "",
+        "conditionalColor": "",
+        "conditionalColorDescription": ""
+    },
+    "singleSelectColorValueProviderForm": {
+        "chooseAColor": ""
+    },
+    "conditionalColorValueProviderForm": {
+        "addCondition": "",
+        "addConditionGroup": "",
+        "colorAlwaysApplyTitle": "",
+        "colorAlwaysApply": "",
+        "addColor": "",
+        "deleteColor": "",
+        "title": ""
+    },
+    "redirectToBaserowModal": {
+        "title": "",
+        "content": ""
+    },
+    "premiumTopSidebar": {
+        "impersonateDescription": "",
+        "impersonateStop": "",
+        "premium": "",
+        "premiumDescription": ""
+    },
+    "formViewModeType": {
+        "survey": "",
+        "surveyDescription": "",
+        "onlyForPremium": ""
+    },
+    "formViewModePreviewSurvey": {
+        "orderFields": "",
+        "deactivated": "",
+        "more": ""
+    },
+    "shareLinkOptions": {
+        "baserowLogo": {
+            "label": "",
+            "premiumModalName": ""
+        }
+    },
+    "viewsContext": {
+        "personal": ""
+    },
+    "dateFieldSelectForm": {
+        "dateField": "",
+        "noCompatibleDateFields": ""
+    },
+    "selectDateFieldModal": {
+        "chooseDateField": "",
+        "save": ""
+    },
+    "RowEditModalCommentNotificationMode": {
+        "modeMentionsTitle": "",
+        "modeMentionsDesc": "",
+        "modeAllTitle": "",
+        "modeAllDesc": ""
+    },
+    "premiumFieldType": {
+        "ai": "",
+        "aiDescription": ""
+    },
+    "functionalGridViewFieldAI": {
+        "generate": ""
+    },
+    "gridViewFieldAI": {
+        "generate": "",
+        "regenerate": ""
+    },
+    "fieldAISubForm": {
+        "prompt": "",
+        "promptPlaceholder": "",
+        "premiumFeature": "",
+        "emptyFileField": "",
+        "fileFieldHelp": "",
+        "outputType": "",
+        "outputTypeTooltip": "",
+        "outputTypeChangedWarning": ""
+    },
+    "rowEditFieldAI": {
+        "generate": "",
+        "createRowBefore": ""
+    },
+    "aiFormulaModal": {
+        "title": "",
+        "description": "",
+        "label": "",
+        "labelDescription": "",
+        "generate": "",
+        "noModels": ""
+    },
+    "formulaFieldAI": {
+        "generateWithAI": "",
+        "featureName": ""
+    },
+    "aiOutputType": {
+        "text": "",
+        "textDescription": "",
+        "choice": "",
+        "choiceDescription": ""
+    }
+}

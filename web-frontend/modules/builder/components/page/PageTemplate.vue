@@ -1,9 +1,9 @@
 <template>
   <PageTemplateContent
-    v-if="!loading && workspace && page && builder"
+    v-if="!loading && workspace && currentPage && builder"
     :workspace="workspace"
     :builder="builder"
-    :page="page"
+    :current-page="currentPage"
     :mode="mode"
   />
   <PageSkeleton v-else />
@@ -32,7 +32,7 @@ export default {
     return {
       workspace: null,
       builder: null,
-      page: null,
+      currentPage: null,
       mode,
       loading: true,
     }
@@ -104,7 +104,7 @@ export default {
         )
 
         this.builder = builder
-        this.page = page
+        this.currentPage = page
         this.workspace = builder.workspace
       } catch (e) {
         // In case of a network error we want to fail hard.

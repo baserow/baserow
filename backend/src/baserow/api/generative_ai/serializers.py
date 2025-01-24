@@ -46,3 +46,17 @@ class OllamaSettingsSerializer(GenerativeAIModelsSerializer):
         required=False,
         help_text="The host that is used to authenticate with the Ollama API.",
     )
+
+
+class OpenRouterSettingsSerializer(OpenAISettingsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The OpenRouter API key that is used to authenticate with the OpenAI "
+        "API.",
+    )
+    organization = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The organization that the OpenRouter API key belongs to.",
+    )

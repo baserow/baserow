@@ -150,9 +150,11 @@ class DatabaseConfig(AppConfig):
         from baserow.contrib.database.data_sync.actions import (
             CreateDataSyncTableActionType,
             SyncDataSyncTableActionType,
+            UpdateDataSyncTableActionType,
         )
 
         action_type_registry.register(CreateDataSyncTableActionType())
+        action_type_registry.register(UpdateDataSyncTableActionType())
         action_type_registry.register(SyncDataSyncTableActionType())
 
         from .airtable.registry import airtable_column_type_registry
@@ -236,6 +238,7 @@ class DatabaseConfig(AppConfig):
             AverageFieldAggregationType,
             CheckedFieldAggregationType,
             CheckedPercentageFieldAggregationType,
+            CountFieldAggregationType,
             EarliestDateFieldAggregationType,
             EmptyCountFieldAggregationType,
             EmptyPercentageFieldAggregationType,
@@ -253,6 +256,7 @@ class DatabaseConfig(AppConfig):
             VarianceFieldAggregationType,
         )
 
+        field_aggregation_registry.register(CountFieldAggregationType())
         field_aggregation_registry.register(EmptyCountFieldAggregationType())
         field_aggregation_registry.register(NotEmptyCountFieldAggregationType())
         field_aggregation_registry.register(CheckedFieldAggregationType())
@@ -443,17 +447,38 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(UserIsNotViewFilterType())
 
         from .views.array_view_filters import (
+            HasAllValuesEqualViewFilterType,
             HasAnySelectOptionEqualViewFilterType,
+            HasDateAfterViewFilterType,
+            HasDateBeforeViewFilterType,
+            HasDateEqualViewFilterType,
+            HasDateOnOrAfterViewFilterType,
+            HasDateOnOrBeforeViewFilterType,
+            HasDateWithinViewFilterType,
             HasEmptyValueViewFilterType,
             HasNoneSelectOptionEqualViewFilterType,
+            HasNotDateAfterViewFilterType,
+            HasNotDateBeforeViewFilterType,
+            HasNotDateEqualViewFilterType,
+            HasNotDateOnOrAfterViewFilterType,
+            HasNotDateOnOrBeforeViewFilterType,
+            HasNotDateWithinViewFilterType,
             HasNotEmptyValueViewFilterType,
             HasNotValueContainsViewFilterType,
             HasNotValueContainsWordViewFilterType,
             HasNotValueEqualViewFilterType,
+            HasNotValueHigherOrEqualTHanFilterType,
+            HasNotValueHigherThanFilterType,
+            HasNotValueLowerOrEqualTHanFilterType,
+            HasNotValueLowerThanFilterType,
             HasValueContainsViewFilterType,
             HasValueContainsWordViewFilterType,
             HasValueEqualViewFilterType,
+            HasValueHigherOrEqualThanFilter,
             HasValueLengthIsLowerThanViewFilterType,
+            HasValueLowerOrEqualThanFilter,
+            HasValueLowerThanFilter,
+            hasValueComparableToFilter,
         )
 
         view_filter_type_registry.register(HasValueEqualViewFilterType())
@@ -463,13 +488,35 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(HasValueContainsWordViewFilterType())
         view_filter_type_registry.register(HasNotValueContainsWordViewFilterType())
         view_filter_type_registry.register(HasValueLengthIsLowerThanViewFilterType())
+        view_filter_type_registry.register(HasAllValuesEqualViewFilterType())
         view_filter_type_registry.register(HasEmptyValueViewFilterType())
         view_filter_type_registry.register(HasNotEmptyValueViewFilterType())
         view_filter_type_registry.register(HasAnySelectOptionEqualViewFilterType())
         view_filter_type_registry.register(HasNoneSelectOptionEqualViewFilterType())
+        view_filter_type_registry.register(HasValueLowerThanFilter())
+        view_filter_type_registry.register(HasValueLowerOrEqualThanFilter())
+        view_filter_type_registry.register(hasValueComparableToFilter())
+        view_filter_type_registry.register(HasValueHigherOrEqualThanFilter())
+        view_filter_type_registry.register(HasNotValueHigherOrEqualTHanFilterType())
+        view_filter_type_registry.register(HasNotValueHigherThanFilterType())
+        view_filter_type_registry.register(HasNotValueLowerOrEqualTHanFilterType())
+        view_filter_type_registry.register(HasNotValueLowerThanFilterType())
+        view_filter_type_registry.register(HasDateEqualViewFilterType())
+        view_filter_type_registry.register(HasNotDateEqualViewFilterType())
+        view_filter_type_registry.register(HasDateBeforeViewFilterType())
+        view_filter_type_registry.register(HasNotDateBeforeViewFilterType())
+        view_filter_type_registry.register(HasDateOnOrBeforeViewFilterType())
+        view_filter_type_registry.register(HasNotDateOnOrBeforeViewFilterType())
+        view_filter_type_registry.register(HasDateOnOrAfterViewFilterType())
+        view_filter_type_registry.register(HasNotDateOnOrAfterViewFilterType())
+        view_filter_type_registry.register(HasDateAfterViewFilterType())
+        view_filter_type_registry.register(HasNotDateAfterViewFilterType())
+        view_filter_type_registry.register(HasDateWithinViewFilterType())
+        view_filter_type_registry.register(HasNotDateWithinViewFilterType())
 
         from .views.view_aggregations import (
             AverageViewAggregationType,
+            CountViewAggregationType,
             DecileViewAggregationType,
             EmptyCountViewAggregationType,
             MaxViewAggregationType,
@@ -482,6 +529,7 @@ class DatabaseConfig(AppConfig):
             VarianceViewAggregationType,
         )
 
+        view_aggregation_type_registry.register(CountViewAggregationType())
         view_aggregation_type_registry.register(EmptyCountViewAggregationType())
         view_aggregation_type_registry.register(NotEmptyCountViewAggregationType())
         view_aggregation_type_registry.register(UniqueCountViewAggregationType())
@@ -662,11 +710,16 @@ class DatabaseConfig(AppConfig):
         object_scope_type_registry.register(TokenObjectScopeType())
 
         from baserow.contrib.database.views.operations import (
+            CanReceiveNotificationOnSubmitFormViewOperationType,
             UpdateViewFieldOptionsOperationType,
         )
 
         from .airtable.operations import RunAirtableImportJobOperationType
-        from .data_sync.operations import SyncTableOperationType
+        from .data_sync.operations import (
+            GetIncludingPublicValuesOperationType,
+            ListPropertiesOperationType,
+            SyncTableOperationType,
+        )
         from .export.operations import ExportTableOperationType
         from .fields.operations import (
             CreateFieldOperationType,
@@ -798,6 +851,9 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(CreateAndUsePersonalViewOperationType())
         operation_type_registry.register(ReadViewOperationType())
         operation_type_registry.register(UpdateViewOperationType())
+        operation_type_registry.register(
+            CanReceiveNotificationOnSubmitFormViewOperationType()
+        )
         operation_type_registry.register(DeleteViewOperationType())
         operation_type_registry.register(DuplicateViewOperationType())
         operation_type_registry.register(CreateViewFilterOperationType())
@@ -844,6 +900,8 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(DeleteViewFilterGroupOperationType())
         operation_type_registry.register(ReadViewFilterGroupOperationType())
         operation_type_registry.register(SyncTableOperationType())
+        operation_type_registry.register(ListPropertiesOperationType())
+        operation_type_registry.register(GetIncludingPublicValuesOperationType())
 
         from baserow.core.registries import permission_manager_type_registry
 

@@ -13,7 +13,9 @@
         "beta": "Beta",
         "disabled": "Uitgeschakeld",
         "summarize": "Samenvatten",
-        "enabled": "Ingeschakeld"
+        "enabled": "Ingeschakeld",
+        "or": "of",
+        "and": "en"
     },
     "action": {
         "upload": "Uploaden",
@@ -45,7 +47,10 @@
         "reset": "Reset",
         "logout": "Uitloggen",
         "set": "Stel in",
-        "backToHome": "Terug naar home"
+        "backToHome": "Terug naar home",
+        "close": "Sluit",
+        "getStarted": "Aan de slag",
+        "hide": "Verberg"
     },
     "adminType": {
         "settings": "Instellingen",
@@ -266,7 +271,9 @@
         "hasValueContains": "heeft waarde bevat",
         "hasNotEmptyValue": "heeft geen lege waarde",
         "hasEmptyValue": "heeft lege waarde",
-        "hasValueLengthIsLowerThan": "heeft waarde lengte is lager dan"
+        "hasValueLengthIsLowerThan": "heeft waarde lengte is lager dan",
+        "hasAnySelectOptionEqual": "heeft elke select-optie gelijk",
+        "hasNoneSelectOptionEqual": "heeft geen select-optie gelijk"
     },
     "viewType": {
         "grid": "Raster",
@@ -436,7 +443,8 @@
         "uploadFileDescription": "De `file` multipart met de inhoud van het bestand.",
         "uploadFileViaUrl": "Bestand uploaden via URL",
         "uploadFileViaUrlDescription": "Uploadt een bestand naar Baserow door het te downloaden van de opgegeven URL.",
-        "fileUploads": "Bestandsuploads"
+        "fileUploads": "Bestandsuploads",
+        "sendWebhookEventsDescription": "Een vlag query parameter die webhooks triggert na de bewerking, indien ingesteld op `ja`, `yes`, `true`, `t`, `on`, `1`, `of` leeg gelaten. Standaard ingesteld op `true`."
     },
     "exporterType": {
         "csv": "Exporteren naar CSV"

@@ -1,25 +1,18 @@
 from copy import deepcopy
 from typing import Dict, List, Optional, Tuple, Type
 
-from django.contrib.postgres.aggregates import JSONBAgg
 from django.db.models import (
     BooleanField,
-    Case,
     DecimalField,
     Expression,
-    ExpressionWrapper,
-    F,
     FilteredRelation,
     JSONField,
     Model,
-    OuterRef,
     Q,
-    Subquery,
     Value,
-    When,
     fields,
 )
-from django.db.models.functions import Cast, Coalesce, JSONObject
+from django.db.models.functions import Cast, JSONObject
 
 from baserow.contrib.database.formula.ast.exceptions import UnknownFieldReference
 from baserow.contrib.database.formula.ast.tree import (
@@ -191,9 +184,14 @@ class BaserowExpressionToDjangoExpressionGenerator(
             return self._setup_lookup_expression(field_reference)
         elif generating_update_expression:
             model_field = self.model._meta.get_field(db_column)
+
+            field_type = model_field.model.get_field_object(
+                model_field.name, include_trash=True
+            )["type"]
+
             return WrappedExpressionWithMetadata(
-                self._make_reference_to_model_field(
-                    db_column, model_field, already_in_subquery=False
+                field_type.get_formula_reference_to_model_field(
+                    model_field, db_column, already_in_subquery=False
                 )
             )
         elif self.model_instance.id and not hasattr(self.model_instance, db_column):
@@ -291,9 +289,11 @@ class BaserowExpressionToDjangoExpressionGenerator(
                 filtered_join_to_lookup_table + "__" + path_to_lookup_from_lookup_table
             )
 
+        field_type = model_field.model.get_field_object(model_field.name)["type"]
+
         return WrappedExpressionWithMetadata(
-            self._make_reference_to_model_field(
-                filtered_join_to_lookup_field, model_field, already_in_subquery=True
+            field_type.get_formula_reference_to_model_field(
+                model_field, filtered_join_to_lookup_field, already_in_subquery=True
             ),
             pre_annotations=pre_annotations,
             join_ids=join_ids,
@@ -366,73 +366,6 @@ class BaserowExpressionToDjangoExpressionGenerator(
             condition=Q(**relation_filters),
         )
         return unique_annotation_path_name, join_ids, pre_annotations
-
-    def _make_reference_to_model_field(
-        self, db_column: str, model_field: fields.Field, already_in_subquery: bool
-    ) -> Expression:
-        from baserow.contrib.database.fields.fields import (
-            MultipleSelectManyToManyField,
-            SingleSelectForeignKey,
-        )
-
-        def get_select_option_extractor(db_column, model_field):
-            return ExpressionWrapper(
-                JSONObject(
-                    **{
-                        "value": f"{db_column}__value",
-                        "id": f"{db_column}__id",
-                        "color": f"{db_column}__color",
-                    }
-                ),
-                output_field=model_field,
-            )
-
-        if isinstance(model_field, SingleSelectForeignKey):
-            single_select_extractor = get_select_option_extractor(
-                db_column, model_field
-            )
-            if already_in_subquery:
-                return Case(
-                    When(**{f"{db_column}__isnull": True}, then=Value(None)),
-                    default=single_select_extractor,
-                    output_field=model_field,
-                )
-            else:
-                return self._wrap_in_subquery(single_select_extractor, db_column)
-        elif isinstance(model_field, MultipleSelectManyToManyField):
-            if already_in_subquery:
-                return Coalesce(
-                    JSONBAgg(
-                        get_select_option_extractor(db_column, model_field),
-                        filter=Q(**{f"{db_column}__isnull": False}),
-                    ),
-                    Value([], output_field=JSONField()),
-                )
-            else:
-                return Coalesce(
-                    self._wrap_in_subquery(
-                        JSONBAgg(get_select_option_extractor(db_column, model_field)),
-                        db_column,
-                    ),
-                    Value([], output_field=JSONField()),
-                )
-        else:
-            return ExpressionWrapper(
-                F(db_column),
-                output_field=model_field,
-            )
-
-    def _wrap_in_subquery(self, subquery_expression, db_column):
-        filters = {f"{db_column}__isnull": False}
-
-        return ExpressionWrapper(
-            Subquery(
-                self.model.objects.filter(id=OuterRef("id"), **filters).values(
-                    result=subquery_expression
-                )
-            ),
-            output_field=JSONField(),
-        )
 
     def visit_function_call(
         self, function_call: BaserowFunctionCall[BaserowFormulaType]

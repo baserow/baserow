@@ -3,16 +3,16 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2022-11-28 18:47+0000\n"
-"Last-Translator: Prachi Joshi <josprachi@yahoo.com>\n"
-"Language-Team: Marathi <https://hosted.weblate.org/projects/baserow/backend-"
-"core/mr/>\n"
+"PO-Revision-Date: 2024-12-16 15:08+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"Language-Team: Marathi <https://hosted.weblate.org/projects/baserow/"
+"backend-core/mr/>\n"
 "Language: mr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 4.15-dev\n"
+"X-Generator: Weblate 5.9\n"
 
 #: src/baserow/core/action/scopes.py:9
 #, python-format
@@ -378,8 +378,8 @@ msgid ""
 "simply ignore this email."
 msgstr ""
 "बेसरोवर (%(public_web_frontend_hostname)s) तुमच्या खात्यासाठी (%(username)s) "
-"पासवर्ड रीसेट करण्याची विनंती केली गेली होती. तुम्ही हे अधिकृत केले नसल्यास, तुम्ही या "
-"ईमेलकडे दुर्लक्ष करू शकता."
+"पासवर्ड रीसेट करण्याची विनंती केली गेली होती. तुम्ही हे अधिकृत केले नसल्यास, तुम्ही या ईमेलकडे"
+" दुर्लक्ष करू शकता."
 
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:154
 #, python-format
@@ -388,8 +388,8 @@ msgid ""
 "will be able to change your password. This link will expire in %(hours)s "
 "hours."
 msgstr ""
-"तुमचा पासवर्ड रीसेट सुरू ठेवण्यासाठी, फक्त खालील बटणावर क्लिक करा आणि तुम्ही तुमचा "
-"पासवर्ड बदलण्यास सक्षम असाल. ही लिंक %(hours)s तासांत कालबाह्य होईल."
+"तुमचा पासवर्ड रीसेट सुरू ठेवण्यासाठी, फक्त खालील बटणावर क्लिक करा आणि तुम्ही तुमचा पासवर्"
+"ड बदलण्यास सक्षम असाल. ही लिंक %(hours)s तासांत कालबाह्य होईल."
 
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:149
 #, fuzzy, python-format

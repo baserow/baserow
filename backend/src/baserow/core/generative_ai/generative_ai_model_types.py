@@ -18,11 +18,7 @@ from baserow.core.generative_ai.types import FileId
 from .registries import GenerativeAIModelType, GenerativeAIWithFilesModelType
 
 
-class OpenAIGenerativeAIModelType(
-    GenerativeAIWithFilesModelType, GenerativeAIModelType
-):
-    type = "openai"
-
+class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
     def get_api_key(self, workspace=None):
         return (
             self.get_workspace_setting(workspace, "api_key")
@@ -69,6 +65,12 @@ class OpenAIGenerativeAIModelType(
             raise GenerativeAIPromptError(str(exc)) from exc
         return chat_completion.choices[0].message.content
 
+
+class OpenAIGenerativeAIModelType(
+    GenerativeAIWithFilesModelType, BaseOpenAIGenerativeAIModelType
+):
+    type = "openai"
+
     def is_file_compatible(self, file_name: str) -> bool:
         # See supported files at:
         # https://platform.openai.com/docs/assistants/tools/file-search/supported-files
@@ -113,6 +115,7 @@ class OpenAIGenerativeAIModelType(
     def prompt_with_files(
         self, model, prompt, file_ids: list[FileId], workspace=None, temperature=None
     ):
+        run, thread, assistant = None, None, None
         try:
             client = self.get_client(workspace)
             assistant = client.beta.assistants.create(
@@ -316,3 +319,44 @@ class OllamaGenerativeAIModelType(GenerativeAIModelType):
         from baserow.api.generative_ai.serializers import OllamaSettingsSerializer
 
         return OllamaSettingsSerializer
+
+
+class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
+    """
+    The OpenRouter API is compatible with the OpenAI API.
+    """
+
+    type = "openrouter"
+
+    def get_api_key(self, workspace=None):
+        return (
+            self.get_workspace_setting(workspace, "api_key")
+            or settings.BASEROW_OPENROUTER_API_KEY
+        )
+
+    def get_enabled_models(self, workspace=None):
+        workspace_models = self.get_workspace_setting(workspace, "models")
+        return workspace_models or settings.BASEROW_OPENROUTER_MODELS
+
+    def get_organization(self, workspace=None):
+        return (
+            self.get_workspace_setting(workspace, "organization")
+            or settings.BASEROW_OPENROUTER_ORGANIZATION
+        )
+
+    def get_client(self, workspace=None):
+        api_key = self.get_api_key(workspace)
+        organization = self.get_organization(workspace)
+        return OpenAI(
+            api_key=api_key,
+            organization=organization,
+            base_url="https://openrouter.ai/api/v1",
+        )
+
+    def get_settings_serializer(self):
+        from baserow.api.generative_ai.serializers import OpenRouterSettingsSerializer
+
+        return OpenRouterSettingsSerializer
+
+    def is_file_compatible(self, file_name):
+        return False

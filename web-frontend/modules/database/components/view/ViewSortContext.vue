@@ -30,7 +30,7 @@
           <a
             v-if="!disableSort"
             class="sortings__remove"
-            @click.stop="deleteSort(sort)"
+            @click="deleteSort(sort)"
           >
             <i class="iconoir-cancel"></i>
           </a>
@@ -115,40 +115,31 @@
       </div>
       <div
         v-if="view.sortings.length < availableFieldsLength && !disableSort"
-        ref="addContextToggle"
         class="context__footer"
       >
         <ButtonText
+          ref="addDropdownToggle"
           icon="iconoir-plus"
-          @click="
-            $refs.addContext.toggle($refs.addContextToggle, 'bottom', 'left', 4)
-          "
+          @click="$refs.addDropdown.toggle($refs.addDropdownToggle.$el)"
         >
           {{ $t('viewSortContext.addSort') }}
         </ButtonText>
-        <Context
-          ref="addContext"
-          class="sortings__add-context"
-          overflow-scroll
-          max-height-if-outside-viewport
-        >
-          <ul ref="items" class="context__menu">
-            <li
-              v-for="field in fields"
-              v-show="isFieldAvailable(field)"
+        <div class="sortings__add">
+          <Dropdown
+            ref="addDropdown"
+            :show-input="false"
+            :fixed-items="true"
+            @input="addSort"
+          >
+            <DropdownItem
+              v-for="field in availableFields"
               :key="field.id"
-              class="context__menu-item"
-            >
-              <a class="context__menu-item-link" @click="addSort(field)">
-                <i
-                  class="context__menu-item-icon"
-                  :class="getFieldType(field).iconClass"
-                ></i>
-                {{ field.name }}
-              </a>
-            </li>
-          </ul>
-        </Context>
+              :name="field.name"
+              :value="field.id"
+              :icon="getFieldType(field).iconClass"
+            ></DropdownItem>
+          </Dropdown>
+        </div>
       </div>
     </div>
   </Context>
@@ -180,11 +171,11 @@ export default {
     },
   },
   computed: {
-    /**
-     * Calculates the total amount of available fields.
-     */
     availableFieldsLength() {
       return this.fields.filter(this.getCanSortInView).length
+    },
+    availableFields() {
+      return this.fields.filter((f) => this.isFieldAvailable(f))
     },
   },
   methods: {
@@ -206,14 +197,14 @@ export default {
       const allFieldIds = this.view.sortings.map((sort) => sort.field)
       return this.getCanSortInView(field) && !allFieldIds.includes(field.id)
     },
-    async addSort(field) {
-      this.$refs.addContext.hide()
+    async addSort(fieldId) {
+      this.$refs.addDropdown.hide()
 
       try {
         await this.$store.dispatch('view/createSort', {
           view: this.view,
           values: {
-            field: field.id,
+            field: fieldId,
             value: 'ASC',
           },
           readOnly: this.readOnly,

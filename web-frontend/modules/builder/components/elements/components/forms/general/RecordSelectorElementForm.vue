@@ -15,8 +15,8 @@
       <DataSourceDropdown
         v-model="values.data_source_id"
         small
-        :data-sources="listDataSources"
-        :page="page"
+        :shared-data-sources="listSharedDataSources"
+        :local-data-sources="listLocalDataSources"
       >
         <template #chooseValueState>
           {{ $t('recordSelectorElementForm.noDataSourceMessage') }}
@@ -186,10 +186,18 @@ export default {
   },
   computed: {
     // For now, RecordSelector only supports data sources that return arrays
-    listDataSources() {
-      return this.dataSources.filter(
+    listLocalDataSources() {
+      if (this.localDataSources === null) {
+        return null
+      }
+      return this.localDataSources.filter(
         (dataSource) =>
-          dataSource.type &&
+          this.$registry.get('service', dataSource.type).returnsList
+      )
+    },
+    listSharedDataSources() {
+      return this.sharedDataSources.filter(
+        (dataSource) =>
           this.$registry.get('service', dataSource.type).returnsList
       )
     },

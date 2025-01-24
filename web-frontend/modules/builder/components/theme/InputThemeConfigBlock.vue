@@ -22,6 +22,44 @@
         <FormGroup
           horizontal-narrow
           small-label
+          class="margin-bottom-2"
+          :label="$t('inputThemeConfigBlock.weight')"
+        >
+          <FontWeightSelector
+            v-model="values.label_font_weight"
+            :font="values.label_font_family"
+          />
+          <template #after-input>
+            <ResetButton
+              v-if="values.label_font_family === theme?.label_font_family"
+              v-model="values.label_font_weight"
+              :default-value="theme?.label_font_weight"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          :label="$t('inputThemeConfigBlock.size')"
+          :error-message="getError('label_font_size')"
+          class="margin-bottom-2"
+        >
+          <PixelValueSelector
+            v-model="values.label_font_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`label_font_size`]
+            "
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="values.label_font_size"
+              :default-value="theme?.label_font_size"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
           :label="$t('inputThemeConfigBlock.textColor')"
           class="margin-bottom-2"
         >
@@ -35,21 +73,6 @@
             <ResetButton
               v-model="values.label_text_color"
               :default-value="theme?.label_text_color"
-            />
-          </template>
-        </FormGroup>
-        <FormGroup
-          horizontal-narrow
-          small-label
-          :label="$t('inputThemeConfigBlock.size')"
-          :error-message="getError('label_font_size')"
-          class="margin-bottom-2"
-        >
-          <PixelValueSelector v-model="values.label_font_size" />
-          <template #after-input>
-            <ResetButton
-              v-model="values.label_font_size"
-              :default-value="theme?.label_font_size"
             />
           </template>
         </FormGroup>
@@ -79,6 +102,44 @@
         <FormGroup
           horizontal-narrow
           small-label
+          class="margin-bottom-2"
+          :label="$t('inputThemeConfigBlock.weight')"
+        >
+          <FontWeightSelector
+            v-model="values.input_font_weight"
+            :font="values.input_font_family"
+          />
+          <template #after-input>
+            <ResetButton
+              v-if="values.input_font_family === theme?.input_font_family"
+              v-model="values.input_font_weight"
+              :default-value="theme?.input_font_weight"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          :label="$t('inputThemeConfigBlock.size')"
+          :error-message="getError('input_font_size')"
+          class="margin-bottom-2"
+        >
+          <PixelValueSelector
+            v-model="values.input_font_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`input_font_size`]
+            "
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="values.input_font_size"
+              :default-value="theme?.input_font_size"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
           :label="$t('inputThemeConfigBlock.textColor')"
           class="margin-bottom-2"
         >
@@ -92,21 +153,6 @@
             <ResetButton
               v-model="values.input_text_color"
               :default-value="theme?.input_text_color"
-            />
-          </template>
-        </FormGroup>
-        <FormGroup
-          horizontal-narrow
-          small-label
-          :label="$t('inputThemeConfigBlock.size')"
-          :error-message="getError('input_font_size')"
-          class="margin-bottom-2"
-        >
-          <PixelValueSelector v-model="values.input_font_size" />
-          <template #after-input>
-            <ResetButton
-              v-model="values.input_font_size"
-              :default-value="theme?.input_font_size"
             />
           </template>
         </FormGroup>
@@ -155,7 +201,12 @@
           :error-message="getError('input_border_size')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.input_border_size" />
+          <PixelValueSelector
+            v-model="values.input_border_size"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`input_border_size`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.input_border_size"
@@ -170,7 +221,12 @@
           :error-message="getError('input_border_radius')"
           class="margin-bottom-2"
         >
-          <PixelValueSelector v-model="values.input_border_radius" />
+          <PixelValueSelector
+            v-model="values.input_border_radius"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`input_border_radius`]
+            "
+          />
           <template #after-input>
             <ResetButton
               v-model="values.input_border_radius"
@@ -185,7 +241,10 @@
           :error-message="getInputPaddingError()"
           class="margin-bottom-2"
         >
-          <PaddingSelector v-model="inputPadding" />
+          <PaddingSelector
+            v-model="inputPadding"
+            :default-values-when-empty="paddingDefaults"
+          />
           <template #after-input>
             <ResetButton
               v-model="inputPadding"
@@ -250,8 +309,10 @@ import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/T
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
+import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
 import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
 
 const minMax = {
   label_font_size: {
@@ -286,6 +347,7 @@ export default {
     ThemeConfigBlockSection,
     ResetButton,
     FontFamilySelector,
+    FontWeightSelector,
     PixelValueSelector,
     PaddingSelector,
   },
@@ -298,6 +360,12 @@ export default {
         { name: 'Option 2', value: 2 },
         { name: 'Option 3', value: 3 },
       ],
+      defaultValuesWhenEmpty: {
+        label_font_size: DEFAULT_FONT_SIZE_PX,
+        input_font_size: DEFAULT_FONT_SIZE_PX,
+        input_border_size: minMax.input_border_size.min,
+        input_border_radius: minMax.input_border_radius.min,
+      },
     }
   },
   computed: {
@@ -315,6 +383,12 @@ export default {
     },
     showLabel() {
       return !this.extraArgs?.onlyInput
+    },
+    paddingDefaults() {
+      return {
+        vertical: minMax.input_vertical_padding.min,
+        horizontal: minMax.input_horizontal_padding.min,
+      }
     },
   },
   methods: {

@@ -1,17 +1,10 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
     <CustomStyle
-      v-if="values.variant === 'button'"
+      :key="values.variant"
       v-model="values.styles"
-      style-key="button"
-      :config-block-types="['button']"
-      :theme="builder.theme"
-    />
-    <CustomStyle
-      v-else
-      v-model="values.styles"
-      style-key="link"
-      :config-block-types="['link']"
+      :style-key="values.variant"
+      :config-block-types="linkElementBlockTypes"
       :theme="builder.theme"
     />
     <FormGroup
@@ -86,6 +79,11 @@ export default {
         },
       ],
     }
+  },
+  computed: {
+    linkElementBlockTypes() {
+      return this.values.variant === LINK_VARIANTS.LINK ? ['link'] : ['button']
+    },
   },
 }
 </script>

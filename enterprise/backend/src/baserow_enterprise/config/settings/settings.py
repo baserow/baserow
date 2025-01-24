@@ -15,6 +15,17 @@ def setup(settings):
         value['engine'] = 'some custom engine'
     """
 
+    settings.BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_TASK_INTERVAL_MINUTES = int(
+        os.getenv("BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_TASK_INTERVAL_MINUTES", "")
+        or 15
+    )
+
+    settings.BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_CACHE_TTL_SECONDS = int(
+        # Default TTL is 120 minutes: 60 seconds * 120
+        os.getenv("BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_CACHE_TTL_SECONDS")
+        or 7200
+    )
+
     settings.BASEROW_ENTERPRISE_AUDIT_LOG_CLEANUP_INTERVAL_MINUTES = int(
         os.getenv("BASEROW_ENTERPRISE_AUDIT_LOG_CLEANUP_INTERVAL_MINUTES", "")
         or 24 * 60
@@ -55,3 +66,12 @@ def setup(settings):
         ] = "baserow_enterprise.secure_file_serve.storage.EnterpriseFileStorage"
 
     settings.BASEROW_SERVE_FILES_THROUGH_BACKEND = serve_files_through_backend
+
+    settings.BASEROW_ENTERPRISE_PERIODIC_DATA_SYNC_CHECK_INTERVAL_MINUTES = int(
+        os.getenv("BASEROW_ENTERPRISE_PERIODIC_DATA_SYNC_CHECK_INTERVAL_MINUTES", "")
+        or 1
+    )
+    settings.BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS = int(
+        os.getenv("BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS", "")
+        or 4
+    )

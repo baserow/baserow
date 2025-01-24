@@ -1,10 +1,12 @@
 import {
   ensureArray,
+  ensureDateTime,
   ensureInteger,
   ensureString,
   ensureStringOrInteger,
 } from '@baserow/modules/core/utils/validator'
 import { expect } from '@jest/globals'
+import { DATE_FORMATS } from '@baserow/modules/builder/enums'
 
 describe('ensureInteger', () => {
   it('should return the value as an integer if it is already an integer', () => {
@@ -32,6 +34,7 @@ describe('ensureString', () => {
     expect(ensureString(undefined)).toBe('')
     expect(ensureString('')).toBe('')
     expect(ensureString([])).toBe('')
+    expect(ensureString({})).toBe('')
   })
 
   it('should convert the value to a string if it is truthy', () => {
@@ -40,8 +43,14 @@ describe('ensureString', () => {
     expect(ensureString(0)).toBe('0')
     expect(ensureString(false)).toBe('false')
     expect(ensureString([1, 2, 3])).toBe('1,2,3')
-    expect(ensureString([[], [[], [5, 7], 6]])).toBe('5,7,6')
-    expect(ensureString({ key: 'value' })).toBe('[object Object]')
+    expect(ensureString({ key: 'value' })).toBe('{"key":"value"}')
+    expect(ensureString(['foo', ['bar']])).toBe('foo,bar')
+    expect(ensureString(['foo', { bar: 'baz' }, 'a', ['b']])).toBe(
+      'foo,{"bar":"baz"},a,b'
+    )
+    expect(ensureString({ foo: ['a', 'b'], baz: { d: ['e', 'f'] } })).toBe(
+      '{"foo":["a","b"],"baz":{"d":["e","f"]}}'
+    )
   })
 })
 
@@ -104,5 +113,29 @@ describe('ensureArray', () => {
     expect(ensureArray('one,two,,')).toStrictEqual(['one', 'two', '', ''])
     expect(ensureArray([1, 2, 3])).toStrictEqual([1, 2, 3])
     expect(ensureArray({ key: 'value' })).toStrictEqual([{ key: 'value' }])
+  })
+})
+
+describe('ensureDateTime', () => {
+  it('should raise an error for empty values', () => {
+    const error = new Error(`Value is not a valid date`)
+    expect(() => ensureDateTime(null)).toThrow(error)
+    expect(() => ensureDateTime('')).toThrow(error)
+    expect(() => ensureDateTime({})).toThrow(error)
+    expect(() => ensureDateTime([])).toThrow(error)
+  })
+
+  it('should convert the value to a date if valid', () => {
+    // In JavaScript Date objects month are 0 indexed, so month 0 is January
+    const date = new Date(2024, 3, 25).toISOString()
+    expect(
+      ensureDateTime('2024-04-25', DATE_FORMATS.ISO.format).toISOString()
+    ).toBe(date)
+    expect(
+      ensureDateTime('25/04/2024', DATE_FORMATS.EU.format).toISOString()
+    ).toBe(date)
+    expect(
+      ensureDateTime('04/25/2024', DATE_FORMATS.US.format).toISOString()
+    ).toBe(date)
   })
 })

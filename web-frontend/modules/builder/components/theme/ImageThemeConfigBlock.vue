@@ -39,6 +39,9 @@
         >
           <FormInput
             v-model="values.image_max_width"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`image_min_width`]
+            "
             type="number"
             :min="0"
             :max="100"
@@ -77,6 +80,9 @@
         >
           <FormInput
             v-model="imageMaxHeight"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`image_min_height`]
+            "
             type="number"
             remove-number-input-controls
             :placeholder="$t('imageThemeConfigBlock.maxHeightPlaceholder')"
@@ -126,6 +132,48 @@
             />
           </template>
         </FormGroup>
+
+        <FormGroup
+          horizontal-narrow
+          small-label
+          required
+          class="margin-bottom-2"
+          :label="$t('imageThemeConfigBlock.imageBorderRadiusLabel')"
+          :error-message="
+            $v.values.image_border_radius.$dirty &&
+            !$v.values.image_border_radius.integer
+              ? $t('error.integerField')
+              : !$v.values.image_border_radius.minValue
+              ? $t('error.minValueField', { min: 0 })
+              : !$v.values.image_border_radius.maxValue
+              ? $t('error.maxValueField', { max: 100 })
+              : ''
+          "
+        >
+          <FormInput
+            v-model="values.image_border_radius"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`image_border_radius`]
+            "
+            type="number"
+            :min="0"
+            :max="100"
+            remove-number-input-controls
+            :placeholder="
+              $t('imageThemeConfigBlock.imageBorderRadiusPlaceholder')
+            "
+            :to-value="(value) => (value ? parseInt(value) : null)"
+          >
+            <template #suffix>px</template>
+          </FormInput>
+
+          <template #after-input>
+            <ResetButton
+              v-model="values.image_border_radius"
+              :default-value="theme?.image_border_radius"
+            />
+          </template>
+        </FormGroup>
       </template>
       <template #preview>
         <ABImage src="/img/favicon_192.png" />
@@ -141,6 +189,21 @@ import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 import { IMAGE_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { integer, maxValue, minValue, required } from 'vuelidate/lib/validators'
+
+const minMax = {
+  image_width: {
+    min: 0,
+    max: 100,
+  },
+  image_height: {
+    min: 5,
+    max: 3000,
+  },
+  image_border_radius: {
+    min: 0,
+    max: 100,
+  },
+}
 
 export default {
   name: 'ImageThemeConfigBlock',
@@ -158,7 +221,13 @@ export default {
         'image_max_width',
         'image_max_height',
         'image_constraint',
+        'image_border_radius',
       ],
+      defaultValuesWhenEmpty: {
+        image_min_width: minMax.image_width.min,
+        image_min_height: minMax.image_height.min,
+        image_border_radius: minMax.image_border_radius.min,
+      },
     }
   },
   computed: {
@@ -243,13 +312,18 @@ export default {
       image_max_width: {
         required,
         integer,
-        minValue: minValue(0),
-        maxValue: maxValue(100),
+        minValue: minValue(minMax.image_width.min),
+        maxValue: maxValue(minMax.image_width.max),
       },
       image_max_height: {
         integer,
-        minValue: minValue(5),
-        maxValue: maxValue(3000),
+        minValue: minValue(minMax.image_height.min),
+        maxValue: maxValue(minMax.image_height.max),
+      },
+      image_border_radius: {
+        integer,
+        minValue: minValue(minMax.image_border_radius.min),
+        maxValue: maxValue(minMax.image_border_radius.max),
       },
     },
   },

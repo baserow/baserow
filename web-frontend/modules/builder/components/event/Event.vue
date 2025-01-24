@@ -78,7 +78,7 @@ export default {
   name: 'Event',
   components: { WorkflowAction },
   mixins: [applicationContext],
-  inject: ['workspace', 'builder', 'page'],
+  inject: ['workspace', 'builder', 'elementPage'],
   props: {
     event: {
       type: Event,
@@ -128,7 +128,7 @@ export default {
       this.addingAction = true
       try {
         await this.actionCreateWorkflowAction({
-          page: this.page,
+          page: this.elementPage,
           workflowActionType: DEFAULT_WORKFLOW_ACTION_TYPE,
           eventType: this.event.name,
           configuration: {
@@ -143,7 +143,7 @@ export default {
     async deleteWorkflowAction(workflowAction) {
       try {
         await this.actionDeleteWorkflowAction({
-          page: this.page,
+          page: this.elementPage,
           workflowAction,
         })
       } catch (error) {
@@ -153,7 +153,7 @@ export default {
     async orderWorkflowActions(order) {
       try {
         await this.actionOrderWorkflowActions({
-          page: this.page,
+          page: this.elementPage,
           element: this.element,
           order,
         })

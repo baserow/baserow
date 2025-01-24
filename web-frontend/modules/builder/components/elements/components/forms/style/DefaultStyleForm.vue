@@ -81,11 +81,18 @@
       :border-is-allowed="isStyleAllowed(`style_border_${name}`)"
       :margin-is-allowed="isStyleAllowed(`style_margin_${name}`)"
     />
+
+    <RadiusForm
+      v-model="radiusStyles"
+      :background-radius-is-allowed="isStyleAllowed('style_background_radius')"
+      :border-radius-is-allowed="isStyleAllowed('style_border_radius')"
+    />
   </form>
 </template>
 
 <script>
 import StyleBoxForm from '@baserow/modules/builder/components/elements/components/forms/style/StyleBoxForm'
+import RadiusForm from '@baserow/modules/builder/components/elements/components/forms/style/RadiusForm'
 import styleForm from '@baserow/modules/builder/mixins/styleForm'
 import {
   BACKGROUND_TYPES,
@@ -95,7 +102,7 @@ import {
 import { IMAGE_FILE_TYPES } from '@baserow/modules/core/enums'
 
 export default {
-  components: { StyleBoxForm },
+  components: { StyleBoxForm, RadiusForm },
   mixins: [styleForm],
   computed: {
     BACKGROUND_TYPES: () => BACKGROUND_TYPES,

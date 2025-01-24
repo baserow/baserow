@@ -36,13 +36,13 @@
         :placeholder="placeholder"
         :required="required"
         :autocomplete="autocomplete"
-        @blur="$emit('blur', $event)"
+        @blur="onBlur($event)"
         @click="$emit('click', $event)"
         @focus="$emit('focus', $event)"
         @keyup="$emit('keyup', $event)"
         @keydown="$emit('keydown', $event)"
         @keypress="$emit('keypress', $event)"
-        @input="$emit('input', toValue($event.target.value))"
+        @input="onInput($event)"
         @mouseup="$emit('mouseup', $event)"
         @mousedown="$emit('mousedown', $event)"
       />
@@ -99,6 +99,11 @@ export default {
       type: Function,
       required: false,
       default: (value) => value,
+    },
+    defaultValueWhenEmpty: {
+      type: [Number, String],
+      required: false,
+      default: null,
     },
     fromValue: {
       type: Function,
@@ -176,9 +181,6 @@ export default {
       default: false,
     },
   },
-  data() {
-    return {}
-  },
   computed: {
     hasSuffixSlot() {
       return !!this.$slots.suffix
@@ -187,9 +189,25 @@ export default {
   methods: {
     focus() {
       this.$refs.input.focus()
+      this.previousValue = this.value
     },
     blur() {
       this.$refs.input.blur()
+    },
+    onInput(event) {
+      const value = this.$refs.input.value
+      if (!value && this.defaultValueWhenEmpty !== null) {
+        return
+      }
+      this.$emit('input', this.toValue(event.target.value))
+    },
+    onBlur(event) {
+      const value = this.$refs.input.value
+      if (!value && this.defaultValueWhenEmpty !== null) {
+        this.$refs.input.value = this.defaultValueWhenEmpty
+        this.$emit('input', this.defaultValueWhenEmpty)
+      }
+      this.$emit('blur', event)
     },
   },
 }

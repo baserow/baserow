@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fix formula issue with lookup and UUID as primary field",
+    "issue_number": 2354,
+    "bullet_points": [],
+    "created_at": "2025-01-09"
+}

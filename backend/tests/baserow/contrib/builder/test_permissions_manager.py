@@ -182,7 +182,7 @@ def test_allow_if_template_permission_manager_filter_queryset(data_fixture):
     workspace_2 = data_fixture.create_workspace()
     data_fixture.create_template(workspace=workspace_2)
     application_2 = data_fixture.create_builder_application(workspace=workspace_2)
-    shared_page_2 = application_2.page_set.get(shared=True)
+    shared_page_2 = application_2.shared_page
     page_2 = data_fixture.create_builder_page(builder=application_2)
     element_2 = data_fixture.create_builder_text_element(page=page_2)
     workflow_action_2 = data_fixture.create_local_baserow_update_row_workflow_action(
@@ -230,7 +230,7 @@ def test_allow_if_template_permission_manager_filter_queryset(data_fixture):
     tests_w1 = [
         (
             ListPagesBuilderOperationType.type,
-            Page.objects.filter(builder__workspace=workspace_2),
+            Page.objects_with_shared.filter(builder__workspace=workspace_2),
             [shared_page_2.id, page_2.id],
         ),
         (

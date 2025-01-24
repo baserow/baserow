@@ -14,6 +14,7 @@ from baserow.api.user_files.serializers import UserFileField
 from baserow.contrib.database.api.fields.errors import (
     ERROR_FIELD_NOT_IN_TABLE,
     ERROR_INCOMPATIBLE_FIELD,
+    ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
 )
 from baserow.contrib.database.api.views.form.errors import (
     ERROR_FORM_VIEW_FIELD_OPTIONS_CONDITION_GROUP_DOES_NOT_EXIST,
@@ -39,11 +40,15 @@ from baserow.contrib.database.api.views.grid.serializers import (
 from baserow.contrib.database.fields.exceptions import (
     FieldNotInTable,
     IncompatibleField,
+    SelectOptionDoesNotBelongToField,
 )
-from baserow.contrib.database.fields.models import Field, FileField
+from baserow.contrib.database.fields.models import Field, FileField, SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.registries import view_aggregation_type_registry
+from baserow.core.handler import CoreHandler
+from baserow.core.import_export.utils import file_chunk_generator
+from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_files.models import UserFile
 
@@ -56,6 +61,7 @@ from .handler import ViewHandler
 from .models import (
     FormView,
     FormViewFieldOptions,
+    FormViewFieldOptionsAllowedSelectOptions,
     FormViewFieldOptionsCondition,
     FormViewFieldOptionsConditionGroup,
     GalleryView,
@@ -103,7 +109,7 @@ class GridViewType(ViewType):
         self,
         grid: View,
         cache: Optional[Dict] = None,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
         """
@@ -214,15 +220,15 @@ class GridViewType(ViewType):
 
         return field_options
 
-    def after_field_type_change(self, field):
+    def after_fields_type_change(self, fields):
         """
         Check field option aggregation_raw_type compatibility with the new field type.
         """
 
         field_options = (
-            GridViewFieldOptions.objects_and_trash.filter(field=field)
+            GridViewFieldOptions.objects_and_trash.filter(field__in=fields)
             .exclude(aggregation_raw_type="")
-            .select_related("grid_view")
+            .select_related("grid_view", "field")
         )
 
         view_handler = ViewHandler()
@@ -233,16 +239,18 @@ class GridViewType(ViewType):
             )
 
             view_handler.clear_aggregation_cache(
-                field_option.grid_view, field.db_column
+                field_option.grid_view, field_option.field.db_column
             )
 
-            if not aggregation_type.field_is_compatible(field):
+            if not aggregation_type.field_is_compatible(field_option.field):
                 # The field has an aggregation and the type is not compatible with
                 # the new field, so we need to clean the aggregation.
+                # @TODO check if there are multiple fields from the same field and
+                #  update them in bulk.
                 view_handler.update_field_options(
                     view=field_option.grid_view,
                     field_options={
-                        field.id: {
+                        field_option.field_id: {
                             "aggregation_type": "",
                             "aggregation_raw_type": "",
                         }
@@ -391,18 +399,26 @@ class GalleryViewType(ViewType):
 
         return super().prepare_values(values, table, user)
 
-    def after_field_type_change(self, field):
-        field_type = field_type_registry.get_by_model(field)
-        if not field_type.can_represent_files(field):
-            GalleryView.objects.filter(card_cover_image_field_id=field.id).update(
-                card_cover_image_field_id=None
-            )
+    def after_fields_type_change(self, fields):
+        fields_cannot_represent_files = [
+            field
+            for field in fields
+            if not field_type_registry.get_by_model(
+                field.specific_class
+            ).can_represent_files(field)
+        ]
+        if len(fields_cannot_represent_files) > 0:
+            GalleryView.objects.filter(
+                card_cover_image_field_id__in=[
+                    f.id for f in fields_cannot_represent_files
+                ]
+            ).update(card_cover_image_field_id=None)
 
     def export_serialized(
         self,
         gallery: View,
         cache: Optional[Dict] = None,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
         """
@@ -581,6 +597,7 @@ class FormViewType(ViewType):
         "condition_type",
         "order",
         "field_component",
+        "include_all_select_options",
     ]
     serializer_mixins = [FormViewNotifyOnSubmitSerializerMixin]
     serializer_field_names = [
@@ -609,6 +626,7 @@ class FormViewType(ViewType):
         FormViewFieldTypeIsNotSupported: ERROR_FORM_VIEW_FIELD_TYPE_IS_NOT_SUPPORTED,
         FormViewReadOnlyFieldIsNotSupported: ERROR_FORM_VIEW_READ_ONLY_FIELD_IS_NOT_SUPPORTED,
         FormViewFieldOptionsConditionGroupDoesNotExist: ERROR_FORM_VIEW_FIELD_OPTIONS_CONDITION_GROUP_DOES_NOT_EXIST,
+        SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
     }
 
     def get_api_urls(self):
@@ -618,14 +636,20 @@ class FormViewType(ViewType):
             path("form/", include(api_urls, namespace=self.type)),
         ]
 
-    def after_field_type_change(self, field):
-        field_type = field_type_registry.get_by_model(field)
-
-        # If the new field type is not compatible with the form view, we must disable
-        # all the form view field options because they're not compatible anymore.
-        if not field_type.can_be_in_form_view:
+    def after_fields_type_change(self, fields):
+        fields_cannot_be_in_form_view = [
+            field
+            for field in fields
+            if not field_type_registry.get_by_model(
+                field.specific_class
+            ).can_be_in_form_view
+        ]
+        if len(fields_cannot_be_in_form_view) > 0:
+            # If the new field type is not compatible with the form view, we must
+            # disable all the form view field options because they're not compatible
+            # anymore.
             FormViewFieldOptions.objects_and_trash.filter(
-                field=field, enabled=True
+                field__in=[f.id for f in fields_cannot_be_in_form_view], enabled=True
             ).update(enabled=False)
 
     def before_field_options_update(self, view, field_options, fields):
@@ -989,11 +1013,104 @@ class FormViewType(ViewType):
             count=0
         ).delete()
 
+        self._update_field_options_allowed_select_options(
+            view, field_options, updated_field_options_by_field_id
+        )
+
+    def _update_field_options_allowed_select_options(
+        self, view, field_options, updated_field_options_by_field_id
+    ):
+        # Dict containing the field options object as key and a list of desired field
+        # option IDs based on the provided `field_options`.
+        desired_allowed_select_options = {}
+        for field_id, options in field_options.items():
+            field_options_id = updated_field_options_by_field_id[int(field_id)]
+            if "allowed_select_options" in options:
+                desired_allowed_select_options[field_options_id] = options[
+                    "allowed_select_options"
+                ]
+
+        # No need to execute any query if no select options have been provided.
+        if len(desired_allowed_select_options) == 0:
+            return
+
+        # Fetch the available select options per field, so that we can check whether
+        # the provided select option is allowed.
+        select_options_per_field_options_field = defaultdict(list)
+        for select_option in SelectOption.objects.filter(
+            field__in=[
+                field_id
+                for field_id, options in field_options.items()
+                if "allowed_select_options" in options
+            ]
+        ).values("field_id", "id"):
+            select_options_per_field_options_field[select_option["field_id"]].append(
+                select_option["id"]
+            )
+
+        # Fetch the existing allowed select options of the updated field options,
+        # so that we can compare with the `desired_allowed_select_options` and figure
+        # out which one must be created and deleted.
+        existing_allowed_select_options = defaultdict(list)
+        for (
+            allowed_select_option
+        ) in FormViewFieldOptionsAllowedSelectOptions.objects.filter(
+            form_view_field_options__in=[
+                updated_field_options_by_field_id[field_id].id
+                for field_id, options in field_options.items()
+                if "allowed_select_options" in options
+            ],
+        ):
+            existing_allowed_select_options[
+                allowed_select_option.form_view_field_options_id
+            ].append(allowed_select_option.select_option_id)
+
+        to_create = []
+        to_delete = []
+
+        for (
+            form_view_field_options,
+            desired_select_options,
+        ) in desired_allowed_select_options.items():
+            existing_select_options = set(
+                existing_allowed_select_options.get(form_view_field_options.id, [])
+            )
+            desired_select_options = set(desired_select_options)
+
+            for select_option_id in desired_select_options - existing_select_options:
+                if (
+                    select_option_id
+                    not in select_options_per_field_options_field[
+                        form_view_field_options.field_id
+                    ]
+                ):
+                    raise SelectOptionDoesNotBelongToField(
+                        select_option_id, form_view_field_options.field_id
+                    )
+                to_create.append(
+                    FormViewFieldOptionsAllowedSelectOptions(
+                        form_view_field_options_id=form_view_field_options.id,
+                        select_option_id=select_option_id,
+                    )
+                )
+
+            for select_option_id in existing_select_options - desired_select_options:
+                to_delete.append(select_option_id)
+
+        if to_delete:
+            FormViewFieldOptionsAllowedSelectOptions.objects.filter(
+                form_view_field_options__in=desired_allowed_select_options.keys(),
+                select_option_id__in=to_delete,
+            ).delete()
+
+        if to_create:
+            FormViewFieldOptionsAllowedSelectOptions.objects.bulk_create(to_create)
+
     def export_serialized(
         self,
         form: View,
         cache: Optional[Dict] = None,
-        files_zip: Optional[ZipFile] = None,
+        files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
         """
@@ -1007,11 +1124,16 @@ class FormViewType(ViewType):
                 return None
 
             name = user_file.name
-
-            if files_zip is not None and name not in files_zip.namelist():
+            namelist = (
+                [item["name"] for item in files_zip.info_list()]
+                if files_zip is not None
+                else []
+            )
+            if files_zip is not None and name not in namelist:
                 file_path = UserFileHandler().user_file_path(name)
-                with storage.open(file_path, mode="rb") as storage_file:
-                    files_zip.writestr(name, storage_file.read())
+
+                chunk_generator = file_chunk_generator(storage, file_path)
+                files_zip.add(chunk_generator, name)
 
             return {"name": name, "original_name": user_file.original_name}
 
@@ -1049,7 +1171,19 @@ class FormViewType(ViewType):
                         }
                         for condition in field_option.conditions.all()
                     ],
+                    "condition_groups": [
+                        {
+                            "id": condition_group.id,
+                            "parent_group": condition_group.parent_group_id,
+                            "filter_type": condition_group.filter_type,
+                        }
+                        for condition_group in field_option.condition_groups.all()
+                    ],
                     "field_component": field_option.field_component,
+                    "include_all_select_options": field_option.include_all_select_options,
+                    "allowed_select_options": [
+                        s.id for s in field_option.allowed_select_options.all()
+                    ],
                 }
             )
 
@@ -1092,47 +1226,80 @@ class FormViewType(ViewType):
         if form_view is not None:
             if "database_form_view_field_options" not in id_mapping:
                 id_mapping["database_form_view_field_options"] = {}
+                id_mapping["database_form_view_condition_groups"] = {}
 
             condition_objects = []
-            condition_groups = {}
+            form_view_field_options_allowed_select_options = []
             for field_option in field_options:
                 field_option_copy = field_option.copy()
                 field_option_id = field_option_copy.pop("id")
                 field_option_conditions = field_option_copy.pop("conditions", [])
+                field_option_condition_groups = field_option_copy.pop(
+                    "condition_groups", []
+                )
+                allowed_select_options = field_option_copy.pop(
+                    "allowed_select_options", []
+                )
                 field_option_copy["field_id"] = id_mapping["database_fields"][
                     field_option["field_id"]
                 ]
                 field_option_object = FormViewFieldOptions.objects.create(
                     form_view=form_view, **field_option_copy
                 )
+                for condition_group in field_option_condition_groups:
+                    condition_group_copy = condition_group.copy()
+                    condition_group_id = condition_group_copy.pop("id")
+                    if condition_group_copy["parent_group"]:
+                        condition_group_copy["parent_group_id"] = id_mapping[
+                            "database_form_view_condition_groups"
+                        ][condition_group_copy.pop("parent_group")]
+                    condition_group_object = (
+                        FormViewFieldOptionsConditionGroup.objects.create(
+                            field_option=field_option_object, **condition_group_copy
+                        )
+                    )
+                    id_mapping["database_form_view_condition_groups"][
+                        condition_group_id
+                    ] = condition_group_object.id
                 for condition in field_option_conditions:
                     value = view_filter_type_registry.get(
                         condition["type"]
                     ).set_import_serialized_value(condition["value"], id_mapping)
-                    group = None
-                    if "group" in condition and not (
-                        group := condition_groups.get(condition["group"])
-                    ):
-                        group = FormViewFieldOptionsConditionGroup.objects.create(
-                            field_option=field_option_object
-                        )
-                        condition_groups[condition["group"]] = group
-
+                    mapped_group_id = None
+                    group = condition.get("group", None)
+                    if group:
+                        mapped_group_id = id_mapping[
+                            "database_form_view_condition_groups"
+                        ][group]
                     condition_objects.append(
                         FormViewFieldOptionsCondition(
                             field_option=field_option_object,
                             field_id=id_mapping["database_fields"][condition["field"]],
                             type=condition["type"],
                             value=value,
-                            group=group,
+                            group_id=mapped_group_id,
                         )
                     )
+                for select_option_id in allowed_select_options:
+                    form_view_field_options_allowed_select_options.append(
+                        FormViewFieldOptionsAllowedSelectOptions(
+                            form_view_field_options_id=field_option_object.id,
+                            select_option_id=id_mapping[
+                                "database_field_select_options"
+                            ][select_option_id],
+                        )
+                    )
+
+                    field_option_object.id
                 id_mapping["database_form_view_field_options"][
                     field_option_id
                 ] = field_option_object.id
 
-            # Create the conditions in bulk to improve performance.
+            # Create the objects in bulk to improve performance.
             FormViewFieldOptionsCondition.objects.bulk_create(condition_objects)
+            FormViewFieldOptionsAllowedSelectOptions.objects.bulk_create(
+                form_view_field_options_allowed_select_options
+            )
 
         return form_view
 
@@ -1227,7 +1394,9 @@ class FormViewType(ViewType):
         )
 
     def enhance_field_options_queryset(self, queryset):
-        return queryset.prefetch_related("conditions", "condition_groups")
+        return queryset.prefetch_related(
+            "conditions", "condition_groups", "allowed_select_options"
+        )
 
     def prepare_field_options(
         self, view: FormView, field_id: int
@@ -1235,3 +1404,26 @@ class FormViewType(ViewType):
         return FormViewFieldOptions(
             field_id=field_id, form_view_id=view.id, enabled=False
         )
+
+    def check_view_update_permissions(self, user, view, data):
+        from .operations import CanReceiveNotificationOnSubmitFormViewOperationType
+
+        workspace = view.table.database.workspace
+
+        if "receive_notification_on_submit" in data:
+            # If `receive_notification_on_submit` is in the data, then we must check if
+            # the user has permissions to receive a notification on submit.
+            CoreHandler().check_permissions(
+                user,
+                CanReceiveNotificationOnSubmitFormViewOperationType.type,
+                workspace=workspace,
+                context=view,
+            )
+
+            # If only the `receive_notification_on_submit` is provided, then there is
+            # no need to check if the user has permissions to update the view because
+            # nothing else is changed.
+            if len(data) == 1:
+                return
+
+        return super().check_view_update_permissions(user, view, data)

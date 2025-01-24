@@ -77,17 +77,19 @@ export class BuilderApplicationType extends ApplicationType {
 
   delete(application) {
     const { store, router } = this.app
-    const pageSelected = store.getters['page/getAllPages'](application).some(
-      (page) => page._.selected
-    )
+    const pageSelected = store.getters['page/getVisiblePages'](
+      application
+    ).some((page) => page._.selected)
+
     if (pageSelected) {
       router.push({ name: 'dashboard' })
     }
   }
 
-  async loadExtraData(builder, page, mode) {
+  async loadExtraData(builder, mode) {
     const { store, $registry } = this.app
     if (!builder._loadedOnce) {
+      const sharedPage = store.getters['page/getSharedPage'](builder)
       await Promise.all([
         store.dispatch('userSource/fetch', {
           application: builder,
@@ -97,8 +99,12 @@ export class BuilderApplicationType extends ApplicationType {
         }),
         // Fetch shared data sources
         store.dispatch('dataSource/fetch', {
-          page: store.getters['page/getSharedPage'](builder),
+          page: sharedPage,
         }),
+        store.dispatch('element/fetch', {
+          page: sharedPage,
+        }),
+        store.dispatch('workflowAction/fetch', { page: sharedPage }),
       ])
 
       // Initialize application shared stuff like data sources
@@ -141,6 +147,14 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   prepareForStoreUpdate(application, data) {
+    if (Object.prototype.hasOwnProperty.call(data, 'pages')) {
+      delete data.pages
+    }
+
+    if (Object.prototype.hasOwnProperty.call(data, 'theme')) {
+      delete data.theme
+    }
+
     return data
   }
 

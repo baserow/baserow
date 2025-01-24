@@ -122,7 +122,10 @@
         "lastNameAttrKey": "Achternaam"
     },
     "authProviderTypes": {
-        "password": "E-mail- en wachtwoordverificatie"
+        "password": "E-mail- en wachtwoordverificatie",
+        "saml": "SSO SAML-leverancier",
+        "ssoSamlProviderName": "SSO SAML: {domain}",
+        "ssoSamlProviderNameUnconfigured": "Niet geconfigureerde SSO SAML"
     },
     "createSettingsAuthProviderModal": {
         "title": "Een nieuw {type} toevoegen"
@@ -312,7 +315,8 @@
         "notConfigured": "Niet geconfigureerd"
     },
     "appAuthProviderType": {
-        "localBaserowPassword": "E-mail/wachtwoord"
+        "localBaserowPassword": "E-mail/wachtwoord",
+        "commonSaml": "Saml SSO"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Selecteer wachtwoordveld",
@@ -357,7 +361,8 @@
         "localBaserowTable": "Sync Baserow tabel",
         "jiraIssues": "Jira issues synchroniseren",
         "githubIssues": "GitHub issues synchroniseren",
-        "gitlabIssues": "GitLab issues synchroniseren"
+        "gitlabIssues": "GitLab issues synchroniseren",
+        "hubspotContacts": "Sync HubSpot contacten"
     },
     "jiraIssuesDataSync": {
         "urlHelper": "De basis URL van je Jira instantie (bijvoorbeeld https://your-domain.atlassian.net).",
@@ -387,5 +392,24 @@
     },
     "exportWorkspaceModalWarning": {
         "message": "Houd er rekening mee dat een export geen rechten bevat die zijn ingesteld op de applicatie en de tabellen."
+    },
+    "commonSamlSettingModal": {
+        "title": "Provider aanpassen",
+        "relayStateTitle": "Standaard Relay State URL per domein (Klik om te kopiëren)",
+        "acsTitle": "Single Sign On URL per domein (Klik om te kopiëren)",
+        "preview": "Voorbeeld"
+    },
+    "commonSamlSettingForm": {
+        "authProviderInError": "Bewerk deze provider om de fout te herstellen."
+    },
+    "hubspotContactsDataSync": {
+        "accessToken": "Privé app toegang stoken",
+        "accessTokenHelper": "Om een toegangstoken voor een privé app te genereren in HubSpot, klik je op Instellingen in de bovenste balk, navigeer je naar Integraties > Privé apps en maak je een nieuwe privé app. Wijs de volgende scopes toe: crm.objects.contacts.read, crm.schemas.contacts.read, en crm.objects.custom.read. Klik ten slotte op App aanmaken om het token te genereren."
+    },
+    "samlAuthLink": {
+        "loginWithSaml": "Inloggen met SAML",
+        "placeholderWithSaml": "{login} met SAML",
+        "emailPlaceholder": "Voer uw e-mailadres in...",
+        "provideEmail": "Geef het e-mailadres van je SAML-account op"
     }
 }

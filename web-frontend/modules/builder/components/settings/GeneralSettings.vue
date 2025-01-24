@@ -7,22 +7,29 @@
       :default-values="builder"
       @values-changed="updateApplication($event)"
     />
+
+    <BuilderLoginPageForm
+      :default-values="builder"
+      :builder="builder"
+      @values-changed="updateApplication($event)"
+    />
   </div>
 </template>
 
 <script>
 import error from '@baserow/modules/core/mixins/error'
 import BuilderGeneralSettingsForm from '@baserow/modules/builder/components/form/BuilderGeneralSettingsForm'
+import BuilderLoginPageForm from '@baserow/modules/builder/components/form/BuilderLoginPageForm'
+
 import _ from 'lodash'
 
 export default {
   name: 'GeneralSettings',
-  components: { BuilderGeneralSettingsForm },
+  components: { BuilderGeneralSettingsForm, BuilderLoginPageForm },
   mixins: [error],
   provide() {
     return {
       builder: this.builder,
-      page: null,
       mode: null,
     }
   },

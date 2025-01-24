@@ -47,6 +47,16 @@ class CreateDataSyncSerializer(serializers.ModelSerializer):
         fields = ("synced_properties", "type", "table_name")
 
 
+class UpdateDataSyncSerializer(serializers.ModelSerializer):
+    synced_properties = serializers.ListField(
+        child=serializers.CharField(), required=False
+    )
+
+    class Meta:
+        model = DataSync
+        fields = ("synced_properties",)
+
+
 class ListDataSyncPropertiesRequestSerializer(serializers.ModelSerializer):
     type = serializers.ChoiceField(
         choices=lazy(data_sync_type_registry.get_types, list)(),
@@ -64,6 +74,7 @@ class ListDataSyncPropertySerializer(serializers.Serializer):
     key = serializers.CharField()
     name = serializers.CharField()
     field_type = serializers.SerializerMethodField()
+    initially_selected = serializers.BooleanField()
 
     def get_field_type(self, instance):
         field_type = field_type_registry.get_by_model(instance.to_baserow_field())

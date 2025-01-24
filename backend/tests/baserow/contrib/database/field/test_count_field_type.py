@@ -11,6 +11,7 @@ from baserow.contrib.database.formula import BaserowFormulaNumberType
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.test_utils.helpers import AnyStr
 
 
 @pytest.mark.django_db
@@ -182,8 +183,8 @@ def test_can_update_count_field_value(
             {
                 f"field_{table_primary_field.id}": None,
                 f"field_{linkrowfield.id}": [
-                    {"id": a.id, "value": "primary a"},
-                    {"id": b.id, "value": "primary b"},
+                    {"id": a.id, "value": "primary a", "order": AnyStr()},
+                    {"id": b.id, "value": "primary b", "order": AnyStr()},
                 ],
                 f"field_{count_field.id}": "2",
                 "id": table_row.id,
@@ -246,7 +247,9 @@ def test_can_batch_create_count_field_value(
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"field_{table_primary_field.id}": "row 1",
-                f"field_{link_row_field.id}": [{"id": 1, "value": "row A"}],
+                f"field_{link_row_field.id}": [
+                    {"id": 1, "value": "row A", "order": AnyStr()}
+                ],
                 f"field_{count_field.id}": "1",
             }
         ]
@@ -305,7 +308,9 @@ def test_can_batch_update_count_field_value(
                 "id": 1,
                 "order": "1.00000000000000000000",
                 f"field_{table_primary_field.id}": "row 1",
-                f"field_{link_row_field.id}": [{"id": 1, "value": "row A"}],
+                f"field_{link_row_field.id}": [
+                    {"id": 1, "value": "row A", "order": AnyStr()}
+                ],
                 f"field_{count_field.id}": "1",
             }
         ]

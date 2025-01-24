@@ -46,6 +46,14 @@ const mockedFields = {
     type: 'link_row',
     link_row_related_field: 270,
     link_row_table_id: 43,
+    link_row_table_primary_field: {
+      id: 270,
+      name: 'name',
+      order: 1,
+      primary: true,
+      table_id: 43,
+      type: 'text',
+    },
     testing_row_data: [
       [],
       [{ id: 1, value: 'Row 1' }],
@@ -708,8 +716,6 @@ describe('FieldType tests', () => {
     fieldRegistry = testApp._app.$registry.registry.field
 
     // Make sure that we have a mockedField for every field type in the registry
-    console.log(Object.keys(fieldRegistry).sort())
-    console.log(Object.keys(mockedFields).sort())
     expect(Object.keys(fieldRegistry).sort()).toEqual(
       Object.keys(mockedFields).sort()
     )

@@ -7,18 +7,20 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Q
+from django.db.models.query import Prefetch
 from django.utils.functional import lazy
 
 from baserow.contrib.database.fields.field_filters import (
     FILTER_TYPE_AND,
     FILTER_TYPE_OR,
 )
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, SelectOption
 from baserow.contrib.database.views.registries import (
     form_view_mode_registry,
     view_filter_type_registry,
     view_type_registry,
 )
+from baserow.core.db import specific_queryset
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
@@ -759,8 +761,13 @@ class FormView(View):
             FormViewFieldOptions.objects.filter(
                 form_view=self, enabled=True, field__read_only=False
             )
-            .select_related("field")
-            .prefetch_related("conditions", "condition_groups")
+            .prefetch_related(
+                "conditions",
+                "condition_groups",
+                "allowed_select_options",
+                Prefetch("field", queryset=specific_queryset(Field.objects.all())),
+                "field__select_options",
+            )
             .order_by("order")
         )
 
@@ -799,6 +806,18 @@ class FormViewFieldOptions(HierarchicalModelMixin, models.Model):
         default=True,
         help_text="Indicates whether the field is required for the visitor to fill "
         "out.",
+    )
+    include_all_select_options = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="Indicates whether all fields must be included. Only works if the "
+        "related field type can have select options.",
+    )
+    allowed_select_options = models.ManyToManyField(
+        SelectOption,
+        through="FormViewFieldOptionsAllowedSelectOptions",
+        help_text="If `include_all_select_options` is True, then only these select "
+        "options can be chosen.",
     )
     show_when_matching_conditions = models.BooleanField(
         default=False,
@@ -843,6 +862,17 @@ class FormViewFieldOptions(HierarchicalModelMixin, models.Model):
                 or len(self.conditions.all()) == 0
             )
         )
+
+
+class FormViewFieldOptionsAllowedSelectOptions(models.Model):
+    form_view_field_options = models.ForeignKey(
+        FormViewFieldOptions, on_delete=models.CASCADE, related_name="+"
+    )
+    select_option = models.ForeignKey(
+        SelectOption,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
 
 
 class FormViewFieldOptionsConditionManager(models.Manager):

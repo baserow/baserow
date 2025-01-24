@@ -9,6 +9,7 @@ from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.operations import (
+    CanReceiveNotificationOnSubmitFormViewOperationType,
     CreateAndUsePersonalViewOperationType,
     CreateViewDecorationOperationType,
     CreateViewFilterGroupOperationType,
@@ -91,6 +92,7 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             DeleteViewSortOperationType.type,
             ReadViewOperationType.type,
             UpdateViewOperationType.type,
+            CanReceiveNotificationOnSubmitFormViewOperationType.type,
             DeleteViewOperationType.type,
             DuplicateViewOperationType.type,
             CreateViewFilterOperationType.type,

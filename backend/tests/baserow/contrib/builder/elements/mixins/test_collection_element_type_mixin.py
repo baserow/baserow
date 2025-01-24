@@ -3,7 +3,6 @@ Test the CollectionElementTypeMixin class.
 """
 import json
 from io import BytesIO
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -14,37 +13,8 @@ from baserow.core.registries import ImportExportConfig
 MODULE_PATH = "baserow.contrib.builder.elements.collection_field_types"
 
 
-@pytest.mark.parametrize(
-    "schema_property",
-    [
-        "field_123",
-        None,
-    ],
-)
-def test_import_context_addition_sets_schema_property(schema_property):
-    """
-    Test the import_context_addition() method.
-
-    Ensure that the schema_property is set when the element has a schema property.
-    """
-
-    data_source_id = 100
-
-    mock_element = MagicMock()
-    mock_element.schema_property = schema_property
-    mock_element.data_source_id = data_source_id
-
-    result = CollectionElementTypeMixin().import_context_addition(mock_element)
-
-    assert result["data_source_id"] == data_source_id
-    if schema_property:
-        assert result["schema_property"] == schema_property
-    else:
-        assert "schema_property" not in result
-
-
-@pytest.mark.django_db(transaction=True)
-def test_import_export_collection_element_type(data_fixture):
+@pytest.fixture
+def collection_element_mixin_fixture(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(workspace=workspace)
@@ -52,6 +22,12 @@ def test_import_export_collection_element_type(data_fixture):
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
     field = data_fixture.create_text_field(table=table)
+    trashed_multiple_select_field = data_fixture.create_multiple_select_field(
+        table=table, trashed=True
+    )
+    data_fixture.create_select_option(
+        field=trashed_multiple_select_field, value="A", color="blue"
+    )
     element = data_fixture.create_builder_table_element(
         page=page,
         fields=[
@@ -64,6 +40,53 @@ def test_import_export_collection_element_type(data_fixture):
     )
     element.property_options.create(schema_property="id", sortable=True)
     element.property_options.create(schema_property=field.db_column, sortable=True)
+    element.property_options.create(
+        schema_property=trashed_multiple_select_field.db_column, sortable=True
+    )
+
+    return {
+        "element": element,
+        "workspace": workspace,
+        "fields": [field, trashed_multiple_select_field],
+    }
+
+
+@pytest.mark.django_db
+def test_import_context_addition_sets_schema_property(data_fixture):
+    """
+    Test the import_context_addition() method.
+
+    Ensure that the data_source_id and schema_property are set when applicable.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+    outer_repeat = data_fixture.create_builder_repeat_element(
+        data_source=data_source, page=page
+    )
+    inner_repeat = data_fixture.create_builder_repeat_element(
+        page=page,
+        data_source=None,
+        parent_element_id=outer_repeat.id,
+        schema_property="field_123",
+    )
+    assert CollectionElementTypeMixin().import_context_addition(outer_repeat) == {
+        "data_source_id": data_source.id,
+    }
+    assert CollectionElementTypeMixin().import_context_addition(inner_repeat) == {
+        "data_source_id": data_source.id,
+        "schema_property": "field_123",
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_import_export_collection_element_type(collection_element_mixin_fixture):
+    workspace = collection_element_mixin_fixture["workspace"]
 
     config = ImportExportConfig(include_permission_data=False)
     exported_applications = CoreHandler().export_workspace_applications(
@@ -97,3 +120,22 @@ def test_import_export_collection_element_type(data_fixture):
         {"schema_property": "id", "sortable": True},
         {"schema_property": imported_field.db_column, "sortable": True},
     ]
+
+
+@pytest.mark.django_db
+def test_extract_properties(collection_element_mixin_fixture):
+    """Test the base implementation of extract_properties()."""
+
+    element = collection_element_mixin_fixture["element"]
+    fields_names = [
+        field.db_column for field in collection_element_mixin_fixture["fields"]
+    ]
+
+    properties = element.get_type().extract_properties(element)
+
+    assert properties == {
+        element.data_source.service_id: [
+            "id",
+            *fields_names,
+        ]
+    }

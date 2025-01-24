@@ -125,7 +125,7 @@ export default {
     exportFilename() {
       return `export - ${this.table.name}${
         this.selectedView ? ` - ${this.selectedView.name}` : ''
-      }.${this.selectedExporter?.getType()}`
+      }.${this.selectedExporter?.getFileExtension()}`
     },
   },
   created() {

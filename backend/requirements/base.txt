@@ -184,6 +184,8 @@ drf-spectacular==0.27.2
     # via -r base.in
 elementpath==4.4.0
     # via xmlschema
+et-xmlfile==2.0.0
+    # via openpyxl
 eval-type-backport==0.2.0
     # via mistralai
 faker==25.0.1
@@ -338,6 +340,8 @@ oauthlib==3.2.2
 ollama==0.1.9
     # via -r base.in
 openai==1.30.1
+    # via -r base.in
+openpyxl==3.1.5
     # via -r base.in
 opentelemetry-api==1.24.0
     # via
@@ -686,6 +690,8 @@ zipp==3.18.1
     # via
     #   -r base.in
     #   importlib-metadata
+zipstream-ng==1.8.0
+    # via -r base.in
 zope-interface==6.4.post2
     # via twisted
 

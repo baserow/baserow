@@ -35,20 +35,20 @@ export default {
   },
   methods: {
     getFieldWidth(field) {
-      const hasFieldOptions = Object.prototype.hasOwnProperty.call(
-        this.fieldOptions,
-        field.id
-      )
+      const fieldId = field?.id
+      const hasFieldOptions =
+        fieldId &&
+        Object.prototype.hasOwnProperty.call(this.fieldOptions, fieldId)
 
       if (
         hasFieldOptions &&
-        this.fieldOptions[field.id].hidden &&
+        this.fieldOptions[fieldId].hidden &&
         !field.primary
       ) {
         return 0
       }
 
-      return hasFieldOptions ? this.fieldOptions[field.id].width : 200
+      return hasFieldOptions ? this.fieldOptions[fieldId].width : 200
     },
     async moveFieldWidth(field, width) {
       await this.$store.dispatch(

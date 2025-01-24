@@ -4,12 +4,13 @@
       <Tab
         v-for="pageSidePanelType in pageSidePanelTypes"
         :key="pageSidePanelType.getType()"
-        :tooltip="
-          element && pageSidePanelType.isDeactivated(element)
-            ? pageSidePanelType.getDeactivatedText()
+        :tooltip="getTooltipMessage(pageSidePanelType)"
+        :title="pageSidePanelType.label"
+        :append-icon="
+          pageSidePanelType.isInError(sidePanelContext)
+            ? 'page-editor__side-panel--error iconoir-warning-circle'
             : null
         "
-        :title="pageSidePanelType.label"
         :disabled="!element || pageSidePanelType.isDeactivated(element)"
       >
         <ReadOnlyForm
@@ -40,13 +41,31 @@ import EmptySidePanelState from '@baserow/modules/builder/components/page/sidePa
 export default {
   name: 'PageSidePanels',
   components: { EmptySidePanelState },
-  inject: ['workspace'],
+  inject: ['workspace', 'builder'],
   computed: {
     ...mapGetters({
       element: 'element/getSelected',
     }),
     pageSidePanelTypes() {
       return this.$registry.getOrderedList('pageSidePanel')
+    },
+    sidePanelContext() {
+      const page = this.$store.getters['page/getSelected']
+      return {
+        page,
+        builder: this.builder,
+        element: this.element,
+      }
+    },
+  },
+  methods: {
+    getTooltipMessage(pageSidePanelType) {
+      if (this.element && pageSidePanelType.isDeactivated(this.element)) {
+        return pageSidePanelType.getDeactivatedText()
+      } else if (pageSidePanelType.isInError(this.sidePanelContext)) {
+        return pageSidePanelType.getInErrorText()
+      }
+      return null
     },
   },
 }

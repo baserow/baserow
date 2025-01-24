@@ -81,23 +81,11 @@
 
 <script>
 import { required } from 'vuelidate/lib/validators'
-import form from '@baserow/modules/core/mixins/form'
+import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
 
 export default {
   name: 'OAuth2SettingsForm',
-  mixins: [form],
-  props: {
-    authProvider: {
-      type: Object,
-      required: false,
-      default: () => ({}),
-    },
-    authProviderType: {
-      type: String,
-      required: false,
-      default: null,
-    },
-  },
+  mixins: [authProviderForm],
   data() {
     return {
       allowedValues: ['name', 'client_id', 'secret'],
@@ -109,37 +97,8 @@ export default {
     }
   },
   computed: {
-    providerName() {
-      const type = this.authProviderType
-        ? this.authProviderType
-        : this.authProvider.type
-      return this.$registry
-        .get('authProvider', type)
-        .getProviderName(this.authProvider)
-    },
     callbackUrl() {
-      if (!this.authProvider.id) {
-        const nextProviderId =
-          this.$store.getters['authProviderAdmin/getNextProviderId']
-        return `${this.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${nextProviderId}/`
-      }
-      return `${this.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${this.authProvider.id}/`
-    },
-  },
-  methods: {
-    getDefaultValues() {
-      return {
-        name: this.providerName,
-        client_id: this.authProvider.client_id || '',
-        secret: this.authProvider.secret || '',
-      }
-    },
-    submit() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
-        return
-      }
-      this.$emit('submit', this.values)
+      return this.authProviderType.getCallbackUrl(this.authProvider)
     },
   },
   validations() {

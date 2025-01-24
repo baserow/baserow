@@ -8,13 +8,13 @@ from baserow.core.registries import ImportExportConfig
 
 
 @pytest.mark.django_db
-def test_record_selector_element_extract_formula_properties(data_fixture):
+def test_record_selector_element_extract_properties(data_fixture):
     user = data_fixture.create_user()
     element_type = RecordSelectorElementType()
 
     # If the record selector has no data source, then the formula properties are empty
     element = data_fixture.create_builder_record_selector_element(data_source=None)
-    properties = element_type.extract_formula_properties(element)
+    properties = element_type.extract_properties(element)
     assert properties == {}
 
     # If the record selector has a data source *without* a table then the
@@ -23,7 +23,7 @@ def test_record_selector_element_extract_formula_properties(data_fixture):
     element = data_fixture.create_builder_record_selector_element(
         data_source=data_source
     )
-    properties = element_type.extract_formula_properties(element)
+    properties = element_type.extract_properties(element)
     assert properties == {element.data_source.service_id: ["id"]}
 
     # If the record selector has a data source *with* a table that does not
@@ -35,7 +35,7 @@ def test_record_selector_element_extract_formula_properties(data_fixture):
     element = data_fixture.create_builder_record_selector_element(
         data_source=data_source
     )
-    properties = element_type.extract_formula_properties(element)
+    properties = element_type.extract_properties(element)
     assert properties == {data_source.service_id: ["id"]}
 
     # If the record selector has a data source whose table defines a name property
@@ -48,7 +48,7 @@ def test_record_selector_element_extract_formula_properties(data_fixture):
     element = data_fixture.create_builder_record_selector_element(
         data_source=data_source
     )
-    properties = element_type.extract_formula_properties(element)
+    properties = element_type.extract_properties(element)
     assert properties == {data_source.service_id: ["id", field.db_column]}
 
 
@@ -93,12 +93,7 @@ def test_export_import_record_selector_element(data_fixture):
         import_export_config=config,
     )
     imported_builder = imported_apps[-1]
-    imported_element = (
-        imported_builder.page_set.filter(shared=False)
-        .first()
-        .element_set.first()
-        .specific
-    )
+    imported_element = imported_builder.page_set.first().element_set.first().specific
 
     # Check that the formula for option name suffix was updated with the new mapping
     import_option_name_suffix = imported_element.option_name_suffix

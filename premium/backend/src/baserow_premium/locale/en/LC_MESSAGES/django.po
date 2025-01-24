@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-05-01 19:55+0000\n"
+"POT-Creation-Date: 2024-12-17 08:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow_premium/fields/actions.py:19
+#: src/baserow_premium/fields/actions.py:20
 msgid "Generate Formula With AI"
 msgstr ""
 
-#: src/baserow_premium/fields/actions.py:20
+#: src/baserow_premium/fields/actions.py:21
 #, python-format
 msgid "Generate formula with AI using \"%(ai_type)s\" and \"%(ai_model)s\""
 msgstr ""
@@ -62,4 +62,12 @@ msgstr ""
 #: src/baserow_premium/row_comments/notification_types.py:129
 #, python-format
 msgid "%(user)s posted a comment in row %(row_name)s in %(table_name)s."
+msgstr ""
+
+#: src/baserow_premium/views/actions.py:27
+msgid "Calendar View ICal feed slug URL updated"
+msgstr ""
+
+#: src/baserow_premium/views/actions.py:28
+msgid "View changed public ICal feed slug URL"
 msgstr ""

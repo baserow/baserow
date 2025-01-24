@@ -162,6 +162,31 @@ def test_create_data_source_bad_request(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_data_source_with_with_name_conflict(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="Blog posts"
+    )
+
+    url = reverse("api:builder:data_source:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "name": data_source.name,
+            "type": "local_baserow_list_rows",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
+        "detail": f"The data source name '{data_source.name}' already exists.",
+    }
+
+
+@pytest.mark.django_db
 def test_create_data_source_permission_denied(
     api_client, data_fixture, stub_check_permissions
 ):
@@ -250,6 +275,36 @@ def test_update_data_source_page(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json()["page_id"] == page2.id
     assert response.json()["name"] == "name"
+
+
+@pytest.mark.django_db
+def test_update_data_source_with_with_name_conflict_is_disallowed_on_same_pages(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="Blog posts"
+    )
+    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="Posts"
+    )
+
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source_2.id}
+    )
+
+    response = api_client.patch(
+        url,
+        {"name": data_source_1.name},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
+        "detail": f"The data source name '{data_source_1.name}' already exists.",
+    }
 
 
 @pytest.mark.django_db
@@ -387,9 +442,11 @@ def test_update_data_source_with_filters(api_client, data_fixture):
 def test_update_data_source_change_type(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
-        page=page
+    table = data_fixture.create_database_table(user=user)
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        table_id=table.id,
     )
+    data_source1 = data_fixture.create_builder_data_source(service=service, page=page)
 
     url = reverse(
         "api:builder:data_source:item", kwargs={"data_source_id": data_source1.id}
@@ -397,23 +454,12 @@ def test_update_data_source_change_type(api_client, data_fixture):
 
     response = api_client.patch(
         url,
-        {"type": "local_baserow_list_rows"},
+        {"type": "local_baserow_list_rows", "field_id": None, "table_id": table.id},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["type"] == "local_baserow_list_rows"
-
-    response = api_client.patch(
-        url,
-        {"type": None},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_200_OK
-    assert response.json()["type"] is None
 
 
 @pytest.mark.django_db
@@ -1620,7 +1666,7 @@ def test_dispatch_data_sources_with_formula_using_datasource_calling_a_shared_da
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
-    shared_page = builder.page_set.first()
+    shared_page = builder.shared_page
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
     data_source2 = data_fixture.create_builder_local_baserow_get_row_data_source(
@@ -1686,7 +1732,7 @@ def test_dispatch_only_shared_data_sources(data_fixture, api_client):
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
-    shared_page = builder.page_set.first()
+    shared_page = builder.shared_page
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
     shared_data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
@@ -2104,7 +2150,7 @@ def test_dispatch_data_source_view(
         ANY,
         mock_data_source.page,
         element=None,
-        only_expose_public_formula_fields=False,
+        only_expose_public_allowed_properties=False,
     )
     mock_dispatch_data_source.assert_called_once_with(
         ANY, mock_data_source, mock_dispatch_context
@@ -2219,7 +2265,7 @@ def test_dispatch_data_sources_view(
     assert response.json() == mock_service_contents
     mock_get_page.assert_called_once_with(str(mock_page_id))
     mock_builder_dispatch_context.assert_called_once_with(
-        ANY, mock_page, only_expose_public_formula_fields=False
+        ANY, mock_page, only_expose_public_allowed_properties=False
     )
     mock_dispatch_page_data_sources.assert_called_once_with(
         ANY, mock_page, mock_dispatch_context

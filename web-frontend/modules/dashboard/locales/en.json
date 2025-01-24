@@ -5,7 +5,43 @@
   "dashboardHeader": {
     "doneEditing": "Done editing"
   },
+  "emptyDashboard": {
+    "title": "This dashboard doesn't have any widgets",
+    "subtitle": "Get started by adding one.",
+    "addWidget": "Add widget"
+  },
   "dashboardHeaderMenuItems": {
     "editMode": "Edit mode"
+  },
+  "createWidgetModal": {
+    "title": "Add new widget"
+  },
+  "widget": {
+    "fixConfiguration": "Fix configuration"
+  },
+  "summaryWidget": {
+    "name": "Summary"
+  },
+  "emptyDashboardSidebar": {
+    "title": "No element selected",
+    "message": "Click on one of the elements to see details."
+  },
+  "widgetSettings": {
+    "title": "Title",
+    "description": "Description"
+  },
+  "aggregateRowsDataSourceForm": {
+    "data": "Data",
+    "sourceFieldLabel": "Source",
+    "viewFieldLabel": "View",
+    "notSelected": "Not selected",
+    "aggregationFieldLabel": "Field",
+    "aggregationTypeLabel": "Summary"
+  },
+  "widgetContext": {
+    "delete": "Delete"
+  },
+  "trashType": {
+    "widget": "widget"
   }
 }

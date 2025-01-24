@@ -514,5 +514,103 @@
     },
     "highestPaidRoleField": {
         "billable": "課金可能"
+    },
+    "user": {
+        "isStaff": "はスタッフです",
+        "isWorkspaceAdmin": "はグループ管理者です",
+        "active": "有効",
+        "deactivated": "無効"
+    },
+    "adminType": {
+        "dashboard": "ダッシュボード",
+        "users": "ユーザー",
+        "workspaces": "グループ"
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "全グループ",
+        "id": "ID",
+        "name": "名前",
+        "members": "メンバー",
+        "applications": "アプリケーション",
+        "created": "作成されました"
+    },
+    "editWorkspaceContext": {
+        "delete": "完全に削除"
+    },
+    "deleteWorkspaceModal": {
+        "title": "{name} を削除",
+        "confirmation": "本当にグループ「 {name} 」を削除しますか？",
+        "comment": "グループは完全に削除され、関連するアプリケーションも削除されます。この処理はやり直し出来ません。",
+        "delete": "グループ「 {name} 」を削除"
+    },
+    "activeUsers": {
+        "newUsers": "新規ユーザー",
+        "activeUsers": "有効なユーザー"
+    },
+    "usersAdminTable": {
+        "allUsers": "全ユーザー",
+        "username": "ユーザー名",
+        "name": "名前",
+        "workspaces": "グループ",
+        "lastLogin": "最後のログイン",
+        "dateJoined": "登録",
+        "active": "有効"
+    },
+    "editUserContext": {
+        "changePassword": "パスワード変更",
+        "delete": "完全に削除",
+        "impersonate": "インパーソネート"
+    },
+    "changePasswordForm": {
+        "newPassword": "新しいパスワード",
+        "repeatPassword": "パスワード再入力",
+        "changePassword": "パスワード変更",
+        "error": {
+            "doesntMatch": "入力されたパスワードと一致しません。"
+        }
+    },
+    "userForm": {
+        "fullName": "氏名",
+        "email": "Eメール",
+        "isActive": "は有効です",
+        "warning": {
+            "changeEmail": "Eメールを変更すると、ログインも新しいEメールで行う必要があります。ユーザーへ必ず伝えて下さい。",
+            "inactiveUser": "無効なユーザーはログイン出来ません。",
+            "userStaff": "スタッフ権限を持つユーザーは管理者としてすべてのユーザー、グループにアクセスできて、他ユーザーのスタッフ権限を無効にすることも出来ます。"
+        },
+        "error": {
+            "invalidName": "正しい氏名を 2 文字以上、 150 文字以内で入力して下さい。",
+            "invalidEmail": "正しいEメールアドレスを入力して下さい。"
+        }
+    },
+    "changeUserPasswordModal": {
+        "changePassword": "{username} のパスワードを変更する"
+    },
+    "deleteUserModal": {
+        "title": "{username} を削除",
+        "confirmation": "本当にユーザー「 {name} 」を削除しますか?",
+        "comment1": "このユーザーアカウントは削除されますが、グループは残ります。最後のユーザーを削除しても、グループは残りますが、誰もそのグループにアクセス出来なくなります。",
+        "comment2": "削除されたユーザーのEメールを使って新しいユーザーを作成することは可能です。削除ではなくユーザーを無効にすることで、同じEメールでのユーザーの作成を防ぐことが出来ます。",
+        "delete": "{username} を削除"
+    },
+    "editUserModal": {
+        "delete": "ユーザー削除",
+        "edit": "{username} を編集"
+    },
+    "adminDashboard": {
+        "title": "ダッシュボード",
+        "totals": "合計",
+        "totalUsers": "ユーザー全数",
+        "totalWorkspaces": "グループ全数",
+        "totalApplications": "アプリケーション全数",
+        "newUsers": "新しいユーザー",
+        "newUsers24h": "24時間以内に作成されたユーザー",
+        "newUsers7days": "7 日以内に作成されたユーザー",
+        "newUsers30days": "30 日以内に作成されたユーザー",
+        "activeUsers": "有効なユーザー",
+        "activeUsers24h": "24時間以内の有効なユーザー",
+        "activeUsers7days": "7日以内の有効なユーザー",
+        "activeUsers30days": "30日以内の有効なユーザー",
+        "viewAll": "すべて表示"
     }
 }

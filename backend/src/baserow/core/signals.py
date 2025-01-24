@@ -24,6 +24,7 @@ workspaces_reordered = Signal()
 application_created = Signal()
 application_updated = Signal()
 application_deleted = Signal()
+application_imported = Signal()
 applications_reordered = Signal()
 
 permissions_updated = Signal()

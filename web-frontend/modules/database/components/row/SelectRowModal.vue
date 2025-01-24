@@ -1,5 +1,10 @@
 <template>
-  <Modal ref="modal" class="select-row-modal" @hidden="$emit('hidden')">
+  <Modal
+    ref="modal"
+    class="select-row-modal"
+    box-class="select-row-modal__box"
+    @hidden="$emit('hidden')"
+  >
     <!--
     Because of how the moveToBody mixin works it takes a small moment before the $refs
     become available. In order for the Scrollbars components to work the refs need to
@@ -12,6 +17,7 @@
       :value="value"
       :multiple="multiple"
       :new-row-presets="newRowPresets"
+      :persistent-field-options-key="persistentFieldOptionsKey"
       @selected="selected"
       @unselected="unselected"
       @hide="hide"
@@ -52,6 +58,16 @@ export default {
       type: Object,
       required: false,
       default: () => ({}),
+    },
+    /**
+     * If provided then the changed field options are saved into local storage. If a
+     * user for example changes the field width, then that's stored in local storage so
+     * that when the row modal is opened, it's visible.
+     */
+    persistentFieldOptionsKey: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   methods: {

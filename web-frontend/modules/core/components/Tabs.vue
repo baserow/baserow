@@ -30,6 +30,7 @@
         >
           <i v-if="tab.icon" :class="tab.icon"></i>
           {{ tab.title }}
+          <i v-if="tab.appendIcon" :class="tab.appendIcon"></i>
         </a>
       </li>
     </ul>

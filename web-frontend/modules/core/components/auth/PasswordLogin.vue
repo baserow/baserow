@@ -14,7 +14,7 @@
     <Error :error="error"></Error>
     <form @submit.prevent="login">
       <FormGroup
-        class="margin-bottom-2"
+        class="mb-24"
         required
         small-label
         :label="$t('field.emailAddress')"
@@ -46,11 +46,17 @@
       </FormGroup>
 
       <FormGroup
+        class="mb-32"
         required
         small-label
         :label="$t('field.password')"
         :error="fieldHasErrors('password')"
       >
+        <template v-if="displayForgotPassword" #after-label>
+          <nuxt-link tabindex="3" :to="{ name: 'forgot-password' }">
+            {{ $t('login.forgotPassword') }}
+          </nuxt-link></template
+        >
         <FormInput
           ref="password"
           v-model="values.password"
@@ -67,7 +73,7 @@
         </template>
       </FormGroup>
 
-      <div class="auth__action">
+      <div class="auth__action mb-32">
         <Button
           type="primary"
           size="large"
@@ -75,7 +81,7 @@
           full-width
           :disabled="loading"
         >
-          {{ $t('action.signIn') }}
+          {{ $t('action.login') }}
         </Button>
       </div>
     </form>
@@ -96,6 +102,11 @@ export default {
       required: false,
       validator: (prop) => typeof prop === 'object' || prop === null,
       default: null,
+    },
+    displayForgotPassword: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   data() {

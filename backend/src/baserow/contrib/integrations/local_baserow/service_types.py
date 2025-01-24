@@ -43,6 +43,7 @@ from baserow.contrib.database.fields.registries import (
     field_aggregation_registry,
     field_type_registry,
 )
+from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.actions import (
     CreateRowsActionType,
     DeleteRowsActionType,
@@ -57,7 +58,10 @@ from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
 from baserow.contrib.database.table.service import TableService
-from baserow.contrib.database.views.exceptions import AggregationTypeDoesNotExist
+from baserow.contrib.database.views.exceptions import (
+    AggregationTypeDoesNotExist,
+    ViewDoesNotExist,
+)
 from baserow.contrib.database.views.service import ViewService
 from baserow.contrib.integrations.local_baserow.api.serializers import (
     LocalBaserowTableServiceFieldMappingSerializer,
@@ -81,14 +85,11 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFilter,
     LocalBaserowTableServiceSort,
     LocalBaserowUpsertRow,
+    Service,
 )
 from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
-)
-from baserow.core.feature_flags import (
-    FF_FILTER_DISPATCH_DATA_USING_ONLY,
-    feature_flag_is_enabled,
 )
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -254,6 +255,30 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         resolved_values["table"] = table
 
         return resolved_values
+
+    def import_property_name(
+        self, property_name: Union[str, int], id_mapping: Dict[str, Any]
+    ) -> Optional[str]:
+        """
+        Responsible for taking a Local Baserow property name (`Field.db_column`),
+        using the ID mapping, amd extracting its mapped ID in a new workspace. If the
+        field ID isn't present in the mapping, then the field was never serialized as
+        it was deleted.
+
+        :param property_name: The property name we want to import.
+        :param id_mapping: The ID mapping dictionary.
+        :return: The new property name, or None if the field was deleted.
+        """
+
+        if (
+            property_name
+            and "database_fields" in id_mapping
+            and property_name.startswith("field_")
+        ):
+            field_id = get_field_id_from_field_key(property_name)
+            new_field_id = id_mapping["database_fields"].get(field_id)
+            return f"field_{new_field_id}" if new_field_id else None
+        return property_name
 
     def deserialize_property(
         self,
@@ -433,7 +458,19 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return super().prepare_values(values, user, instance)
 
-    def generate_schema(self, service: ServiceSubClass) -> Optional[Dict[str, Any]]:
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        if values.get("integration"):
+            del values["integration"]
+            values["integration_id"] = instance.integration.id
+        if values.get("table"):
+            del values["table"]
+            values["table_id"] = instance.table.id if instance.table else None
+        return values
+
+    def generate_schema(
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Responsible for generating a dictionary in the JSON Schema spec. This helps
         inform the frontend data source form and data explorer about the type of
@@ -456,7 +493,18 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 "searchable": False,
             }
         }
+
         for field_object in self.get_table_field_objects(service):
+            # When a schema is being generated, we will exclude properties that the
+            # Application creator did not actively configure. A configured property
+            # is one that the Application is using in a formula, configuration
+            # setting, or schema property.
+            if (
+                allowed_fields is not None
+                and field_object["name"] not in allowed_fields
+            ):
+                continue
+
             field_type = field_object["type"]
             field = field_object["field"]
             # Only `TextField` has a default value at the moment.
@@ -502,18 +550,16 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
           otherwise None.
         """
 
-        if dispatch_context.public_formula_fields is not None:
-            all_field_names = dispatch_context.public_formula_fields.get("all", {}).get(
-                service.id, None
+        if isinstance(dispatch_context.public_allowed_properties, dict):
+            return dispatch_context.public_allowed_properties.get("all", {}).get(
+                service.id, []
             )
-            if all_field_names is not None:
-                return all_field_names
 
         return None
 
     def get_table_model(
         self, service: LocalBaserowTableService
-    ) -> "GeneratedTableModel":
+    ) -> Optional["GeneratedTableModel"]:
         """
         Returns the model for the table associated with the given service.
         """
@@ -540,13 +586,25 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return model.get_field_objects()
 
-    def get_context_data(self, service: ServiceSubClass) -> Dict[str, Any]:
+    def get_context_data(
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
         table = service.table
         if not table:
             return None
 
         ret = {}
         for field_object in self.get_table_field_objects(service):
+            # When a context_data is being generated, we will exclude properties that
+            # the Application creator did not actively configure. A configured property
+            # is one that the Application is using in a formula, configuration
+            # setting, or schema property.
+            if (
+                allowed_fields is not None
+                and field_object["name"] not in allowed_fields
+            ):
+                continue
+
             field_type = field_object["type"]
             if field_type.can_have_select_options:
                 field_serializer = field_type.get_serializer(
@@ -557,7 +615,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         return ret
 
     def get_context_data_schema(
-        self, service: ServiceSubClass
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ) -> Optional[Dict[str, Any]]:
         table = service.table
         if not table:
@@ -567,6 +625,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         fields = FieldHandler().get_fields(table, specific=True)
 
         for field in fields:
+            if allowed_fields is not None and (field.db_column not in allowed_fields):
+                continue
+
             field_type = field_type_registry.get_by_model(field)
             if field_type.can_have_select_options:
                 properties[field.db_column] = {
@@ -700,25 +761,41 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
         if "view_id" in values:
             view_id = values.pop("view_id")
             if view_id is not None:
-                view = ViewService().get_view(user, view_id)
-
-                # Check that the view table_id match the given table
-                if "table" in values and view.table_id != values["table"].id:
+                try:
+                    view = ViewService().get_view(user, view_id)
+                except ViewDoesNotExist:
                     raise DRFValidationError(
-                        detail=f"The view with ID {view_id} is not related to the "
-                        "given table.",
-                        code="invalid_view",
+                        detail={
+                            "detail": f"The view with ID {view_id} does not exist.",
+                            "error": "view_does_not_exist",
+                        },
+                        code="view_does_not_exist",
                     )
 
-                # Check that the view table_id match the existing table
-                elif (
-                    instance
-                    and instance.table_id
-                    and view.table_id != instance.table_id
-                ):
+                # If we're PATCHing with a `table_id` alongside the `view_id`,
+                # validate with that table, otherwise we're PATCHing with just a
+                # `view_id`, so we need to validate against the instance's table.
+                table_to_validate = values.get(
+                    "table", getattr(instance, "table", None)
+                )
+
+                # This isn't possible in the UI, but if a REST API request
+                # sends us a `view_id` without a `table_id` existing on the
+                # instance or in the values, we'll raise a 400.
+                if not table_to_validate:
+                    raise DRFValidationError(
+                        detail={
+                            "detail": "A table ID is required alongside the view ID.",
+                            "error": "required",
+                        },
+                        code="required",
+                    )
+
+                # Check that the view table_id match the given table
+                if view.table_id != table_to_validate.id:
                     raise DRFValidationError(
                         detail=f"The view with ID {view_id} is not related to the "
-                        "given table.",
+                        f"given table {table_to_validate.id}.",
                         code="invalid_view",
                     )
                 else:
@@ -729,6 +806,13 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
                 values["view"] = None
 
         return super().prepare_values(values, user, instance)
+
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        if values.get("view"):
+            del values["view"]
+            values["view_id"] = instance.view.id
+        return values
 
 
 class LocalBaserowListRowsUserServiceType(
@@ -828,14 +912,12 @@ class LocalBaserowListRowsUserServiceType(
         if not str(field_dbname).startswith("field_"):
             return path
 
-        original_field_id = int(field_dbname[6:])
-
-        # Here if the mapping is not found, let's keep the current field Id.
-        field_id = id_mapping.get("database_fields", {}).get(
-            original_field_id, original_field_id
+        # Apply the mapping in case it is present for this field
+        imported_field_dbname = (
+            self.import_property_name(field_dbname, id_mapping) or field_dbname
         )
 
-        return [row, f"field_{field_id}", *rest]
+        return [row, imported_field_dbname, *rest]
 
     def import_context_path(
         self, path: List[str], id_mapping: Dict[int, int], **kwargs
@@ -856,15 +938,10 @@ class LocalBaserowListRowsUserServiceType(
         if field_dbname == "id":
             return path
 
-        # Strip the `field_` prefix and extract its numeric ID
-        original_field_id = int(field_dbname[6:])
-
         # Apply the mapping in case it is present for this field
-        field_id = id_mapping.get("database_fields", {}).get(
-            original_field_id, original_field_id
-        )
+        field_id = self.import_property_name(field_dbname, id_mapping)
 
-        return [f"field_{field_id}", *rest]
+        return [field_id, *rest]
 
     def extract_properties(self, path: List[str], **kwargs) -> List[str]:
         """
@@ -989,9 +1066,7 @@ class LocalBaserowListRowsUserServiceType(
             service, table, dispatch_context, model=table_model
         )
 
-        if only_field_names is not None and feature_flag_is_enabled(
-            FF_FILTER_DISPATCH_DATA_USING_ONLY
-        ):
+        if only_field_names is not None:
             # May be some fields were deleted in the meantime
             # Let's check we still have them
             available_fields = set(
@@ -1015,7 +1090,7 @@ class LocalBaserowListRowsUserServiceType(
             "results": rows[:-1] if has_next_page else rows,
             "has_next_page": has_next_page,
             "baserow_table_model": table_model,
-            "public_formula_fields": only_field_names,
+            "public_allowed_properties": only_field_names,
         }
 
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> Any:
@@ -1027,8 +1102,8 @@ class LocalBaserowListRowsUserServiceType(
         """
 
         field_ids = (
-            extract_field_ids_from_list(dispatch_data["public_formula_fields"])
-            if isinstance(dispatch_data["public_formula_fields"], list)
+            extract_field_ids_from_list(dispatch_data["public_allowed_properties"])
+            if isinstance(dispatch_data["public_allowed_properties"], list)
             else None
         )
 
@@ -1136,26 +1211,18 @@ class LocalBaserowAggregateRowsUserServiceType(
             },
         }
 
-    def get_context_data(self, service: LocalBaserowAggregateRows) -> None:
-        """
-        The Local Baserow aggregate rows service type does not provide any
-        `get_context_data` results.
+    def get_context_data(self, service: LocalBaserowAggregateRows) -> dict:
+        context_data = {}
+        if service.field:
+            serialized_field = field_type_registry.get_serializer(
+                service.field, FieldSerializer
+            ).data
+            context_data["field"] = serialized_field
+        return context_data
 
-        :param service: A LocalBaserowAggregateRows instance.
-        :return: None
-        """
-
-        return None
-
-    def get_context_data_schema(self, service: LocalBaserowAggregateRows) -> None:
-        """
-        The Local Baserow aggregate rows service type does not provide any
-        `get_context_data_schema` results.
-
-        :param service: A LocalBaserowAggregateRows instance.
-        :return: None
-        """
-
+    def get_context_data_schema(
+        self, service: LocalBaserowAggregateRows
+    ) -> dict | None:
         return None
 
     def enhance_queryset(self, queryset):
@@ -1231,7 +1298,7 @@ class LocalBaserowAggregateRowsUserServiceType(
                 "table_id" not in values
                 and instance
                 and instance.field_id
-                and instance.table_id != values["table"].id
+                and instance.table != values["table"]
             ):
                 values["field"] = None
 
@@ -1274,6 +1341,13 @@ class LocalBaserowAggregateRowsUserServiceType(
 
         return super().prepare_values(values, user, instance)
 
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        if values.get("field"):
+            del values["field"]
+            values["field_id"] = instance.field.id
+        return values
+
     def serialize_property(
         self,
         service: ServiceSubClass,
@@ -1308,7 +1382,7 @@ class LocalBaserowAggregateRowsUserServiceType(
         **kwargs,
     ):
         """
-        Responsible for deserializing the `filters` property.
+        Responsible for deserializing the `filters` and `field_id` properties.
 
         :param prop_name: the name of the property being transformed.
         :param value: the value of this property.
@@ -1517,14 +1591,12 @@ class LocalBaserowGetRowUserServiceType(
         if not str(field_dbname).startswith("field_"):
             return path
 
-        original_field_id = int(field_dbname[6:])
-
-        # Here if the mapping is not found, let's keep the current field Id.
-        field_id = id_mapping.get("database_fields", {}).get(
-            original_field_id, original_field_id
+        # Import the mapped field from the ID mapping.
+        imported_field_dbname = (
+            self.import_property_name(field_dbname, id_mapping) or field_dbname
         )
 
-        return [f"field_{field_id}", *rest]
+        return [imported_field_dbname, *rest]
 
     def import_context_path(
         self, path: List[str], id_mapping: Dict[int, int], **kwargs
@@ -1622,8 +1694,8 @@ class LocalBaserowGetRowUserServiceType(
         """
 
         field_ids = (
-            extract_field_ids_from_list(dispatch_data["public_formula_fields"])
-            if isinstance(dispatch_data["public_formula_fields"], list)
+            extract_field_ids_from_list(dispatch_data["public_allowed_properties"])
+            if isinstance(dispatch_data["public_allowed_properties"], list)
             else None
         )
 
@@ -1687,7 +1759,7 @@ class LocalBaserowGetRowUserServiceType(
             return {
                 "data": queryset.first(),
                 "baserow_table_model": table_model,
-                "public_formula_fields": only_field_names,
+                "public_allowed_properties": only_field_names,
             }
 
         try:
@@ -1695,7 +1767,7 @@ class LocalBaserowGetRowUserServiceType(
             return {
                 "data": row,
                 "baserow_table_model": table_model,
-                "public_formula_fields": only_field_names,
+                "public_allowed_properties": only_field_names,
             }
         except table_model.DoesNotExist:
             raise DoesNotExist()
@@ -1825,6 +1897,29 @@ class LocalBaserowUpsertRowServiceType(
                 field_mapping.value = new_formula
                 yield field_mapping
 
+    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+        """
+        Given a list of formula path parts, call the ServiceType's
+        extract_properties() method and return a set of unique field names.
+
+        E.g. given that path is: ['field_5191', 'value'], returns the
+        following: ['field_5191']
+
+        Returns an empty list if the field name isn't found.
+        """
+
+        if len(path) >= 1:
+            field_dbname, *rest = path
+        else:
+            return []
+
+        # If the field_dbname doesn't start with "field_" it means that the
+        # formula is invalid.
+        if not str(field_dbname).startswith("field_") and field_dbname != "id":
+            return []
+
+        return [field_dbname]
+
     def serialize_property(
         self,
         service: LocalBaserowUpsertRow,
@@ -1953,10 +2048,17 @@ class LocalBaserowUpsertRowServiceType(
         :return:
         """
 
+        field_ids = (
+            extract_field_ids_from_list(dispatch_data["public_formula_fields"])
+            if isinstance(dispatch_data["public_formula_fields"], list)
+            else None
+        )
+
         serializer = get_row_serializer_class(
             dispatch_data["baserow_table_model"],
             RowSerializer,
             is_response=True,
+            field_ids=field_ids,
         )
         serialized_row = serializer(dispatch_data["data"]).data
 
@@ -2023,6 +2125,8 @@ class LocalBaserowUpsertRowServiceType(
         """
 
         table = resolved_values["table"]
+        used_field_names = self.get_used_field_names(service, dispatch_context)
+
         integration = service.integration.specific
         row_id: Optional[int] = resolved_values.get("row_id", None)
 
@@ -2100,7 +2204,11 @@ class LocalBaserowUpsertRowServiceType(
                     f"Cannot create rows in table {table.id} because it has a data sync."
                 ) from exc
 
-        return {"data": row, "baserow_table_model": model}
+        return {
+            "data": row,
+            "baserow_table_model": model,
+            "public_formula_fields": used_field_names,
+        }
 
     def import_path(self, path, id_mapping):
         """
@@ -2119,14 +2227,12 @@ class LocalBaserowUpsertRowServiceType(
         if field_dbname == "id":
             return path
 
-        original_field_id = int(field_dbname[6:])
-
-        # Here if the mapping is not found, let's keep the current field Id.
-        field_id = id_mapping.get("database_fields", {}).get(
-            original_field_id, original_field_id
+        # Import the mapped field from the ID mapping.
+        imported_field_dbname = (
+            self.import_property_name(field_dbname, id_mapping) or field_dbname
         )
 
-        return [f"field_{field_id}", *rest]
+        return [imported_field_dbname, *rest]
 
     def import_context_path(
         self, path: List[str], id_mapping: Dict[int, int], **kwargs

@@ -1,10 +1,12 @@
 from io import BytesIO
+from unittest.mock import MagicMock, patch
 
 import pytest
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.workflow_actions.models import EventTypes
+from baserow.contrib.database.api.rows.serializers import RowSerializer
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -18,6 +20,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.test_utils.helpers import AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -479,7 +482,7 @@ def test_local_baserow_upsert_row_service_dispatch_data_convert_value(data_fixtu
         table.field_set.get(name="text").db_column: "text",
         # The string '1' is converted to a list with a single item
         table.field_set.get(name="array").db_column: [
-            {"id": 1, "value": "unnamed row 1"}
+            {"id": 1, "value": "unnamed row 1", "order": AnyStr()}
         ],
     }
 
@@ -603,7 +606,7 @@ def test_export_import_local_baserow_upsert_row_service(
     imported_table = imported_database.table_set.get()
     imported_field = imported_table.field_set.get()
 
-    imported_page = imported_builder.page_set.exclude(shared=True).get()
+    imported_page = imported_builder.page_set.get()
     imported_data_source = imported_page.datasource_set.get()
     imported_integration = imported_builder.integrations.get()
     imported_upsert_row_service = LocalBaserowUpsertRow.objects.get(
@@ -689,3 +692,76 @@ def test_local_baserow_upsert_row_service_type_import_path(data_fixture):
     assert imported_upsert_row_service_type.import_path(
         ["field_1"], {"database_fields": {1: 2}}
     ) == ["field_2"]
+
+
+@pytest.mark.parametrize(
+    "field_names,expected",
+    [
+        (None, None),
+        ([], []),
+        (["field_123"], [123]),
+    ],
+)
+@patch(
+    "baserow.contrib.integrations.local_baserow.service_types.get_row_serializer_class"
+)
+def test_dispatch_transform_passes_field_ids(
+    mock_get_serializer, field_names, expected
+):
+    """
+    Test the LocalBaserowUpsertRowServiceType::dispatch_transform() method.
+
+    Ensure that the field_ids parameter is passed to the serializer class.
+    """
+
+    mock_serializer_instance = MagicMock()
+    mock_serializer_instance.data.return_value = "foo"
+    mock_serializer = MagicMock(return_value=mock_serializer_instance)
+    mock_get_serializer.return_value = mock_serializer
+
+    service_type = LocalBaserowUpsertRowServiceType()
+
+    dispatch_data = {
+        "baserow_table_model": MagicMock(),
+        "data": [],
+    }
+    dispatch_data["public_formula_fields"] = field_names
+
+    results = service_type.dispatch_transform(dispatch_data)
+
+    assert results == mock_serializer_instance.data
+    mock_get_serializer.assert_called_once_with(
+        dispatch_data["baserow_table_model"],
+        RowSerializer,
+        is_response=True,
+        field_ids=expected,
+    )
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ([], []),
+        ([None], []),
+        ([""], []),
+        (["foo"], []),
+        (["bar"], []),
+        (["foo", "bar"], []),
+        # "id" is valid
+        (["id"], ["id"]),
+        # "field_<id>" is a valid pattern
+        (["field_1"], ["field_1"]),
+    ],
+)
+def test_extract_properties_returns_expected_list(path, expected):
+    """
+    Test the LocalBaserowUpsertRowServiceType::extract_properties() method.
+
+    Ensure that given the path parameter, the expected list is returned.
+    """
+
+    service_type = LocalBaserowUpsertRowServiceType()
+
+    result = service_type.extract_properties(path)
+
+    assert result == expected
