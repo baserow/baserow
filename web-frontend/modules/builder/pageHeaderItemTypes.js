@@ -27,7 +27,7 @@ export class PageHeaderItemType extends Registerable {
    * name so the user can see that something is wrong.
    * @returns {boolean} - If the page header is valid.
    */
-  isInError({ page }) {
+  isInError({ builder, page }) {
     return false
   }
 
@@ -88,9 +88,10 @@ export class DataSourcesPageHeaderItemType extends PageHeaderItemType {
    * We will use this to add an error indicator icon next to the Data label.
    * @returns {boolean} - If the data sources header is in error.
    */
-  isInError({ page }) {
+  isInError({ builder, page }) {
+    const pages = [page, this.app.store.getters['page/getSharedPage'](builder)]
     const dataSources =
-      this.app.store.getters['dataSource/getPageDataSources'](page)
+      this.app.store.getters['dataSource/getPagesDataSources'](pages)
     return dataSources.some((dataSource) => {
       const serviceType = this.app.$registry.get('service', dataSource.type)
       return serviceType.isInError({ service: dataSource })

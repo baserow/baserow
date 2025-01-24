@@ -10,7 +10,7 @@
         :data-item-type="itemType.type"
         class="header__filter-link"
         :class="{
-          'active--error': itemType.isInError({ page: currentPage }),
+          'active--error': itemType.isInError({ builder, page: currentPage }),
         }"
         @click="
           itemType.onClick(
@@ -22,7 +22,7 @@
         <i class="header__filter-icon" :class="itemType.icon"></i>
         <span class="header__filter-name">{{ itemType.label }}</span>
         <i
-          v-if="itemType.isInError({ page: currentPage })"
+          v-if="itemType.isInError({ builder, page: currentPage })"
           class="header__filter-error-icon iconoir-warning-circle"
         ></i>
       </a>
@@ -39,7 +39,7 @@
 <script>
 export default {
   name: 'PageHeaderMenuItems',
-  inject: ['currentPage'],
+  inject: ['currentPage', 'builder'],
   computed: {
     pageHeaderItemTypes() {
       return this.$registry.getOrderedList('pageHeaderItem')
