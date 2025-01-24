@@ -201,7 +201,7 @@ def test_get_workspace_row_count_annotation_sums_all_database_tables_row_counts(
 
     annotated_workspaces = Workspace.objects.annotate(
         row_count=UsageHandler.get_workspace_row_count_annotation()
-    )
+    ).order_by("id")
     with django_assert_num_queries(1):
         assert list(annotated_workspaces.values("id", "row_count")) == [
             {"id": workspace.id, "row_count": 60},
