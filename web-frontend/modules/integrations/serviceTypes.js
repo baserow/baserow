@@ -15,15 +15,26 @@ export class LocalBaserowTableServiceType extends ServiceType {
   }
 
   /**
-   * Responsible for returning if the Local Baserow service type is valid. By
-   * default, this is just if a `table_id` has been set. Subclasses must extend
-   * this with their own requirements.
-   *
+   * Responsible for determining if this service is in error. It will be if the
+   * `table_id` is missing, or if one or more filters point to a field that does
+   * not exist in the table schema (i.e. it's trashed).
    * @param service - The service object.
    * @returns {boolean} - If the service is valid.
    */
-  isValid(service) {
-    return super.isValid(service) && Boolean(service.table_id)
+  isInError({ service }) {
+    if (service === undefined) {
+      return false
+    }
+    const schema = this.getDataSchema(service)
+    const schemaProperties =
+      schema.type === 'array' ? schema.items.properties : schema.properties
+    const fieldsIds = Object.values(schemaProperties)
+      .filter(({ metadata }) => metadata)
+      .map((prop) => prop.metadata.id)
+    const filtersInError = service.filters.some(
+      (filter) => !fieldsIds.includes(filter.field)
+    )
+    return Boolean(!service.table_id || filtersInError)
   }
 
   getDataSchema(service) {
@@ -62,11 +73,16 @@ export class LocalBaserowTableServiceType extends ServiceType {
       .flat()
       .find(({ id }) => id === service.table_id)
 
+    let description = this.name
     if (service.table_id && tableSelected) {
-      return `${this.name} - ${tableSelected.name}`
+      description += `- ${tableSelected.name}`
     }
 
-    return this.name
+    if (this.isInError({ service })) {
+      description += ` - ${this.app.i18n.t('serviceType.misconfigured')}`
+    }
+
+    return description
   }
 }
 

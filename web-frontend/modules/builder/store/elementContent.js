@@ -184,7 +184,7 @@ const actions = {
     }
 
     try {
-      if (serviceType.isValid(dataSource)) {
+      if (!serviceType.isInError(dataSource)) {
         let rangeToFetch = range
         if (!replace) {
           // Let's compute the range that really needs to be fetched if necessary

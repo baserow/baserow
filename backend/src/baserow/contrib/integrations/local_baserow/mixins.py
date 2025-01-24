@@ -17,14 +17,20 @@ from baserow.contrib.integrations.local_baserow.api.serializers import (
     LocalBaserowTableServiceFilterSerializer,
     LocalBaserowTableServiceSortSerializer,
 )
-from baserow.contrib.integrations.local_baserow.models import LocalBaserowViewService
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowTableServiceFilter,
+    LocalBaserowViewService,
+)
 from baserow.core.formula import BaserowFormula, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_integer, ensure_string
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceFilterPropertyDoesNotExist,
+    ServiceImproperlyConfigured,
+)
 from baserow.core.services.types import ServiceDict, ServiceSubClass
 from baserow.core.services.utils import ServiceAdhocRefinements
 
@@ -62,6 +68,11 @@ class LocalBaserowTableServiceFilterableMixin:
         :return: A list of serialized filter dictionaries.
         """
 
+        service_filters = [
+            service_filter
+            for service_filter in service.service_filters.all()
+            if not service_filter.field.trashed
+        ]
         return [
             {
                 "field_id": f.field_id,
@@ -69,7 +80,7 @@ class LocalBaserowTableServiceFilterableMixin:
                 "value": f.value,
                 "value_is_formula": f.value_is_formula,
             }
-            for f in service.service_filters.all()
+            for f in service_filters
         ]
 
     def deserialize_filters(self, value, id_mapping):
@@ -116,10 +127,16 @@ class LocalBaserowTableServiceFilterableMixin:
             service, dispatch_context
         )
 
+        # The `service_filters` are in the prefetch, reduce the results
+        # down to non-trashed fields here to avoid a secondary query hit.
+        service_filters = [
+            service_filter
+            for service_filter in service.service_filters.all()
+            if not service_filter.field.trashed
+        ]
         if isinstance(used_fields_from_parent, list):
             return used_fields_from_parent + [
-                f"field_{service_filter.field_id}"
-                for service_filter in service.service_filters.all()
+                f"field_{service_filter.field_id}" for service_filter in service_filters
             ]
 
         return None
@@ -152,7 +169,16 @@ class LocalBaserowTableServiceFilterableMixin:
             queryset = view_filter_builder.apply_to_queryset(queryset)
 
         service_filter_builder = FilterBuilder(filter_type=service.filter_type)
+        # Fetch the filters for this service, and crucially, include those which
+        # point to a trashed field. If we find any, we want to raise an exception
+        # and not skip it, as this could leak data.
         for service_filter in service.service_filters.all():
+            if service_filter.field_id not in model._field_objects:
+                # If the `field_id` isn't in the generated table model's field objects,
+                # it's almost guaranteed because it's been trashed in the table.
+                raise ServiceFilterPropertyDoesNotExist(
+                    f"Filter property {service_filter.field_id} does not exist.",
+                )
             field_object = model._field_objects[service_filter.field_id]
             field_name = field_object["name"]
             model_field = model._meta.get_field(field_name)
@@ -193,7 +219,13 @@ class LocalBaserowTableServiceFilterableMixin:
 
         yield from super().formula_generator(service)
 
-        for service_filter in service.service_filters.all():
+        # Only yield formulas with untrashed fields.
+        service_filters = [
+            service_filter
+            for service_filter in service.service_filters.all()
+            if not service_filter.field.trashed
+        ]
+        for service_filter in service_filters:
             if service_filter.value_is_formula:
                 # Service types like LocalBaserowGetRow do not have a value attribute.
                 new_formula = yield service_filter.value
@@ -247,7 +279,7 @@ class LocalBaserowTableServiceFilterableMixin:
             super()
             .enhance_queryset(queryset)
             .prefetch_related(
-                "service_filters",
+                "service_filters__field",
             )
         )
 

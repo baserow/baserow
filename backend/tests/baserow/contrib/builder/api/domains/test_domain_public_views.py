@@ -7,6 +7,7 @@ import pytest
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_202_ACCEPTED,
+    HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
 )
@@ -2273,3 +2274,40 @@ def test_get_data_source_context_fields_are_included(api_client, data_fixture):
         ]
         == expected_context_data
     )
+
+
+@pytest.mark.django_db
+def test_public_dispatch_data_source_with_service_filter_referencing_trashed_field(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    trashed_field = data_fixture.create_text_field(table=table, trashed=True)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+    )
+    data_fixture.create_local_baserow_table_service_filter(
+        service=data_source.service, field=trashed_field, value="abc", order=0
+    )
+    url = reverse(
+        "api:builder:domains:public_dispatch",
+        kwargs={"data_source_id": data_source.id},
+    )
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST",
+        "detail": "A data source filter is misconfigured: "
+        f"Filter property {trashed_field.id} does not exist.",
+    }

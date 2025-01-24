@@ -14,7 +14,8 @@
   "serviceType": {
     "localBaserowGetRow": "Get single row",
     "localBaserowListRows": "List multiple rows",
-    "localBaserowAggregateRows": "Summarize field"
+    "localBaserowAggregateRows": "Summarize field",
+    "misconfigured": "Misconfigured"
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"

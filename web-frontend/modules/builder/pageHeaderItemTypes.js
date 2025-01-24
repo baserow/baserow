@@ -22,6 +22,16 @@ export class PageHeaderItemType extends Registerable {
   }
 
   /**
+   * Returns whether the component which this page header is responsible for
+   * contains invalid properties. This is to add a visual indicator icon to
+   * name so the user can see that something is wrong.
+   * @returns {boolean} - If the page header is valid.
+   */
+  isInError({ page }) {
+    return false
+  }
+
+  /**
    * By default, we will assume that the component is a context menu and will be
    * positioned next to the icon clicked on.
    */
@@ -71,6 +81,20 @@ export class DataSourcesPageHeaderItemType extends PageHeaderItemType {
 
   get component() {
     return DataSourceContext
+  }
+
+  /**
+   * Determines if any of the data sources associated with this page are in error.
+   * We will use this to add an error indicator icon next to the Data label.
+   * @returns {boolean} - If the data sources header is in error.
+   */
+  isInError({ page }) {
+    const dataSources =
+      this.app.store.getters['dataSource/getPageDataSources'](page)
+    return dataSources.some((dataSource) => {
+      const serviceType = this.app.$registry.get('service', dataSource.type)
+      return serviceType.isInError({ service: dataSource })
+    })
   }
 
   getOrder() {

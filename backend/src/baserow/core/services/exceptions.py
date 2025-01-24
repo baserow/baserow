@@ -19,3 +19,7 @@ class InvalidServiceTypeDispatchSource(Exception):
     Raised when a `DataSource` or `BuilderWorkflowAction` is created or updated,
     and the `ServiceType` that is referenced is not valid for that dispatch-able source.
     """
+
+
+class ServiceFilterPropertyDoesNotExist(Exception):
+    """Raised when trying to get a filter property that doesn't exist."""

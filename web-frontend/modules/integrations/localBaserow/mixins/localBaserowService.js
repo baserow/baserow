@@ -18,19 +18,6 @@ export default {
   },
   computed: {
     /**
-     * Used by `LocalBaserowTableServiceConditionalForm` so that when read,
-     * we only provide filters which are from untrashed fields. When writing,
-     * we update the service's filters.
-     */
-    dataSourceFilters: {
-      get() {
-        return this.excludeTrashedFields(this.values.filters)
-      },
-      set(newValue) {
-        this.values.filters = newValue
-      },
-    },
-    /**
      * Used by `LocalBaserowTableServiceSortForm` so that when read, we
      * only provide sortings which are from untrashed fields. When writing,
      * we update the service's sortings.

@@ -60,7 +60,7 @@
           >
             <LocalBaserowTableServiceConditionalForm
               v-if="values.table_id"
-              v-model="dataSourceFilters"
+              v-model="values.filters"
               :fields="tableFields"
               :filter-type.sync="values.filter_type"
             >

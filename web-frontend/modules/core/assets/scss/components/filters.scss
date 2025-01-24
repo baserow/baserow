@@ -236,6 +236,13 @@
   align-items: center;
   position: relative;
 
+  &.filters__condition-item--misconfigured {
+    display: flex;
+    .filters__misconfigured {
+      flex-grow: 1;
+    }
+  }
+
   &.filters__condition-item--loading {
     &::before {
       content: '';
