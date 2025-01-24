@@ -80,92 +80,13 @@ _main() {
     export POSTGRES_USER=$DATABASE_USER
     export POSTGRES_PASSWORD=$DATABASE_PASSWORD
     export POSTGRES_DB=$DATABASE_NAME
-
-    export PGAUTOUPGRADE_DIR="${DATA_DIR}/pg_upgrade"
-
     ALREADY_SETUP_INDICATOR_FILE="$PGDATA/baserow_db_setup"
 
     # This script will re-run itself as postgres user, so this part is reserved for the root user setup/teardown
     if [ "$(id -u)" = '0' ]; then
-
-      # The upgrade script will run as postgres user, so we need to create a directory
-      # where the postgres user can write to.
-      if [ "$1" == "upgrade" ] && [ ! -d ${PGAUTOUPGRADE_DIR} ]; then
-        mkdir -p "${PGAUTOUPGRADE_DIR}"
-        chown postgres:postgres "${PGAUTOUPGRADE_DIR}"
-      fi
-
       # restart script as postgres user
       echo "Becoming postgres superuser to run setup SQL commands:"
       su postgres -c "${BASH_SOURCE[0]} $*"
-      EXIT_STATUS=$?
-
-      # If the upgrade script was run, and it was successful, remove the upgrade directory.
-      if [ "$1" == "upgrade" ]; then
-        if [ $EXIT_STATUS = 0 ]; then
-          rm -rf "${PGAUTOUPGRADE_DIR}"
-          echo
-          echo 'You can now run the official `baserow/baserow:1.30.1` image to start Baserow.'
-          echo
-          # We want to stop the execution here, so return an error code even if the upgrade was successful.
-          exit 1
-        else
-          exit $EXIT_STATUS
-        fi
-      fi
-    # this part is reserved for the postgres user
-    elif [ "$1" == "upgrade" ]; then
-      if [ ! -f "$ALREADY_SETUP_INDICATOR_FILE" ]; then
-          echo
-          echo 'PostgreSQL Database directory does not contain a database; Skipping upgrade'
-          echo
-          exit 0
-      fi
-
-      # Get the current data version from the PG_VERSION file (https://www.postgresql.org/docs/current/storage-file-layout.html)
-      PGDATA_VERSION=$(cat "${PGDATA}/PG_VERSION")
-
-      if [ "$PGDATA_VERSION" = "$POSTGRES_VERSION" ]; then
-        echo
-        echo "Your PostgreSQL data directory is already at version $PGDATA_VERSION."
-        echo
-        exit 0
-      fi
-
-      echo
-      echo "Your PostgreSQL data directory was initialized with version $PGDATA_VERSION, but this image is running version $POSTGRES_VERSION."
-      echo
-
-      if [ "$PGDATA_VERSION" = $POSTGRES_OLD_VERSION ]; then
-        echo
-        echo "Upgrading PostgreSQL data directory to version ${POSTGRES_VERSION}..."
-        echo
-
-        set +e
-
-        ./docker-postgres-upgrade.sh
-        UPGRADE_EXIT_STATUS=$?
-
-        set -e
-
-        if [ $UPGRADE_EXIT_STATUS -ne 0 ]; then
-          echo
-          echo "Upgrading to PostgreSQL ${POSTGRES_VERSION} failed with exit code ${UPGRADE_EXIT_STATUS}"
-          echo
-          exit 1
-        else
-          echo
-          echo '...PostgreSQL data directory upgrade complete.'
-          echo
-        fi
-      else
-        echo
-        echo "Your PostgreSQL data directory is at version $PGDATA_VERSION, which cannot be upgraded automatically."
-        echo "Please look into Baserow official documentation for more information on how to upgrade your database."
-        echo
-        exit 1
-      fi
-
     elif [ "$1" == "setup" ]; then
       shift
 
@@ -209,7 +130,7 @@ _main() {
         docker_temp_server_stop
       fi
     else
-      echo "Unknown argument $1 it must be either 'setup', 'upgrade' or 'run ...'"
+      echo "Unknown argument $1 it must be either 'setup' or 'run ...'"
       exit 1
     fi
 }
