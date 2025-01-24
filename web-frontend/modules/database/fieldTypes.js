@@ -3974,8 +3974,10 @@ export class FormulaFieldType extends mix(
   }
 
   parseFromLinkedRowItemValue(field, value) {
-    const underlyingFieldType = this.getFormulaType(field)
-    return underlyingFieldType.parseFromLinkedRowItemValue(field, value)
+    const fieldType = this.getFormulaType(field)
+    return fieldType
+      ? fieldType.parseFromLinkedRowItemValue(field, value)
+      : value
   }
 
   canRepresentFiles(field) {
