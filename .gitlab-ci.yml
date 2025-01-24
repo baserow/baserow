@@ -27,12 +27,6 @@ variables:
   BUILD_ALL_IN_ONE:
     value: "false"
     description: "If true then regardless of what branch we are on the all in one image will be built."
-  BUILD_ALL_IN_ONE_PG_11:
-    value: "false"
-    description: "If true then regardless of what branch we are on the all in one image with embedded PostgreSQL version 11 (legacy) will be built."
-  BUILD_ALL_IN_ONE_PGAUTOUPGRADE:
-    value: "false"
-    description: "If true then regardless of what branch we are on the image which auto upgrades PostgreSQL data directory from version 11 to 15 will be built."
   # An image repo which is used for storing and passing images between ci pipeline jobs
   # and also speeding up ci builds by caching from the latest ci image when building.
   CI_IMAGE_REPO: $CI_REGISTRY_IMAGE/ci
@@ -53,8 +47,6 @@ variables:
   BACKEND_DEV_IMAGE_NAME: backend_dev
   WEBFRONTEND_IMAGE_NAME: web-frontend
   ALLINONE_IMAGE_NAME: baserow
-  ALLINONE_PG_11_IMAGE_NAME: baserow-pg11
-  ALLINONE_PGAUTOUPGRADE_IMAGE_NAME: baserow-pgautoupgrade
   CLOUDRON_IMAGE_NAME: cloudron
   HEROKU_IMAGE_NAME: heroku
   WEBFRONTEND_DEV_IMAGE_NAME: web-frontend_dev
@@ -67,8 +59,6 @@ variables:
   TESTED_BACKEND_CI_DEV_IMAGE: $CI_IMAGE_REPO/$BACKEND_DEV_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
   TESTED_WEBFRONTEND_CI_DEV_IMAGE: $CI_IMAGE_REPO/$WEBFRONTEND_DEV_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
   TESTED_ALLINONE_CI_IMAGE: $CI_IMAGE_REPO/$ALLINONE_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
-  TESTED_ALLINONE_PG_11_CI_IMAGE: $CI_IMAGE_REPO/$ALLINONE_PG_11_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
-  TESTED_ALLINONE_PGAUTOUPGRADE_CI_IMAGE: $CI_IMAGE_REPO/$ALLINONE_PGAUTOUPGRADE_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
   TESTED_CLOUDRON_CI_IMAGE: $CI_IMAGE_REPO/$CLOUDRON_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
   TESTED_HEROKU_CI_IMAGE: $CI_IMAGE_REPO/$HEROKU_IMAGE_NAME:$TESTED_IMAGE_PREFIX$CI_COMMIT_SHORT_SHA
   # Used to tag the latest images on $DEVELOP_BRANCH_NAME
@@ -80,8 +70,6 @@ variables:
   BACKEND_DOCKERFILE_PATH: $CI_PROJECT_DIR/backend/Dockerfile
   WEBFRONTEND_DOCKERFILE_PATH: $CI_PROJECT_DIR/web-frontend/Dockerfile
   ALLINONE_DOCKERFILE_PATH: $CI_PROJECT_DIR/deploy/all-in-one/Dockerfile
-  ALLINONE_PG_11_DOCKERFILE_PATH: $CI_PROJECT_DIR/deploy/all-in-one/pg11.Dockerfile
-  ALLINONE_PGAUTOUPGRADE_DOCKERFILE_PATH: $CI_PROJECT_DIR/deploy/all-in-one/pgautoupgrade.Dockerfile
   CLOUDRON_DOCKERFILE_PATH: $CI_PROJECT_DIR/deploy/cloudron/Dockerfile
   HEROKU_DOCKERFILE_PATH: $CI_PROJECT_DIR/heroku.Dockerfile
   # By default, forks can use the baserow projects ci util image so they don't have
@@ -547,40 +535,6 @@ build-all-in-one-image:
     BUILD_FROM_BACKEND_IMAGE: $TESTED_BACKEND_CI_IMAGE
     BUILD_FROM_WEBFRONTEND_IMAGE: $TESTED_WEBFRONTEND_CI_IMAGE
 
-build-all-in-one-embedded-pg-11-image:
-  extends: .build-final-baserow-image
-  needs:
-    - job: build-all-in-one-image
-  tags:
-    - saas-linux-medium-amd64
-  only:
-    variables:
-      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
-      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
-      - $BUILD_ALL_IN_ONE_PG_11 == "true"
-      - $CI_COMMIT_MESSAGE =~ /\[build-all]/
-  variables:
-    IMAGE_NAME: $ALLINONE_PG_11_IMAGE_NAME
-    DOCKERFILE_PATH: $ALLINONE_PG_11_DOCKERFILE_PATH
-    BUILD_FROM_IMAGE: $TESTED_ALLINONE_CI_IMAGE
-
-build-all-in-one-embedded-pg-15-auto-upgrade-image:
-  extends: .build-final-baserow-image
-  needs:
-    - job: build-all-in-one-image
-  tags:
-    - saas-linux-medium-amd64
-  only:
-    variables:
-      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
-      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
-      - $BUILD_ALL_IN_ONE_PGAUTOUPGRADE == "true"
-      - $CI_COMMIT_MESSAGE =~ /\[build-all]/
-  variables:
-    IMAGE_NAME: $ALLINONE_PGAUTOUPGRADE_IMAGE_NAME
-    DOCKERFILE_PATH: $ALLINONE_PGAUTOUPGRADE_DOCKERFILE_PATH
-    BUILD_FROM_IMAGE: $TESTED_ALLINONE_CI_IMAGE
-
 # If pipeline not triggered by tag:
 # - Build and store cloudron image in CI repo under the `ci-tested` tag so we know
 #   those images have passed the tests.
@@ -795,102 +749,6 @@ publish-all-in-one-latest-release-image:
     SKIP_IF_TAG_NOT_ON_BRANCH: $MASTER_BRANCH_NAME
     SOURCE_IMAGE: $TESTED_ALLINONE_CI_IMAGE
     TARGET_IMAGE: "$RELEASE_IMAGE_REPO/$ALLINONE_IMAGE_NAME:latest"
-    TARGET_REGISTRY: $RELEASE_REGISTRY
-    TARGET_REGISTRY_PASSWORD: $RELEASE_REGISTRY_PASSWORD
-    TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
-
-# Push baserow/baserow-pg11:develop-latest
-publish-all-in-one-embedded-pg-11-develop-latest-image:
-  extends: .publish-baserow-image
-  only:
-    variables:
-      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
-  dependencies: []
-  variables:
-    SKIP_IF_NOT_LATEST_COMMIT_ON_BRANCH: $DEVELOP_BRANCH_NAME
-    SOURCE_IMAGE: $TESTED_ALLINONE_PG_11_CI_IMAGE
-    TARGET_IMAGE: "$RELEASE_IMAGE_REPO/$ALLINONE_PG_11_IMAGE_NAME:$DEVELOP_LATEST_TAG"
-    TARGET_REGISTRY: $RELEASE_REGISTRY
-    TARGET_REGISTRY_PASSWORD: $RELEASE_REGISTRY_PASSWORD
-    TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
-
-# Push baserow/baserow-pg11:$VERSION_GIT_TAG
-publish-all-in-one-embedded-pg-11-release-tagged-image:
-  extends: .publish-baserow-image
-  only:
-    refs:
-      - tags
-  dependencies: []
-  variables:
-    SKIP_IF_TAG_NOT_ON_BRANCH: $MASTER_BRANCH_NAME
-    SOURCE_IMAGE: $TESTED_ALLINONE_PG_11_CI_IMAGE
-    TARGET_IMAGE: "$RELEASE_IMAGE_REPO/$ALLINONE_PG_11_IMAGE_NAME:$CI_COMMIT_TAG"
-    TARGET_REGISTRY: $RELEASE_REGISTRY
-    TARGET_REGISTRY_PASSWORD: $RELEASE_REGISTRY_PASSWORD
-    TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
-
-# Push baserow/baserow-pg11:latest
-publish-all-in-one-embedded-pg-11-latest-release-image:
-  extends: .publish-baserow-image
-  only:
-    refs:
-      - tags
-    variables:
-      - $CI_COMMIT_TAG =~ /^[0-9.]+$/
-  dependencies: []
-  variables:
-    SKIP_IF_NOT_LATEST_COMMIT_ON_BRANCH: $MASTER_BRANCH_NAME
-    SKIP_IF_TAG_NOT_ON_BRANCH: $MASTER_BRANCH_NAME
-    SOURCE_IMAGE: $TESTED_ALLINONE_PG_11_CI_IMAGE
-    TARGET_IMAGE: "$RELEASE_IMAGE_REPO/$ALLINONE_PG_11_IMAGE_NAME:latest"
-    TARGET_REGISTRY: $RELEASE_REGISTRY
-    TARGET_REGISTRY_PASSWORD: $RELEASE_REGISTRY_PASSWORD
-    TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
-
-# Push baserow/baserow-pgautoupgrade:develop-latest
-publish-all-in-one-embedded-pg-15-upgrade-develop-latest-image:
-  extends: .publish-baserow-image
-  only:
-    variables:
-      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
-  dependencies: []
-  variables:
-    SKIP_IF_NOT_LATEST_COMMIT_ON_BRANCH: $DEVELOP_BRANCH_NAME
-    SOURCE_IMAGE: $TESTED_ALLINONE_PGAUTOUPGRADE_CI_IMAGE
-    TARGET_IMAGE: "$RELEASE_IMAGE_REPO/$ALLINONE_PGAUTOUPGRADE_IMAGE_NAME:$DEVELOP_LATEST_TAG"
-    TARGET_REGISTRY: $RELEASE_REGISTRY
-    TARGET_REGISTRY_PASSWORD: $RELEASE_REGISTRY_PASSWORD
-    TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
-
-# Push baserow/baserow-pgautoupgrade:$VERSION_GIT_TAG
-publish-all-in-one-embedded-pg-15-auto-upgrade-release-tagged-image:
-  extends: .publish-baserow-image
-  only:
-    refs:
-      - tags
-  dependencies: []
-  variables:
-    SKIP_IF_TAG_NOT_ON_BRANCH: $MASTER_BRANCH_NAME
-    SOURCE_IMAGE: $TESTED_ALLINONE_PGAUTOUPGRADE_CI_IMAGE
-    TARGET_IMAGE: "$RELEASE_IMAGE_REPO/$ALLINONE_PGAUTOUPGRADE_IMAGE_NAME:$CI_COMMIT_TAG"
-    TARGET_REGISTRY: $RELEASE_REGISTRY
-    TARGET_REGISTRY_PASSWORD: $RELEASE_REGISTRY_PASSWORD
-    TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
-
-# Push baserow/baserow-pgautoupgrade:latest
-publish-all-in-one-embedded-pg-15-auto-upgrade-latest-release-image:
-  extends: .publish-baserow-image
-  only:
-    refs:
-      - tags
-    variables:
-      - $CI_COMMIT_TAG =~ /^[0-9.]+$/
-  dependencies: []
-  variables:
-    SKIP_IF_NOT_LATEST_COMMIT_ON_BRANCH: $MASTER_BRANCH_NAME
-    SKIP_IF_TAG_NOT_ON_BRANCH: $MASTER_BRANCH_NAME
-    SOURCE_IMAGE: $TESTED_ALLINONE_PGAUTOUPGRADE_CI_IMAGE
-    TARGET_IMAGE: "$RELEASE_IMAGE_REPO/$ALLINONE_PGAUTOUPGRADE_IMAGE_NAME:latest"
     TARGET_REGISTRY: $RELEASE_REGISTRY
     TARGET_REGISTRY_PASSWORD: $RELEASE_REGISTRY_PASSWORD
     TARGET_REGISTRY_USER: $RELEASE_REGISTRY_USER
