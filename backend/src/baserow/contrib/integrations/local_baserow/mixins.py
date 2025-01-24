@@ -17,10 +17,7 @@ from baserow.contrib.integrations.local_baserow.api.serializers import (
     LocalBaserowTableServiceFilterSerializer,
     LocalBaserowTableServiceSortSerializer,
 )
-from baserow.contrib.integrations.local_baserow.models import (
-    LocalBaserowTableServiceFilter,
-    LocalBaserowViewService,
-)
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowViewService
 from baserow.core.formula import BaserowFormula, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
