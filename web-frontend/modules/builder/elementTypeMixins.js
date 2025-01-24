@@ -362,8 +362,4 @@ export const MultiPageElementTypeMixin = (Base) =>
           return false
       }
     }
-
-    get childStylesForbidden() {
-      return ['style_width']
-    }
   }
