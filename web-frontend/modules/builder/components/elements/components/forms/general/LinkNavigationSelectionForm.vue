@@ -11,6 +11,7 @@
           <template v-if="destinationPage">
             {{ destinationPage.name }}
             <span
+              v-tooltip:[tooltipOptions]="destinationPagePathWithParams"
               class="link-navigation-selection-form__navigate-option-page-path"
             >
               <span>
@@ -150,6 +151,9 @@ export default {
           label: this.$t('linkNavigationSelection.targetNewTab'),
         },
       ],
+      tooltipOptions: {
+        contentClasses: ['tooltip__content--expandable'],
+      },
     }
   },
   computed: {
@@ -175,7 +179,7 @@ export default {
       },
       deep: true,
     },
-    async navigateTo(value) {
+    navigateTo(value) {
       if (value === '') {
         this.values.navigation_type = 'page'
         this.values.navigate_to_page_id = null
@@ -187,14 +191,9 @@ export default {
         this.values.navigate_to_page_id = value
         this.updatePageParameters()
       }
-
-      // Wait for DOM update then check overflow
-      await this.$nextTick()
-      this.checkTextOverflow()
     },
     destinationPage(value) {
       this.updatePageParameters()
-      this.checkTextOverflow()
       // This means that the page select does not exist anymore
       if (value === undefined) {
         this.values.navigate_to_page_id = null
@@ -217,23 +216,15 @@ export default {
     this.refreshParametersInError()
   },
   methods: {
-    checkTextOverflow() {
-      const container = document?.querySelector(
-        '.link-navigation-selection-form__navigate-option-page-path'
-      )
-      if (!container) return
-      const textSpan = container.querySelector('span')
-      if (textSpan.scrollWidth > container.clientWidth) {
-        textSpan.classList.add('animate-scroll')
-      } else {
-        textSpan.classList.remove('animate-scroll')
-      }
-    },
     getPagePathWithParams(page) {
+      const shortTypes = {
+        text: '*',
+        numeric: '#',
+      }
       let path = page.path
       if (page.query_params.length) {
         path += `?${page.query_params
-          .map((p) => `${p.name}=[${p.type}]`)
+          .map((p) => `${p.name}=${shortTypes[p.type]}`)
           .join('&')}`
       }
       return path

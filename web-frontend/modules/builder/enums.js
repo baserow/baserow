@@ -24,7 +24,7 @@ export const PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS = {
   text: ensureNonEmptyString,
 }
 export const QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS = {
-  numeric: (n) => (n === null ? null : ensurePositiveInteger(n)),
+  numeric: (n) => ensurePositiveInteger(n, { allowNull: true }),
   text: ensureString,
 }
 

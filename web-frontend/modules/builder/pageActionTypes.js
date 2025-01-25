@@ -96,7 +96,9 @@ export class PreviewPageActionType extends PageActionType {
     )
     if (page.query_params && Array.isArray(page.query_params)) {
       page.query_params.forEach(({ name }) => {
-        url.searchParams.append(name, page.parameters[name])
+        if (page.parameters[name]) {
+          url.searchParams.append(name, page.parameters[name])
+        }
       })
     }
     return url.toString()

@@ -113,7 +113,7 @@ test.describe("Builder page test suite", () => {
     await page.getByRole('complementary').getByRole('textbox').click();
     await page.getByRole('complementary').getByRole('textbox').locator('div').first().fill('linkim');
     await page.locator('a').filter({hasText: 'Make a choice'}).click();
-    await page.locator('a').filter({hasText: '?my_param=[text]'}).click();
+    await page.locator('a').filter({hasText: '?my_param=*'}).click();
     await page.getByRole('textbox').nth(2).click();
     await page.getByText('my_param').first().click();
     await expect(page.getByRole('link', {name: 'linkim'})).toHaveAttribute(
