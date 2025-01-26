@@ -8,7 +8,7 @@
         <PreviewNavigationBarInput
           v-if="pathPart.type === 'variable'"
           :key="pathPart.key"
-          :class="`preview-navigation-bar__address-bar-parameter-input--${
+          :class="`preview-navigation-bar__parameter-input--${
             paramTypeMap[pathPart.value]
           }`"
           :validation-fn="pathPart.validationFn"
@@ -38,7 +38,7 @@
         </span>
         <PreviewNavigationBarQueryParam
           :key="`param-${queryParam.key}`"
-          :class="`preview-navigation-bar__address-bar-query-parameter-input--${queryParam.type}`"
+          :class="`preview-navigation-bar__query-parameter-input--${queryParam.type}`"
           :validation-fn="queryParam.validationFn"
           :default-value="pageParameters[queryParam.name]"
           :name="queryParam.name"
