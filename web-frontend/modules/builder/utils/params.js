@@ -13,7 +13,7 @@ export function defaultValueForParameterType(type) {
 
 // The regex for query parameters. This is used to validate query parameter names.
 // This needs to match QUERY_PARAM_EXACT_MATCH_REGEX from backend.
-export const QUERY_PARAM_REGEX = /([A-Za-z0-9_]+)/g
+export const QUERY_PARAM_REGEX = /([A-Za-z0-9_.+-]+)/g
 
 /**
  * Responsible for detecting if a navigable record's path parameters have diverged

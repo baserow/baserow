@@ -512,7 +512,7 @@ def test_validate_query_params_edge_cases():
     assert handler.validate_query_params(path, path_params, long_params) is True
 
     # Test with various special characters (should fail)
-    special_chars = ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "+", "="]
+    special_chars = ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "="]
     for char in special_chars:
         invalid_params = [{"name": f"filter{char}", "type": "text"}]
         with pytest.raises(InvalidQueryParamName):

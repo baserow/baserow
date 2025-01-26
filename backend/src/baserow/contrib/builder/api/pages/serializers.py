@@ -80,7 +80,7 @@ class CreatePageSerializer(serializers.ModelSerializer):
 
 class UpdatePageSerializer(serializers.ModelSerializer):
     path_params = PathParamSerializer(many=True, required=False)
-    query_params = PathParamSerializer(many=True, required=False)
+    query_params = QueryParamSerializer(many=True, required=False)
 
     class Meta:
         model = Page

@@ -30,7 +30,7 @@ export const ensureInteger = (value) => {
  * @returns {number} The value as an integer if conversion is successful.
  * @throws {Error} If the value is not a valid integer or convertible to an integer.
  */
-export const ensurePositiveInteger = (value, { allowNull = false }) => {
+export const ensurePositiveInteger = (value, { allowNull = false } = {}) => {
   if (allowNull && value === null) {
     return null
   }
