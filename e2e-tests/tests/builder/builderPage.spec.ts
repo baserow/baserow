@@ -114,8 +114,11 @@ test.describe("Builder page test suite", () => {
     await page.getByRole('complementary').getByRole('textbox').locator('div').first().fill('linkim');
     await page.locator('a').filter({hasText: 'Make a choice'}).click();
     await page.locator('a').filter({hasText: '?my_param=*'}).click();
+    // click empty place to close tooltip from prev. step
+    await page.click('body')
     await page.getByRole('textbox').nth(2).click();
-    await page.getByText('my_param').first().click();
+    await page.getByText('my_param', { exact: true }).first().click();
+    await page.click('body')
     await expect(page.getByRole('link', {name: 'linkim'})).toHaveAttribute(
       'href', /\?my_param=test/);
 
