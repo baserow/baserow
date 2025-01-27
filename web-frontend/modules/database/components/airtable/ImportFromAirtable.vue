@@ -35,8 +35,6 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
-
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
 import jobProgress from '@baserow/modules/core/mixins/jobProgress'
@@ -47,15 +45,16 @@ export default {
   name: 'ImportFromAirtable',
   components: { AirtableImportForm },
   mixins: [error, jobProgress],
+  props: {
+    workspace: {
+      type: Object,
+      required: true,
+    },
+  },
   data() {
     return {
       loading: false,
     }
-  },
-  computed: {
-    ...mapGetters({
-      selectedWorkspaceId: 'workspace/selectedId',
-    }),
   },
   beforeDestroy() {
     this.stopPollIfRunning()
@@ -71,7 +70,7 @@ export default {
 
       try {
         const { data } = await AirtableService(this.$client).create(
-          this.selectedWorkspaceId,
+          this.workspace.id,
           values.airtableUrl
         )
         this.startJobPoller(data)

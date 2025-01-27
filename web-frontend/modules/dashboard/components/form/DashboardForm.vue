@@ -26,10 +26,15 @@ export default {
   props: {
     defaultName: {
       type: String,
-      required: true,
+      required: false,
+      default: '',
     },
     loading: {
       type: Boolean,
+      required: true,
+    },
+    workspace: {
+      type: Object,
       required: true,
     },
   },
