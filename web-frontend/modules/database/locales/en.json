@@ -771,7 +771,9 @@
     "stateImportingTable": "Importing table {table}",
     "errorJobAlreadyRunningTitle": "Already running",
     "errorJobAlreadyRunningDescription": "Another import job is already running. You need to wait for that one to finish before starting another.",
-    "linkError": "The link should look like: https://airtable.com/shrxxxxxxxxxxxxxx"
+    "linkError": "The link should look like: https://airtable.com/shrxxxxxxxxxxxxxx",
+    "skipFiles": "Skip importing files",
+    "skipFilesHelper": "An Airtable base with many files can slow down the import. Enabling this skips the import of the files."
   },
   "chooseSingleSelectField": {
     "addSelectField": "Add single select field",

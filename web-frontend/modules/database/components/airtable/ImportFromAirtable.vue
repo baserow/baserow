@@ -71,7 +71,8 @@ export default {
       try {
         const { data } = await AirtableService(this.$client).create(
           this.workspace.id,
-          values.airtableUrl
+          values.airtableUrl,
+          values.skipFiles
         )
         this.startJobPoller(data)
       } catch (error) {
