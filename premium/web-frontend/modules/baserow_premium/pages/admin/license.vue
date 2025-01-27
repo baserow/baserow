@@ -105,7 +105,7 @@
               </div>
             </div>
             <div class="license-detail__item-value">
-              {{ license.addons.application_users_taken }} / {{ license.addons.application_users }}
+              {{ license.application_users_taken }} / {{ license.application_users }}
             </div>
           </div>
           <div class="license-detail__item">

@@ -79,7 +79,6 @@
                   :is="col.cellComponent"
                   :row="row"
                   :column="col"
-                  :get-value-at-path="getValueAtPath"
                   v-on="$listeners"
                   @row-update="updateRow"
                   @row-delete="deleteRow"
@@ -109,7 +108,6 @@ import Paginator from '@baserow/modules/core/components/Paginator'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import { isArray } from 'lodash'
 import isObject from 'lodash/isObject'
-import { getValueAtPath } from '@baserow/modules/core/utils/object'
 
 /**
  * This component is a generic wrapper for a basic crud service which displays its
@@ -230,7 +228,6 @@ export default {
     },
   },
   methods: {
-    getValueAtPath,
     /**
      * If the column is sortable cycles through applying descending, then ascending and
      * then no sort to this column.
