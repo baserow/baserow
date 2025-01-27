@@ -19,6 +19,10 @@
     height: 44px;
   }
 
+  &.form-input--xlarge {
+    height: 52px;
+  }
+
   &:active,
   &:focus,
   &:focus-within {
@@ -77,6 +81,10 @@
     color: $palette-neutral-700;
 
     @extend %ellipsis;
+  }
+
+  .form-input--xlarge & {
+    font-size: 16px;
   }
 
   .form-input--icon-left & {
