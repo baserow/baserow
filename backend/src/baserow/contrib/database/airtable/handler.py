@@ -34,7 +34,12 @@ from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
 from baserow.core.utils import ChildProgressBuilder, remove_invalid_surrogate_characters
 
-from .exceptions import AirtableBaseNotPublic, AirtableShareIsNotABase
+from .config import AirtableImportConfig
+from .exceptions import (
+    AirtableBaseNotPublic,
+    AirtableImportNotRespectingConfig,
+    AirtableShareIsNotABase,
+)
 
 User = get_user_model()
 
@@ -193,6 +198,7 @@ class AirtableHandler:
     def to_baserow_field(
         table: dict,
         column: dict,
+        config: AirtableImportConfig,
     ) -> Union[Tuple[None, None, None], Tuple[Field, FieldType, AirtableColumnType]]:
         """
         Converts the provided Airtable column dict to the right Baserow field object.
@@ -201,6 +207,7 @@ class AirtableHandler:
             field is the primary field.
         :param column: The Airtable column dict. These values will be converted to
             Baserow format.
+        :param config: Additional configuration related to the import.
         :return: The converted Baserow field, field type and the Airtable column type.
         """
 
@@ -208,7 +215,9 @@ class AirtableHandler:
             baserow_field,
             airtable_column_type,
         ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-            table, column
+            table,
+            column,
+            config,
         )
 
         if baserow_field is None:
@@ -243,6 +252,7 @@ class AirtableHandler:
         row: dict,
         index: int,
         files_to_download: Dict[str, str],
+        config: AirtableImportConfig,
     ) -> dict:
         """
         Converts the provided Airtable record to a Baserow row by looping over the field
@@ -258,6 +268,7 @@ class AirtableHandler:
         :param files_to_download: A dict that contains all the user file URLs that must
             be downloaded. The key is the file name and the value the URL. Additional
             files can be added to this dict.
+        :param config: Additional configuration related to the import.
         :return: The converted row in Baserow export format.
         """
 
@@ -293,6 +304,7 @@ class AirtableHandler:
                 mapping_values["baserow_field"],
                 column_value,
                 files_to_download,
+                config,
             )
             exported_row[f"field_{column_id}"] = baserow_serialized_value
 
@@ -301,6 +313,7 @@ class AirtableHandler:
     @staticmethod
     def download_files_as_zip(
         files_to_download: Dict[str, str],
+        config: AirtableImportConfig,
         progress_builder: Optional[ChildProgressBuilder] = None,
         files_buffer: Union[None, IOBase] = None,
     ) -> BytesIO:
@@ -311,6 +324,7 @@ class AirtableHandler:
         :param files_to_download: A dict that contains all the user file URLs that must
             be downloaded. The key is the file name and the value the URL. Additional
             files can be added to this dict.
+        :param config: Additional configuration related to the import.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
         :param files_buffer: Optionally a file buffer can be provided to store the
@@ -324,6 +338,17 @@ class AirtableHandler:
         progress = ChildProgressBuilder.build(
             progress_builder, child_total=len(files_to_download.keys())
         )
+
+        # Prevent downloading any file if desired. This can cause the import to fail,
+        # but that's intentional because that way it can easily be discovered that the
+        # `config.skip_files` is respected.
+        if config.skip_files:
+            if len(files_to_download.keys()) > 0:
+                raise AirtableImportNotRespectingConfig(
+                    "Files have been added to the `files_to_download`, but "
+                    "`config.skip_files` is True. This is probably a mistake in the "
+                    "code, accidentally adding files to the `files_to_download`."
+                )
 
         with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
             for index, (file_name, url) in enumerate(files_to_download.items()):
@@ -339,6 +364,7 @@ class AirtableHandler:
         init_data: dict,
         schema: dict,
         tables: list,
+        config: AirtableImportConfig,
         progress_builder: Optional[ChildProgressBuilder] = None,
         download_files_buffer: Union[None, IOBase] = None,
     ) -> Tuple[dict, IOBase]:
@@ -353,6 +379,7 @@ class AirtableHandler:
             shared base.
         :param schema: An object containing the schema of the Airtable base.
         :param tables: a list containing the table data.
+        :param config: Additional configuration related to the import.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
         :param download_files_buffer: Optionally a file buffer can be provided to store
@@ -413,7 +440,7 @@ class AirtableHandler:
                     baserow_field,
                     baserow_field_type,
                     airtable_column_type,
-                ) = cls.to_baserow_field(table, column)
+                ) = cls.to_baserow_field(table, column, config)
                 converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
 
                 # None means that none of the field types know how to parse this field,
@@ -456,7 +483,7 @@ class AirtableHandler:
                         baserow_field,
                         baserow_field_type,
                         airtable_column_type,
-                    ) = cls.to_baserow_field(table, airtable_column)
+                    ) = cls.to_baserow_field(table, airtable_column, config)
                     baserow_field.primary = True
                     field_mapping["primary_id"] = {
                         "baserow_field": baserow_field,
@@ -485,6 +512,7 @@ class AirtableHandler:
                         row,
                         row_index,
                         files_to_download_for_table,
+                        config,
                     )
                 )
                 converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
@@ -538,6 +566,7 @@ class AirtableHandler:
         # done last.
         user_files_zip = cls.download_files_as_zip(
             files_to_download,
+            config,
             progress.create_child_builder(represents_progress=500),
             download_files_buffer,
         )
@@ -552,6 +581,7 @@ class AirtableHandler:
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
         download_files_buffer: Union[None, IOBase] = None,
+        config: Optional[AirtableImportConfig] = None,
     ) -> Database:
         """
         Downloads all the data of the provided publicly shared Airtable base, converts
@@ -565,8 +595,12 @@ class AirtableHandler:
             and report on this methods progress to the parent of the progress_builder.
         :param download_files_buffer: Optionally a file buffer can be provided to store
             the downloaded files in. They will be stored in memory if not provided.
+        :param config: Additional configuration related to the import.
         :return: The imported database application representing the Airtable base.
         """
+
+        if config is None:
+            config = AirtableImportConfig()
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
 
@@ -623,6 +657,7 @@ class AirtableHandler:
             init_data,
             schema,
             tables,
+            config,
             progress.create_child_builder(represents_progress=300),
             download_files_buffer,
         )
