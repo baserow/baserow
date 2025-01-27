@@ -3,27 +3,24 @@
     <FormGroup
       required
       class="custom-color-input__form-group"
-      :error-message="colorNameError"
+      :error-message="err"
     >
       <FormInput
         :value="value.name"
         class="custom-color-input__input-name"
-        @input="(newValue) => updateCustomColorName(newValue)"
+        @input="up({ name: $event })"
       />
     </FormGroup>
 
     <FormGroup required>
-      <ColorInput
-        :value="value.color"
-        small
-        @input="(newValue) => updateExistingColor(newValue)"
-      />
+      <ColorInput :value="value.color" small @input="up({ color: $event })" />
     </FormGroup>
     <ButtonIcon icon="iconoir-bin" @click="$emit('deleteCustomColor')" />
   </div>
 </template>
 
 <script>
+import { maxLength, required } from 'vuelidate/lib/validators'
 const COLOR_NAME_MAX_LENGTH = 255
 
 export default {
@@ -33,54 +30,31 @@ export default {
       required: true,
     },
   },
-  data() {
-    return {
-      nameTimeout: null,
-      colorTimeout: null,
-      colorNameError: '',
-    }
-  },
-  beforeDestroy() {
-    clearTimeout(this.nameTimeout)
-    clearTimeout(this.colorTimeout)
+  computed: {
+    err() {
+      return this.$v.value.name.$dirty
+        ? !this.$v.value.name.required
+          ? this.$t('error.requiredField')
+          : !this.$v.value.name.maxLength
+          ? this.$t('error.maxLength', {
+              max: COLOR_NAME_MAX_LENGTH,
+            })
+          : ''
+        : ''
+    },
   },
   methods: {
-    updateCustomColorName(newValue) {
-      this.colorNameError = ''
-
-      const name = newValue.trim()
-      if (!name) {
-        this.colorNameError = this.$t('error.requiredField')
-      } else if (name.length > COLOR_NAME_MAX_LENGTH) {
-        this.colorNameError = this.$t('error.maxLength', {
-          max: COLOR_NAME_MAX_LENGTH,
-        })
-      }
-
-      if (this.colorNameError) {
-        return
-      }
-
-      clearTimeout(this.nameTimeout)
-      this.nameTimeout = setTimeout(() => {
-        this.$emit('input', {
-          name,
-          color: this.value.color,
-          value: this.value.value,
-        })
-      }, 500)
+    up(update) {
+      this.$v.$touch()
+      this.$emit('input', { ...this.value, ...update })
     },
-
-    updateExistingColor(newValue) {
-      clearTimeout(this.colorTimeout)
-      this.colorTimeout = setTimeout(() => {
-        this.$emit('input', {
-          name: this.value.name,
-          color: newValue,
-          value: this.value.value,
-        })
-      }, 500)
-    },
+  },
+  validations() {
+    return {
+      value: {
+        name: { maxLength: maxLength(COLOR_NAME_MAX_LENGTH), required },
+      },
+    }
   },
 }
 </script>

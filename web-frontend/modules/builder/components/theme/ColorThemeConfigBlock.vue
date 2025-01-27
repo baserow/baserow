@@ -81,7 +81,11 @@
 <script>
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
-import CustomColorInput from '@baserow/modules/builder/components/theme/CustomColorInput.vue'
+import CustomColorInput from '@baserow/modules/builder/components/theme/CustomColorInput'
+import {
+  smallUID,
+  getNextAvailableNameInSequence,
+} from '@baserow/modules/core/utils/string'
 
 const COLOR_ID_LENGTH = 5
 
@@ -95,13 +99,9 @@ export default {
       values: {},
     }
   },
-  computed: {
-    customColorPrefix() {
-      return this.$t('colorThemeConfigBlock.customColorPrefix')
-    },
-  },
   methods: {
     updateCustomColor(index, updatedValue) {
+      console.log('yay')
       const updatedColors = [...this.values.custom_colors]
       updatedColors[index] = { ...updatedValue }
       this.values.custom_colors = updatedColors
@@ -126,21 +126,18 @@ export default {
      * doesn't duplicate the name of an existing custom color.
      */
     addCustomColor() {
-      let newColorId = this.values.custom_colors.length + 1
-
       // To avoid duplicating names, newColorId is incremented until an unused
       // value is found.
       const existingNames = this.values.custom_colors.map((color) => color.name)
-      while (
-        existingNames.includes(`${this.customColorPrefix} ${newColorId}`)
-      ) {
-        newColorId++
-      }
 
-      const colorName = `${this.customColorPrefix} ${newColorId}`
+      const colorName = getNextAvailableNameInSequence(
+        this.$t('colorThemeConfigBlock.customColorPrefix'),
+        existingNames
+      )
+
       const newCustomColor = {
         name: colorName,
-        value: this.generateColorId(),
+        value: smallUID(COLOR_ID_LENGTH),
         // Initializes the color to a predictable default.
         color: this.values.primary_color,
       }
@@ -168,22 +165,6 @@ export default {
       const updatedCustomColors = structuredClone(this.values.custom_colors)
       updatedCustomColors[index].color = newValue
       this.values.custom_colors = updatedCustomColors
-    },
-
-    /**
-     * Generate a random string for the Custom Color's ID.
-     *
-     * By using a unique ID, the actual custom color's name can be updated
-     * without changing the identify of the item.
-     */
-    generateColorId() {
-      const chars =
-        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-      let result = ''
-      for (let i = 0; i < COLOR_ID_LENGTH; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length))
-      }
-      return result
     },
   },
 }
