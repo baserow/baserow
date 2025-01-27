@@ -27,7 +27,6 @@ class QueryParamSerializer(serializers.Serializer):
         help_text="The name of the parameter.",
         max_length=255,
     )
-    # TODO: Add own type for query params
     type = serializers.ChoiceField(
         choices=PAGE_PARAM_TYPE_CHOICES, help_text="The type of the parameter."
     )

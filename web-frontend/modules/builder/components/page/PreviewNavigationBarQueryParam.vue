@@ -1,9 +1,8 @@
 <template>
   <div class="preview-navigation-bar-param">
     <label :for="name" class="preview-navigation-bar-param__label">
-      {{ name }} =
-    </label>
-    <input
+      {{ name }}=</label
+    ><input
       :id="name"
       v-model="inputValue"
       class="preview-navigation-bar-input"

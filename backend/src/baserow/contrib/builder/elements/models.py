@@ -489,6 +489,7 @@ class NavigationElementMixin(models.Model):
         null=True,
     )
     query_parameters = models.JSONField(
+        db_default=[],
         default=list,
         help_text="The query parameters for each parameter of the selected page if any.",
         null=True,

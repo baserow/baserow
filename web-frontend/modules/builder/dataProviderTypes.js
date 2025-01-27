@@ -293,20 +293,21 @@ export class PageParameterDataProviderType extends DataProviderType {
     const { page, mode, pageParamsValue } = applicationContext
     const pageParams = [...page.path_params, ...page.query_params]
 
+    // Read parameters value from the application context
+    const queryParamNames = page.query_params.map((p) => p.name)
     if (mode === 'editing') {
       // Generate fake values for the parameters
       await Promise.all(
-        pageParams.map(({ name, type }) =>
-          this.app.store.dispatch('pageParameter/setParameter', {
+        pageParams.map(({ name, type }) => {
+          const isQuery = queryParamNames.includes(name)
+          return this.app.store.dispatch('pageParameter/setParameter', {
             page,
             name,
-            value: defaultValueForParameterType(type),
+            value: isQuery ? null : defaultValueForParameterType(type),
           })
-        )
+        })
       )
     } else {
-      // Read parameters value from the application context
-      const queryParamNames = page.query_params.map((p) => p.name)
       await Promise.all(
         pageParams.map(({ name, type }) => {
           const validators = queryParamNames.includes(name)

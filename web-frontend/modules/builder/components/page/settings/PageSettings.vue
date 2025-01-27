@@ -75,7 +75,7 @@ export default {
             this.$store.dispatch('pageParameter/setParameter', {
               page: this.currentPage,
               name,
-              value: defaultValueForParameterType(type),
+              value: null,
             })
           ),
         ])

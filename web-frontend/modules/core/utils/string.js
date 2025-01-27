@@ -161,8 +161,17 @@ export const isNumeric = (value) => {
  * @example
  * // returns 'name 2'
  * getNextAvailableNameInSequence('name', ['name', 'name 1', 'name 3']);
+ *
+ * @example
+ * // returns 'name__2'
+ * getNextAvailableNameInSequence('name', ['name', 'name 1', 'name 3'],
+ *   {pattern: (baseName, index) => `${basename}__${index + 1}`});
  */
-export const getNextAvailableNameInSequence = (baseName, excludeNames) => {
+export const getNextAvailableNameInSequence = (
+  baseName,
+  excludeNames,
+  { pattern = (baseName, index) => `${baseName} ${index + 1}` } = {}
+) => {
   let name = baseName
   let i = 0
   while (i < excludeNames.length) {
@@ -170,7 +179,7 @@ export const getNextAvailableNameInSequence = (baseName, excludeNames) => {
       return name
     }
     i++
-    name = `${baseName} ${i + 1}`
+    name = pattern(baseName, i)
   }
   return name
 }

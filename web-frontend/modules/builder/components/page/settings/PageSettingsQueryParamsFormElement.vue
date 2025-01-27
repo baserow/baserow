@@ -64,6 +64,7 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
+import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'PageSettingsQueryParamsFormElement',
@@ -97,6 +98,14 @@ export default {
       },
     }
   },
+  computed: {
+    queryParamTypes() {
+      return this.$registry.getOrderedList('queryParamType')
+    },
+    existingNames() {
+      return [...this.values.queryParams.map(({ name }) => name), 'param']
+    },
+  },
   watch: {
     queryParams: {
       immediate: true,
@@ -123,17 +132,16 @@ export default {
       this.$emit('update', this.values.queryParams)
     },
     addParameter() {
+      // Prevents name conflicts
+      const name = getNextAvailableNameInSequence('param', this.existingNames, {
+        pattern: (baseName, index) => `${baseName}${index + 1}`,
+      })
       const newParam = {
-        name: `param${this.values.queryParams.length + 1}`,
+        name,
         type: this.queryParamTypes[0].getType(),
       }
       this.values.queryParams.push(newParam)
       this.$emit('update', this.values.queryParams)
-    },
-  },
-  computed: {
-    queryParamTypes() {
-      return this.$registry.getOrderedList('queryParamType')
     },
   },
 }
