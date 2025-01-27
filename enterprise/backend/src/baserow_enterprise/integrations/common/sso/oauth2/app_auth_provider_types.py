@@ -1,4 +1,5 @@
 import urllib
+from contextlib import contextmanager
 
 from django.conf import settings
 from django.db.models import QuerySet
@@ -64,10 +65,9 @@ class OAuth2AppAuthProviderMixin(BaseOAuth2AuthProviderMixin):
 
 def validate_unique_oidc_base_url(base_url, base_queryset: QuerySet, instance=None):
     queryset = base_queryset.filter(base_url=base_url)
-    print("queryset", queryset)
     if instance:
         queryset = queryset.exclude(id=instance.id)
-    print("queryset", queryset)
+
     if queryset.exists():
         raise serializers.ValidationError(
             {
@@ -145,3 +145,33 @@ class OpenIdConnectAppAuthProviderType(
                 instance=auth_provider,
             )
         return super().before_update(user, auth_provider, **values)
+
+    def get_pytest_params(self, pytest_data_fixture) -> dict:
+        """
+        Returns a sample of params for this type. This can be used to tests the provider
+        for instance.
+
+        :param pytest_data_fixture: A Pytest data fixture which can be used to
+            create related objects when the import / export functionality is tested.
+        """
+
+        return {"base_url": "http://example.com"}
+
+    @contextmanager
+    def apply_patch_pytest(self):
+        """
+        Hook to mock something during the tests.
+        """
+
+        from unittest.mock import MagicMock, patch
+
+        with patch("requests.get") as mock_get:
+            response_mock = MagicMock()
+            response_mock.json.return_value = {
+                "authorization_endpoint": "https://example.com/auth",
+                "token_endpoint": "https://example.com/token",
+                "userinfo_endpoint": "https://example.com/userinfo",
+            }
+            mock_get.return_value = response_mock
+
+            yield mock_get
