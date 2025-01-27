@@ -32,8 +32,14 @@ class LicenseSerializer(serializers.ModelSerializer):
     seats = serializers.IntegerField(
         help_text="The maximum amount of users that can use the license."
     )
-    addons = serializers.SerializerMethodField(
-        help_text="The addons that are associated with this license."
+    application_users = serializers.SerializerMethodField(
+        help_text="The amount of application builder users permitted in this license."
+    )
+    application_users_taken = serializers.SerializerMethodField(
+        help_text="The amount of application builder users used so far in this license."
+    )
+    application_users_left = serializers.SerializerMethodField(
+        help_text="The amount of application builder users remaining in this license."
     )
     product_code = serializers.CharField(
         help_text="The product code that indicates what the license unlocks."
@@ -62,7 +68,10 @@ class LicenseSerializer(serializers.ModelSerializer):
             "free_users_count",
             "seats_taken",
             "seats",
-            "addons",
+            "addon_product_code",
+            "application_users",
+            "application_users_taken",
+            "application_users_left",
             "product_code",
             "issued_on",
             "issued_to_email",
@@ -84,17 +93,20 @@ class LicenseSerializer(serializers.ModelSerializer):
         )
 
     @lru_cache(maxsize=128)
-    def get_cached_builder_usage_summary(self, obj) -> Optional[BuilderUsageSummary]:
+    def get_cached_builder_usage_summary(self, obj) -> BuilderUsageSummary:
         return obj.license_type.get_builder_usage_summary(obj)
 
-    @extend_schema_field(OpenApiTypes.OBJECT)
-    def get_addons(self, obj) -> Dict[str, int]:
-        usage = self.get_cached_builder_usage_summary(obj)
-        return {
-            "application_users": usage.application_users_licensed,
-            "application_users_taken": usage.application_users_taken,
-            "application_users_remaining": usage.application_users_remaining,
-        }
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_application_users(self, obj) -> int:
+        return self.get_cached_builder_usage_summary(obj).application_users_licensed
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_application_users_taken(self, obj) -> int:
+        return self.get_cached_builder_usage_summary(obj).application_users_taken
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_application_users_left(self, obj) -> int:
+        return self.get_cached_builder_usage_summary(obj).application_users_left
 
 
 class RegisterLicenseSerializer(serializers.Serializer):
@@ -114,8 +126,8 @@ class LicenseWithUsersSerializer(LicenseSerializer):
         fields = LicenseSerializer.Meta.fields + ("users",)
 
     @extend_schema_field(LicenseUserSerializer(many=True))
-    def get_users(self, object):
-        users = [user.user for user in object.users.all()]
+    def get_users(self, instance):
+        users = [user.user for user in instance.users.all()]
         return LicenseUserSerializer(users, many=True).data
 
 
@@ -129,5 +141,5 @@ class LicenseUserLookupSerializer(serializers.ModelSerializer):
         fields = ("id", "value")
 
     @extend_schema_field(OpenApiTypes.STR)
-    def get_value(self, object):
-        return f"{object.first_name} ({object.email})"
+    def get_value(self, instance):
+        return f"{instance.first_name} ({instance.email})"

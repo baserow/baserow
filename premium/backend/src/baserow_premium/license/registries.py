@@ -31,7 +31,7 @@ class BuilderUsageSummary:
     # How many application users the license allows.
     application_users_licensed: int
     # How many application users are remaining.
-    application_users_remaining: int
+    application_users_left: int
 
 
 class LicenseType(abc.ABC, Instance):
@@ -124,13 +124,11 @@ class LicenseType(abc.ABC, Instance):
         application_users_licensed = (
             obj.application_users if obj.application_users is not None else 0
         )
-        application_users_remaining = (
-            application_users_licensed - application_users_taken
-        )
+        application_users_left = application_users_licensed - application_users_taken
         return BuilderUsageSummary(
             application_users_taken=application_users_taken,
             application_users_licensed=application_users_licensed,
-            application_users_remaining=application_users_remaining,
+            application_users_left=application_users_left,
         )
 
     def get_builder_usage_summary_for_workspace(

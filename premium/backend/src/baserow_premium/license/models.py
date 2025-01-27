@@ -1,11 +1,14 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Type
 
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils.functional import cached_property
 
 from dateutil import parser
+
+if TYPE_CHECKING:
+    from baserow_premium.license.addons.registries import LicenseAddonType
 
 User = get_user_model()
 
@@ -84,21 +87,27 @@ class License(models.Model):
         return self.payload["seats"]
 
     @property
+    def addon_product_code(self) -> Optional[str]:
+        # `addon_product_code` is only present >=v1.32
+        return self.payload.get("addon_product_code")
+
+    @property
     def application_users(self) -> Optional[int]:
-        # User source user limits did not exist before v1.31
-        from baserow_premium.license.addons.license_addon_types import (
-            BusinessLicenseAddonType,
-            ProLicenseAddonType,
+        # `application_users` is only present >=v1.32
+        return self.payload.get("application_users")
+
+    @property
+    def license_addon_type(self) -> Optional[Type["LicenseAddonType"]]:
+        from baserow_premium.license.addons.registries import (
+            license_addon_type_registry,
         )
 
-        compatible_addons = [
-            ProLicenseAddonType.type,
-            BusinessLicenseAddonType.type,
-        ]
-        for addon in self.payload.get("addons", []):
-            if addon["type"] in compatible_addons:
-                return addon["application_users"]
-        return None
+        # `addon_product_code` is only present >=v1.32
+        return (
+            license_addon_type_registry.get(self.addon_product_code)
+            if self.addon_product_code
+            else None
+        )
 
     @property
     def issued_on(self):
