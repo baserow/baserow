@@ -8,12 +8,16 @@
       <FormInput
         :value="value.name"
         class="custom-color-input__input-name"
-        @input="up({ name: $event })"
+        @input="update({ name: $event })"
       />
     </FormGroup>
 
     <FormGroup required>
-      <ColorInput :value="value.color" small @input="up({ color: $event })" />
+      <ColorInput
+        :value="value.color"
+        small
+        @input="update({ color: $event })"
+      />
     </FormGroup>
     <ButtonIcon icon="iconoir-bin" @click="$emit('deleteCustomColor')" />
   </div>
@@ -44,7 +48,7 @@ export default {
     },
   },
   methods: {
-    up(update) {
+    update(update) {
       this.$v.$touch()
       this.$emit('input', { ...this.value, ...update })
     },

@@ -101,7 +101,6 @@ export default {
   },
   methods: {
     updateCustomColor(index, updatedValue) {
-      console.log('yay')
       const updatedColors = [...this.values.custom_colors]
       updatedColors[index] = { ...updatedValue }
       this.values.custom_colors = updatedColors
