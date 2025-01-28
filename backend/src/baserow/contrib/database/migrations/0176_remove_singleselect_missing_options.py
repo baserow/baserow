@@ -18,12 +18,11 @@ def forward(apps, schema_editor):
                     query = sql.SQL(
                         "UPDATE {table} SET {select_column} = NULL "
                         "WHERE {select_column} NOT IN "
-                        "(SELECT id FROM {option_table} where field_id = {field_id})"
+                        "(SELECT id FROM {option_table})"
                     ).format(
                         table=sql.Identifier(f"database_table_{field.table.id}"),
                         select_column=sql.Identifier(f"field_{field.id}"),
-                        option_table=sql.Identifier(option_table_name),
-                        field_id=sql.Literal(field.id),
+                        option_table=sql.Identifier(option_table_name)
                     )
                     cursor.execute(query)
 

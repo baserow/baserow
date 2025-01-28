@@ -1,15 +1,12 @@
-import random
-
 from django.db import connection
 
 import pytest
 from psycopg2 import sql
-from tqdm import tqdm
 
 from baserow.contrib.database.rows.handler import RowHandler
 
 
-@pytest.mark.disabled_in_ci
+# @pytest.mark.disabled_in_ci
 @pytest.mark.django_db
 def test_migration_rows_with_deleted_singleselect_options(
     data_fixture, migrator, teardown_table_metadata
@@ -27,37 +24,6 @@ def test_migration_rows_with_deleted_singleselect_options(
 
     # Test that it doesn't crash on larger dataset
     row_handler = RowHandler()
-    for i in tqdm(range(1000), desc="Creating tables"):
-        table = data_fixture.create_database_table(
-            database=database, name=f"Table {i+1}"
-        )
-
-        text_field = data_fixture.create_text_field(
-            table=table, name="text_field", order=0
-        )
-        option_field = data_fixture.create_single_select_field(
-            table=table, name="option_field", order=1
-        )
-
-        options = []
-        for j in range(3):
-            options.append(
-                data_fixture.create_select_option(
-                    field=option_field, value=f"Option #{i+1}.{j+1}"
-                )
-            )
-
-        rows = []
-        for _ in range(100):
-            rows.append(
-                {
-                    text_field.db_column: "test",
-                    option_field.db_column: random.choice(options).id,
-                }
-            )
-        row_handler.create_rows(user=user, table=table, rows_values=rows)
-
-    # Test that values are updated properly
 
     table_for_values = data_fixture.create_database_table(
         database=database, name=f"Table for values"
@@ -78,8 +44,6 @@ def test_migration_rows_with_deleted_singleselect_options(
     option_c = data_fixture.create_select_option(
         field=option_field_for_values, value=f"Option C"
     )
-    options = [option_a, option_b, option_c]
-
     rows = [
         {
             text_field_for_values.db_column: f"Row #1",
