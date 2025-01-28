@@ -30,6 +30,9 @@
                 {{ url }}
               </span>
             </div>
+            <div v-if="relayStateUrls.length === 0">
+              {{ $t('commonSamlSettingForm.addDomainNotice') }}
+            </div>
             <Copied ref="copiedRelay"></Copied>
           </div>
         </FormGroup>

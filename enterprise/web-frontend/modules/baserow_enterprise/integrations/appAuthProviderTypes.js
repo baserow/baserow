@@ -111,7 +111,13 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
     // We use the user source id in order to prevent conflicts when using multiple
     // auth forms on the same page.
     const queryParamName = `user_source_saml_token__${userSource.id}`
-    return route.query[queryParamName]
+    const found = route.query[queryParamName]
+    if (found) {
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.delete(queryParamName)
+      window.history.replaceState({}, document.title, currentUrl.toString())
+    }
+    return found
   }
 
   handleError(userSource, authProvider, route) {
@@ -169,12 +175,28 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
     return CommonOIDCSettingForm
   }
 
-  getAuthToken(userSource, authProvider, route) {
+  getProviderName(provider) {
+    if (provider.name) {
+      return provider.name
+    } else {
+      return this.app.i18n.t(
+        'authProviderTypes.ssoOIDCProviderNameUnconfigured'
+      )
+    }
+  }
+
+  getAuthToken(userSource, authProvider, route, router) {
     // token can be in the query string (SSO) or in the cookies (previous session)
     // We use the user source id in order to prevent conflicts when using multiple
     // auth forms on the same page.
     const queryParamName = `user_source_oidc_token__${userSource.id}`
-    return route.query[queryParamName]
+    const found = route.query[queryParamName]
+    if (found) {
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.delete(queryParamName)
+      window.history.replaceState({}, document.title, currentUrl.toString())
+    }
+    return found
   }
 
   handleServerError(vueComponentInstance, error) {

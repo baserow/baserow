@@ -98,7 +98,8 @@
     "password": "Email and password authentication",
     "saml": "SSO SAML provider",
     "ssoSamlProviderName": "SSO SAML: {domain}",
-    "ssoSamlProviderNameUnconfigured": "Unconfigured SSO SAML"
+    "ssoSamlProviderNameUnconfigured": "Unconfigured SSO SAML",
+    "ssoOIDCProviderNameUnconfigured": "Unconfigured OpenId connect"
   },
   "editAuthProviderMenuContext": {
     "edit": "Edit",
@@ -325,7 +326,8 @@
   },
   "commonSamlSettingForm": {
     "relayStateTitle": "Default Relay State URL (Click to copy)",
-    "acsTitle": "Single Sign On url (Click to copy)"
+    "acsTitle": "Single Sign On url (Click to copy)",
+    "addDomainNotice": "Available when one or more domains have been added"
   },
   "commonOidcSettingForm": {
     "callbackTitle": "Callback URLs (Click to copy)",

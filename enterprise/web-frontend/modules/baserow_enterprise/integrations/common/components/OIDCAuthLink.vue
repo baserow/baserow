@@ -1,10 +1,10 @@
 <template>
   <div class="oidc-auth-link__wrapper">
-    <div v-for="authProvider in authProviders" :key="authProvider.id">
-      <ABButton @click.prevent="login(authProvider)">
+    <template v-for="authProvider in authProviders">
+      <ABButton @click.prevent="login(authProvider)" :key="authProvider.id">
         {{ getLabel(authProvider) }}
       </ABButton>
-    </div>
+    </template>
   </div>
 </template>
 
