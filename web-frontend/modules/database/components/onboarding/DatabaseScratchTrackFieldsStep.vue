@@ -234,13 +234,13 @@ export default {
             this.$t('error.requiredField'),
             required
           ),
+          uniqueNameValidator: helpers.withMessage(
+            this.$t('error.alreadyInUse'),
+            (value) => {
+              return !this.isNameUsed(value, 'own')
+            }
+          ),
         },
-        uniqueNameValidator: helpers.withMessage(
-          this.$t('error.alreadyInUse'),
-          (value) => {
-            return !this.isNameUsed(value, 'own')
-          }
-        ),
       },
     }
 
