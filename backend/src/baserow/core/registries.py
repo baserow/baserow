@@ -528,7 +528,7 @@ class ApplicationType(
         return []
 
     @classmethod
-    def get_application_id_for_url(cls, url: str) -> "Application | None":
+    def get_application_id_for_url(cls, url: str) -> int | None:
         """
         Given a URL, returns the application id related to this URL
         or None if None matches.

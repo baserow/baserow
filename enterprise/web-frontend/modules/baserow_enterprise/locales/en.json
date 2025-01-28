@@ -316,7 +316,8 @@
   },
   "appAuthProviderType": {
     "localBaserowPassword": "Email/Password",
-    "commonSaml": "Saml SSO"
+    "commonSaml": "Saml SSO",
+    "openIdConnect": "OpenID Connect"
   },
   "localBaserowPasswordAppAuthProviderForm": {
     "passwordFieldLabel": "Select password field",

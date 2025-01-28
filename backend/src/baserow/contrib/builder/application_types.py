@@ -463,7 +463,7 @@ class BuilderApplicationType(ApplicationType):
         return None
 
     @classmethod
-    def get_application_id_for_url(cls, url: str) -> Builder:
+    def get_application_id_for_url(cls, url: str) -> int | None:
         """
         If the given URL is relative to the PUBLIC_WEB_FRONTEND_URL, we try to match
         the preview path and to extract the builder id from it.

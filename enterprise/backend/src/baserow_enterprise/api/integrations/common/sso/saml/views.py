@@ -70,6 +70,7 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
         {
             UserSourceDoesNotExist: ERROR_USER_SOURCE_DOES_NOT_EXIST,
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            InvalidSamlRequest: SsoErrorCode.INVALID_SAML_REQUEST,
         }
     )
     def post(
@@ -138,7 +139,7 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
         # If we are here it means that an error was raised so error_raised["code"] is
         # not empty
         if not application_urls or not user:
-            raise Exception(f"Broken {error_raised['code']}")
+            raise InvalidSamlRequest(f"Something when wrong {error_raised['code']}")
 
         # We redirect to the default frontend url with an error code
         error_url = urlencode_query_params(

@@ -154,7 +154,7 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
   }
 
   getName() {
-    return 'OpenID Connect'
+    return this.app.i18n.t('appAuthProviderType.openIdConnect')
   }
 
   getProviderName(provider) {
