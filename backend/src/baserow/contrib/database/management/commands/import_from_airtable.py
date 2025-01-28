@@ -6,6 +6,7 @@ from django.db import transaction
 
 from tqdm import tqdm
 
+from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.exceptions import AirtableBaseNotPublic
 from baserow.contrib.database.airtable.handler import AirtableHandler
 from baserow.contrib.database.airtable.utils import extract_share_id_from_url
@@ -35,11 +36,17 @@ class Command(BaseCommand):
             help="The URL of the publicly shared Airtable base "
             "(e.g. https://airtable.com/shrxxxxxxxxxxxxxx).",
         )
+        parser.add_argument(
+            "--skip-files",
+            action="store_true",
+            help="When provided, the files will not be downloaded and imported.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
         workspace_id = options["workspace_id"]
         public_base_url = options["public_base_url"]
+        skip_files = options["skip_files"]
 
         try:
             workspace = Workspace.objects.get(pk=workspace_id)
@@ -66,6 +73,7 @@ class Command(BaseCommand):
 
             try:
                 with NamedTemporaryFile() as download_files_buffer:
+                    config = AirtableImportConfig(skip_files=skip_files)
                     AirtableHandler.import_from_airtable_to_workspace(
                         workspace,
                         share_id,
@@ -73,6 +81,7 @@ class Command(BaseCommand):
                             represents_progress=progress.total
                         ),
                         download_files_buffer=download_files_buffer,
+                        config=config,
                     )
             except AirtableBaseNotPublic:
                 self.stdout.write(

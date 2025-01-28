@@ -13,6 +13,7 @@ from baserow.core.action.scopes import (
 from baserow.core.models import Workspace
 from baserow.core.utils import ChildProgressBuilder
 
+from .config import AirtableImportConfig
 from .handler import AirtableHandler
 
 
@@ -38,6 +39,7 @@ class ImportDatabaseFromAirtableActionType(ActionType):
         installed_application_name: str
         workspace_id: int
         workspace_name: str
+        skip_files: bool
 
     @classmethod
     def do(
@@ -45,6 +47,7 @@ class ImportDatabaseFromAirtableActionType(ActionType):
         user: AbstractUser,
         workspace: Workspace,
         airtable_share_id: str,
+        skip_files: bool,
         progress_builder: Optional[ChildProgressBuilder] = None,
         **kwargs,
     ) -> Database:
@@ -56,8 +59,14 @@ class ImportDatabaseFromAirtableActionType(ActionType):
         information.
         """
 
+        config = AirtableImportConfig(skip_files=skip_files)
+
         database = AirtableHandler.import_from_airtable_to_workspace(
-            workspace, airtable_share_id, progress_builder=progress_builder, **kwargs
+            workspace,
+            airtable_share_id,
+            progress_builder=progress_builder,
+            config=config,
+            **kwargs,
         )
 
         params = cls.Params(
@@ -66,6 +75,7 @@ class ImportDatabaseFromAirtableActionType(ActionType):
             database.name,
             workspace.id,
             workspace.name,
+            skip_files,
         )
         cls.register_action(user, params, cls.scope(workspace.id), workspace)
 
