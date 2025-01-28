@@ -876,7 +876,7 @@ def test_import_local_baserow_user_source(data_fixture):
         ("database_fields", "email_field_id"),
         ("database_fields", "name_field_id"),
         ("database_fields", "role_field_id"),
-    ]
+    ],
 )
 def test_import_local_baserow_user_source_with_missing_fields(
     data_fixture, id_mapping_key, missing_field_name
@@ -945,12 +945,14 @@ def test_import_local_baserow_user_source_with_missing_fields(
     }
     id_mapping["integrations"] = {42: integration.id}
     id_mapping["database_tables"] = {42: table_from_same_workspace1.id}
-    id_mapping["database_fields"] = {42: email_field.id, 43: name_field.id, 44: role_field.id}
+    id_mapping["database_fields"] = {
+        42: email_field.id,
+        43: name_field.id,
+        44: role_field.id,
+    }
 
     # Remove a specific field to simulate a "missing field"
-    id_mapping[id_mapping_key].pop(
-        id_mapping_data[missing_field_name][0]
-    )
+    id_mapping[id_mapping_key].pop(id_mapping_data[missing_field_name][0])
 
     imported_instance = UserSourceHandler().import_user_source(
         application, TO_IMPORT, id_mapping

@@ -466,7 +466,4 @@ def test_import_local_baserow_password_app_auth_provider_without_database(data_f
         application, TO_IMPORT, id_mapping
     )
 
-    assert (
-        imported_instance.auth_providers.first().specific.password_field_id
-        is None
-    )
+    assert imported_instance.auth_providers.first().specific.password_field_id is None
