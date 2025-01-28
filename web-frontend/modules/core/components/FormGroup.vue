@@ -54,7 +54,7 @@
         class="control__elements"
         :class="{ 'control__elements--flex': $slots['after-input'] }"
       >
-        <div class="flex-grow-1"><slot /></div>
+        <div class="control__elements-wrapper"><slot /></div>
         <div v-if="protectedEdit && protectedEditValue" class="margin-top-1">
           <a @click="disableProtectedEdit">{{
             $t('formGroup.cancelProtectedField')
