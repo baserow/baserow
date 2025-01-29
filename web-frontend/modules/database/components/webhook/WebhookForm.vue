@@ -25,7 +25,7 @@
           >
             <FormInput
               v-model="v$.values.name.$model"
-              :error="v$.values.name.$error"
+              :error="fieldHasErrors('name')"
               @blur="v$.values.name.$touch"
             ></FormInput>
 

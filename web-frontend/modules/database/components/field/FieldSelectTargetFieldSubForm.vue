@@ -13,11 +13,11 @@
       :label="label"
       small-label
       required
-      :error="v$.values.target_field_id.$error"
+      :error="fieldHasErrors('target_field_id')"
     >
       <Dropdown
         v-model="v$.values.target_field_id.$model"
-        :error="v$.values.target_field_id.$error"
+        :error="fieldHasErrors('target_field_id')"
         :fixed-items="true"
         @hide="v$.values.target_field_id.$touch"
         @input="targetFieldChanged($event)"

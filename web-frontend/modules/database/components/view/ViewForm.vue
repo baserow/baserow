@@ -4,7 +4,7 @@
       small-label
       :label="$t('viewForm.name')"
       required
-      :error="v$.values.name.$error"
+      :error="fieldHasErrors('name')"
       class="margin-bottom-2"
     >
       <FormInput

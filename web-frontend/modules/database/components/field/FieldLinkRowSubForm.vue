@@ -5,11 +5,11 @@
       small-label
       :label="$t('fieldLinkRowSubForm.selectTableLabel')"
       required
-      :error="v$.values.link_row_table_id.$error"
+      :error="fieldHasErrors('link_row_table_id')"
     >
       <Dropdown
         v-model="v$.values.link_row_table_id.$model"
-        :error="v$.values.link_row_table_id.$error"
+        :error="fieldHasErrors('link_row_table_id')"
         :fixed-items="true"
         :disabled="!isSelectedFieldAccessible"
         @hide="v$.values.link_row_table_id.$touch"

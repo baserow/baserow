@@ -19,12 +19,12 @@
         required
         small-label
         :label="$t('fieldRollupSubForm.label')"
-        :error="v$.values.rollup_function.$error"
+        :error="fieldHasErrors('rollup_function')"
       >
         <Dropdown
           v-model="v$.values.rollup_function.$model"
           max-width
-          :error="v$.values.rollup_function.$error"
+          :error="fieldHasErrors('rollup_function')"
           :fixed-items="true"
           @hide="v$.values.rollup_function.$touch()"
         >

@@ -14,12 +14,12 @@
       required
       small-label
       :label="$t('fieldRatingSubForm.style')"
-      :error="v$.values.style.$error"
+      :error="fieldHasErrors('style')"
     >
       <Dropdown
         v-model="v$.values.style.$model"
         class="dropdown--floating rating-field-form__dropdown-style"
-        :error="v$.values.style.$error"
+        :error="fieldHasErrors('style')"
         :fixed-items="true"
         :show-search="false"
         @hide="v$.values.style.$touch"
@@ -38,12 +38,12 @@
       required
       small-label
       :label="$t('fieldRatingSubForm.maxValue')"
-      :error="v$.values.max_value.$error"
+      :error="fieldHasErrors('max_value')"
     >
       <Dropdown
         v-model="v$.values.max_value.$model"
         class="dropdown--floating"
-        :error="v$.values.max_value.$error"
+        :error="fieldHasErrors('max_value')"
         :show-search="false"
         :fixed-items="true"
         @hide="v$.values.max_value.$touch"

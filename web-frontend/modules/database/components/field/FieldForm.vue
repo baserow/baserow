@@ -15,11 +15,11 @@
         </template>
       </FormGroup>
 
-      <FormGroup v-if="forcedType === null" :error="v$.values.type.$error">
+      <FormGroup v-if="forcedType === null" :error="fieldHasErrors('type')">
         <Dropdown
           ref="fieldTypesDropdown"
           v-model="v$.values.type.$model"
-          :error="v$.values.type.$error"
+          :error="fieldHasErrors('type')"
           :fixed-items="true"
           :disabled="
             defaultValues.immutable_type || defaultValues.immutable_properties

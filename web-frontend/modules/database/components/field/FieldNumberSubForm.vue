@@ -2,14 +2,14 @@
   <div>
     <FormGroup
       small-label
-      :error="v$.values.number_decimal_places.$error"
+      :error="fieldHasErrors('number_decimal_places')"
       :label="$t('fieldNumberSubForm.decimalPlacesLabel')"
       class="margin-bottom-2"
       required
     >
       <Dropdown
         v-model="v$.values.number_decimal_places.$model"
-        :error="v$.values.number_decimal_places.$error"
+        :error="fieldHasErrors('number_decimal_places')"
         :fixed-items="true"
         @hide="v$.values.number_decimal_places.$touch"
       >
@@ -35,13 +35,13 @@
       <div class="flex">
         <FormInput
           v-model="v$.values.number_prefix.$model"
-          :error="v$.values.number_prefix.$error"
+          :error="fieldHasErrors('number_prefix')"
           type="text"
           :placeholder="$t('fieldNumberSubForm.prefixPlaceholder')"
         ></FormInput>
         <FormInput
           v-model="v$.values.number_suffix.$model"
-          :error="v$.values.number_suffix.$error"
+          :error="fieldHasErrors('number_suffix')"
           type="text"
           :placeholder="$t('fieldNumberSubForm.suffixPlaceholder')"
           @blur="v$.values.number_suffix.$touch"

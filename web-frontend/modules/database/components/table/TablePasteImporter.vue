@@ -3,7 +3,7 @@
     <FormGroup
       :label="$t('tablePasteImporter.pasteLabel')"
       small-label
-      :error="v$.values.content.$error"
+      :error="fieldHasErrors('content')"
       class="margin-bottom-2"
       required
       :helper-text="$t('tablePasteImporter.pasteDescription')"

@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <FormGroup
-      :error="v$.values.name.$error"
+      :error="fieldHasErrors('name')"
       required
       small-label
       class="margin-bottom-2"
@@ -13,7 +13,7 @@
         ref="name"
         v-model="v$.values.name.$model"
         size="large"
-        :error="v$.values.name.$error"
+        :error="fieldHasErrors('name')"
         @focus.once="$event.target.select()"
       >
       </FormInput>

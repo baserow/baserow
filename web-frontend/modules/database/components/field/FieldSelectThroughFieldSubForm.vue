@@ -9,11 +9,11 @@
       small-label
       :label="$t('fieldSelectThroughFieldSubForm.selectThroughFieldLabel')"
       required
-      :error="v$.values.through_field_id.$error"
+      :error="fieldHasErrors('through_field_id')"
     >
       <Dropdown
         v-model="v$.values.through_field_id.$model"
-        :error="v$.values.through_field_id.$error"
+        :error="fieldHasErrors('through_field_id')"
         :fixed-items="true"
         @hide="v$.values.through_field_id.$touch"
         @input="throughFieldChanged($event)"
