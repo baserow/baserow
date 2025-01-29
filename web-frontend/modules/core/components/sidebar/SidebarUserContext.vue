@@ -1,9 +1,5 @@
 <template>
-  <Context
-    max-height-if-outside-viewport
-    class="select"
-    @shown="onShow"
-  >
+  <Context max-height-if-outside-viewport class="select" @shown="onShow">
     <div class="select__search">
       <i class="select__search-icon iconoir-search"></i>
       <input
