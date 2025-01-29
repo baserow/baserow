@@ -19497,10 +19497,10 @@ void-elements@^3.1.0:
   resolved "https://registry.yarnpkg.com/void-elements/-/void-elements-3.1.0.tgz#614f7fbf8d801f0bb5f0661f5b2f5785750e4f09"
   integrity sha512-Dhxzh5HZuiHQhbvTW9AMetFfBHDMYpo23Uo9btPXgdYP+3T5S+p+jgNy7spra+veYhBP2dCSgxR/i2Y02h5/6w==
 
-vue-chartjs@4.1.2:
-  version "4.1.2"
-  resolved "https://registry.yarnpkg.com/vue-chartjs/-/vue-chartjs-4.1.2.tgz#f899ba14f3b80660f8d2c610a015341806dfc437"
-  integrity sha512-QSggYjeFv/L4jFSBQpX8NzrAvX0B+Ha6nDgxkTG8tEXxYOOTwKI4phRLe+B4f+REnkmg7hgPY24R0cixZJyXBg==
+vue-chartjs@^5.3.2:
+  version "5.3.2"
+  resolved "https://registry.yarnpkg.com/vue-chartjs/-/vue-chartjs-5.3.2.tgz#c0f2009af6b08845af158ddee9d0a68d9dae631b"
+  integrity sha512-NrkbRRoYshbXbWqJkTN6InoDVwVb90C0R7eAVgMWcB9dPikbruaOoTFjFYHE/+tNPdIe6qdLCDjfjPHQ0fw4jw==
 
 vue-client-only@^2.1.0:
   version "2.1.0"
