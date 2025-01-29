@@ -1,6 +1,6 @@
 <template>
   <Context
-    :max-height-if-outside-viewport="true"
+    max-height-if-outside-viewport
     class="select"
     @shown="onShow"
   >
