@@ -37,6 +37,11 @@
   gap: 5px;
 }
 
+.control__elements-wrapper {
+  flex-grow: 1;
+  max-width: 100%;
+}
+
 .control__description {
   font-size: 13px;
   line-height: 160%;
@@ -83,7 +88,14 @@
   }
 
   .control--horizontal.control--after-input & {
+    max-width: calc(70% - 5px);
     flex-basis: 70%;
+    margin-top: 0;
+  }
+
+  .control--horizontal-narrow.control--after-input & {
+    max-width: calc(60% - 5px);
+    flex-basis: 60%;
     margin-top: 0;
   }
 }

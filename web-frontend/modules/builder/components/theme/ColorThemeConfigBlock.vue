@@ -55,23 +55,14 @@
 
     <ThemeConfigBlockSection :title="$t('colorThemeConfigBlock.customColors')">
       <template #default>
-        <FormGroup
+        <CustomColorInput
           v-for="(customColor, index) in values.custom_colors"
-          :key="customColor.name"
-          horizontal-narrow
-          small-label
-          class="margin-bottom-2"
-          :label="customColor.name"
-        >
-          <ColorInput
-            :value="values.custom_colors[index].color"
-            small
-            @input="(newValue) => updateExistingColor(index, newValue)"
-          />
-          <template #after-input>
-            <ButtonIcon icon="iconoir-bin" @click="deleteCustomColor(index)" />
-          </template>
-        </FormGroup>
+          :key="customColor.value"
+          :value="customColor"
+          @input="updateCustomColor(index, $event)"
+          @deleteCustomColor="deleteCustomColor(index)"
+        />
+
         <div class="color-theme-config-block__custom-color-container">
           <ButtonText
             type="primary"
@@ -90,23 +81,30 @@
 <script>
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
+import CustomColorInput from '@baserow/modules/builder/components/theme/CustomColorInput'
+import {
+  smallUID,
+  getNextAvailableNameInSequence,
+} from '@baserow/modules/core/utils/string'
+
+const COLOR_ID_LENGTH = 5
 
 export default {
   name: 'ColorThemeConfigBlock',
 
-  components: { ThemeConfigBlockSection },
+  components: { ThemeConfigBlockSection, CustomColorInput },
   mixins: [themeConfigBlock],
   data() {
     return {
       values: {},
     }
   },
-  computed: {
-    customColorPrefix() {
-      return this.$t('colorThemeConfigBlock.customColorPrefix')
-    },
-  },
   methods: {
+    updateCustomColor(index, updatedValue) {
+      const updatedColors = [...this.values.custom_colors]
+      updatedColors[index] = { ...updatedValue }
+      this.values.custom_colors = updatedColors
+    },
     isAllowedKey(key) {
       return (
         key.startsWith('main_') ||
@@ -127,21 +125,18 @@ export default {
      * doesn't duplicate the name of an existing custom color.
      */
     addCustomColor() {
-      let newColorId = this.values.custom_colors.length + 1
-
       // To avoid duplicating names, newColorId is incremented until an unused
       // value is found.
       const existingNames = this.values.custom_colors.map((color) => color.name)
-      while (
-        existingNames.includes(`${this.customColorPrefix} ${newColorId}`)
-      ) {
-        newColorId++
-      }
 
-      const colorName = `${this.customColorPrefix} ${newColorId}`
+      const colorName = getNextAvailableNameInSequence(
+        this.$t('colorThemeConfigBlock.customColorPrefix'),
+        existingNames
+      )
+
       const newCustomColor = {
         name: colorName,
-        value: colorName,
+        value: smallUID(COLOR_ID_LENGTH),
         // Initializes the color to a predictable default.
         color: this.values.primary_color,
       }

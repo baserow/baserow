@@ -15,7 +15,7 @@ exports[`ChoiceElement as default 1`] = `
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -91,7 +91,7 @@ exports[`ChoiceElement as manual checkboxes 1`] = `
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -159,7 +159,7 @@ exports[`ChoiceElement as manual dropdown 1`] = `
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -282,7 +282,7 @@ exports[`ChoiceElement as manual radio 1`] = `
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          

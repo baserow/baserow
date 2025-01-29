@@ -3,6 +3,7 @@ from django.db import models
 
 from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
+    COLOR_FIELD_MAX_LENGTH,
     WIDTHS,
     FontWeights,
     HorizontalAlignments,
@@ -23,12 +24,24 @@ class ThemeConfigBlock(models.Model):
 
 
 class ColorThemeConfigBlock(ThemeConfigBlock):
-    primary_color = models.CharField(max_length=9, default="#5190efff")
-    secondary_color = models.CharField(max_length=9, default="#0eaa42ff")
-    border_color = models.CharField(max_length=9, default="#d7d8d9ff")
-    main_success_color = models.CharField(max_length=9, default="#12D452")
-    main_warning_color = models.CharField(max_length=9, default="#FCC74A")
-    main_error_color = models.CharField(max_length=9, default="#FF5A4A")
+    primary_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#5190efff"
+    )
+    secondary_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#0eaa42ff"
+    )
+    border_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#d7d8d9ff"
+    )
+    main_success_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#12D452"
+    )
+    main_warning_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#FCC74A"
+    )
+    main_error_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#FF5A4A"
+    )
     custom_colors = models.JSONField(default=list, db_default=[])
 
 
@@ -44,7 +57,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.REGULAR,
         db_default=FontWeights.REGULAR,
     )
-    body_text_color = models.CharField(max_length=9, default="#070810ff")
+    body_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     body_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -61,7 +76,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.BOLD,
         db_default=FontWeights.BOLD,
     )
-    heading_1_text_color = models.CharField(max_length=9, default="#070810ff")
+    heading_1_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     heading_1_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -78,7 +95,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.SEMI_BOLD,
         db_default=FontWeights.SEMI_BOLD,
     )
-    heading_2_text_color = models.CharField(max_length=9, default="#070810ff")
+    heading_2_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     heading_2_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -95,7 +114,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.MEDIUM,
         db_default=FontWeights.MEDIUM,
     )
-    heading_3_text_color = models.CharField(max_length=9, default="#070810ff")
+    heading_3_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     heading_3_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -112,7 +133,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.MEDIUM,
         db_default=FontWeights.MEDIUM,
     )
-    heading_4_text_color = models.CharField(max_length=9, default="#070810ff")
+    heading_4_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     heading_4_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -129,7 +152,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.REGULAR,
         db_default=FontWeights.REGULAR,
     )
-    heading_5_text_color = models.CharField(max_length=9, default="#070810ff")
+    heading_5_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#070810ff"
+    )
     heading_5_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -146,7 +171,9 @@ class TypographyThemeConfigBlock(ThemeConfigBlock):
         default=FontWeights.REGULAR,
         db_default=FontWeights.REGULAR,
     )
-    heading_6_text_color = models.CharField(max_length=9, default="#202128")
+    heading_6_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH, default="#202128"
+    )
     heading_6_text_alignment = models.CharField(
         choices=HorizontalAlignments.choices,
         max_length=10,
@@ -182,19 +209,19 @@ class ButtonThemeConfigBlock(ThemeConfigBlock):
         default=WIDTHS.AUTO,
     )
     button_background_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="primary",
         blank=True,
         help_text="The background color of buttons",
     )
     button_text_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#ffffffff",
         blank=True,
         help_text="The text color of buttons",
     )
     button_border_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",
         blank=True,
         help_text="The border color of buttons",
@@ -212,19 +239,19 @@ class ButtonThemeConfigBlock(ThemeConfigBlock):
         default=12, help_text="Button horizontal padding"
     )
     button_hover_background_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#96baf6ff",
         blank=True,
         help_text="The background color of buttons when hovered",
     )
     button_hover_text_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#ffffffff",
         blank=True,
         help_text="The text color of buttons when hovered",
     )
     button_hover_border_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",
         blank=True,
         help_text="The border color of buttons when hovered",
@@ -249,13 +276,13 @@ class LinkThemeConfigBlock(ThemeConfigBlock):
         default=HorizontalAlignments.LEFT,
     )
     link_text_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="primary",
         blank=True,
         help_text="The text color of links",
     )
     link_hover_text_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#96baf6ff",
         blank=True,
         help_text="The hover color of links when hovered",
@@ -316,7 +343,7 @@ class PageThemeConfigBlock(ThemeConfigBlock):
     """
 
     page_background_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#ffffffff",
         blank=True,
         help_text="The background color of the page",
@@ -349,7 +376,7 @@ class InputThemeConfigBlock(ThemeConfigBlock):
         help_text="The font family of the label",
     )
     label_text_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#070810FF",
         blank=True,
         help_text="The text color of the label",
@@ -378,19 +405,19 @@ class InputThemeConfigBlock(ThemeConfigBlock):
         db_default=FontWeights.REGULAR,
     )
     input_text_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#070810FF",
         blank=True,
         help_text="The text color of the input",
     )
     input_background_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#FFFFFFFF",
         blank=True,
         help_text="The background color of the input",
     )
     input_border_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#000000FF",
         blank=True,
         help_text="The color of the input border",
@@ -416,7 +443,7 @@ class TableThemeConfigBlock(ThemeConfigBlock):
 
     # Table styles
     table_border_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#000000FF",
         blank=True,
         help_text="The color of the table border",
@@ -430,13 +457,13 @@ class TableThemeConfigBlock(ThemeConfigBlock):
 
     # Header styles
     table_header_background_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#edededff",
         blank=True,
         help_text="The background color of the table header cells",
     )
     table_header_text_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#000000ff",
         blank=True,
         help_text="The text color of the table header cells",
@@ -464,14 +491,14 @@ class TableThemeConfigBlock(ThemeConfigBlock):
 
     # Cell styles
     table_cell_background_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="transparent",
         blank=True,
         help_text="The background color of the table cells",
     )
 
     table_cell_alternate_background_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="transparent",
         blank=True,
         help_text="The alternate background color of the table cells",
@@ -490,7 +517,7 @@ class TableThemeConfigBlock(ThemeConfigBlock):
 
     # Separator styles
     table_vertical_separator_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#000000FF",
         blank=True,
         help_text="The color of the table vertical separator",
@@ -500,7 +527,7 @@ class TableThemeConfigBlock(ThemeConfigBlock):
     )
 
     table_horizontal_separator_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#000000FF",
         blank=True,
         help_text="The color of the table horizontal separator",
