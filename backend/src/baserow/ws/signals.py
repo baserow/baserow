@@ -370,13 +370,11 @@ def user_job_started(sender, job, user, **kwargs):
     from baserow.core.jobs.registries import job_type_registry
 
     serializer = job_type_registry.get_serializer(job, JobSerializer)
-    transaction.on_commit(
-        lambda: broadcast_to_users.delay(
-            [user.id],
-            {
-                "type": "job_started",
-                "job": serializer.data,
-            },
-            getattr(user, "web_socket_id", None),
-        )
+    broadcast_to_users.delay(
+        [user.id],
+        {
+            "type": "job_started",
+            "job": serializer.data,
+        },
+        getattr(user, "web_socket_id", None),
     )

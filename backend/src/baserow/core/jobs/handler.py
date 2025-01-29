@@ -70,6 +70,8 @@ class JobHandler:
         progress = Progress(100)
         progress.register_updated_event(progress_updated)
 
+        job_started.send(JobHandler, job=job, user=job.user)
+
         job_type = job_type_registry.get_by_model(job)
         out = job_type.run(job, progress)
 
@@ -202,7 +204,6 @@ class JobHandler:
             # failure that triggers a sys.exit(1) to be called in gunicorn.
             def call_async_job_safe():
                 try:
-                    job_started.send(self, job=job, user=user)
                     run_async_job.delay(job.id)
                 except BaseException as e:
                     job.refresh_from_db()

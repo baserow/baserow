@@ -15,6 +15,7 @@ from baserow.core.models import (
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.handler import UserHandler
 from baserow.core.utils import generate_hash
+from baserow.test_utils.helpers import AnyInt
 
 
 @pytest.mark.django_db(transaction=True)
@@ -478,9 +479,8 @@ def test_user_password_changed(mock_force_disconnect_user, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.signals.broadcast_to_users")
-@patch("baserow.core.jobs.handler.run_async_job")
 @pytest.mark.websockets
-def test_job_started(mock_run_async_job, mock_broadcast_to_users, data_fixture):
+def test_job_started(mock_broadcast_to_users, data_fixture):
     data_fixture.register_temp_job_types()
 
     user = data_fixture.create_user()
@@ -492,10 +492,10 @@ def test_job_started(mock_run_async_job, mock_broadcast_to_users, data_fixture):
     assert args[0][1] == {
         "type": "job_started",
         "job": {
-            "id": 1,
+            "id": AnyInt(),
             "type": "tmp_job_type_1",
             "progress_percentage": 0,
-            "state": "pending",
+            "state": "started",
             "human_readable_error": "",
             "test_field": 42,
         },
