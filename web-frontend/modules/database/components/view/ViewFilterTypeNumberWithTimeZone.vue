@@ -2,7 +2,7 @@
   <div class="filters__multi-value">
     <FormInput
       ref="input"
-      v-model="xAgo"
+      v-model="v$.xAgo.$model"
       type="text"
       :error="v$.xAgo.$error"
       :disabled="disabled"
@@ -15,12 +15,16 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import { integer, required } from '@vuelidate/validators'
 import filterTypeDateInput from '@baserow/modules/database/mixins/filterTypeDateInput'
 
 export default {
   name: 'ViewFilterTypeNumberWithTimeZone',
   mixins: [filterTypeDateInput],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       xAgo: '',
@@ -35,9 +39,11 @@ export default {
       this.xAgo = xAgo
     },
   },
-  validations: {
-    copy: { required },
-    xAgo: { integer },
+  validations() {
+    return {
+      copy: { required },
+      xAgo: { integer },
+    }
   },
 }
 </script>

@@ -6,7 +6,7 @@
       <p class="box__description">{{ $t(descriptionText) }}</p>
       <FormGroup :error="fieldHasErrors('password')">
         <PasswordInput
-          v-model="values.password"
+          v-model="v$.values.password.$model"
           :validation-state="v$.values.password"
           :show-password-icon="true"
           :disabled="loading"
@@ -33,6 +33,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
@@ -48,6 +49,9 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -109,10 +113,12 @@ export default {
       this.loading = false
     },
   },
-  validations: {
-    values: {
-      password: passwordValidation,
-    },
+  validations() {
+    return {
+      values: {
+        password: passwordValidation,
+      },
+    }
   },
 }
 </script>

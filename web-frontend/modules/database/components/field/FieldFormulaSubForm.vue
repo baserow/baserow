@@ -35,10 +35,9 @@
 
 <script>
 import { required } from '@vuelidate/validators'
-
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FieldFormulaInitialSubForm from '@baserow/modules/database/components/formula/FieldFormulaInitialSubForm'
 import FormulaAdvancedEditContext from '@baserow/modules/database/components/formula/FormulaAdvancedEditContext'
@@ -57,6 +56,9 @@ export default {
       required: true,
       type: String,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -89,10 +91,9 @@ export default {
       })
     },
     formulaError() {
-      const dirty = this.v$.values.formula.$dirty
-      if (dirty && !this.v$.values.formula.required) {
+      if (this.v$.values.formula.required.$invalid) {
         return 'Please enter a formula'
-      } else if (dirty && !this.v$.values.formula.parseFormula) {
+      } else if (this.v$.values.formula.parseFormula.$invalid) {
         return (
           `Error in the formula on line ${this.parsingError.line} starting at
         letter ${this.parsingError.character}` +

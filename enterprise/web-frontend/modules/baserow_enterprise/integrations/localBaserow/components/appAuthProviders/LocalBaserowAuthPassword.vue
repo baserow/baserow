@@ -18,7 +18,7 @@
       <ABInput
         v-model="values.email"
         :placeholder="$t('authFormElement.emailPlaceholder')"
-        @blur="$v.values.email.$touch()"
+        @blur="$v.values.email.$touch"
       />
     </ABFormGroup>
     <ABFormGroup
@@ -37,7 +37,7 @@
         v-model="values.password"
         type="password"
         :placeholder="$t('authFormElement.passwordPlaceholder')"
-        @blur="$v.values.password.$touch()"
+        @blur="$v.values.password.$touch"
       />
     </ABFormGroup>
     <div class="auth-form__footer">

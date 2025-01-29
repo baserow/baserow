@@ -35,6 +35,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import moment from '@baserow/modules/core/moment'
 import {
   getDateMomentFormat,
@@ -46,6 +47,9 @@ import { en, fr } from 'vuejs-datepicker/dist/locale'
 export default {
   name: 'ViewFilterTypeDate',
   mixins: [filterTypeDateInput],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       dateString: '',
@@ -57,7 +61,9 @@ export default {
     }
   },
   mounted() {
-    this.v$.$touch()
+    this.nextTick(() => {
+      this.v$.$touch()
+    })
   },
   methods: {
     isInputValid() {
@@ -129,14 +135,16 @@ export default {
       this.$refs.date.focus()
     },
   },
-  validations: {
-    copy: {},
-    dateString: {
-      isValidDate(value) {
-        const dateFormat = getDateMomentFormat(this.field.date_format)
-        return value === '' || moment.utc(value, dateFormat).isValid()
+  validations() {
+    return {
+      copy: {},
+      dateString: {
+        isValidDate(value) {
+          const dateFormat = getDateMomentFormat(this.field.date_format)
+          return value === '' || moment.utc(value, dateFormat).isValid()
+        },
       },
-    },
+    }
   },
 }
 </script>

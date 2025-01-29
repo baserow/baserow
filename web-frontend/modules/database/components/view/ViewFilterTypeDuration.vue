@@ -14,12 +14,16 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import filterTypeInput from '@baserow/modules/database/mixins/filterTypeInput'
 import durationField from '@baserow/modules/database/mixins/durationField'
 
 export default {
   name: 'ViewFilterTypeDuration',
   mixins: [filterTypeInput, durationField],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   watch: {
     'field.duration_format': {
       handler() {
@@ -54,13 +58,15 @@ export default {
       return fieldType.getValidationError(this.field, value)
     },
   },
-  validations: {
-    copy: {},
-    formattedValue: {
-      isValid(value) {
-        return this.getValidationError(value) === null
+  validations() {
+    return {
+      copy: {},
+      formattedValue: {
+        isValid(value) {
+          return this.getValidationError(value) === null
+        },
       },
-    },
+    }
   },
 }
 </script>

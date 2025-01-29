@@ -38,8 +38,8 @@
 </template>
 
 <script>
-import { required } from '@vuelidate/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { reactive } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import viewTypeHasExporterTypes from '@baserow/modules/database/utils/viewTypeHasExporterTypes'
 
@@ -76,12 +76,22 @@ export default {
       required: true,
     },
   },
-  data() {
-    return {
+  setup() {
+    const values = reactive({
       values: {
-        view_id: this.view === null ? null : this.view.id,
+        view_id: null,
         exporter_type: null,
       },
+    })
+    const rules = {
+      values: {
+        exporter_type: {},
+        view_id: {},
+      },
+    }
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
     }
   },
   computed: {
@@ -130,11 +140,7 @@ export default {
   },
   created() {
     this.values.exporter_type = this.firstExporterType
-  },
-  validations: {
-    values: {
-      exporter_type: { required },
-    },
+    this.values.view_id = this.view === null ? null : this.view.id
   },
 }
 </script>

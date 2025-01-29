@@ -30,7 +30,7 @@
         <FormInput
           v-model="values.value"
           :error="fieldHasErrors('value')"
-          @blur="v$.values.value.$touch()"
+          @blur="v$.values.value.$touch"
         >
         </FormInput>
       </div>
@@ -46,6 +46,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import { randomColor } from '@baserow/modules/core/utils/colors'
@@ -55,6 +56,9 @@ export default {
   name: 'KanbanViewOptionForm',
   components: { ColorSelectContext },
   mixins: [form],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: ['color', 'value'],

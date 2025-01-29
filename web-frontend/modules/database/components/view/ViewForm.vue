@@ -9,16 +9,15 @@
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.values.name.$model"
         size="large"
         :error="fieldHasErrors('name')"
         @focus.once="$event.target.select()"
-        @blur="v$.values.name.$touch()"
       >
       </FormInput>
 
       <template #error>
-        {{ $t('error.requiredField') }}
+        {{ v$.values.name.$errors[0]?.$message }}
       </template>
     </FormGroup>
 
@@ -41,7 +40,8 @@
 </template>
 
 <script>
-import { required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import Radio from '@baserow/modules/core/components/Radio'
 
@@ -63,6 +63,9 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -99,10 +102,18 @@ export default {
         .sort((a, b) => b.getListViewTypeSort() - a.getListViewTypeSort())
     },
   },
-  validations: {
-    values: {
-      name: { required },
-    },
+  validations() {
+    return {
+      values: {
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        ownershipType: {},
+      },
+    }
   },
 }
 </script>

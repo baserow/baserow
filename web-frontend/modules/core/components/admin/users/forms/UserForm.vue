@@ -9,13 +9,12 @@
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.values.name.$model"
         size="large"
         :error="fieldHasErrors('name')"
-        @blur="v$.values.name.$touch()"
       >
       </FormInput>
-      <template #error>{{ $t('userForm.error.invalidName') }}</template>
+      <template #error>{{ v$.values.name.$errors[0]?.$message }}</template>
     </FormGroup>
 
     <FormGroup
@@ -27,10 +26,9 @@
     >
       <FormInput
         ref="email"
-        v-model="values.username"
+        v-model="v$.values.username.$model"
         size="large"
         :error="fieldHasErrors('username')"
-        @blur="v$.values.username.$touch()"
       >
       </FormInput>
 
@@ -41,9 +39,7 @@
       </template>
 
       <template #error>
-        <span v-show="fieldHasErrors('username')">
-          {{ $t('userForm.error.invalidEmail') }}
-        </span>
+        {{ v$.values.username.$errors[0]?.$message }}
       </template>
     </FormGroup>
 
@@ -53,7 +49,10 @@
       required
       class="margin-bottom-2"
     >
-      <Checkbox v-model="values.is_active" :disabled="loading"></Checkbox>
+      <Checkbox
+        v-model="v$.values.is_active.$model"
+        :disabled="loading"
+      ></Checkbox>
 
       <template #warning>
         <span v-show="!values.is_active">
@@ -63,7 +62,10 @@
     </FormGroup>
 
     <FormGroup small-label :label="$t('user.isStaff')" required>
-      <Checkbox v-model="values.is_staff" :disabled="loading"></Checkbox>
+      <Checkbox
+        v-model="v$.values.is_staff.$model"
+        :disabled="loading"
+      ></Checkbox>
 
       <template #warning>
         <span v-show="values.is_staff">
@@ -89,7 +91,14 @@
 </template>
 
 <script>
-import { email, maxLength, minLength, required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import {
+  email,
+  maxLength,
+  minLength,
+  required,
+  helpers,
+} from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 
@@ -106,6 +115,9 @@ export default {
       required: true,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: ['username', 'name', 'is_active', 'is_staff'],
@@ -117,11 +129,37 @@ export default {
       },
     }
   },
-  validations: {
-    values: {
-      name: { required, minLength: minLength(2), maxLength: maxLength(150) },
-      username: { required, email },
-    },
+  validations() {
+    return {
+      values: {
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          minLength: helpers.withMessage(
+            this.$t('error.minLength', { min: 2 }),
+            minLength(2)
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 150 }),
+            maxLength(150)
+          ),
+        },
+        username: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          email: helpers.withMessage(
+            this.$t('userForm.error.invalidEmail'),
+            email
+          ),
+        },
+        is_active: {},
+        is_staff: {},
+      },
+    }
   },
 }
 </script>

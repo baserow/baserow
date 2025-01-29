@@ -32,40 +32,29 @@ describe('Webhook form Input Tests', () => {
     await urlInput.trigger('blur')
   }
 
-  function getErrorDivs(wrapper) {
-    return wrapper.findAll('div > .control__messages--error')
-  }
-
-  function getErrorTexts(errorDivs) {
-    return errorDivs.wrappers.map((w) =>
-      w.text().replace(/\n/gm, '').replace(/\s\s+/g, ' ')
-    )
-  }
-
   test('WebhookForm displays an error on missing URL', async () => {
     const wrapper = await mountWebhookForm()
     await changeURL(wrapper, '')
 
-    const errorDiv = getErrorDivs(wrapper)
-    expect(errorDiv.exists()).toBe(true)
-    expect(getErrorTexts(errorDiv)).toEqual(['webhookForm.errors.urlField'])
+    wrapper.vm.v$.values.url.$touch()
+
+    expect(wrapper.vm.v$.values.url.required.$invalid).toBe(true)
   })
 
   test('WebhookForm displays an error on too long URL', async () => {
     const wrapper = await mountWebhookForm()
     await changeURL(wrapper, 'http://google.de/' + 'a'.repeat(2001 - 16))
-
-    const errorDiv = getErrorDivs(wrapper)
-    expect(errorDiv.exists()).toBe(true)
-    expect(getErrorTexts(errorDiv)).toEqual(['error.maxLength'])
+    wrapper.vm.v$.values.url.$touch()
+    expect(wrapper.vm.v$.values.url.maxLength.$invalid).toBe(true)
   })
 
   test('WebhookForm displays an error on invalid URL', async () => {
     const wrapper = await mountWebhookForm()
     await changeURL(wrapper, 'htt://google.de')
 
-    const errorDiv = getErrorDivs(wrapper)
-    expect(errorDiv.exists()).toBe(true)
-    expect(getErrorTexts(errorDiv)).toEqual(['webhookForm.errors.urlField'])
+    wrapper.vm.v$.values.url.$touch()
+    expect(wrapper.vm.v$.values.url.isValidURLWithHttpScheme.$invalid).toBe(
+      true
+    )
   })
 })

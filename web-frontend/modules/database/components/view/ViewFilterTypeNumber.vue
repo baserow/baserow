@@ -31,7 +31,6 @@ export default {
     },
   },
   created() {
-    this.copy = this.prepareCopy(this.filter.value)
     this.updateFormattedValue(this.field, this.copy)
   },
   methods: {
@@ -47,9 +46,6 @@ export default {
         this.delayedUpdate(newValue, immediately)
       }
     },
-  },
-  validations: {
-    copy: {},
   },
 }
 </script>

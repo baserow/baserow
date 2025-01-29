@@ -2,31 +2,35 @@
   <div>
     <h1>{{ $t('workspaceStep.title') }}</h1>
 
-    <FormGroup :error="v$.name.$dirty && !v$.name.required">
+    <FormGroup :error="v$.name.$error">
       <FormInput
-        v-model="name"
+        v-model="v$.name.$model"
         :placeholder="$t('workspaceStep.workspaceLabel') + '...'"
         :label="$t('workspaceStep.workspaceLabel')"
         size="large"
-        :error="v$.name.$dirty && !v$.name.required"
+        :error="v$.name.$error"
         @input="updateValue"
-        @blur="v$.name.$touch()"
       />
-      <template #error>{{ $t('error.requiredField') }}</template>
+      <template #error> {{ v$.name.$errors[0]?.$message }} </template>
     </FormGroup>
   </div>
 </template>
 
 <script>
-import { required } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 
 export default {
   name: 'WorkspaceStep',
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       name: this.$store.getters['auth/getName'] + "'s workspace",
     }
   },
+
   mounted() {
     this.updateValue()
   },
@@ -41,7 +45,9 @@ export default {
   },
   validations() {
     return {
-      name: { required },
+      name: {
+        required: helpers.withMessage(this.$t('error.requiredField'), required),
+      },
     }
   },
 }

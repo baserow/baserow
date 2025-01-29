@@ -64,7 +64,6 @@ export default {
       return 'unknown'
     },
   },
-  validations: {},
   methods: {
     handleErrorByForm(error) {
       if (
