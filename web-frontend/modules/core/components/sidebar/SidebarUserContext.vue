@@ -1,12 +1,23 @@
 <template>
-  <Context :max-height-if-outside-viewport="true" class="select">
+  <Context max-height-if-outside-viewport class="select" @shown="onShow">
+    <div class="select__search">
+      <i class="select__search-icon iconoir-search"></i>
+      <input
+        ref="search"
+        v-model="query"
+        type="text"
+        class="select__search-input"
+        :placeholder="$t('action.search')"
+        tabindex="0"
+      />
+    </div>
     <ul
       ref="dropdown"
       v-auto-overflow-scroll
       class="select__items select__items--no-max-height dashboard__user-workspaces"
     >
       <li
-        v-for="workspace in workspaces"
+        v-for="workspace in filteredWorkspaces"
         :key="workspace.id"
         class="select__item"
         :class="{
@@ -102,7 +113,10 @@
         </li>
       </ul>
     </div>
-    <CreateWorkspaceModal ref="createWorkspaceModal"></CreateWorkspaceModal>
+    <CreateWorkspaceModal
+      ref="createWorkspaceModal"
+      @created="hide()"
+    ></CreateWorkspaceModal>
   </Context>
 </template>
 
@@ -113,6 +127,7 @@ import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import context from '@baserow/modules/core/mixins/context'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
+import { escapeRegExp } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'SidebarUserContext',
@@ -131,6 +146,7 @@ export default {
   data() {
     return {
       logoffLoading: false,
+      query: '',
     }
   },
   computed: {
@@ -154,6 +170,16 @@ export default {
         )
         .filter((component) => component !== null)
     },
+    filteredWorkspaces() {
+      let workspaces = this.workspaces
+      const regex = new RegExp('(' + escapeRegExp(this.query) + ')', 'i')
+      if (this.query) {
+        workspaces = workspaces.filter((workspace) => {
+          return workspace.name.match(regex)
+        })
+      }
+      return workspaces
+    },
     ...mapGetters({
       isStaff: 'auth/isStaff',
       name: 'auth/getName',
@@ -161,6 +187,12 @@ export default {
     }),
   },
   methods: {
+    onShow() {
+      this.query = ''
+      this.$nextTick(() => {
+        this.$refs.search.focus()
+      })
+    },
     logoff() {
       this.logoffLoading = true
       logoutAndRedirectToLogin(

@@ -61,6 +61,7 @@ export default {
           name: 'workspace',
           params: { workspaceId: workspace.id },
         })
+        this.$emit('created')
         this.hide()
       } catch (error) {
         this.loading = false
