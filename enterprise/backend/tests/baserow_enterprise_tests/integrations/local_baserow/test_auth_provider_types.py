@@ -395,3 +395,75 @@ def test_import_local_baserow_password_app_auth_provider(data_fixture):
         imported_instance.auth_providers.first().specific.password_field_id
         == password_field.id
     )
+
+
+@pytest.mark.django_db
+def test_import_local_baserow_password_app_auth_provider_without_database(data_fixture):
+    """
+    Test the import of the LocalBaserowPasswordAppAuthProvider when the
+    password field is missing in the id_mapping.
+
+    The password field might be missing during an import, because the user
+    might have either deleted the password field in the database, or deleted
+    the table entirely.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=user
+    )
+
+    table_from_same_workspace1, fields, rows = data_fixture.build_table(
+        user=user,
+        database=database,
+        columns=[
+            ("Email", "text"),
+            ("Name", "text"),
+            ("Password", "password"),
+        ],
+        rows=[
+            ["test@baserow.io", "Test", "password"],
+        ],
+    )
+
+    email_field, name_field, password_field = fields
+
+    TO_IMPORT = {
+        "email_field_id": 42,
+        "id": 28,
+        "integration_id": 42,
+        "name": "Test name",
+        "name_field_id": 43,
+        "order": "1.00000000000000000000",
+        "table_id": 42,
+        "type": "local_baserow",
+        "auth_providers": [
+            {
+                "id": 42,
+                "type": "local_baserow_password",
+                "domain": None,
+                "enabled": True,
+                "password_field_id": 44,
+            }
+        ],
+    }
+
+    id_mapping = defaultdict(MirrorDict)
+    id_mapping["integrations"] = {42: integration.id}
+    id_mapping["database_tables"] = {42: table_from_same_workspace1.id}
+
+    # the password field is intentionally excluded from database_fields
+    id_mapping["database_fields"] = {
+        42: email_field.id,
+        43: name_field.id,
+    }
+
+    imported_instance = UserSourceHandler().import_user_source(
+        application, TO_IMPORT, id_mapping
+    )
+
+    assert imported_instance.auth_providers.first().specific.password_field_id is None

@@ -869,6 +869,105 @@ def test_import_local_baserow_user_source(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "id_mapping_key,missing_field_name",
+    [
+        ("database_tables", "table_id"),
+        ("database_fields", "email_field_id"),
+        ("database_fields", "name_field_id"),
+        ("database_fields", "role_field_id"),
+    ],
+)
+def test_import_local_baserow_user_source_with_missing_fields(
+    data_fixture, id_mapping_key, missing_field_name
+):
+    """
+    Test the import of the LocalBaserowUserSource when one or more fields
+    are missing in the exported workspace's database.
+
+    A field, such as the Role field might have been deleted before the user
+    has exported the workspace. As such, when importing the workspace, the
+    missing field needs to be safely handled.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=user
+    )
+
+    table_from_same_workspace1, fields, rows = data_fixture.build_table(
+        user=user,
+        database=database,
+        columns=[
+            ("Email", "text"),
+            ("Name", "text"),
+            ("Role", "text"),
+        ],
+        rows=[
+            ["test@baserow.io", "Test", "Foo Role"],
+        ],
+    )
+
+    email_field, name_field, role_field = fields
+
+    TO_IMPORT = {
+        "id": 28,
+        "name": "Test name",
+        "order": "1.00000000000000000000",
+        "type": "local_baserow",
+        "integration_id": 42,
+        "table_id": 42,
+        "name_field_id": 43,
+        "email_field_id": 42,
+        "role_field_id": 44,
+        "auth_providers": [
+            {
+                "id": 42,
+                "type": "local_baserow_password",
+                "domain": None,
+                "enabled": True,
+                "password_field_id": None,
+            }
+        ],
+    }
+
+    id_mapping = defaultdict(MirrorDict)
+
+    id_mapping_data = {
+        "table_id": (42, table_from_same_workspace1.id),
+        "email_field_id": (42, email_field.id),
+        "name_field_id": (43, name_field.id),
+        "role_field_id": (44, role_field.id),
+    }
+    id_mapping["integrations"] = {42: integration.id}
+    id_mapping["database_tables"] = {42: table_from_same_workspace1.id}
+    id_mapping["database_fields"] = {
+        42: email_field.id,
+        43: name_field.id,
+        44: role_field.id,
+    }
+
+    # Remove a specific field to simulate a "missing field"
+    id_mapping[id_mapping_key].pop(id_mapping_data[missing_field_name][0])
+
+    imported_instance = UserSourceHandler().import_user_source(
+        application, TO_IMPORT, id_mapping
+    )
+
+    for property in id_mapping_data:
+        value = getattr(imported_instance, property)
+        if property == missing_field_name:
+            # Ensure that None is returned instead of raising a KeyError
+            assert value is None
+        else:
+            assert value is id_mapping_data[property][1]
+
+
+@pytest.mark.django_db
 def test_create_local_baserow_user_source_w_auth_providers(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
