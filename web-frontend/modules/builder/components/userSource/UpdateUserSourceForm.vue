@@ -3,9 +3,9 @@
     <FormRow>
       <FormGroup
         :label="$t('updateUserSourceForm.nameFieldLabel')"
+        :error-message="getFirstErrorMessage('name')"
         required
         small-label
-        :error-message="getError('name')"
       >
         <FormInput
           v-model="v$.values.name.$model"
@@ -16,7 +16,7 @@
       </FormGroup>
       <FormGroup
         :label="$t('updateUserSourceForm.integrationFieldLabel')"
-        :error-message="getError('integration_id')"
+        :error-message="getFirstErrorMessage('integration_id')"
         required
         small-label
       >
@@ -99,9 +99,10 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
-import { required, maxLength } from '@vuelidate/validators'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 
 export default {
   components: { IntegrationDropdown },
@@ -116,6 +117,9 @@ export default {
       required: false,
       default: null,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -231,30 +235,31 @@ export default {
       }
       return false
     },
-    getError(fieldName) {
-      if (!this.v$.values[fieldName].$dirty) {
-        return ''
-      }
-      const fieldState = this.v$.values[fieldName]
-      if (!fieldState.required) {
-        return this.$t('error.requiredField')
-      }
-      if (fieldName === 'name' && !fieldState.maxLength) {
-        return this.$t('error.maxLength', { max: 255 })
-      }
-      return ''
+    isValid() {
+      return !this.v$.$invalid && this.v$.$dirty
     },
   },
-  validations: {
-    values: {
-      integration_id: {
-        required,
+  validations() {
+    return {
+      values: {
+        integration_id: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(255)
+          ),
+        },
       },
-      name: {
-        required,
-        maxLength: maxLength(255),
-      },
-    },
+    }
   },
 }
 </script>

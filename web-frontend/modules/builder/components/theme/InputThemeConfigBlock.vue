@@ -11,10 +11,10 @@
           :label="$t('inputThemeConfigBlock.fontFamily')"
           class="margin-bottom-2"
         >
-          <FontFamilySelector v-model="values.label_font_family" />
+          <FontFamilySelector v-model="v$.values.label_font_family.$model" />
           <template #after-input>
             <ResetButton
-              v-model="values.label_font_family"
+              v-model="v$.values.label_font_family.$model"
               :default-value="theme?.label_font_family"
             />
           </template>
@@ -26,14 +26,14 @@
           class="margin-bottom-2"
         >
           <ColorInput
-            v-model="values.label_text_color"
+            v-model="v$.values.label_text_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.label_text_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.label_text_color"
+              v-model="v$.values.label_text_color.$model"
               :default-value="theme?.label_text_color"
             />
           </template>
@@ -46,14 +46,15 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.label_font_size"
+            v-model="v$.values.label_font_size.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`label_font_size`]
             "
           />
+
           <template #after-input>
             <ResetButton
-              v-model="values.label_font_size"
+              v-model="v$.values.label_font_size.$model"
               :default-value="theme?.label_font_size"
             />
           </template>
@@ -73,10 +74,10 @@
           :label="$t('inputThemeConfigBlock.fontFamily')"
           class="margin-bottom-2"
         >
-          <FontFamilySelector v-model="values.input_font_family" />
+          <FontFamilySelector v-model="v$.values.input_font_family.$model" />
           <template #after-input>
             <ResetButton
-              v-model="values.input_font_family"
+              v-model="v$.values.input_font_family.$model"
               :default-value="theme?.input_font_family"
             />
           </template>
@@ -88,14 +89,14 @@
           class="margin-bottom-2"
         >
           <ColorInput
-            v-model="values.input_text_color"
+            v-model="v$.values.input_text_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.input_text_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.input_text_color"
+              v-model="v$.values.input_text_color.$model"
               :default-value="theme?.input_text_color"
             />
           </template>
@@ -108,14 +109,15 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.input_font_size"
+            v-model="v$.values.input_font_size.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`input_font_size`]
             "
           />
+
           <template #after-input>
             <ResetButton
-              v-model="values.input_font_size"
+              v-model="v$.values.input_font_size.$model"
               :default-value="theme?.input_font_size"
             />
           </template>
@@ -127,7 +129,7 @@
           class="margin-bottom-2"
         >
           <ColorInput
-            v-model="values.input_background_color"
+            v-model="v$.values.input_background_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.input_background_color"
             small
@@ -146,14 +148,14 @@
           class="margin-bottom-2"
         >
           <ColorInput
-            v-model="values.input_border_color"
+            v-model="v$.values.input_border_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.input_border_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.input_border_color"
+              v-model="v$.values.input_border_color.$model"
               :default-value="theme?.input_border_color"
             />
           </template>
@@ -166,14 +168,14 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.input_border_size"
+            v-model="v$.values.input_border_size.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`input_border_size`]
             "
           />
           <template #after-input>
             <ResetButton
-              v-model="values.input_border_size"
+              v-model="v$.values.input_border_size.$model"
               :default-value="theme?.input_border_size"
             />
           </template>
@@ -186,14 +188,14 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.input_border_radius"
+            v-model="v$.values.input_border_radius.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`input_border_radius`]
             "
           />
           <template #after-input>
             <ResetButton
-              v-model="values.input_border_radius"
+              v-model="v$.values.input_border_radius.$model"
               :default-value="theme?.input_border_radius"
             />
           </template>
@@ -268,6 +270,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
@@ -275,7 +278,13 @@ import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySe
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
 import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
-import { required, integer, minValue, maxValue } from '@vuelidate/validators'
+import {
+  required,
+  integer,
+  minValue,
+  maxValue,
+  helpers,
+} from '@vuelidate/validators'
 
 const minMax = {
   label_font_size: {
@@ -314,9 +323,21 @@ export default {
     PaddingSelector,
   },
   mixins: [themeConfigBlock],
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
-      values: {},
+      values: {
+        ...Object.fromEntries(Object.entries(minMax).map(([key]) => [key, 1])),
+        label_font_family: this.theme?.label_font_family,
+        label_text_color: this.theme?.label_text_color,
+        input_font_family: this.theme?.input_font_family,
+        input_text_color: this.theme?.input_text_color,
+        input_background_color: this.theme?.input_background_color,
+        input_border_color: this.theme?.input_border_color,
+        input_border_radius: this.theme?.input_border_radius,
+      },
       options: [
         { name: 'Option 1', value: 1 },
         { name: 'Option 2', value: 2 },
@@ -339,8 +360,8 @@ export default {
         }
       },
       set(newValue) {
-        this.values.input_vertical_padding = newValue.vertical
-        this.values.input_horizontal_padding = newValue.horizontal
+        this.v$.values.input_vertical_padding.$model = newValue.vertical
+        this.v$.values.input_horizontal_padding.$model = newValue.horizontal
       },
     },
     showLabel() {
@@ -358,10 +379,7 @@ export default {
       return key.startsWith('input_') || key.startsWith('label_')
     },
     getError(property) {
-      if (this.v$.values[property].$invalid) {
-        return this.$t('error.minMaxValueField', minMax[property])
-      }
-      return null
+      return this.v$.values[property].$errors[0]?.$message
     },
     getInputPaddingError() {
       return (
@@ -370,18 +388,41 @@ export default {
       )
     },
   },
-  validations: {
-    values: Object.fromEntries(
-      Object.entries(minMax).map(([key, limits]) => [
-        key,
-        {
-          required,
-          integer,
-          minValue: minValue(limits.min),
-          maxValue: maxValue(limits.max),
-        },
-      ])
-    ),
+  validations() {
+    return {
+      values: {
+        ...Object.fromEntries(
+          Object.entries(minMax).map(([key, limits]) => [
+            key,
+            {
+              required: helpers.withMessage(
+                this.$t('error.requiredField'),
+                required
+              ),
+              integer: helpers.withMessage(
+                this.$t('error.integerField'),
+                integer
+              ),
+              minValue: helpers.withMessage(
+                this.$t('error.minValueField', { min: limits.min }),
+                minValue(limits.min)
+              ),
+              maxValue: helpers.withMessage(
+                this.$t('error.maxValueField', { max: limits.max }),
+                maxValue(limits.max)
+              ),
+            },
+          ])
+        ),
+        label_font_family: {},
+        label_text_color: {},
+        input_font_family: {},
+        input_text_color: {},
+        input_background_color: {},
+        input_border_color: {},
+        input_border_radius: {},
+      },
+    }
   },
 }
 </script>

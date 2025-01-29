@@ -26,9 +26,7 @@ export default {
     }
   },
   mounted() {
-    for (const [key, value] of Object.entries(this.getDefaultValues())) {
-      this.values[key] = value
-    }
+    this.values = Object.assign({}, this.values, this.getDefaultValues())
   },
   watch: {
     values: {

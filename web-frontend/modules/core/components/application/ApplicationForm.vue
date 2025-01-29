@@ -1,18 +1,18 @@
 <template>
   <form @submit.prevent="submit">
     <FormGroup
-      :error="fieldHasErrors('name')"
+      :error="v$.values.name.$error"
       small-label
       :label="$t('applicationForm.nameLabel')"
       required
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.values.name.$model"
         size="large"
-        :error="fieldHasErrors('name')"
+        :error="v$.values.name.$error"
         @focus.once="$event.target.select()"
-        @blur="v$.values.name.$touch()"
+        @blur="v$.values.name.$touch"
       >
       </FormInput>
 
@@ -26,13 +26,16 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
-
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'ApplicationForm',
   mixins: [form],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {

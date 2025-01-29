@@ -17,16 +17,12 @@ export default {
     hasServerErrors() {
       return Object.values(this.serverErrors).some((value) => value !== null)
     },
-    hasError() {
-      return !this.isFormValid() || this.hasServerErrors
-    },
   },
   watch: {
-    hasError: {
-      handler(value) {
-        this.$emit('error', value)
+    hasServerErrors: {
+      handler(val) {
+        this.$emit('error', val)
       },
-      immediate: true,
     },
   },
   methods: {

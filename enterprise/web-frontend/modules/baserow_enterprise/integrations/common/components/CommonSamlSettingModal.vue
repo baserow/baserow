@@ -129,7 +129,7 @@ export default {
     },
   },
   watch: {
-    '$v.$anyDirty'() {
+    'v$.$anyDirty'() {
       // Force validity refresh on child touch
       this.checkValidity()
     },
@@ -147,7 +147,7 @@ export default {
     checkValidity() {
       if (
         !this.$refs.samlForm.isFormValid() &&
-        this.$refs.samlForm.$v.$anyDirty
+        this.$refs.samlForm.v$.$anyDirty
       ) {
         this.$emit('form-valid', false)
       } else {
@@ -165,7 +165,7 @@ export default {
     },
   },
   validations() {
-    // Keep this to get the `$v` property
+    // Keep this to get the `v$` property
     return {}
   },
 }

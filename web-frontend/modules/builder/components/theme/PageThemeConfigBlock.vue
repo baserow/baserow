@@ -8,7 +8,7 @@
         :label="$t('pageThemeConfigBlock.backgroundColor')"
       >
         <ColorInput
-          v-model="values.page_background_color"
+          v-model="v$.values.page_background_color.$model"
           small
           :allow-opacity="false"
           :color-variables="colorVariables"
@@ -20,17 +20,17 @@
         class="margin-bottom-2"
         :label="$t('pageThemeConfigBlock.backgroundImage')"
       >
-        <ImageInput v-model="values.page_background_file" />
+        <ImageInput v-model="v$.values.page_background_file.$model" />
       </FormGroup>
       <FormGroup
-        v-if="values.page_background_file"
+        v-if="v$.values.page_background_file.$model"
         horizontal-narrow
         small-label
         class="margin-bottom-2"
         :label="$t('pageThemeConfigBlock.backgroundMode')"
       >
         <RadioGroup
-          v-model="values.page_background_mode"
+          v-model="v$.values.page_background_mode.$model"
           type="button"
           :options="backgroundModes"
         />
@@ -40,6 +40,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import { BACKGROUND_MODES } from '@baserow/modules/builder/enums'
@@ -48,9 +49,16 @@ export default {
   name: 'PageThemeConfigBlock',
   components: { ThemeConfigBlockSection },
   mixins: [themeConfigBlock],
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
-      values: {},
+      values: {
+        page_background_color: this.theme?.page_background_color,
+        page_background_file: this.theme?.page_background_file,
+        page_background_mode: this.theme?.page_background_mode,
+      },
     }
   },
   computed: {
@@ -75,6 +83,15 @@ export default {
     isAllowedKey(key) {
       return key.startsWith('page_')
     },
+  },
+  validations() {
+    return {
+      values: {
+        page_background_color: {},
+        page_background_file: {},
+        page_background_mode: {},
+      },
+    }
   },
 }
 </script>

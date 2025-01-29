@@ -75,7 +75,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import { useVuelidate } from '@vuelidate/core'
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import decamelize from 'decamelize'
 import { required, email } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
@@ -87,6 +87,24 @@ import samlAuthProviderService from '@baserow_enterprise/services/samlAuthProvid
 export default {
   mixins: [form, error],
   layout: 'login',
+  setup() {
+    const values = reactive({
+      values: {
+        email: '',
+      },
+    })
+
+    const rules = {
+      values: {
+        email: { required, email },
+      },
+    }
+
+    return {
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      values: values.values,
+    }
+  },
   async asyncData({ app, redirect, store, route }) {
     // the SuperUser must create the account using username and password
     if (store.getters['settings/get'].show_admin_signup_page === true) {
@@ -129,27 +147,6 @@ export default {
       loading: false,
       redirectImmediately: false,
       loginRequestError: false,
-      values: {
-        email: '',
-      },
-    }
-  },
-  setup() {
-    const values = reactive({
-      values: {
-        email: '',
-      },
-    })
-
-    const rules = {
-      values: {
-        email: { required, email },
-      },
-    }
-
-    return {
-      v$: useVuelidate(rules, values, { $lazy: true }),
-      values: values.values,
     }
   },
   computed: {
@@ -200,11 +197,6 @@ export default {
         }
       }
       return parsedUrl.toString()
-    },
-  },
-  validations: {
-    values: {
-      email: { required, email },
     },
   },
 }
