@@ -59,11 +59,11 @@ def test_create_grouped_aggregate_rows_service(data_fixture):
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
                 {"field_id": field_2.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": field.id}],
+            "service_aggregation_group_bys": [{"field_id": field.id}],
         },
         user,
     )
@@ -102,11 +102,11 @@ def test_create_grouped_aggregate_rows_service_series_field_not_in_table(data_fi
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
                 {"field_id": field_2.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": field.id}],
+            "service_aggregation_group_bys": [{"field_id": field.id}],
         },
         user,
     )
@@ -135,10 +135,10 @@ def test_create_grouped_aggregate_rows_service_series_agg_type_doesnt_exist(
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "avg"},
             ],
-            "aggregation_group_bys": [{"field_id": field.id}],
+            "service_aggregation_group_bys": [{"field_id": field.id}],
         },
         user,
     )
@@ -169,11 +169,11 @@ def test_create_grouped_aggregate_rows_service_series_incompatible_aggregation_t
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
                 {"field_id": field_2.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": field.id}],
+            "service_aggregation_group_bys": [{"field_id": field.id}],
         },
         user,
     )
@@ -205,10 +205,10 @@ def test_create_grouped_aggregate_rows_service_group_by_field_not_in_table(
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": field_2.id}],
+            "service_aggregation_group_bys": [{"field_id": field_2.id}],
         },
         user,
     )
@@ -310,12 +310,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": field.id}],
+            "service_aggregation_group_bys": [{"field_id": field.id}],
             "service_sorts": [
-                {"field_id": field_2.id},
+                {"field": field_2},
             ],
         },
         user,
@@ -347,12 +347,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [],
+            "service_aggregation_group_bys": [],
             "service_sorts": [
-                {"field_id": field_2.id},
+                {"field": field_2},
             ],
         },
         user,
@@ -384,10 +384,10 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [],
-            "aggregation_group_bys": [{"field_id": field_2.id}],
+            "service_aggregation_series": [],
+            "service_aggregation_group_bys": [{"field_id": field_2.id}],
             "service_sorts": [
-                {"field_id": field.id},
+                {"field": field},
             ],
         },
         user,
@@ -436,11 +436,11 @@ def test_update_grouped_aggregate_rows_service(data_fixture):
             "view_id": table_2_view.id,
             "table_id": table_2.id,
             "integration_id": table_2_integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": table_2_field.id, "aggregation_type": "sum"},
                 {"field_id": table_2_field_2.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": table_2_field.id}],
+            "service_aggregation_group_bys": [{"field_id": table_2_field.id}],
         },
         user,
         service,
@@ -493,10 +493,10 @@ def test_update_grouped_aggregate_rows_service_series_field_not_in_table(data_fi
             "view_id": table_2_view.id,
             "table_id": table_2.id,
             "integration_id": table_2_integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": table_2_field.id}],
+            "service_aggregation_group_bys": [{"field_id": table_2_field.id}],
         },
         user,
         service,
@@ -538,10 +538,10 @@ def test_update_grouped_aggregate_rows_service_series_agg_type_doesnt_exist(
             "view_id": table_2_view.id,
             "table_id": table_2.id,
             "integration_id": table_2_integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": table_2_field.id, "aggregation_type": "avg"},
             ],
-            "aggregation_group_bys": [{"field_id": table_2_field.id}],
+            "service_aggregation_group_bys": [{"field_id": table_2_field.id}],
         },
         user,
         service,
@@ -584,10 +584,10 @@ def test_update_grouped_aggregate_rows_service_series_incompatible_aggregation_t
             "view_id": table_2_view.id,
             "table_id": table_2.id,
             "integration_id": table_2_integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": table_2_field.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": table_2_field.id}],
+            "service_aggregation_group_bys": [{"field_id": table_2_field.id}],
         },
         user,
         service,
@@ -631,10 +631,10 @@ def test_update_grouped_aggregate_rows_service_group_by_field_not_in_table(
             "view_id": table_2_view.id,
             "table_id": table_2.id,
             "integration_id": table_2_integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": table_2_field.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": field.id}],
+            "service_aggregation_group_bys": [{"field_id": field.id}],
         },
         user,
         service,
@@ -755,12 +755,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": field.id}],
+            "service_aggregation_group_bys": [{"field_id": field.id}],
             "service_sorts": [
-                {"field_id": field_2.id},
+                {"field": field_2},
             ],
         },
         user,
@@ -798,12 +798,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [],
+            "service_aggregation_group_bys": [],
             "service_sorts": [
-                {"field_id": field_2.id},
+                {"field": field_2},
             ],
         },
         user,
@@ -841,10 +841,10 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [],
-            "aggregation_group_bys": [{"field_id": field_2.id}],
+            "service_aggregation_series": [],
+            "service_aggregation_group_bys": [{"field_id": field_2.id}],
             "service_sorts": [
-                {"field_id": field.id},
+                {"field": field},
             ],
         },
         user,

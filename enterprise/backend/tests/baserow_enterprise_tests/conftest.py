@@ -18,6 +18,7 @@ VALID_ONE_SEAT_ENTERPRISE_LICENSE = (
 
 @pytest.fixture  # noqa: F405
 def enterprise_data_fixture(fake, data_fixture):
+    from .dashboard.dashboard_fixtures import DashboardFixture
     from .enterprise_fixtures import EnterpriseFixtures as EnterpriseFixturesBase
     from .fixtures.sso import OAuth2Fixture, SamlFixture
 
@@ -25,6 +26,7 @@ def enterprise_data_fixture(fake, data_fixture):
         EnterpriseFixturesBase,
         SamlFixture,
         OAuth2Fixture,
+        DashboardFixture,
         data_fixture.__class__,
     ):
         pass

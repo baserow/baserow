@@ -196,6 +196,15 @@ class BaserowEnterpriseConfig(AppConfig):
                 LocalBaserowGroupedAggregateRowsUserServiceType()
             )
 
+            from baserow.contrib.dashboard.widgets.registries import (
+                widget_type_registry,
+            )
+            from baserow_enterprise.dashboard.widgets.widget_types import (
+                ChartWidgetType,
+            )
+
+            widget_type_registry.register(ChartWidgetType())
+
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
             AuthFormElementType,
