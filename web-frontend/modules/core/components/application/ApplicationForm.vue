@@ -8,7 +8,7 @@
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.values.name.$model"
         size="large"
         :error="v$.values.name.$error"
         @focus.once="$event.target.select()"

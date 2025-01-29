@@ -235,6 +235,9 @@ export default {
       }
       return false
     },
+    isValid() {
+      return !this.v$.$invalid && this.v$.$dirty
+    },
   },
   validations() {
     return {

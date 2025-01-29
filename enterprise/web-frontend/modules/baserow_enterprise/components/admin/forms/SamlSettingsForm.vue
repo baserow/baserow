@@ -24,7 +24,7 @@
         :error="fieldHasErrors('domain') || !!serverErrors.domain"
         :placeholder="$t('samlSettingsForm.domainPlaceholder')"
         @input="onDomainInput()"
-        @blur="$v.values.domain.$touch()"
+        @blur="v$.values.domain.$touch()"
       ></FormInput>
       <template #error>
         <span v-if="v$.values.domain.$dirty && !v$.values.domain.required">
@@ -60,7 +60,7 @@
         :error="fieldHasErrors('metadata') || !!serverErrors.metadata"
         :placeholder="$t('samlSettingsForm.metadataPlaceholder')"
         @input="onMetadataInput()"
-        @blur="$v.values.metadata.$touch()"
+        @blur="v$.values.metadata.$touch()"
       ></FormTextarea>
 
       <template #error>
@@ -132,7 +132,7 @@
             v-model="values.email_attr_key"
             :error="fieldHasErrors('email_attr_key')"
             :placeholder="defaultAttrs.email_attr_key"
-            @blur="$v.values.email_attr_key.$touch()"
+            @blur="v$.values.email_attr_key.$touch()"
           ></FormInput>
           <template #helper>
             {{ $t('samlSettingsForm.emailAttrKeyHelper') }}
@@ -152,7 +152,7 @@
             v-model="values.first_name_attr_key"
             :error="fieldHasErrors('first_name_attr_key')"
             :placeholder="defaultAttrs.first_name_attr_key"
-            @blur="$v.values.first_name_attr_key.$touch()"
+            @blur="v$.values.first_name_attr_key.$touch()"
           ></FormInput>
           <template #helper>
             {{ $t('samlSettingsForm.firstNameAttrKeyHelper') }}
@@ -174,7 +174,7 @@
             v-model="values.last_name_attr_key"
             :error="fieldHasErrors('last_name_attr_key')"
             :placeholder="defaultAttrs.last_name_attr_key"
-            @blur="$v.values.last_name_attr_key.$touch()"
+            @blur="v$.values.last_name_attr_key.$touch()"
           ></FormInput>
           <template #helper>
             {{ $t('samlSettingsForm.lastNameAttrKeyHelper') }}
@@ -191,6 +191,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
 import { required, maxLength, helpers } from '@vuelidate/validators'
 
@@ -202,6 +203,11 @@ const alphanumericDotDashUnderscore = helpers.regex(
 export default {
   name: 'SamlSettingsForm',
   mixins: [authProviderForm],
+  setup() {
+    return {
+      v$: useVuelidate({ $lazy: true }),
+    }
+  },
   data() {
     return {
       allowedValues: [
@@ -256,15 +262,15 @@ export default {
       this.serverErrors.metadata = null
     },
     getFieldErrorMsg(fieldName) {
-      if (!this.$v.values[fieldName].$dirty) {
+      if (!this.v$.values[fieldName].$dirty) {
         return ''
-      } else if (!this.$v.values[fieldName].maxLength) {
+      } else if (!this.v$.values[fieldName].maxLength) {
         return this.$t('error.maxLength', {
-          max: this.$v.values[fieldName].$params.maxLength.max,
+          max: this.v$.values[fieldName].$params.maxLength.max,
         })
-      } else if (!this.$v.values[fieldName].invalid) {
+      } else if (!this.v$.values[fieldName].invalid) {
         return this.$t('error.invalidCharacters')
-      } else if (this.$v.values[fieldName].required === false) {
+      } else if (this.v$.values[fieldName].required === false) {
         return this.$t('error.requiredField')
       }
     },
