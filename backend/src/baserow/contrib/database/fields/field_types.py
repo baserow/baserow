@@ -4238,6 +4238,15 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                 single_select_extractor, db_column, model_field.model
             )
 
+    def before_field_options_update(
+        self, field, to_create=None, to_update=None, to_delete=None
+    ):
+        if to_delete:
+            model = field.table.get_model()
+            model.objects.filter(**{f"{field.db_column}_id__in": to_delete}).update(
+                **{field.db_column: None}
+            )
+
 
 class MultipleSelectFieldType(
     CollationSortMixin,
