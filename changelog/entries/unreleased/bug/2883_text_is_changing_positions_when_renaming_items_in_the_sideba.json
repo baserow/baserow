@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fix issue with text changing position when renaming items in the sidebar",
+    "issue_number": 2883,
+    "bullet_points": [],
+    "created_at": "2025-01-30"
+}

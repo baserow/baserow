@@ -110,6 +110,7 @@
 .tree__link-text {
   @extend %ellipsis;
 
+  display: flex;
   min-width: 0;
   color: $palette-neutral-900;
   font-weight: 500;
