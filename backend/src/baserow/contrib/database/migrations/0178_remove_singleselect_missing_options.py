@@ -29,7 +29,7 @@ def forward(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0175_formviewfieldoptions_include_all_select_options_and_more"),
+        ("database", "0177_airtableimportjob_skip_files"),
     ]
 
     operations = [
