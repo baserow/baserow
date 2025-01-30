@@ -1,8 +1,14 @@
 <template>
   <div class="sidebar__section sidebar__section--scrollable">
-    <div v-if="pendingJobs[null].length" class="sidebar__section-scrollable">
-      <div class="sidebar__section-scrollable-inner">
-        <ul class="tree">
+    <div
+      v-if="applicationsCount || pendingJobs[null].length"
+      class="sidebar__section-scrollable"
+    >
+      <div
+        class="sidebar__section-scrollable-inner"
+        data-highlight="applications"
+      >
+        <ul v-if="pendingJobs[null].length" class="tree">
           <component
             :is="getPendingJobComponent(job)"
             v-for="job in pendingJobs[null]"
@@ -11,14 +17,7 @@
           >
           </component>
         </ul>
-      </div>
-    </div>
-    <div v-if="applicationsCount" class="sidebar__section-scrollable">
-      <div
-        class="sidebar__section-scrollable-inner"
-        data-highlight="applications"
-      >
-        <ul class="tree">
+        <ul v-if="applicationsCount" class="tree">
           <div
             v-for="applicationGroup in groupedApplicationsForSelectedWorkspace"
             :key="applicationGroup.type"
