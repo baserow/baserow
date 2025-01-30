@@ -97,6 +97,12 @@ export const WIDTH_TYPES = {
   FULL_WIDTH: { value: 'full-width', name: 'widthTypes.fullWidth' },
 }
 
+export const CHILD_WIDTH_TYPES = {
+  SMALL: { value: 'small', name: 'widthTypes.small' },
+  MEDIUM: { value: 'medium', name: 'widthTypes.medium' },
+  NORMAL: { value: 'normal', name: 'widthTypes.normal' },
+}
+
 export const SHARE_TYPES = {
   ALL: 'all',
   ONLY: 'only',
