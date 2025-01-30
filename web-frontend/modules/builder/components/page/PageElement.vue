@@ -5,9 +5,7 @@
     :class="elementClasses"
     :style="elementStyles"
   >
-    <div
-    class="element__inner-wrapper"
-    >
+    <div class="element__inner-wrapper">
       <component
         :is="component"
         :key="element._.uid"

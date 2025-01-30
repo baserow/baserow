@@ -107,13 +107,15 @@ export default {
 
       // If the element is a root element, style_width_child is not allowed.
       // Conversely, if it is a child element, the style_width is not allowed.
-      const forbiddenStyles = this.parentElement ? ['style_width'] : ['style_width_child']
+      const forbiddenStyles = this.parentElement
+        ? ['style_width']
+        : ['style_width_child']
 
       if (parentElementType) {
-        styles = _.difference(
-          elementType.styles,
-          [...parentElementType.childStylesForbidden, ...forbiddenStyles],
-        )
+        styles = _.difference(elementType.styles, [
+          ...parentElementType.childStylesForbidden,
+          ...forbiddenStyles,
+        ])
       }
 
       return styles
