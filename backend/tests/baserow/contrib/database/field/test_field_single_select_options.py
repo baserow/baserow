@@ -20,7 +20,7 @@ def test_migration_rows_with_deleted_singleselect_options(
     migrate_from = [
         ("database", "0175_formviewfieldoptions_include_all_select_options_and_more"),
     ]
-    migrate_to = [("database", "0176_remove_singleselect_missing_options")]
+    migrate_to = [("database", "0178_remove_singleselect_missing_options")]
 
     migrator.migrate(migrate_from)
 
