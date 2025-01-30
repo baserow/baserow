@@ -40,6 +40,7 @@ import FormRow from '@baserow/modules/core/components/FormRow'
 import Logo from '@baserow/modules/core/components/Logo'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import FormSection from '@baserow/modules/core/components/FormSection'
+import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 
 import lowercase from '@baserow/modules/core/filters/lowercase'
 import uppercase from '@baserow/modules/core/filters/uppercase'
@@ -109,6 +110,7 @@ function setupVue(Vue) {
   Vue.component('Logo', Logo)
   Vue.component('ReadOnlyForm', ReadOnlyForm)
   Vue.component('FormSection', FormSection)
+  Vue.component('SegmentControl', SegmentControl)
 
   Vue.filter('lowercase', lowercase)
   Vue.filter('uppercase', uppercase)

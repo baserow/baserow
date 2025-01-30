@@ -18,6 +18,10 @@ $button-large-height: 44px;
 $button-large-top-bottom-padding: 12px;
 $button-large-right-left-padding: 20px;
 
+$button-xlarge-height: 52px;
+$button-xlarge-top-bottom-padding: 14px;
+$button-xlarge-right-left-padding: 20px;
+
 @mixin button-size(
   $height: $button-regular-height,
   $padding-top-bottom: $button-regular-top-bottom-padding,
