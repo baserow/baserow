@@ -2439,7 +2439,10 @@ export class MultipleCollaboratorsHasFilterType extends ViewFilterType {
   }
 
   getCompatibleFieldTypes() {
-    return ['multiple_collaborators']
+    return [
+      'multiple_collaborators',
+      FormulaFieldType.compatibleWithFormulaTypes('multiple_collaborators'),
+    ]
   }
 
   isAllowedInPublicViews() {
@@ -2475,7 +2478,10 @@ export class MultipleCollaboratorsHasNotFilterType extends ViewFilterType {
   }
 
   getCompatibleFieldTypes() {
-    return ['multiple_collaborators']
+    return [
+      'multiple_collaborators',
+      FormulaFieldType.compatibleWithFormulaTypes('multiple_collaborators'),
+    ]
   }
 
   isAllowedInPublicViews() {
@@ -2784,6 +2790,7 @@ export class EmptyViewFilterType extends ViewFilterType {
         'url',
         'single_select',
         'multiple_select',
+        'multiple_collaborators',
         FormulaFieldType.arrayOf('single_file'),
         FormulaFieldType.arrayOf('boolean')
       ),
@@ -2851,6 +2858,7 @@ export class NotEmptyViewFilterType extends ViewFilterType {
         'url',
         'single_select',
         'multiple_select',
+        'multiple_collaborators',
         FormulaFieldType.arrayOf('single_file'),
         FormulaFieldType.arrayOf('boolean')
       ),

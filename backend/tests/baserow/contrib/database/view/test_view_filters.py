@@ -5704,48 +5704,47 @@ def test_multiple_collaborators_empty_filter_type(data_fixture):
     multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
         user=user, table=table, name="Multi Collaborators"
     )
+    ref_multiple_collaborators_field = data_fixture.create_formula_field(
+        user=user, table=table, formula="field('Multi Collaborators')"
+    )
     row_handler = RowHandler()
     model = table.get_model()
-    row_1 = row_handler.create_row(
+    row_1, row_2, empty_row = row_handler.force_create_rows(
         user=user,
         table=table,
         model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-            ],
-        },
-    )
-    row_2 = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-            ],
-        },
-    )
-    empty_row = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [],
-        },
+        rows_values=[
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [],
+            },
+        ],
     )
     handler = ViewHandler()
-    view_filter = data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="empty",
-    )
+    for field in [multiple_collaborators_field, ref_multiple_collaborators_field]:
+        grid_view = data_fixture.create_grid_view(table=table)
+        view_filter = data_fixture.create_view_filter(
+            view=grid_view,
+            field=field,
+            type="empty",
+        )
 
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
 
-    assert len(ids) == 1
-    assert empty_row.id in ids
+        assert len(ids) == 1
+        assert empty_row.id in ids
 
 
 @pytest.mark.django_db
@@ -5762,49 +5761,48 @@ def test_multiple_collaborators_not_empty_filter_type(data_fixture):
     multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
         user=user, table=table, name="Multi Collaborators"
     )
+    ref_multiple_collaborators_field = data_fixture.create_formula_field(
+        user=user, table=table, formula="field('Multi Collaborators')"
+    )
     row_handler = RowHandler()
     model = table.get_model()
-    row_1 = row_handler.create_row(
+    row_1, row_2, empty_row = row_handler.force_create_rows(
         user=user,
         table=table,
         model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-            ],
-        },
-    )
-    row_2 = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-            ],
-        },
-    )
-    empty_row = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [],
-        },
+        rows_values=[
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [],
+            },
+        ],
     )
     handler = ViewHandler()
-    view_filter = data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="not_empty",
-    )
+    for field in [multiple_collaborators_field, ref_multiple_collaborators_field]:
+        grid_view = data_fixture.create_grid_view(table=table)
+        view_filter = data_fixture.create_view_filter(
+            view=grid_view,
+            field=field,
+            type="not_empty",
+        )
 
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
 
-    assert len(ids) == 2
-    assert row_1.id in ids
-    assert row_2.id in ids
+        assert len(ids) == 2
+        assert row_1.id in ids
+        assert row_2.id in ids
 
 
 @pytest.mark.django_db
@@ -5816,118 +5814,121 @@ def test_multiple_collaborators_has_filter_type(data_fixture):
     user3 = data_fixture.create_user(workspace=workspace)
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(database=database)
-    grid_view = data_fixture.create_grid_view(table=table)
 
     multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
         user=user, table=table, name="Multi Collaborators"
+    )
+    ref_multiple_collaborators_field = data_fixture.create_formula_field(
+        user=user, table=table, formula="field('Multi Collaborators')"
     )
 
     row_handler = RowHandler()
     model = table.get_model()
 
-    row_1 = row_handler.create_row(
+    row_1, row_2, _, row_with_all_collaborators = row_handler.force_create_rows(
         user=user,
         table=table,
         model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-            ],
-        },
-    )
-    row_2 = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-            ],
-        },
-    )
-
-    row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [],
-        },
-    )
-
-    row_with_all_collaborators = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-                {"id": user3.id},
-            ],
-        },
+        rows_values=[
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                    {"id": user3.id},
+                ],
+            },
+        ],
     )
 
     handler = ViewHandler()
-    view_filter = data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="multiple_collaborators_has",
-        value=f"",
-    )
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 4
+    for field in [multiple_collaborators_field, ref_multiple_collaborators_field]:
+        grid_view = data_fixture.create_grid_view(table=table)
+        view_filter = data_fixture.create_view_filter(
+            view=grid_view,
+            field=field,
+            type="multiple_collaborators_has",
+            value=f"",
+        )
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 4
 
-    view_filter.value = "not_number"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 4
+        view_filter.value = "not_number"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 4
 
-    view_filter.value = "-1"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 0
+        view_filter.value = "-1"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 0
 
-    view_filter.value = f"{user.id}"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    print(ids)
-    assert len(ids) == 3
-    assert row_1.id in ids
-    assert row_2.id in ids
-    assert row_with_all_collaborators.id in ids
+        view_filter.value = f"{user.id}"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        print(ids)
+        assert len(ids) == 3
+        assert row_1.id in ids
+        assert row_2.id in ids
+        assert row_with_all_collaborators.id in ids
 
-    view_filter.value = f"{user2.id}"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 2
-    assert row_2.id in ids
-    assert row_with_all_collaborators.id in ids
+        view_filter.value = f"{user2.id}"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 2
+        assert row_2.id in ids
+        assert row_with_all_collaborators.id in ids
 
-    # # chaining filters should also work
-    view_filter.value = f"{user2.id}"
-    view_filter.save()
+        # # chaining filters should also work
+        view_filter.value = f"{user2.id}"
+        view_filter.save()
 
-    # creating a second filter for the same field
-    data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="multiple_collaborators_has",
-        value=f"{user.id}",
-    )
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 2
-    assert row_2.id in ids
-    assert row_with_all_collaborators.id in ids
+        # creating a second filter for the same field
+        data_fixture.create_view_filter(
+            view=grid_view,
+            field=multiple_collaborators_field,
+            type="multiple_collaborators_has",
+            value=f"{user.id}",
+        )
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 2
+        assert row_2.id in ids
+        assert row_with_all_collaborators.id in ids
 
-    # # Changing the view to use "OR" for multiple filters
-    handler.update_view(user=user, view=grid_view, filter_type="OR")
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 3
-    assert row_1.id in ids
-    assert row_2.id in ids
-    assert row_with_all_collaborators.id in ids
+        # # Changing the view to use "OR" for multiple filters
+        handler.update_view(user=user, view=grid_view, filter_type="OR")
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 3
+        assert row_1.id in ids
+        assert row_2.id in ids
+        assert row_with_all_collaborators.id in ids
 
 
 @pytest.mark.django_db
@@ -5942,118 +5943,124 @@ def test_multiple_collaborators_has_not_filter_type(data_fixture):
     grid_view = data_fixture.create_grid_view(table=table)
 
     multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
-        user=user, table=table, name="Multiple Collaborators"
+        user=user, table=table, name="Multi Collaborators"
+    )
+    ref_multiple_collaborators_field = data_fixture.create_formula_field(
+        user=user, table=table, formula="field('Multi Collaborators')"
     )
 
     row_handler = RowHandler()
     model = table.get_model()
 
-    row_1 = row_handler.create_row(
+    row_1, row_2, row_3, _ = row_handler.force_create_rows(
         user=user,
         table=table,
         model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-            ],
-        },
-    )
-    row_2 = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user2.id},
-                {"id": user3.id},
-            ],
-        },
-    )
-
-    row_3 = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [],
-        },
-    )
-
-    row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-                {"id": user3.id},
-            ],
-        },
+        rows_values=[
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user2.id},
+                    {"id": user3.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                    {"id": user3.id},
+                ],
+            },
+        ],
     )
 
     handler = ViewHandler()
-    view_filter = data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="multiple_collaborators_has_not",
-        value=f"",
-    )
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 4
+    for field in [multiple_collaborators_field, ref_multiple_collaborators_field]:
+        grid_view = data_fixture.create_grid_view(table=table)
+        view_filter = data_fixture.create_view_filter(
+            view=grid_view,
+            field=field,
+            type="multiple_collaborators_has_not",
+            value=f"",
+        )
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 4
 
-    view_filter.value = "not_number"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 4
+        view_filter.value = "not_number"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 4
 
-    view_filter.value = "-1"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 4
+        view_filter.value = "-1"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 4
 
-    view_filter.value = f"{user.id}"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 2
-    assert row_2.id in ids
-    assert row_3.id in ids
+        view_filter.value = f"{user.id}"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 2
+        assert row_2.id in ids
+        assert row_3.id in ids
 
-    view_filter.value = f"{user2.id}"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 1
-    assert row_3.id in ids
+        view_filter.value = f"{user2.id}"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 1
+        assert row_3.id in ids
 
-    view_filter.value = f"{user3.id}"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 2
-    assert row_1.id in ids
-    assert row_3.id in ids
+        view_filter.value = f"{user3.id}"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 2
+        assert row_1.id in ids
+        assert row_3.id in ids
 
-    # chaining filters should also work
-    view_filter.value = f"{user3.id}"
-    view_filter.save()
+        # chaining filters should also work
+        view_filter.value = f"{user3.id}"
+        view_filter.save()
 
-    # creating a second filter for the same field
-    data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="multiple_collaborators_has_not",
-        value=f"{user2.id}",
-    )
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 1
-    assert row_3.id in ids
+        # creating a second filter for the same field
+        data_fixture.create_view_filter(
+            view=grid_view,
+            field=multiple_collaborators_field,
+            type="multiple_collaborators_has_not",
+            value=f"{user2.id}",
+        )
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 1
+        assert row_3.id in ids
 
-    # Changing the view to use "OR" for multiple filters
-    handler.update_view(user=user, view=grid_view, filter_type="OR")
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 2
-    assert row_1.id in ids
-    assert row_3.id in ids
+        # Changing the view to use "OR" for multiple filters
+        handler.update_view(user=user, view=grid_view, filter_type="OR")
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 2
+        assert row_1.id in ids
+        assert row_3.id in ids
 
 
 @pytest.mark.django_db

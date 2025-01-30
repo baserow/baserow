@@ -1219,18 +1219,35 @@ class ManyToManyHasBaseViewFilter(ViewFilterType):
     relationship to a foreignkey with the ID of 10.
     """
 
-    def get_filter(self, field_name, value, model_field, field):
+    def _get_filter(self, field_name, value, model_field, field):
+        remote_field = model_field.remote_field
+        remote_model = remote_field.model
+        return Q(
+            id__in=remote_model.objects.filter(id=value).values(
+                f"{remote_field.related_name}__id"
+            )
+        )
+
+    def _get_formula_filter(field_name, value, model_field, field):
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [value], query_path="$.id"
+        )
+
+    filter_functions = MappingProxyType({FormulaFieldType.type: _get_formula_filter})
+
+    def get_filter(self, field_name, value: str, model_field, field):
+        value = value.strip()
+        if not value:
+            return Q()
+
         try:
             val = int(value.strip())
-            remote_field = model_field.remote_field
-            remote_model = remote_field.model
-            return Q(
-                id__in=remote_model.objects.filter(id=val).values(
-                    f"{remote_field.related_name}__id"
-                )
-            )
-        except ValueError:
+        except (ValueError, TypeError):
             return Q()
+
+        field_type = field_type_registry.get_by_model(field)
+        filter_function = self.filter_functions.get(field_type.type, self._get_filter)
+        return filter_function(field_name, val, model_field, field)
 
 
 class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
@@ -1428,7 +1445,12 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
     """
 
     type = "multiple_collaborators_has"
-    compatible_field_types = [MultipleCollaboratorsFieldType.type]
+    compatible_field_types = [
+        MultipleCollaboratorsFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            MultipleCollaboratorsFieldType.type
+        ),
+    ]
 
     COLLABORATORS_KEY = f"available_collaborators"
 
@@ -1585,6 +1607,7 @@ class EmptyViewFilterType(ViewFilterType):
             BaserowFormulaURLType.type,
             BaserowFormulaSingleSelectType.type,
             BaserowFormulaMultipleSelectType.type,
+            MultipleCollaboratorsFieldType.type,
             FormulaFieldType.array_of(BaserowFormulaSingleFileType.type),
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
         ),
