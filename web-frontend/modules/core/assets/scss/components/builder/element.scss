@@ -26,6 +26,18 @@
   &--small-width {
     max-width: 680px;
   }
+
+  &--child-normal-width {
+    max-width: 100%;
+  }
+
+  &--child-medium-width {
+    max-width: 80%;
+  }
+
+  &--child-small-width {
+    max-width: 50%;
+  }
 }
 
 .element__inner-wrapper {
