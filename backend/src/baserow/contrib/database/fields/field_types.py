@@ -6148,7 +6148,7 @@ class MultipleCollaboratorsFieldType(
         if not value:
             return [] if rich_value else ""
 
-        result = [f"{user.first_name} ({user.email})" for user in value]
+        result = [f"{user.first_name} <{user.email}>" for user in value]
         if rich_value:
             return result
         else:

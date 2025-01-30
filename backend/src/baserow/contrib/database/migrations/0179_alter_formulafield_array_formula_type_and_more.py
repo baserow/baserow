@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0176_try_regexp_replace"),
+        ("database", "0178_remove_singleselect_missing_options"),
     ]
 
     operations = [

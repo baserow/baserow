@@ -197,8 +197,8 @@ def test_can_export_every_interesting_different_field_to_json(
         "E"
     ],
     "multiple_collaborators": [
-        "User2 (user2@example.com)",
-        "User3 (user3@example.com)"
+        "User2 <user2@example.com>",
+        "User3 <user3@example.com>"
     ],
     "phone_number": "+4412345678",
     "formula_text": "test FORMULA",
@@ -222,8 +222,8 @@ def test_can_export_every_interesting_different_field_to_json(
         "E"
     ],
     "formula_multiple_collaborators": [
-        "User2 (user2@example.com)",
-        "User3 (user3@example.com)"
+        "User2 <user2@example.com>",
+        "User3 <user3@example.com>"
     ],
     "count": 3,
     "rollup": "-122.222",
@@ -485,8 +485,8 @@ def test_can_export_every_interesting_different_field_to_xml(
          <item>E</item>
       </multiple-select>
       <multiple-collaborators>
-         <item>User2 (user2@example.com)</item>
-         <item>User3 (user3@example.com)</item>
+         <item>User2 <user2@example.com></item>
+         <item>User3 <user3@example.com></item>
       </multiple-collaborators>
       <phone-number>+4412345678</phone-number>
       <formula-text>test FORMULA</formula-text>
@@ -510,8 +510,8 @@ def test_can_export_every_interesting_different_field_to_xml(
          <item>E</item>
       </formula-multipleselect>
       <formula-multiple-collaborators>
-         <item>User2 (user2@example.com)</item>
-         <item>User3 (user3@example.com)</item>
+         <item>User2 <user2@example.com></item>
+         <item>User3 <user3@example.com></item>
       </formula-multiple-collaborators>
       <count>3</count>
       <rollup>-122.222</rollup>
@@ -884,7 +884,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "a.txt (http://localhost:8000/media/user_files/hashed_name.txt),b.txt (http://localhost:8000/media/user_files/other_name.txt)",
         "A",
         "D,C,E",
-        "User2 (user2@example.com),User3 (user3@example.com)",
+        "User2 <user2@example.com>,User3 <user3@example.com>",
         "+4412345678",
         "test FORMULA",
         "1",
@@ -897,7 +897,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "label (https://google.com)",
         "https://google.com",
         "C,D,E",
-        "User2 (user2@example.com),User3 (user3@example.com)",
+        "User2 <user2@example.com>,User3 <user3@example.com>",
         "3",
         "-122.222",
         "0:04",

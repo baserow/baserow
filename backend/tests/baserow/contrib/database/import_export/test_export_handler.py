@@ -288,7 +288,7 @@ def test_can_export_every_interesting_different_field_to_csv(
         "multiple_select": ["", '"D,C,E"'],
         "multiple_collaborators": [
             "",
-            '"User2 (user2@example.com),User3 (user3@example.com)"',
+            '"User2 <user2@example.com>,User3 <user3@example.com>"',
         ],
         "phone_number": ["", "'+4412345678"],
         "formula_text": ["test FORMULA", "test FORMULA"],
@@ -307,7 +307,7 @@ def test_can_export_every_interesting_different_field_to_csv(
         "formula_multipleselect": ["", '"C,D,E"'],
         "formula_multiple_collaborators": [
             "",
-            '"User2 (user2@example.com),User3 (user3@example.com)"',
+            '"User2 <user2@example.com>,User3 <user3@example.com>"',
         ],
         "count": ["0", "3"],
         "rollup": ["0.000", "-122.222"],

@@ -4226,7 +4226,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
         return uniqueValuesOnly
           .map((emailOrName) => {
             // verify if it respects the format `$name ($email)`
-            const matches = emailOrName.match(/(.*) \((.*)\)/)
+            const matches = emailOrName.match(/(.*) <(.*)>/)
             let email = emailOrName
             if (matches) {
               email = matches[2]
