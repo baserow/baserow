@@ -3,6 +3,8 @@ from django.db.models.signals import post_migrate
 
 from tqdm import tqdm
 
+from baserow.core.feature_flags import FF_DASHBOARDS, feature_flag_is_enabled
+
 
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
@@ -27,6 +29,7 @@ class BaserowEnterpriseConfig(AppConfig):
             operation_type_registry,
             plugin_registry,
         )
+        from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
         from baserow_enterprise.api.member_data_types import (
             EnterpriseMemberTeamsDataType,
@@ -179,6 +182,15 @@ class BaserowEnterpriseConfig(AppConfig):
         )
 
         app_auth_provider_type_registry.register(SamlAppAuthProviderType())
+
+        from baserow_enterprise.integrations.local_baserow.service_types import (
+            LocalBaserowGroupedAggregateRowsUserServiceType,
+        )
+
+        if feature_flag_is_enabled(FF_DASHBOARDS):
+            service_type_registry.register(
+                LocalBaserowGroupedAggregateRowsUserServiceType()
+            )
 
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
