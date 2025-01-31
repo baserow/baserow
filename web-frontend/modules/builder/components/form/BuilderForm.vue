@@ -2,6 +2,8 @@
   <ApplicationForm
     :default-values="{ name: defaultName }"
     @submitted="$emit('submitted', $event)"
+    :workspace="workspace"
+    :loading="loading"
   >
     <div class="actions actions--right">
       <Button
