@@ -926,7 +926,7 @@ export class DistributionViewAggregationType extends ViewAggregationType {
     //     ["Red", "(6)", "60%"],
     //     ["Others", "(1)", "10%"]
     //   ]
-    if (value === null) {
+    if (!value) {
       return null
     }
 
