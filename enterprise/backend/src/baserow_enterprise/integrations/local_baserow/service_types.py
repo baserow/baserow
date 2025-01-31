@@ -74,7 +74,6 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             + [
                 "service_aggregation_series",
                 "service_aggregation_group_bys",
-                "no_group_bys_set",
             ]
         )
 
@@ -102,8 +101,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         LocalBaserowViewServiceType.SerializedDict,
         LocalBaserowTableServiceFilterableMixin.SerializedDict,
     ):
-        service_aggregation_series: list[dict]
-        service_aggregation_group_bys: list[dict]
+        service_aggregation_series: list[ServiceAggregationSeriesDict]
+        service_aggregation_group_bys: list[ServiceAggregationGroupByDict]
 
     def _update_service_aggregation_series(
         self,
@@ -315,6 +314,9 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
         group_by_values = []
         for group_by in service.service_aggregation_group_bys.all():
+            if group_by.field is None:
+                group_by_values.append("id")
+                break
             if group_by.field.trashed:
                 raise ServiceImproperlyConfigured(
                     f"The field with ID {group_by.field.id} is trashed."
@@ -323,11 +325,6 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
         if len(group_by_values) > 0:
             queryset = queryset.values(*group_by_values)
-        elif (
-            service.no_group_bys_set
-            == LocalBaserowGroupedAggregateRows.NoGroupBysSet.GROUP_BY_ROW_ID
-        ):
-            queryset = queryset.values("id")
 
         combined_agg_dict = {}
         defined_agg_series = service.service_aggregation_series.all()
@@ -375,11 +372,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 del result["total"]
             return result
 
-        if (
-            len(group_by_values) > 0
-            or service.no_group_bys_set
-            == LocalBaserowGroupedAggregateRows.NoGroupBysSet.GROUP_BY_ROW_ID
-        ):
+        if len(group_by_values) > 0:
             results = list(queryset.annotate(**combined_agg_dict))
             results = [process_individual_result(result) for result in results]
         else:

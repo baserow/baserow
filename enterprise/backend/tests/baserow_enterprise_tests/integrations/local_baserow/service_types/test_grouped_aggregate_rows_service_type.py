@@ -61,7 +61,6 @@ def test_create_grouped_aggregate_rows_service(data_fixture):
                 {"field_id": field_2.id, "aggregation_type": "sum"},
             ],
             "aggregation_group_bys": [{"field_id": field.id}],
-            "no_group_bys_set": LocalBaserowGroupedAggregateRows.NoGroupBysSet.GROUP_BY_ROW_ID,
         },
         user,
     )
@@ -71,10 +70,6 @@ def test_create_grouped_aggregate_rows_service(data_fixture):
     assert service.integration.id == integration.id
     assert service.table.id == table.id
     assert service.view.id == view.id
-    assert (
-        service.no_group_bys_set
-        == LocalBaserowGroupedAggregateRows.NoGroupBysSet.GROUP_BY_ROW_ID
-    )
     aggregation_series = service.service_aggregation_series.all()
     assert aggregation_series.count() == 2
     assert aggregation_series[0].field_id == field.id
@@ -251,10 +246,6 @@ def test_update_grouped_aggregate_rows_service(data_fixture):
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field, order=1
     )
-    assert (
-        service.no_group_bys_set
-        == LocalBaserowGroupedAggregateRows.NoGroupBysSet.AGGREGATE_ALL
-    )
 
     values = service_type.prepare_values(
         {
@@ -266,7 +257,6 @@ def test_update_grouped_aggregate_rows_service(data_fixture):
                 {"field_id": table_2_field_2.id, "aggregation_type": "sum"},
             ],
             "aggregation_group_bys": [{"field_id": table_2_field.id}],
-            "no_group_bys_set": LocalBaserowGroupedAggregateRows.NoGroupBysSet.GROUP_BY_ROW_ID,
         },
         user,
         service,
@@ -279,10 +269,6 @@ def test_update_grouped_aggregate_rows_service(data_fixture):
     assert service.integration.id == table_2_integration.id
     assert service.table.id == table_2.id
     assert service.view.id == table_2_view.id
-    assert (
-        service.no_group_bys_set
-        == LocalBaserowGroupedAggregateRows.NoGroupBysSet.GROUP_BY_ROW_ID
-    )
     aggregation_series = service.service_aggregation_series.all()
     assert aggregation_series.count() == 2
     assert aggregation_series[0].field_id == table_2_field.id
@@ -1011,13 +997,15 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_id(data_fixture):
         integration=integration,
         table=table,
         view=view,
-        no_group_bys_set=LocalBaserowGroupedAggregateRows.NoGroupBysSet.GROUP_BY_ROW_ID,
     )
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field, aggregation_type="sum", order=1
     )
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field_2, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=None, order=1
     )
 
     RowHandler().create_rows(

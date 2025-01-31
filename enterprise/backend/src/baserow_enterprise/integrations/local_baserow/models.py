@@ -65,15 +65,7 @@ class LocalBaserowGroupedAggregateRows(
     service configuration data.
     """
 
-    class NoGroupBysSet(models.TextChoices):
-        GROUP_BY_ROW_ID = "GROUP_BY_ROW_ID"
-        AGGREGATE_ALL = "AGGREGATE_ALL"
-
-    no_group_bys_set = models.CharField(
-        max_length=50,
-        choices=NoGroupBysSet.choices,
-        default=NoGroupBysSet.AGGREGATE_ALL,
-    )
+    ...
 
 
 class LocalBaserowTableServiceAggregationSeries(models.Model):
@@ -118,6 +110,7 @@ class LocalBaserowTableServiceAggregationGroupBy(models.Model):
     field = models.ForeignKey(
         "database.Field",
         help_text="The field to use in group by.",
+        null=True,
         on_delete=models.CASCADE,
     )
     order = models.PositiveIntegerField()
