@@ -241,6 +241,10 @@
 
     .filters__misconfigured {
       flex-grow: 1;
+
+      p {
+        color: $palette-red-800;
+      }
     }
   }
 

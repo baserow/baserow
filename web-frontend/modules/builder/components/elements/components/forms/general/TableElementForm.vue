@@ -400,7 +400,9 @@ export default {
 
       if (
         this.selectedDataSourceReturnsList &&
-        this.selectedDataSourceType.isValid(this.selectedDataSource)
+        !this.selectedDataSourceType.isInError({
+          service: this.selectedDataSource,
+        })
       ) {
         this.values.fields =
           this.selectedDataSourceType.getDefaultCollectionFields(

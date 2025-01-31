@@ -90,8 +90,9 @@ export class DataSourcesPageHeaderItemType extends PageHeaderItemType {
    */
   isInError({ builder, page }) {
     const pages = [page, this.app.store.getters['page/getSharedPage'](builder)]
-    const dataSources =
-      this.app.store.getters['dataSource/getPagesDataSources'](pages)
+    const dataSources = this.app.store.getters[
+      'dataSource/getPagesDataSources'
+    ](pages).filter((dataSource) => dataSource.type)
     return dataSources.some((dataSource) => {
       const serviceType = this.app.$registry.get('service', dataSource.type)
       return serviceType.isInError({ service: dataSource })

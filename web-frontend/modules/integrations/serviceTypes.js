@@ -26,14 +26,17 @@ export class LocalBaserowTableServiceType extends ServiceType {
       return false
     }
     const schema = this.getDataSchema(service)
-    const schemaProperties =
-      schema.type === 'array' ? schema.items.properties : schema.properties
-    const fieldsIds = Object.values(schemaProperties)
-      .filter(({ metadata }) => metadata)
-      .map((prop) => prop.metadata.id)
-    const filtersInError = service.filters.some(
-      (filter) => !fieldsIds.includes(filter.field)
-    )
+    let filtersInError = false
+    if (schema) {
+      const schemaProperties =
+        schema.type === 'array' ? schema.items.properties : schema.properties
+      const fieldsIds = Object.values(schemaProperties)
+        .filter(({ metadata }) => metadata)
+        .map((prop) => prop.metadata.id)
+      filtersInError = service.filters.some(
+        (filter) => !fieldsIds.includes(filter.field)
+      )
+    }
     return Boolean(!service.table_id || filtersInError)
   }
 
@@ -139,10 +142,6 @@ export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceTyp
    */
   get adhocHeaderComponent() {
     return LocalBaserowAdhocHeader
-  }
-
-  isValid(service) {
-    return super.isValid(service) && Boolean(service.table_id)
   }
 
   get returnsList() {
@@ -271,11 +270,11 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
     return null
   }
 
-  isValid(service) {
+  isInError({ service }) {
     return (
-      super.isValid(service) &&
-      Boolean(service.field_id) &&
-      Boolean(service.aggregation_type)
+      super.isInError({ service }) ||
+      Boolean(!service.field_id) ||
+      Boolean(!service.aggregation_type)
     )
   }
 
