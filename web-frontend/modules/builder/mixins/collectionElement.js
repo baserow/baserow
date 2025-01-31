@@ -10,6 +10,7 @@ export default {
       adhocSortings: undefined,
       adhocSearch: undefined,
       currentOffset: 0,
+      currentRange: undefined,
       errorNotified: false,
       resetTimeout: null,
       contentFetchEnabled: true,
@@ -63,6 +64,7 @@ export default {
     },
     adhocRefinements() {
       return {
+        range: this.currentRange,
         filters: this.adhocFilters,
         sortings: this.adhocSortings,
         search: this.adhocSearch,
@@ -129,6 +131,8 @@ export default {
       if (!this.canFetch()) {
         return
       }
+      // Store the last requested range so that workflow actions are aware.
+      this.currentRange = range
       try {
         await this.fetchElementContent({
           page: this.elementPage,
