@@ -112,6 +112,7 @@ def _test_can_convert_between_fields(data_fixture, field_type_to_test):
         Table.objects.get(name="link_table"),
         Table.objects.get(name="decimal_link_table"),
         Table.objects.get(name="file_link_table"),
+        Table.objects.get(name="multiple_collaborators_link_table"),
     )
 
     i = 1

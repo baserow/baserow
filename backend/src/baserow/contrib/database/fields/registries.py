@@ -135,7 +135,7 @@ class FieldType(
     can_have_select_options = False
     """Indicates whether the field can have select options."""
 
-    can_be_in_form_view = True
+    _can_be_in_form_view = True
     """Indicates whether the field is compatible with the form view."""
 
     can_get_unique_values = True
@@ -1615,6 +1615,22 @@ class FieldType(
         """
 
         return self._can_order_by
+
+    def check_can_be_in_form_view(self, field: Field) -> bool:
+        """
+        Override this method if this field type can sometimes be in a form view or
+        sometimes cannot be in a form view depending on the individual field state.
+        This is for example the case for LinkRowField which can only be in a form view
+        if the linked table has a primary field that can be in a form view. By default
+        will just return the bool property _can_be_in_form_view so if your field type
+        doesn't depend on the field state and is always just True or False just set
+        _can_be_in_form_view to the desired value.
+
+        :param field: The field to check to see if it can be in a form view or not.
+        :return: True if a field can be in a form view, False otherwise.
+        """
+
+        return self._can_be_in_form_view
 
     def check_can_group_by(self, field: Field) -> bool:
         """

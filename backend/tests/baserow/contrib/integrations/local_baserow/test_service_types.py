@@ -495,6 +495,24 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 },
             },
         },
+        field_db_column_by_name["multiple_collaborators_link_row"]: {
+            "title": "multiple_collaborators_link_row",
+            "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
+            "original_type": "link_row",
+            "metadata": {},
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"title": "id", "type": "number"},
+                    "value": {"title": "value", "type": "string"},
+                    "order": {"title": "order", "type": "string"},
+                },
+            },
+        },
         field_db_column_by_name["file"]: {
             "title": "file",
             "default": None,
@@ -715,6 +733,23 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 },
             },
         },
+        field_db_column_by_name["formula_multiple_collaborators"]: {
+            "title": "formula_multiple_collaborators",
+            "default": None,
+            "searchable": True,
+            "sortable": False,
+            "filterable": False,
+            "original_type": "formula",
+            "metadata": {},
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"title": "id", "type": "number"},
+                    "name": {"title": "name", "type": "string"},
+                },
+            },
+        },
         field_db_column_by_name["count"]: {
             "title": "count",
             "default": None,
@@ -769,6 +804,33 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 "properties": {
                     "id": {"title": "id", "type": "number"},
                     "value": {"title": "value", "type": "string"},
+                },
+            },
+        },
+        field_db_column_by_name["multiple_collaborators_lookup"]: {
+            "title": "multiple_collaborators_lookup",
+            "default": None,
+            "searchable": True,
+            "sortable": False,
+            "filterable": False,
+            "original_type": "lookup",
+            "metadata": {},
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"title": "id", "type": "number"},
+                    "value": {
+                        "title": "value",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {"title": "id", "type": "number"},
+                                "name": {"title": "name", "type": "string"},
+                            },
+                        },
+                    },
                 },
             },
         },

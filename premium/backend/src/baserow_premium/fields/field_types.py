@@ -51,7 +51,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
     type = "ai"
     model_class = AIField
-    can_be_in_form_view = False
+    _can_be_in_form_view = False
     keep_data_on_duplication = True
     allowed_fields = SelectOptionBaseFieldType.allowed_fields + [
         "ai_generative_ai_type",

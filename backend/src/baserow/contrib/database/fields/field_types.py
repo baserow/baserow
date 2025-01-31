@@ -98,6 +98,7 @@ from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
 )
 from baserow.contrib.database.fields.utils.expression import (
+    get_collaborator_extractor,
     get_select_option_extractor,
     wrap_in_subquery,
 )
@@ -110,6 +111,7 @@ from baserow.contrib.database.formula import (
     BaserowFormulaCharType,
     BaserowFormulaDateType,
     BaserowFormulaInvalidType,
+    BaserowFormulaMultipleCollaboratorsType,
     BaserowFormulaNumberType,
     BaserowFormulaSingleSelectType,
     BaserowFormulaTextType,
@@ -1391,7 +1393,7 @@ class DateFieldType(FieldType):
 
 
 class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
-    can_be_in_form_view = False
+    _can_be_in_form_view = False
     field_data_is_derived_from_attrs = True
 
     source_field_name = None
@@ -1486,7 +1488,7 @@ class CreatedOnFieldType(CreatedOnLastModifiedBaseFieldType):
 class LastModifiedByFieldType(ReadOnlyFieldType):
     type = "last_modified_by"
     model_class = LastModifiedByField
-    can_be_in_form_view = False
+    _can_be_in_form_view = False
     keep_data_on_duplication = True
     update_always = True
 
@@ -1698,7 +1700,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
 class CreatedByFieldType(ReadOnlyFieldType):
     type = "created_by"
     model_class = CreatedByField
-    can_be_in_form_view = False
+    _can_be_in_form_view = False
     keep_data_on_duplication = True
 
     source_field_name = "created_by"
@@ -2209,6 +2211,17 @@ class LinkRowFieldType(
                 }
             ),
             distinct=True,
+        )
+
+    def check_can_be_in_form_view(self, field: Field) -> bool:
+        related_primary_field = self._get_related_table_primary_field(field)
+        if related_primary_field is None:
+            return False
+        related_primary_field_type = field_type_registry.get_by_model(
+            related_primary_field.specific_class
+        )
+        return related_primary_field_type.check_can_be_in_form_view(
+            related_primary_field.specific
         )
 
     def check_can_order_by(self, field: Field) -> bool:
@@ -3487,7 +3500,7 @@ class EmailFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
 class FileFieldType(FieldType):
     type = "file"
     model_class = FileField
-    can_be_in_form_view = True
+    _can_be_in_form_view = True
     can_get_unique_values = False
     _can_order_by = False
 
@@ -4758,7 +4771,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
     model_class = FormulaField
     _db_column_fields = []
 
-    can_be_in_form_view = False
+    _can_be_in_form_view = False
     field_data_is_derived_from_attrs = True
     needs_refresh_after_import_serialized = True
     include_in_row_move_updated_fields = False
@@ -4925,9 +4938,16 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
+        # Add the formula_field instance to provide a reference to the source table,
+        # which might be needed for the export value (i.e. multiple collaborators field)
         return field_type.get_export_value(
             value,
-            {"field": field_instance, "type": field_type, "name": field_object["name"]},
+            {
+                "field": field_instance,
+                "type": field_type,
+                "name": field_object["name"],
+                "formula_field": instance,
+            },
             rich_value=rich_value,
         )
 
@@ -4973,16 +4993,20 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         return FormulaHandler.get_field_dependencies(field_instance, field_cache)
 
     def get_human_readable_value(self, value: Any, field_object) -> str:
+        formula_field = field_object["field"]
         (
             field_instance,
             field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field_object["field"])
+        ) = self.get_field_instance_and_type_from_formula_field(formula_field)
+        # Add the formula_field instance to provide a reference to the source table,
+        # which might be needed for the export value (i.e. multiple collaborators field)
         return field_type.get_human_readable_value(
             value,
             {
                 "field": field_instance,
                 "type": field_type,
                 "name": field_object["name"],
+                "formula_field": formula_field,
             },
         )
 
@@ -6005,7 +6029,7 @@ class MultipleCollaboratorsFieldType(
     type = "multiple_collaborators"
     model_class = MultipleCollaboratorsField
     can_get_unique_values = False
-    can_be_in_form_view = False
+    _can_be_in_form_view = False
     allowed_fields = ["notify_user_when_added"]
     serializer_field_names = ["notify_user_when_added"]
     serializer_field_overrides = {
@@ -6129,9 +6153,13 @@ class MultipleCollaboratorsFieldType(
         )
 
     def get_export_value(self, value, field_object, rich_value=False):
-        if value is None:
+        if hasattr(value, "all"):
+            value = value.all()
+
+        if not value:
             return [] if rich_value else ""
-        result = [item.email for item in value.all()]
+
+        result = [f"{user.first_name} <{user.email}>" for user in value]
         if rich_value:
             return result
         else:
@@ -6358,13 +6386,19 @@ class MultipleCollaboratorsFieldType(
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
 
+    def to_baserow_formula_type(self, field: Field):
+        return BaserowFormulaMultipleCollaboratorsType(nullable=True)
+
+    def from_baserow_formula_type(self, formula_type) -> Field:
+        return self.model_class()
+
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
         if already_in_subquery:
             return Coalesce(
                 JSONBAgg(
-                    get_select_option_extractor(db_column, model_field),
+                    get_collaborator_extractor(db_column, model_field),
                     filter=Q(**{f"{db_column}__isnull": False}),
                 ),
                 Value([], output_field=JSONField()),
@@ -6372,7 +6406,7 @@ class MultipleCollaboratorsFieldType(
         else:
             return Coalesce(
                 wrap_in_subquery(
-                    JSONBAgg(get_select_option_extractor(db_column, model_field)),
+                    JSONBAgg(get_collaborator_extractor(db_column, model_field)),
                     db_column,
                     model_field.model,
                 ),
@@ -6388,7 +6422,7 @@ class UUIDFieldType(ReadOnlyFieldType):
 
     type = "uuid"
     model_class = UUIDField
-    can_be_in_form_view = False
+    _can_be_in_form_view = False
     keep_data_on_duplication = True
 
     def get_serializer_field(self, instance, **kwargs):
@@ -6484,7 +6518,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
 
     type = "autonumber"
     model_class = AutonumberField
-    can_be_in_form_view = False
+    _can_be_in_form_view = False
     keep_data_on_duplication = True
     request_serializer_field_names = ["view_id"]
     request_serializer_field_overrides = {
@@ -6699,7 +6733,7 @@ class PasswordFieldType(FieldType):
 
     type = "password"
     model_class = PasswordField
-    can_be_in_form_view = True
+    _can_be_in_form_view = True
     keep_data_on_duplication = True
     _can_order_by = False
     _can_be_primary_field = False
