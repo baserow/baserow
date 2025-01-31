@@ -23,9 +23,12 @@ class PremiumTableExporter(TableExporter):
         Checks if the related user access to a valid license before the job is created.
         """
 
-        LicenseHandler.raise_if_user_doesnt_have_feature(
-            PREMIUM, user, table.database.workspace
-        )
+        if user is None and view and view.allow_public_export and view.public:
+            pass
+        else:
+            LicenseHandler.raise_if_user_doesnt_have_feature(
+                PREMIUM, user, table.database.workspace
+            )
         super().before_job_create(user, table, view, export_options)
 
 

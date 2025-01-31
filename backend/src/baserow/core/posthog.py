@@ -61,7 +61,7 @@ def capture_user_event(
     :param workspace: Optionally the workspace related to the event.
     """
 
-    if user.is_anonymous:
+    if user is None or user.is_anonymous:
         # The user_id cannot be None. It's needed by Posthog to identify the user
         user_id = str(uuid4())
         user_email = None

@@ -51,7 +51,7 @@ class AuditLogHandler:
         ip_address = get_user_remote_addr_ip(user)
 
         return AuditLogEntry.objects.create(
-            user_id=user.id,
+            user_id=getattr(user, "id", None),
             user_email=getattr(user, "email", None),
             workspace_id=workspace_id,
             workspace_name=workspace_name,

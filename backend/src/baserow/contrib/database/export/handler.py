@@ -43,6 +43,21 @@ User = get_user_model()
 
 class ExportHandler:
     @staticmethod
+    def _raise_if_no_export_permissions(user, table, view):
+        if user is None and view and view.allow_public_export and view.public:
+            # No need to do the permission check if no user is provided, the view is
+            # public, and allowed to export from publicly shared view because this
+            # can be initiated by an anonymous user.
+            pass
+        else:
+            CoreHandler().check_permissions(
+                user,
+                ExportTableOperationType.type,
+                workspace=table.database.workspace,
+                context=table,
+            )
+
+    @staticmethod
     def create_and_start_new_job(
         user: User, table: Table, view: Optional[View], export_options: Dict[str, Any]
     ) -> ExportJob:
@@ -92,12 +107,7 @@ class ExportHandler:
         exporter = table_exporter_registry.get(exporter_type)
         exporter.before_job_create(user, table, view, export_options)
 
-        CoreHandler().check_permissions(
-            user,
-            ExportTableOperationType.type,
-            workspace=table.database.workspace,
-            context=table,
-        )
+        ExportHandler._raise_if_no_export_permissions(user, table, view)
 
         if view and view.table.id != table.id:
             raise ViewNotInTable()
@@ -132,12 +142,8 @@ class ExportHandler:
 
         # Ensure the user still has permissions when the export job runs.
         table = job.table
-        CoreHandler().check_permissions(
-            job.user,
-            ExportTableOperationType.type,
-            workspace=table.database.workspace,
-            context=table,
-        )
+        view = job.view
+        ExportHandler._raise_if_no_export_permissions(job.user, table, view)
         try:
             return _mark_job_as_finished(_open_file_and_run_export(job))
         except ExportJobCanceledException:
@@ -216,8 +222,11 @@ def _cancel_unfinished_jobs(user):
     :return The number of jobs cancelled.
     """
 
-    jobs = ExportJob.unfinished_jobs(user=user)
-    return jobs.update(state=EXPORT_JOB_CANCELLED_STATUS)
+    if user is None:
+        return []
+    else:
+        jobs = ExportJob.unfinished_jobs(user=user)
+        return jobs.update(state=EXPORT_JOB_CANCELLED_STATUS)
 
 
 def _mark_job_as_finished(export_job: ExportJob) -> ExportJob:
