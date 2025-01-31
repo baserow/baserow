@@ -103,6 +103,8 @@ export class ElementType extends Registerable {
       'style_border_bottom',
       'style_border_left',
       'style_border_right',
+      'style_border_radius',
+      'style_background_radius',
       'style_background',
       'style_background_color',
       'style_background_file',

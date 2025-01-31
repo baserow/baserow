@@ -23,6 +23,7 @@ from rest_framework.serializers import Serializer
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
 from baserow.core.registries import OperationType
 from baserow.core.registry import (
@@ -581,12 +582,12 @@ class ViewType(
             have been updated.
         """
 
-    def after_field_type_change(self, field: "Field") -> None:
+    def after_fields_type_change(self, fields: List["Field"]) -> None:
         """
         This hook is called after the type of a field has changed and gives the
         possibility to check compatibility with view stuff like specific field options.
 
-        :param field: The concerned field.
+        :param fields: The concerned fields.
         """
 
     def after_field_delete(self, field: "Field") -> None:
@@ -681,7 +682,7 @@ class ViewType(
         times for an event but with different fields. This hook gives a view type the
         opportunity to react on any value change for a field.
 
-        :param update_fields: a unique or a list of affected field.
+        :param updated_fields: a unique or a list of affected field.
         """
 
     def after_field_update(self, updated_fields: Union[Iterable["Field"], "Field"]):
@@ -835,6 +836,29 @@ class ViewType(
                 "field_id": field_id,
                 "hidden": hidden,
             },
+        )
+
+    def check_view_update_permissions(
+        self, user: AbstractUser, view: "View", data: Dict[str, Any]
+    ):
+        """
+        Hook that's called just before a view is updated. By default, it checks the
+        `UpdateViewOperationType`, but when overwritten, it can optionally check for
+        different permissions depending on the data. It returns nothing if the user has
+        permissions, or raises a PermissionDenied error otherwise.
+
+        :param user: The user on whose behalf the view is updated.
+        :param view: The view instance that needs to be updated.
+        :param data: The properties that need to be updated.
+        :raises PermissionDenied: if the user doesn't have permissions to update the
+            view.
+        """
+
+        from .operations import UpdateViewOperationType
+
+        workspace = view.table.database.workspace
+        CoreHandler().check_permissions(
+            user, UpdateViewOperationType.type, workspace=workspace, context=view
         )
 
 
@@ -1163,12 +1187,12 @@ class DecoratorValueProviderType(CustomFieldsInstanceMixin, Instance):
         :param deleted_field: the deleted field.
         """
 
-    def after_field_type_change(self, field: "Field"):
+    def after_fields_type_change(self, fields: List["Field"]):
         """
         This hook is called after the type of a field has changed and gives the
         possibility to check compatibility or update configuration.
 
-        :param field: The concerned field.
+        :param fields: The concerned fields.
         """
 
     def get_serializer_class(self, *args, **kwargs):

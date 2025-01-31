@@ -7,7 +7,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions, validate_data_custom_fields
-from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
+from baserow.api.schemas import (
+    CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+    CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+    get_error_schema,
+)
 from baserow.api.services.errors import ERROR_SERVICE_INVALID_TYPE
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
@@ -72,6 +76,7 @@ class DashboardDataSourcesView(APIView):
             200: DiscriminatorCustomFieldsMappingSerializer(
                 service_type_registry, DashboardDataSourceSerializer, many=True
             ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_DASHBOARD_DOES_NOT_EXIST"]),
         },
     )
@@ -113,6 +118,7 @@ class DashboardDataSourceView(APIView):
                 description="The id of the dashboard data source.",
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Dashboard data sources"],
         operation_id="update_dashboard_data_source",
@@ -133,6 +139,7 @@ class DashboardDataSourceView(APIView):
                     "ERROR_DASHBOARD_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE",
                 ]
             ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
             404: get_error_schema(
                 [
                     "ERROR_DASHBOARD_DATA_SOURCE_DOES_NOT_EXIST",
@@ -202,7 +209,6 @@ class DispatchDashboardDataSourceView(APIView):
                 description="The id of the data source you want to call the dispatch "
                 "for",
             ),
-            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
         tags=["Dashboard data sources"],
         operation_id="dispatch_dashboard_data_source",
@@ -223,6 +229,7 @@ class DispatchDashboardDataSourceView(APIView):
                     "ERROR_DASHBOARD_DATA_SOURCE_IMPROPERLY_CONFIGURED",
                 ]
             ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
         },
     )
     @transaction.atomic

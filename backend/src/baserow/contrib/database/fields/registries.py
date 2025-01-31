@@ -1519,11 +1519,7 @@ class FieldType(
             back to the starting table the first field change occurred.
         """
 
-        from baserow.contrib.database.fields.dependencies.handler import (
-            FieldDependencyHandler,
-        )
-
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        update_collector.add_to_rebuild_field_dependencies(field)
 
         from baserow.contrib.database.views.handler import ViewHandler
 

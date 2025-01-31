@@ -449,6 +449,11 @@
     "paddingLabel": "Padding",
     "marginLabel": "Margin"
   },
+  "radiusStyleForm": {
+    "cornerRadiusLabel": "Corner radius",
+    "backgroundRadiusLabel": "Background",
+    "borderRadiusLabel": "Border"
+  },
   "themeConfigBlockType": {
     "color": "Colors",
     "page": "Page",
@@ -466,7 +471,10 @@
     "borderColor": "Border",
     "successColor": "Success",
     "warningColor": "Warning",
-    "errorColor": "Error"
+    "errorColor": "Error",
+    "customColors": "Custom colors",
+    "addCustomColor": "Add custom color",
+    "customColorPrefix": "Custom"
   },
   "pageThemeConfigBlock": {
     "backgroundColor": "Background color",
@@ -487,9 +495,22 @@
     "headingValue": "Heading <h{i}>",
     "color": "Color",
     "size": "Size",
+    "weight": "Weight",
     "textAlignment": "Alignment",
     "bodyLabel": "Body",
     "fontFamily": "Font"
+  },
+  "fontWeightType": {
+    "thin": "Thin",
+    "extraLight": "Extra-light",
+    "light": "Light",
+    "regular": "Regular",
+    "medium": "Medium",
+    "semiBold": "Semi-bold",
+    "bold": "Bold",
+    "extraBold": "Extra-bold",
+    "black": "Black",
+    "extraBlack": "Extra-black"
   },
   "buttonThemeConfigBlock": {
     "backgroundColor": "Background color",
@@ -505,7 +526,8 @@
     "borderRadius": "Border radius",
     "padding": "Padding",
     "fontFamily": "Font",
-    "size": "Font size"
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "linkThemeConfigBlock": {
     "color": "Color",
@@ -513,7 +535,9 @@
     "defaultState": "Default state",
     "hoverState": "Hover state",
     "alignment": "Alignment",
-    "fontFamily": "Font"
+    "fontFamily": "Font",
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "inputThemeConfigBlock": {
     "label": "Label",
@@ -525,7 +549,8 @@
     "borderRadius": "Border radius",
     "padding": "Padding",
     "fontFamily": "Font",
-    "size": "Font size"
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "imageThemeConfigBlock": {
     "alignment": "Alignment",
@@ -538,7 +563,9 @@
     "imageConstraintCover": "Cover",
     "imageConstraintCoverDisabled": "Unavailable with empty max height.",
     "imageConstraintContain": "Contain",
-    "imageConstraintContainDisabled": "Unavailable with a max height."
+    "imageConstraintContainDisabled": "Unavailable with a max height.",
+    "imageBorderRadiusLabel": "Border radius",
+    "imageBorderRadiusPlaceholder": "Enter the image border radius."
   },
   "tableThemeConfigBlock": {
     "borderColor": "Border color",
@@ -551,6 +578,7 @@
     "fontFamily": "Font",
     "size": "Size",
     "fontSize": "Font size",
+    "fontWeight": "Font weight",
     "table": "Table",
     "header": "Header",
     "alignment": "Alignment",
@@ -649,7 +677,10 @@
     "orientationHorizontal": "Horizontal",
     "buttonLoadMoreLabel": "Show more label",
     "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
-    "propertySelectorMissingArrays": "No multiple valued fields found to repeat with."
+    "propertySelectorMissingArrays": "No multiple valued fields found to repeat with.",
+    "gapLabel": "Space between repetitions",
+    "gapVerticalLabel": "Vertical",
+    "gapHorizontalLabel": "Horizontal"
   },
   "recordSelectorElement": {
     "emptyAdhocState": "No records matching '{query}' found.",

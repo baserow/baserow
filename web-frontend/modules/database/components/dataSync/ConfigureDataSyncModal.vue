@@ -7,11 +7,11 @@
         </div>
       </div>
       <ul class="modal-sidebar__nav">
-        <li v-for="page in pages" :key="page.type">
+        <li v-for="page in pages" :key="page.getType()">
           <a
             class="modal-sidebar__nav-link"
-            :class="{ active: selectedPage === page.type }"
-            @click="setPage(page.type)"
+            :class="{ active: selectedPage === page.getType() }"
+            @click="setPage(page.getType())"
           >
             <i class="modal-sidebar__nav-icon" :class="page.iconClass"></i>
             {{ page.name }}
@@ -52,26 +52,15 @@ export default {
   },
   data() {
     return {
-      pages: [
-        {
-          type: 'visible-fields',
-          name: this.$t('configureDataSyncModal.syncedFields'),
-          iconClass: 'iconoir-switch-on',
-          component: ConfigureDataSyncVisibleFields,
-        },
-        {
-          type: 'settings',
-          name: this.$t('configureDataSyncModal.syncSettings'),
-          iconClass: 'iconoir-settings',
-          component: ConfigureDataSyncSettings,
-        },
-      ],
-      selectedPage: 'visible-fields',
+      selectedPage: 'synced-fields',
     }
   },
   computed: {
+    pages() {
+      return Object.values(this.$registry.getAll('configureDataSync'))
+    },
     selectedPageObject() {
-      return this.pages.find((page) => page.type === this.selectedPage)
+      return this.pages.find((page) => page.getType() === this.selectedPage)
     },
   },
   methods: {

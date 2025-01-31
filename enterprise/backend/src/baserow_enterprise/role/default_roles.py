@@ -126,6 +126,7 @@ from baserow.contrib.database.tokens.operations import (
     UseTokenOperationType,
 )
 from baserow.contrib.database.views.operations import (
+    CanReceiveNotificationOnSubmitFormViewOperationType,
     CreateAndUsePersonalViewOperationType,
     CreatePublicViewOperationType,
     CreateViewDecorationOperationType,
@@ -347,6 +348,7 @@ default_roles[EDITOR_ROLE_UID].extend(
         RestoreDatabaseRowOperationType,
         ListTeamSubjectsOperationType,
         ReadTeamSubjectOperationType,
+        CanReceiveNotificationOnSubmitFormViewOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(

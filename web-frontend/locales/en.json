@@ -271,7 +271,19 @@
     "isAfter": "is after",
     "isOnOrBefore": "is on or before",
     "isOnOrAfter": "is on or after",
-    "isWithin": "is within"
+    "isWithin": "is within",
+    "hasDateEqual": "has date equal",
+    "hasNotDateEqual": "doesn't have date equal",
+    "hasDateBefore": "has date before",
+    "hasNotDateBefore": "doesn't have date before",
+    "hasDateOnOrBefore": "has date on or before",
+    "hasNotDateOnOrBefore": "doesn't have date on or before",
+    "hasDateAfter": "has date after",
+    "hasNotDateAfter": "doesn't have date after",
+    "hasDateOnOrAfter": "has date on or after",
+    "hasNotDateOnOrAfter": "doesn't have date on or after",
+    "hasDateWithin": "has date within",
+    "hasNotDateWithin": "doesn't have date within"
   },
   "viewType": {
     "grid": "Grid",

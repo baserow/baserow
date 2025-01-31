@@ -187,7 +187,7 @@ class LocalBaserowPasswordAppAuthProviderType(AppAuthProviderType):
             and value
             and "database_fields" in id_mapping
         ):
-            return id_mapping["database_fields"][value]
+            return id_mapping["database_fields"].get(value)
 
         return super().deserialize_property(
             prop_name,

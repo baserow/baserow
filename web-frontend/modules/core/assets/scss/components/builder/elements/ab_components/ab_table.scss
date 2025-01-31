@@ -12,7 +12,7 @@
   }
 
   .ab-table__header-cell {
-    font-weight: 600;
+    font-weight: var(--table-header-font-weight, 600);
     background-color: var(
       --table-header-background-color,
       $palette-neutral-200

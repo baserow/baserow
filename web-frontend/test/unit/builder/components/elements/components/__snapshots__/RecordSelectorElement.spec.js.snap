@@ -15,7 +15,7 @@ exports[`RecordSelectorElement does not paginate if API returns 400/404 1`] = `
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -232,7 +232,7 @@ exports[`RecordSelectorElement does not paginate if API returns 400/404 2`] = `
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -449,7 +449,7 @@ exports[`RecordSelectorElement does not paginate if API returns 400/404 3`] = `
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -666,7 +666,7 @@ exports[`RecordSelectorElement resolves suffix formulas 1`] = `
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -805,7 +805,7 @@ exports[`RecordSelectorElement resolves suffix formulas 2`] = `
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          

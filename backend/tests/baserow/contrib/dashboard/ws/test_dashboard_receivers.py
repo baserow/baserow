@@ -37,13 +37,14 @@ def test_widget_created_ws_receiver(mock_broadcast_to_channel_group, data_fixtur
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.registries.broadcast_to_channel_group")
 def test_widget_updated_ws_receiver(mock_broadcast_to_channel_group, data_fixture):
+    user = data_fixture.create_user(web_socket_id="test_websocket_id")
     dashboard = data_fixture.create_dashboard_application()
     widget = data_fixture.create_summary_widget(dashboard=dashboard)
     updated_widget = WidgetHandler().update_widget(
         widget, title="Updated title", description="Updated description"
     )
 
-    widget_updated.send(None, widget=updated_widget.widget)
+    widget_updated.send(None, user=user, widget=updated_widget.widget)
 
     mock_broadcast_to_channel_group.delay.assert_called_once()
     args = mock_broadcast_to_channel_group.delay.call_args
@@ -53,6 +54,7 @@ def test_widget_updated_ws_receiver(mock_broadcast_to_channel_group, data_fixtur
     assert args[0][1]["widget"]["id"] == updated_widget.widget.id
     assert args[0][1]["widget"]["title"] == "Updated title"
     assert args[0][1]["widget"]["description"] == "Updated description"
+    assert args[0][2] == "test_websocket_id"
 
 
 @pytest.mark.django_db(transaction=True)

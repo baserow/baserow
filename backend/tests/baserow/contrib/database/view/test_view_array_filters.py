@@ -2,9 +2,38 @@ import typing
 from enum import Enum
 
 import pytest
+from freezegun import freeze_time
+from pytest_unordered import unordered
 
+from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.views.array_view_filters import (
+    HasDateAfterViewFilterType,
+    HasDateBeforeViewFilterType,
+    HasDateEqualViewFilterType,
+    HasDateOnOrAfterViewFilterType,
+    HasDateOnOrBeforeViewFilterType,
+    HasDateWithinViewFilterType,
+    HasNotDateAfterViewFilterType,
+    HasNotDateBeforeViewFilterType,
+    HasNotDateEqualViewFilterType,
+    HasNotDateOnOrAfterViewFilterType,
+    HasNotDateOnOrBeforeViewFilterType,
+    HasNotDateWithinViewFilterType,
+)
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.view_filters import (
+    DateIsAfterMultiStepFilterType,
+    DateIsBeforeMultiStepFilterType,
+    DateIsEqualMultiStepFilterType,
+    DateIsNotEqualMultiStepFilterType,
+    DateIsOnOrAfterMultiStepFilterType,
+    DateIsOnOrBeforeMultiStepFilterType,
+    DateIsWithinMultiStepFilterType,
+)
 from tests.baserow.contrib.database.utils import (
     boolean_field_factory,
+    date_field_factory,
+    datetime_field_factory,
     email_field_factory,
     long_text_field_factory,
     multiple_select_field_factory,
@@ -17,6 +46,13 @@ from tests.baserow.contrib.database.utils import (
     text_field_value_factory,
     url_field_factory,
     uuid_field_factory,
+)
+
+from .date_utils import (
+    DATE_MULTI_STEP_OPERATOR_VALID_RESULTS,
+    FREEZED_TODAY,
+    MNEMONIC_VALUES,
+    TEST_MULTI_STEP_DATE_OPERATORS_DATETIMES,
 )
 
 if typing.TYPE_CHECKING:
@@ -2364,7 +2400,7 @@ def setup_multiple_select_rows(data_fixture):
         data_fixture, multiple_select_field_factory
     )
 
-    user = data_fixture.create_user()
+    user = test_setup.user
     row_A_value = multiple_select_field_value_factory(
         data_fixture, test_setup.target_field, "Aa C"
     )
@@ -2578,3 +2614,256 @@ def test_has_or_doesnt_have_value_equal_filter_multiple_select_field_types(
         ).all()
     ]
     assert ids == [row_1.id, row_2.id, row_3.id]
+
+
+def setup_date_rows(data_fixture, field_factory):
+    test_setup = setup_linked_table_and_lookup(data_fixture, field_factory)
+    user = test_setup.user
+    target_field = test_setup.target_field
+    other_row_1, other_row_2, other_row_3 = test_setup.row_handler.force_create_rows(
+        user,
+        test_setup.other_table,
+        [
+            {target_field.db_column: "2020-01-01"},
+            {target_field.db_column: "2019-01-02"},
+            {},
+        ],
+        model=test_setup.other_table_model,
+    )
+    row_1, row_2, empty_row = test_setup.row_handler.force_create_rows(
+        user,
+        test_setup.table,
+        [
+            {test_setup.link_row_field.db_column: [other_row_1.id]},
+            {test_setup.link_row_field.db_column: [other_row_2.id]},
+            {test_setup.link_row_field.db_column: [other_row_3.id]},
+        ],
+        model=test_setup.model,
+    )
+    return test_setup, [row_1, row_2, empty_row]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_date
+@pytest.mark.parametrize("field_factory", [date_field_factory, datetime_field_factory])
+def test_has_or_has_not_empty_value_filter_date_field_types(
+    data_fixture, field_factory
+):
+    test_setup, [row_1, row_2, empty_row] = setup_date_rows(data_fixture, field_factory)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_empty_value",
+        value="",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [empty_row.id]
+
+    view_filter.type = "has_not_empty_value"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_1.id, row_2.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_date
+@pytest.mark.parametrize("field_factory", [date_field_factory, datetime_field_factory])
+def test_has_or_has_not_value_contains_filter_date_field_types(
+    data_fixture, field_factory
+):
+    test_setup, [row_1, row_2, empty_row] = setup_date_rows(data_fixture, field_factory)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_contains",
+        value="19",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_2.id]
+
+    view_filter.type = "has_not_value_contains"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [row_1.id, empty_row.id]
+
+
+SINGLE_TO_ARRAY_FILTER_TYPE_MAP = {
+    DateIsEqualMultiStepFilterType.type: {"has": HasDateEqualViewFilterType.type},
+    DateIsNotEqualMultiStepFilterType.type: {"has": HasNotDateEqualViewFilterType.type},
+    DateIsBeforeMultiStepFilterType.type: {
+        "has": HasDateBeforeViewFilterType.type,
+        "has_not": HasNotDateBeforeViewFilterType.type,
+    },
+    DateIsOnOrBeforeMultiStepFilterType.type: {
+        "has": HasDateOnOrBeforeViewFilterType.type,
+        "has_not": HasNotDateOnOrBeforeViewFilterType.type,
+    },
+    DateIsAfterMultiStepFilterType.type: {
+        "has": HasDateAfterViewFilterType.type,
+        "has_not": HasNotDateAfterViewFilterType.type,
+    },
+    DateIsOnOrAfterMultiStepFilterType.type: {
+        "has": HasDateOnOrAfterViewFilterType.type,
+        "has_not": HasNotDateOnOrAfterViewFilterType.type,
+    },
+    DateIsWithinMultiStepFilterType.type: {
+        "has": HasDateWithinViewFilterType.type,
+        "has_not": HasNotDateWithinViewFilterType.type,
+    },
+}
+
+
+@pytest.fixture()
+def table_view_fields_rows(data_fixture):
+    user = data_fixture.create_user()
+    orig_table = data_fixture.create_database_table(user=user)
+    date_field = data_fixture.create_date_field(table=orig_table)
+    datetime_field = data_fixture.create_date_field(
+        table=orig_table, date_include_time=True
+    )
+    orig_rows = RowHandler().force_create_rows(
+        user,
+        orig_table,
+        [
+            {
+                date_field.db_column: date_value,
+                datetime_field.db_column: date_value,
+            }
+            for date_value in TEST_MULTI_STEP_DATE_OPERATORS_DATETIMES
+        ],
+    )
+
+    table = data_fixture.create_database_table(database=orig_table.database)
+    link_field = data_fixture.create_link_row_field(
+        table=table, link_row_table=orig_table, name="link_field"
+    )
+    lookup_date_field = data_fixture.create_lookup_field(
+        table=table,
+        name="lookup_date_field",
+        through_field=link_field,
+        target_field=date_field,
+        through_field_name=link_field.name,
+        target_field_name=date_field.name,
+    )
+    lookup_datetime_field = data_fixture.create_lookup_field(
+        table=table,
+        name="lookup_datetime_field",
+        through_field=link_field,
+        target_field=datetime_field,
+        through_field_name=link_field.name,
+        target_field_name=datetime_field.name,
+    )
+    rows = RowHandler().force_create_rows(
+        user,
+        table,
+        [{link_field.db_column: [r.id]} for r in orig_rows],
+    )
+
+    grid_view = data_fixture.create_grid_view(table=table)
+    return table, grid_view, lookup_date_field, lookup_datetime_field, rows
+
+
+@pytest.mark.parametrize(
+    "filter_type,operator,filter_value,expected_results",
+    [
+        (
+            filter_type,
+            opr.value,
+            opr_data.get("value", ""),
+            [MNEMONIC_VALUES[v] for v in opr_data["expected_results"]],
+        )
+        for filter_type in DATE_MULTI_STEP_OPERATOR_VALID_RESULTS.keys()
+        for (opr, opr_data) in DATE_MULTI_STEP_OPERATOR_VALID_RESULTS[
+            filter_type
+        ].items()
+    ],
+)
+@pytest.mark.django_db
+def test_date_array_filter_types(
+    data_fixture,
+    filter_type,
+    operator,
+    filter_value,
+    expected_results,
+    table_view_fields_rows,
+):
+    (
+        table,
+        grid_view,
+        lookup_date_field,
+        lookup_datetime_field,
+        rows,
+    ) = table_view_fields_rows
+
+    handler = ViewHandler()
+    model = table.get_model()
+
+    def apply_filters_and_assert(expected):
+        with freeze_time(FREEZED_TODAY):
+            qs = handler.apply_filters(grid_view, model.objects.all())
+            ids = set([r.id for r in qs.all()])
+        res_pos = [i for (i, r) in enumerate(rows) if r.id in ids]
+
+        mnem_keys = list(MNEMONIC_VALUES.keys())
+        mnem_res_pos = [mnem_keys[v] for v in res_pos]
+        mnem_exp_res = [mnem_keys[v] for v in expected]
+        assert res_pos == unordered(
+            expected
+        ), f"{filter_type} - {operator}: {mnem_res_pos} != {mnem_exp_res}"
+
+    # with date
+    array_filter_type_has = SINGLE_TO_ARRAY_FILTER_TYPE_MAP[filter_type]["has"]
+    array_filter_type_has_not = SINGLE_TO_ARRAY_FILTER_TYPE_MAP[filter_type].get(
+        "has_not"
+    )
+    expected_results_for_has_not = list(
+        set(MNEMONIC_VALUES.values()) - set(expected_results)
+    )
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view,
+        field=lookup_date_field,
+        type=array_filter_type_has,
+        value=f"UTC?{filter_value}?{operator}",
+    )
+    apply_filters_and_assert(expected_results)
+
+    if array_filter_type_has_not is not None:
+        view_filter.type = array_filter_type_has_not
+        view_filter.save()
+        apply_filters_and_assert(expected_results_for_has_not)
+
+    # with datetime
+    view_filter.type = array_filter_type_has
+    view_filter.field = lookup_datetime_field
+    view_filter.save()
+
+    apply_filters_and_assert(expected_results)
+
+    if array_filter_type_has_not is not None:
+        view_filter.type = array_filter_type_has_not
+        view_filter.save()
+        apply_filters_and_assert(expected_results_for_has_not)

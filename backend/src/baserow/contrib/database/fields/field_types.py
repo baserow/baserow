@@ -129,6 +129,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.types import SerializedRowHistoryFieldMetadata
 from baserow.contrib.database.validators import UnicodeRegexValidator
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist, ViewNotInTable
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE, View
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
@@ -2824,7 +2825,6 @@ class LinkRowFieldType(
             isinstance(link_row_limit_selection_view_id, int)
             and link_row_limit_selection_view_id > -1
         ):
-            from baserow.contrib.database.views.handler import ViewHandler
             from baserow.contrib.database.views.registries import view_type_registry
 
             view = ViewHandler().get_view(
@@ -3254,9 +3254,9 @@ class LinkRowFieldType(
     ):
         if field.link_row_related_field:
             FieldDependencyHandler.rebuild_dependencies(
-                field.link_row_related_field, field_cache
+                [field.link_row_related_field], field_cache
             )
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
     def get_export_serialized_value(self, row, field_name, cache, files_zip, storage):
         cache_entry = f"{field_name}_relations"
@@ -4238,6 +4238,15 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                 single_select_extractor, db_column, model_field.model
             )
 
+    def before_field_options_update(
+        self, field, to_create=None, to_update=None, to_delete=None
+    ):
+        if to_delete:
+            model = field.table.get_model()
+            model.objects.filter(**{f"{field.db_column}_id__in": to_delete}).update(
+                **{field.db_column: None}
+            )
+
     def get_distribution_group_by_value(self, field_name: str):
         return f"{field_name}__value"
 
@@ -5052,6 +5061,10 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
             for table_id, dependant_field in dependant_fields_group:
+                if not isinstance(dependant_field, FormulaField):
+                    # LinkRowFields might depends on FormulaFields, but we can't update
+                    # them here because this is only valid for FormulaFields.
+                    continue
                 self._update_field_values(
                     dependant_field,
                     update_collectors[table_id],
@@ -5163,7 +5176,12 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         expr = FormulaHandler.recalculate_formula_and_get_update_expression(
             field, old_field, field_cache
         )
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        # Check if the formula field type has changed. This can for example change into
+        # an invalid type. If so, then we need to call the `add_to_fields_type_changed`
+        # so that eventually the view filters, sorts, etc are removed if needed.
+        if not self.has_compatible_model_fields(field, old_field):
+            update_collector.add_to_fields_type_changed(field)
+        update_collector.add_to_rebuild_field_dependencies(field)
         update_collector.add_field_with_pending_update_statement(
             field, expr, via_path_to_starting_table=via_path_to_starting_table
         )
@@ -5222,7 +5240,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
 
     def after_import_serialized(self, field, field_cache, id_mapping):
         field.save(recalculate=True, field_cache=field_cache)
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
     def after_rows_imported(
         self,
@@ -6504,8 +6522,6 @@ class AutonumberFieldType(ReadOnlyFieldType):
     def _extract_view_from_field_kwargs(self, user, field_kwargs):
         view_id = field_kwargs.get("view_id", None)
         if view_id is not None:
-            from baserow.contrib.database.views.handler import ViewHandler
-
             field_kwargs["view"] = ViewHandler().get_view_as_user(user, view_id)
 
     def before_create(
@@ -6580,8 +6596,6 @@ class AutonumberFieldType(ReadOnlyFieldType):
         :param field: The field to initialize the values for.
         :param view: The view to initialize the values according to.
         """
-
-        from baserow.contrib.database.views.handler import ViewHandler
 
         not_trashed_first = Case(When(Q(trashed=False), then=Value(0)), default=1).asc()
         order_bys = (not_trashed_first, "order", "id")

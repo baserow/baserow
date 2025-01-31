@@ -54,7 +54,7 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                 class="control__elements"
               >
                 <div
-                  class="flex-grow-1"
+                  class="control__elements-wrapper"
                 >
                   <div
                     class="dropdown"
@@ -208,7 +208,7 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                 class="control__elements"
               >
                 <div
-                  class="flex-grow-1"
+                  class="control__elements-wrapper"
                 >
                   <ul
                     class="choice-items"
@@ -282,7 +282,7 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                   class="control__elements"
                 >
                   <div
-                    class="flex-grow-1"
+                    class="control__elements-wrapper"
                   >
                     <div
                       class="dropdown"
@@ -562,7 +562,7 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                   class="control__elements"
                 >
                   <div
-                    class="flex-grow-1"
+                    class="control__elements-wrapper"
                   >
                     <div
                       class="dropdown"
@@ -1683,7 +1683,7 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                   class="control__elements"
                 >
                   <div
-                    class="flex-grow-1"
+                    class="control__elements-wrapper"
                   >
                     <div
                       class="checkbox checkbox--checked"
@@ -1856,7 +1856,7 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                 class="control__elements"
               >
                 <div
-                  class="flex-grow-1"
+                  class="control__elements-wrapper"
                 >
                   <div
                     class="dropdown"
@@ -2012,7 +2012,7 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                 class="control__elements"
               >
                 <div
-                  class="flex-grow-1"
+                  class="control__elements-wrapper"
                 >
                   <ul
                     class="choice-items"
@@ -2086,7 +2086,7 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                   class="control__elements"
                 >
                   <div
-                    class="flex-grow-1"
+                    class="control__elements-wrapper"
                   >
                     <div
                       class="dropdown"
@@ -2366,7 +2366,7 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                   class="control__elements"
                 >
                   <div
-                    class="flex-grow-1"
+                    class="control__elements-wrapper"
                   >
                     <div
                       class="dropdown"
@@ -3487,7 +3487,7 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                   class="control__elements"
                 >
                   <div
-                    class="flex-grow-1"
+                    class="control__elements-wrapper"
                   >
                     <div
                       class="checkbox checkbox--checked"

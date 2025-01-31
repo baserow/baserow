@@ -227,6 +227,7 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
             help_text="The service which this workflow action is associated with.",
         )
     }
+    is_server_workflow = True
     serializer_field_overrides = {
         "service": PolymorphicServiceSerializer(
             help_text="The service which this workflow action is associated with."

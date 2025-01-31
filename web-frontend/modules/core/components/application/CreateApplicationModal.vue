@@ -9,6 +9,7 @@
       ref="applicationForm"
       :default-name="getDefaultName()"
       :loading="loading"
+      :workspace="workspace"
       @submitted="submitted"
       @hidden="hide()"
     >

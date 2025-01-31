@@ -16,6 +16,7 @@ from baserow.ws.registries import page_registry
 def widget_created(
     sender,
     widget,
+    user=None,
     **kwargs,
 ):
     def send_ws_message():
@@ -28,7 +29,13 @@ def widget_created(
             "dashboard_id": widget.dashboard.id,
             "widget": widget_serializer.data,
         }
-        page_type.broadcast(payload, dashboard_id=widget.dashboard.id)
+        page_type.broadcast(
+            payload,
+            dashboard_id=widget.dashboard.id,
+            ignore_web_socket_id=getattr(user, "web_socket_id", None)
+            if user is not None
+            else None,
+        )
 
     transaction.on_commit(send_ws_message)
 
@@ -37,6 +44,7 @@ def widget_created(
 def widget_updated(
     sender,
     widget,
+    user,
     **kwargs,
 ):
     def send_ws_message():
@@ -49,7 +57,11 @@ def widget_updated(
             "dashboard_id": widget.dashboard.id,
             "widget": widget_serializer.data,
         }
-        page_type.broadcast(payload, dashboard_id=widget.dashboard.id)
+        page_type.broadcast(
+            payload,
+            dashboard_id=widget.dashboard.id,
+            ignore_web_socket_id=getattr(user, "web_socket_id", None),
+        )
 
     transaction.on_commit(send_ws_message)
 

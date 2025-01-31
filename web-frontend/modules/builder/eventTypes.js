@@ -1,5 +1,6 @@
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { resolveFormula } from '@baserow/modules/core/formula'
+import { uuid } from '@baserow/modules/core/utils/string'
 
 /**
  * This might look like something that belongs in a registry, but it does not.
@@ -30,6 +31,18 @@ export class Event {
     const pages = [page, this.store.getters['page/getSharedPage'](builder)]
     const elementType = this.$registry.get('element', element.type)
     const dispatchedById = elementType.uniqueElementId(element, recordIndexPath)
+
+    /**
+     * The currentDispatchId is used to keep track of chained Workflow Actions.
+     *
+     * When an event (e.g. Button click) triggers multiple Workflow Actions,
+     * the backend needs to keep track of them within the context of the event.
+     * The backend temporarily saves the intermediate results where appropriate
+     * in order to improve security, e.g. when upserting data derived from a
+     * Previous Action data provider.
+     */
+    const currentDispatchId = uuid()
+
     for (let i = 0; i < workflowActions.length; i += 1) {
       const workflowActionContext = {}
       const workflowAction = workflowActions[i]
@@ -97,6 +110,7 @@ export class Event {
               ...applicationContext,
               workflowActionContext,
               previousActionResults: additionalContext,
+              currentDispatchId,
             },
             resolveFormula: localResolveFormula,
           }

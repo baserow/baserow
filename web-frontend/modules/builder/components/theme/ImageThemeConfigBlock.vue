@@ -132,6 +132,48 @@
             />
           </template>
         </FormGroup>
+
+        <FormGroup
+          horizontal-narrow
+          small-label
+          required
+          class="margin-bottom-2"
+          :label="$t('imageThemeConfigBlock.imageBorderRadiusLabel')"
+          :error-message="
+            $v.values.image_border_radius.$dirty &&
+            !$v.values.image_border_radius.integer
+              ? $t('error.integerField')
+              : !$v.values.image_border_radius.minValue
+              ? $t('error.minValueField', { min: 0 })
+              : !$v.values.image_border_radius.maxValue
+              ? $t('error.maxValueField', { max: 100 })
+              : ''
+          "
+        >
+          <FormInput
+            v-model="values.image_border_radius"
+            :default-value-when-empty="
+              defaultValuesWhenEmpty[`image_border_radius`]
+            "
+            type="number"
+            :min="0"
+            :max="100"
+            remove-number-input-controls
+            :placeholder="
+              $t('imageThemeConfigBlock.imageBorderRadiusPlaceholder')
+            "
+            :to-value="(value) => (value ? parseInt(value) : null)"
+          >
+            <template #suffix>px</template>
+          </FormInput>
+
+          <template #after-input>
+            <ResetButton
+              v-model="values.image_border_radius"
+              :default-value="theme?.image_border_radius"
+            />
+          </template>
+        </FormGroup>
       </template>
       <template #preview>
         <ABImage src="/img/favicon_192.png" />
@@ -157,6 +199,10 @@ const minMax = {
     min: 5,
     max: 3000,
   },
+  image_border_radius: {
+    min: 0,
+    max: 100,
+  },
 }
 
 export default {
@@ -175,10 +221,12 @@ export default {
         'image_max_width',
         'image_max_height',
         'image_constraint',
+        'image_border_radius',
       ],
       defaultValuesWhenEmpty: {
         image_min_width: minMax.image_width.min,
         image_min_height: minMax.image_height.min,
+        image_border_radius: minMax.image_border_radius.min,
       },
     }
   },
@@ -271,6 +319,11 @@ export default {
         integer,
         minValue: minValue(minMax.image_height.min),
         maxValue: maxValue(minMax.image_height.max),
+      },
+      image_border_radius: {
+        integer,
+        minValue: minValue(minMax.image_border_radius.min),
+        maxValue: maxValue(minMax.image_border_radius.max),
       },
     },
   },

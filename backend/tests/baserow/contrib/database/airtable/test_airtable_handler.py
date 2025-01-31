@@ -11,6 +11,7 @@ from django.core.files.storage import FileSystemStorage
 import pytest
 import responses
 
+from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.exceptions import AirtableShareIsNotABase
 from baserow.contrib.database.airtable.handler import AirtableHandler
 from baserow.contrib.database.airtable.job_types import AirtableImportJobType
@@ -205,7 +206,7 @@ def test_to_baserow_database_export():
 
     schema, tables = AirtableHandler.extract_schema([user_table_json, data_table_json])
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
-        init_data, schema, tables
+        init_data, schema, tables, AirtableImportConfig()
     )
 
     with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
@@ -317,6 +318,63 @@ def test_to_baserow_database_export():
 
 @pytest.mark.django_db
 @responses.activate
+def test_config_skip_files():
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+    path = os.path.join(base_path, "airtable_base.html")
+    user_table_path = os.path.join(base_path, "airtable_application.json")
+    data_table_path = os.path.join(base_path, "airtable_table.json")
+    user_table_json = json.loads(Path(user_table_path).read_text())
+    data_table_json = json.loads(Path(data_table_path).read_text())
+
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.signed/file-sample.txt",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(path, "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/appZkaH3aWX3ZjT3b",
+            status=200,
+            body=file.read(),
+            headers={"Set-Cookie": "brw=test;"},
+        )
+        request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
+            "appZkaH3aWX3ZjT3b"
+        )
+
+    schema, tables = AirtableHandler.extract_schema([user_table_json, data_table_json])
+    baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
+        init_data, schema, tables, AirtableImportConfig(skip_files=True)
+    )
+
+    with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
+        assert len(zip_file.infolist()) == 0
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_to_baserow_database_export_without_primary_value():
     base_path = os.path.join(
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
@@ -348,14 +406,17 @@ def test_to_baserow_database_export_without_primary_value():
 
     schema, tables = AirtableHandler.extract_schema(deepcopy([user_table_json]))
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
-        init_data, schema, tables
+        init_data,
+        schema,
+        tables,
+        AirtableImportConfig(),
     )
     assert baserow_database_export["tables"][0]["fields"][0]["primary"] is True
 
     user_table_json["data"]["tableSchemas"][0]["columns"] = []
     schema, tables = AirtableHandler.extract_schema(deepcopy([user_table_json]))
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
-        init_data, schema, tables
+        init_data, schema, tables, AirtableImportConfig()
     )
     assert baserow_database_export["tables"][0]["fields"] == [
         {

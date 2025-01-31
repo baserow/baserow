@@ -36,12 +36,11 @@
 
 <script>
 import { requiredIf } from 'vuelidate/lib/validators'
-import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm.vue'
 
 export default {
   name: 'DatabaseStep',
-  components: { AirtableImportForm, SegmentControl },
+  components: { AirtableImportForm },
   data() {
     return {
       types: [

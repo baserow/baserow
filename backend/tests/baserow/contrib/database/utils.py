@@ -162,6 +162,16 @@ def text_field_value_factory(data_fixture, target_field, value=None):
     return value or ""
 
 
+def date_field_factory(data_fixture, table, user):
+    return data_fixture.create_date_field(name="target", user=user, table=table)
+
+
+def datetime_field_factory(data_fixture, table, user):
+    return data_fixture.create_date_field(
+        name="target", user=user, table=table, date_include_time=True
+    )
+
+
 def setup_linked_table_and_lookup(
     data_fixture,
     target_field_factory,

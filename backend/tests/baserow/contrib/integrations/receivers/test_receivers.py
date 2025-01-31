@@ -11,7 +11,6 @@ MOCK_LOCAL_BASEROW_PATH = "baserow.contrib.integrations.local_baserow.integratio
 def test_execute_integration_post_import_hooks_returns_early(data_fixture):
     """
     Test the execute_integration_post_import_hooks() receiver.
-
     Ensure that it returns early if the user is None
     """
 
@@ -30,7 +29,6 @@ def test_execute_integration_post_import_hooks_returns_early(data_fixture):
 def test_execute_integration_post_import_hooks_calls_after_import(data_fixture):
     """
     Test the execute_integration_post_import_hooks() receiver.
-
     Ensure that it calls the integration's after_import() hook.
     """
 

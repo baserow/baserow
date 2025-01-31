@@ -30,6 +30,7 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 
+from .config import AirtableImportConfig
 from .helpers import import_airtable_date_type_options, set_select_options_on_field
 from .registry import AirtableColumnType
 
@@ -37,7 +38,7 @@ from .registry import AirtableColumnType
 class TextAirtableColumnType(AirtableColumnType):
     type = "text"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         validator_name = raw_airtable_column.get("typeOptions", {}).get("validatorName")
         if validator_name == "url":
             return URLField()
@@ -53,6 +54,7 @@ class TextAirtableColumnType(AirtableColumnType):
         baserow_field,
         value,
         files_to_download,
+        config,
     ):
         if isinstance(baserow_field, (EmailField, URLField)):
             try:
@@ -67,14 +69,14 @@ class TextAirtableColumnType(AirtableColumnType):
 class MultilineTextAirtableColumnType(AirtableColumnType):
     type = "multilineText"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         return LongTextField()
 
 
 class RichTextTextAirtableColumnType(AirtableColumnType):
     type = "richText"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         return LongTextField()
 
     def to_baserow_export_serialized_value(
@@ -84,6 +86,7 @@ class RichTextTextAirtableColumnType(AirtableColumnType):
         baserow_field,
         value,
         files_to_download,
+        config,
     ):
         # We don't support rich text formatting yet, so this converts the value to
         # plain text.
@@ -121,7 +124,7 @@ class RichTextTextAirtableColumnType(AirtableColumnType):
 class NumberAirtableColumnType(AirtableColumnType):
     type = "number"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         type_options = raw_airtable_column.get("typeOptions", {})
         decimal_places = 0
 
@@ -143,6 +146,7 @@ class NumberAirtableColumnType(AirtableColumnType):
         baserow_field,
         value,
         files_to_download,
+        config,
     ):
         if value is not None:
             value = Decimal(value)
@@ -156,14 +160,16 @@ class NumberAirtableColumnType(AirtableColumnType):
 class RatingAirtableColumnType(AirtableColumnType):
     type = "rating"
 
-    def to_baserow_field(self, raw_airtable_table, values):
-        return RatingField(max_value=values.get("typeOptions", {}).get("max", 5))
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
+        return RatingField(
+            max_value=raw_airtable_column.get("typeOptions", {}).get("max", 5)
+        )
 
 
 class CheckboxAirtableColumnType(AirtableColumnType):
     type = "checkbox"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         return BooleanField()
 
     def to_baserow_export_serialized_value(
@@ -173,6 +179,7 @@ class CheckboxAirtableColumnType(AirtableColumnType):
         baserow_field,
         value,
         files_to_download,
+        config,
     ):
         return "true" if value else "false"
 
@@ -180,7 +187,7 @@ class CheckboxAirtableColumnType(AirtableColumnType):
 class DateAirtableColumnType(AirtableColumnType):
     type = "date"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         type_options = raw_airtable_column.get("typeOptions", {})
         # Check if a timezone is provided in the type options, if so, we might want
         # to use that timezone for the conversion later on.
@@ -204,6 +211,7 @@ class DateAirtableColumnType(AirtableColumnType):
         baserow_field,
         value,
         files_to_download,
+        config,
     ):
         if value is None:
             return value
@@ -235,7 +243,7 @@ class DateAirtableColumnType(AirtableColumnType):
 class FormulaAirtableColumnType(AirtableColumnType):
     type = "formula"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         type_options = raw_airtable_column.get("typeOptions", {})
         display_type = type_options.get("displayType", "")
         airtable_timezone = type_options.get("timeZone", None)
@@ -267,6 +275,7 @@ class FormulaAirtableColumnType(AirtableColumnType):
         baserow_field,
         value,
         files_to_download,
+        config,
     ):
         if isinstance(baserow_field, CreatedOnField):
             # If `None`, the value will automatically be populated from the
@@ -286,7 +295,7 @@ class FormulaAirtableColumnType(AirtableColumnType):
 class ForeignKeyAirtableColumnType(AirtableColumnType):
     type = "foreignKey"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         type_options = raw_airtable_column.get("typeOptions", {})
         foreign_table_id = type_options.get("foreignTableId")
 
@@ -302,6 +311,7 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
         baserow_field,
         value,
         files_to_download,
+        config,
     ):
         foreign_table_id = raw_airtable_column["typeOptions"]["foreignTableId"]
 
@@ -318,7 +328,7 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
 class MultipleAttachmentAirtableColumnType(AirtableColumnType):
     type = "multipleAttachment"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         return FileField()
 
     def to_baserow_export_serialized_value(
@@ -328,8 +338,15 @@ class MultipleAttachmentAirtableColumnType(AirtableColumnType):
         baserow_field,
         value,
         files_to_download,
+        config,
     ):
         new_value = []
+
+        # Skip adding the files to the `files_to_download` object and to the value,
+        # so that they're completely ignored if desired.
+        if config.skip_files:
+            return new_value
+
         for file in value:
             file_name = "_".join(file["url"].split("/")[-3:])
             files_to_download[file_name] = file["url"]
@@ -354,11 +371,12 @@ class SelectAirtableColumnType(AirtableColumnType):
         baserow_field: Field,
         value: Any,
         files_to_download: Dict[str, str],
+        config: AirtableImportConfig,
     ):
         # use field id and option id for uniqueness
         return f"{raw_airtable_column.get('id')}_{value}"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         field = SingleSelectField()
         field = set_select_options_on_field(
             field,
@@ -378,12 +396,13 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
         baserow_field: Field,
         value: Any,
         files_to_download: Dict[str, str],
+        config: AirtableImportConfig,
     ):
         # use field id and option id for uniqueness
         column_id = raw_airtable_column.get("id")
         return [f"{column_id}_{val}" for val in value]
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         field = MultipleSelectField()
         field = set_select_options_on_field(
             field,
@@ -396,7 +415,7 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
 class PhoneAirtableColumnType(AirtableColumnType):
     type = "phone"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         return PhoneNumberField()
 
     def to_baserow_export_serialized_value(
@@ -406,6 +425,7 @@ class PhoneAirtableColumnType(AirtableColumnType):
         baserow_field,
         value,
         files_to_download,
+        config,
     ):
         try:
             field_type = field_type_registry.get_by_model(baserow_field)
@@ -418,7 +438,7 @@ class PhoneAirtableColumnType(AirtableColumnType):
 class CountAirtableColumnType(AirtableColumnType):
     type = "count"
 
-    def to_baserow_field(self, raw_airtable_table, raw_airtable_column):
+    def to_baserow_field(self, raw_airtable_table, raw_airtable_column, config):
         type_options = raw_airtable_column.get("typeOptions", {})
         return CountField(through_field_id=type_options.get("relationColumnId"))
 
@@ -429,5 +449,6 @@ class CountAirtableColumnType(AirtableColumnType):
         baserow_field,
         value,
         files_to_download,
+        config,
     ):
         return None

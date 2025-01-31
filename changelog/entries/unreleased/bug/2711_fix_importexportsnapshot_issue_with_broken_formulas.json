@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fix import/export/snapshot issue with broken formulas",
+    "issue_number": 2711,
+    "bullet_points": [],
+    "created_at": "2025-01-15"
+}

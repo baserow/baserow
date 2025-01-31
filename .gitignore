@@ -119,6 +119,10 @@ out/
 .vscode/
 !config/vscode/.vscode/
 
+# cursor editor config files
+.cursor-config/
+!config/cursor/.cursor-config/
+
 # VIM's swap files
 *.swp
 

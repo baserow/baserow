@@ -50,7 +50,7 @@ def field_deleted(sender, field, **kwargs):
 
     from baserow.contrib.database.views.handler import ViewIndexingHandler
 
-    ViewIndexingHandler.after_field_changed_or_deleted(field)
+    ViewIndexingHandler.after_fields_changed_or_deleted([field])
 
 
 @receiver([view_sort_created, view_sort_updated, view_sort_deleted])
@@ -85,3 +85,10 @@ def view_loaded_create_indexes_and_columns(sender, view, table_model, **kwargs):
     table = view.table
     if not table.last_modified_by_column_added or not table.created_by_column_added:
         setup_created_by_and_last_modified_by_column.delay(table_id=view.table.id)
+
+
+@receiver(field_signals.fields_type_changed)
+def view_fields_type_changed(sender, fields, **kwargs):
+    from baserow.contrib.database.views.handler import ViewHandler
+
+    ViewHandler().fields_type_changed(fields)

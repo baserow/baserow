@@ -789,7 +789,9 @@ class BaserowFormulaDurationType(
         )
 
 
-class BaserowFormulaDateType(BaserowFormulaValidType):
+class BaserowFormulaDateType(
+    HasValueEmptyFilterSupport, HasValueContainsFilterSupport, BaserowFormulaValidType
+):
     type = "date"
     baserow_field_type = "date"
     user_overridable_formatting_option_fields = [
@@ -838,6 +840,9 @@ class BaserowFormulaDateType(BaserowFormulaValidType):
     @property
     def subtractable_types(self) -> List[Type["BaserowFormulaValidType"]]:
         return [type(self), BaserowFormulaDateIntervalType, BaserowFormulaDurationType]
+
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return None
 
     def add(
         self,

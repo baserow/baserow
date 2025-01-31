@@ -15,7 +15,7 @@ from baserow.core.trash.handler import TrashHandler
 
 from .handler import WidgetHandler
 from .models import Widget
-from .signals import widget_deleted, widget_updated
+from .signals import widget_created, widget_deleted, widget_updated
 from .types import UpdatedWidget
 
 
@@ -121,6 +121,8 @@ class WidgetService:
             order=order,
             **kwargs,
         )
+
+        widget_created.send(self, user=user, widget=new_widget)
 
         return new_widget
 

@@ -14,6 +14,17 @@ import {
   HasValueHigherThanOrEqualViewFilterType,
   HasNotValueHigherThanViewFilterType,
   HasNotValueHigherThanOrEqualViewFilterType,
+  HasDateBeforeViewFilterType,
+  HasNotDateBeforeViewFilterType,
+  HasDateEqualViewFilterType,
+  HasNotDateEqualViewFilterType,
+  HasDateAfterViewFilterType,
+  HasNotDateAfterViewFilterType,
+  HasDateOnOrBeforeViewFilterType,
+  HasNotDateOnOrBeforeViewFilterType,
+  HasDateOnOrAfterViewFilterType,
+  HasNotDateOnOrAfterViewFilterType,
+  HasDateWithinViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
 import {
   FormulaFieldType,
@@ -23,6 +34,16 @@ import {
   EmptyViewFilterType,
   NotEmptyViewFilterType,
 } from '@baserow/modules/database/viewFilters'
+import {
+  dateBeforeCases,
+  dateEqualCases,
+  dateAfterCases,
+  dateBeforeOrEqualCases,
+  dateAfterOrEqualCases,
+  dateWithinDays,
+  dateWithinWeeks,
+  dateWithinMonths,
+} from './viewFiltersMatch.spec.js'
 
 describe('Text-based array view filters', () => {
   let testApp = null
@@ -1728,4 +1749,290 @@ describe('Multiple select-based array view filters', () => {
       )
     }
   )
+})
+
+describe('Date array view filters', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const supportedFields = [
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'date',
+      date_include_time: false,
+    },
+    {
+      TestFieldType: FormulaFieldType,
+      formula_type: 'array',
+      array_formula_type: 'date',
+      date_include_time: true,
+    },
+  ]
+
+  const hasEmptyValueCases = [
+    {
+      cellValue: [],
+      expected: false,
+    },
+    {
+      cellValue: [{ value: null }],
+      expected: true,
+    },
+    {
+      cellValue: [{ value: '2021-01-01' }, { value: null }],
+      expected: true,
+    },
+    {
+      cellValue: [{ value: '2021-01-01' }, { value: '2021-01-02' }],
+      expected: false,
+    },
+  ]
+
+  describe.each(supportedFields)('HasEmptyValueViewFilterType %j', (field) => {
+    test.each(hasEmptyValueCases)('filter matches values %j', (testValues) => {
+      const fieldType = new field.TestFieldType({
+        app: testApp._app,
+      })
+      const result = new HasEmptyValueViewFilterType({
+        app: testApp._app,
+      }).matches(testValues.cellValue, testValues.filterValue, field, fieldType)
+      expect(result).toBe(testValues.expected)
+    })
+  })
+
+  describe.each(supportedFields)(
+    'HasNotEmptyValueViewFilterType %j',
+    (field) => {
+      test.each(hasEmptyValueCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotEmptyValueViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(!testValues.expected)
+        }
+      )
+    }
+  )
+
+  const hasValueContainsCases = [
+    {
+      cellValue: [],
+      filterValue: '19',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: '2020-01-01' }, { value: '2019-01-02' }],
+      filterValue: '19',
+      expected: true,
+    },
+    {
+      cellValue: [{ value: '2021-01-01' }, { value: '2021-01-02' }],
+      filterValue: '3',
+      expected: false,
+    },
+    {
+      cellValue: [{ value: '2021-01-01' }, { value: '2021-01-02' }],
+      filterValue: '2',
+      expected: true,
+    },
+  ]
+
+  describe.each(supportedFields)(
+    'HasValueContainsViewFilterType %j',
+    (field) => {
+      test.each(hasValueContainsCases)(
+        'filter matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasValueContainsViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(testValues.expected)
+        }
+      )
+    }
+  )
+
+  describe.each(supportedFields)(
+    'HasNotValueContainsViewFilterType %j',
+    (field) => {
+      test.each(hasValueContainsCases)(
+        'filter not matches values %j',
+        (testValues) => {
+          const fieldType = new field.TestFieldType({
+            app: testApp._app,
+          })
+          const result = new HasNotValueContainsViewFilterType({
+            app: testApp._app,
+          }).matches(
+            testValues.cellValue,
+            testValues.filterValue,
+            field,
+            fieldType
+          )
+          expect(result).toBe(!testValues.expected)
+        }
+      )
+    }
+  )
+
+  test.each(dateBeforeCases)('HasDateBeforeViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasDateBeforeViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
+      date_include_time: true,
+    })
+    expect(result).toBe(values.expected)
+  })
+
+  test.each(dateBeforeCases)('HasNotDateBeforeViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasNotDateBeforeViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
+      date_include_time: true,
+    })
+    expect(result).toBe(!values.expected)
+  })
+
+  test.each(dateBeforeOrEqualCases)(
+    'HasDateOnOrBeforeViewFilterType',
+    (values) => {
+      const rowValue = [{ value: values.rowValue }]
+      const result = new HasDateOnOrBeforeViewFilterType({
+        app: testApp,
+      }).matches(rowValue, `${values.filterValue}?exact_date`, {
+        date_include_time: true,
+      })
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(dateBeforeOrEqualCases)(
+    'HasNotDateOnOrBeforeViewFilterType',
+    (values) => {
+      const rowValue = [{ value: values.rowValue }]
+      const result = new HasNotDateOnOrBeforeViewFilterType({
+        app: testApp,
+      }).matches(rowValue, `${values.filterValue}?exact_date`, {
+        date_include_time: true,
+      })
+      expect(result).toBe(!values.expected)
+    }
+  )
+
+  test.each(dateEqualCases)('HasDateEqualViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasDateEqualViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
+      date_include_time: true,
+    })
+    expect(result).toBe(values.expected)
+  })
+
+  test.each(dateEqualCases)('HasNotDateEqualViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasNotDateEqualViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
+      date_include_time: true,
+    })
+    expect(result).toBe(!values.expected)
+  })
+
+  test.each(dateAfterCases)('HasDateAfterViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasDateAfterViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
+      date_include_time: true,
+    })
+    expect(result).toBe(values.expected)
+  })
+
+  test.each(dateAfterCases)('HaNotDateAfterViewFilterType', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasNotDateAfterViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?exact_date`, {
+      date_include_time: true,
+    })
+    expect(result).toBe(!values.expected)
+  })
+
+  test.each(dateAfterOrEqualCases)(
+    'HasDateOnOrAfterViewFilterType',
+    (values) => {
+      const rowValue = [{ value: values.rowValue }]
+      const result = new HasDateOnOrAfterViewFilterType({
+        app: testApp,
+      }).matches(rowValue, `${values.filterValue}?exact_date`, {
+        date_include_time: true,
+      })
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(dateAfterOrEqualCases)(
+    'HasNoeDateOnOrAfterViewFilterType',
+    (values) => {
+      const rowValue = [{ value: values.rowValue }]
+      const result = new HasNotDateOnOrAfterViewFilterType({
+        app: testApp,
+      }).matches(rowValue, `${values.filterValue}?exact_date`, {
+        date_include_time: true,
+      })
+      expect(result).toBe(!values.expected)
+    }
+  )
+
+  test.each(dateWithinDays)('HasDateWithinDays', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasDateWithinViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?nr_days_from_now`, {})
+    expect(result).toBe(values.expected)
+  })
+
+  test.each(dateWithinWeeks)('HasDateWithinWeeks', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasDateWithinViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?nr_weeks_from_now`, {})
+    expect(result).toBe(values.expected)
+  })
+
+  test.each(dateWithinMonths)('HasDateWithinMonths', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasDateWithinViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?nr_months_from_now`, {})
+    expect(result).toBe(values.expected)
+  })
 })

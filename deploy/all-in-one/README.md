@@ -179,14 +179,14 @@ docker run \
   baserow/baserow-pgautoupgrade:1.30.1
 ```
 
-3. If the upgrade was successful, the contaner should exit with a success message, you can now start Baserow as you did before.
+3. If the upgrade was successful, the container should exit with a success message, you can now start Baserow as you did before.
 4. If the upgrade wasn't successful, the upgrade image should output verbose logs of where exactly it failed. In that case, copy all of the log output and refer to [Baserow community](https://community.baserow.io/) or contact us for further assistance.
 
 ### Legacy PostgreSQL version
 
-Baserow provides an image which runs a legacy PostgreSQL 11 version which can be run if you don't want to upgrade to PostgreSQL 15 at this point. Note, that we will only support PostgreSQL 11 for a limited amount of time to help transitioning between database versions. Also, be aware, that PostgreSQL 11 is not receiving official security updates and bug fixes anymore.
+Starting from January 1, 2025, we will no longer create new images with PostgreSQL 11. If you are using the embedded PostgreSQL version in a Baserow version before 1.30 and want to upgrade to the latest version, you must first use the latest `pgautoupgrade` image to upgrade PostgreSQL to version 15, and then upgrade to the latest version of Baserow. If you do not wish to upgrade PostgreSQL, version 1.30.1 is the last image we provide with PostgreSQL 11, but it will not receive any updates.
 
-To run Baserow image which uses legacy PostgreSQL 11 version, run:
+To run the latest Baserow image that uses the legacy PostgreSQL 11 version, use the following command:
 
 ```
 docker run \

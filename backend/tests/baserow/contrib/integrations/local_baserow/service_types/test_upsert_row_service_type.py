@@ -1,10 +1,12 @@
 from io import BytesIO
+from unittest.mock import MagicMock, patch
 
 import pytest
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.workflow_actions.models import EventTypes
+from baserow.contrib.database.api.rows.serializers import RowSerializer
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -690,3 +692,76 @@ def test_local_baserow_upsert_row_service_type_import_path(data_fixture):
     assert imported_upsert_row_service_type.import_path(
         ["field_1"], {"database_fields": {1: 2}}
     ) == ["field_2"]
+
+
+@pytest.mark.parametrize(
+    "field_names,expected",
+    [
+        (None, None),
+        ([], []),
+        (["field_123"], [123]),
+    ],
+)
+@patch(
+    "baserow.contrib.integrations.local_baserow.service_types.get_row_serializer_class"
+)
+def test_dispatch_transform_passes_field_ids(
+    mock_get_serializer, field_names, expected
+):
+    """
+    Test the LocalBaserowUpsertRowServiceType::dispatch_transform() method.
+
+    Ensure that the field_ids parameter is passed to the serializer class.
+    """
+
+    mock_serializer_instance = MagicMock()
+    mock_serializer_instance.data.return_value = "foo"
+    mock_serializer = MagicMock(return_value=mock_serializer_instance)
+    mock_get_serializer.return_value = mock_serializer
+
+    service_type = LocalBaserowUpsertRowServiceType()
+
+    dispatch_data = {
+        "baserow_table_model": MagicMock(),
+        "data": [],
+    }
+    dispatch_data["public_formula_fields"] = field_names
+
+    results = service_type.dispatch_transform(dispatch_data)
+
+    assert results == mock_serializer_instance.data
+    mock_get_serializer.assert_called_once_with(
+        dispatch_data["baserow_table_model"],
+        RowSerializer,
+        is_response=True,
+        field_ids=expected,
+    )
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ([], []),
+        ([None], []),
+        ([""], []),
+        (["foo"], []),
+        (["bar"], []),
+        (["foo", "bar"], []),
+        # "id" is valid
+        (["id"], ["id"]),
+        # "field_<id>" is a valid pattern
+        (["field_1"], ["field_1"]),
+    ],
+)
+def test_extract_properties_returns_expected_list(path, expected):
+    """
+    Test the LocalBaserowUpsertRowServiceType::extract_properties() method.
+
+    Ensure that given the path parameter, the expected list is returned.
+    """
+
+    service_type = LocalBaserowUpsertRowServiceType()
+
+    result = service_type.extract_properties(path)
+
+    assert result == expected

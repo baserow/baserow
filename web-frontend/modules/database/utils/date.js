@@ -199,3 +199,215 @@ export const prepareMultiStepDateValue = (filterValue, timezone, operator) => {
   const sep = DATE_FILTER_VALUE_SEPARATOR
   return `${timezone}${sep}${filterValue}${sep}${operator}`
 }
+
+export const DateFilterOperators = {
+  TODAY: { value: 'today', stringKey: 'viewFilter.today' },
+  YESTERDAY: { value: 'yesterday', stringKey: 'viewFilter.yesterday' },
+  TOMORROW: { value: 'tomorrow', stringKey: 'viewFilter.tomorrow' },
+  ONE_WEEK_AGO: { value: 'one_week_ago', stringKey: 'viewFilter.oneWeekAgo' },
+  THIS_WEEK: { value: 'this_week', stringKey: 'viewFilter.thisWeek' },
+  NEXT_WEEK: { value: 'next_week', stringKey: 'viewFilter.nextWeek' },
+  ONE_MONTH_AGO: {
+    value: 'one_month_ago',
+    stringKey: 'viewFilter.oneMonthAgo',
+  },
+  THIS_MONTH: { value: 'this_month', stringKey: 'viewFilter.thisMonth' },
+  NEXT_MONTH: { value: 'next_month', stringKey: 'viewFilter.nextMonth' },
+  ONE_YEAR_AGO: { value: 'one_year_ago', stringKey: 'viewFilter.oneYearAgo' },
+  THIS_YEAR: { value: 'this_year', stringKey: 'viewFilter.thisYear' },
+  NEXT_YEAR: { value: 'next_year', stringKey: 'viewFilter.nextYear' },
+  NR_DAYS_AGO: {
+    value: 'nr_days_ago',
+    stringKey: 'viewFilter.nrDaysAgo',
+    hasNrInputValue: true,
+  },
+  NR_DAYS_FROM_NOW: {
+    value: 'nr_days_from_now',
+    stringKey: 'viewFilter.nrDaysFromNow',
+    hasNrInputValue: true,
+  },
+  NR_WEEKS_AGO: {
+    value: 'nr_weeks_ago',
+    stringKey: 'viewFilter.nrWeeksAgo',
+    hasNrInputValue: true,
+  },
+  NR_WEEKS_FROM_NOW: {
+    value: 'nr_weeks_from_now',
+    stringKey: 'viewFilter.nrWeeksFromNow',
+    hasNrInputValue: true,
+  },
+  NR_MONTHS_AGO: {
+    value: 'nr_months_ago',
+    stringKey: 'viewFilter.nrMonthsAgo',
+    hasNrInputValue: true,
+  },
+  NR_MONTHS_FROM_NOW: {
+    value: 'nr_months_from_now',
+    stringKey: 'viewFilter.nrMonthsFromNow',
+    hasNrInputValue: true,
+  },
+  NR_YEARS_AGO: {
+    value: 'nr_years_ago',
+    stringKey: 'viewFilter.nrYearsAgo',
+    hasNrInputValue: true,
+  },
+  NR_YEARS_FROM_NOW: {
+    value: 'nr_years_from_now',
+    stringKey: 'viewFilter.nrYearsFromNow',
+    hasNrInputValue: true,
+  },
+  EXACT_DATE: {
+    value: 'exact_date',
+    stringKey: 'viewFilter.exactDate',
+    hasDateInputValue: true,
+  },
+}
+
+const parseFilterValueAsDate = (
+  filterValue,
+  timezone = null,
+  dateFormat = 'YYYY-MM-DD'
+) => {
+  const filterDate = moment.utc(filterValue, dateFormat, true)
+  if (!filterDate.isValid()) {
+    throw new Error('Invalid date format')
+  } else if (timezone) {
+    filterDate.tz(timezone, true)
+  }
+  return filterDate
+}
+
+const parseFilterValueAsNumber = (filterValue) => {
+  try {
+    return parseInt(filterValue)
+  } catch {
+    return null
+  }
+}
+
+// Please be aware that momentjs modifies filterDate in place, so
+// make sure to clone it before modifying it.
+export const DATE_FILTER_OPERATOR_BOUNDS = {
+  [DateFilterOperators.TODAY.value]: (filterDate) => [
+    filterDate.startOf('day'),
+    filterDate.clone().add(1, 'days'),
+  ],
+  [DateFilterOperators.YESTERDAY.value]: (filterDate) => [
+    filterDate.subtract(1, 'days').startOf('day'),
+    filterDate.clone().add(1, 'days'),
+  ],
+  [DateFilterOperators.TOMORROW.value]: (filterDate) => [
+    filterDate.add(1, 'days').startOf('day'),
+    filterDate.clone().add(1, 'days'),
+  ],
+  [DateFilterOperators.ONE_WEEK_AGO.value]: (filterDate) => [
+    filterDate.subtract(1, 'weeks').startOf('week').add(1, 'days'), // Start of the week is Sunday, so add 1 day to get Monday.
+    filterDate.clone().add(1, 'weeks'),
+  ],
+  [DateFilterOperators.ONE_MONTH_AGO.value]: (filterDate) => [
+    filterDate.subtract(1, 'months').startOf('month'),
+    filterDate.clone().add(1, 'months'),
+  ],
+  [DateFilterOperators.ONE_YEAR_AGO.value]: (filterDate) => [
+    filterDate.subtract(1, 'years').startOf('year'),
+    filterDate.clone().add(1, 'year'),
+  ],
+  [DateFilterOperators.THIS_WEEK.value]: (filterDate) => [
+    filterDate.startOf('week').add(1, 'days'), // Start of the week is Sunday, so add 1 day to get Monday.
+    filterDate.clone().add(1, 'week'),
+  ],
+  [DateFilterOperators.THIS_MONTH.value]: (filterDate) => [
+    filterDate.startOf('month'),
+    filterDate.clone().add(1, 'months'),
+  ],
+  [DateFilterOperators.THIS_YEAR.value]: (filterDate) => [
+    filterDate.startOf('year'),
+    filterDate.clone().add(1, 'years'),
+  ],
+  [DateFilterOperators.NEXT_WEEK.value]: (filterDate) => [
+    filterDate.add(1, 'weeks').startOf('week').add(1, 'days'), // Start of the week is Sunday, so add 1 day to get Monday.
+    filterDate.clone().add(1, 'week'),
+  ],
+  [DateFilterOperators.NEXT_MONTH.value]: (filterDate) => [
+    filterDate.add(1, 'months').startOf('month'),
+    filterDate.clone().add(1, 'months'),
+  ],
+  [DateFilterOperators.NEXT_YEAR.value]: (filterDate) => [
+    filterDate.add(1, 'years').startOf('year'),
+    filterDate.clone().add(1, 'years'),
+  ],
+  [DateFilterOperators.NR_DAYS_AGO.value]: (filterDate) => [
+    filterDate.startOf('day'),
+    filterDate.clone().add(1, 'days'),
+  ],
+  [DateFilterOperators.NR_WEEKS_AGO.value]: (filterDate) => [
+    filterDate.startOf('week').add(1, 'days'), // Start of the week is Sunday, so add 1 day to get Monday.
+    filterDate.clone().add(1, 'weeks'),
+  ],
+  [DateFilterOperators.NR_MONTHS_AGO.value]: (filterDate) => [
+    filterDate.startOf('month'),
+    filterDate.clone().add(1, 'months'),
+  ],
+  [DateFilterOperators.NR_YEARS_AGO.value]: (filterDate) => [
+    filterDate.startOf('year'),
+    filterDate.clone().add(1, 'years'),
+  ],
+  [DateFilterOperators.NR_DAYS_FROM_NOW.value]: (filterDate) => [
+    filterDate.startOf('day'),
+    filterDate.clone().add(1, 'days'),
+  ],
+  [DateFilterOperators.NR_WEEKS_FROM_NOW.value]: (filterDate) => [
+    filterDate.startOf('week').add(1, 'days'), // Start of the week is Sunday, so add 1 day to get Monday.
+    filterDate.clone().add(1, 'weeks'),
+  ],
+  [DateFilterOperators.NR_MONTHS_FROM_NOW.value]: (filterDate) => [
+    filterDate.startOf('month'),
+    filterDate.clone().add(1, 'months'),
+  ],
+  [DateFilterOperators.NR_YEARS_FROM_NOW.value]: (filterDate) => [
+    filterDate.startOf('year'),
+    filterDate.clone().add(1, 'years'),
+  ],
+  [DateFilterOperators.EXACT_DATE.value]: (filterDate) => [
+    filterDate.startOf('day'),
+    filterDate.clone().add(1, 'days'),
+  ],
+}
+
+export const DATE_FILTER_OPERATOR_DELTA_MAP = {
+  [DateFilterOperators.EXACT_DATE.value]: (
+    filterDate,
+    filterValue,
+    timezone
+  ) => {
+    return parseFilterValueAsDate(filterValue, timezone)
+  },
+  // days
+  [DateFilterOperators.NR_DAYS_AGO.value]: (filterDate, filterValue) => {
+    return filterDate.subtract(parseFilterValueAsNumber(filterValue), 'days')
+  },
+  [DateFilterOperators.NR_DAYS_FROM_NOW.value]: (filterDate, filterValue) => {
+    return filterDate.add(parseFilterValueAsNumber(filterValue), 'days')
+  },
+  // weeks
+  [DateFilterOperators.NR_WEEKS_AGO.value]: (filterDate, filterValue) => {
+    return filterDate.subtract(parseFilterValueAsNumber(filterValue), 'weeks')
+  },
+  [DateFilterOperators.NR_WEEKS_FROM_NOW.value]: (filterDate, filterValue) => {
+    return filterDate.add(parseFilterValueAsNumber(filterValue), 'weeks')
+  },
+  // months
+  [DateFilterOperators.NR_MONTHS_AGO.value]: (filterDate, filterValue) => {
+    return filterDate.subtract(parseFilterValueAsNumber(filterValue), 'months')
+  },
+  [DateFilterOperators.NR_MONTHS_FROM_NOW.value]: (filterDate, filterValue) => {
+    return filterDate.add(parseFilterValueAsNumber(filterValue), 'months')
+  },
+  // years
+  [DateFilterOperators.NR_YEARS_AGO.value]: (filterDate, filterValue) => {
+    return filterDate.subtract(parseFilterValueAsNumber(filterValue), 'years')
+  },
+  [DateFilterOperators.NR_YEARS_FROM_NOW.value]: (filterDate, filterValue) => {
+    return filterDate.add(parseFilterValueAsNumber(filterValue), 'years')
+  },
+}

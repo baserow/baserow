@@ -5,6 +5,7 @@
   border-radius: 2px;
   position: relative;
   border: 1px solid $palette-neutral-400;
+  flex-shrink: 0;
 }
 
 .color-input__preview::before {
@@ -63,4 +64,8 @@
     box-shadow: none;
     background-color: $palette-neutral-100;
   }
+}
+
+.color-input__text {
+  @extend %ellipsis;
 }

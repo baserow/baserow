@@ -47,6 +47,7 @@ class AirtableImportJobType(JobType):
         "workspace_id",
         "database_id",
         "airtable_share_url",
+        "skip_files",
     ]
 
     request_serializer_field_overrides = {
@@ -59,12 +60,17 @@ class AirtableImportJobType(JobType):
             help_text="The publicly shared URL of the Airtable base (e.g. "
             "https://airtable.com/shrxxxxxxxxxxxxxx)",
         ),
+        "skip_files": serializers.BooleanField(
+            default=False,
+            help_text="If true, then the files are not downloaded and imported.",
+        ),
     }
 
     serializer_field_names = [
         "workspace_id",
         "database",
         "airtable_share_id",
+        "skip_files",
     ]
 
     serializer_field_overrides = {
@@ -76,6 +82,10 @@ class AirtableImportJobType(JobType):
             help_text="Public ID of the shared Airtable base that must be imported.",
         ),
         "database": PolymorphicApplicationResponseSerializer(),
+        "skip_files": serializers.BooleanField(
+            default=False,
+            help_text="If true, then the files are not downloaded and imported.",
+        ),
     }
 
     def prepare_values(self, values, user):
@@ -92,6 +102,7 @@ class AirtableImportJobType(JobType):
         return {
             "airtable_share_id": airtable_share_id,
             "workspace": workspace,
+            "skip_files": values.get("skip_files", False),
         }
 
     def run(self, job, progress):
@@ -101,6 +112,7 @@ class AirtableImportJobType(JobType):
             job.user,
             job.workspace,
             job.airtable_share_id,
+            job.skip_files,
             progress_builder=progress.create_child_builder(
                 represents_progress=progress.total
             ),

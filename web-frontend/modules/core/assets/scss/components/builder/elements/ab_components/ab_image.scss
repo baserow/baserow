@@ -15,4 +15,5 @@
   max-height: var(--image-max-height, auto);
   width: var(--image-width, auto);
   height: var(--image-height, auto);
+  border-radius: var(--image-border-radius, 0);
 }

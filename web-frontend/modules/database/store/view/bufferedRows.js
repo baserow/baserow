@@ -18,6 +18,7 @@ import {
   prepareRowForRequest,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
+import fieldOptionsStoreFactory from '@baserow/modules/database/store/view/fieldOptions'
 
 /**
  * This view store mixin can be used to efficiently keep and maintain the rows of a
@@ -50,9 +51,11 @@ import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/sea
  * ]
  * ```
  */
-export default ({ service, customPopulateRow }) => {
+export default ({ service, customPopulateRow, fieldOptions }) => {
   let lastRequestController = null
   const updateRowQueue = new GroupTaskQueue()
+  const fieldOptionsStore =
+    fieldOptions !== undefined ? fieldOptions : fieldOptionsStoreFactory()
 
   const populateRow = (row, metadata = {}) => {
     if (customPopulateRow) {
@@ -489,9 +492,7 @@ export default ({ service, customPopulateRow }) => {
           )
 
           // Only fetch visible rows if there are any.
-          const {
-            data: { results },
-          } = await service(this.$client).fetchRows({
+          const { data } = await service(this.$client).fetchRows({
             viewId: getters.getViewId,
             offset: rangeToFetch.offset,
             limit: rangeToFetch.limit,
@@ -505,9 +506,13 @@ export default ({ service, customPopulateRow }) => {
             filters: getFilters(view, adhocFiltering),
           })
 
-          results.forEach((row, index) => {
+          data.results.forEach((row, index) => {
             rows[rangeToFetch.offset + index] = populateRow(row)
           })
+
+          if (includeFieldOptions) {
+            commit('UPDATE_ALL_FIELD_OPTIONS', data.field_options)
+          }
         }
 
         commit('SET_ROWS', rows)
@@ -1195,9 +1200,9 @@ export default ({ service, customPopulateRow }) => {
 
   return {
     namespaced: true,
-    state,
-    getters,
-    actions,
-    mutations,
+    state: () => ({ ...state(), ...fieldOptionsStore.state() }),
+    getters: { ...getters, ...fieldOptionsStore.getters },
+    actions: { ...actions, ...fieldOptionsStore.actions },
+    mutations: { ...mutations, ...fieldOptionsStore.mutations },
   }
 }

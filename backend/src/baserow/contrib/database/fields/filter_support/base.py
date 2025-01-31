@@ -1,4 +1,6 @@
 import re
+import zoneinfo
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Type
 
 from django.contrib.postgres.fields import JSONField
@@ -362,6 +364,65 @@ def get_jsonb_has_exact_value_filter_expr(
     expr = RawSQL(raw_sql, (sql_ids,))  # nosec B611
 
     annotation_name = f"{field_name}_has_any_of_{hash(tuple(sql_ids))}"
+    return AnnotatedQ(
+        annotation={annotation_name: expr},
+        q=Q(**{annotation_name: True}),
+    )
+
+
+def get_jsonb_has_date_value_filter_expr(
+    model_field: DjangoField,
+    timezone: zoneinfo.ZoneInfo,
+    gte_of: date | datetime | None = None,
+    lt_of: date | datetime | None = None,
+) -> OptionallyAnnotatedQ:
+    """
+    Returns an AnnotatedQ that filters rows where the JSON field contains a date or
+    datetime value that is within the provided bounds. The JSON field must be an array
+    of objects, each containing a 'value' key, which is a date or datetime. For example:
+    [{"value": "2022-01-01T00:00:00Z"}, {"value": "2022-01-02T00:00:00Z"}, ...]
+
+    :param model_field: The Django model field to filter on.
+    :param timezone: The timezone to use when comparing the date or datetime values.
+    :param gte_of: The lower bound of the date or datetime values to filter on. If
+        provided, the date or datetime values must be greater than or equal to this
+        value.
+    :param lt_of: The upper bound of the date or datetime values to filter on. If
+        provided, the date or datetime values must be less than this value.
+    :return: An AnnotatedQ that filters rows with date or datetime values within the
+        provided bounds.
+    """
+
+    if lt_of is None and gte_of is None:
+        raise ValueError("At least one of the bounds must be provided.")
+
+    where_clauses, where_params = [], []
+
+    if gte_of:
+        data_type = "date" if isinstance(gte_of, date) else "timestamptz"
+        where_clauses.append(
+            f"((elem->>'value')::timestamptz AT time zone %s)::{data_type} >= %s::{data_type}"
+        )
+        where_params.extend([str(timezone), gte_of.isoformat()])
+
+    if lt_of:
+        data_type = "date" if isinstance(lt_of, date) else "timestamptz"
+        where_clauses.append(
+            f"((elem->>'value')::timestamptz AT time zone %s)::{data_type} < %s::{data_type}"
+        )
+        where_params.extend([str(timezone), lt_of.isoformat()])
+
+    field_name = model_field.name
+    raw_sql = f"""
+        EXISTS(
+            SELECT 1
+            FROM jsonb_array_elements("{field_name}") elem
+            WHERE ({' AND '.join(where_clauses)})
+        )
+    """  # nosec B608 {field_name}
+    expr = RawSQL(raw_sql, where_params)  # nosec B611
+
+    annotation_name = f"{field_name}_has_date_gte_{hash(gte_of)}_lt_{hash(lt_of)}"
     return AnnotatedQ(
         annotation={annotation_name: expr},
         q=Q(**{annotation_name: True}),

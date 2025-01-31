@@ -120,6 +120,16 @@
   );
 }
 
+.button--xlarge {
+  font-size: 16px;
+
+  @include button-size(
+    $button-xlarge-height,
+    $button-xlarge-top-bottom-padding,
+    $button-xlarge-right-left-padding
+  );
+}
+
 .button__icon {
   font-size: 16px;
 

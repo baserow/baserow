@@ -68,13 +68,11 @@ export default {
       const rowValue = this.$registry
         .get('field', primary.type)
         .toHumanReadableString(primary, row[`field_${primary.id}`])
-      // The backend sort by order first and then by id, but we don't have the order
-      // here, so we just sort by id
-      const valueCopy = JSON.parse(JSON.stringify(value))
-      const newValue = [
-        ...valueCopy,
-        { id: row.id, value: rowValue, order: row.order },
-      ].toSorted((a, b) => {
+
+      const newValue = JSON.parse(JSON.stringify(value))
+      newValue.push({ id: row.id, value: rowValue, order: row.order })
+      // Match the backend order sorting
+      newValue.sort((a, b) => {
         const orderA = new BigNumber(a.order)
         const orderB = new BigNumber(b.order)
         return orderA.isLessThan(orderB)

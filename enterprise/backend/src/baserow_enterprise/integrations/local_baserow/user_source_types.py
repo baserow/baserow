@@ -416,14 +416,14 @@ class LocalBaserowUserSourceType(UserSourceType):
         """
 
         if value and "database_tables" in id_mapping and prop_name == "table_id":
-            return id_mapping["database_tables"][value]
+            return id_mapping["database_tables"].get(value)
 
         if (
             value
             and "database_fields" in id_mapping
             and prop_name in ("email_field_id", "name_field_id", "role_field_id")
         ):
-            return id_mapping["database_fields"][value]
+            return id_mapping["database_fields"].get(value)
 
         return super().deserialize_property(
             prop_name,

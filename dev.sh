@@ -146,8 +146,6 @@ dev=true
 local=false
 all_in_one=false
 all_in_one_dev=false
-all_in_one_pgautoupgrade=false
-all_in_one_pg11=false
 cloudron=false
 heroku=false
 env_set=false
@@ -221,21 +219,6 @@ case "${1:-noneleft}" in
         all_in_one_dev=true
         dev=false
         build_dependencies=(all_in_one)
-        shift
-    ;;
-    all_in_one_pgautoupgrade)
-        echo "./dev.sh: Switching to db upgrade image"
-        ensure_only_one_env_selected_at_once
-        all_in_one_pgautoupgrade=true
-        dev=false
-        shift
-    ;;
-    all_in_one_pg11)
-        echo "./dev.sh: Switching to legacy db image"
-        ensure_only_one_env_selected_at_once
-        all_in_one_pg11=true
-        dev=false
-        build_dependencies=(local)
         shift
     ;;
     cloudron)
@@ -404,16 +387,6 @@ fi
 
 if [ "$all_in_one" = true ] ; then
   CORE_FILE=deploy/all-in-one/"$CORE_FILE"
-  OVERRIDE_FILE=()
-fi
-
-if [ "$all_in_one_pgautoupgrade" = true ] ; then
-  CORE_FILE=deploy/all-in-one/docker-compose.pgautoupgrade.yml
-  OVERRIDE_FILE=()
-fi
-
-if [ "$all_in_one_pg11" = true ] ; then
-  CORE_FILE=deploy/all-in-one/docker-compose.pg11.yml
   OVERRIDE_FILE=()
 fi
 

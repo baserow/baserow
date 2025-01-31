@@ -20,6 +20,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.registries import service_type_registry
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder, Progress
 
 
@@ -352,3 +353,45 @@ def test_dashboard_import_serialized_with_widgets(data_fixture):
     assert widget2.data_source.id == ds2.id
 
     assert progress.progress == 100
+
+
+@pytest.mark.django_db()
+def test_dashboard_permanently_delete(data_fixture, settings):
+    settings.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED = 0
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    number_field = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+    dashboard = cast(
+        Dashboard,
+        CoreHandler().create_application(
+            user,
+            workspace,
+            type_name="dashboard",
+            description="Dashboard description",
+            init_with_data=True,
+        ),
+    )
+    dashboard_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Widget 1", description="Description 1"
+    )
+    service_type = service_type_registry.get_by_model(
+        dashboard_widget.data_source.service.specific_class
+    )
+    DashboardDataSourceService().update_data_source(
+        user,
+        dashboard_widget.data_source.id,
+        service_type,
+        table_id=table.id,
+        view_id=view.id,
+        field_id=number_field.id,
+        aggregation_type="sum",
+    )
+
+    TrashHandler.trash(user, workspace, None, trash_item=dashboard)
+    TrashHandler.mark_old_trash_for_permanent_deletion()
+    TrashHandler.permanently_delete_marked_trash()
+
+    assert Dashboard.objects_and_trash.count() == 0
