@@ -73,6 +73,7 @@ def test_can_export_every_interesting_different_field_to_json(
     "link_row_without_related": [],
     "decimal_link_row": [],
     "file_link_row": [],
+    "multiple_collaborators_link_row": [],
     "file": [],
     "single_select": "",
     "multiple_select": [],
@@ -100,6 +101,7 @@ def test_can_export_every_interesting_different_field_to_json(
     "duration_rollup_sum": "0:00",
     "duration_rollup_avg": "0:00",
     "lookup": [],
+    "multiple_collaborators_lookup": [],
     "uuid": "00000000-0000-4000-8000-000000000001",
     "autonumber": 1,
     "password": "",
@@ -170,6 +172,15 @@ def test_can_export_every_interesting_different_field_to_json(
         ],
         "unnamed row 2"
     ],
+    "multiple_collaborators_link_row": [
+        [
+            "User2 <user2@example.com>",
+            "User3 <user3@example.com>"
+        ],
+        [
+            "User2 <user2@example.com>"
+        ]
+    ],
     "file": [
         {
             "visible_name": "a.txt",
@@ -223,6 +234,15 @@ def test_can_export_every_interesting_different_field_to_json(
         "linked_row_1",
         "linked_row_2",
         ""
+    ],
+    "multiple_collaborators_lookup": [
+        [
+            "User2 <user2@example.com>",
+            "User3 <user3@example.com>"
+        ],
+        [
+            "User2 <user2@example.com>"
+        ]
     ],
     "uuid": "00000000-0000-4000-8000-000000000002",
     "autonumber": 2,
@@ -361,6 +381,7 @@ def test_can_export_every_interesting_different_field_to_xml(
       <link-row-without-related/>
       <decimal-link-row/>
       <file-link-row/>
+      <multiple-collaborators-link-row/>
       <file/>
       <single-select/>
       <multiple-select/>
@@ -388,6 +409,7 @@ def test_can_export_every_interesting_different_field_to_xml(
       <duration-rollup-sum>0:00</duration-rollup-sum>
       <duration-rollup-avg>0:00</duration-rollup-avg>
       <lookup/>
+      <multiple-collaborators-lookup/>
       <uuid>00000000-0000-4000-8000-000000000001</uuid>
       <autonumber>1</autonumber>
       <password/>
@@ -458,6 +480,15 @@ def test_can_export_every_interesting_different_field_to_xml(
          </item>
          <item>unnamed row 2</item>
       </file-link-row>
+      <multiple-collaborators-link-row>
+        <item>
+            <item>User2 &lt;user2@example.com&gt;</item>
+            <item>User3 &lt;user3@example.com&gt;</item>
+        </item>
+        <item>
+            <item>User2 &lt;user2@example.com&gt;</item>
+        </item>
+      </multiple-collaborators-link-row>
       <file>
          <item>
             <visible_name>a.txt</visible_name>
@@ -512,6 +543,15 @@ def test_can_export_every_interesting_different_field_to_xml(
          <item>linked_row_2</item>
          <item/>
       </lookup>
+      <multiple-collaborators-lookup>
+        <item>
+            <item>User2 &lt;user2@example.com&gt;</item>
+            <item>User3 &lt;user3@example.com&gt;</item>
+        </item>
+        <item>
+            <item>User2 &lt;user2@example.com&gt;</item>
+        </item>
+      </multiple-collaborators-lookup>
       <uuid>00000000-0000-4000-8000-000000000002</uuid>
       <autonumber>2</autonumber>
       <password>true</password>
@@ -727,6 +767,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "link_row_without_related",
         "decimal_link_row",
         "file_link_row",
+        "multiple_collaborators_link_row",
         "file",
         "single_select",
         "multiple_select",
@@ -749,6 +790,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "duration_rollup_sum",
         "duration_rollup_avg",
         "lookup",
+        "multiple_collaborators_lookup",
         "uuid",
         "autonumber",
         "password",
@@ -804,6 +846,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         None,
         None,
         None,
+        None,
         "test FORMULA",
         "1",
         "True",
@@ -820,6 +863,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "0.000",
         "0:00",
         "0:00",
+        None,
         None,
         "00000000-0000-4000-8000-000000000001",
         "1",
@@ -871,6 +915,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "linked_row_1,linked_row_2",
         "1.234,-123.456,unnamed row 3",
         "name.txt (http://localhost:8000/media/user_files/test_hash.txt),unnamed row 2",
+        '"User2 <user2@example.com>,User3 <user3@example.com>",User2 <user2@example.com>',
         "a.txt (http://localhost:8000/media/user_files/hashed_name.txt),b.txt (http://localhost:8000/media/user_files/other_name.txt)",
         "A",
         "D,C,E",
@@ -893,6 +938,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "0:04",
         "0:02",
         "linked_row_1,linked_row_2,",
+        '"User2 <user2@example.com>,User3 <user3@example.com>",User2 <user2@example.com>',
         "00000000-0000-4000-8000-000000000002",
         "2",
         "True",

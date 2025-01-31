@@ -904,9 +904,13 @@ def test_multiple_collaborators_formula_field_cache_users_query(data_fixture):
         user=user, table=table, values={field_id: [{"id": user.id}]}, model=table_model
     )
 
+    field_objects = list(table_model._field_objects.values())
+
     def export_row(row):
-        for field in table_model._field_objects.values():
-            field["type"].get_human_readable_value(getattr(row, field["name"]), field)
+        for field_object in field_objects:
+            field_object["type"].get_human_readable_value(
+                getattr(row, field_object["name"]), field_object
+            )
 
     # Let's count the number of queries to export one row
     with CaptureQueriesContext(connection) as queries_for_first:

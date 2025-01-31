@@ -280,6 +280,10 @@ def test_can_export_every_interesting_different_field_to_csv(
             "",
             '"name.txt (http://localhost:8000/media/user_files/test_hash.txt),unnamed row 2"',
         ],
+        "multiple_collaborators_link_row": [
+            "",
+            '"""User2 <user2@example.com>,User3 <user3@example.com>"",User2 <user2@example.com>"',
+        ],
         "file": [
             "",
             '"a.txt (http://localhost:8000/media/user_files/hashed_name.txt),b.txt (http://localhost:8000/media/user_files/other_name.txt)"',
@@ -314,6 +318,10 @@ def test_can_export_every_interesting_different_field_to_csv(
         "duration_rollup_sum": ["0:00", "0:04"],
         "duration_rollup_avg": ["0:00", "0:02"],
         "lookup": ["", '"linked_row_1,linked_row_2,"'],
+        "multiple_collaborators_lookup": [
+            "",
+            '"""User2 <user2@example.com>,User3 <user3@example.com>"",User2 <user2@example.com>"',
+        ],
         "uuid": [
             "00000000-0000-4000-8000-000000000001",
             "00000000-0000-4000-8000-000000000002",

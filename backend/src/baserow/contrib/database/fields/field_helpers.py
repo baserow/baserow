@@ -5,7 +5,11 @@ from baserow.contrib.database.fields.utils.duration import D_H_M
 
 
 def construct_all_possible_field_kwargs(
-    table, link_table, decimal_link_table, file_link_table
+    table,
+    link_table,
+    decimal_link_table,
+    file_link_table,
+    multiple_collaborator_link_table,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
     Some baserow field types have multiple different 'modes' which result in
@@ -161,6 +165,10 @@ def construct_all_possible_field_kwargs(
             },
             {"name": "decimal_link_row", "link_row_table": decimal_link_table},
             {"name": "file_link_row", "link_row_table": file_link_table},
+            {
+                "name": "multiple_collaborators_link_row",
+                "link_row_table": multiple_collaborator_link_table,
+            },
         ],
         "file": [{"name": "file"}],
         "single_select": [
@@ -248,7 +256,12 @@ def construct_all_possible_field_kwargs(
                 "name": "lookup",
                 "through_field_name": "link_row",
                 "target_field_name": "text_field",
-            }
+            },
+            {
+                "name": "multiple_collaborators_lookup",
+                "through_field_name": "multiple_collaborators_link_row",
+                "target_field_name": "multiple_collaborators",
+            },
         ],
         "uuid": [{"name": "uuid"}],
         "autonumber": [{"name": "autonumber"}],

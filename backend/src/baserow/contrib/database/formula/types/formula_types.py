@@ -1220,6 +1220,7 @@ class BaserowFormulaArrayType(
             "field": field_instance,
             "type": field_type,
             "name": field_object["name"],
+            "formula_field": field_object["formula_field"],
         }
 
         result = self._map_safely_across_lookup_json_value_list(
@@ -1249,6 +1250,7 @@ class BaserowFormulaArrayType(
             "field": field_instance,
             "type": field_type,
             "name": field_object["name"],
+            "formula_field": field_object["formula_field"],
         }
 
         human_readable_values = self._map_safely_across_lookup_json_value_list(
@@ -1670,7 +1672,11 @@ class BaserowFormulaMultipleCollaboratorsType(BaserowJSONBObjectBaseType):
         cache_key = f"_baserow_cache_{field_object['name']}_relations"
         field = field_object["formula_field"]
         if not hasattr(field, cache_key):
-            setattr(field, cache_key, list(field.table.database.workspace.users.all()))
+            setattr(
+                field,
+                cache_key,
+                list(field.table.database.workspace.users.order_by("id").all()),
+            )
 
         user_ids = set((item["id"] for item in value))
         workspace_users = getattr(field, cache_key)

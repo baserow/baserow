@@ -642,7 +642,7 @@ class FormViewType(ViewType):
             for field in fields
             if not field_type_registry.get_by_model(
                 field.specific_class
-            ).can_be_in_form_view
+            ).check_can_be_in_form_view(field)
         ]
         if len(fields_cannot_be_in_form_view) > 0:
             # If the new field type is not compatible with the form view, we must
@@ -665,7 +665,7 @@ class FormViewType(ViewType):
                 field_type = field_type_registry.get_by_model(field.specific_class)
                 if field.read_only:
                     raise FormViewReadOnlyFieldIsNotSupported(field.name)
-                if not field_type.can_be_in_form_view:
+                if not field_type.check_can_be_in_form_view(field):
                     raise FormViewFieldTypeIsNotSupported(field_type.type)
 
         return field_options

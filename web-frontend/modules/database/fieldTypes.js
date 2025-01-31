@@ -4175,7 +4175,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     }
     const nameList = this._collaboratorCellValueToListOfNames(value)
 
-    return this.app.$papa.arrayToString(nameList)
+    return this.app.$papa.unparse([nameList], { delimiter: ', ' })
   }
 
   _collaboratorCellValueToListOfNames(value) {
@@ -4226,7 +4226,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
         return uniqueValuesOnly
           .map((emailOrName) => {
             // verify if it respects the format `$name ($email)`
-            const matches = emailOrName.match(/(.*) <(.*)>/)
+            const matches = emailOrName.match(/(.*)\s*<(.*)>/)
             let email = emailOrName
             if (matches) {
               email = matches[2]
