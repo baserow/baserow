@@ -13,7 +13,7 @@ PAGE_PARAM_TYPE_CHOICES = list(typing.get_args(PAGE_PARAM_TYPE_CHOICES_LITERAL))
 PATH_PARAM_REGEX = re.compile("(:[A-Za-z0-9_]+)")
 PATH_PARAM_EXACT_MATCH_REGEX = re.compile("(^:[A-Za-z0-9_]+)$")
 
-QUERY_PARAM_EXACT_MATCH_REGEX = re.compile(r"(^[-A-Za-z0-9_.+]+)$")
+QUERY_PARAM_EXACT_MATCH_REGEX = re.compile(r"(^[A-Za-z][A-Za-z0-9_-]*$)")
 
 # This constant can be used to be inserted into a path temporarily as a unique
 # placeholder since we already know the character can't be in the path (given it's

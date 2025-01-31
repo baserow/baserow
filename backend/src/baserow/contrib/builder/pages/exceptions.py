@@ -129,6 +129,6 @@ class DuplicatePageParams(Exception):
         self.path_param_names = path_param_names
         self.param = param
         super().__init__(
-            f"The query param {param} is are defined multiple times in {query_param_names}"
+            f"The query param {param} is defined multiple times in {query_param_names}"
             f"or clash with path params {path_param_names}"
         )

@@ -45,7 +45,11 @@
       </template>
     </template>
     <div>
-      <ButtonText icon="iconoir-plus" @click.prevent="addParameter">
+      <ButtonText
+        class="page-settings-query-params__add-button"
+        icon="iconoir-plus"
+        @click.prevent="addParameter"
+      >
         {{
           values.queryParams.length > 0
             ? $t('pageForm.addAnotherParameter')

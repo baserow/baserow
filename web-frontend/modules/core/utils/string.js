@@ -178,8 +178,8 @@ export const getNextAvailableNameInSequence = (
     if (!excludeNames.includes(name)) {
       return name
     }
-    i++
     name = pattern(baseName, i)
+    i++
   }
   return name
 }

@@ -491,8 +491,8 @@ def test_validate_query_params_special_cases():
     # Test with underscores and numbers (valid)
     valid_params = [
         {"name": "filter_1", "type": "text"},
-        {"name": "sort_by_2", "type": "text"},
-        {"name": "_prefix", "type": "text"},
+        {"name": "sort_by-2", "type": "text"},
+        {"name": "prefix", "type": "text"},
     ]
     assert handler.validate_query_params(path, path_params, valid_params) is True
 

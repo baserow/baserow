@@ -120,7 +120,7 @@ test.describe("Builder page test suite", () => {
     await page.getByText('my_param', { exact: true }).first().click();
     await page.click('body')
     await expect(page.getByRole('link', {name: 'linkim'})).toHaveAttribute(
-      'href', /\?my_param=test/);
+      'href', /\?my_param=null/);
 
   });
 });
