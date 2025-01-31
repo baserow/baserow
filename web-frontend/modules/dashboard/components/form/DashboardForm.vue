@@ -1,6 +1,8 @@
 <template>
   <ApplicationForm
     :default-values="{ name: defaultName }"
+    :workspace="workspace"
+    :loading="loading"
     @submitted="$emit('submitted', $event)"
   >
     <div class="actions actions--right">
