@@ -361,6 +361,125 @@ describe('View Tests', () => {
     expect(updatedCookieValue.length).toBeLessThan(originalDataLength)
   })
 
+  test('Unknown error during views loading is displayed correctly - no view toolbar', async () => {
+    const viewsError = { statusCode: 500, data: 'some backend error' }
+
+    // no list of views
+    const { application, table } = await givenATableWithError({
+      viewsError,
+    })
+    const tableComponent = await testApp.mount(Table, {
+      asyncDataParams: {
+        databaseId: application.id,
+        tableId: table.id,
+        viewId: '123',
+      },
+    })
+
+    expect(tableComponent.vm.views).toEqual([])
+    expect(Object.assign({}, tableComponent.vm.error)).toEqual({
+      message: 'Unknown error',
+      content: null,
+      statusCode: viewsError.statusCode,
+    })
+
+    // no table header (view selection, filters, sorting, grouping...)
+    expect(tableComponent.find('header .header__filter-link').exists()).toBe(
+      false
+    )
+
+    expect(tableComponent.find('.placeholder__title').exists()).toBe(true)
+    // error message will be processed and replaced
+    expect(tableComponent.find('.placeholder__title').text()).toBe(
+      'Unknown error'
+    )
+    expect(tableComponent.find('.placeholder__content').exists()).toBe(true)
+
+    expect(tableComponent.find('.placeholder__content').text()).toBe(
+      'errorLayout.error'
+    )
+  })
+
+  test('API error during views loading is displayed correctly', async () => {
+    const viewsError = {
+      statusCode: 400,
+      data: {
+        error: 'ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST',
+        detail: "The view filter type INVALID doesn't exist.",
+      },
+    }
+
+    // no list of views
+    const { application, table } = await givenATableWithError({
+      viewsError,
+    })
+    const tableComponent = await testApp.mount(Table, {
+      asyncDataParams: {
+        databaseId: application.id,
+        tableId: table.id,
+        viewId: '123',
+      },
+    })
+
+    expect(tableComponent.vm.views).toEqual([])
+    expect(tableComponent.find('header .header__filter-link').exists()).toBe(
+      false
+    )
+    expect(Object.assign({}, tableComponent.vm.error)).toEqual({
+      message: viewsError.data.detail,
+      content: viewsError.data.detail,
+      statusCode: viewsError.statusCode,
+    })
+    expect(tableComponent.find('.placeholder__title').exists()).toBe(true)
+    expect(tableComponent.find('.placeholder__title').text()).toEqual(
+      viewsError.data.detail
+    )
+    expect(tableComponent.find('.placeholder__content').exists()).toBe(true)
+
+    expect(tableComponent.find('.placeholder__content').text()).toEqual(
+      viewsError.data.detail
+    )
+  })
+
+  test('API error during view rows loading', async () => {
+    const rowsError = { statusCode: 500, data: { detail: 'Unknown error' } }
+
+    // views list readable, fields readable, rows not readable
+    const { application, table, view } = await givenATableWithError({
+      rowsError,
+    })
+
+    //
+    const tableComponent = await testApp.mount(Table, {
+      asyncDataParams: {
+        databaseId: application.id,
+        tableId: table.id,
+        viewId: view.id,
+      },
+    })
+
+    expect(tableComponent.vm.views).toMatchObject([view])
+
+    // we're past views api call, so the table (with the error) and toolbar should be present
+    // expect(tableComponent.findComponent({ name: 'Table' })).toEqual(TableComp)
+    expect(tableComponent.find('.header__filter-link').exists()).toBe(true)
+
+    expect(Object.assign({}, tableComponent.vm.viewError)).toEqual({
+      message: rowsError.data.detail,
+      content: rowsError.data.detail,
+      statusCode: rowsError.statusCode,
+    })
+    expect(tableComponent.find('.placeholder__title').exists()).toBe(true)
+    expect(tableComponent.find('.placeholder__title').text()).toEqual(
+      rowsError.data.detail
+    )
+    expect(tableComponent.find('.placeholder__content').exists()).toBe(true)
+
+    expect(tableComponent.find('.placeholder__content').text()).toEqual(
+      rowsError.data.detail
+    )
+  })
+
   async function givenATableInTheServerWithMultipleViews() {
     const table = mockServer.createTable()
     const { application } = await mockServer.createAppAndWorkspace(table)
@@ -493,5 +612,84 @@ describe('View Tests', () => {
     tables.push(firstTable)
     tables.push(secondTable)
     return { application, tables, views }
+  }
+
+  async function givenATableWithError({ viewsError, fieldsError, rowsError }) {
+    const table = mockServer.createTable()
+    // we expect some endpoints to return errors
+    testApp.dontFailOnErrorResponses()
+    const { application } =
+      await mockServer.createAppAndWorkspaceWithMultipleTables([table])
+    const viewId = 1
+
+    const rawGridView = {
+      id: viewId,
+      table_id: table.id,
+      name: `mock_view_${viewId}`,
+      order: 0,
+      type: 'grid',
+      table: {
+        id: table.id,
+        name: table.name,
+        order: 0,
+        database_id: application.id,
+      },
+      filter_type: 'AND',
+      filters_disabled: false,
+      public: null,
+      row_identifier_type: 'id',
+      row_height_size: 'small',
+      filters: [],
+      sortings: [],
+      group_bys: [],
+      decorations: [],
+    }
+
+    const rawFields = [
+      {
+        name: 'Name',
+        type: 'text',
+        primary: true,
+      },
+      {
+        name: 'Last name',
+        type: 'text',
+      },
+      {
+        name: 'Notes',
+        type: 'long_text',
+      },
+      {
+        name: 'Active',
+        type: 'boolean',
+      },
+    ]
+    const rawRows = [
+      {
+        id: 1,
+        order: 0,
+        field_1: 'name',
+        field_2: 'last_name',
+        field_3: 'notes',
+        field_4: false,
+      },
+    ]
+
+    mockServer.mock
+      .onGet(`/database/views/table/${table.id}/`)
+      .replyOnce(
+        viewsError?.statusCode || 200,
+        viewsError?.data || [rawGridView]
+      )
+
+    mockServer.mock
+      .onGet(`/database/fields/table/${table.id}/`)
+      .replyOnce(fieldsError?.statusCode || 200, fieldsError?.data || rawFields)
+
+    mockServer.mock
+      .onGet(`database/views/grid/${rawGridView.id}/`)
+      .replyOnce(rowsError?.statusCode || 200, rowsError?.data || rawRows)
+
+    return { application, table, view: rawGridView }
   }
 })

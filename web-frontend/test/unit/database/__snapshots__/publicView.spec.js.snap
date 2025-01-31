@@ -354,6 +354,8 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
       <div
         class="layout__col-2-2 content"
       >
+        <!---->
+         
         <div
           class="grid-view grid-view--row-height-undefined"
         >

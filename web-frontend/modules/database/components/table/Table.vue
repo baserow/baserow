@@ -210,9 +210,10 @@
       />
     </header>
     <div class="layout__col-2-2 content">
+      <DatabaseErrorPage v-if="viewError" :error="viewError" />
       <component
         :is="getViewComponent(view)"
-        v-if="hasSelectedView && !tableLoading"
+        v-if="hasSelectedView && !tableLoading && !viewError"
         ref="view"
         :database="database"
         :table="table"
@@ -253,6 +254,7 @@ import EditableViewName from '@baserow/modules/database/components/view/Editable
 import ShareViewLink from '@baserow/modules/database/components/view/ShareViewLink'
 import ExternalLinkBaserowLogo from '@baserow/modules/core/components/ExternalLinkBaserowLogo'
 import ViewGroupBy from '@baserow/modules/database/components/view/ViewGroupBy.vue'
+import DatabaseErrorPage from '@baserow/modules/database/components/DatabaseErrorPage.vue'
 
 /**
  * This page component is the skeleton for a table. Depending on the selected view it
@@ -260,6 +262,7 @@ import ViewGroupBy from '@baserow/modules/database/components/view/ViewGroupBy.v
  */
 export default {
   components: {
+    DatabaseErrorPage,
     ViewGroupBy,
     ExternalLinkBaserowLogo,
     ShareViewLink,
@@ -299,6 +302,11 @@ export default {
     view: {
       required: true,
       validator: (prop) => typeof prop === 'object' || prop === undefined,
+    },
+    viewError: {
+      required: false,
+      type: Object,
+      default: null,
     },
     tableLoading: {
       type: Boolean,
