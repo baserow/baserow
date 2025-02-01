@@ -6,6 +6,7 @@ from baserow.contrib.database.fields.dependencies.circular_reference_checker imp
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.core.models import User
 
 
 class TypeFormulaRequestSerializer(serializers.ModelSerializer):
@@ -17,7 +18,10 @@ class TypeFormulaRequestSerializer(serializers.ModelSerializer):
 class TypeFormulaResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = FormulaField
-        fields = FormulaFieldType.serializer_field_names
+        fields = list(
+            set(FormulaFieldType.serializer_field_names)
+            - {"available_collaborators", "select_options"}
+        )
 
 
 class BaserowFormulaSelectOptionsSerializer(serializers.ListField):
@@ -34,5 +38,25 @@ class BaserowFormulaSelectOptionsSerializer(serializers.ListField):
                 field_id__in=get_all_field_dependencies(field)
             )
             return [self.child.to_representation(item) for item in select_options]
+        else:
+            return []
+
+
+class BaserowFormulaCollaboratorsSerializer(serializers.ListField):
+    def get_attribute(self, instance):
+        return instance
+
+    def to_representation(self, field):
+        field_type = field_type_registry.get_by_model(field)
+
+        # Available collaborators are needed for view filters in the frontend,
+        # but let's avoid the potentially slow query if not required.
+        if field_type.can_represent_collaborators(field):
+            available_collaborators = User.objects.filter(
+                workspace=field.table.database.workspace
+            )
+            return [
+                self.child.to_representation(item) for item in available_collaborators
+            ]
         else:
             return []

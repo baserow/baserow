@@ -6,12 +6,14 @@ export default {
   mixins: [paginatedDropdown],
   methods: {
     fetchPage(page = 1, query = '') {
-      const start = (page - 1) * this.pageSize
       const results = this.filterItems(query || '')
+      const lastPage = parseInt(results.length / this.pageSize, 10) + 1
+      const start = (Math.min(page, lastPage) - 1) * this.pageSize
       return {
         data: {
           count: results.length,
           results: results.slice(start, start + this.pageSize),
+          page: lastPage < page ? lastPage : page,
         },
       }
     },

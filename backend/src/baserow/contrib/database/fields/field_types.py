@@ -5317,6 +5317,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
     def can_represent_select_options(self, field):
         return self.to_baserow_formula_type(field.specific).can_represent_select_options
 
+    def can_represent_collaborators(self, field):
+        return self.to_baserow_formula_type(field.specific).can_represent_collaborators
+
     def get_permission_error_when_user_changes_field_to_depend_on_forbidden_field(
         self, user: AbstractUser, changed_field: Field, forbidden_field: Field
     ) -> Exception:
@@ -6027,13 +6030,27 @@ class MultipleCollaboratorsFieldType(
     type = "multiple_collaborators"
     model_class = MultipleCollaboratorsField
     can_get_unique_values = False
-    can_be_in_form_view = False
     allowed_fields = ["notify_user_when_added"]
-    serializer_field_names = ["notify_user_when_added"]
+    serializer_field_names = ["available_collaborators", "notify_user_when_added"]
     serializer_field_overrides = {
-        "notify_user_when_added": serializers.BooleanField(required=False)
+        "available_collaborators": serializers.ListField(
+            child=CollaboratorSerializer(),
+            read_only=True,
+            source="table.database.workspace.users.all",
+        ),
+        "notify_user_when_added": serializers.BooleanField(required=False),
     }
     is_many_to_many_field = True
+
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.prefetch_related(
+            models.Prefetch(
+                "table__database__workspace__users",
+                queryset=User.objects.filter(profile__to_be_deleted=False),
+            )
+        )
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)
@@ -6077,6 +6094,9 @@ class MultipleCollaboratorsFieldType(
                 **kwargs,
             }
         )
+
+    def serialize_to_input_value(self, field: Field, value: any) -> any:
+        return [{"id": u.id, "name": u.first_name} for u in value.all()]
 
     def prepare_value_for_db(self, instance, value):
         if not isinstance(

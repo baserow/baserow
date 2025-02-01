@@ -138,6 +138,7 @@ import RowHistoryFieldPassword from '@baserow/modules/database/components/row/Ro
 import FormViewFieldLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldLinkRow'
 import FormViewFieldMultipleLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldMultipleLinkRow'
 import FormViewFieldMultipleSelectCheckboxes from '@baserow/modules/database/components/view/form/FormViewFieldMultipleSelectCheckboxes'
+import FormViewFieldMultipleCollaboratorsCheckboxes from '@baserow/modules/database/components/view/form/FormViewFieldMultipleCollaboratorsCheckboxes'
 import FormViewFieldSingleSelectRadios from '@baserow/modules/database/components/view/form/FormViewFieldSingleSelectRadios'
 
 import {
@@ -4159,7 +4160,20 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   getFormViewFieldComponents(field) {
-    return {}
+    const { i18n } = this.app
+    const components = super.getFormViewFieldComponents(field)
+    components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].name = i18n.t(
+      'fieldType.multipleCollaboratorsDropdown'
+    )
+    components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].properties = {
+      'allow-create-options': false,
+    }
+    components.checkboxes = {
+      name: i18n.t('fieldType.multipleCollaboratorsCheckboxes'),
+      component: FormViewFieldMultipleCollaboratorsCheckboxes,
+      properties: {},
+    }
+    return components
   }
 
   getEmptyValue() {

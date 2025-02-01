@@ -970,7 +970,6 @@ def test_can_type_a_valid_formula_field(data_fixture, api_client):
         "number_prefix": "",
         "number_separator": "",
         "number_suffix": "",
-        "select_options": [],
     }
 
 

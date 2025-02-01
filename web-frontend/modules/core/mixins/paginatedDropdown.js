@@ -119,6 +119,11 @@ export default {
         const { data } = await this.fetchPage(page, search)
         results = data.results
         count = data.count
+        // the search might return less results than expected, let's update
+        // the right page in that case
+        if (data.page !== page) {
+          this.page = data.page
+        }
       } catch (e) {
         notifyIf(e)
       } finally {
