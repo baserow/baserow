@@ -7,7 +7,12 @@ from django.test.utils import override_settings
 
 import pytest
 from baserow_premium.api.views.signers import export_public_view_signer
-from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_404_NOT_FOUND,
+)
 
 from baserow.contrib.database.export.models import ExportJob
 
@@ -63,7 +68,8 @@ def test_create_public_view_export_respecting_view_password(
         grid,
         public_view_token,
     ) = premium_data_fixture.create_public_password_protected_grid_view_with_token(
-        password="12345678"
+        password="12345678",
+        allow_public_export=True,
     )
 
     response = api_client.post(
@@ -168,26 +174,365 @@ def test_create_public_view_export(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_create_public_view_export_respecting_view_filters_and_visible_fields(
-    api_client, premium_data_fixture
+def test_create_public_view_export_respecting_view_visible_fields(
+    api_client, premium_data_fixture, django_capture_on_commit_callbacks, tmpdir
 ):
-    assert False
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=1
+    )
+    grid_view = premium_data_fixture.create_grid_view(
+        table=table, public=True, allow_public_export=True
+    )
+    hidden_text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=2
+    )
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "Something",
+            f"field_{hidden_text_field.id}": "Should be hidden",
+        },
+    )
+    premium_data_fixture.create_grid_view_field_option(
+        grid_view=grid_view, field=hidden_text_field, hidden=True
+    )
+
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
+
+        with django_capture_on_commit_callbacks(execute=True):
+            response = api_client.post(
+                reverse(
+                    "api:premium:view:export_public_view",
+                    kwargs={"slug": grid_view.slug},
+                ),
+                data={
+                    "exporter_type": "csv",
+                    "export_charset": "utf-8",
+                    "csv_include_header": "True",
+                    "csv_column_separator": ",",
+                },
+                format="json",
+            )
+
+        job_id = response.json().pop("id")
+        response = api_client.get(
+            reverse(
+                "api:premium:view:get_public_view_export", kwargs={"job_id": job_id}
+            ),
+        )
+        response_json = response.json()
+        filename = response_json["exported_file_name"]
+
+        file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
+        assert file_path.isfile()
+        expected = "\ufeff" "id,text_field\n1,Something\n"
+        with open(file_path, "r", encoding="utf-8") as written_file:
+            assert written_file.read() == expected
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_create_public_view_export_respecting_filter_query_param(
-    api_client, premium_data_fixture
+def test_create_public_view_export_respecting_view_filters(
+    api_client, premium_data_fixture, django_capture_on_commit_callbacks, tmpdir
 ):
-    assert False
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=1
+    )
+    grid_view = premium_data_fixture.create_grid_view(
+        table=table, public=True, allow_public_export=True
+    )
+    premium_data_fixture.create_view_filter(
+        view=grid_view, field=text_field, type="contains", value="world"
+    )
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "hello",
+        },
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "world",
+        },
+    )
+
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
+
+        with django_capture_on_commit_callbacks(execute=True):
+            response = api_client.post(
+                reverse(
+                    "api:premium:view:export_public_view",
+                    kwargs={"slug": grid_view.slug},
+                ),
+                data={
+                    "exporter_type": "csv",
+                    "export_charset": "utf-8",
+                    "csv_include_header": "True",
+                    "csv_column_separator": ",",
+                },
+                format="json",
+            )
+
+        job_id = response.json().pop("id")
+        response = api_client.get(
+            reverse(
+                "api:premium:view:get_public_view_export", kwargs={"job_id": job_id}
+            ),
+        )
+        response_json = response.json()
+        filename = response_json["exported_file_name"]
+
+        file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
+        assert file_path.isfile()
+        expected = "\ufeff" "id,text_field\n2,world\n"
+        with open(file_path, "r", encoding="utf-8") as written_file:
+            assert written_file.read() == expected
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_create_public_view_export_respecting_sort_query_param(
-    api_client, premium_data_fixture
+def test_create_public_view_export_respecting_ad_hoc_filters(
+    api_client, premium_data_fixture, django_capture_on_commit_callbacks, tmpdir
 ):
-    assert False
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=1
+    )
+    grid_view = premium_data_fixture.create_grid_view(
+        table=table, public=True, allow_public_export=True
+    )
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "hello",
+        },
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "world",
+        },
+    )
+
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
+
+        with django_capture_on_commit_callbacks(execute=True):
+            response = api_client.post(
+                reverse(
+                    "api:premium:view:export_public_view",
+                    kwargs={"slug": grid_view.slug},
+                ),
+                data={
+                    "exporter_type": "csv",
+                    "export_charset": "utf-8",
+                    "csv_include_header": "True",
+                    "csv_column_separator": ",",
+                    "filters": {
+                        "filter_type": "AND",
+                        "filters": [
+                            {
+                                "type": "contains",
+                                "field": text_field.id,
+                                "value": "world",
+                            }
+                        ],
+                        "groups": [],
+                    },
+                    "order_by": "",
+                },
+                format="json",
+            )
+
+        job_id = response.json().pop("id")
+        response = api_client.get(
+            reverse(
+                "api:premium:view:get_public_view_export", kwargs={"job_id": job_id}
+            ),
+        )
+        response_json = response.json()
+        filename = response_json["exported_file_name"]
+
+        file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
+        assert file_path.isfile()
+        expected = "\ufeff" "id,text_field\n2,world\n"
+        with open(file_path, "r", encoding="utf-8") as written_file:
+            assert written_file.read() == expected
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_public_view_export_malformed_ad_hoc_filters(
+    api_client, premium_data_fixture, django_capture_on_commit_callbacks, tmpdir
+):
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=1
+    )
+    grid_view = premium_data_fixture.create_grid_view(
+        table=table, public=True, allow_public_export=True
+    )
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "hello",
+        },
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "world",
+        },
+    )
+
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
+
+        with django_capture_on_commit_callbacks(execute=True):
+            response = api_client.post(
+                reverse(
+                    "api:premium:view:export_public_view",
+                    kwargs={"slug": grid_view.slug},
+                ),
+                data={
+                    "exporter_type": "csv",
+                    "export_charset": "utf-8",
+                    "csv_include_header": "True",
+                    "csv_column_separator": ",",
+                    "filters": {"test": ""},
+                    "order_by": "",
+                },
+                format="json",
+            )
+            assert response.status_code == HTTP_400_BAD_REQUEST
+            assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_public_view_export_respecting_add_hoc_order_by(
+    api_client, premium_data_fixture, django_capture_on_commit_callbacks, tmpdir
+):
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=1
+    )
+    grid_view = premium_data_fixture.create_grid_view(
+        table=table, public=True, allow_public_export=True
+    )
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "hello",
+        },
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "world",
+        },
+    )
+
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
+
+        with django_capture_on_commit_callbacks(execute=True):
+            response = api_client.post(
+                reverse(
+                    "api:premium:view:export_public_view",
+                    kwargs={"slug": grid_view.slug},
+                ),
+                data={
+                    "exporter_type": "csv",
+                    "export_charset": "utf-8",
+                    "csv_include_header": "True",
+                    "csv_column_separator": ",",
+                    "filters": None,
+                    "order_by": f"-field_{text_field.id}",
+                },
+                format="json",
+            )
+
+        job_id = response.json().pop("id")
+        response = api_client.get(
+            reverse(
+                "api:premium:view:get_public_view_export", kwargs={"job_id": job_id}
+            ),
+        )
+        response_json = response.json()
+        filename = response_json["exported_file_name"]
+
+        file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
+        assert file_path.isfile()
+        expected = "\ufeff" "id,text_field\n2,world\n1,hello\n"
+        with open(file_path, "r", encoding="utf-8") as written_file:
+            assert written_file.read() == expected
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_public_view_export_malformed_order_by(
+    api_client, premium_data_fixture, django_capture_on_commit_callbacks, tmpdir
+):
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=1
+    )
+    grid_view = premium_data_fixture.create_grid_view(
+        table=table, public=True, allow_public_export=True
+    )
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "hello",
+        },
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "world",
+        },
+    )
+
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
+
+        with django_capture_on_commit_callbacks(execute=True):
+            response = api_client.post(
+                reverse(
+                    "api:premium:view:export_public_view",
+                    kwargs={"slug": grid_view.slug},
+                ),
+                data={
+                    "exporter_type": "csv",
+                    "export_charset": "utf-8",
+                    "csv_include_header": "True",
+                    "csv_column_separator": ",",
+                    "filters": None,
+                    "order_by": f"TEST",
+                },
+                format="json",
+            )
+            assert response.status_code == HTTP_400_BAD_REQUEST
+            assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
 
 @pytest.mark.django_db

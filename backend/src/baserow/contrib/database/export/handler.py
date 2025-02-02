@@ -9,6 +9,7 @@ from django.db import transaction
 
 from loguru import logger
 
+from baserow.contrib.database.api.views.serializers import validate_api_grouped_filters
 from baserow.contrib.database.export.models import (
     EXPORT_JOB_CANCELLED_STATUS,
     EXPORT_JOB_EXPIRED_STATUS,
@@ -115,6 +116,12 @@ class ExportHandler:
         _cancel_unfinished_jobs(user)
 
         _raise_if_invalid_view_or_table_for_exporter(exporter_type, view)
+
+        # Validate the filter object before the job start, so that the validation error
+        # can be shown to the user.
+        filters = export_options.get("filters", None)
+        if filters is not None:
+            validate_api_grouped_filters(filters, deserialize_filters=False)
 
         job = ExportJob.objects.create(
             user=user,
@@ -296,12 +303,24 @@ def _open_file_and_run_export(job: ExportJob) -> ExportJob:
     # TODO: refactor to use the jobs systems
     _register_action(job)
 
+    filters = job.export_options.pop("filters", None)
+    order_by = job.export_options.pop("order_by", None)
+
+    print(filters)
+    print(order_by)
+
     with _create_storage_dir_if_missing_and_open(storage_location) as file:
         queryset_serializer_class = exporter.queryset_serializer_class
         if job.view is None:
             serializer = queryset_serializer_class.for_table(job.table)
         else:
             serializer = queryset_serializer_class.for_view(job.view)
+
+        if filters is not None:
+            serializer.add_ad_hoc_filters_dict_to_queryset(filters)
+
+        if order_by is not None:
+            serializer.add_add_hoc_order_by_to_queryset(order_by)
 
         serializer.write_to_file(
             PaginatedExportJobFileWriter(file, job), **job.export_options

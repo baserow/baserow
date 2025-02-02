@@ -21,11 +21,6 @@ from rest_framework.views import APIView
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.schemas import get_error_schema
-from baserow.contrib.database.api.constants import (
-    ADHOC_FILTERS_API_PARAMS,
-    ADHOC_SORTING_API_PARAM,
-    INCLUDE_FIELDS_API_PARAM,
-)
 from baserow.contrib.database.api.export.errors import ERROR_EXPORT_JOB_DOES_NOT_EXIST
 from baserow.contrib.database.api.export.serializers import ExportJobSerializer
 from baserow.contrib.database.api.export.views import (
@@ -137,9 +132,6 @@ class ExportPublicViewView(APIView):
                 type=OpenApiTypes.STR,
                 description="Select the view you want to export.",
             ),
-            ADHOC_SORTING_API_PARAM,
-            INCLUDE_FIELDS_API_PARAM,
-            *ADHOC_FILTERS_API_PARAMS,
         ],
         tags=["Database view export"],
         operation_id="export_publicly_shared_view",
@@ -184,6 +176,9 @@ class ExportPublicViewView(APIView):
         ).specific
         table = view.table
         option_data = _validate_options(request.data)
+
+        # Delete the provided view ID because it can be identified using the slug
+        # path parameter.
         del option_data["view_id"]
 
         job = ExportHandler.create_and_start_new_job(None, table, view, option_data)

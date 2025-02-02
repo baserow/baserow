@@ -28,6 +28,8 @@
       :start-export="startExport"
       :get-job="getJob"
       :enable-views-dropdown="false"
+      :ad-hoc-filtering="true"
+      :ad-hoc-sorting="true"
     ></ExportTableModal>
   </li>
 </template>
@@ -58,11 +60,13 @@ export default {
     },
   },
   methods: {
-    startExport(table, view, values, client) {
+    startExport({ view, values, client, filters, orderBy }) {
       // There is no need to include the `view_id` in the body because we're already
       // providing the slug as path parameter.
       delete values.view_id
-      return PublicViewExportService(client).export(view.slug, values)
+      values.filters = filters
+      values.order_by = orderBy
+      return PublicViewExportService(client).export({ slug: view.slug, values })
     },
     getJob(job, client) {
       return PublicViewExportService(client).get(job.id)

@@ -9,6 +9,7 @@ import unicodecsv as csv
 
 from baserow.contrib.database.export.exceptions import ExportJobCanceledException
 from baserow.contrib.database.table.models import FieldObject
+from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 
@@ -184,6 +185,13 @@ class QuerysetSerializer(abc.ABC):
         fields, model = view_type.get_visible_fields_and_model(view)
         qs = ViewHandler().get_queryset(view, model=model)
         return cls(qs, fields)
+
+    def add_ad_hoc_filters_dict_to_queryset(self, filters_dict):
+        filters = AdHocFilters.from_dict(filters_dict)
+        self.queryset = filters.apply_to_queryset(self.queryset.model, self.queryset)
+
+    def add_add_hoc_order_by_to_queryset(self, order_by):
+        self.queryset = self.queryset.order_by_fields_string(order_by)
 
     def _get_field_serializer(self, field_object: FieldObject) -> Callable[[Any], Any]:
         """
