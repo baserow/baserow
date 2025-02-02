@@ -533,7 +533,7 @@ def test_create_public_view_export_malformed_order_by(
                 format="json",
             )
             assert response.status_code == HTTP_400_BAD_REQUEST
-            assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+            assert response.json()["error"] == "ERROR_ORDER_BY_FIELD_NOT_FOUND"
 
 
 @pytest.mark.django_db

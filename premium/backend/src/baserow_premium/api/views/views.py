@@ -27,6 +27,10 @@ from baserow.contrib.database.api.export.views import (
     CreateExportJobSerializer,
     _validate_options,
 )
+from baserow.contrib.database.api.fields.errors import (
+    ERROR_ORDER_BY_FIELD_NOT_FOUND,
+    ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
+)
 from baserow.contrib.database.api.views.errors import (
     ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
     ERROR_VIEW_DOES_NOT_EXIST,
@@ -36,6 +40,10 @@ from baserow.contrib.database.api.views.utils import get_public_view_authorizati
 from baserow.contrib.database.export.exceptions import ExportJobDoesNotExistException
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.contrib.database.export.models import ExportJob
+from baserow.contrib.database.fields.exceptions import (
+    OrderByFieldNotFound,
+    OrderByFieldNotPossible,
+)
 from baserow.contrib.database.views.actions import UpdateViewActionType
 from baserow.contrib.database.views.exceptions import (
     NoAuthorizationToPubliclySharedView,
@@ -160,8 +168,8 @@ class ExportPublicViewView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             NoAuthorizationToPubliclySharedView: ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
-            # TableOnlyExportUnsupported: ERROR_TABLE_ONLY_EXPORT_UNSUPPORTED,
-            # ViewNotInTable: ERROR_VIEW_NOT_IN_TABLE,
+            OrderByFieldNotFound: ERROR_ORDER_BY_FIELD_NOT_FOUND,
+            OrderByFieldNotPossible: ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
         }
     )
     def post(self, request, slug):

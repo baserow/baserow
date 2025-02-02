@@ -123,6 +123,13 @@ class ExportHandler:
         if filters is not None:
             validate_api_grouped_filters(filters, deserialize_filters=False)
 
+        # Validate the sort object before the job start, so that the validation error
+        # can be shown to the user.
+        order_by = export_options.get("order_by", None)
+        if order_by is not None:
+            model = view.table.get_model()
+            model.objects.all().order_by_fields_string(order_by)
+
         job = ExportJob.objects.create(
             user=user,
             table=table,
@@ -312,7 +319,7 @@ def _open_file_and_run_export(job: ExportJob) -> ExportJob:
         if job.view is None:
             serializer = queryset_serializer_class.for_table(job.table)
         else:
-            serializer = queryset_serializer_class.for_view(
+            serializer, visible_fields_in_view = queryset_serializer_class.for_view(
                 job.view, visible_fields_in_order
             )
 

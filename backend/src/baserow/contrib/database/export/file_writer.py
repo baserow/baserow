@@ -179,15 +179,17 @@ class QuerysetSerializer(abc.ABC):
 
         :param view: The view to serialize.
         :param visible_field_ids_in_order: Optionally provide a list of field IDs in
-            the correct order.
+            the correct order. Only those fields will be included in the export.
         :return: A QuerysetSerializer ready to serialize the table.
         """
 
         view_type = view_type_registry.get_by_model(view.specific_class)
-        fields, model = view_type.get_visible_fields_and_model(view)
+        visible_field_objects_in_view, model = view_type.get_visible_fields_and_model(
+            view
+        )
         fields = [
             field
-            for field in fields
+            for field in visible_field_objects_in_view
             if visible_field_ids_in_order is None
             or field["field"].id in visible_field_ids_in_order
         ]
@@ -196,7 +198,7 @@ class QuerysetSerializer(abc.ABC):
                 key=lambda field: visible_field_ids_in_order.index(field["field"].id)
             )
         qs = ViewHandler().get_queryset(view, model=model)
-        return cls(qs, fields)
+        return cls(qs, fields), visible_field_objects_in_view
 
     def add_ad_hoc_filters_dict_to_queryset(self, filters_dict):
         filters = AdHocFilters.from_dict(filters_dict)
