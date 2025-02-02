@@ -13,19 +13,32 @@
     <Context ref="context">
       <ul class="context__menu">
         <li class="context__menu-item">
-          <a class="context__menu-item-link" @click="exportView()">
+          <a class="context__menu-item-link" @click="$refs.exportModal.show()">
             <i class="context__menu-item-icon iconoir-share-ios"></i>
             {{ $t('publicViewExport.export') }}
           </a>
         </li>
       </ul>
     </Context>
+    <ExportTableModal
+      ref="exportModal"
+      :view="view"
+      :table="table"
+      :database="database"
+      :start-export="startExport"
+      :get-job="getJob"
+      :enable-views-dropdown="false"
+    ></ExportTableModal>
   </li>
 </template>
 
 <script>
+import ExportTableModal from '@baserow/modules/database/components/export/ExportTableModal'
+import PublicViewExportService from '@baserow_premium/services/publicViewExport'
+
 export default {
   name: 'PublicViewExport',
+  components: { ExportTableModal },
   props: {
     database: {
       type: Object,
@@ -42,6 +55,17 @@ export default {
     isPublicView: {
       type: Boolean,
       required: true,
+    },
+  },
+  methods: {
+    startExport(table, view, values, client) {
+      // There is no need to include the `view_id` in the body because we're already
+      // providing the slug as path parameter.
+      delete values.view_id
+      return PublicViewExportService(client).export(view.slug, values)
+    },
+    getJob(job, client) {
+      return PublicViewExportService(client).get(job.id)
     },
   },
 }

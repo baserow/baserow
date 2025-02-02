@@ -13,6 +13,7 @@
       :view="view"
       :views="views"
       :loading="loading"
+      :enable-views-dropdown="enableViewsDropdown"
       @submitted="submitted"
       @values-changed="valuesChanged"
     >
@@ -55,6 +56,25 @@ export default {
       type: Object,
       required: false,
       default: null,
+    },
+    startExport: {
+      type: Function,
+      required: false,
+      default: function (table, view, values, client) {
+        return ExporterService(client).export(table.id, values)
+      },
+    },
+    getJob: {
+      type: Function,
+      required: false,
+      default: function (job, client) {
+        return ExporterService(client).get(this.job.id)
+      },
+    },
+    enableViewsDropdown: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   data() {
@@ -121,9 +141,11 @@ export default {
       this.hideError()
 
       try {
-        const { data } = await ExporterService(this.$client).export(
-          this.table.id,
-          values
+        const { data } = await this.startExport(
+          this.table,
+          this.view,
+          values,
+          this.$client
         )
         this.job = data
         if (this.pollInterval !== null) {
@@ -136,7 +158,7 @@ export default {
     },
     async getLatestJobInfo() {
       try {
-        const { data } = await ExporterService(this.$client).get(this.job.id)
+        const { data } = await this.getJob(this.job, this.$client)
         this.job = data
         if (!this.jobIsRunning) {
           this.loading = false
