@@ -90,7 +90,9 @@
           :database="database"
           :table="table"
           :view="view"
+          :fields="fields"
           :is-public-view="isPublic"
+          :store-prefix="storePrefix"
         >
         </component>
         <li

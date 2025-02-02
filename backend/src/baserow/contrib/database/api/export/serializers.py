@@ -134,6 +134,12 @@ class BaseExporterOptionsSerializer(serializers.Serializer):
         "by comma. By default a field is ordered in ascending (A-Z) order, but by "
         "prepending the field with a '-' it can be ordered descending (Z-A).",
     )
+    fields = serializers.ListField(
+        required=False,
+        allow_null=True,
+        child=serializers.IntegerField(),
+        help_text="List of field IDs that must be included in the export, in the desired order.",
+    )
 
 
 class CsvExporterOptionsSerializer(BaseExporterOptionsSerializer):

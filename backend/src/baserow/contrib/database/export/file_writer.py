@@ -171,18 +171,30 @@ class QuerysetSerializer(abc.ABC):
         return cls(qs, ordered_field_objects)
 
     @classmethod
-    def for_view(cls, view) -> "QuerysetSerializer":
+    def for_view(cls, view, visible_field_ids_in_order=None) -> "QuerysetSerializer":
         """
         Generates a queryset serializer for the provided view according to it's view
         type and any relevant view settings it might have (filters, sorts,
         hidden columns etc).
 
         :param view: The view to serialize.
+        :param visible_field_ids_in_order: Optionally provide a list of field IDs in
+            the correct order.
         :return: A QuerysetSerializer ready to serialize the table.
         """
 
         view_type = view_type_registry.get_by_model(view.specific_class)
         fields, model = view_type.get_visible_fields_and_model(view)
+        fields = [
+            field
+            for field in fields
+            if visible_field_ids_in_order is None
+            or field["field"].id in visible_field_ids_in_order
+        ]
+        if visible_field_ids_in_order is not None:
+            fields.sort(
+                key=lambda field: visible_field_ids_in_order.index(field["field"].id)
+            )
         qs = ViewHandler().get_queryset(view, model=model)
         return cls(qs, fields)
 

@@ -90,6 +90,11 @@ export default {
       required: false,
       default: false,
     },
+    adHocFields: {
+      type: Array,
+      default: null,
+      validator: (value) => value === null || Array.isArray(value),
+    },
   },
   data() {
     return {
@@ -173,6 +178,7 @@ export default {
           client: this.$client,
           filters,
           orderBy,
+          fields: this.adHocFields,
         })
         this.job = data
         if (this.pollInterval !== null) {

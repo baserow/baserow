@@ -30,6 +30,7 @@
       :enable-views-dropdown="false"
       :ad-hoc-filtering="true"
       :ad-hoc-sorting="true"
+      :ad-hoc-fields="visibleOrderedFields"
     ></ExportTableModal>
   </li>
 </template>
@@ -54,18 +55,33 @@ export default {
       type: Object,
       required: true,
     },
+    fields: {
+      type: Array,
+      required: true,
+    },
     isPublicView: {
       type: Boolean,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: true,
+    },
+  },
+  computed: {
+    visibleOrderedFields() {
+      const viewType = this.$registry.get('view', this.view.type)
+      return viewType.getVisibleAndOrderedFields(this, this.fields, this.view, this.storePrefix)
+    },
   },
   methods: {
-    startExport({ view, values, client, filters, orderBy }) {
+    startExport({ view, values, client, filters, orderBy, fields }) {
       // There is no need to include the `view_id` in the body because we're already
       // providing the slug as path parameter.
       delete values.view_id
       values.filters = filters
       values.order_by = orderBy
+      values.fields = fields === null ? null : fields.map((f) => f.id)
       return PublicViewExportService(client).export({ slug: view.slug, values })
     },
     getJob(job, client) {

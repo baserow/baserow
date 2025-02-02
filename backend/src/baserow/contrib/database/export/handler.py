@@ -305,16 +305,16 @@ def _open_file_and_run_export(job: ExportJob) -> ExportJob:
 
     filters = job.export_options.pop("filters", None)
     order_by = job.export_options.pop("order_by", None)
-
-    print(filters)
-    print(order_by)
+    visible_fields_in_order = job.export_options.pop("fields", None)
 
     with _create_storage_dir_if_missing_and_open(storage_location) as file:
         queryset_serializer_class = exporter.queryset_serializer_class
         if job.view is None:
             serializer = queryset_serializer_class.for_table(job.table)
         else:
-            serializer = queryset_serializer_class.for_view(job.view)
+            serializer = queryset_serializer_class.for_view(
+                job.view, visible_fields_in_order
+            )
 
         if filters is not None:
             serializer.add_ad_hoc_filters_dict_to_queryset(filters)
