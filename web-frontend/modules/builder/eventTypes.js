@@ -51,9 +51,9 @@ export class Event {
         workflowAction.type
       )
 
-      // If the workflow action is dispatched by a dataSource...
+      // If the workflow action refreshes a data source.
       if (workflowAction.data_source_id) {
-        // Stash away in the workflow action's context the dataSource and
+        // Stash away in the workflow action's context dataSource and
         // the page the dataSource belongs to. It's possible that the page
         // is not `applicationContext.page` - the dataSource could be shared.
         workflowActionContext.dataSource = this.store.getters[
@@ -62,6 +62,19 @@ export class Event {
         workflowActionContext.dataSourcePage = pages.find(
           (page) => page.id === workflowActionContext.dataSource.page_id
         )
+      }
+
+      // If we're firing a workflow action, and the collection element it's associated
+      // with is currently being filtered, we must forward this on to the workflow
+      // action dispatch so that the backend fires at the correct current_record.
+      if (
+        Object.prototype.hasOwnProperty.call(
+          applicationContext,
+          'dispatchRefinements'
+        )
+      ) {
+        workflowActionContext.dispatchRefinements =
+          applicationContext.dispatchRefinements
       }
 
       const localResolveFormula = (formula) => {

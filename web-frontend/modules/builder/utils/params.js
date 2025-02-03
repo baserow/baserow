@@ -48,3 +48,46 @@ export function pathParametersInError(navigationObject, pages) {
   }
   return false
 }
+
+/**
+ * Given dispatch refinement records, this function is responsible for generating
+ * the URLSearchParams that data source and workflow action dispatches will use.
+ * @param range The range of records to retrieve.
+ * @param filters The adhoc filters to apply to the dispatch results.
+ * @param sortings The adhoc sortings to apply to the dispatch results.
+ * @param search The search query to apply to the dispatch results.
+ * @param searchMode The search mode to apply to the dispatch results.
+ * @returns {URLSearchParams} The URLSearchParams object to use in dispatches.
+ */
+export function prepareDispatchParams({
+  range,
+  filters = {},
+  sortings = null,
+  search = '',
+  searchMode = '',
+}) {
+  const params = new URLSearchParams()
+  if (range) {
+    params.append('offset', range[0])
+    params.append('count', range[1])
+  }
+
+  Object.keys(filters).forEach((key) => {
+    filters[key].forEach((value) => {
+      params.append(key, value)
+    })
+  })
+
+  if (sortings || sortings === '') {
+    params.append('order_by', sortings)
+  }
+
+  if (search) {
+    params.append('search_query', search)
+    if (searchMode) {
+      params.append('search_mode', searchMode)
+    }
+  }
+
+  return params
+}

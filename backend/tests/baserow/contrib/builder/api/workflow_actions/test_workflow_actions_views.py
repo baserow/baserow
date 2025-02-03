@@ -1,5 +1,7 @@
+import json
 from unittest.mock import patch
 
+from django.db import transaction
 from django.urls import reverse
 
 import pytest
@@ -23,6 +25,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     NotificationWorkflowActionType,
     UpdateRowWorkflowActionType,
 )
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
@@ -683,6 +686,136 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
     response_json = response.json()
     assert "id" not in response_json
     assert response_json[index.db_column] == "Index 123"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dispatch_local_baserow_upsert_row_workflow_action_with_adhoc_refinements(
+    api_client, data_fixture
+):
+    with transaction.atomic():
+        user, token = data_fixture.create_user_and_token()
+        workspace = data_fixture.create_workspace(user=user)
+        database = data_fixture.create_database_application(workspace=workspace)
+        table = TableHandler().create_table_and_fields(
+            user=user,
+            database=database,
+            name=data_fixture.fake.name(),
+            fields=[
+                ("Category", "text", {}),
+            ],
+        )
+        field = table.field_set.get()
+        RowHandler().create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "Community Engagement"},
+                {f"field_{field.id}": "Construction"},
+                {f"field_{field.id}": "Complex Construction Design"},
+                {f"field_{field.id}": "Simple Construction Design"},
+                {f"field_{field.id}": "Landscape Design"},
+                {f"field_{field.id}": "Infrastructure Design"},
+            ],
+        )
+
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user, authorized_user=user
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+    )
+    table_element = data_fixture.create_builder_table_element(
+        page=page,
+        data_source=data_source,
+        fields=[
+            {
+                "name": "Button",
+                "type": "button",
+                "config": {"value": f"'Click me'"},
+            },
+        ],
+    )
+    table_element.property_options.create(
+        schema_property=field.db_column,
+        sortable=True,
+        filterable=True,
+        searchable=True,
+    )
+
+    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+        page=page,
+        element=table_element,
+        event=EventTypes.CLICK,
+        user=user,
+    )
+    service = workflow_action.service.specific
+    service.table = table
+    service.row_id = "get('current_record.id')"
+    service.save()
+    service.field_mappings.create(
+        field=field, value=f"concat('Updated row ', get('current_record.id'))"
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+
+    advanced_filters = {
+        "filter_type": "OR",
+        "filters": [
+            {
+                "field": field.id,
+                "type": "contains",
+                "value": "construction",
+            }
+        ],
+    }
+
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {workflow_action.service.id: ["id", field.db_column]},
+            "external": {workflow_action.service.id: ["id", field.db_column]},
+        }
+        model = table.get_model()
+
+        # 1. The filters reduce it to 3 results.
+        # 2. The search query reduces it to 2 results.
+        # 3. We sort alphabetically, and dispatch the first one,
+        #   "Complex Construction Design".
+        url_with_querystring = (
+            f"{url}?filters={json.dumps(advanced_filters)}"
+            f"&search_query=design&order_by={field.db_column}"
+        )
+
+        # Dispatch at index=0, this will be "Complex Construction Design".
+        response = api_client.post(
+            url_with_querystring,
+            {"current_record": 0, "data_source": {"element": table_element.id}},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        row3 = model.objects.get(pk=3)
+        assert getattr(row3, f"field_{field.id}") == "Updated row 3"
+
+        # Dispatch at index=0, this will now be "Simple Construction Design".
+        response = api_client.post(
+            url_with_querystring,
+            {"current_record": 0, "data_source": {"element": table_element.id}},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        row4 = model.objects.get(pk=4)
+        assert getattr(row4, f"field_{field.id}") == "Updated row 4"
 
 
 @pytest.mark.django_db
