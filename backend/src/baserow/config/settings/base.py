@@ -521,6 +521,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "Database table view sortings"},
         {"name": "Database table view decorations"},
         {"name": "Database table view groupings"},
+        {"name": "Database table view export"},
         {"name": "Database table grid view"},
         {"name": "Database table gallery view"},
         {"name": "Database table form view"},

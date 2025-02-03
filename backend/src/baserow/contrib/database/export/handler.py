@@ -22,6 +22,7 @@ from baserow.contrib.database.export.operations import ExportTableOperationType
 from baserow.contrib.database.export.tasks import run_export_job
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.exceptions import ViewNotInTable
+from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.handler import CoreHandler
@@ -30,7 +31,6 @@ from baserow.core.storage import (
     get_default_storage,
 )
 
-from ..views.filters import AdHocFilters
 from .exceptions import (
     ExportJobCanceledException,
     TableOnlyExportUnsupported,

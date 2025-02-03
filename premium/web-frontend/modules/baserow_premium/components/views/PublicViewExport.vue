@@ -13,7 +13,10 @@
     <Context ref="context">
       <ul class="context__menu">
         <li class="context__menu-item">
-          <a class="context__menu-item-link" @click="$refs.exportModal.show()">
+          <a
+            class="context__menu-item-link"
+            @click=";[$refs.exportModal.show(), $refs.context.hide()]"
+          >
             <i class="context__menu-item-icon iconoir-share-ios"></i>
             {{ $t('publicViewExport.export') }}
           </a>

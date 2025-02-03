@@ -147,7 +147,7 @@ class ExportPublicViewView(APIView):
                 description="Select the view you want to export.",
             ),
         ],
-        tags=["Database view export"],
+        tags=["Database table view export"],
         operation_id="export_publicly_shared_view",
         description=(
             "Creates and starts a new export job for a publicly shared view  given "
@@ -216,7 +216,7 @@ class ExportPublicViewJobView(APIView):
                 description="The signed job id to lookup information about.",
             )
         ],
-        tags=["Database view export"],
+        tags=["Database table view export"],
         operation_id="get_public_view_export_job",
         description=(
             "Returns information such as export progress and state or the url of the "
@@ -229,7 +229,6 @@ class ExportPublicViewJobView(APIView):
             404: get_error_schema(["ERROR_EXPORT_JOB_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             ExportJobDoesNotExistException: ERROR_EXPORT_JOB_DOES_NOT_EXIST,
@@ -237,9 +236,7 @@ class ExportPublicViewJobView(APIView):
         }
     )
     def get(self, request, job_id):
-        """
-        Retrieves the specified export job.
-        """
+        """Retrieves the specified export job by serialized id."""
 
         job_id = export_public_view_signer.loads(job_id)
 

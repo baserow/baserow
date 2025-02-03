@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import fields, serializers
 
 from baserow.api.serializers import FileURLSerializerMixin
+from baserow.contrib.database.api.constants import get_filters_object_description
 from baserow.contrib.database.api.views.serializers import PublicViewFiltersSerializer
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.contrib.database.export.models import ExportJob
@@ -124,7 +125,12 @@ class BaseExporterOptionsSerializer(serializers.Serializer):
         help_text="The character set to use when creating the export file.",
     )
     filters = PublicViewFiltersSerializer(
-        required=False, allow_null=True, help_text="@TODO docs"
+        required=False,
+        allow_null=True,
+        help_text=lazy(
+            lambda: get_filters_object_description(True, False),
+            str,
+        )(),
     )
     order_by = serializers.CharField(
         required=False,

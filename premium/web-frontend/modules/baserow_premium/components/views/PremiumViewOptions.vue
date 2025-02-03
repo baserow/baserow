@@ -91,7 +91,6 @@ export default {
   },
   methods: {
     async update(key, value) {
-      console.log(value)
       try {
         // We are being optimistic that the request will succeed.
         this.$emit('update-view', { ...this.view, [key]: value })
