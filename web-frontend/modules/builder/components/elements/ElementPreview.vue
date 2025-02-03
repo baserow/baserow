@@ -38,7 +38,7 @@
       :mode="mode"
       class="element--read-only"
       :application-context-additions="applicationContextAdditions"
-      v-on="$listeners"
+      @move="$emit('move', $event)"
     />
 
     <InsertElementButton

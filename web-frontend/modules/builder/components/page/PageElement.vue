@@ -15,7 +15,7 @@
           page: elementPage,
         }"
         class="element"
-        v-on="$listeners"
+        @move="$emit('move', $event)"
       />
     </div>
   </div>
