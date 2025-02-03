@@ -26,20 +26,12 @@ class OptionallyAnnotatedOrderBy:
     @property
     def field_expression(self) -> str:
         """
-        Returns the underlying field expression (like "field_1__value")
-        of the OrderBy order.
-
-        OrderBy expression for a field is always F(field_expression) or
-        Collate(F(field_expression)) or a django Expression that can be
-        stringified.
+        Returns the underlying field expression (like `Cast("field_1__value")`)
+        of the OrderBy order as a string. It can be used to identify the uniqueness of
+        a sort for indexing purposes, for example.
         """
 
-        if self.collation:
-            return self.order.expression.source_expressions[0].name
-        elif isinstance(self.order.expression, F):
-            return self.order.expression.name
-        else:
-            return str(self.order.expression)
+        return str(self.order.expression)
 
     @property
     def order_bys(self) -> List[OrderBy]:

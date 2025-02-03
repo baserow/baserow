@@ -11,6 +11,7 @@ from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOr
 from baserow.contrib.database.formula.ast import tree
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.formula.types.exceptions import InvalidFormulaType
+from baserow.core.db import collate_expression
 
 T = TypeVar("T", bound="BaserowFormulaType")
 
@@ -211,7 +212,7 @@ class BaserowFormulaType(abc.ABC):
         annotation that will be used as the order on the particular field.
         """
 
-        field_expr = F(field_name)
+        field_expr = collate_expression(F(field_name))
 
         if order_direction == "ASC":
             field_order_by = field_expr.asc(nulls_first=True)
