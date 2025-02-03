@@ -69,6 +69,7 @@ from baserow.contrib.database.formula.types.formula_type import (
     BaserowFormulaValidType,
     UnTyped,
 )
+from baserow.core.db import collate_expression
 from baserow.core.storage import get_default_storage
 from baserow.core.utils import list_to_comma_separated_string
 
@@ -172,8 +173,10 @@ class BaserowFormulaTextType(
             return super().cast_to_text(to_text_func_call, arg)
 
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
-        return JSONBSingleKeyArrayExpression(
-            field_name, "value", "text", output_field=models.TextField()
+        return collate_expression(
+            JSONBSingleKeyArrayExpression(
+                field_name, "value", "text", output_field=models.TextField()
+            )
         )
 
 
@@ -189,8 +192,10 @@ class BaserowFormulaCharType(BaserowFormulaTextType, BaserowFormulaValidType):
     can_group_by = True
 
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
-        return JSONBSingleKeyArrayExpression(
-            field_name, "value", "text", output_field=models.TextField()
+        return collate_expression(
+            JSONBSingleKeyArrayExpression(
+                field_name, "value", "text", output_field=models.TextField()
+            )
         )
 
     def placeholder_empty_baserow_expression(
@@ -1458,7 +1463,7 @@ class BaserowFormulaSingleSelectType(
     def get_order(
         self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
-        field_expr = F(f"{field_name}__value")
+        field_expr = collate_expression(Cast(F(f"{field_name}__value"), TextField()))
 
         if order_direction == "ASC":
             field_order_by = field_expr.asc(nulls_first=True)
