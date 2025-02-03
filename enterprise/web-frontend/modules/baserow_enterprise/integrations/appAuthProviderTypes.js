@@ -164,7 +164,13 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
   }
 
   getProviderName(provider) {
-    return provider.name ? provider.name : this.getName()
+    if (provider.name) {
+      return provider.name
+    } else {
+      return this.app.i18n.t(
+        'authProviderTypes.ssoOIDCProviderNameUnconfigured'
+      )
+    }
   }
 
   get component() {
@@ -173,16 +179,6 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
 
   get formComponent() {
     return CommonOIDCSettingForm
-  }
-
-  getProviderName(provider) {
-    if (provider.name) {
-      return provider.name
-    } else {
-      return this.app.i18n.t(
-        'authProviderTypes.ssoOIDCProviderNameUnconfigured'
-      )
-    }
   }
 
   getAuthToken(userSource, authProvider, route, router) {

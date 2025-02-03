@@ -10,6 +10,7 @@ from rest_framework import serializers
 from baserow.core.app_auth_providers.auth_provider_types import AppAuthProviderType
 from baserow.core.app_auth_providers.models import AppAuthProvider
 from baserow.core.app_auth_providers.types import AppAuthProviderTypeDict
+from baserow_enterprise.api.sso.utils import get_standardized_url
 from baserow_enterprise.integrations.local_baserow.user_source_types import (
     LocalBaserowUserSourceType,
 )
@@ -64,7 +65,9 @@ class OAuth2AppAuthProviderMixin(BaseOAuth2AuthProviderMixin):
 
 
 def validate_unique_oidc_base_url(base_url, base_queryset: QuerySet, instance=None):
-    queryset = base_queryset.filter(base_url=base_url)
+    standard_base_url = get_standardized_url(base_url)
+
+    queryset = base_queryset.filter(base_url=standard_base_url)
     if instance:
         queryset = queryset.exclude(id=instance.id)
 
@@ -80,7 +83,8 @@ def validate_unique_oidc_base_url(base_url, base_queryset: QuerySet, instance=No
                 }
             }
         )
-    return base_url
+
+    return standard_base_url
 
 
 def validate_wellknown_urls(value):
@@ -126,7 +130,7 @@ class OpenIdConnectAppAuthProviderType(
     def before_create(self, user, **values):
         user_source = values["user_source"]
         if "base_url" in values:
-            validate_unique_oidc_base_url(
+            values["base_url"] = validate_unique_oidc_base_url(
                 values["base_url"],
                 base_queryset=OpenIdConnectAppAuthProviderModel.objects.filter(
                     user_source=user_source
@@ -137,7 +141,7 @@ class OpenIdConnectAppAuthProviderType(
     def before_update(self, user, auth_provider, **values):
         if "base_url" in values:
             user_source = values.get("user_source", auth_provider.user_source)
-            validate_unique_oidc_base_url(
+            values["base_url"] = validate_unique_oidc_base_url(
                 values["base_url"],
                 base_queryset=OpenIdConnectAppAuthProviderModel.objects.filter(
                     user_source=user_source

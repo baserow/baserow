@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0037_periodicdatasyncinterval"),
+        ("baserow_enterprise", "0038_localbaserowgroupedaggregaterows_and_more"),
         ("core", "0093_alter_appauthprovider_options_and_more"),
     ]
 

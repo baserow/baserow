@@ -174,6 +174,7 @@ class SamlAuthProviderHandler:
             name = authn_identity["user.name"][0]
         else:
             name = email
+
         return UserInfo(email, name, **saml_request_data)
 
     @classmethod

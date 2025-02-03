@@ -1,7 +1,7 @@
 <template>
   <div class="oidc-auth-link__wrapper">
     <template v-for="authProvider in authProviders">
-      <ABButton @click.prevent="login(authProvider)" :key="authProvider.id">
+      <ABButton :key="authProvider.id" @click.prevent="login(authProvider)">
         {{ getLabel(authProvider) }}
       </ABButton>
     </template>
