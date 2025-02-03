@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from django.db.models import F
 from django.db.models.expressions import OrderBy
 
 
