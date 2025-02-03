@@ -486,12 +486,7 @@ export class ViewType extends Registerable {
     return true
   }
 
-  getVisibleAndOrderedFields(
-    { $store: store },
-    fields,
-    view,
-    storePrefix = ''
-  ) {
+  getVisibleFieldsInOrder({ $store: store }, fields, view, storePrefix = '') {
     const fieldOptions =
       store.getters[
         storePrefix + 'view/' + this.getType() + '/getAllFieldOptions'

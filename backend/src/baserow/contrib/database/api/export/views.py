@@ -112,6 +112,11 @@ class ExportTableView(APIView):
                     "ERROR_TABLE_ONLY_EXPORT_UNSUPPORTED",
                     "ERROR_VIEW_UNSUPPORTED_FOR_EXPORT_TYPE",
                     "ERROR_VIEW_NOT_IN_TABLE",
+                    "ERROR_FILTER_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
+                    "ERROR_ORDER_BY_FIELD_NOT_FOUND",
+                    "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE",
                 ]
             ),
             404: get_error_schema(

@@ -10,6 +10,7 @@ from baserow.contrib.database.api.export.serializers import (
 )
 from baserow.contrib.database.export.file_writer import FileWriter, QuerysetSerializer
 from baserow.contrib.database.export.registries import TableExporter
+from baserow.contrib.database.export.utils import view_is_publicly_exportable
 from baserow.contrib.database.views.view_types import GridViewType
 
 from ..license.features import PREMIUM
@@ -23,7 +24,10 @@ class PremiumTableExporter(TableExporter):
         Checks if the related user access to a valid license before the job is created.
         """
 
-        if user is None and view and view.allow_public_export and view.public:
+        if view_is_publicly_exportable(user, view):
+            # No need to check if the workspace has the license if the view is
+            # publicly exportable because then we should always allow it, regardless
+            # of the license.
             pass
         else:
             LicenseHandler.raise_if_user_doesnt_have_feature(

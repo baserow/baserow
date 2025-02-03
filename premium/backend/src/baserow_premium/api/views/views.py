@@ -153,6 +153,7 @@ class ExportPublicViewView(APIView):
             "Creates and starts a new export job for a publicly shared view  given "
             "some exporter options. Returns an error if the view doesn't support "
             "exporting."
+            "\n\nThis is a **premium** feature."
         ),
         request=CreateExportJobSerializer,
         responses={
@@ -163,6 +164,11 @@ class ExportPublicViewView(APIView):
                     "ERROR_TABLE_ONLY_EXPORT_UNSUPPORTED",
                     "ERROR_VIEW_UNSUPPORTED_FOR_EXPORT_TYPE",
                     "ERROR_VIEW_NOT_IN_TABLE",
+                    "ERROR_FILTER_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
+                    "ERROR_ORDER_BY_FIELD_NOT_FOUND",
+                    "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE",
                 ]
             ),
             404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
@@ -222,6 +228,7 @@ class ExportPublicViewJobView(APIView):
             "Returns information such as export progress and state or the url of the "
             "exported file for the specified export job, only if the requesting user "
             "has access."
+            "\n\nThis is a **premium** feature."
         ),
         request=None,
         responses={

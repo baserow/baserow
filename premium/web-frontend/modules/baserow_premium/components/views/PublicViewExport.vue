@@ -74,7 +74,7 @@ export default {
   computed: {
     visibleOrderedFields() {
       const viewType = this.$registry.get('view', this.view.type)
-      return viewType.getVisibleAndOrderedFields(
+      return viewType.getVisibleFieldsInOrder(
         this,
         this.fields,
         this.view,

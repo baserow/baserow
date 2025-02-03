@@ -38,14 +38,17 @@ from .exceptions import (
 )
 from .file_writer import PaginatedExportJobFileWriter
 from .registries import TableExporter, table_exporter_registry
+from .utils import view_is_publicly_exportable
 
 User = get_user_model()
 
 
 class ExportHandler:
     @staticmethod
-    def _raise_if_no_export_permissions(user, table, view):
-        if user is None and view and view.allow_public_export and view.public:
+    def _raise_if_no_export_permissions(
+        user: Optional[User], table: Table, view: Optional[View]
+    ):
+        if view_is_publicly_exportable(user, view):
             # No need to do the permission check if no user is provided, the view is
             # public, and allowed to export from publicly shared view because this
             # can be initiated by an anonymous user.
@@ -60,7 +63,10 @@ class ExportHandler:
 
     @staticmethod
     def create_and_start_new_job(
-        user: User, table: Table, view: Optional[View], export_options: Dict[str, Any]
+        user: Optional[User],
+        table: Table,
+        view: Optional[View],
+        export_options: Dict[str, Any],
     ) -> ExportJob:
         """
         For the provided user, table, optional view and options will create a new
@@ -85,7 +91,10 @@ class ExportHandler:
 
     @staticmethod
     def create_pending_export_job(
-        user: User, table: Table, view: Optional[View], export_options: Dict[str, Any]
+        user: Optional[User],
+        table: Table,
+        view: Optional[View],
+        export_options: Dict[str, Any],
     ):
         """
         Creates a new pending export job configured with the providing options but does
@@ -218,8 +227,12 @@ def _raise_if_invalid_order_by_or_filters(
     table: Table, view: Optional[View], export_options: dict
 ):
     """
-    Raises exception if the field ID of the provided filters or order_by is not part
-    of the table or optionally visible in the view.
+    Validates that the filters and order_by specified in export_options only reference
+    fields that exist in the table and are visible in the view (if provided).
+
+    This method attempts to apply the filters and ordering to a queryset to catch any
+    invalid field references before starting the actual export job. It raises an
+    exception if any validation fails.
 
     :param table: The table where to check the IDs in.
     :param view: Optionally provide a view to check the visible fields off.
@@ -266,7 +279,7 @@ def _cancel_unfinished_jobs(user):
     """
 
     if user is None:
-        return []
+        return 0
     else:
         jobs = ExportJob.unfinished_jobs(user=user)
         return jobs.update(state=EXPORT_JOB_CANCELLED_STATUS)
