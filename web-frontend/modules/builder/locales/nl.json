@@ -313,7 +313,7 @@
     "dataProviderType": {
         "currentRecord": "Gegevensbron",
         "pageParameter": "Parameter",
-        "dataSource": "Data",
+        "dataSource": "Data rijen",
         "formData": "Formuliergegevens",
         "user": "Gebruiker",
         "previousAction": "Vorige actie",
