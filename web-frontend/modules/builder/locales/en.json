@@ -441,8 +441,7 @@
     "backgroundColor": "Background color",
     "widthLabel": "Width",
     "backgroundImage": "Image",
-    "backgroundImageMode": "Fill mode",
-    "childWidthLabel": "Child Width"
+    "backgroundImageMode": "Fill mode"
   },
   "styleBoxForm": {
     "borderColor": "Border color",

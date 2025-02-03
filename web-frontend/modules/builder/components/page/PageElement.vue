@@ -144,11 +144,11 @@ export default {
     elementClasses() {
       if (this.element?.parent_element_id) {
         return {
-          'element__wrapper--child-normal-width':
+          'element__wrapper--full-width':
             this.element.style_width_child === CHILD_WIDTH_TYPES.NORMAL.value,
-          'element__wrapper--child-medium-width':
+          'element__wrapper--medium-width':
             this.element.style_width_child === CHILD_WIDTH_TYPES.MEDIUM.value,
-          'element__wrapper--child-small-width':
+          'element__wrapper--small-width':
             this.element.style_width_child === CHILD_WIDTH_TYPES.SMALL.value,
         }
       } else {

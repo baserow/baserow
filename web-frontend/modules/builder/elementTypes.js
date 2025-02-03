@@ -751,10 +751,6 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     })
   }
 
-  get childStylesForbidden() {
-    return []
-  }
-
   getEvents(element) {
     return [new SubmitEvent({ ...this.app })]
   }
@@ -838,7 +834,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
   }
 
   get childStylesForbidden() {
-    return []
+    return ['style_width', 'style_width_child']
   }
 
   get defaultPlaceInContainer() {

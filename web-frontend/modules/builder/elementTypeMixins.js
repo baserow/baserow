@@ -13,7 +13,7 @@ export const ContainerElementTypeMixin = (Base) =>
      * @returns {Array}
      */
     get childStylesForbidden() {
-      return []
+      return ['style_width']
     }
 
     get defaultPlaceInContainer() {

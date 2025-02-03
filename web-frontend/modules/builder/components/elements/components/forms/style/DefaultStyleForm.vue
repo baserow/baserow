@@ -74,7 +74,7 @@
     </FormSection>
     <FormSection v-if="isStyleAllowed('style_width_child')">
       <FormGroup
-        :label="$t('defaultStyleForm.childWidthLabel')"
+        :label="$t('defaultStyleForm.widthLabel')"
         small-label
         required
         class="margin-bottom-2"
