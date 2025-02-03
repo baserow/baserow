@@ -6,6 +6,7 @@
   max-width: 140px;
   font-size: var(--body-font-size, 14px);
   color: var(--body-text-color, $black);
+  font-weight: var(--body-font-weight, 400);
   font-family: var(--body-font-family, Inter);
   background-color: var(--tag-background-color, transparent);
   border-radius: 1em;
