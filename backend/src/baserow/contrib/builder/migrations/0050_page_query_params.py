@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
     dependencies = [
         (
             "builder",
-            "0048_alter_buttonthemeconfigblock_button_background_color_and_more",
+            "0049_element_style_width_child_alter_element_style_width",
         ),
     ]
 
