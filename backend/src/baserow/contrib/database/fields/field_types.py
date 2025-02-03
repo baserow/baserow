@@ -1393,7 +1393,7 @@ class DateFieldType(FieldType):
 
 
 class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
-    _can_be_in_form_view = False
+    can_be_in_form_view = False
     field_data_is_derived_from_attrs = True
 
     source_field_name = None
@@ -1488,7 +1488,7 @@ class CreatedOnFieldType(CreatedOnLastModifiedBaseFieldType):
 class LastModifiedByFieldType(ReadOnlyFieldType):
     type = "last_modified_by"
     model_class = LastModifiedByField
-    _can_be_in_form_view = False
+    can_be_in_form_view = False
     keep_data_on_duplication = True
     update_always = True
 
@@ -1700,7 +1700,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
 class CreatedByFieldType(ReadOnlyFieldType):
     type = "created_by"
     model_class = CreatedByField
-    _can_be_in_form_view = False
+    can_be_in_form_view = False
     keep_data_on_duplication = True
 
     source_field_name = "created_by"
@@ -2211,17 +2211,6 @@ class LinkRowFieldType(
                 }
             ),
             distinct=True,
-        )
-
-    def check_can_be_in_form_view(self, field: Field) -> bool:
-        related_primary_field = self._get_related_table_primary_field(field)
-        if related_primary_field is None:
-            return False
-        related_primary_field_type = field_type_registry.get_by_model(
-            related_primary_field.specific_class
-        )
-        return related_primary_field_type.check_can_be_in_form_view(
-            related_primary_field.specific
         )
 
     def check_can_order_by(self, field: Field) -> bool:
@@ -3500,7 +3489,7 @@ class EmailFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
 class FileFieldType(FieldType):
     type = "file"
     model_class = FileField
-    _can_be_in_form_view = True
+    can_be_in_form_view = True
     can_get_unique_values = False
     _can_order_by = False
 
@@ -4771,7 +4760,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
     model_class = FormulaField
     _db_column_fields = []
 
-    _can_be_in_form_view = False
+    can_be_in_form_view = False
     field_data_is_derived_from_attrs = True
     needs_refresh_after_import_serialized = True
     include_in_row_move_updated_fields = False
@@ -6029,7 +6018,7 @@ class MultipleCollaboratorsFieldType(
     type = "multiple_collaborators"
     model_class = MultipleCollaboratorsField
     can_get_unique_values = False
-    _can_be_in_form_view = False
+    can_be_in_form_view = False
     allowed_fields = ["notify_user_when_added"]
     serializer_field_names = ["notify_user_when_added"]
     serializer_field_overrides = {
@@ -6422,7 +6411,7 @@ class UUIDFieldType(ReadOnlyFieldType):
 
     type = "uuid"
     model_class = UUIDField
-    _can_be_in_form_view = False
+    can_be_in_form_view = False
     keep_data_on_duplication = True
 
     def get_serializer_field(self, instance, **kwargs):
@@ -6518,7 +6507,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
 
     type = "autonumber"
     model_class = AutonumberField
-    _can_be_in_form_view = False
+    can_be_in_form_view = False
     keep_data_on_duplication = True
     request_serializer_field_names = ["view_id"]
     request_serializer_field_overrides = {
@@ -6733,7 +6722,7 @@ class PasswordFieldType(FieldType):
 
     type = "password"
     model_class = PasswordField
-    _can_be_in_form_view = True
+    can_be_in_form_view = True
     keep_data_on_duplication = True
     _can_order_by = False
     _can_be_primary_field = False

@@ -347,7 +347,7 @@ def test_can_user_receive_notification_for_all_interesting_field_values(
         field_instance = field_object["field"]
         field_type = field_object["type"]
         field_name = field_object["name"]
-        if field_object["type"].check_can_be_in_form_view(field_instance):
+        if field_object["type"].can_be_in_form_view:
             data_fixture.create_form_view_field_option(
                 form, field_instance, required=True, enabled=True, order=i
             )
