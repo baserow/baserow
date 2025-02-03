@@ -1,9 +1,6 @@
 <template>
   <div class="sidebar__section sidebar__section--scrollable">
-    <div
-      v-if="applicationsCount || pendingJobs[null].length"
-      class="sidebar__section-scrollable"
-    >
+    <div v-if="hasItems" class="sidebar__section-scrollable">
       <div
         class="sidebar__section-scrollable-inner"
         data-highlight="applications"
@@ -76,7 +73,9 @@
         )
       "
       class="sidebar__new-wrapper"
-      :class="{ 'sidebar__new-wrapper--separator': applicationsCount > 0 }"
+      :class="{
+        'sidebar__new-wrapper--separator': hasItems,
+      }"
     >
       <a
         ref="createApplicationContextLink"
@@ -160,6 +159,9 @@ export default {
         }
       })
       return grouped
+    },
+    hasItems() {
+      return this.applicationsCount || this.pendingJobs.null.length
     },
   },
   methods: {
