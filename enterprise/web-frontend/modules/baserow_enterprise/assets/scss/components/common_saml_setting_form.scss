@@ -1,13 +1,24 @@
-.common-saml-setting-form {
-  @include elevation($elevation-low);
+.common-saml-setting-form__url-block {
   @include rounded($rounded);
 
-  padding: 20px;
-  border: 1px solid $palette-neutral-200;
-  display: flex;
-  cursor: pointer;
+  position: relative;
+  font-family: monospace;
+  padding: 12px 16px;
+  background-color: $palette-neutral-50;
+  border: 1px solid $palette-neutral-400;
+}
 
-  &--error {
-    border-color: $palette-red-600;
-  }
+.common-saml-setting-form__url {
+  padding-bottom: 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 5px;
+}
+
+.common-saml-setting-form__url-domain {
+  color: $palette-neutral-800;
+}
+
+.common-saml-setting-form__url-dest {
+  @extend %ellipsis;
 }

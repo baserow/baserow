@@ -1173,6 +1173,74 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
 
 
 @pytest.mark.django_db
+def test_local_baserow_user_source_create_user(
+    data_fixture,
+):
+    data = populate_local_baserow_test_data(data_fixture)
+
+    user_source = data["user_source"]
+    user_source_type = user_source.get_type()
+
+    user_source_type.create_user(
+        user_source, email="test_create@baserow.io", name="user name"
+    )
+
+    UserModel = data["user_table"].get_model()
+
+    email_field, name_field, *other_fields = data["fields"]
+
+    assert (
+        UserModel.objects.filter(
+            **{
+                email_field.db_column: "test_create@baserow.io",
+                name_field.db_column: "user name",
+            }
+        ).count()
+        == 1
+    )
+
+
+@pytest.mark.django_db
+def test_local_baserow_user_source_create_user_bad_configuration(
+    data_fixture,
+):
+    data = populate_local_baserow_test_data(data_fixture)
+
+    user_source = data["user_source"]
+    user_source_type = user_source.get_type()
+
+    user_source_type.create_user(
+        user_source, email="test_create@baserow.io", name="user name"
+    )
+
+    user_table = data["user_table"]
+
+    # `is_configured` will be False if the name_field is None
+    user_source.name_field = None
+    user_source.save()
+
+    with pytest.raises(UserSourceImproperlyConfigured):
+        user_source_type.create_user(
+            user_source, email="test_create@baserow.io", name="user name"
+        )
+
+    email_field, name_field, *other_fields = data["fields"]
+
+    # Re-add the name field, so we can verify that `get_user_model`
+    # will raise `UserNotFound` (from `UserSourceImproperlyConfigured`)
+    # if the table has been trashed.
+    user_source.name_field = name_field
+    user_source.save()
+    user_table.trashed = True
+    user_table.save()
+
+    with pytest.raises(UserSourceImproperlyConfigured):
+        user_source_type.create_user(
+            user_source, email="test_create@baserow.io", name="user name"
+        )
+
+
+@pytest.mark.django_db
 def test_local_baserow_user_source_get_user(
     data_fixture,
 ):

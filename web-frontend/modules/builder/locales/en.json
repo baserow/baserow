@@ -395,7 +395,11 @@
   },
   "publicPage": {
     "siteNotFound": "Site not found",
-    "pageNotFound": "Page not found"
+    "pageNotFound": "Page not found",
+    "loginToastTitle": "Authentication Successful",
+    "loginToastMessage": "You have been successfully signed in.",
+    "authorizedToastTitle": "Authentication Required",
+    "authorizedToastMessage": "You must be signed in to access this page. Please log in to continue."
   },
   "integrationSettings": {
     "title": "Integrations",
@@ -907,5 +911,9 @@
     "all": "On all pages",
     "only": "Only on selected pages",
     "except": "Exclude selected pages"
+  },
+  "authProviderWithModal": {
+    "authProviderInError": "Please edit this provider to fix the error.",
+    "title": "Edit provider: {name}"
   }
 }

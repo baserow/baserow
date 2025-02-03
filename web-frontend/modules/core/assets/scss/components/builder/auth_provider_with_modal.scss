@@ -1,0 +1,13 @@
+.auth-provider-with-modal {
+  @include elevation($elevation-low);
+  @include rounded($rounded);
+
+  padding: 20px;
+  border: 1px solid $palette-neutral-200;
+  display: flex;
+  cursor: pointer;
+
+  &--error {
+    border-color: $palette-red-600;
+  }
+}

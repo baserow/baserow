@@ -1,5 +1,6 @@
+import re
 from typing import Any, Dict, List, Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from zipfile import ZipFile
 
 from django.conf import settings
@@ -424,7 +425,7 @@ class BuilderApplicationType(ApplicationType):
 
         return builder
 
-    def get_default_application_urls(self, application: Builder) -> list[str]:
+    def get_application_urls(self, application: Builder) -> list[str]:
         """
         Returns the default frontend urls of a builder application.
         """
@@ -447,6 +448,51 @@ class BuilderApplicationType(ApplicationType):
         )
         # It's an unpublished version let's return to the home preview page
         return [preview_url]
+
+    @classmethod
+    def _extract_builder_id_from_path(cls, url_path):
+        # Define the regex pattern with a capturing group for the integer
+        pattern = r"^/builder/(\d+)/preview/.*$"
+
+        # Use re.match to find the match
+        match = re.match(pattern, url_path)
+
+        if match:
+            # Extract the integer from the first capturing group
+            return int(match.group(1))
+        return None
+
+    @classmethod
+    def get_application_id_for_url(cls, url: str) -> int | None:
+        """
+        If the given URL is relative to the PUBLIC_WEB_FRONTEND_URL, we try to match
+        the preview path and to extract the builder id from it.
+
+        Otherwise, we try to match a published domain and return the related
+        application id.
+        """
+
+        from baserow.contrib.builder.domains.models import Domain
+
+        parsed_url = urlparse(url)
+        parsed_frontend_url = urlparse(settings.PUBLIC_WEB_FRONTEND_URL)
+
+        if (parsed_url.scheme, parsed_url.hostname) == (
+            parsed_frontend_url.scheme,
+            parsed_frontend_url.hostname,
+        ):
+            # It's an unpublished app and we try to access the preview
+            url_path = parsed_url.path
+            return cls._extract_builder_id_from_path(url_path)
+
+        try:
+            # Let's search for a published app
+            domain = Domain.objects.exclude(published_to=None).get(
+                domain_name=parsed_url.hostname
+            )
+            return domain.published_to_id
+        except Domain.DoesNotExist:
+            return None
 
     def enhance_queryset(self, queryset):
         queryset = queryset.prefetch_related("page_set")

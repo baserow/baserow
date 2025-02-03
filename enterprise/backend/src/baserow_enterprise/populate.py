@@ -1,6 +1,16 @@
 from django.contrib.auth import get_user_model
 
+from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.workflow_actions.handler import (
+    BuilderWorkflowActionHandler,
+)
+from baserow.contrib.builder.workflow_actions.registries import (
+    builder_workflow_action_type_registry,
+)
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
@@ -53,6 +63,7 @@ def load_test_data():
     email_field = Field.objects.get(table=user_table, name="Email")
     username_field = Field.objects.get(table=user_table, name="Username")
     password_field = Field.objects.get(table=user_table, name="Password")
+    role_field = Field.objects.get(table=user_table, name="Role")
 
     user_source_type = user_source_type_registry.get("local_baserow")
 
@@ -72,6 +83,7 @@ def load_test_data():
             integration=integration,
             email_field=email_field,
             name_field=username_field,
+            role_field=role_field,
         )
 
     auth_provider_type = app_auth_provider_type_registry.get("local_baserow_password")
@@ -83,4 +95,56 @@ def load_test_data():
     except LocalBaserowPasswordAppAuthProvider.DoesNotExist:
         auth_provider_type.create(
             user_source=user_source, password_field=password_field, enabled=True
+        )
+
+    auth_form_element = element_type_registry.get("auth_form")
+    button_element = element_type_registry.get("button")
+
+    try:
+        loginpage = Page.objects.get(name="Login", builder=builder)
+    except Page.DoesNotExist:
+        loginpage = PageHandler().create_page(builder, "Login", "/login")
+
+        ElementHandler().create_element(
+            auth_form_element, loginpage, user_source=user_source
+        )
+
+        builder.login_page = loginpage
+        builder.save()
+
+    # Make product pages private
+    product_detail = Page.objects.get(name="Product detail", builder=builder)
+    products = Page.objects.get(name="Products", builder=builder)
+    product_detail.visibility = "logged-in"
+    product_detail.save()
+    products.visibility = "logged-in"
+    products.save()
+
+    if (
+        builder.shared_page.element_set.filter(
+            page=builder.shared_page, content_type__model="buttonelement"
+        ).count()
+        == 0
+    ):
+        column = builder.shared_page.element_set.filter(
+            page=builder.shared_page, content_type__model="columnelement"
+        ).first()
+
+        logout_button = ElementHandler().create_element(
+            button_element,
+            builder.shared_page,
+            parent_element_id=column.id,
+            place_in_container="2",
+            value='"Logout"',
+            visibility="logged-in",
+            styles={"button": {"button_alignment": "right"}},
+        )
+
+        logout_action = builder_workflow_action_type_registry.get("logout")
+
+        BuilderWorkflowActionHandler().create_workflow_action(
+            logout_action,
+            element_id=logout_button.id,
+            page_id=builder.shared_page.id,
+            event="click",
         )

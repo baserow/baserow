@@ -1,5 +1,6 @@
 from django.contrib.auth.hashers import make_password
 
+from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.core.user_sources.registries import user_source_type_registry
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowPasswordAppAuthProvider,
@@ -10,14 +11,13 @@ def populate_local_baserow_test_data(data_fixture, role_name="", extra_fields=No
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-    published_builder = data_fixture.create_builder_application(workspace=None)
     domain = data_fixture.create_builder_custom_domain(
-        builder=builder, published_to=published_builder
+        builder=builder,
     )
     database = data_fixture.create_database_application(workspace=workspace)
     data_fixture.create_database_table(database=database)
     integration = data_fixture.create_local_baserow_integration(
-        application=published_builder, user=user
+        application=builder, user=user
     )
 
     columns = [
@@ -67,7 +67,7 @@ def populate_local_baserow_test_data(data_fixture, role_name="", extra_fields=No
 
     user_source = data_fixture.create_user_source(
         local_baserow_user_source_type.model_class,
-        application=published_builder,
+        application=builder,
         integration=integration,
         table=table,
         email_field=email_field,
@@ -81,9 +81,22 @@ def populate_local_baserow_test_data(data_fixture, role_name="", extra_fields=No
         password_field=password_field,
     )
 
+    DomainHandler().publish(domain)
+
+    published_builder = domain.published_to
+
+    published_user_source = local_baserow_user_source_type.model_class.objects.get(
+        application=published_builder
+    )
+    published_app_auth_provider = LocalBaserowPasswordAppAuthProvider.objects.get(
+        user_source=published_user_source
+    )
+
     return {
-        "user_source": user_source,
-        "auth_provider": app_auth_provider,
+        "unpublished_user_source": user_source,
+        "unpublished_auth_provider": app_auth_provider,
+        "user_source": published_user_source,
+        "auth_provider": published_app_auth_provider,
         "domain": domain,
         "user_table": table,
         "user": user,
