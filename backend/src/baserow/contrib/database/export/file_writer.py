@@ -187,6 +187,8 @@ class QuerysetSerializer(abc.ABC):
         visible_field_objects_in_view, model = view_type.get_visible_fields_and_model(
             view
         )
+        # Remove the hidden fields, and put them in the right order, so that the
+        # exported file respects the chosen visible fields.
         fields = [
             field
             for field in visible_field_objects_in_view
@@ -200,12 +202,15 @@ class QuerysetSerializer(abc.ABC):
         qs = ViewHandler().get_queryset(view, model=model)
         return cls(qs, fields), visible_field_objects_in_view
 
-    def add_ad_hoc_filters_dict_to_queryset(self, filters_dict):
+    def add_ad_hoc_filters_dict_to_queryset(self, filters_dict, only_by_field_ids=None):
         filters = AdHocFilters.from_dict(filters_dict)
+        filters.only_filter_by_field_ids = only_by_field_ids
         self.queryset = filters.apply_to_queryset(self.queryset.model, self.queryset)
 
-    def add_add_hoc_order_by_to_queryset(self, order_by):
-        self.queryset = self.queryset.order_by_fields_string(order_by)
+    def add_add_hoc_order_by_to_queryset(self, order_by, only_by_field_ids=None):
+        self.queryset = self.queryset.order_by_fields_string(
+            order_by, only_order_by_field_ids=only_by_field_ids
+        )
 
     def _get_field_serializer(self, field_object: FieldObject) -> Callable[[Any], Any]:
         """

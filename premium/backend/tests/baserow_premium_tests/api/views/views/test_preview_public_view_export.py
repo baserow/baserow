@@ -652,6 +652,168 @@ def test_create_public_view_export_respecting_include_visible_fields_in_order_wr
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_create_public_view_export_error_hidden_fields_in_order_by(
+    api_client, premium_data_fixture, django_capture_on_commit_callbacks, tmpdir
+):
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=1
+    )
+    grid_view = premium_data_fixture.create_grid_view(
+        table=table, public=True, allow_public_export=True
+    )
+    hidden_text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=2
+    )
+    premium_data_fixture.create_grid_view_field_option(
+        grid_view=grid_view, field=hidden_text_field, hidden=True
+    )
+
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
+
+        with django_capture_on_commit_callbacks(execute=True):
+            response = api_client.post(
+                reverse(
+                    "api:premium:view:export_public_view",
+                    kwargs={"slug": grid_view.slug},
+                ),
+                data={
+                    "exporter_type": "csv",
+                    "export_charset": "utf-8",
+                    "csv_include_header": "True",
+                    "csv_column_separator": ",",
+                    "order_by": f"field_{hidden_text_field.id}",
+                },
+                format="json",
+            )
+
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_ORDER_BY_FIELD_NOT_FOUND"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_public_view_export_can_sort_by_manually_hidden_view(
+    api_client, premium_data_fixture, django_capture_on_commit_callbacks, tmpdir
+):
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=1
+    )
+    grid_view = premium_data_fixture.create_grid_view(
+        table=table, public=True, allow_public_export=True
+    )
+    hidden_text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=2
+    )
+    premium_data_fixture.create_grid_view_field_option(
+        grid_view=grid_view, field=text_field, hidden=False
+    )
+    premium_data_fixture.create_grid_view_field_option(
+        grid_view=grid_view, field=hidden_text_field, hidden=False
+    )
+
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
+
+        with django_capture_on_commit_callbacks(execute=True):
+            response = api_client.post(
+                reverse(
+                    "api:premium:view:export_public_view",
+                    kwargs={"slug": grid_view.slug},
+                ),
+                data={
+                    "exporter_type": "csv",
+                    "export_charset": "utf-8",
+                    "csv_include_header": "True",
+                    "csv_column_separator": ",",
+                    "order_by": f"field_{hidden_text_field.id}",
+                    "fields": [text_field.id],
+                },
+                format="json",
+            )
+
+        assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_create_public_view_export_error_hidden_fields_in_filters(
+    api_client, premium_data_fixture, django_capture_on_commit_callbacks, tmpdir
+):
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=1
+    )
+    grid_view = premium_data_fixture.create_grid_view(
+        table=table, public=True, allow_public_export=True
+    )
+    hidden_text_field = premium_data_fixture.create_text_field(
+        table=table, name="text_field", order=2
+    )
+    premium_data_fixture.create_grid_view_field_option(
+        grid_view=grid_view, field=text_field, hidden=False
+    )
+    premium_data_fixture.create_grid_view_field_option(
+        grid_view=grid_view, field=hidden_text_field, hidden=True
+    )
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{hidden_text_field.id}": "hello",
+        },
+    )
+    model.objects.create(
+        **{
+            f"field_{hidden_text_field.id}": "world",
+        },
+    )
+
+    with patch("baserow.core.storage.get_default_storage") as get_storage_mock:
+        get_storage_mock.return_value = storage
+
+        with django_capture_on_commit_callbacks(execute=True):
+            response = api_client.post(
+                reverse(
+                    "api:premium:view:export_public_view",
+                    kwargs={"slug": grid_view.slug},
+                ),
+                data={
+                    "exporter_type": "csv",
+                    "export_charset": "utf-8",
+                    "csv_include_header": "True",
+                    "csv_column_separator": ",",
+                    "filters": {
+                        "filter_type": "AND",
+                        "filters": [
+                            {
+                                "type": "contains",
+                                "field": hidden_text_field.id,
+                                "value": "world",
+                            }
+                        ],
+                        "groups": [],
+                    },
+                },
+                format="json",
+            )
+
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_FILTER_FIELD_NOT_FOUND"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_get_public_view_export_job_not_found(api_client, premium_data_fixture):
     response = api_client.get(
         reverse(

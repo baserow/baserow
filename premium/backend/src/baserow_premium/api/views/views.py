@@ -28,12 +28,15 @@ from baserow.contrib.database.api.export.views import (
     _validate_options,
 )
 from baserow.contrib.database.api.fields.errors import (
+    ERROR_FILTER_FIELD_NOT_FOUND,
     ERROR_ORDER_BY_FIELD_NOT_FOUND,
     ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
 )
 from baserow.contrib.database.api.views.errors import (
     ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
     ERROR_VIEW_DOES_NOT_EXIST,
+    ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+    ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
 from baserow.contrib.database.api.views.serializers import ViewSerializer
 from baserow.contrib.database.api.views.utils import get_public_view_authorization_token
@@ -41,6 +44,7 @@ from baserow.contrib.database.export.exceptions import ExportJobDoesNotExistExce
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.contrib.database.export.models import ExportJob
 from baserow.contrib.database.fields.exceptions import (
+    FilterFieldNotFound,
     OrderByFieldNotFound,
     OrderByFieldNotPossible,
 )
@@ -48,6 +52,8 @@ from baserow.contrib.database.views.actions import UpdateViewActionType
 from baserow.contrib.database.views.exceptions import (
     NoAuthorizationToPubliclySharedView,
     ViewDoesNotExist,
+    ViewFilterTypeDoesNotExist,
+    ViewFilterTypeNotAllowedForField,
 )
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
@@ -168,6 +174,9 @@ class ExportPublicViewView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             NoAuthorizationToPubliclySharedView: ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
+            FilterFieldNotFound: ERROR_FILTER_FIELD_NOT_FOUND,
+            ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+            ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
             OrderByFieldNotFound: ERROR_ORDER_BY_FIELD_NOT_FOUND,
             OrderByFieldNotPossible: ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
         }

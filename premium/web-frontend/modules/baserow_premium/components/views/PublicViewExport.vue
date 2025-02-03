@@ -71,7 +71,12 @@ export default {
   computed: {
     visibleOrderedFields() {
       const viewType = this.$registry.get('view', this.view.type)
-      return viewType.getVisibleAndOrderedFields(this, this.fields, this.view, this.storePrefix)
+      return viewType.getVisibleAndOrderedFields(
+        this,
+        this.fields,
+        this.view,
+        this.storePrefix
+      )
     },
   },
   methods: {
@@ -82,8 +87,13 @@ export default {
       values.filters = filters
       values.order_by = orderBy
       values.fields = fields === null ? null : fields.map((f) => f.id)
-      const publicAuthToken = this.$store.getters['page/view/public/getAuthToken']
-      return PublicViewExportService(client).export({ slug: view.slug, values, publicAuthToken })
+      const publicAuthToken =
+        this.$store.getters['page/view/public/getAuthToken']
+      return PublicViewExportService(client).export({
+        slug: view.slug,
+        values,
+        publicAuthToken,
+      })
     },
     getJob(job, client) {
       return PublicViewExportService(client).get(job.id)

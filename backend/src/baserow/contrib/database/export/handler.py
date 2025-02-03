@@ -9,7 +9,6 @@ from django.db import transaction
 
 from loguru import logger
 
-from baserow.contrib.database.api.views.serializers import validate_api_grouped_filters
 from baserow.contrib.database.export.models import (
     EXPORT_JOB_CANCELLED_STATUS,
     EXPORT_JOB_EXPIRED_STATUS,
@@ -31,6 +30,7 @@ from baserow.core.storage import (
     get_default_storage,
 )
 
+from ..views.filters import AdHocFilters
 from .exceptions import (
     ExportJobCanceledException,
     TableOnlyExportUnsupported,
@@ -116,19 +116,7 @@ class ExportHandler:
         _cancel_unfinished_jobs(user)
 
         _raise_if_invalid_view_or_table_for_exporter(exporter_type, view)
-
-        # Validate the filter object before the job start, so that the validation error
-        # can be shown to the user.
-        filters = export_options.get("filters", None)
-        if filters is not None:
-            validate_api_grouped_filters(filters, deserialize_filters=False)
-
-        # Validate the sort object before the job start, so that the validation error
-        # can be shown to the user.
-        order_by = export_options.get("order_by", None)
-        if order_by is not None:
-            model = view.table.get_model()
-            model.objects.all().order_by_fields_string(order_by)
+        _raise_if_invalid_order_by_or_filters(table, view, export_options)
 
         job = ExportJob.objects.create(
             user=user,
@@ -226,6 +214,47 @@ def _raise_if_invalid_view_or_table_for_exporter(
             raise ViewUnsupportedForExporterType()
 
 
+def _raise_if_invalid_order_by_or_filters(
+    table: Table, view: Optional[View], export_options: dict
+):
+    """
+    Raises exception if the field ID of the provided filters or order_by is not part
+    of the table or optionally visible in the view.
+
+    :param table: The table where to check the IDs in.
+    :param view: Optionally provide a view to check the visible fields off.
+    :param export_options: The export options where to extract the filters and order_by
+        from.
+    """
+
+    model = table.get_model()
+    queryset = model.objects.all()
+
+    only_by_field_ids = None
+    if view:
+        view_type = view_type_registry.get_by_model(view.specific_class)
+        visible_field_objects_in_view, model = view_type.get_visible_fields_and_model(
+            view
+        )
+        only_by_field_ids = [f["field"].id for f in visible_field_objects_in_view]
+
+    # Validate the filter object before the job start, so that the validation error
+    # can be shown to the user.
+    filters_dict = export_options.get("filters", None)
+    if filters_dict is not None:
+        filters = AdHocFilters.from_dict(filters_dict)
+        filters.only_filter_by_field_ids = only_by_field_ids
+        filters.apply_to_queryset(model, queryset)
+
+    # Validate the sort object before the job start, so that the validation error
+    # can be shown to the user.
+    order_by = export_options.get("order_by", None)
+    if order_by is not None:
+        queryset.order_by_fields_string(
+            order_by, only_order_by_field_ids=only_by_field_ids
+        )
+
+
 def _cancel_unfinished_jobs(user):
     """
     Will cancel any in progress jobs by setting their state to cancelled. Any
@@ -313,6 +342,7 @@ def _open_file_and_run_export(job: ExportJob) -> ExportJob:
     filters = job.export_options.pop("filters", None)
     order_by = job.export_options.pop("order_by", None)
     visible_fields_in_order = job.export_options.pop("fields", None)
+    only_by_field_ids = None
 
     with _create_storage_dir_if_missing_and_open(storage_location) as file:
         queryset_serializer_class = exporter.queryset_serializer_class
@@ -322,12 +352,17 @@ def _open_file_and_run_export(job: ExportJob) -> ExportJob:
             serializer, visible_fields_in_view = queryset_serializer_class.for_view(
                 job.view, visible_fields_in_order
             )
+            only_by_field_ids = [f["field"].id for f in visible_fields_in_view]
 
         if filters is not None:
-            serializer.add_ad_hoc_filters_dict_to_queryset(filters)
+            serializer.add_ad_hoc_filters_dict_to_queryset(
+                filters, only_by_field_ids=only_by_field_ids
+            )
 
         if order_by is not None:
-            serializer.add_add_hoc_order_by_to_queryset(order_by)
+            serializer.add_add_hoc_order_by_to_queryset(
+                order_by, only_by_field_ids=only_by_field_ids
+            )
 
         serializer.write_to_file(
             PaginatedExportJobFileWriter(file, job), **job.export_options
