@@ -40,6 +40,7 @@ class ElementDict(TypedDict):
     style_background_file_id: str
     style_background_mode: str
     style_width: str
+    style_width_child: str
 
 
 class DataSourceDict(TypedDict):

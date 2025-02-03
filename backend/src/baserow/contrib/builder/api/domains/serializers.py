@@ -140,6 +140,7 @@ class PublicElementSerializer(serializers.ModelSerializer):
             "style_background_file",
             "style_background_mode",
             "style_width",
+            "style_width_child",
             "role_type",
             "roles",
         )

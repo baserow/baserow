@@ -72,6 +72,24 @@
         </Dropdown>
       </FormGroup>
     </FormSection>
+    <FormSection v-if="isStyleAllowed('style_width_child')">
+      <FormGroup
+        :label="$t('defaultStyleForm.widthLabel')"
+        small-label
+        required
+        class="margin-bottom-2"
+      >
+        <Dropdown v-model="values.style_width_child">
+          <DropdownItem
+            v-for="type in Object.values(CHILD_WIDTH_TYPES)"
+            :key="type.value"
+            :name="$t(type.name)"
+            :value="type.value"
+          >
+          </DropdownItem>
+        </Dropdown>
+      </FormGroup>
+    </FormSection>
     <StyleBoxForm
       v-for="{ name, label } in borders"
       :key="name"
@@ -97,6 +115,7 @@ import styleForm from '@baserow/modules/builder/mixins/styleForm'
 import {
   BACKGROUND_TYPES,
   WIDTH_TYPES,
+  CHILD_WIDTH_TYPES,
   BACKGROUND_MODES,
 } from '@baserow/modules/builder/enums'
 import { IMAGE_FILE_TYPES } from '@baserow/modules/core/enums'
@@ -107,6 +126,7 @@ export default {
   computed: {
     BACKGROUND_TYPES: () => BACKGROUND_TYPES,
     WIDTH_TYPES: () => WIDTH_TYPES,
+    CHILD_WIDTH_TYPES: () => CHILD_WIDTH_TYPES,
     backgroundTypes() {
       return [
         {

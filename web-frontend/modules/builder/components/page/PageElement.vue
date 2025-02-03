@@ -2,16 +2,7 @@
   <div
     v-if="elementMode === 'editing' || isVisible"
     class="element__wrapper"
-    :class="{
-      'element__wrapper--full-bleed':
-        element.style_width === WIDTH_TYPES.FULL.value,
-      'element__wrapper--full-width':
-        element.style_width === WIDTH_TYPES.FULL_WIDTH.value,
-      'element__wrapper--medium-width':
-        element.style_width === WIDTH_TYPES.MEDIUM.value,
-      'element__wrapper--small-width':
-        element.style_width === WIDTH_TYPES.SMALL.value,
-    }"
+    :class="elementClasses"
     :style="elementStyles"
   >
     <div class="element__inner-wrapper">
@@ -36,6 +27,7 @@ import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockT
 
 import {
   BACKGROUND_TYPES,
+  CHILD_WIDTH_TYPES,
   WIDTH_TYPES,
   BACKGROUND_MODES,
 } from '@baserow/modules/builder/enums'
@@ -69,6 +61,7 @@ export default {
   },
   computed: {
     BACKGROUND_TYPES: () => BACKGROUND_TYPES,
+    CHILD_WIDTH_TYPES: () => CHILD_WIDTH_TYPES,
     WIDTH_TYPES: () => WIDTH_TYPES,
     themeConfigBlocks() {
       return this.$registry.getOrderedList('themeConfigBlock')
@@ -146,6 +139,29 @@ export default {
         return !isAuthenticated
       } else {
         return true
+      }
+    },
+    elementClasses() {
+      if (this.element?.parent_element_id) {
+        return {
+          'element__wrapper--full-width':
+            this.element.style_width_child === CHILD_WIDTH_TYPES.NORMAL.value,
+          'element__wrapper--medium-width':
+            this.element.style_width_child === CHILD_WIDTH_TYPES.MEDIUM.value,
+          'element__wrapper--small-width':
+            this.element.style_width_child === CHILD_WIDTH_TYPES.SMALL.value,
+        }
+      } else {
+        return {
+          'element__wrapper--full-bleed':
+            this.element.style_width === WIDTH_TYPES.FULL.value,
+          'element__wrapper--full-width':
+            this.element.style_width === WIDTH_TYPES.FULL_WIDTH.value,
+          'element__wrapper--medium-width':
+            this.element.style_width === WIDTH_TYPES.MEDIUM.value,
+          'element__wrapper--small-width':
+            this.element.style_width === WIDTH_TYPES.SMALL.value,
+        }
       }
     },
     elementStyles() {

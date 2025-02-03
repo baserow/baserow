@@ -13,7 +13,7 @@ export const ContainerElementTypeMixin = (Base) =>
      * @returns {Array}
      */
     get childStylesForbidden() {
-      return []
+      return ['style_width']
     }
 
     get defaultPlaceInContainer() {
@@ -361,9 +361,5 @@ export const MultiPageElementTypeMixin = (Base) =>
         default:
           return false
       }
-    }
-
-    get childStylesForbidden() {
-      return ['style_width']
     }
   }

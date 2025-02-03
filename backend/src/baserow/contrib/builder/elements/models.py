@@ -41,6 +41,12 @@ class WidthTypes(models.TextChoices):
     SMALL = "small"
 
 
+class ChildWidthTypes(models.TextChoices):
+    NORMAL = "normal"
+    MEDIUM = "medium"
+    SMALL = "small"
+
+
 class INPUT_TEXT_TYPES(models.TextChoices):
     TEXT = "text"
     PASSWORD = "password"  # nosec bandit B105
@@ -245,8 +251,16 @@ class Element(
     style_width = models.CharField(
         choices=WidthTypes.choices,
         default=WidthTypes.NORMAL,
-        help_text="Indicates the width of the element.",
+        help_text="Indicates the width of the root element.",
         max_length=20,
+    )
+
+    style_width_child = models.CharField(
+        choices=ChildWidthTypes.choices,
+        default=ChildWidthTypes.NORMAL,
+        db_default=ChildWidthTypes.NORMAL,
+        help_text="Indicates the width of the child element.",
+        max_length=6,
     )
 
     class Meta:

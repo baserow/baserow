@@ -86,6 +86,7 @@ class ElementSerializer(serializers.ModelSerializer):
             "style_background_file",
             "style_background_mode",
             "style_width",
+            "style_width_child",
             "role_type",
             "roles",
         )
@@ -159,6 +160,7 @@ class CreateElementSerializer(serializers.ModelSerializer):
             "style_background_file",
             "style_background_mode",
             "style_width",
+            "style_width_child",
         )
         extra_kwargs = {
             "visibility": {"default": Element.VISIBILITY_TYPES.ALL},
@@ -201,6 +203,7 @@ class UpdateElementSerializer(serializers.ModelSerializer):
             "style_background_file",
             "style_background_mode",
             "style_width",
+            "style_width_child",
             "role_type",
             "roles",
         )
