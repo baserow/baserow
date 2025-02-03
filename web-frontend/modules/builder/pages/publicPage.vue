@@ -61,6 +61,7 @@ export default {
     req,
     redirect,
     route,
+    query,
   }) {
     let mode = 'public'
     const builderId = params.builderId ? parseInt(params.builderId, 10) : null
@@ -190,7 +191,7 @@ export default {
       })
     }
 
-    const [pageFound, path, pageParamsValue] = found
+    const [pageFound, path, pageParams] = found
     // Handle 404
     if (pageFound.shared) {
       return error({
@@ -199,6 +200,18 @@ export default {
       })
     }
 
+    // Merge the query string values with the page parameters
+    const pageParamsValue = Object.assign({}, query, pageParams)
+    pageFound.query_params.forEach((queryParam) => {
+      if (queryParam.name in pageParamsValue) {
+        return
+      }
+      if (queryParam.type === 'text') {
+        pageParamsValue[queryParam.name] = ''
+      } else {
+        pageParamsValue[queryParam.name] = null
+      }
+    })
     const page = await store.getters['page/getById'](builder, pageFound.id)
 
     try {

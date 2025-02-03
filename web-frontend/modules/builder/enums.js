@@ -1,4 +1,5 @@
 import {
+  ensureString,
   ensureNonEmptyString,
   ensurePositiveInteger,
 } from '@baserow/modules/core/utils/validator'
@@ -21,6 +22,10 @@ export const DIRECTIONS = {
 export const PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS = {
   numeric: ensurePositiveInteger,
   text: ensureNonEmptyString,
+}
+export const QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS = {
+  numeric: (n) => ensurePositiveInteger(n, { allowNull: true }),
+  text: ensureString,
 }
 
 export const ALLOWED_LINK_PROTOCOLS = [

@@ -4,7 +4,9 @@ from baserow.contrib.builder.elements.models import ColumnElement, TextElement
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.constants import ILLEGAL_PATH_SAMPLE_CHARACTER
 from baserow.contrib.builder.pages.exceptions import (
+    DuplicatePageParams,
     DuplicatePathParamsInPath,
+    InvalidQueryParamName,
     PageDoesNotExist,
     PageNameNotUnique,
     PageNotInBuilder,
@@ -65,6 +67,30 @@ def test_create_page_page_path_not_unique(data_fixture):
 
     with pytest.raises(PagePathNotUnique):
         PageHandler().create_page(page.builder, name="test", path="/test/test")
+
+
+@pytest.mark.django_db
+def test_create_page_with_query_params(data_fixture):
+    builder = data_fixture.create_builder_application()
+    # with pytest.raises(DuplicatePathParamsInPath):
+    PageHandler().create_page(
+        builder,
+        name="test",
+        path="/test/",
+        query_params=[{"name": "my_param", "param_type": "text"}],
+    )
+
+
+@pytest.mark.django_db
+def test_update_page_with_query_params(data_fixture):
+    page = data_fixture.create_builder_page(name="test")
+    update_data = [{"name": "my_param", "param_type": "text"}]
+    PageHandler().update_page(
+        page,
+        query_params=update_data,
+    )
+    page.refresh_from_db()
+    assert page.query_params == update_data
 
 
 @pytest.mark.django_db
@@ -376,3 +402,118 @@ def test_import_element_has_to_instance_already_created(data_fixture):
 
     assert imported_text.parent_element_id != text_element.parent_element_id
     assert imported_text.parent_element_id == imported_column.id
+
+
+def test_validate_query_params_valid():
+    """Test validation with valid query parameters."""
+
+    handler = PageHandler()
+    path = "/products/:id"
+    path_params = [{"name": "id", "type": "text"}]
+    query_params = [
+        {"name": "filter", "type": "text"},
+        {"name": "sort", "type": "text"},
+    ]
+
+    # Should return True for valid params
+    assert handler.validate_query_params(path, path_params, query_params) is True
+
+
+def test_validate_query_params_invalid_name():
+    """Test validation with invalid query parameter names."""
+
+    handler = PageHandler()
+    path = "/products"
+    path_params = []
+
+    # Test with invalid characters
+    invalid_params = [{"name": "filter@", "type": "text"}]
+    with pytest.raises(InvalidQueryParamName):
+        handler.validate_query_params(path, path_params, invalid_params)
+
+    # Test with spaces
+    invalid_params = [{"name": "filter name", "type": "text"}]
+    with pytest.raises(InvalidQueryParamName):
+        handler.validate_query_params(path, path_params, invalid_params)
+
+    # Test with empty name
+    invalid_params = [{"name": "", "type": "text"}]
+    with pytest.raises(InvalidQueryParamName):
+        handler.validate_query_params(path, path_params, invalid_params)
+
+
+def test_validate_query_params_duplicate_names():
+    """Test validation with duplicate query parameter names."""
+
+    handler = PageHandler()
+    path = "/products"
+    path_params = []
+
+    # Test duplicate query param names
+    duplicate_params = [
+        {"name": "filter", "type": "text"},
+        {"name": "filter", "type": "text"},
+    ]
+    with pytest.raises(DuplicatePageParams):
+        handler.validate_query_params(path, path_params, duplicate_params)
+
+
+def test_validate_query_params_clash_with_path_params():
+    """Test validation when query params clash with path params."""
+
+    handler = PageHandler()
+    path = "/products/:id"
+    path_params = [{"name": "id", "type": "text"}]
+
+    # Query param name matches path param name
+    clashing_params = [{"name": "id", "type": "text"}]
+    with pytest.raises(DuplicatePageParams):
+        handler.validate_query_params(path, path_params, clashing_params)
+
+
+def test_validate_query_params_empty_lists():
+    """Test validation with empty parameter lists."""
+
+    handler = PageHandler()
+    path = "/products"
+
+    # Should handle empty lists without errors
+    assert handler.validate_query_params(path, [], []) is True
+
+
+def test_validate_query_params_special_cases():
+    """Test validation with special but valid cases."""
+
+    handler = PageHandler()
+    path = "/products"
+    path_params = []
+
+    # Test with underscores and numbers (valid)
+    valid_params = [
+        {"name": "filter_1", "type": "text"},
+        {"name": "sort_by-2", "type": "text"},
+        {"name": "prefix", "type": "text"},
+    ]
+    assert handler.validate_query_params(path, path_params, valid_params) is True
+
+
+def test_validate_query_params_edge_cases():
+    """Test validation with edge cases."""
+
+    handler = PageHandler()
+    path = "/products/:id"
+    path_params = [{"name": "id", "type": "text"}]
+
+    # Test with maximum allowed characters (assuming there's no specific limit)
+    long_name = "a" * 255
+    long_params = [{"name": long_name, "type": "text"}]
+
+    # This should pass as there's no explicit length limitation in the validation
+    assert handler.validate_query_params(path, path_params, long_params) is True
+
+    # Test with various special characters (should fail)
+    special_chars = ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "="]
+    for char in special_chars:
+        invalid_params = [{"name": f"filter{char}", "type": "text"}]
+        with pytest.raises(InvalidQueryParamName):
+            handler.validate_query_params(path, path_params, invalid_params)

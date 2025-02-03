@@ -203,6 +203,7 @@ def test_duplicate_table_element_with_current_record_formulas(data_fixture):
                 "type": "link",
                 "config": {
                     "page_parameters": [],
+                    "query_parameters": [],
                     "navigate_to_page_id": None,
                     "navigation_type": "custom",
                     "navigate_to_url": f"get('current_record.field_{fields[0].id}')",
@@ -220,6 +221,7 @@ def test_duplicate_table_element_with_current_record_formulas(data_fixture):
         {"value": f"get('current_record.field_{fields[0].id}')"},
         {
             "page_parameters": [],
+            "query_parameters": [],
             "navigate_to_page_id": None,
             "navigation_type": "custom",
             "navigate_to_url": f"get('current_record.field_{fields[0].id}')",
@@ -273,6 +275,7 @@ def test_import_table_element_with_current_record_formulas_with_update(data_fixt
                 "name": "Field 2",
                 "config": {
                     "page_parameters": [],
+                    "query_parameters": [],
                     "navigate_to_page_id": None,
                     "navigation_type": "custom",
                     "navigate_to_url": f"get('current_record.field_42')",
@@ -301,6 +304,7 @@ def test_import_table_element_with_current_record_formulas_with_update(data_fixt
         {"value": f"get('current_record.field_{fields[0].id}')"},
         {
             "page_parameters": [],
+            "query_parameters": [],
             "navigate_to_page_id": None,
             "navigation_type": "custom",
             "navigate_to_url": f"get('current_record.field_{fields[0].id}')",

@@ -157,6 +157,16 @@ class LinkCollectionFieldType(CollectionFieldType):
                 collection_field.config["page_parameters"][index]["value"] = new_formula
                 yield collection_field
 
+        for index, query_parameter in enumerate(
+            collection_field.config.get("query_parameters") or []
+        ):
+            new_formula = yield query_parameter.get("value")
+            if new_formula is not None:
+                collection_field.config["query_parameters"][index][
+                    "value"
+                ] = new_formula
+                yield collection_field
+
     def deserialize_property(
         self,
         prop_name: str,

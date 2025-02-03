@@ -29,17 +29,23 @@ def ensure_boolean(value: Any) -> bool:
     raise ValidationError("Value is not a valid boolean or convertible to a boolean.")
 
 
-def ensure_integer(value: Any) -> int:
+def ensure_integer(value: Any, allow_empty: bool = False) -> Optional[int]:
     """
     Ensures that the value is an integer or can be converted to an integer.
     Raises a ValidationError if the value is not a valid integer or convertible to an
     integer.
 
     :param value: The value to ensure as an integer.
+    :param allow_empty: Whether we should throw an error if `value` is empty.
     :return: The value as an integer if conversion is successful.
     :raises ValidationError: If the value is not a valid integer or convertible to an
         integer.
     """
+
+    if value is None or value == "":
+        if not allow_empty:
+            raise ValidationError("The value is required.")
+        return None
 
     try:
         return int(value)

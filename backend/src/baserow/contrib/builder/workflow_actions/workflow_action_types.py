@@ -135,6 +135,12 @@ class OpenPageWorkflowActionType(BuilderWorkflowActionType):
                 workflow_action.page_parameters[index]["value"] = new_formula
                 yield workflow_action
 
+        for index, query_parameter in enumerate(workflow_action.query_parameters or []):
+            new_formula = yield query_parameter.get("value")
+            if new_formula is not None:
+                workflow_action.query_parameters[index]["value"] = new_formula
+                yield workflow_action
+
     def deserialize_property(
         self,
         prop_name,

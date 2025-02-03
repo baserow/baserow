@@ -1,10 +1,11 @@
 export default (client) => {
   return {
-    create(builderId, name, path, pathParams = {}) {
+    create(builderId, name, path, pathParams = {}, queryParams = {}) {
       return client.post(`builder/${builderId}/pages/`, {
         name,
         path,
         path_params: pathParams,
+        query_params: queryParams,
       })
     },
     update(pageId, values) {

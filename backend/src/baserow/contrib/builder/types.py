@@ -1,6 +1,6 @@
 from typing import List, Optional, TypedDict
 
-from baserow.contrib.builder.pages.types import PagePathParams
+from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParams
 from baserow.core.integrations.types import IntegrationDictSubClass
 from baserow.core.services.types import ServiceDictSubClass
 from baserow.core.user_sources.types import UserSourceDictSubClass
@@ -56,6 +56,7 @@ class PageDict(TypedDict):
     order: int
     path: str
     path_params: PagePathParams
+    query_params: PageQueryParams
     elements: List[ElementDict]
     data_sources: List[DataSourceDict]
     workflow_actions: List[WorkflowAction]

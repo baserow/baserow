@@ -49,3 +49,17 @@ ERROR_DUPLICATE_PATH_PARAMS_IN_PATH = (
     HTTP_400_BAD_REQUEST,
     "The path params {e.path_param_names} are defined multiple times in path {e.path}",
 )
+
+ERROR_INVALID_QUERY_PARAM_NAME = (
+    "ERROR_INVALID_QUERY_PARAM_NAME",
+    HTTP_400_BAD_REQUEST,
+    "The provided query parameter name {e.query_param_name} is invalid. Query parameter "
+    "names must contain only letters, numbers and underscores.",
+)
+
+ERROR_DUPLICATE_QUERY_PARAMS = (
+    "ERROR_DUPLICATE_QUERY_PARAMS",
+    HTTP_400_BAD_REQUEST,
+    "The query parameter {e.param} is either defined multiple times in {e.query_param_names} "
+    "or conflicts with path parameters {e.path_param_names}.",
+)

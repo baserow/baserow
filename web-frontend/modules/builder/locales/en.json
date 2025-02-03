@@ -46,7 +46,8 @@
     "errorPathNotUnique": "A path with this name already exists",
     "errorStartingSlash": "A path needs to start with a '/'",
     "errorValidPathCharacters": "The path contains invalid characters",
-    "errorUniquePathParams": "Path parameters have to be unique."
+    "errorUniquePathParams": "Path parameters have to be unique.",
+    "errorUniqueValidQueryParams": "Query parameter names have to be unique and valid."
   },
   "pageHeaderItemTypes": {
     "labelElements": "Elements",
@@ -380,13 +381,21 @@
     "nameSubtitle": "Unique name of the page",
     "namePlaceholder": "Enter a name...",
     "pathTitle": "Path",
+    "addAnotherParameter": "Add another query string parameter",
+    "addParameter": "Add query string parameter",
+    "queryParamsSubtitleTutorial": "Query parameters can be used to dynamically load data, depending on the provided parameter.",
     "pathSubtitle": "A parameter can be added via :parameter",
     "pathPlaceholder": "Enter a path...",
     "pathParamsTitle": "Path parameters",
+    "queryParamsTitle": "Query string parameters",
     "pathParamsSubtitle": "Are defined by :parameter in the path",
     "pathParamsSubtitleTutorial": "Path parameters can be used to dynamically load data, depending on the provided parameter. Add :parameter to the path to add one."
   },
   "pathParamTypes": {
+    "textName": "Text",
+    "numericName": "Numeric"
+  },
+  "queryParamTypes": {
     "textName": "Text",
     "numericName": "Numeric"
   },
