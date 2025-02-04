@@ -477,6 +477,27 @@ export function isAdhocSorting(app, workspace, view, publicView) {
   )
 }
 
+/**
+ * If filters, sorts or group bys are read only (i.e. formula fields), then the rows
+ * cannot be optimistically because the backend calculates the values based on other
+ * fields and the UI cannot predict the outcome.
+ */
+export function canRowsBeOptimisticallyUpdatedInView(view, fields) {
+  const readOnlyFieldIds = new Set(
+    fields.filter((field) => field.read_only).map((field) => String(field.id))
+  )
+  const isReadOnlyField = (sort) => readOnlyFieldIds.has(String(sort.field))
+  const readOnlyGroupBys = view.group_bys
+    ? view.group_bys.some(isReadOnlyField)
+    : false
+  const readOnlySorts = view.sortings.some(isReadOnlyField)
+  const readOnlyFilters = view.filters.some((filter) =>
+    readOnlyFieldIds.has(String(filter.field))
+  )
+
+  return readOnlyGroupBys || readOnlySorts || readOnlyFilters
+}
+
 export function getOrderBy(view, adhocSorting) {
   if (adhocSorting) {
     const serializeSort = (sort) => {

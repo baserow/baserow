@@ -17,6 +17,7 @@ import {
   getFilters,
   getGroupBy,
   getOrderBy,
+  canRowsBeOptimisticallyUpdatedInView,
 } from '@baserow/modules/database/utils/view'
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import {
@@ -2149,31 +2150,36 @@ export const actions = {
      * This helper function will make sure that the values of the related row are
      * updated the right way.
      */
-    const updateValues = async (values) => {
+    const updateValues = async (values, optimistic = true) => {
       const rowExistsInBuffer = getters.getRow(row.id) !== undefined
+
       if (rowExistsInBuffer) {
         // If the row exists in the buffer, we can visually show to the user that
         // the values have changed, without immediately reflecting the change in
         // the buffer.
-        commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-          fields,
-          registry: this.$registry,
-          row,
-          increase: false,
-          decrease: true,
-        })
+        if (optimistic) {
+          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+            fields,
+            registry: this.$registry,
+            row,
+            increase: false,
+            decrease: true,
+          })
+        }
         commit('UPDATE_ROW_VALUES', {
           row,
           values: { ...values },
         })
-        commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-          fields,
-          registry: this.$registry,
-          row,
-          increase: true,
-          decrease: false,
-        })
-        await dispatch('onRowChange', { view, row, fields })
+        if (optimistic) {
+          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+            fields,
+            registry: this.$registry,
+            row,
+            increase: true,
+            decrease: false,
+          })
+          await dispatch('onRowChange', { view, row, fields })
+        }
       } else {
         // If the row doesn't exist in the buffer, it could be that the new values
         // bring in into there. Dispatching the `updatedExistingRow` will make
@@ -2204,9 +2210,18 @@ export const actions = {
         this.$registry
       )
 
-    // Update the values before making a request to the backend to make it feel
-    // instant for the user.
-    await updateValues(newRowValues)
+    const canUpdateOptimistally = !canRowsBeOptimisticallyUpdatedInView(
+      view,
+      fields
+    )
+
+    // When possible update the values before making a request to the backend to make it feel
+    // instant for the user. If we can't safely do it in the frontend, then we have to show
+    // a loading state and update the row after the request has been made.
+    await updateValues(newRowValues, canUpdateOptimistally)
+    if (!canUpdateOptimistally) {
+      commit('SET_ROW_LOADING', { row, value: true })
+    }
 
     try {
       // Add the update actual update function to the queue so that the same row
@@ -2227,6 +2242,14 @@ export const actions = {
         )
         // Update the remaining values like formula, which depend on the backend.
         await updateValues(readOnlyData)
+        // If we can't optimistically update the row, refresh it to stop the loading state,
+        // show proper messages, and update its position and state.
+        if (!canUpdateOptimistally) {
+          commit('SET_ROW_LOADING', { row, value: false })
+          setTimeout(() => {
+            dispatch('refreshRow', { grid: view, row, fields })
+          }, 1000)
+        }
         dispatch('fetchAllFieldAggregationData', {
           view,
         })
@@ -2939,7 +2962,7 @@ export const actions = {
    */
   async refreshRow(
     { dispatch, commit },
-    { grid, row, fields, getScrollTop, isRowOpenedInModal = false }
+    { grid, row, fields, getScrollTop = undefined, isRowOpenedInModal = false }
   ) {
     const rowShouldBeHidden = !row._.matchFilters || !row._.matchSearch
     if (
@@ -2957,10 +2980,12 @@ export const actions = {
       })
       commit('SET_ROW_MATCH_SORTINGS', { row, value: true })
     }
-    dispatch('fetchByScrollTopDelayed', {
-      scrollTop: getScrollTop(),
-      fields,
-    })
+    if (getScrollTop !== undefined) {
+      dispatch('fetchByScrollTopDelayed', {
+        scrollTop: getScrollTop(),
+        fields,
+      })
+    }
   },
   updateRowMetadata(
     { commit, getters, dispatch },
