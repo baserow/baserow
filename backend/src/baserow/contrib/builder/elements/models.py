@@ -990,3 +990,64 @@ class FooterElement(MultiPageElement, ContainerElement):
     """
     A multi-page container element positioned at the bottom of the page.
     """
+
+
+class MenuElement(Element):
+    """
+    A menu element that helps with navigating the application.
+    """
+
+    class ORIENTATIONS(models.TextChoices):
+        HORIZONTAL = "horizontal"
+        VERTICAL = "vertical"
+
+    orientation = models.CharField(
+        choices=ORIENTATIONS.choices,
+        max_length=10,
+        default=ORIENTATIONS.HORIZONTAL,
+        db_default=ORIENTATIONS.HORIZONTAL,
+    )
+
+
+class MenuElementItem(Element, NavigationElementMixin):
+    """
+    An item in a MenuElement.
+    """
+
+    class VARIANTS(models.TextChoices):
+        LINK = "link"
+        BUTTON = "button"
+
+    variant = models.CharField(
+        choices=VARIANTS.choices,
+        help_text="The variant of the link.",
+        max_length=10,
+        default=VARIANTS.LINK,
+    )
+
+    class TYPES(models.TextChoices):
+        ITEM = "item"
+        SEPARATOR = "separator"
+
+    type = models.CharField(
+        choices=TYPES.choices,
+        help_text="The type of the MenuElementItem.",
+        max_length=9,
+        default=TYPES.ITEM,
+    )
+
+    menu = models.ForeignKey(
+        MenuElement,
+        on_delete=models.CASCADE,
+    )
+
+    parent_menu_item = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        default=None,
+        help_text="The parent MenuElementItem element, if it is a nested item.",
+        related_name="menu_item_children",
+    )
+
+    menu_item_order = models.PositiveIntegerField()

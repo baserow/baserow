@@ -51,6 +51,8 @@ from baserow.contrib.builder.elements.models import (
     ImageElement,
     InputTextElement,
     LinkElement,
+    MenuElement,
+    MenuElementItem,
     NavigationElementMixin,
     RecordSelectorElement,
     RepeatElement,
@@ -1965,3 +1967,85 @@ class FooterElementType(MultiPageContainerElementType):
 
     type = "footer"
     model_class = FooterElement
+
+
+class MenuElementType(ElementType):
+    """
+    A menu element that helps with navigating the application.
+    """
+
+    type = "menu_element"
+    model_class = MenuElement
+    serializer_field_names = ["orientation"]
+    allowed_fields = ["orientation"]
+
+    class SerializedDict(ElementDict):
+        orientation: str
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.contrib.builder.api.theme.serializers import (
+            DynamicConfigBlockSerializer,
+        )
+        from baserow.contrib.builder.theme.theme_config_block_types import (
+            TypographyThemeConfigBlockType,
+        )
+
+        overrides = {
+            **super().serializer_field_overrides,
+            "styles": DynamicConfigBlockSerializer(
+                required=False,
+                property_name="typography",
+                theme_config_block_type_name=TypographyThemeConfigBlockType.type,
+                serializer_kwargs={"required": False},
+            ),
+        }
+
+        return overrides
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {"orientation": RepeatElement.ORIENTATIONS.VERTICAL}
+
+
+class MenuElementItemType(ElementType):
+    """
+    A menu element that helps with navigating the application.
+    """
+
+    type = "menu_element_item"
+    model_class = MenuElementItem
+    serializer_field_names = ["variant", "type", "menu_item_order"]
+    allowed_fields = ["variant", "type", "menu_item_order"]
+    simple_formula_fields = NavigationElementManager.simple_formula_fields
+
+    class SerializedDict(ElementDict):
+        variant: str
+        type: str
+        menu_item_order: int
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.contrib.builder.api.theme.serializers import (
+            DynamicConfigBlockSerializer,
+        )
+        from baserow.contrib.builder.theme.theme_config_block_types import (
+            TypographyThemeConfigBlockType,
+        )
+
+        overrides = {
+            "styles": DynamicConfigBlockSerializer(
+                required=False,
+                property_name="typography",
+                theme_config_block_type_name=TypographyThemeConfigBlockType.type,
+                serializer_kwargs={"required": False},
+            ),
+        }
+
+        return overrides
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "variant": MenuElementItem.VARIANTS.LINK,
+            "type": MenuElementItem.TYPES.ITEM,
+            "menu_item_order": 1,
+        }
