@@ -164,7 +164,7 @@ from .signals import (
     view_updated,
     views_reordered,
 )
-from .utils import AnnotatedAggregation
+from .utils import AnnotatedAggregation, DistributionAggregation
 from .validators import value_is_empty_for_required_form_field
 
 FieldOptionsDict = Dict[int, Dict[str, Any]]
@@ -3038,6 +3038,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         aggregation_dict = {}
+        distribution_dict = {}
 
         for field_instance, aggregation_type_name in aggregations:
             field_name = field_instance.db_column
@@ -3054,24 +3055,38 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
             aggregation_type = view_aggregation_type_registry.get(aggregation_type_name)
 
-            aggregation_dict[field_name] = aggregation_type.get_aggregation(
+            aggregation_object = aggregation_type.get_aggregation(
                 field_name, model_field, field
             )
 
-        # Check if the returned aggregations contain a `AnnotatedAggregation`,
-        # and if so, apply the annotations and only keep the actual aggregation in
-        # the dict. This is needed because some aggregations require annotated values
-        # before they work.
-        for key, value in aggregation_dict.items():
-            if isinstance(value, AnnotatedAggregation):
-                queryset = queryset.annotate(**value.annotations)
-                aggregation_dict[key] = value.aggregation
+            if isinstance(aggregation_object, AnnotatedAggregation):
+                # Check if the returned aggregations contain a `AnnotatedAggregation`,
+                # and if so, apply the annotations and only keep the actual aggregation
+                # in the dict. This is needed because some aggregations require
+                # annotated values before they work.
+                queryset = queryset.annotate(**aggregation_object.annotations)
+                aggregation_dict[field_name] = aggregation_object.aggregation
+            elif isinstance(aggregation_object, DistributionAggregation):
+                # To calculate the results of every DistributionAggregation, we need
+                # to pass in a copy of the current queryset, which may already have
+                # filters and search applied to it. This is needed because a GROUP BY
+                # is required for the distribution calculation, and applying a GROUP
+                # BY on the original queryset will cause other aggregations to return
+                # incorrect results.
+                distribution_dict[field_name] = aggregation_object.calculate(
+                    queryset.all()
+                )
+            else:
+                # For any other aggregation type, we can simply execute it as is
+                aggregation_dict[field_name] = aggregation_object
 
         # Add total to allow further calculation on the client if required
         if with_total:
             aggregation_dict["total"] = Count("id", distinct=True)
 
-        return queryset.aggregate(**aggregation_dict)
+        aggregations = queryset.aggregate(**aggregation_dict)
+        aggregations.update(distribution_dict)
+        return aggregations
 
     def rotate_view_slug(
         self, user: AbstractUser, view: View, slug_field: str = "slug"

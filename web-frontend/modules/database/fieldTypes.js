@@ -489,6 +489,13 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Return a representation of the value in the aggregation context.
+   */
+  toAggregationString(field, value) {
+    return this.toHumanReadableString(field, value)
+  }
+
+  /**
    * When searching a cells value this should return the value to match the users
    * user term against.
    */
@@ -1877,6 +1884,14 @@ export class BooleanFieldType extends FieldType {
     }
   }
 
+  toHumanReadableString(field, value) {
+    if (typeof value === 'boolean') {
+      return `${value}`
+    }
+
+    return super.toHumanReadableString(field, value)
+  }
+
   /**
    * Check if the clipboard data text contains a string that might indicate if the
    * value is true.
@@ -2480,6 +2495,10 @@ export class LastModifiedByFieldType extends FieldType {
       name: 'John',
     }
   }
+
+  toAggregationString(field, value) {
+    return value
+  }
 }
 
 export class CreatedByFieldType extends FieldType {
@@ -2617,6 +2636,10 @@ export class CreatedByFieldType extends FieldType {
       id: 1,
       name: 'John',
     }
+  }
+
+  toAggregationString(field, value) {
+    return value
   }
 }
 
@@ -3312,6 +3335,10 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       return ''
     }
     return value.value
+  }
+
+  toAggregationString(field, value) {
+    return value
   }
 
   getDocsDataType() {

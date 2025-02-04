@@ -1891,6 +1891,16 @@ class FieldType(
             output_field=model_field,
         )
 
+    def get_distribution_group_by_value(self, field_name: str):
+        """
+        Determines the value to use in distribution aggregation group by operations.
+
+        :param field_name: The field targeted for the group by operation.
+        :return: String indicating the group by value to use.
+        """
+
+        return field_name
+
 
 class ReadOnlyFieldType(FieldType):
     read_only = True

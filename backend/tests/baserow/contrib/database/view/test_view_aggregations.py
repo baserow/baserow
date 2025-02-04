@@ -2,8 +2,10 @@ import random
 from decimal import Decimal
 
 import pytest
+from faker import Faker
 
 from baserow.contrib.database.fields.exceptions import FieldNotInTable
+from baserow.contrib.database.fields.field_types import SingleSelectFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.views.exceptions import FieldAggregationNotSupported
 from baserow.contrib.database.views.handler import ViewHandler
@@ -467,3 +469,164 @@ def test_aggregation_is_updated_when_view_is_trashed(data_fixture):
         user, grid_view_one
     )
     assert field.db_column not in aggregations_restored_view
+
+
+@pytest.mark.django_db
+class TestViewDistributionAggregation:
+    def setup_method(self):
+        self.test_fields = []
+        self.random_values = {}
+        self.expected_distributions = {}
+        self.fake = Faker()
+        self.cache = {}
+
+    def create_random_values_and_expected_distributions(self, field):
+        """
+        Given a field, generates ten random values of its corresponding type.
+        The first value is generated randomly. The next nine have a 50% chance
+        of either being generated randomly or being repeated from the existing
+        values. This produces a list of ten randomly generated values with some
+        repetition, which is ideal for testing the distribution aggregation.
+        Then we determine the expected distribution of those randomly generated
+        values in order to assert the aggregation workes correctly later.
+        """
+
+        field_type = field.get_type()
+        first_value = field_type.random_value(field, self.fake, self.cache)
+        random_values = [first_value]
+        for _ in range(9):
+            if random.choice([True, False]):
+                next_value = field_type.random_value(field, self.fake, self.cache)
+            else:
+                next_value = random.choice(random_values)
+            random_values.append(next_value)
+
+        # Map each value to its expected count of occurrences in the distribution
+        expected_distribution = {}
+        for value in random_values:
+            count = random_values.count(value)
+            if isinstance(field_type, SingleSelectFieldType):
+                # For SingleSelect fields, the value should be the label of the
+                # select option, not the entire select option object itself.
+                key = value.value
+            else:
+                key = value
+            expected_distribution[key] = count
+
+        self.test_fields.append(field)
+        self.random_values[field] = random_values
+        self.expected_distributions[field] = expected_distribution
+
+    def test_view_distribution_aggregation(self, data_fixture):
+        user = data_fixture.create_user()
+        table = data_fixture.create_database_table(user=user)
+
+        # Create one field for each compatible field type and some random values for
+        # each field. Then build a dict that contains the expected distribution given
+        # the random values.
+        text_field = data_fixture.create_text_field(table=table)
+        self.create_random_values_and_expected_distributions(text_field)
+
+        long_text_field = data_fixture.create_long_text_field(table=table)
+        self.create_random_values_and_expected_distributions(long_text_field)
+
+        url_field = data_fixture.create_url_field(table=table)
+        self.create_random_values_and_expected_distributions(url_field)
+
+        number_field = data_fixture.create_number_field(table=table)
+        self.create_random_values_and_expected_distributions(number_field)
+
+        rating_field = data_fixture.create_rating_field(table=table)
+        self.create_random_values_and_expected_distributions(rating_field)
+
+        date_field = data_fixture.create_date_field(table=table)
+        self.create_random_values_and_expected_distributions(date_field)
+
+        email_field = data_fixture.create_email_field(table=table)
+        self.create_random_values_and_expected_distributions(email_field)
+
+        phone_number_field = data_fixture.create_phone_number_field(table=table)
+        self.create_random_values_and_expected_distributions(phone_number_field)
+
+        duration_field = data_fixture.create_duration_field(table=table)
+        self.create_random_values_and_expected_distributions(duration_field)
+
+        boolean_field = data_fixture.create_boolean_field(table=table)
+        self.create_random_values_and_expected_distributions(boolean_field)
+
+        single_select_field = data_fixture.create_single_select_field(table=table)
+        data_fixture.create_select_option(field=single_select_field)
+        data_fixture.create_select_option(field=single_select_field)
+        data_fixture.create_select_option(field=single_select_field)
+        self.create_random_values_and_expected_distributions(single_select_field)
+
+        # Create an iterable where every item represents the values of a row
+        rows_values = zip(*[self.random_values[field] for field in self.test_fields])
+        # Create a list of field names to reference them by
+        field_names = [f"field_{field.id}" for field in self.test_fields]
+        # Insert all row values into the table
+        model = table.get_model()
+        for row_values in rows_values:
+            model.objects.create(
+                **{
+                    field_name: value
+                    for field_name, value in zip(field_names, row_values)
+                }
+            )
+
+        # After creating all the regular fields and inserting values for them, we
+        # create these Formula fields that simply mirror the values of some of the
+        # previously created fields. That means their distribution results should
+        # match those of the fields they mirror.
+        text_formula_field = data_fixture.create_formula_field(
+            table=table, formula=f"field('{text_field.name}')"
+        )
+        number_formula_field = data_fixture.create_formula_field(
+            table=table, formula=f"field('{number_field.name}')"
+        )
+        date_formula_field = data_fixture.create_formula_field(
+            table=table, formula=f"field('{date_field.name}')"
+        )
+        boolean_formula_field = data_fixture.create_formula_field(
+            table=table, formula=f"field('{boolean_field.name}')"
+        )
+
+        # Calculate the distribution aggregation of all fields in self.test_fields
+        # and also the four formula fields
+        grid_view = data_fixture.create_grid_view(table=table)
+        result = ViewHandler().get_field_aggregations(
+            user,
+            grid_view,
+            [(field, "distribution") for field in self.test_fields]
+            + [
+                (text_formula_field, "distribution"),
+                (number_formula_field, "distribution"),
+                (date_formula_field, "distribution"),
+                (boolean_formula_field, "distribution"),
+            ],
+        )
+
+        # Verify the distribution results for each field in test_fields
+        for field in self.test_fields:
+            for value, count in result[f"field_{field.id}"]:
+                assert self.expected_distributions[field].get(value) == count
+
+        # Verify that the text formula field distribution matches
+        # the text field distribution:
+        for value, count in result[f"field_{text_formula_field.id}"]:
+            assert self.expected_distributions[text_field].get(value) == count
+
+        # Verify that the number formula field distribution matches
+        # the number field distribution:
+        for value, count in result[f"field_{number_formula_field.id}"]:
+            assert self.expected_distributions[number_field].get(value) == count
+
+        # Verify that the date formula field distribution matches
+        # the date field distribution:
+        for value, count in result[f"field_{date_formula_field.id}"]:
+            assert self.expected_distributions[date_field].get(value) == count
+
+        # Verify that the boolean formula field distribution matches
+        # the boolean field distribution:
+        for value, count in result[f"field_{boolean_formula_field.id}"]:
+            assert self.expected_distributions[boolean_field].get(value) == count

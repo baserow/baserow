@@ -21,6 +21,7 @@
       :loading="loading"
       :aggregation-type="viewAggregationType"
       :value="value"
+      :field="field"
     />
     <div
       v-else-if="userCanMakeAggregations"
