@@ -923,6 +923,7 @@
         "cornerRadiusLabel": "모서리 반경"
     },
     "authProviderWithModal": {
-        "authProviderInError": "오류를 수정하려면 이 공급자를 편집하세요."
+        "authProviderInError": "오류를 수정하려면 이 공급자를 편집하세요.",
+        "title": "제공자 편집: {name}"
     }
 }
