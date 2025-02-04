@@ -135,6 +135,9 @@ class BaserowFormulaBaseTextType(BaserowFormulaTypeHasEmptyBaserowExpression):
     ) -> "BaserowExpression[BaserowFormulaValidType]":
         return literal("")
 
+    def _get_order_field_expression(self, field_name: str) -> Expression | F:
+        return collate_expression(F(field_name))
+
 
 class BaserowFormulaTextType(
     HasValueEmptyFilterSupport,
