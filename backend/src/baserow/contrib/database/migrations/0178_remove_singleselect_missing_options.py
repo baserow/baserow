@@ -14,11 +14,13 @@ def forward(apps, schema_editor):
         try:
             with transaction.atomic():  # Start a new transaction for each query
                 with connection.cursor() as cursor:
-                    query = sql.SQL(
-                        "UPDATE {table} SET {select_column} = NULL "
-                        "WHERE {select_column} NOT IN "
-                        "(SELECT id FROM {option_table})"
-                    ).format(
+                    query = sql.SQL("""
+                        UPDATE {table} SET {select_column} = NULL
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM {option_table} opt
+                            WHERE opt.id = {table}.{select_column}
+                        )
+                    """).format(
                         table=sql.Identifier(table_name),
                         select_column=sql.Identifier(f"field_{field.id}"),
                         option_table=sql.Identifier(option_table_name)
@@ -34,6 +36,7 @@ def forward(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
     dependencies = [
         ("database", "0177_airtableimportjob_skip_files"),
     ]
