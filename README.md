@@ -14,7 +14,7 @@ tool gives you the powers of a developer without leaving your browser.
 * Uses popular frameworks and tools like [Django](https://www.djangoproject.com/),
   [Vue.js](https://vuejs.org/) and [PostgreSQL](https://www.postgresql.org/).
 
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/bram2w/baserow/tree/master)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy/?template=https://github.com/bram2w/baserow/tree/master)
 
 ```bash
 docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:1.30.1

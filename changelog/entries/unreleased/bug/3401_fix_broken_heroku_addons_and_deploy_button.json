@@ -1,0 +1,7 @@
+{
+  "type": "bug",
+  "message": "Fix broken Heroku addons and one-click-deploy button URL.",
+  "issue_number": 3401,
+  "bullet_points": [],
+  "created_at": "2025-02-03"
+}
