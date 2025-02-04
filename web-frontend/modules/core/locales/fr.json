@@ -874,7 +874,10 @@
         "download": "Télécharger",
         "noExports": "Il n'y a pas d'export pour ce projet.",
         "created": "Créé le",
-        "importingState": "Import en cours"
+        "importingState": "Import en cours",
+        "exportingState": "Export en cours",
+        "exportingTableState": "Export de la table :{table}",
+        "exportingCreateArchiveState": "Création de l'archive"
     },
     "exportWorkspaceForm": {
         "onlyStructureLabel": "Exporter uniquement la structure",
@@ -903,7 +906,8 @@
         "description": "Vous pouvez importer des données Baserow existantes en téléchargeant le fichier .zip d'une autre instance Baserow.",
         "import": "Importer",
         "done": "Valider",
-        "databases": "Bases de données"
+        "databases": "Bases de données",
+        "importingState": "Import en cours"
     },
     "user": {
         "isStaff": "Est collaborateur",
@@ -1015,5 +1019,8 @@
     },
     "userSourceType": {
         "userCountSummary": "{count} utilisateurs ({lastUpdated})"
+    },
+    "colorPickerContext": {
+        "pickColorPlaceholder": "Ou choisir une couleur prédéfinie"
     }
 }
