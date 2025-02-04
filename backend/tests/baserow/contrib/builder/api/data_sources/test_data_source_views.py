@@ -838,6 +838,7 @@ def test_dispatch_data_source_with_refinements_referencing_trashed_field(
     service_filter = data_fixture.create_local_baserow_table_service_filter(
         service=data_source.service, field=trashed_field, value="abc", order=0
     )
+
     url = reverse(
         "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source.id}
     )

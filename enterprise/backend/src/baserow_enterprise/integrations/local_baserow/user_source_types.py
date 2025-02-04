@@ -453,6 +453,7 @@ class LocalBaserowUserSourceType(UserSourceType):
         providers_fields = [
             f
             for ap in app_auth_providers
+            if hasattr(ap.get_type(), "get_user_model_field_ids")
             for f in ap.get_type().get_user_model_field_ids(ap)
         ]
 

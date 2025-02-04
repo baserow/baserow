@@ -18,6 +18,7 @@ from typing import (
 )
 
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.db import DEFAULT_DB_ALIAS, connection, transaction
 from django.db.models import ForeignKey, ManyToManyField, Max, Model, QuerySet
 from django.db.models.functions import Collate
@@ -136,9 +137,8 @@ def specific_iterator(
 
     types_and_pks = defaultdict(list)
     for item in resolved_queryset:
-        # get the content type from the cache or the item property if we have
-        # used the select_related for this property
-        types_and_pks[item.get_content_type()].append(item.id)
+        content_type = ContentType.objects.get_for_id(item.content_type_id)
+        types_and_pks[content_type].append(item.id)
 
     # Fetch the specific objects by executing a single query for each unique content
     # type and construct a mapping containing them by id.

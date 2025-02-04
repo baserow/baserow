@@ -645,7 +645,7 @@ def test_get_first_ancestor_of_type(data_fixture, django_assert_num_queries):
     )
     child = data_fixture.create_builder_choice_element(page=page, parent_element=parent)
 
-    with django_assert_num_queries(6):
+    with django_assert_num_queries(7):
         nearest_column_ancestor = ElementHandler().get_first_ancestor_of_type(
             child.id, ColumnElementType
         )

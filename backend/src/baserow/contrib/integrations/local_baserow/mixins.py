@@ -254,15 +254,6 @@ class LocalBaserowTableServiceFilterableMixin:
             queryset = adhoc_filters.apply_to_queryset(model, queryset)
         return queryset
 
-    def enhance_queryset(self, queryset):
-        return (
-            super()
-            .enhance_queryset(queryset)
-            .prefetch_related(
-                "service_filters",
-            )
-        )
-
 
 class LocalBaserowTableServiceSortableMixin:
     """
@@ -340,6 +331,7 @@ class LocalBaserowTableServiceSortableMixin:
         if (
             service.service_sorts(manager="objects_and_trash")
             .filter(field__trashed=True)
+            .exclude(field_id=0)
             .exists()
         ):
             raise ServiceSortPropertyDoesNotExist(
@@ -389,15 +381,6 @@ class LocalBaserowTableServiceSortableMixin:
             if view_sorts:
                 queryset = queryset.order_by(*view_sorts)
         return queryset
-
-    def enhance_queryset(self, queryset):
-        return (
-            super()
-            .enhance_queryset(queryset)
-            .prefetch_related(
-                "service_sorts",
-            )
-        )
 
 
 class LocalBaserowTableServiceSearchableMixin:
