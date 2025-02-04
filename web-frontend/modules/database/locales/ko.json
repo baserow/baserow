@@ -508,9 +508,9 @@
         "shareView": "{viewTypeSharingLinkName} 공유",
         "createPrivateLink": "비공개 링크 생성",
         "shareViewTitle": "아직 뷰를 공유하지 않았습니다",
-        "sharedViewTitle": "이 {viewTypeSharingLinkName}은 현재 비공개 링크를 통해 공유되고 있습니다",
+        "sharedViewTitle": "이 {viewTypeSharingLinkName}는 현재 비공개 링크를 통해 공유되고 있습니다",
         "sharedViewDescription": "링크를 가진 사람은 {viewTypeSharingLinkName}을 볼 수 있습니다.",
-        "disableLink": "공유 링크 비활성화",
+        "disableLink": "링크 공유 비활성화",
         "generateNewUrl": "새 URL 생성",
         "copyURL": "URL 복사",
         "EnablePassword": "비밀번호로 접근 제한",
@@ -569,8 +569,8 @@
         }
     },
     "viewFieldsContext": {
-        "coverField": "커버 필드",
-        "noCover": "커버 없음",
+        "coverField": "썸네일 필드",
+        "noCover": "썸네일 없음",
         "search": "필드 검색",
         "hideAll": "모두 숨기기",
         "showAll": "모두 표시"
@@ -580,7 +580,15 @@
     },
     "viewFilter": {
         "filter": "필터 | 1개의 필터 | {count}개의 필터",
-        "hasAllValuesEqual": "모든 값이 동일함"
+        "hasAllValuesEqual": "모든 값이 동일함",
+        "hasValueHigherThan": "값이 더 큼",
+        "hasValueLowerThan": "값이 더 작음",
+        "hasValueLowerThanOrEqual": "값이 작거나 같음",
+        "hasNotValueHigherThan": "값이 더 크지 않음",
+        "hasNotValueLowerThan": "값이 더 작지 않음",
+        "hasNotValueLowerThanOrEqual": "값이 작거나 같지 않음",
+        "hasValueHigherThanOrEqual": "값이 크거나 같음",
+        "hasNotValueHigherThanOrEqual": "값이 크거나 같지 않음"
     },
     "viewContext": {
         "exportView": "뷰 내보내기",
