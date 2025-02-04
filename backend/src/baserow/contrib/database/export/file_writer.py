@@ -187,18 +187,19 @@ class QuerysetSerializer(abc.ABC):
         visible_field_objects_in_view, model = view_type.get_visible_fields_and_model(
             view
         )
-        # Remove the hidden fields, and put them in the right order, so that the
-        # exported file respects the chosen visible fields.
-        fields = [
-            field
-            for field in visible_field_objects_in_view
-            if visible_field_ids_in_order is None
-            or field["field"].id in visible_field_ids_in_order
-        ]
-        if visible_field_ids_in_order is not None:
-            fields.sort(
-                key=lambda field: visible_field_ids_in_order.index(field["field"].id)
-            )
+        if visible_field_ids_in_order is None:
+            fields = visible_field_objects_in_view
+        else:
+            # Re-order and return only the fields in visible_field_ids_in_order
+            field_map = {
+                field_object["field"].id: field_object
+                for field_object in visible_field_objects_in_view
+            }
+            fields = [
+                field_map[field_id]
+                for field_id in visible_field_ids_in_order
+                if field_id in field_map
+            ]
         qs = ViewHandler().get_queryset(view, model=model)
         return cls(qs, fields), visible_field_objects_in_view
 
