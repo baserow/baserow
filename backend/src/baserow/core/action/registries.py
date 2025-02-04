@@ -249,7 +249,7 @@ class ActionType(
         action_timestamp = timestamp if timestamp else datetime.now(tz=timezone.utc)
 
         add_baserow_trace_attrs(
-            action_user_id=user.id,
+            action_user_id=getattr(user, "id", None),
             workspace_id=getattr(workspace, "id", None),
             action_scope=scope,
             action_type=cls.type,

@@ -3310,6 +3310,7 @@ def test_get_public_grid_view(api_client, data_fixture):
             "row_identifier_type": grid_view.row_identifier_type,
             "row_height_size": grid_view.row_height_size,
             "show_logo": True,
+            "allow_public_export": False,
         },
     }
 

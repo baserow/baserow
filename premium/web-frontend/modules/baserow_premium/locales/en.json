@@ -276,7 +276,8 @@
     "baserowLogo": {
       "label": "Hide Baserow logo on shared view",
       "premiumModalName": "public logo removal"
-    }
+    },
+    "allowPublicExportLabel": "Allow export on shared view"
   },
   "viewsContext": {
     "personal": "Personal"
@@ -337,5 +338,8 @@
     "textDescription": "Generates free text based on the prompt.",
     "choice": "Choice",
     "choiceDescription": "Chooses only one of the field options."
+  },
+  "publicViewExport": {
+    "export": "Export"
   }
 }

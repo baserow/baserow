@@ -39,6 +39,36 @@ ONLY_COUNT_API_PARAM = OpenApiParameter(
 )
 
 
+def get_filters_object_description(combine_filters=True, view_is_aggregating=False):
+    return (
+        (
+            "A JSON serialized string containing the filter tree to apply "
+            "for the aggregation. The filter tree is a nested structure "
+            "containing the filters that need to be applied. \n\n"
+            if view_is_aggregating
+            else "A JSON serialized string containing the filter tree to "
+            "apply to this view. The filter tree is a nested structure "
+            "containing the filters that need to be applied. \n\n"
+        )
+        + "An example of a valid filter tree is the following:"
+        '`{"filter_type": "AND", "filters": [{"field": 1, "type": "equal", '
+        '"value": "test"}]}`. The `field` value must be the ID of the '
+        "field to filter on, or the name of the field if "
+        "`user_field_names` is true.\n\n"
+        f"The following filters are available: "
+        f'{", ".join(view_filter_type_registry.get_types())}.'
+        "\n\n**Please note that if this parameter is provided, all other "
+        "`filter__{field}__{filter}` will be ignored, "
+        "as well as the `filter_type` parameter.**"
+        + (
+            "\n\n**Please note that by passing the filters parameter the "
+            "view filters saved for the view itself will be ignored.**"
+            if not combine_filters
+            else ""
+        )
+    )
+
+
 def make_adhoc_filter_api_params(combine_filters=True, view_is_aggregating=False):
     """
     Generate OpenAPI parameters for adhoc filter API params.
@@ -66,32 +96,8 @@ def make_adhoc_filter_api_params(combine_filters=True, view_is_aggregating=False
             location=OpenApiParameter.QUERY,
             type=OpenApiTypes.STR,
             description=lazy(
-                lambda: (
-                    (
-                        "A JSON serialized string containing the filter tree to apply "
-                        "for the aggregation. The filter tree is a nested structure "
-                        "containing the filters that need to be applied. \n\n"
-                        if view_is_aggregating
-                        else "A JSON serialized string containing the filter tree to "
-                        "apply to this view. The filter tree is a nested structure "
-                        "containing the filters that need to be applied. \n\n"
-                    )
-                    + "An example of a valid filter tree is the following:"
-                    '`{"filter_type": "AND", "filters": [{"field": 1, "type": "equal", '
-                    '"value": "test"}]}`. The `field` value must be the ID of the '
-                    "field to filter on, or the name of the field if "
-                    "`user_field_names` is true.\n\n"
-                    f"The following filters are available: "
-                    f'{", ".join(view_filter_type_registry.get_types())}.'
-                    "\n\n**Please note that if this parameter is provided, all other "
-                    "`filter__{field}__{filter}` will be ignored, "
-                    "as well as the `filter_type` parameter.**"
-                    + (
-                        "\n\n**Please note that by passing the filters parameter the "
-                        "view filters saved for the view itself will be ignored.**"
-                        if not combine_filters
-                        else ""
-                    )
+                lambda: get_filters_object_description(
+                    combine_filters, view_is_aggregating
                 ),
                 str,
             )(),

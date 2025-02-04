@@ -112,6 +112,11 @@ class View(
         default=True,
         help_text="Indicates whether the logo should be shown in the public view.",
     )
+    allow_public_export = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Indicates whether it's allowed to export a publicly shared view.",
+    )
     owned_by = models.ForeignKey(
         User,
         null=True,

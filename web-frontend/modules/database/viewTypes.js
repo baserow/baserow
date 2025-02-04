@@ -8,9 +8,11 @@ import FormView from '@baserow/modules/database/components/view/form/FormView'
 import FormViewHeader from '@baserow/modules/database/components/view/form/FormViewHeader'
 import { FileFieldType } from '@baserow/modules/database/fieldTypes'
 import {
+  filterVisibleFieldsFunction,
   isAdhocFiltering,
   isAdhocSorting,
   newFieldMatchesActiveSearchTerm,
+  sortFieldsByOrderAndIdFunction,
 } from '@baserow/modules/database/utils/view'
 import { clone } from '@baserow/modules/core/utils/object'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
@@ -482,6 +484,16 @@ export class ViewType extends Registerable {
    */
   isCompatibleWithDataSync(dataSync) {
     return true
+  }
+
+  getVisibleFieldsInOrder({ $store: store }, fields, view, storePrefix = '') {
+    const fieldOptions =
+      store.getters[
+        storePrefix + 'view/' + this.getType() + '/getAllFieldOptions'
+      ]
+    return fields
+      .filter(filterVisibleFieldsFunction(fieldOptions))
+      .sort(sortFieldsByOrderAndIdFunction(fieldOptions, true))
   }
 }
 
