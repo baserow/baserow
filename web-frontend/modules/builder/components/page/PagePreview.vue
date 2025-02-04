@@ -27,9 +27,7 @@
                 :element="element"
                 :is-first-element="index === 0"
                 :is-copying="copyingElementIndex === index"
-                :application-context-additions="{
-                  recordIndexPath: [],
-                }"
+                :application-context-additions="contextAdditions"
                 @move="moveElement($event)"
               />
             </header>
@@ -65,9 +63,7 @@
                 :element="element"
                 :is-first-element="index === 0 && headerElements.length === 0"
                 :is-copying="copyingElementIndex === index"
-                :application-context-additions="{
-                  recordIndexPath: [],
-                }"
+                :application-context-additions="contextAdditions"
                 @move="moveElement($event)"
               />
             </div>
@@ -95,9 +91,7 @@
                   elements.length === 0
                 "
                 :is-copying="copyingElementIndex === index"
-                :application-context-additions="{
-                  recordIndexPath: [],
-                }"
+                :application-context-additions="contextAdditions"
                 @move="moveElement($event)"
               />
             </footer>
@@ -145,6 +139,11 @@ export default {
       getChildren: 'element/getChildren',
       getClosestSiblingElement: 'element/getClosestSiblingElement',
     }),
+    contextAdditions() {
+      return {
+        recordIndexPath: [],
+      }
+    },
     elements() {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
