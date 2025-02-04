@@ -228,7 +228,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         if specific:
-            return specific_iterator(filtered_qs.select_related("content_type"))
+            return specific_iterator(
+                filtered_qs.select_related("content_type"),
+                per_content_type_queryset_hook=(
+                    lambda field, queryset: field_type_registry.get_by_model(
+                        field
+                    ).enhance_field_queryset(queryset, field)
+                ),
+            )
         else:
             return filtered_qs
 
