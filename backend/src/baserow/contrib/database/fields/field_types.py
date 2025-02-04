@@ -1696,6 +1696,9 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
 
+    def get_distribution_group_by_value(self, field_name: str):
+        return f"{field_name}__first_name"
+
 
 class CreatedByFieldType(ReadOnlyFieldType):
     type = "created_by"
@@ -1906,6 +1909,9 @@ class CreatedByFieldType(ReadOnlyFieldType):
         self, field: Field, field_name: str
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
+
+    def get_distribution_group_by_value(self, field_name: str):
+        return f"{field_name}__first_name"
 
 
 class DurationFieldType(FieldType):
@@ -4248,6 +4254,9 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             model.objects.filter(**{f"{field.db_column}_id__in": to_delete}).update(
                 **{field.db_column: None}
             )
+
+    def get_distribution_group_by_value(self, field_name: str):
+        return f"{field_name}__value"
 
 
 class MultipleSelectFieldType(

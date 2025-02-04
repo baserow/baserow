@@ -53,7 +53,7 @@ from baserow.contrib.database.formula.types.formula_types import (
 )
 
 from .registries import ViewAggregationType
-from .utils import AnnotatedAggregation
+from .utils import AnnotatedAggregation, DistributionAggregation
 
 # See official django documentation for list of aggregator:
 # https://docs.djangoproject.com/en/4.0/ref/models/querysets/#aggregation-functions
@@ -436,3 +436,42 @@ class RangeViewAggregationType(ViewAggregationType):
 
     def get_aggregation(self, field_name, model_field, field):
         return {"min": Min(field_name), "max": Max(field_name)}
+
+
+class DistributionViewAggregationType(ViewAggregationType):
+    """
+    Compute the distribution of values
+    """
+
+    type = "distribution"
+
+    compatible_field_types = [
+        TextFieldType.type,
+        LongTextFieldType.type,
+        URLFieldType.type,
+        NumberFieldType.type,
+        RatingFieldType.type,
+        DateFieldType.type,
+        LastModifiedFieldType.type,
+        LastModifiedByFieldType.type,
+        CreatedOnFieldType.type,
+        CreatedByFieldType.type,
+        EmailFieldType.type,
+        PhoneNumberFieldType.type,
+        SingleSelectFieldType.type,
+        DurationFieldType.type,
+        BooleanFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaBooleanType.type,
+            BaserowFormulaCharType.type,
+            BaserowFormulaDateType.type,
+            BaserowFormulaNumberType.type,
+            BaserowFormulaTextType.type,
+        ),
+    ]
+
+    def get_aggregation(self, field_name, model_field, field):
+        field_type = field_type_registry.get_by_model(field)
+        return DistributionAggregation(
+            field_type.get_distribution_group_by_value(field_name)
+        )

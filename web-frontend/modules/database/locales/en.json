@@ -746,7 +746,10 @@
     "median": "Median",
     "stdDev": "Standard deviation",
     "stdDevShort": "Std dev",
-    "variance": "Variance"
+    "variance": "Variance",
+    "distribution": "Distribution",
+    "othersCount": "Others",
+    "emptyCount": "(Empty)"
   },
   "databaseForm": {
     "importLabel": "Would you like to import existing data?",
