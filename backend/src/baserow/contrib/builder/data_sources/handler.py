@@ -41,7 +41,7 @@ class DataSourceHandler:
         data_source_id: int,
         base_queryset: Optional[QuerySet] = None,
         specific=True,
-        with_ttl_cache=False,
+        with_cache=False,
     ) -> DataSource:
         """
         Returns a data_source instance from the database.
@@ -51,12 +51,12 @@ class DataSourceHandler:
         :param specific: Return the specific version of related objects like the
           service and the integration
         :raises DataSourceDoesNotExist: If the data_source can't be found.
-        :param with_ttl_cache: Whether this method should use the short TTL
+        :param with_cache: Whether this method should use the short
           cache for data_sources.
         :return: The data_source instance.
         """
 
-        if with_ttl_cache and not base_queryset:
+        if with_cache and not base_queryset:
             return get_short_cache(
                 f"ab_data_source_{data_source_id}_{specific}",
                 lambda: self._get_data_source(
@@ -134,7 +134,7 @@ class DataSourceHandler:
         )
 
     def _query_data_sources(
-        self, base_queryset: QuerySet, specific=True, populate_ttl_cache=False
+        self, base_queryset: QuerySet, specific=True, with_cache=False
     ):
         """
         Query data sources from the base queryset.
@@ -142,7 +142,7 @@ class DataSourceHandler:
         :param base_queryset: The base QuerySet to query from.
         :param specific: A boolean flag indicating whether to include specific service
           instance.
-        :param populate_ttl_cache: Whether this method should populate the short TTL
+        :param with_cache: Whether this method should populate the short
           cache for data_sources.
         :return: A list of queried data sources.
         """
@@ -177,7 +177,7 @@ class DataSourceHandler:
             )
             data_sources = data_source_queryset.all()
 
-        if populate_ttl_cache:
+        if with_cache:
             for ds in data_sources:
                 get_short_cache(
                     f"ab_data_source_{ds.id}_{specific}",
@@ -191,7 +191,7 @@ class DataSourceHandler:
         base_queryset: Optional[QuerySet] = None,
         with_shared: Optional[bool] = False,
         specific: Optional[bool] = True,
-        populate_ttl_cache=False,
+        with_cache=False,
     ) -> Union[QuerySet[DataSource], Iterable[DataSource]]:
         """
         Gets all the specific data_sources of a given page.
@@ -202,7 +202,7 @@ class DataSourceHandler:
           on the same builder.
         :param specific: If True, return the specific version of the service related
           to the data source
-        :param populate_ttl_cache: Whether this method should populate the short TTL
+        :param with_cache: Whether this method should populate the short
           cache for data_sources.
         :return: The data_sources of that page.
         """
@@ -222,7 +222,7 @@ class DataSourceHandler:
         return self._query_data_sources(
             data_source_queryset,
             specific=specific,
-            populate_ttl_cache=populate_ttl_cache,
+            with_cache=with_cache,
         )
 
     def get_builder_data_sources(
@@ -230,7 +230,7 @@ class DataSourceHandler:
         builder: "Builder",
         base_queryset: Optional[QuerySet] = None,
         specific: Optional[bool] = True,
-        populate_ttl_cache=False,
+        with_cache=False,
     ) -> Union[QuerySet[DataSource], Iterable[DataSource]]:
         """
         Gets all the specific data_sources of a given builder.
@@ -239,7 +239,7 @@ class DataSourceHandler:
         :param base_queryset: The base queryset to use to build the query.
         :param specific: If True, return the specific version of the service related
           to the data source
-        :param populate_ttl_cache: Whether this method should populate the short TTL
+        :param with_cache: Whether this method should populate the short
           cache for data_sources.
         :return: The data_sources of that builder.
         """
@@ -253,7 +253,7 @@ class DataSourceHandler:
         return self._query_data_sources(
             data_source_queryset,
             specific=specific,
-            populate_ttl_cache=populate_ttl_cache,
+            with_cache=with_cache,
         )
 
     def get_data_sources_with_cache(

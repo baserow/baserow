@@ -1345,6 +1345,3 @@ BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL = 5
 BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
     os.getenv("BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE", "") or 10
 )
-
-# Duration of the short living cache used to save queries in many places
-SHORT_LIVE_CACHE_TTL_DURATION = 10

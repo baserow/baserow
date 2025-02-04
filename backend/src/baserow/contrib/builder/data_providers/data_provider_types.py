@@ -202,7 +202,7 @@ class DataSourceDataProviderType(DataProviderType):
 
         try:
             data_source = DataSourceHandler().get_data_source(
-                data_source_id, with_ttl_cache=True
+                data_source_id, with_cache=True
             )
         except DataSourceDoesNotExist as exc:
             # The data source has probably been deleted
@@ -275,7 +275,7 @@ class DataSourceContextDataProviderType(DataProviderType):
 
         try:
             data_source = DataSourceHandler().get_data_source(
-                data_source_id, with_ttl_cache=True
+                data_source_id, with_cache=True
             )
         except DataSourceDoesNotExist as exc:
             # The data source has probably been deleted
@@ -381,7 +381,7 @@ class CurrentRecordDataProviderType(DataProviderType):
 
         try:
             data_source = DataSourceHandler().get_data_source(
-                data_source_id, with_ttl_cache=True
+                data_source_id, with_cache=True
             )
         except DataSourceDoesNotExist as exc:
             # The data source is probably not accessible so we raise an invalid formula

@@ -206,7 +206,7 @@ def get_builder_used_property_names(
 
     # We query the data source first to populate the data source cache
     data_sources = DataSourceService().get_builder_data_sources(
-        user, builder, populate_ttl_cache=True
+        user, builder, with_cache=True
     )
 
     elements = list(ElementService().get_builder_elements(user, builder))

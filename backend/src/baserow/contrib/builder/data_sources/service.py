@@ -89,14 +89,14 @@ class DataSourceService:
         return self.handler.get_data_sources(page, base_queryset=user_data_sources)
 
     def get_builder_data_sources(
-        self, user: AbstractUser, builder: "Builder", populate_ttl_cache=False
+        self, user: AbstractUser, builder: "Builder", with_cache=False
     ) -> List[DataSource]:
         """
         Gets all the data_sources of a given builder visible to the given user.
 
         :param user: The user trying to get the data_sources.
         :param page: The builder that holds the data_sources.
-        :param populate_ttl_cache: Whether this method should populate the short TTL
+        :param with_cache: Whether this method should populate the short
           cache for data_sources.
         :return: The data_sources of that builder.
         """
@@ -111,7 +111,7 @@ class DataSourceService:
         return self.handler.get_builder_data_sources(
             builder,
             base_queryset=user_data_sources,
-            populate_ttl_cache=populate_ttl_cache,
+            with_cache=with_cache,
         )
 
     def create_data_source(

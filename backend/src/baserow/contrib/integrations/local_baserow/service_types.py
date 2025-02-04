@@ -570,7 +570,8 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return None
 
         return get_short_cache(
-            f"ab_service_{service.table_id}_table_model", service.table.get_model
+            f"integration_service_{service.table_id}_table_model",
+            service.table.get_model,
         )
 
     def get_table_field_objects(
