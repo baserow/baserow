@@ -922,5 +922,8 @@
     },
     "userSourceType": {
         "userCountSummary": "{count} 사용자 ({lastUpdated})"
+    },
+    "colorPickerContext": {
+        "pickColorPlaceholder": "또는 미리 정의된 색상을 선택"
     }
 }
