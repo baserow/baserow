@@ -41,6 +41,10 @@
 <script>
 import ExportTableModal from '@baserow/modules/database/components/export/ExportTableModal'
 import PublicViewExportService from '@baserow_premium/services/publicViewExport'
+import {
+  createFiltersTree,
+  getOrderBy,
+} from '@baserow/modules/database/utils/view'
 
 export default {
   name: 'PublicViewExport',
@@ -83,13 +87,28 @@ export default {
     },
   },
   methods: {
-    startExport({ view, values, client, filters, orderBy, fields }) {
+    startExport({ view, values, client }) {
       // There is no need to include the `view_id` in the body because we're already
       // providing the slug as path parameter.
       delete values.view_id
+
+      let filters = null
+      const filterTree = createFiltersTree(
+        this.view.filter_type,
+        this.view.filters,
+        this.view.filter_groups
+      )
+      filters = filterTree.getFiltersTreeSerialized()
       values.filters = filters
+
+      const orderBy = getOrderBy(this.view, true)
       values.order_by = orderBy
-      values.fields = fields === null ? null : fields.map((f) => f.id)
+
+      values.fields =
+        this.visibleOrderedFields === null
+          ? null
+          : this.visibleOrderedFields.map((f) => f.id)
+
       const publicAuthToken =
         this.$store.getters['page/view/public/getAuthToken']
       return PublicViewExportService(client).export({

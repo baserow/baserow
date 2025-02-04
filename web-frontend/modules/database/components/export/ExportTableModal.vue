@@ -38,10 +38,6 @@ import ViewService from '@baserow/modules/database/services/view'
 import { populateView } from '@baserow/modules/database/store/view'
 import ExportTableForm from '@baserow/modules/database/components/export/ExportTableForm'
 import ExportLoadingBar from '@baserow/modules/database/components/export/ExportLoadingBar'
-import {
-  createFiltersTree,
-  getOrderBy,
-} from '@baserow/modules/database/utils/view'
 
 export default {
   name: 'ExportTableModal',
@@ -79,21 +75,6 @@ export default {
       type: Boolean,
       required: false,
       default: true,
-    },
-    adHocFiltering: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    adHocSorting: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    adHocFields: {
-      type: Array,
-      default: null,
-      validator: (value) => value === null || Array.isArray(value),
     },
   },
   data() {
@@ -159,26 +140,12 @@ export default {
       this.loading = true
       this.hideError()
 
-      let filters = null
-      if (this.adHocFiltering) {
-        const filterTree = createFiltersTree(
-          this.view.filter_type,
-          this.view.filters,
-          this.view.filter_groups
-        )
-        filters = filterTree.getFiltersTreeSerialized()
-      }
-      const orderBy = getOrderBy(this.view, this.adHocSorting)
-
       try {
         const { data } = await this.startExport({
           table: this.table,
           view: this.view,
           values,
           client: this.$client,
-          filters,
-          orderBy,
-          fields: this.adHocFields,
         })
         this.job = data
         if (this.pollInterval !== null) {
