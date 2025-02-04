@@ -1,6 +1,6 @@
 {
     "type": "refactor",
-    "message": "[Builder] Improve element selection performances when you have a lot of elements",
+    "message": "[Builder] Improve element selection performance when there are many elements",
     "issue_number": null,
     "bullet_points": [],
     "created_at": "2025-02-04"
