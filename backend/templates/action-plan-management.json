@@ -2763,7 +2763,7 @@
                             "number_decimal_places": 0,
                             "nullable": false,
                             "through_field_id": 53886,
-                            "target_field_id": 53870,
+                            "target_field_id": 55170,
                             "rollup_function": "min"
                         },
                         {
