@@ -748,7 +748,8 @@
     "stdDevShort": "Std dev",
     "variance": "Variance",
     "distribution": "Distribution",
-    "othersCount": "Others"
+    "othersCount": "Others",
+    "emptyCount": "(Empty)"
   },
   "databaseForm": {
     "importLabel": "Would you like to import existing data?",

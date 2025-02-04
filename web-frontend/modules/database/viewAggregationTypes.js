@@ -945,7 +945,7 @@ export class DistributionViewAggregationType extends ViewAggregationType {
     if (othersCount > 0) {
       const percentage = Math.round((othersCount / rowCount) * 100)
       results.push([
-        null,
+        undefined,
         `(${othersCount.toLocaleString()})`,
         `${percentage}%`,
       ])

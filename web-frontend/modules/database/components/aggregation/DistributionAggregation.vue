@@ -48,8 +48,11 @@ export default {
         return this.value[0]
           .map((v, index) =>
             index === 0
-              ? v
-                ? escape(this.fieldType.toAggregationString(this.field, v))
+              ? v !== undefined
+                ? escape(
+                    this.fieldType.toAggregationString(this.field, v) ||
+                      this.emptyCount
+                  )
                 : this.othersCount
               : v
           )
@@ -63,11 +66,10 @@ export default {
           return items.map((item, index) => {
             let displayValue
             if (index === 0) {
-              if (item) {
-                displayValue = this.fieldType.toAggregationString(
-                  this.field,
-                  item
-                )
+              if (item !== undefined) {
+                displayValue =
+                  this.fieldType.toAggregationString(this.field, item) ||
+                  this.emptyCount
               } else {
                 displayValue = this.othersCount
               }
@@ -95,6 +97,9 @@ export default {
     },
     othersCount() {
       return this.$i18n.t('viewAggregationType.othersCount')
+    },
+    emptyCount() {
+      return this.$i18n.t('viewAggregationType.emptyCount')
     },
   },
   methods: {

@@ -1694,6 +1694,9 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
 
+    def get_distribution_group_by_value(self, field_name: str):
+        return f"{field_name}__first_name"
+
 
 class CreatedByFieldType(ReadOnlyFieldType):
     type = "created_by"
@@ -1904,6 +1907,9 @@ class CreatedByFieldType(ReadOnlyFieldType):
         self, field: Field, field_name: str
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
+
+    def get_distribution_group_by_value(self, field_name: str):
+        return f"{field_name}__first_name"
 
 
 class DurationFieldType(FieldType):
