@@ -14,6 +14,10 @@ from baserow.contrib.database.rows.handler import RowHandler
 # @pytest.mark.disabled_in_ci  # Disable this test in CI in next release.
 @pytest.mark.django_db
 @override_settings(BASEROW_DISABLE_MODEL_CACHE=True)
+@pytest.mark.skip(
+    "Fails because it uses the latest version of the models instead of the ones at the "
+    "time of the migration"
+)
 def test_migration_rows_with_deleted_singleselect_options(
     data_fixture, migrator, teardown_table_metadata
 ):
