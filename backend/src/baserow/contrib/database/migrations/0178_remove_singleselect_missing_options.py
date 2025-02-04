@@ -20,8 +20,7 @@ def forward(apps, schema_editor):
                             SELECT 1 FROM {option_table} opt
                             WHERE opt.id = {table}.{select_column}
                         )
-                    """
-                    ).format(
+                    """).format(
                         table=sql.Identifier(table_name),
                         select_column=sql.Identifier(f"field_{field.id}"),
                         option_table=sql.Identifier(option_table_name)
