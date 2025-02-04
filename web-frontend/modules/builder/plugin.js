@@ -134,6 +134,10 @@ import {
   CourierNewFontFamilyType,
   BrushScriptMTFontFamilyType,
 } from '@baserow/modules/builder/fontFamilyTypes'
+import {
+  TextQueryParamType,
+  NumericQueryParamType,
+} from '@baserow/modules/builder/queryParamTypes'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -256,6 +260,9 @@ export default (context) => {
 
   app.$registry.register('pathParamType', new TextPathParamType(context))
   app.$registry.register('pathParamType', new NumericPathParamType(context))
+
+  app.$registry.register('queryParamType', new TextQueryParamType(context))
+  app.$registry.register('queryParamType', new NumericQueryParamType(context))
 
   app.$registry.register('pageAction', new PublishPageActionType(context))
   app.$registry.register('pageAction', new PreviewPageActionType(context))

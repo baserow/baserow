@@ -14,6 +14,7 @@ import FunctionalGridViewFieldLinkURL from '@baserow/modules/database/components
 import GridViewFieldArray from '@baserow/modules/database/components/view/grid/fields/GridViewFieldArray'
 import RowEditFieldSingleSelectReadOnly from '@baserow/modules/database/components/row/RowEditFieldSingleSelectReadOnly'
 import RowEditFieldMultipleSelectReadOnly from '@baserow/modules/database/components/row/RowEditFieldMultipleSelectReadOnly'
+import RowEditFieldMultipleCollaboratorsReadOnly from '@baserow/modules/database/components/row/RowEditFieldMultipleCollaboratorsReadOnly'
 import RowEditFieldArray from '@baserow/modules/database/components/row/RowEditFieldArray'
 import RowEditFieldLinkURL from '@baserow/modules/database/components/row/RowEditFieldLinkURL'
 import RowEditFieldButton from '@baserow/modules/database/components/row/RowEditFieldButton'
@@ -25,6 +26,7 @@ import FunctionalFormulaBooleanArrayItem from '@baserow/modules/database/compone
 import FunctionalFormulaDateArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaDateArrayItem'
 import FunctionalFormulaSingleSelectArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaSingleSelectArrayItem'
 import FunctionalFormulaMultipleSelectArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaMultipleSelectArrayItem'
+import FunctionalFormulaMultipleCollaboratorsArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaMultipleCollaboratorsArrayItem'
 import FunctionalFormulaLinkArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaLinkArrayItem'
 import FunctionalFormulaButtonArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaButtonArrayItem'
 import RowCardFieldArray from '@baserow/modules/database/components/card/RowCardFieldArray'
@@ -230,6 +232,10 @@ export class BaserowFormulaTypeDefinition extends Registerable {
 
   canRepresentFiles(field) {
     return false
+  }
+
+  toBaserowFormulaType(field) {
+    return this.getType()
   }
 }
 
@@ -981,6 +987,54 @@ export class BaserowFormulaMultipleSelectType extends mix(
 
   getFunctionalFieldArrayComponent() {
     return FunctionalFormulaMultipleSelectArrayItem
+  }
+
+  getSortOrder() {
+    return 8
+  }
+
+  getCanSortInView(field) {
+    return false
+  }
+
+  canBeSortedWhenInArray(field) {
+    return false
+  }
+
+  mapToSortableArray(element) {
+    return element.value
+  }
+
+  canGroupByInView() {
+    return false
+  }
+}
+
+export class BaserowFormulaMultipleCollaboratorsType extends mix(
+  BaserowFormulaTypeDefinition
+) {
+  static getType() {
+    return 'multiple_collaborators'
+  }
+
+  getFieldType() {
+    return 'multiple_collaborators'
+  }
+
+  getIconClass() {
+    return 'iconoir-community'
+  }
+
+  getFilterInputComponent(field, filterType) {
+    return null
+  }
+
+  getRowEditFieldComponent(field) {
+    return RowEditFieldMultipleCollaboratorsReadOnly
+  }
+
+  getFunctionalFieldArrayComponent() {
+    return FunctionalFormulaMultipleCollaboratorsArrayItem
   }
 
   getSortOrder() {

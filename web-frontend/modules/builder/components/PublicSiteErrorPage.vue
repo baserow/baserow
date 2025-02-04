@@ -58,7 +58,7 @@ export default {
         name: 'application-builder-page',
         params: { pathMatch: '/' },
         // We remove the query parameters. Important if we have some with error
-        query: {},
+        query: null,
       })
     },
   },

@@ -1,4 +1,4 @@
-.common-saml-setting-modal__url-block {
+.common-oidc-setting-form__url-block {
   @include rounded($rounded);
 
   position: relative;
@@ -8,17 +8,17 @@
   border: 1px solid $palette-neutral-400;
 }
 
-.common-saml-setting-modal__url {
+.common-oidc-setting-form__url {
   padding-bottom: 8px;
   cursor: pointer;
   display: flex;
   gap: 5px;
 }
 
-.common-saml-setting-modal__url-domain {
+.common-oidc-setting-form__url-domain {
   color: $palette-neutral-800;
 }
 
-.common-saml-setting-modal__url-dest {
+.common-oidc-setting-form__url-dest {
   @extend %ellipsis;
 }

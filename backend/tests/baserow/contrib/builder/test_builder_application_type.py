@@ -199,6 +199,7 @@ def test_builder_application_export(data_fixture):
         "order": page2.order,
         "path": page2.path,
         "path_params": page2.path_params,
+        "query_params": [],
         "visibility": Page.VISIBILITY_TYPES.ALL.value,
         "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
         "roles": [],
@@ -270,6 +271,7 @@ def test_builder_application_export(data_fixture):
                 "style_background_file_id": None,
                 "style_background_mode": "fill",
                 "style_width": "normal",
+                "style_width_child": "normal",
                 "value": element3.value,
                 "level": element3.level,
                 "roles": [],
@@ -315,6 +317,7 @@ def test_builder_application_export(data_fixture):
                 "style_background_file_id": None,
                 "style_background_mode": "fill",
                 "style_width": "normal",
+                "style_width_child": "normal",
                 "items_per_page": 42,
                 "data_source_id": element4.data_source.id,
                 "fields": [
@@ -348,6 +351,7 @@ def test_builder_application_export(data_fixture):
                 "order": shared_page.order,
                 "path": shared_page.path,
                 "path_params": shared_page.path_params,
+                "query_params": [],
                 "shared": True,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -379,6 +383,7 @@ def test_builder_application_export(data_fixture):
                 "order": page1.order,
                 "path": page1.path,
                 "path_params": page1.path_params,
+                "query_params": [],
                 "shared": False,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -445,6 +450,7 @@ def test_builder_application_export(data_fixture):
                         "style_background_file_id": None,
                         "style_background_mode": "fill",
                         "style_width": "normal",
+                        "style_width_child": "normal",
                         "value": element1.value,
                         "level": element1.level,
                         "roles": [],
@@ -481,6 +487,7 @@ def test_builder_application_export(data_fixture):
                         "style_background_file_id": None,
                         "style_background_mode": "fill",
                         "style_width": "normal",
+                        "style_width_child": "normal",
                         "value": element2.value,
                         "roles": [],
                         "role_type": "allow_all",
@@ -516,6 +523,7 @@ def test_builder_application_export(data_fixture):
                         "style_background_file_id": None,
                         "style_background_mode": "fill",
                         "style_width": "normal",
+                        "style_width_child": "normal",
                         "order": str(element_container.order),
                         "column_amount": 3,
                         "column_gap": 50,
@@ -553,6 +561,7 @@ def test_builder_application_export(data_fixture):
                         "style_background_file_id": None,
                         "style_background_mode": "fill",
                         "style_width": "normal",
+                        "style_width_child": "normal",
                         "order": str(element_inside_container.order),
                         "value": element_inside_container.value,
                         "roles": [],
@@ -736,6 +745,7 @@ PAGE_2_IMPORT_REFERENCE = {
             "style_border_top_color": "border",
             "style_border_top_size": 0,
             "style_width": "normal",
+            "style_width_child": "normal",
             "order": 1,
             "value": "",
             "level": 1,
@@ -784,6 +794,7 @@ IMPORT_REFERENCE = {
             "order": 1,
             "path": "/test",
             "path_params": {},
+            "query_params": [],
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
@@ -811,6 +822,7 @@ IMPORT_REFERENCE = {
                     "style_border_top_color": "border",
                     "style_border_top_size": 0,
                     "style_width": "normal",
+                    "style_width_child": "normal",
                     "order": 1,
                     "value": "'foo'",
                     "level": 2,
@@ -829,6 +841,7 @@ IMPORT_REFERENCE = {
                     "style_border_top_color": "border",
                     "style_border_top_size": 0,
                     "style_width": "normal",
+                    "style_width_child": "normal",
                     "order": 2,
                     "value": "",
                     "roles": [],
@@ -846,6 +859,7 @@ IMPORT_REFERENCE = {
                     "style_border_top_color": "border",
                     "style_border_top_size": 0,
                     "style_width": "normal",
+                    "style_width_child": "normal",
                     "items_per_page": 42,
                     "order": 2.5,
                     "data_source_id": 5,
@@ -866,6 +880,7 @@ IMPORT_REFERENCE = {
                             "uid": str(uuid.uuid4()),
                             "config": {
                                 "page_parameters": [],
+                                # "query_parameters": [],
                                 "navigation_type": "custom",
                                 "navigate_to_page_id": None,
                                 "navigate_to_url": "get('current_record.field_25')",
@@ -889,6 +904,7 @@ IMPORT_REFERENCE = {
                     "style_border_top_color": "border",
                     "style_border_top_size": 0,
                     "style_width": "normal",
+                    "style_width_child": "normal",
                     "style_padding_top": 10,
                     "style_padding_bottom": 10,
                     "order": 1.5,
@@ -908,6 +924,7 @@ IMPORT_REFERENCE = {
                     "style_border_top_color": "border",
                     "style_border_top_size": 0,
                     "style_width": "normal",
+                    "style_width_child": "normal",
                     "style_padding_top": 10,
                     "style_padding_bottom": 10,
                     "order": 3,
@@ -929,6 +946,7 @@ IMPORT_REFERENCE = {
                     "style_border_top_color": "border",
                     "style_border_top_size": 0,
                     "style_width": "normal",
+                    "style_width_child": "normal",
                     "style_padding_top": 10,
                     "style_padding_bottom": 10,
                     "order": 1,
@@ -1139,6 +1157,7 @@ IMPORT_REFERENCE_COMPLEX = {
                     "style_border_top_color": "border",
                     "style_border_top_size": 0,
                     "style_width": "normal",
+                    "style_width_child": "normal",
                     "order": 1,
                     "value": "",
                     "level": 1,
@@ -1673,10 +1692,33 @@ def test_get_default_application_urls(data_fixture):
         builder=builder, published_to=builder_to, domain_name="mytest.com"
     )
 
-    assert builder.get_type().get_default_application_urls(builder) == [
+    assert builder.get_type().get_application_urls(builder) == [
         f"http://localhost:3000/builder/{builder.id}/preview/"
     ]
-    assert builder_to.get_type().get_default_application_urls(builder_to) == [
+    assert builder_to.get_type().get_application_urls(builder_to) == [
         "http://mytest.com:3000",
         f"http://localhost:3000/builder/{builder.id}/preview/",
     ]
+
+
+@pytest.mark.django_db
+def test_get_application_id_for_url(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(workspace=None)
+    domain1 = data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=builder_to, domain_name="mytest.com"
+    )
+
+    assert (
+        builder.get_type().get_application_id_for_url(
+            f"http://localhost:3000/builder/{builder.id}/preview/"
+        )
+        == builder.id
+    )
+    assert (
+        builder.get_type().get_application_id_for_url(
+            f"http://mytest.com/something/somethingelse/"
+        )
+        == builder_to.id
+    )

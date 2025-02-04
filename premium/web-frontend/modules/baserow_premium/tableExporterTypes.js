@@ -16,7 +16,12 @@ class PremiumTableExporterType extends TableExporterType {
   }
 
   isDeactivated(workspaceId) {
-    return !this.app.$hasFeature(PremiumFeatures.PREMIUM, workspaceId)
+    // If the user is looking a publicly shared view, then the feature must never be
+    // deactivated because the check can't be done properly.
+    const isPublic = this.app.store.getters['page/view/public/getIsPublic']
+    return (
+      !this.app.$hasFeature(PremiumFeatures.PREMIUM, workspaceId) && !isPublic
+    )
   }
 }
 

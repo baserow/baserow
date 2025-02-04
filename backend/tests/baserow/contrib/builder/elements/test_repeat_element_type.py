@@ -112,6 +112,9 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
                 "page_parameters": [
                     {"name": "id", "value": "get('current_record.field_424')"}
                 ],
+                "query_parameters": [
+                    {"name": "query_id", "value": "get('current_record.field_424')"}
+                ],
                 "roles": [],
                 "role_type": Element.ROLE_TYPES.ALLOW_ALL,
             },
@@ -169,6 +172,7 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
     assert link.value == migrated_ref
     assert link.navigate_to_url == migrated_ref
     assert link.page_parameters[0]["value"] == migrated_ref
+    assert link.query_parameters[0]["value"] == migrated_ref
 
 
 @pytest.mark.django_db

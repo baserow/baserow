@@ -43,7 +43,12 @@ export default {
   },
   methods: {
     ...mapActions({ actionUpdatePage: 'page/update' }),
-    async updatePage({ name, path, path_params: pathPrams }) {
+    async updatePage({
+      name,
+      path,
+      path_params: pathParams,
+      query_params: queryParams,
+    }) {
       this.success = false
       this.loading = true
       this.hideError()
@@ -54,18 +59,26 @@ export default {
           values: {
             name,
             path,
-            path_params: pathPrams,
+            path_params: pathParams,
+            query_params: queryParams,
           },
         })
-        await Promise.all(
-          pathPrams.map(({ name, type }) =>
+        await Promise.all([
+          ...pathParams.map(({ name, type }) =>
             this.$store.dispatch('pageParameter/setParameter', {
               page: this.currentPage,
               name,
               value: defaultValueForParameterType(type),
             })
-          )
-        )
+          ),
+          ...queryParams.map(({ name, type }) =>
+            this.$store.dispatch('pageParameter/setParameter', {
+              page: this.currentPage,
+              name,
+              value: null,
+            })
+          ),
+        ])
         this.success = true
       } catch (error) {
         this.handleError(error)

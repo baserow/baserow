@@ -1,53 +1,77 @@
 <template>
-  <div>
-    <div
-      class="common-saml-setting-form"
-      :class="{ 'common-saml-setting-form--error': inError }"
-    >
-      <Presentation
-        class="flex-grow-1"
-        :title="authProviderType.getProviderName(authProvider)"
-        size="medium"
-        avatar-color="neutral"
-        :image="authProviderType.getIcon()"
-        @click="onEdit"
-      />
-      <div class="common-saml-setting-form__actions">
-        <ButtonIcon
-          type="secondary"
-          icon="iconoir-edit"
-          @click.prevent="onEdit"
-        />
-        <ButtonIcon
-          type="secondary"
-          icon="iconoir-bin"
-          @click.prevent="onDelete"
-        />
-      </div>
-    </div>
-    <div v-if="inError" class="error">
-      {{ $t('commonSamlSettingForm.authProviderInError') }}
-    </div>
-    <CommonSamlSettingModal
-      ref="samlModal"
+  <AuthProviderWithModal
+    :auth-provider-type="authProviderType"
+    :auth-provider="authProvider"
+    :in-error="inError"
+    @delete="$emit('delete')"
+    @hidden="checkValidity()"
+  >
+    <SamlSettingsForm
       v-bind="$props"
-      :integration="integration"
-      :user-source="userSource"
-      @form-valid="onFormValid($event)"
+      ref="form"
+      @values-changed="checkValidity"
       v-on="$listeners"
-    ></CommonSamlSettingModal>
-  </div>
+    >
+      <template #config>
+        <FormGroup
+          small-label
+          required
+          :label="$t('commonSamlSettingForm.relayStateTitle')"
+          class="margin-bottom-2"
+        >
+          <div class="common-saml-setting-form__url-block">
+            <div
+              v-for="url in relayStateUrls"
+              :key="url"
+              class="common-saml-setting-form__url"
+              @click.prevent=";[copyToClipboard(url), $refs.copiedRelay.show()]"
+            >
+              <span class="common-saml-setting-form__url-dest" :title="url">
+                {{ url }}
+              </span>
+            </div>
+            <div v-if="relayStateUrls.length === 0">
+              {{ $t('commonSamlSettingForm.addDomainNotice') }}
+            </div>
+            <Copied ref="copiedRelay"></Copied>
+          </div>
+        </FormGroup>
+
+        <FormGroup
+          small-label
+          required
+          :label="$t('commonSamlSettingForm.acsTitle')"
+          class="margin-bottom-2"
+        >
+          <div class="common-saml-setting-form__url-block">
+            <div
+              class="common-saml-setting-form__url"
+              @click.prevent="
+                ;[copyToClipboard(acsUrl), $refs.copiedACS.show()]
+              "
+            >
+              <span class="common-saml-setting-form__url-dest" :title="acsUrl">
+                {{ acsUrl }}
+              </span>
+            </div>
+            <Copied ref="copiedACS"></Copied>
+          </div>
+        </FormGroup>
+      </template>
+    </SamlSettingsForm>
+  </AuthProviderWithModal>
 </template>
 
 <script>
+import SamlSettingsForm from '@baserow_enterprise/components/admin/forms/SamlSettingsForm'
 import authProviderForm from '@baserow/modules/core/mixins/authProviderForm'
-import CommonSamlSettingModal from '@baserow_enterprise/integrations/common/components/CommonSamlSettingModal'
+import AuthProviderWithModal from '@baserow/modules/builder/components/userSource/AuthProviderWithModal'
+import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
-  name: 'CommonSamlSettingForm',
-  components: { CommonSamlSettingModal },
+  name: 'CommonSamlSettingsForm',
+  components: { SamlSettingsForm, AuthProviderWithModal },
   mixins: [authProviderForm],
-  inject: ['builder'],
   props: {
     integration: {
       type: Object,
@@ -61,23 +85,38 @@ export default {
   data() {
     return { inError: false }
   },
+  computed: {
+    relayStateUrls() {
+      return this.authProviderType.getRelayStateUrls(this.userSource)
+    },
+    acsUrl() {
+      return this.authProviderType.getAcsUrl(this.userSource)
+    },
+  },
+  watch: {
+    '$v.$anyDirty'() {
+      this.checkValidity()
+    },
+  },
   methods: {
-    onFormValid(value) {
-      this.inError = !value
-    },
-    onEdit() {
-      this.$refs.samlModal.show()
-    },
-    onDelete() {
-      this.$emit('delete')
+    copyToClipboard,
+    checkValidity() {
+      if (!this.$refs.form.isFormValid() && this.$refs.form.$v.$anyDirty) {
+        this.inError = true
+      } else {
+        this.inError = false
+      }
     },
     handleServerError(error) {
-      if (this.$refs.samlModal.handleServerError(error)) {
+      if (this.$refs.form.handleServerError(error)) {
         this.inError = true
         return true
       }
       return false
     },
+  },
+  validations() {
+    return {}
   },
 }
 </script>

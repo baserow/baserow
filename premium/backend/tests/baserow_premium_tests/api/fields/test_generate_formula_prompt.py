@@ -19,9 +19,11 @@ def test_if_prompt_contains_all_formula_functions():
         "get_single_select_value",
         "multiple_select_count",
         "string_agg_multiple_select_values",
-        "string_agg_array_of_multiple_select_values",
         "jsonb_extract_path_text",
         "array_agg_no_nesting",
+        "string_agg_many_to_many_values",
+        "many_to_many_agg",
+        "many_to_many_count",
     ]
 
     for function in formula_function_registry.registry.keys():

@@ -66,7 +66,7 @@
     <Radio v-model="selectedVisibility" :value="visibilityNotLogged">
       {{ $t('visibilityForm.notLoggedInVisitors') }}
     </Radio>
-    <Alert type="warning">
+    <Alert>
       <slot name="title">{{ $t('visibilityForm.warningTitle') }}</slot>
       <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
       <p v-html="$t('visibilityForm.warningMessage')"></p>

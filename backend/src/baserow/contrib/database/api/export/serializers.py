@@ -5,6 +5,8 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import fields, serializers
 
 from baserow.api.serializers import FileURLSerializerMixin
+from baserow.contrib.database.api.constants import get_filters_object_description
+from baserow.contrib.database.api.views.serializers import PublicViewFiltersSerializer
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.contrib.database.export.models import ExportJob
 from baserow.contrib.database.export.registries import table_exporter_registry
@@ -121,6 +123,28 @@ class BaseExporterOptionsSerializer(serializers.Serializer):
         choices=SUPPORTED_EXPORT_CHARSETS,
         default="utf-8",
         help_text="The character set to use when creating the export file.",
+    )
+    filters = PublicViewFiltersSerializer(
+        required=False,
+        allow_null=True,
+        help_text=lazy(
+            lambda: get_filters_object_description(True, False),
+            str,
+        )(),
+    )
+    order_by = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text="Optionally the rows can be ordered by provided field ids separated "
+        "by comma. By default a field is ordered in ascending (A-Z) order, but by "
+        "prepending the field with a '-' it can be ordered descending (Z-A).",
+    )
+    fields = serializers.ListField(
+        required=False,
+        allow_null=True,
+        child=serializers.IntegerField(),
+        help_text="List of field IDs that must be included in the export, in the desired order.",
     )
 
 

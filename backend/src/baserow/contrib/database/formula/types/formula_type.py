@@ -203,6 +203,19 @@ class BaserowFormulaType(abc.ABC):
 
         pass
 
+    def _get_order_field_expression(self, field_name: str) -> Expression | F:
+        """
+        Returns the field expression that should be used for ordering by the field
+        with the given name. By default, this is just the field itself, but
+        for some types, we might want to properly collate the expression or return
+        a different one.
+
+        :param field_name: The name of the field to order by.
+        :return: The field expression that should be used for ordering by the field.
+        """
+
+        return F(field_name)
+
     def get_order(
         self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
@@ -211,7 +224,7 @@ class BaserowFormulaType(abc.ABC):
         annotation that will be used as the order on the particular field.
         """
 
-        field_expr = F(field_name)
+        field_expr = self._get_order_field_expression(field_name)
 
         if order_direction == "ASC":
             field_order_by = field_expr.asc(nulls_first=True)

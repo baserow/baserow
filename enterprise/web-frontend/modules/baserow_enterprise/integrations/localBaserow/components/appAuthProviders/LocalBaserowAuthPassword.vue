@@ -12,7 +12,7 @@
             : ''
           : ''
       "
-      :autocomplete="isEditMode ? 'off' : ''"
+      :autocomplete="readOnly ? 'off' : ''"
       required
     >
       <ABInput
@@ -55,16 +55,35 @@ import { required, email } from 'vuelidate/lib/validators'
 
 export default {
   mixins: [form, error],
-  inject: ['builder', 'mode'],
   props: {
     userSource: { type: Object, required: true },
     authProviders: {
       type: Array,
       required: true,
     },
+    authProviderType: {
+      type: Object,
+      required: true,
+    },
     loginButtonLabel: {
       type: String,
       required: true,
+    },
+    readOnly: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    authenticate: {
+      type: Function,
+      required: true,
+    },
+    beforeLogin: {
+      type: Function,
+      required: false,
+      default: () => {
+        return () => {}
+      },
     },
   },
   data() {
@@ -73,21 +92,9 @@ export default {
       values: { email: '', password: '' },
     }
   },
-  computed: {
-    isAuthenticated() {
-      return this.$store.getters['userSourceUser/isAuthenticated'](this.builder)
-    },
-    isEditMode() {
-      return this.mode === 'editing'
-    },
-  },
   methods: {
     async onLogin(event) {
-      if (this.isAuthenticated) {
-        await this.$store.dispatch('userSourceUser/logoff', {
-          application: this.builder,
-        })
-      }
+      await this.beforeLogin()
 
       this.$v.$touch()
       if (this.$v.$invalid) {
@@ -97,14 +104,9 @@ export default {
       this.loading = true
       this.hideError()
       try {
-        await this.$store.dispatch('userSourceUser/authenticate', {
-          application: this.builder,
-          userSource: this.userSource,
-          credentials: {
-            email: this.values.email,
-            password: this.values.password,
-          },
-          setCookie: this.mode === 'public',
+        await this.authenticate({
+          email: this.values.email,
+          password: this.values.password,
         })
         this.values.password = ''
         this.values.email = ''

@@ -520,12 +520,23 @@ class ApplicationType(
     def enhance_queryset(self, queryset):
         return queryset
 
-    def get_default_application_urls(self, application: "Application") -> list[str]:
+    def get_application_urls(self, application: "Application") -> list[str]:
         """
-        Returns the default frontend urls of the application if any.
+        Returns the frontend urls of the application if any.
         """
 
         return []
+
+    @classmethod
+    def get_application_id_for_url(cls, url: str) -> int | None:
+        """
+        Given a URL, returns the application id related to this URL
+        or None if None matches.
+
+        :param url: the url to search the application_id for.
+        """
+
+        return None
 
 
 ApplicationSubClassInstance = TypeVar(

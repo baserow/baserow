@@ -338,7 +338,14 @@ def test_import_open_page_workflow_action(data_fixture):
                 "value": f"get('data_source.{data_source_1.id}.field_1')",
             },
         ],
+        query_parameters=[
+            {
+                "name": "fooQueryParam",
+                "value": f"get('data_source.{data_source_1.id}.field_2')",
+            },
+        ],
     )
+
     serialized = workflow_action_type.export_serialized(exported_workflow_action)
 
     # After applying the ID mapping the imported formula should have updated
@@ -350,12 +357,11 @@ def test_import_open_page_workflow_action(data_fixture):
     imported_workflow_action = workflow_action_type.import_serialized(
         page, serialized, id_mapping
     )
-    expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_workflow_action.navigate_to_url == expected_formula
 
-    assert imported_workflow_action.page_parameters == [
-        {
-            "name": "fooPageParam",
-            "value": f"get('data_source.{data_source_2.id}.field_1')",
-        },
-    ]
+    expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
+    expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
+    assert imported_workflow_action.navigate_to_url == expected_formula
+    assert imported_workflow_action.page_parameters[0]["value"] == expected_formula
+    assert (
+        imported_workflow_action.query_parameters[0]["value"] == expected_query_formula
+    )

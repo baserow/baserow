@@ -72,6 +72,7 @@ class ElementHandler:
         "style_background_file",
         "style_background_mode",
         "style_width",
+        "style_width_child",
     ]
 
     allowed_fields_update = [
@@ -102,6 +103,7 @@ class ElementHandler:
         "style_background_file",
         "style_background_mode",
         "style_width",
+        "style_width_child",
         "role_type",
         "roles",
     ]

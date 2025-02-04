@@ -68,6 +68,8 @@ def load_test_data():
     text_element_type = element_type_registry.get("text")
     table_element_type = element_type_registry.get("table")
     link_element_type = element_type_registry.get("link")
+    header_element = element_type_registry.get("header")
+    column_element = element_type_registry.get("column")
 
     try:
         homepage = Page.objects.get(name="Homepage", builder=builder)
@@ -337,4 +339,24 @@ def load_test_data():
             variant="button",
             navigation_type="page",
             navigate_to_page_id=products.id,
+        )
+
+    # Add shared elements
+    if builder.shared_page.element_set.count() == 0:
+        header = ElementHandler().create_element(
+            header_element,
+            builder.shared_page,
+        )
+        column = ElementHandler().create_element(
+            column_element, builder.shared_page, parent_element_id=header.id
+        )
+        ElementHandler().create_element(
+            link_element_type,
+            builder.shared_page,
+            parent_element_id=column.id,
+            place_in_container="0",
+            value='"Home"',
+            variant="link",
+            navigation_type="page",
+            navigate_to_page_id=homepage.id,
         )

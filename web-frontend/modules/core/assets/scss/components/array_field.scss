@@ -49,7 +49,8 @@
   height: 22px;
 }
 
-.array-field__multiple-select-container {
+.array-field__multiple-select-container,
+.array-field__multiple-collaborators-container {
   display: contents;
 
   .row-modal__field-item &,

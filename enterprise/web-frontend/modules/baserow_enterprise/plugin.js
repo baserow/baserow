@@ -30,6 +30,7 @@ import { LocalBaserowUserSourceType } from '@baserow_enterprise/integrations/use
 import {
   LocalBaserowPasswordAppAuthProviderType,
   SamlAppAuthProviderType,
+  OpenIdConnectAppAuthProviderType,
 } from '@baserow_enterprise/integrations/appAuthProviderTypes'
 import { AuthFormElementType } from '@baserow_enterprise/builder/elementTypes'
 import {
@@ -126,6 +127,10 @@ export default (context) => {
     app.$registry.register(
       'appAuthProvider',
       new SamlAppAuthProviderType(context)
+    )
+    app.$registry.register(
+      'appAuthProvider',
+      new OpenIdConnectAppAuthProviderType(context)
     )
   }
 

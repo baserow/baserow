@@ -3,10 +3,19 @@
   width: 40px;
   padding: 0 3px;
   border: 1px solid transparent;
+  position: relative;
 
   @include rounded($rounded);
 
   &--invalid {
     border-color: $palette-red-600;
   }
+}
+
+.preview-navigation-bar__parameter-input--numeric,
+.preview-navigation-bar__parameter-input--text,
+.preview-navigation-bar__query-parameter-input--text,
+.preview-navigation-bar__query-parameter-input--numeric {
+  padding: 0 2px;
+  white-space: nowrap;
 }

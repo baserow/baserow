@@ -109,10 +109,10 @@ def setup_interesting_test_table(
         ).order_by("id")
     except ValueError:
         user2 = data_fixture.create_user(
-            workspace=database.workspace, email="user2@example.com"
+            workspace=database.workspace, first_name="User2", email="user2@example.com"
         )
         user3 = data_fixture.create_user(
-            workspace=database.workspace, email="user3@example.com"
+            workspace=database.workspace, first_name="User3", email="user3@example.com"
         )
 
     table = data_fixture.create_database_table(
@@ -133,8 +133,15 @@ def setup_interesting_test_table(
     file_link_table = data_fixture.create_database_table(
         database=database, user=user, name="file_link_table"
     )
+    multiple_collaborators_link_table = data_fixture.create_database_table(
+        database=database, user=user, name="multiple_collaborators_link_table"
+    )
     all_possible_kwargs_per_type = construct_all_possible_field_kwargs(
-        table, link_table, decimal_link_table, file_link_table
+        table,
+        link_table,
+        decimal_link_table,
+        file_link_table,
+        multiple_collaborators_link_table,
     )
     name_to_field_id = {}
     i = 0
@@ -149,6 +156,13 @@ def setup_interesting_test_table(
         table=file_link_table,
         name="file_field",
         primary=True,
+    )
+    multiple_collaborators_table_primary_field = (
+        data_fixture.create_multiple_collaborators_field(
+            table=multiple_collaborators_link_table,
+            name="multiple_collaborators",
+            primary=True,
+        )
     )
     handler = FieldHandler()
     fields = {}
@@ -217,6 +231,7 @@ def setup_interesting_test_table(
         "link_row_without_related": None,
         "decimal_link_row": None,
         "file_link_row": None,
+        "multiple_collaborators_link_row": None,
         "file": [
             {
                 "name": f"hashed{file_suffix}_name.txt",
@@ -279,6 +294,7 @@ def setup_interesting_test_table(
             "autonumber",
             "duration_rollup_avg",
             "duration_rollup_sum",
+            "multiple_collaborators_lookup",
         }
     )
     assert missing_fields == set(), (
@@ -300,12 +316,12 @@ def setup_interesting_test_table(
         uuid_field = getattr(model, f"field_{name_to_field_id['uuid']}")
         uuid_field.field.default = uuid4_generator()
 
-        blank_row, row = row_handler.create_rows(
+        blank_row, row = row_handler.force_create_rows(
             user, table, [{}, row_values], model=model
         )
 
     # Setup the link rows
-    linked_row_1, linked_row_2, linked_row_3 = row_handler.create_rows(
+    linked_row_1, linked_row_2, linked_row_3 = row_handler.force_create_rows(
         user=user,
         table=link_table,
         rows_values=[
@@ -322,7 +338,7 @@ def setup_interesting_test_table(
             },
         ],
     )
-    linked_row_4, linked_row_5, linked_row_6 = row_handler.create_rows(
+    linked_row_4, linked_row_5, linked_row_6 = row_handler.force_create_rows(
         user=user,
         table=decimal_link_table,
         rows_values=[
@@ -343,19 +359,36 @@ def setup_interesting_test_table(
             unique=f"test{file_suffix}",
             sha256_hash=f"hash{file_suffix}",
         )
-    linked_row_7 = row_handler.create_row(
+    linked_row_7, linked_row_8 = row_handler.force_create_rows(
         user=user,
         table=file_link_table,
-        values={
-            file_link_table_primary_file_field.id: [{"name": user_file_1.name}],
-        },
+        rows_values=[
+            {
+                file_link_table_primary_file_field.db_column: [
+                    {"name": user_file_1.name}
+                ],
+            },
+            {
+                file_link_table_primary_file_field.db_column: None,
+            },
+        ],
     )
-    linked_row_8 = row_handler.create_row(
+    link_row_9, link_row_10 = row_handler.force_create_rows(
         user=user,
-        table=file_link_table,
-        values={
-            file_link_table_primary_file_field.id: None,
-        },
+        table=multiple_collaborators_link_table,
+        rows_values=[
+            {
+                multiple_collaborators_table_primary_field.db_column: [
+                    {"id": user2.id, "name": user2.first_name},
+                    {"id": user3.id, "name": user3.first_name},
+                ],
+            },
+            {
+                multiple_collaborators_table_primary_field.db_column: [
+                    {"id": user2.id, "name": user2.first_name},
+                ],
+            },
+        ],
     )
 
     link_row_field_id = name_to_field_id["link_row"]
@@ -363,6 +396,7 @@ def setup_interesting_test_table(
     self_link_row_field_id = name_to_field_id["self_link_row"]
     decimal_row_field_id = name_to_field_id["decimal_link_row"]
     file_link_row_id = name_to_field_id["file_link_row"]
+    multiple_collaborator_row_id = name_to_field_id["multiple_collaborators_link_row"]
     with freeze_time("2021-01-02 12:00"):
         handler = RowHandler()
         row = handler.update_row_by_id(
@@ -386,6 +420,10 @@ def setup_interesting_test_table(
                     linked_row_6.id,
                 ],
                 f"field_{file_link_row_id}": [linked_row_7.id, linked_row_8.id],
+                f"field_{multiple_collaborator_row_id}": [
+                    link_row_9.id,
+                    link_row_10.id,
+                ],
             },
         )
 

@@ -3,6 +3,7 @@
     <div class="row">
       <div class="col col-12">
         <FormGroup
+          v-if="enableViewsDropdown"
           small-label
           :label="$t('exportTableForm.viewLabel')"
           required
@@ -74,6 +75,11 @@ export default {
     loading: {
       type: Boolean,
       required: true,
+    },
+    enableViewsDropdown: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   data() {

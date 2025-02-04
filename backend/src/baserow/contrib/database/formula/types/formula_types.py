@@ -69,6 +69,7 @@ from baserow.contrib.database.formula.types.formula_type import (
     BaserowFormulaValidType,
     UnTyped,
 )
+from baserow.core.db import collate_expression
 from baserow.core.storage import get_default_storage
 from baserow.core.utils import list_to_comma_separated_string
 
@@ -134,6 +135,9 @@ class BaserowFormulaBaseTextType(BaserowFormulaTypeHasEmptyBaserowExpression):
     ) -> "BaserowExpression[BaserowFormulaValidType]":
         return literal("")
 
+    def _get_order_field_expression(self, field_name: str) -> Expression | F:
+        return collate_expression(F(field_name))
+
 
 class BaserowFormulaTextType(
     HasValueEmptyFilterSupport,
@@ -172,8 +176,10 @@ class BaserowFormulaTextType(
             return super().cast_to_text(to_text_func_call, arg)
 
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
-        return JSONBSingleKeyArrayExpression(
-            field_name, "value", "text", output_field=models.TextField()
+        return collate_expression(
+            JSONBSingleKeyArrayExpression(
+                field_name, "value", "text", output_field=models.TextField()
+            )
         )
 
 
@@ -189,8 +195,10 @@ class BaserowFormulaCharType(BaserowFormulaTextType, BaserowFormulaValidType):
     can_group_by = True
 
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
-        return JSONBSingleKeyArrayExpression(
-            field_name, "value", "text", output_field=models.TextField()
+        return collate_expression(
+            JSONBSingleKeyArrayExpression(
+                field_name, "value", "text", output_field=models.TextField()
+            )
         )
 
     def placeholder_empty_baserow_expression(
@@ -1143,20 +1151,18 @@ class BaserowFormulaArrayType(
         multiple_select_agg = formula_function_registry.get(
             "multiple_select_options_agg"
         )
-        string_agg_array_of_multiple_select_values = formula_function_registry.get(
-            "string_agg_array_of_multiple_select_values"
-        )
+        many_to_many_agg = formula_function_registry.get("many_to_many_agg")
 
         sub_type = expr.expression_type.sub_type
         if isinstance(arg, BaserowFunctionCall):
-            if arg.function_def.type in (single_unnest.type, multiple_select_agg.type):
+            if arg.function_def.type in (
+                single_unnest.type,
+                multiple_select_agg.type,
+                many_to_many_agg.type,
+            ):
                 arg = arg.args[0]
             elif arg.function_def.type == double_unnest.type:
                 arg = arg.args[0]
-                sub_type = BaserowFormulaArrayType(sub_type)
-            elif (
-                arg.function_def.type == string_agg_array_of_multiple_select_values.type
-            ):
                 sub_type = BaserowFormulaArrayType(sub_type)
         elif isinstance(arg, BaserowFieldReference):
             sub_type = BaserowFormulaArrayType(sub_type)
@@ -1222,6 +1228,7 @@ class BaserowFormulaArrayType(
             "field": field_instance,
             "type": field_type,
             "name": field_object["name"],
+            "formula_field": field_object["formula_field"],
         }
 
         result = self._map_safely_across_lookup_json_value_list(
@@ -1251,6 +1258,7 @@ class BaserowFormulaArrayType(
             "field": field_instance,
             "type": field_type,
             "name": field_object["name"],
+            "formula_field": field_object["formula_field"],
         }
 
         human_readable_values = self._map_safely_across_lookup_json_value_list(
@@ -1458,7 +1466,7 @@ class BaserowFormulaSingleSelectType(
     def get_order(
         self, field, field_name, order_direction, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
-        field_expr = F(f"{field_name}__value")
+        field_expr = collate_expression(Cast(F(f"{field_name}__value"), TextField()))
 
         if order_direction == "ASC":
             field_order_by = field_expr.asc(nulls_first=True)
@@ -1595,7 +1603,7 @@ class BaserowFormulaMultipleSelectType(
         arg: "BaserowExpression[BaserowFormulaValidType]",
     ) -> "BaserowExpression[BaserowFormulaType]":
         join_multiple_select_values = formula_function_registry.get(
-            "string_agg_multiple_select_values"
+            "string_agg_many_to_many_values"
         )
         when_empty = formula_function_registry.get("when_empty")
         return when_empty(join_multiple_select_values(arg), literal(""))
@@ -1606,24 +1614,155 @@ class BaserowFormulaMultipleSelectType(
         arg: BaserowExpression[BaserowFormulaValidType],
     ) -> BaserowExpression[BaserowFormulaBooleanType]:
         equal_expr = formula_function_registry.get("equal")
-        count_expr = formula_function_registry.get("multiple_select_count")
+        count_expr = formula_function_registry.get("many_to_many_count")
         return equal_expr(count_expr(arg), literal(0))
 
     def collapse_many(self, expr: BaserowExpression[BaserowFormulaType]):
-        return formula_function_registry.get("multiple_select_options_agg")(expr)
+        return formula_function_registry.get("many_to_many_agg")(expr)
 
     def count(
         self,
         func_call: BaserowFunctionCall[UnTyped],
         arg: BaserowExpression[BaserowFormulaValidType],
     ) -> BaserowExpression[BaserowFormulaType]:
-        return formula_function_registry.get("multiple_select_count")(arg)
+        return formula_function_registry.get("many_to_many_count")(arg)
 
     def contains_query(self, field_name, value, model_field, field):
         return get_jsonb_contains_filter_expr(model_field, value)
 
     def contains_word_query(self, field_name, value, model_field, field):
         return get_jsonb_contains_word_filter_expr(model_field, value)
+
+
+class BaserowFormulaMultipleCollaboratorsType(BaserowJSONBObjectBaseType):
+    type = "multiple_collaborators"
+    baserow_field_type = "multiple_collaborators"
+    can_order_by = False
+    can_order_by_in_array = False
+    can_group_by = False
+
+    @property
+    def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
+        return [type(self)]
+
+    @property
+    def limit_comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
+        return []
+
+    def get_baserow_field_instance_and_type(self):
+        return self, self
+
+    def get_alter_column_prepare_old_value(self, connection, from_field, to_field):
+        return "p_in = '';"
+
+    @property
+    def can_represent_select_options(self) -> bool:
+        return True
+
+    @property
+    def db_column_fields(self) -> Set[str]:
+        return {}
+
+    def get_model_field(self, instance, **kwargs) -> models.Field:
+        return JSONField(default=list, **kwargs)
+
+    def get_response_serializer_field(self, instance, **kwargs) -> Optional[Field]:
+        instance, field_type = super().get_baserow_field_instance_and_type()
+        return field_type.get_response_serializer_field(instance, **kwargs)
+
+    def get_serializer_field(self, *args, **kwargs) -> Optional[Field]:
+        instance, field_type = super().get_baserow_field_instance_and_type()
+        return field_type.get_response_serializer_field(instance, **kwargs)
+
+    def get_export_value(self, value, field_object, rich_value=False):
+        _, field_type = super().get_baserow_field_instance_and_type()
+
+        cache_key = f"_baserow_cache_{field_object['name']}_relations"
+        field = field_object["formula_field"]
+        if not hasattr(field, cache_key):
+            setattr(
+                field,
+                cache_key,
+                list(field.table.database.workspace.users.order_by("id").all()),
+            )
+
+        user_ids = set((item["id"] for item in value))
+        workspace_users = getattr(field, cache_key)
+        value = [user for user in workspace_users if user.id in user_ids]
+
+        return field_type.get_export_value(value, field_object, rich_value=rich_value)
+
+    def get_human_readable_value(self, value, field_object):
+        export_value = self.get_export_value(value, field_object, rich_value=True)
+
+        return ", ".join(export_value)
+
+    def is_searchable(self, field):
+        return True
+
+    def get_search_expression(self, field, queryset):
+        return extract_jsonb_array_values_to_single_string(
+            field, queryset, [Value("first_name")]
+        )
+
+    def get_search_expression_in_array(self, field, queryset):
+        inner_expr = json_extract_path(
+            Func(
+                F(field.db_column),
+                function="jsonb_array_elements",
+                output_field=JSONField(),
+            ),
+            [Value("value")],
+            False,
+        )
+
+        return Func(
+            extract_jsonb_list_values_to_array(
+                queryset, inner_expr, [Value("first_name")]
+            ),
+            Value(" "),
+            function="array_to_string",
+            output_field=TextField(),
+        )
+
+    def cast_to_text(
+        self,
+        to_text_func_call: "BaserowFunctionCall[UnTyped]",
+        arg: "BaserowExpression[BaserowFormulaValidType]",
+    ) -> "BaserowExpression[BaserowFormulaType]":
+        join_multiple_select_values = formula_function_registry.get(
+            "string_agg_many_to_many_values"
+        )
+        when_empty = formula_function_registry.get("when_empty")
+        return when_empty(join_multiple_select_values(arg), literal(""))
+
+    def is_blank(
+        self,
+        func_call: BaserowFunctionCall[UnTyped],
+        arg: BaserowExpression[BaserowFormulaValidType],
+    ) -> BaserowExpression[BaserowFormulaBooleanType]:
+        equal_expr = formula_function_registry.get("equal")
+        count_expr = formula_function_registry.get("many_to_many_count")
+        return equal_expr(count_expr(arg), literal(0))
+
+    def collapse_many(self, expr: BaserowExpression[BaserowFormulaType]):
+        return formula_function_registry.get("many_to_many_agg")(expr)
+
+    def count(
+        self,
+        func_call: BaserowFunctionCall[UnTyped],
+        arg: BaserowExpression[BaserowFormulaValidType],
+    ) -> BaserowExpression[BaserowFormulaType]:
+        return formula_function_registry.get("many_to_many_count")(arg)
+
+    @property
+    def custom_string_agg_value_key(self):
+        """
+        The key in the JSON object that contains the value that should be used for
+        string aggregation.
+        """
+
+        return "first_name"
 
 
 BASEROW_FORMULA_TYPES = [
@@ -1642,6 +1781,7 @@ BASEROW_FORMULA_TYPES = [
     BaserowFormulaMultipleSelectType,
     BaserowFormulaSingleFileType,
     BaserowFormulaURLType,
+    BaserowFormulaMultipleCollaboratorsType,
 ]
 
 BASEROW_FORMULA_TYPE_ALLOWED_FIELDS = list(

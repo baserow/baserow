@@ -5,24 +5,20 @@
   padding: 6px 10px;
   width: 100%;
   border-bottom: solid 1px $color-neutral-200;
-  display: grid;
-  grid-auto-columns: 1fr;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-
-  .preview-navigation-bar__address-bar-parameter-input--text {
-    width: 110px;
-  }
+  display: flex;
+  gap: 10px;
 
   .page-preview__wrapper--smartphone & {
-    display: flex;
     flex-direction: column;
     align-items: center;
   }
 }
 
 .preview-navigation-bar__user-selector {
+  width: fit-content;
+  flex-shrink: 0;
+
   .page-preview__wrapper--smartphone & {
-    // Moving the user selector after the path when in smartphone mode
     order: 2;
   }
 }
@@ -31,10 +27,11 @@
   border-radius: 2px;
   padding: 3px 12px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
   min-height: 25px;
+  flex: 1;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .preview-navigation-bar__address-bar-path {

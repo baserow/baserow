@@ -658,7 +658,7 @@ class LocalBaserowUserSourceType(UserSourceType):
             )
         except Exception as e:
             logger.exception(e)
-            raise ("Error while creating the user") from e
+            raise UserSourceImproperlyConfigured("Error while creating the user") from e
 
         return UserSourceUser(
             user_source,

@@ -89,10 +89,9 @@ class SamlAuthProviderTypeMixin:
         SamlProviderForDomainAlreadyExists: ERROR_SAML_PROVIDER_FOR_DOMAIN_ALREADY_EXISTS
     }
 
-    @classmethod
     @abstractmethod
     def get_acs_absolute_url(
-        cls, auth_provider: "SamlAuthProviderTypeMixin | None" = None
+        self, auth_provider: "SamlAuthProviderTypeMixin | None" = None
     ):
         """
         Returns the ACS url for SAML authentication purpose. The user is redirected
@@ -170,9 +169,8 @@ class SamlAuthProviderType(SamlAuthProviderTypeMixin, AuthProviderType):
             validate_unique_saml_domain(values["domain"], provider)
         return super().before_update(user, provider, **values)
 
-    @classmethod
     def get_acs_absolute_url(
-        cls, auth_provider: SamlAuthProviderTypeMixin | None = None
+        self, auth_provider: SamlAuthProviderTypeMixin | None = None
     ):
         return urljoin(
             settings.PUBLIC_BACKEND_URL, reverse("api:enterprise_sso_saml:acs")

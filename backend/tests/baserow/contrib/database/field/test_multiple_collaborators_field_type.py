@@ -3,6 +3,8 @@ from io import BytesIO
 
 from django.apps.registry import apps
 from django.contrib.auth import get_user_model
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from faker import Faker
@@ -11,6 +13,7 @@ from baserow.contrib.database.fields.field_types import MultipleCollaboratorsFie
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import MultipleCollaboratorsField
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.search.handler import SearchHandler, SearchModes
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.handler import CoreHandler
 from baserow.core.models import WORKSPACE_USER_PERMISSION_ADMIN, WorkspaceUser
@@ -584,6 +587,7 @@ def test_multiple_collaborators_are_row_values_equal(
 
 
 @pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
 def test_multiple_collaborators_field_type_get_order_collate(data_fixture):
     workspace = data_fixture.create_workspace()
     user = data_fixture.create_user(workspace=workspace)
@@ -650,3 +654,286 @@ def test_multiple_collaborators_field_type_get_order_collate(data_fixture):
         result += all_collaborators[0].first_name
 
     assert result == sorted_chars
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_multiple_collaborators_field_type_can_be_referenced_in_formula(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+
+    row_handler = RowHandler()
+
+    field_name = "Collaborator 1"
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        user=user, table=table, name=field_name
+    )
+    field_id = collaborator_field.db_column
+
+    row = row_handler.force_create_row(
+        user=user, table=table, values={field_id: [{"id": user.id}]}
+    )
+
+    ref_collaborator_field = data_fixture.create_formula_field(
+        user=user,
+        table=table,
+        name="Ref Collaborator",
+        formula=f"field('{field_name}')",
+    )
+    row = table.get_model().objects.first()
+    assert getattr(row, ref_collaborator_field.db_column) == [
+        {"id": user.id, "first_name": user.first_name}
+    ]
+
+    ref_ref_collaborator_field = data_fixture.create_formula_field(
+        user=user,
+        table=table,
+        name="Ref Ref Collaborator",
+        formula=f"field('{ref_collaborator_field.name}')",
+    )
+    row = table.get_model().objects.first()
+    assert getattr(row, ref_ref_collaborator_field.db_column) == [
+        {"id": user.id, "first_name": user.first_name}
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_multiple_collaborators_field_type_can_be_looked_up(data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+
+    row_handler = RowHandler()
+
+    field_name = "Collaborator 1"
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        user=user, table=table_b, name=field_name
+    )
+    lookup_field = data_fixture.create_lookup_field(
+        user=user,
+        name="lookup",
+        table=table_a,
+        through_field=link_a_to_b,
+        target_field=collaborator_field,
+        through_field_name=link_a_to_b.name,
+        target_field_name=collaborator_field.name,
+    )
+    ref_lookup_field = data_fixture.create_formula_field(
+        user=user,
+        table=table_a,
+        name="Ref Lookup",
+        formula=f"field('{lookup_field.name}')",
+    )
+    row_b = row_handler.force_create_row(
+        user=user,
+        table=table_b,
+        values={collaborator_field.db_column: [{"id": user.id}]},
+    )
+    row_a_to_b = row_handler.force_create_row(
+        user=user, table=table_a, values={link_a_to_b.db_column: [row_b.id]}
+    )
+    row_a = table_a.get_model().objects.first()
+    expected_content = [
+        {"id": row_a_to_b.id, "value": [{"id": user.id, "first_name": user.first_name}]}
+    ]
+    assert getattr(row_a, lookup_field.db_column) == expected_content
+    assert getattr(row_a, ref_lookup_field.db_column) == expected_content
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_multiple_collaborators_field_type_can_be_counted(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+
+    row_handler = RowHandler()
+
+    field_name = "Collaborator 1"
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        user=user, table=table, name=field_name
+    )
+    count_formula_field = data_fixture.create_formula_field(
+        user=user,
+        table=table,
+        name="Ref Lookup",
+        formula=f"count(field('{collaborator_field.name}'))",
+    )
+    row = row_handler.force_create_row(
+        user=user, table=table, values={collaborator_field.db_column: [{"id": user.id}]}
+    )
+
+    assert getattr(row, count_formula_field.db_column) == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_multiple_collaborators_field_type_values_can_be_stringified(data_fixture):
+    user = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(members=[user, user_2])
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+
+    row_handler = RowHandler()
+
+    field_name = "Collaborator 1"
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        user=user, table=table, name=field_name
+    )
+    totext_collab_field = data_fixture.create_formula_field(
+        user=user,
+        table=table,
+        name="Ref Lookup",
+        formula=f"totext(field('{collaborator_field.name}'))",
+    )
+    row = row_handler.force_create_row(
+        user=user,
+        table=table,
+        values={collaborator_field.db_column: [{"id": user.id}, {"id": user_2.id}]},
+    )
+
+    assert (
+        getattr(row, totext_collab_field.db_column)
+        == f"{user.first_name}, {user_2.first_name}"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_multiple_collaborators_field_type_values_can_be_searched(data_fixture):
+    mario = data_fixture.create_user(first_name="Mario")
+    luigi = data_fixture.create_user(first_name="Luigi")
+    workspace = data_fixture.create_workspace(members=[mario, luigi])
+    database = data_fixture.create_database_application(user=mario, workspace=workspace)
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(
+        user=mario, database=database
+    )
+
+    row_handler = RowHandler()
+
+    field_name = "Collaborator 1"
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        user=mario, table=table_b, name=field_name
+    )
+    ref_collaborator_field = data_fixture.create_formula_field(
+        user=mario,
+        table=table_b,
+        name="Ref Collaborator",
+        formula=f"field('{collaborator_field.name}')",
+    )
+    lookup_field = data_fixture.create_lookup_field(
+        user=mario,
+        name="lookup",
+        table=table_a,
+        through_field=link_a_to_b,
+        target_field=ref_collaborator_field,
+        through_field_name=link_a_to_b.name,
+        target_field_name=ref_collaborator_field.name,
+    )
+    ref_lookup_field = data_fixture.create_formula_field(
+        user=mario,
+        table=table_a,
+        name="Ref Lookup",
+        formula=f"field('{lookup_field.name}')",
+    )
+    rows_b = row_handler.force_create_rows(
+        user=mario,
+        table=table_b,
+        rows_values=[
+            {},
+            {collaborator_field.db_column: [{"id": mario.id}]},
+            {collaborator_field.db_column: [{"id": luigi.id}]},
+            {collaborator_field.db_column: [{"id": mario.id}, {"id": luigi.id}]},
+        ],
+    )
+    rows_a_to_b = row_handler.force_create_rows(
+        user=mario,
+        table=table_a,
+        rows_values=[{link_a_to_b.db_column: [row_b.id]} for row_b in rows_b],
+    )
+
+    # search in B
+    model_b = table_b.get_model()
+    SearchHandler.update_tsvector_columns(table_b, False)
+    for collab_field in [collaborator_field, ref_collaborator_field]:
+        found_rows_b = model_b.objects.all().search_all_fields(
+            "Mario", [collab_field.id], SearchModes.MODE_FT_WITH_COUNT
+        )
+        assert [r.id for r in found_rows_b] == [rows_b[1].id, rows_b[3].id]
+
+    # search in A
+    model_a = table_a.get_model()
+    SearchHandler.update_tsvector_columns(table_a, False)
+    for collab_field in [lookup_field, ref_lookup_field]:
+        found_rows_a = model_a.objects.all().search_all_fields(
+            "Mario", [collab_field.id], SearchModes.MODE_FT_WITH_COUNT
+        )
+        assert [r.id for r in found_rows_a] == [rows_a_to_b[1].id, rows_a_to_b[3].id]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_multiple_collaborators_formula_field_cache_users_query(data_fixture):
+    # This tests ensure the query to get users details needed to export a formula
+    # field is done only once for the first row and then cached.
+    user = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    user_3 = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(members=[user, user_2, user_3])
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+
+    row_handler = RowHandler()
+
+    field_name = "Collaborator 1"
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        user=user, table=table, name=field_name
+    )
+    field_id = collaborator_field.db_column
+    ref_collaborator_field = data_fixture.create_formula_field(
+        user=user,
+        table=table,
+        name="Ref Collaborator",
+        formula=f"field('{field_name}')",
+    )
+
+    table_model = table.get_model()
+    first_row = row_handler.force_create_row(
+        user=user, table=table, values={field_id: [{"id": user.id}]}, model=table_model
+    )
+
+    field_objects = list(table_model._field_objects.values())
+
+    def export_row(row):
+        for field_object in field_objects:
+            field_object["type"].get_human_readable_value(
+                getattr(row, field_object["name"]), field_object
+            )
+
+    # Let's count the number of queries to export one row
+    with CaptureQueriesContext(connection) as queries_for_first:
+        export_row(first_row)
+
+    assert len(queries_for_first.captured_queries) == 4
+
+    other_rows = row_handler.force_create_rows(
+        user=user,
+        table=table,
+        rows_values=[
+            {field_id: [{"id": user.id}]},
+            {field_id: [{"id": user_2.id}]},
+            {field_id: [{"id": user_3.id}]},
+            {field_id: [{"id": user.id}, {"id": user_2.id}]},
+            {field_id: [{"id": user_2.id}, {"id": user_3.id}]},
+        ],
+        model=table_model,
+    )
+
+    # The number of queries should not increas as we export more rows
+    with CaptureQueriesContext(connection) as queries_for_all_others:
+        for row in other_rows:
+            export_row(row)
+
+    assert len(queries_for_all_others.captured_queries) == 0

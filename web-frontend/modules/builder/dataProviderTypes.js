@@ -4,7 +4,10 @@ import { getValueAtPath } from '@baserow/modules/core/utils/object'
 
 import { defaultValueForParameterType } from '@baserow/modules/builder/utils/params'
 import { DEFAULT_USER_ROLE_PREFIX } from '@baserow/modules/builder/constants'
-import { PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS } from '@baserow/modules/builder/enums'
+import {
+  PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS,
+  QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS,
+} from '@baserow/modules/builder/enums'
 import { extractSubSchema } from '@baserow/modules/core/utils/schema'
 
 export class DataSourceDataProviderType extends DataProviderType {
@@ -288,30 +291,34 @@ export class PageParameterDataProviderType extends DataProviderType {
 
   async init(applicationContext) {
     const { page, mode, pageParamsValue } = applicationContext
+    const pageParams = [...page.path_params, ...page.query_params]
 
+    // Read parameters value from the application context
+    const queryParamNames = page.query_params.map((p) => p.name)
     if (mode === 'editing') {
       // Generate fake values for the parameters
       await Promise.all(
-        page.path_params.map(({ name, type }) =>
-          this.app.store.dispatch('pageParameter/setParameter', {
+        pageParams.map(({ name, type }) => {
+          const isQuery = queryParamNames.includes(name)
+          return this.app.store.dispatch('pageParameter/setParameter', {
             page,
             name,
-            value: defaultValueForParameterType(type),
+            value: isQuery ? null : defaultValueForParameterType(type),
           })
-        )
+        })
       )
     } else {
-      // Read parameters value from the application context
       await Promise.all(
-        page.path_params.map(({ name, type }) =>
-          this.app.store.dispatch('pageParameter/setParameter', {
+        pageParams.map(({ name, type }) => {
+          const validators = queryParamNames.includes(name)
+            ? QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS
+            : PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS
+          return this.app.store.dispatch('pageParameter/setParameter', {
             page,
             name,
-            value: PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS[type](
-              pageParamsValue[name]
-            ),
+            value: validators[type](pageParamsValue[name]),
           })
-        )
+        })
       )
     }
   }
@@ -338,11 +345,15 @@ export class PageParameterDataProviderType extends DataProviderType {
   getDataSchema(applicationContext) {
     const page = applicationContext.page
     const toJSONType = { text: 'string', numeric: 'number' }
+    const mergedParams = [
+      ...(page?.path_params || []),
+      ...(page?.query_params || []),
+    ]
 
     return {
       type: 'object',
       properties: Object.fromEntries(
-        (page?.path_params || []).map(({ name, type }) => [
+        mergedParams.map(({ name, type }) => [
           name,
           {
             title: name,

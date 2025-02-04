@@ -28,12 +28,15 @@ def test_create_app_auth_provider(
     user = data_fixture.create_user()
     user_source = data_fixture.create_user_source_with_first_type(user=user)
 
-    app_auth_provider = AppAuthProviderHandler.create_app_auth_provider(
-        user,
-        app_auth_provider_type,
-        user_source,
-        **app_auth_provider_type.prepare_values({}, user),
-    )
+    with app_auth_provider_type.apply_patch_pytest():
+        app_auth_provider = AppAuthProviderHandler.create_app_auth_provider(
+            user,
+            app_auth_provider_type,
+            user_source,
+            **app_auth_provider_type.prepare_values(
+                app_auth_provider_type.get_pytest_params(data_fixture), user
+            ),
+        )
 
     assert app_auth_provider.user_source.id == user_source.id
     assert AppAuthProvider.objects.count() == 1

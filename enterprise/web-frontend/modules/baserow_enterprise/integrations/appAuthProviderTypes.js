@@ -1,10 +1,16 @@
 import { AppAuthProviderType } from '@baserow/modules/core/appAuthProviderTypes'
-import { SamlAuthProviderTypeMixin } from '@baserow_enterprise/authProviderTypes'
+import {
+  SamlAuthProviderTypeMixin,
+  OAuth2AuthProviderTypeMixin,
+} from '@baserow_enterprise/authProviderTypes'
 
 import LocalBaserowUserSourceForm from '@baserow_enterprise/integrations/localBaserow/components/appAuthProviders/LocalBaserowPasswordAppAuthProviderForm'
 import LocalBaserowAuthPassword from '@baserow_enterprise/integrations/localBaserow/components/appAuthProviders/LocalBaserowAuthPassword'
 import CommonSamlSettingForm from '@baserow_enterprise/integrations/common/components/CommonSamlSettingForm'
+import CommonOIDCSettingForm from '@baserow_enterprise/integrations/common/components/CommonOIDCSettingForm'
 import SamlAuthLink from '@baserow_enterprise/integrations/common/components/SamlAuthLink'
+import OIDCAuthLink from '@baserow_enterprise/integrations/common/components/OIDCAuthLink'
+import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg'
 import { PasswordFieldType } from '@baserow/modules/database/fieldTypes'
 
 export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType {
@@ -105,7 +111,13 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
     // We use the user source id in order to prevent conflicts when using multiple
     // auth forms on the same page.
     const queryParamName = `user_source_saml_token__${userSource.id}`
-    return route.query[queryParamName]
+    const found = route.query[queryParamName]
+    if (found) {
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.delete(queryParamName)
+      window.history.replaceState({}, document.title, currentUrl.toString())
+    }
+    return found
   }
 
   handleError(userSource, authProvider, route) {
@@ -116,7 +128,105 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
     }
   }
 
+  getRelayStateUrls(userSource) {
+    const application = this.app.store.getters['application/get'](
+      userSource.application_id
+    )
+    const applicationType = this.app.$registry.get(
+      'application',
+      application.type
+    )
+    return applicationType.getFrontendUrls()
+  }
+
+  getAcsUrl(userSource) {
+    return `${this.app.$config.PUBLIC_BACKEND_URL}/api/user-source/sso/saml/acs/`
+  }
+
   getOrder() {
     return 20
+  }
+}
+
+export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixin(
+  AppAuthProviderType
+) {
+  static getType() {
+    return 'openid_connect'
+  }
+
+  getIcon() {
+    return OpenIdIcon
+  }
+
+  getName() {
+    return this.app.i18n.t('appAuthProviderType.openIdConnect')
+  }
+
+  getProviderName(provider) {
+    if (provider.name) {
+      return provider.name
+    } else {
+      return this.app.i18n.t(
+        'authProviderTypes.ssoOIDCProviderNameUnconfigured'
+      )
+    }
+  }
+
+  get component() {
+    return OIDCAuthLink
+  }
+
+  get formComponent() {
+    return CommonOIDCSettingForm
+  }
+
+  getAuthToken(userSource, authProvider, route, router) {
+    // token can be in the query string (SSO) or in the cookies (previous session)
+    // We use the user source id in order to prevent conflicts when using multiple
+    // auth forms on the same page.
+    const queryParamName = `user_source_oidc_token__${userSource.id}`
+    const found = route.query[queryParamName]
+    if (found) {
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.delete(queryParamName)
+      window.history.replaceState({}, document.title, currentUrl.toString())
+    }
+    return found
+  }
+
+  handleServerError(vueComponentInstance, error) {
+    if (error.handler.code !== 'ERROR_REQUEST_BODY_VALIDATION') return false
+
+    if (error.handler.detail?.auth_providers?.length > 0) {
+      const flatProviders = Object.entries(vueComponentInstance.authProviders)
+        .map(([, providers]) => providers)
+        .flat()
+        // Sort per ID to make sure we have the same order
+        // as the backend
+        .sort((a, b) => a.id - b.id)
+
+      for (const [
+        index,
+        authError,
+      ] of error.handler.detail.auth_providers.entries()) {
+        if (
+          Object.keys(authError).length > 0 &&
+          flatProviders[index].id === vueComponentInstance.authProvider.id
+        ) {
+          vueComponentInstance.serverErrors = {
+            ...vueComponentInstance.serverErrors,
+            ...authError,
+          }
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
+  getOrder() {
+    return 50
   }
 }

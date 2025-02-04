@@ -284,6 +284,7 @@ import {
   BaserowFormulaNumberType,
   BaserowFormulaSingleSelectType,
   BaserowFormulaMultipleSelectType,
+  BaserowFormulaMultipleCollaboratorsType,
   BaserowFormulaSpecialType,
   BaserowFormulaTextType,
   BaserowFormulaFileType,
@@ -914,6 +915,10 @@ export default (context) => {
   app.$registry.register('formula_type', new BaserowFormulaButtonType(context))
   app.$registry.register('formula_type', new BaserowFormulaLinkType(context))
   app.$registry.register('formula_type', new BaserowFormulaFileType(context))
+  app.$registry.register(
+    'formula_type',
+    new BaserowFormulaMultipleCollaboratorsType(context)
+  )
 
   // File preview types
   app.$registry.register('preview', new ImageFilePreview(context))
