@@ -271,7 +271,19 @@
         "isAfter": "이후임",
         "isOnOrBefore": "이전 또는 같음",
         "isOnOrAfter": "이후 또는 같음",
-        "isWithin": "이내임"
+        "isWithin": "이내임",
+        "hasDateEqual": "날짜가 동일함",
+        "hasNotDateEqual": "날짜가 동일하지 않음",
+        "hasNotDateBefore": "날짜가 이전이 아님",
+        "hasNotDateOnOrBefore": "날짜가 이전 또는 같지 않음",
+        "hasDateAfter": "날짜가 이후임",
+        "hasNotDateOnOrAfter": "날짜가 이후 또는 같지 않음",
+        "hasDateWithin": "날짜가 범위 내에 있음",
+        "hasNotDateWithin": "날짜가 범위 내에 없음",
+        "hasDateBefore": "날짜가 이전임",
+        "hasDateOnOrBefore": "날짜가 이전 또는 같음",
+        "hasNotDateAfter": "날짜가 이후가 아님",
+        "hasDateOnOrAfter": "날짜가 이후 또는 같음"
     },
     "viewType": {
         "grid": "그리드",
