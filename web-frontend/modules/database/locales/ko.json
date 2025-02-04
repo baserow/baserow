@@ -746,7 +746,8 @@
         "median": "중앙값",
         "stdDev": "표준 편차",
         "stdDevShort": "표준 편차",
-        "variance": "분산"
+        "variance": "분산",
+        "count": "개수"
     },
     "databaseForm": {
         "importLabel": "기존 데이터를 가져오시겠습니까?",
@@ -771,7 +772,9 @@
         "stateImportingTable": "테이블 {table} 가져오는 중",
         "errorJobAlreadyRunningTitle": "이미 실행 중",
         "errorJobAlreadyRunningDescription": "다른 가져오기 작업이 이미 실행 중입니다. 다른 작업을 시작하려면 해당 작업이 완료될 때까지 기다려야 합니다.",
-        "linkError": "링크는 다음과 같아야 합니다: https://airtable.com/shrxxxxxxxxxxxxxx"
+        "linkError": "링크는 다음과 같아야 합니다: https://airtable.com/shrxxxxxxxxxxxxxx",
+        "skipFilesHelper": "파일이 많은 Airtable 베이스는 가져오기를 느리게 만들 수 있습니다. 이 옵션을 활성화하면 파일 가져오기를 건너뜁니다.",
+        "skipFiles": "파일 가져오기 건너뛰기"
     },
     "chooseSingleSelectField": {
         "addSelectField": "단일 선택 필드 추가",
