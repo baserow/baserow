@@ -5,9 +5,9 @@ export default {
   name: 'RatingElement',
   extends: RatingInputElement,
   props: {
-    editable: {
+    readOnly: {
       type: Boolean,
-      default: false,
+      default: true,
     },
   },
 }

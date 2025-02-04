@@ -277,7 +277,7 @@ export class RatingCollectionFieldType extends CollectionFieldType {
   }
 
   get name() {
-    return 'Rating'
+    return this.app.i18n.t('collectionFieldType.rating')
   }
 
   get component() {

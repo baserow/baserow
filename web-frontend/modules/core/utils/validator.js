@@ -25,22 +25,35 @@ export const ensureInteger = (value) => {
 }
 
 /**
- * Ensures that the value is a positive integer.
- * @param {*} value - The value to ensure is a positive integer.
- * @returns {number} The value as an integer if conversion is successful.
- * @throws {Error} If the value is not a valid integer or convertible to an integer.
+ * Ensures that the value is a non-negative integer.
+ * @param {*} value - The value to ensure is a non-negative integer.
+ * @param {Object} options - Configuration options
+ * @param {Boolean} [options.allowNull=false] - Whether to return null if value is null
+ * @param {Boolean} [options.throwError=true] - Whether to throw an error if value is invalid
+ * @returns {number|null} The value as an integer if conversion is successful,
+ * or null if allowNull is true or throwError is false
+ * @throws {Error} If the value is not a valid non-negative integer
  */
-export const ensurePositiveInteger = (value, { allowNull = false } = {}) => {
+export const ensurePositiveInteger = (
+  value,
+  { allowNull = false, throwError = true } = {}
+) => {
   if (allowNull && value === null) {
     return null
   }
-  const validInteger = ensureInteger(value)
-  if (validInteger < 0) {
-    throw new Error('Value is not a positive integer.')
+  try {
+    const validInteger = ensureInteger(value)
+    if (validInteger < 0) {
+      throw new Error('Value is not a positive integer.')
+    }
+    return validInteger
+  } catch (error) {
+    if (throwError) {
+      throw error
+    }
+    return null
   }
-  return validInteger
 }
-
 /**
  * Ensures that the value is a string or try to convert it.
  * @param {*} value - The value to ensure as a string.

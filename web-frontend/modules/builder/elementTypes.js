@@ -2056,15 +2056,15 @@ export class RatingInputElementType extends FormElementType {
   }
 
   get name() {
-    return 'Rating input'
+    return this.app.i18n.t('elementType.ratingInput')
   }
 
   get description() {
-    return 'A rating input element'
+    return this.app.i18n.t('elementType.ratingInputDescription')
   }
 
   get iconClass() {
-    return 'star'
+    return 'iconoir-bubble-star'
   }
 
   get component() {
@@ -2124,15 +2124,15 @@ export class RatingElementType extends ElementType {
   }
 
   get name() {
-    return 'Rating'
+    return this.app.i18n.t('elementType.rating')
   }
 
   get description() {
-    return 'A rating element'
+    return this.app.i18n.t('elementType.ratingDescription')
   }
 
   get iconClass() {
-    return 'star'
+    return 'iconoir-leaderboard-star'
   }
 
   get component() {

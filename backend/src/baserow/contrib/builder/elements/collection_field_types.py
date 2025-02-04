@@ -48,7 +48,7 @@ class RatingCollectionFieldType(CollectionFieldType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(TypedDict):
-        value: int
+        value: BaserowFormula
         color: str
         style: str
         max_value: int
@@ -111,6 +111,13 @@ class LinkCollectionFieldType(CollectionFieldType):
     ]
 
     def after_register(self):
+        """
+        After the `LinkCollectionFieldType` is registered, we connect the
+        `page_deleted` signal to the `page_deleted_update_link_collection_fields`
+        receiver. This is so that if the `LinkCollectionFieldType` isn't used, we
+        don't execute its handler.
+        """
+
         super(LinkCollectionFieldType, self).after_register()
         from baserow.contrib.builder.elements.receivers import (
             connect_link_collection_field_type_to_page_delete_signal,

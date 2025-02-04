@@ -126,6 +126,12 @@
     "notAllowedInsideContainer": "This element is not allowed inside a container",
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
     "notAllowedLocation": "This element is not allowed at this location",
+    "ratingInput": "Rating input",
+    "ratingInputDescription": "A rating input element",
+    "rating": "Rating",
+    "ratingDescription": "A rating element",
+    "invalidElementValue": "Invalid element value: {value}"
+    "notAllowedLocation": "This element is not allowed at this location",
     "menu": "Menu",
     "menuDescription": "Menu element",
     "simpleContainer": "Container",
@@ -793,7 +799,8 @@
     "text": "Text",
     "link": "Link",
     "tags": "Tags",
-    "image": "Image"
+    "image": "Image",
+    "rating": "Rating"
   },
   "textFieldForm": {
     "fieldValueLabel": "Value",

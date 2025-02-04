@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent>
+  <form @submit.prevent @keydown.enter.prevent>
     <FormGroup
       small-label
       :label="$t('generalForm.labelTitle')"
@@ -8,116 +8,66 @@
       <InjectedFormulaInput
         v-model="values.label"
         :placeholder="$t('generalForm.labelPlaceholder')"
-        @input="emitChange"
       />
     </FormGroup>
+
     <FormGroup
       :label="$t('generalForm.requiredTitle')"
       class="margin-bottom-2"
-      small-label
+      small-labelt
     >
-      <Checkbox v-model="values.required" @input="emitChange" />
+      <Checkbox v-model="values.required" />
     </FormGroup>
+
     <FormGroup
       small-label
       :label="$t('generalForm.valueTitle')"
       class="margin-bottom-2"
-      :required="!values.editable"
       :error-message="valueErrorMessage"
     >
       <InjectedFormulaInput
         v-model="values.value"
         data-test-id="rating-form-value"
-        :placeholder="
-          values.editable
-            ? $t('generalForm.valuePlaceholder')
-            : $t('generalForm.valueRequiredPlaceholder')
-        "
-        @input="emitChange"
+        :placeholder="$t('generalForm.valuePlaceholder')"
         @blur="$v.values.value.$touch()"
       />
     </FormGroup>
 
-    <FormGroup
-      small-label
-      :label="$t('ratingElementForm.maxValue')"
-      class="margin-bottom-2"
-      required
-    >
-      <input
-        v-model="values.max_value"
-        type="number"
-        :min="1"
-        :max="10"
-        :step="1"
-        class="input input--large"
-        @input="emitChange"
-      />
-    </FormGroup>
-    <FormGroup
-      small-label
-      :label="$t('ratingElementForm.color')"
-      class="margin-bottom-2"
-      required
-    >
-      <ColorInput v-model="values.color" @input="emitChange" />
-    </FormGroup>
-    <FormGroup
-      small-label
-      :label="$t('ratingElementForm.style')"
-      class="margin-bottom-2"
-      required
-    >
-      <Dropdown v-model="values.style" @input="emitChange">
-        <DropdownItem :name="$t('ratingElementForm.star')" value="star" />
-        <DropdownItem :name="$t('ratingElementForm.heart')" value="heart" />
-        <DropdownItem
-          :name="$t('ratingElementForm.thumbsUp')"
-          value="thumbs-up"
-        />
-        <DropdownItem :name="$t('ratingElementForm.flag')" value="flag" />
-      </Dropdown>
-    </FormGroup>
+    <RatingFormFields :values="values" />
   </form>
 </template>
 
 <script>
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import FormGroup from '@baserow/modules/core/components/FormGroup'
-import ColorInput from '@baserow/modules/core/components/ColorInput'
-import Dropdown from '@baserow/modules/core/components/Dropdown'
-import DropdownItem from '@baserow/modules/core/components/DropdownItem'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
+import RatingFormFields from '../RatingFormFields.vue'
 
 export default {
-  name: 'RatingElementForm',
+  name: 'RatingInputElementForm',
   components: {
     InjectedFormulaInput,
-    FormGroup,
-    ColorInput,
-    Dropdown,
-    DropdownItem,
     Checkbox,
+    RatingFormFields,
   },
   mixins: [elementForm],
-  validations: {
-    values: {
-      value: {
-        required: true,
+  validations() {
+    return {
+      values: {
+        value: {},
       },
-    },
+    }
   },
   data() {
     return {
       values: {
         value: '',
+        required: false,
+        label: '',
+        editing: true,
         max_value: 5,
         color: '#fcbb03',
         style: 'star',
-        editable: false,
-        required: false,
-        label: '',
       },
     }
   },
@@ -127,33 +77,6 @@ export default {
         return ''
       }
       return this.$t('error.requiredField')
-    },
-  },
-  watch: {
-    element: {
-      immediate: true,
-      deep: true,
-      handler(element) {
-        if (element) {
-          this.values = {
-            value: element.value || '',
-            max_value: element.max_value || 5,
-            color: element.color || '#fcbb03',
-            style: element.style || 'star',
-            required: element.required || false,
-            label: element.label || '',
-          }
-        }
-      },
-    },
-  },
-  methods: {
-    emitChange() {
-      this.$v.$touch()
-      if (this.$v.$invalid) {
-        return
-      }
-      this.$emit('values-changed', this.values)
     },
   },
 }

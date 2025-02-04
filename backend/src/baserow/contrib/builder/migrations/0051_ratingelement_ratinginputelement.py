@@ -9,7 +9,10 @@ import baserow.core.formula.field
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("builder", "0042_footerelement_headerelement"),
+        (
+            "builder",
+            "0050_page_query_params",
+        ),
     ]
 
     operations = [
