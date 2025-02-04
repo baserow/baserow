@@ -98,7 +98,8 @@
         "password": "이메일 및 비밀번호 인증",
         "saml": "SSO SAML 공급자",
         "ssoSamlProviderName": "SSO SAML: {domain}",
-        "ssoSamlProviderNameUnconfigured": "구성되지 않은 SSO SAML"
+        "ssoSamlProviderNameUnconfigured": "구성되지 않은 SSO SAML",
+        "ssoOIDCProviderNameUnconfigured": "구성되지 않은 OpenId 연결"
     },
     "editAuthProviderMenuContext": {
         "edit": "편집",
@@ -272,7 +273,8 @@
         "baseUrl": "URL",
         "baseUrlPlaceholder": "제공자의 기본 URL",
         "invalidBaseUrl": "입력된 URL이 유효한 제공자 URL이 아닙니다",
-        "callbackUrl": "콜백 URL"
+        "callbackUrl": "콜백 URL",
+        "duplicateBaseUrl": "입력하신 URL은 다른 제공자에 이미 존재합니다"
     },
     "loginButton": {
         "continueWith": "계속"
@@ -315,7 +317,8 @@
     },
     "appAuthProviderType": {
         "localBaserowPassword": "이메일/비밀번호",
-        "commonSaml": "Saml SSO"
+        "commonSaml": "Saml SSO",
+        "openIdConnect": "OpenID 연결"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "비밀번호 필드 선택",
@@ -361,7 +364,9 @@
         "authorizing": "소스 테이블에서 데이터를 선택하기 위해 계정을 승인하고 있습니다.",
         "workspace": "작업공간",
         "database": "데이터베이스",
-        "table": "테이블"
+        "table": "테이블",
+        "view": "뷰",
+        "viewHelper": "필터와 일치하는 행 및 표시된 필드만 동기화됩니다."
     },
     "jiraIssuesDataSync": {
         "jiraUrl": "Jira 인스턴스 URL",
@@ -406,6 +411,40 @@
         "preview": "미리보기"
     },
     "commonSamlSettingForm": {
-        "authProviderInError": "오류를 수정하려면 이 제공자를 편집하세요."
+        "authProviderInError": "오류를 수정하려면 이 제공자를 편집하세요.",
+        "addDomainNotice": "하나 이상의 도메인이 추가되면 사용 가능",
+        "relayStateTitle": "기본 릴레이 상태 URL (클릭하여 복사)",
+        "acsTitle": "싱글 사인 온 url (클릭하여 복사)"
+    },
+    "commonOidcSettingForm": {
+        "preview": "미리보기",
+        "callbackHelperText": "이러한 URL을 Openid Connect 공급자 리디렉션 URI 설정에 추가합니다.",
+        "callbackTitle": "콜백 URL (클릭하여 복사)"
+    },
+    "configureDataSyncPeriodicInterval": {
+        "saved": "저장됨",
+        "activate": "주기적 동기화 활성화",
+        "enterprise": "주기적 데이터 동기화는 고급/엔터프라이즈 기능입니다.",
+        "more": "자세한 정보",
+        "title": "주기적 설정",
+        "deactivatedTitle": "주기적 데이터 동기화 비활성화됨",
+        "deactivatedText": "연속적으로 여러 번 실패하여 주기적 데이터 동기화가 비활성화되었습니다. 수동으로 동기화를 시도해 보고 정상적으로 작동하면 활성화 버튼을 클릭하세요."
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "intervalLabel": "간격",
+        "daily": "매일",
+        "hourly": "매시간",
+        "manual": "수동",
+        "whenHelper": "데이터 동기화를 실행할 정확한 시, 분, 초를 입력하세요.",
+        "minute": "분",
+        "second": "초",
+        "intervalHelper": "데이터 동기화를 자동으로 얼마나 자주 실행할지 설정하세요.",
+        "hour": "시"
+    },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "{login} {provider}로 로그인"
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "주기적 설정"
     }
 }
