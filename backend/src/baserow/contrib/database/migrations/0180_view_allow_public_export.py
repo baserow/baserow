@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0178_remove_singleselect_missing_options"),
+        ("database", "0179_alter_formulafield_array_formula_type_and_more"),
     ]
 
     operations = [
