@@ -24,7 +24,6 @@ def forward(apps, schema_editor):
                         option_table=sql.Identifier(option_table_name)
                     )
                     cursor.execute(query)
-                    print('executed', field.id)
         except ProgrammingError as e:
             error_string = str(e)
             if f'relation "{table_name}" does not exist' in error_string:
