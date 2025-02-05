@@ -477,6 +477,8 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         schema the service is interacting with.
 
         :param service: A `LocalBaserowTableService` subclass.
+        :param allowed_fields: The properties which are allowed to be included in the
+            generated schema.
         :return: A schema dictionary, or None if no `Table` has been applied.
         """
 
@@ -1067,7 +1069,7 @@ class LocalBaserowListRowsUserServiceType(
         )
 
         if only_field_names is not None:
-            # May be some fields were deleted in the meantime
+            # Maybe some fields were deleted in the meantime
             # Let's check we still have them
             available_fields = set(
                 [fo["name"] for fo in self.get_table_field_objects(service)] + ["id"]
@@ -1180,7 +1182,9 @@ class LocalBaserowAggregateRowsUserServiceType(
         return f"Aggregation{service.id}Schema"
 
     def generate_schema(
-        self, service: LocalBaserowAggregateRows
+        self,
+        service: LocalBaserowAggregateRows,
+        allowed_fields: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Responsible for generating a dictionary in the JSON Schema spec. Despite
@@ -1189,12 +1193,18 @@ class LocalBaserowAggregateRowsUserServiceType(
         a schema based on the service's aggregation type.
 
         :param service: A `LocalBaserowAggregateRows` instance.
+        :param allowed_fields: The properties which are allowed to be included in the
+            generated schema.
         :return: A schema dictionary, or None if no `field` or `aggregation_type`
             have been applied.
         """
 
         if not service.field or not service.aggregation_type:
             return None
+
+        # The `result` must be an allowed field, otherwise we have no schema.
+        if allowed_fields is not None and "result" not in allowed_fields:
+            return {}
 
         # Pluck out the aggregation type which this service uses. We'll use its
         # `result_type` to inform the schema what the expected `result` format is.
@@ -1211,9 +1221,15 @@ class LocalBaserowAggregateRowsUserServiceType(
             },
         }
 
-    def get_context_data(self, service: LocalBaserowAggregateRows) -> dict:
+    def get_context_data(
+        self,
+        service: LocalBaserowAggregateRows,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> dict:
         context_data = {}
-        if service.field:
+        if service.field and not (
+            allowed_fields is not None and "result" not in allowed_fields
+        ):
             serialized_field = field_type_registry.get_serializer(
                 service.field, FieldSerializer
             ).data
@@ -1450,6 +1466,10 @@ class LocalBaserowAggregateRowsUserServiceType(
         :param dispatch_context: The context used for the dispatch.
         :return: Aggregations.
         """
+
+        only_field_names = self.get_used_field_names(service, dispatch_context)
+        if only_field_names and "result" not in only_field_names:
+            return {"data": {"result": None}}
 
         try:
             table = resolved_values["table"]
