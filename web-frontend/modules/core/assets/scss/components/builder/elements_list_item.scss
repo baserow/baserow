@@ -38,7 +38,7 @@
 
   @include rounded($rounded-md);
 
-  .elements-list-item--selected & {
+  .elements-list-item--selected > & {
     background-color: $palette-neutral-100;
   }
 
