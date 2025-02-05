@@ -213,7 +213,8 @@
         "baserowLogo": {
             "label": "Masquer le logo Baserow sur la vue partagée",
             "premiumModalName": "suppression du logo public"
-        }
+        },
+        "allowPublicExportLabel": "Autoriser l'export des vues partagées"
     },
     "viewsContext": {
         "personal": "Privée"
@@ -350,5 +351,8 @@
     },
     "tableExcelExporter": {
         "includeHeader": "Inclure les noms de champs comme en-tête"
+    },
+    "publicViewExport": {
+        "export": "Exporter"
     }
 }
