@@ -621,9 +621,11 @@
         "variance": "Variance",
         "notEmptyPercentage": "Pourcentage de renseignées",
         "notEmptyCount": "Renseignées",
-        "emptyCount": "Vides",
+        "emptyCount": "(Vides)",
         "emptyPercentage": "Pourcentage de vides",
-        "count": "Compter"
+        "count": "Compter",
+        "distribution": "Distribution",
+        "othersCount": "Autres"
     },
     "databaseForm": {
         "importLabel": "Souhaitez-vous importer des données existantes ?",
