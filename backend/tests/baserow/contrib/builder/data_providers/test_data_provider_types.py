@@ -7,6 +7,7 @@ from django.http import HttpRequest
 from django.shortcuts import reverse
 
 import pytest
+from rest_framework.response import Response
 
 from baserow.contrib.builder.data_providers.data_provider_types import (
     CurrentRecordDataProviderType,
@@ -1001,6 +1002,45 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
     mock_cache.set.assert_called_once_with(
         mock_cache_key,
         mock_result,
+        timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS,
+    )
+
+
+def test_previous_action_data_provider_post_dispatch_with_response_doesnt_cache_result():
+    """
+    Ensure that when a current_dispatch_id is present in the request, the
+    provided result is cached.
+    """
+
+    previous_action_data_provider = PreviousActionProviderType()
+
+    fake_request = MagicMock()
+    fake_request.data = {
+        "previous_action": {
+            "current_dispatch_id": "foo-bar-123",
+        }
+    }
+    dispatch_context = BuilderDispatchContext(fake_request, None)
+
+    workflow_action = MagicMock()
+    workflow_action.id = 100
+
+    mock_cache_key = "mock-cache-key"
+    mock_result = Response(status=204)
+    previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
+        return_value=mock_cache_key
+    )
+
+    with patch(
+        "baserow.contrib.builder.data_providers.data_provider_types.cache"
+    ) as mock_cache:
+        previous_action_data_provider.post_dispatch(
+            dispatch_context, workflow_action, mock_result
+        )
+
+    mock_cache.set.assert_called_once_with(
+        mock_cache_key,
+        {},
         timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS,
     )
 
