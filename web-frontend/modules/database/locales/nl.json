@@ -623,7 +623,9 @@
         "median": "Mediaan",
         "stdDev": "Standaardafwijking",
         "stdDevShort": "Std dev",
-        "count": "Tellen"
+        "count": "Tellen",
+        "distribution": "Distributie",
+        "othersCount": "Anderen"
     },
     "databaseForm": {
         "importLabel": "Wilt u bestaande gegevens importeren?",
