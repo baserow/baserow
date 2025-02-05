@@ -7,6 +7,7 @@ import pytest
 from pytest_unordered import unordered
 
 from baserow.core.handler import CoreHandler
+from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import (
     WORKSPACE_USER_PERMISSION_ADMIN,
     WORKSPACE_USER_PERMISSION_MEMBER,
@@ -14,6 +15,7 @@ from baserow.core.models import (
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.handler import UserHandler
 from baserow.core.utils import generate_hash
+from baserow.test_utils.helpers import AnyInt
 
 
 @pytest.mark.django_db(transaction=True)
@@ -473,3 +475,28 @@ def test_user_password_changed(mock_force_disconnect_user, data_fixture):
     mock_force_disconnect_user.delay.assert_called_once()
     args = mock_force_disconnect_user.delay.call_args
     assert args[0][0] == [user.id]
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.signals.broadcast_to_users")
+@pytest.mark.websockets
+def test_job_started(mock_broadcast_to_users, data_fixture):
+    data_fixture.register_temp_job_types()
+
+    user = data_fixture.create_user()
+    JobHandler().create_and_start_job(user, "tmp_job_type_1")
+
+    mock_broadcast_to_users.delay.assert_called_once()
+    args = mock_broadcast_to_users.delay.call_args
+    assert args[0][0] == [user.id]
+    assert args[0][1] == {
+        "type": "job_started",
+        "job": {
+            "id": AnyInt(),
+            "type": "tmp_job_type_1",
+            "progress_percentage": 0,
+            "state": "started",
+            "human_readable_error": "",
+            "test_field": 42,
+        },
+    }
