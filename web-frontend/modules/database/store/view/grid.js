@@ -30,6 +30,7 @@ import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/gr
 
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
+const REFRESH_ROW_DELAY = 1000
 
 export function populateRow(row, metadata = {}) {
   row._ = {
@@ -1795,7 +1796,7 @@ export const actions = {
     })
   },
   async createNewRows(
-    { commit, getters, dispatch },
+    { commit, getters, dispatch, state },
     { view, table, fields, rows = {}, before = null, selectPrimaryCell = false }
   ) {
     // Create an object of default field values that can be used to fill the row with
@@ -1844,24 +1845,19 @@ export const actions = {
 
     const isSingleRowInsertion = rowsPopulated.length === 1
     const oldCount = getters.getCount
-
+    const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
+      view,
+      fields,
+      getters.getActiveSearchTerm
+    )
     if (isSingleRowInsertion) {
       // When a single row is inserted we don't want to deal with filters, sorts and
       // search just yet. Therefore it is okay to just insert the row into the buffer.
-      commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-        fields,
-        registry: this.$registry,
-        row: rowsPopulated[0],
-        increase: true,
-        decrease: false,
-      })
       commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', {
         rows: rowsPopulated,
         index,
       })
     } else {
-      // When inserting multiple rows we will need to deal with filters, sorts or search
-      // not matching. `createdNewRow` deals with exactly that for us.
       for (const rowPopulated of rowsPopulated) {
         await dispatch('createdNewRow', {
           view,
@@ -1869,6 +1865,7 @@ export const actions = {
           values: rowPopulated,
           metadata: {},
           populate: false,
+          updatePositionAndState: canUpdateOptimistically,
         })
       }
     }
@@ -1935,8 +1932,16 @@ export const actions = {
       })
 
       for (let i = 0; i < data.items.length; i += 1) {
-        const oldRow = rowsPopulated[i]
-        dispatch('onRowChange', { view, row: oldRow, fields })
+        const item = data.items[i]
+        // Use the updated row in the buffer if it exists, otherwise use the populated
+        // row object to update inner state.
+        const row = state.rows.find((r) => r.id === item.id) || rowsPopulated[i]
+        dispatch('onRowChange', { view, row, fields })
+        setTimeout(() => {
+          if (!row._.selected) {
+            dispatch('refreshRow', { grid: view, row, fields })
+          }
+        }, REFRESH_ROW_DELAY)
       }
 
       await dispatch('fetchAllFieldAggregationData', {
@@ -1986,7 +1991,14 @@ export const actions = {
    */
   async createdNewRow(
     { commit, getters, dispatch },
-    { view, fields, values, metadata, populate = true }
+    {
+      view,
+      fields,
+      values,
+      metadata,
+      populate = true,
+      updatePositionAndState = true,
+    }
   ) {
     const row = clone(values)
 
@@ -1994,39 +2006,41 @@ export const actions = {
       populateRow(row, metadata)
     }
 
-    // Check if the row belongs into the current view by checking if it matches the
-    // filters and search.
-    await dispatch('updateMatchFilters', { view, row, fields })
-    await dispatch('updateSearchMatchesForRow', { row, fields })
+    if (updatePositionAndState) {
+      // Check if the row belongs into the current view by checking if it matches the
+      // filters and search.
+      await dispatch('updateMatchFilters', { view, row, fields })
+      await dispatch('updateSearchMatchesForRow', { row, fields })
 
-    // If the row does not match the filters or the search then we don't have to add
-    // it at all.
-    if (!row._.matchFilters || !row._.matchSearch) {
-      return
+      // If the row does not match the filters or the search then we don't have to add
+      // it at all.
+      if (!row._.matchFilters || !row._.matchSearch) {
+        return
+      }
+
+      // Update the group by metadata if needed.
+      commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+        fields,
+        registry: this.$registry,
+        row,
+        increase: true,
+        decrease: false,
+      })
     }
-
-    // Update the group by metadata if needed.
-    commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-      fields,
-      registry: this.$registry,
-      row,
-      increase: true,
-      decrease: false,
-    })
-
     // Now that we know that the row applies to the filters, which means it belongs
     // in this view, we need to estimate what position it has in the table.
     const allRowsCopy = clone(getters.getAllRows)
     allRowsCopy.push(row)
-    const sortFunction = getRowSortFunction(
-      this.$registry,
-      view.sortings,
-      fields,
-      view.group_bys
-    )
-    allRowsCopy.sort(sortFunction)
+    if (updatePositionAndState) {
+      const sortFunction = getRowSortFunction(
+        this.$registry,
+        view.sortings,
+        fields,
+        view.group_bys
+      )
+      allRowsCopy.sort(sortFunction)
+    }
     const index = allRowsCopy.findIndex((r) => r.id === row.id)
-
     const isFirst = index === 0
     const isLast = index === allRowsCopy.length - 1
 
@@ -2035,7 +2049,7 @@ export const actions = {
       // we have loaded currently.
       (isFirst && getters.getBufferStartIndex === 0) ||
       (isLast && getters.getBufferEndIndex === getters.getCount) ||
-      (index > 0 && index < allRowsCopy.length - 1)
+      (index > 0 && index < getters.getAllRows.length - 1)
     ) {
       commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', { rows: [row], index })
     } else {
@@ -2150,35 +2164,20 @@ export const actions = {
      * This helper function will make sure that the values of the related row are
      * updated the right way.
      */
-    const updateValues = async (values, optimistic = true) => {
+    const updateValues = async (values, triggerOnRowChange = true) => {
       const rowExistsInBuffer = getters.getRow(row.id) !== undefined
 
       if (rowExistsInBuffer) {
         // If the row exists in the buffer, we can visually show to the user that
         // the values have changed, without immediately reflecting the change in
         // the buffer.
-        if (optimistic) {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: this.$registry,
-            row,
-            increase: false,
-            decrease: true,
-          })
-        }
+        const oldRow = clone(row)
         commit('UPDATE_ROW_VALUES', {
           row,
           values: { ...values },
         })
-        if (optimistic) {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: this.$registry,
-            row,
-            increase: true,
-            decrease: false,
-          })
-          await dispatch('onRowChange', { view, row, fields })
+        if (triggerOnRowChange) {
+          await dispatch('onRowChange', { view, row, fields, oldRow })
         }
       } else {
         // If the row doesn't exist in the buffer, it could be that the new values
@@ -2210,16 +2209,17 @@ export const actions = {
         this.$registry
       )
 
-    const canUpdateOptimistally = !canRowsBeOptimisticallyUpdatedInView(
+    const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
       view,
-      fields
+      fields,
+      getters.getActiveSearchTerm
     )
 
     // When possible update the values before making a request to the backend to make it feel
     // instant for the user. If we can't safely do it in the frontend, then we have to show
     // a loading state and update the row after the request has been made.
-    await updateValues(newRowValues, canUpdateOptimistally)
-    if (!canUpdateOptimistally) {
+    await updateValues(newRowValues, canUpdateOptimistically)
+    if (!canUpdateOptimistically) {
       commit('SET_ROW_LOADING', { row, value: true })
     }
 
@@ -2244,11 +2244,13 @@ export const actions = {
         await updateValues(readOnlyData)
         // If we can't optimistically update the row, refresh it to stop the loading state,
         // show proper messages, and update its position and state.
-        if (!canUpdateOptimistally) {
+        if (!canUpdateOptimistically) {
           commit('SET_ROW_LOADING', { row, value: false })
           setTimeout(() => {
-            dispatch('refreshRow', { grid: view, row, fields })
-          }, 1000)
+            if (!row._.selected) {
+              dispatch('refreshRow', { grid: view, row, fields })
+            }
+          }, REFRESH_ROW_DELAY)
         }
         dispatch('fetchAllFieldAggregationData', {
           view,
@@ -2834,7 +2836,27 @@ export const actions = {
    * Triggered when a row has been changed, or has a pending change in the provided
    * overrides.
    */
-  onRowChange({ dispatch }, { view, row, fields, overrides = {} }) {
+  onRowChange(
+    { commit, dispatch },
+    { view, row, fields, overrides = {}, oldRow = null }
+  ) {
+    if (oldRow != null) {
+      commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+        fields,
+        registry: this.$registry,
+        row: oldRow,
+        increase: false,
+        decrease: true,
+      })
+    }
+
+    commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+      fields,
+      registry: this.$registry,
+      row,
+      increase: true,
+      decrease: false,
+    })
     dispatch('updateMatchFilters', { view, row, fields, overrides })
     dispatch('updateMatchSortings', { view, row, fields, overrides })
     dispatch('updateSearchMatchesForRow', { row, fields, overrides })
@@ -2941,7 +2963,13 @@ export const actions = {
    */
   async refreshRowById(
     { dispatch, getters },
-    { grid, rowId, fields, getScrollTop, isRowOpenedInModal = false }
+    {
+      grid,
+      rowId,
+      fields,
+      getScrollTop = undefined,
+      isRowOpenedInModal = false,
+    }
   ) {
     const row = getters.getRow(rowId)
     if (row === undefined) {

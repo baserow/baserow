@@ -478,11 +478,16 @@ export function isAdhocSorting(app, workspace, view, publicView) {
 }
 
 /**
- * If filters, sorts or group bys are read only (i.e. formula fields), then the rows
- * cannot be optimistically because the backend calculates the values based on other
- * fields and the UI cannot predict the outcome.
+ * If filters, sorts or group bys are read only (i.e. formula fields) or there are
+ * read-only fields and there's an activeSearchTerm, then the rows cannot be
+ * optimistically because the backend calculates the read-only values based on other
+ * fields and the UI cannot predict the outcome reliably.
  */
-export function canRowsBeOptimisticallyUpdatedInView(view, fields) {
+export function canRowsBeOptimisticallyUpdatedInView(
+  view,
+  fields,
+  activeSearchTerm
+) {
   const readOnlyFieldIds = new Set(
     fields.filter((field) => field.read_only).map((field) => String(field.id))
   )
@@ -495,7 +500,14 @@ export function canRowsBeOptimisticallyUpdatedInView(view, fields) {
     readOnlyFieldIds.has(String(filter.field))
   )
 
-  return readOnlyGroupBys || readOnlySorts || readOnlyFilters
+  // if any of the above conditions are true, then we cannot optimistically update rows
+  // in this view
+  const needsServerSideCalculation =
+    readOnlyGroupBys ||
+    readOnlySorts ||
+    readOnlyFilters ||
+    (activeSearchTerm && readOnlyFieldIds.size > 0)
+  return !needsServerSideCalculation
 }
 
 export function getOrderBy(view, adhocSorting) {
