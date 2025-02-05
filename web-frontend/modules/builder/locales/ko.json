@@ -37,7 +37,8 @@
         "errorPathNotUnique": "이 이름의 경로가 이미 존재합니다",
         "errorStartingSlash": "경로는 '/'로 시작해야 합니다",
         "errorValidPathCharacters": "경로에 잘못된 문자가 포함되어 있습니다",
-        "errorUniquePathParams": "경로 매개변수는 고유해야 합니다."
+        "errorUniquePathParams": "경로 매개변수는 고유해야 합니다.",
+        "errorUniqueValidQueryParams": "쿼리 매개변수 이름은 고유하고 유효해야 합니다."
     },
     "pageHeaderItemTypes": {
         "labelElements": "요소",
@@ -140,7 +141,8 @@
         "style": "스타일",
         "visibility": "공개여부",
         "events": "이벤트",
-        "eventsTabDeactivatedNoEvents": "이 요소는 이벤트를 지원하지 않습니다"
+        "eventsTabDeactivatedNoEvents": "이 요소는 이벤트를 지원하지 않습니다",
+        "eventsTabInError": "하나 이상의 작업이 잘못 구성되었습니다."
     },
     "emptySidePanelState": {
         "message": "더 자세한 정보를 보려면 요소 중 하나를 클릭하세요"
@@ -355,7 +357,11 @@
         "pathPlaceholder": "경로 입력...",
         "pathParamsTitle": "경로 매개변수",
         "pathParamsSubtitle": "경로의 :parameter로 정의됩니다",
-        "pathParamsSubtitleTutorial": "경로 매개변수는 제공된 매개변수에 따라 데이터를 동적으로 로드하는 데 사용할 수 있습니다. 경로에 :parameter를 추가하여 하나를 추가하세요."
+        "pathParamsSubtitleTutorial": "경로 매개변수는 제공된 매개변수에 따라 데이터를 동적으로 로드하는 데 사용할 수 있습니다. 경로에 :parameter를 추가하여 하나를 추가하세요.",
+        "addParameter": "쿼리 문자열 매개변수 추가",
+        "queryParamsTitle": "쿼리 문자열 매개변수",
+        "queryParamsSubtitleTutorial": "쿼리 매개변수는 제공된 매개변수에 따라 데이터를 동적으로 로드하는 데 사용할 수 있습니다.",
+        "addAnotherParameter": "다른 쿼리 문자열 매개변수 추가"
     },
     "pathParamTypes": {
         "textName": "텍스트",
@@ -363,7 +369,11 @@
     },
     "publicPage": {
         "siteNotFound": "사이트를 찾을 수 없습니다",
-        "pageNotFound": "페이지를 찾을 수 없습니다"
+        "pageNotFound": "페이지를 찾을 수 없습니다",
+        "loginToastMessage": "성공적으로 로그인되었습니다.",
+        "authorizedToastTitle": "인증 필요",
+        "loginToastTitle": "인증 성공",
+        "authorizedToastMessage": "이 페이지에 접근하려면 로그인해야 합니다. 계속하려면 로그인하세요."
     },
     "integrationSettings": {
         "title": "통합",
@@ -434,7 +444,10 @@
         "borderColor": "테두리",
         "successColor": "성공",
         "warningColor": "경고",
-        "errorColor": "오류"
+        "errorColor": "오류",
+        "customColors": "사용자 색상",
+        "addCustomColor": "사용자 색상 추가",
+        "customColorPrefix": "커스텀"
     },
     "pageThemeConfigBlock": {
         "backgroundColor": "배경색",
@@ -457,7 +470,8 @@
         "size": "크기",
         "textAlignment": "정렬",
         "bodyLabel": "본문",
-        "fontFamily": "폰트"
+        "fontFamily": "폰트",
+        "weight": "굵기"
     },
     "buttonThemeConfigBlock": {
         "backgroundColor": "배경색",
@@ -473,7 +487,8 @@
         "borderRadius": "테두리 반경",
         "padding": "안쪽 여백",
         "fontFamily": "폰트",
-        "size": "폰트 크기"
+        "size": "폰트 크기",
+        "weight": "폰트 굵기"
     },
     "linkThemeConfigBlock": {
         "color": "색상",
@@ -481,7 +496,9 @@
         "defaultState": "기본 상태",
         "hoverState": "호버 상태",
         "alignment": "정렬",
-        "fontFamily": "폰트"
+        "fontFamily": "폰트",
+        "size": "폰트 크기",
+        "weight": "폰트 굵기"
     },
     "inputThemeConfigBlock": {
         "label": "레이블",
@@ -493,7 +510,8 @@
         "borderRadius": "테두리 반경",
         "padding": "안쪽 여백",
         "fontFamily": "폰트",
-        "size": "폰트 크기"
+        "size": "폰트 크기",
+        "weight": "폰트 굵기"
     },
     "imageThemeConfigBlock": {
         "alignment": "정렬",
@@ -506,7 +524,9 @@
         "imageConstraintCover": "채우기",
         "imageConstraintCoverDisabled": "빈 최대 높이로는 사용할 수 없습니다.",
         "imageConstraintContain": "맞춤",
-        "imageConstraintContainDisabled": "최대 높이가 있으면 사용할 수 없습니다."
+        "imageConstraintContainDisabled": "최대 높이가 있으면 사용할 수 없습니다.",
+        "imageBorderRadiusLabel": "테두리 반경",
+        "imageBorderRadiusPlaceholder": "이미지 테두리 반경을 입력하세요."
     },
     "tableThemeConfigBlock": {
         "borderColor": "테두리 색상",
@@ -527,7 +547,8 @@
         "verticalSeparatorColor": "수직 색상",
         "verticalSeparatorSize": "수직 크기",
         "horizontalSeparatorColor": "수평 색상",
-        "horizontalSeparatorSize": "수평 크기"
+        "horizontalSeparatorSize": "수평 크기",
+        "fontWeight": "폰트 굵기"
     },
     "buttonElementForm": {
         "valueLabel": "버튼 텍스트",
@@ -617,7 +638,10 @@
         "orientationHorizontal": "수평",
         "buttonLoadMoreLabel": "더 보기 레이블",
         "toggleEditorRepetitionsLabel": "반복 일시적으로 비활성화",
-        "propertySelectorMissingArrays": "반복할 다중 값 필드를 찾을 수 없습니다."
+        "propertySelectorMissingArrays": "반복할 다중 값 필드를 찾을 수 없습니다.",
+        "gapVerticalLabel": "세로",
+        "gapLabel": "반복 사이의 간격",
+        "gapHorizontalLabel": "가로"
     },
     "recordSelectorElement": {
         "emptyAdhocState": "'{query}'와 일치하는 레코드를 찾을 수 없습니다.",
@@ -774,8 +798,8 @@
         "allVisitors": "모든 방문자",
         "loggedInVisitors": "로그인한 방문자",
         "notLoggedInVisitors": "로그아웃한 방문자",
-        "warningTitle": "우리는 지속적으로 보안을 향상시키고 있습니다",
-        "warningMessage": "현재 공개여부는 UI에만 적용되며, 기본 데이터는 여전히 API에서 접근 가능합니다. 데이터 보안에 대한 자세한 내용은 <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>문서</a>를 확인하세요.",
+        "warningTitle": "이것은 보안 기능입니다",
+        "warningMessage": "<a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>문서</a>를 확인하여 데이터를 보호하는 방법에 대해 자세히 알아보세요.",
         "excludedRolesLabel": "모든 역할 제외",
         "switchAllowLabel": "허용",
         "switchDisallowLabel": "허용 안 함",
@@ -876,5 +900,30 @@
         "pageDropdownLabel": "로그인 페이지",
         "pageDropdownPlaceholder": "페이지를 선택하세요",
         "pageDropdownDescription": "로그인하지 않은 사용자가 제한된 페이지에 접근하려 할 때 리디렉션되어야 하는 로그인 페이지를 선택하세요."
+    },
+    "fontWeightType": {
+        "light": "Light",
+        "thin": "Thin",
+        "extraLight": "Extra-light",
+        "black": "Black",
+        "regular": "Regular",
+        "bold": "Bold",
+        "extraBold": "Extra-bold",
+        "medium": "Medium",
+        "semiBold": "Semi-bold",
+        "extraBlack": "Extra-black"
+    },
+    "queryParamTypes": {
+        "textName": "텍스트",
+        "numericName": "숫자"
+    },
+    "radiusStyleForm": {
+        "backgroundRadiusLabel": "배경",
+        "borderRadiusLabel": "테두리",
+        "cornerRadiusLabel": "모서리 반경"
+    },
+    "authProviderWithModal": {
+        "authProviderInError": "오류를 수정하려면 이 공급자를 편집하세요.",
+        "title": "제공자 편집: {name}"
     }
 }

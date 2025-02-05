@@ -41,7 +41,7 @@
         "triggerButton": "Test-Webhook auslösen",
         "deactivated": {
             "title": "Webhook ist deaktiviert",
-            "content": "Dieser Webhook wurde deaktiviert, weil zu viele aufeinanderfolgende Fehler aufgetreten sind. Bitte überprüfen Sie das Anrufprotokoll für weitere Details. Klicken Sie auf die Schaltfläche unten, um ihn wieder zu aktivieren. Vergessen Sie nicht, den Webhook nach dem Aktivieren zu speichern.",
+            "content": "Dieser Webhook wurde deaktiviert, weil zu viele aufeinanderfolgende Fehler aufgetreten sind. Bitte überprüfen Sie das Aufrufprotokoll für weitere Details. Klicken Sie auf die Schaltfläche unten, um ihn wieder zu aktivieren. Vergessen Sie nicht, den Webhook nach dem Aktivieren zu speichern.",
             "activate": "Aktivierung"
         },
         "deprecatedEventType": {
@@ -54,9 +54,9 @@
     },
     "webhook": {
         "details": "Details",
-        "lastCall": "Letzter Anruf: {lastCallTime}",
-        "noCalls": "Keine Anrufe getätigt",
-        "callLog": "Anrufprotokoll",
+        "lastCall": "Letzter Aufruf: {lastCallTime}",
+        "noCalls": "Keine Aufrufe getätigt",
+        "callLog": "Aufrufprotokoll",
         "triggerDescription": "Auslöser bei jedem Ereignis | Auslöser bei {count} Ereignis | Auslöser bei {count} Ereignissen"
     },
     "createWebhook": {

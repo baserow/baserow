@@ -23,7 +23,11 @@
         "pathParamsSubtitleTutorial": "Les paramètres de chemin peuvent être utilisés pour charger dynamiquement les données, en fonction du paramètre fourni. Ajoutez - :parameter - au chemin pour en ajouter un.",
         "pathTitle": "Chemin",
         "namePlaceholder": "Saisir un nom...",
-        "pathPlaceholder": "Entrez un chemin..."
+        "pathPlaceholder": "Entrez un chemin...",
+        "queryParamsSubtitleTutorial": "Les paramètres de requête sont optionnels et peuvent être utilisés pour selectionner dynamiquement des données par exemple.",
+        "addAnotherParameter": "Ajouter un paramètre de requête",
+        "addParameter": "Ajouter un paramètre de requête",
+        "queryParamsTitle": "Paramètres de requête"
     },
     "builderSettingTypes": {
         "integrationsName": "Intégrations",
@@ -121,7 +125,8 @@
         "visibility": "Visibilité",
         "events": "Événements",
         "style": "Style",
-        "eventsTabDeactivatedNoEvents": "Cet élément ne supporte aucun événement"
+        "eventsTabDeactivatedNoEvents": "Cet élément ne supporte aucun événement",
+        "eventsTabInError": "Une ou plusieurs actions sont mal configurées."
     },
     "emptySidePanelState": {
         "message": "Cliquez sur l'un des éléments pour obtenir plus de détails"
@@ -156,7 +161,8 @@
         "errorUniquePathParams": "Les paramètres de chemin doivent être uniques.",
         "errorNameNotUnique": "Une page avec le même nom existe déjà",
         "errorValidPathCharacters": "Le chemin contient des caractères invalides",
-        "errorStartingSlash": "Un chemin doit commencer par un '/'"
+        "errorStartingSlash": "Un chemin doit commencer par un '/'",
+        "errorUniqueValidQueryParams": "Les noms des paramètres de requête doivent être uniques et valides."
     },
     "publishActionModal": {
         "publish": "Publier",
@@ -279,7 +285,11 @@
     },
     "publicPage": {
         "pageNotFound": "Page non trouvée",
-        "siteNotFound": "Site introuvable"
+        "siteNotFound": "Site introuvable",
+        "authorizedToastTitle": "Authentification requise",
+        "loginToastTitle": "Authentification réussie",
+        "loginToastMessage": "Vous avez été authentifié·e avec succès.",
+        "authorizedToastMessage": "Vous devez être authentifié·e pour accéder à cette page. Veuillez vous connecter pour continuer."
     },
     "integrationSettings": {
         "title": "Intégrations",
@@ -685,7 +695,10 @@
         "orientationHorizontal": "Horizontale",
         "buttonLoadMoreLabel": "Libellé « afficher plus »",
         "toggleEditorRepetitionsLabel": "Désactiver temporairement les répétitions",
-        "propertySelectorMissingArrays": "Aucun champ à valeurs multiples n'a été trouvé pour créer les répétitions."
+        "propertySelectorMissingArrays": "Aucun champ à valeurs multiples n'a été trouvé pour créer les répétitions.",
+        "gapLabel": "Espace entre les répétitions",
+        "gapVerticalLabel": "Vertical",
+        "gapHorizontalLabel": "Horizontal"
     },
     "userDataProviderType": {
         "isAuthenticated": "Est authentifié",
@@ -724,7 +737,10 @@
         "successColor": "Succès",
         "warningColor": "Avertissement",
         "errorColor": "Erreur",
-        "transparent": "Transparent"
+        "transparent": "Transparent",
+        "customColors": "Couleurs personnalisées",
+        "addCustomColor": "Ajouter une couleur personnalisée",
+        "customColorPrefix": "Couleur"
     },
     "pageThemeConfigBlock": {
         "backgroundColor": "Couleur d'arrière-plan",
@@ -747,7 +763,8 @@
         "textAlignment": "Alignement",
         "bodyLabel": "Corps",
         "fontFamily": "Police",
-        "headingLabel": "Titre {i} (h{i})"
+        "headingLabel": "Titre {i} (h{i})",
+        "weight": "Graisse"
     },
     "buttonThemeConfigBlock": {
         "backgroundColor": "Couleur d'arrière-plan",
@@ -763,7 +780,8 @@
         "size": "Taille de la police",
         "textColor": "Couleur du texte",
         "button": "Bouton",
-        "borderColor": "Couleur de la bordure"
+        "borderColor": "Couleur de la bordure",
+        "weight": "Graisse de la police"
     },
     "linkThemeConfigBlock": {
         "color": "Couleur",
@@ -771,7 +789,9 @@
         "defaultState": "État par défaut",
         "hoverState": "État de survol",
         "alignment": "Alignement",
-        "fontFamily": "Police"
+        "fontFamily": "Police",
+        "size": "Taille de la police",
+        "weight": "Graisse de la police"
     },
     "imageThemeConfigBlock": {
         "alignment": "Alignement",
@@ -784,7 +804,9 @@
         "imageConstraintCover": "Couvrir",
         "imageConstraintCoverDisabled": "Indisponible avec une hauteur maximale vide.",
         "imageConstraintContain": "Contenir",
-        "imageConstraintContainDisabled": "Indisponible avec une hauteur maximale."
+        "imageConstraintContainDisabled": "Indisponible avec une hauteur maximale.",
+        "imageBorderRadiusLabel": "Arrondi des coins",
+        "imageBorderRadiusPlaceholder": "Saisissez la valeur d'arrondi des coins de l'image."
     },
     "choiceElementForm": {
         "display": "Affichage",
@@ -831,7 +853,8 @@
         "padding": "Espacement",
         "fontFamily": "Police",
         "size": "Taille de la police",
-        "borderColor": "Couleur de bordure"
+        "borderColor": "Couleur de bordure",
+        "weight": "Graisse de la police"
     },
     "tableThemeConfigBlock": {
         "borderColor": "Couleur de bordure",
@@ -852,7 +875,8 @@
         "verticalSeparatorColor": "Couleur verticale",
         "verticalSeparatorSize": "Taille verticale",
         "horizontalSeparatorColor": "Couleur horizontale",
-        "horizontalSeparatorSize": "Taille horizontale"
+        "horizontalSeparatorSize": "Taille horizontale",
+        "fontWeight": "Graisse de la police"
     },
     "localBaserowServiceForm": {
         "integrationDropdownLabel": "Intégration",
@@ -977,5 +1001,30 @@
         "all": "Sur toutes les pages",
         "except": "Exclure les pages sélectionnées",
         "only": "Uniquement les pages sélectionnées"
+    },
+    "fontWeightType": {
+        "extraBlack": "Extra-noir",
+        "extraBold": "Extra-gras",
+        "extraLight": "Extra-léger",
+        "light": "Léger",
+        "regular": "Normale",
+        "medium": "Moyenne",
+        "semiBold": "Semi-gras",
+        "black": "Noir",
+        "thin": "Mince",
+        "bold": "Gras"
+    },
+    "radiusStyleForm": {
+        "borderRadiusLabel": "Bordure",
+        "cornerRadiusLabel": "Arrondi des coins",
+        "backgroundRadiusLabel": "Arrière plan"
+    },
+    "authProviderWithModal": {
+        "authProviderInError": "Veuillez modifier ce fournisseur pour corriger l'erreur.",
+        "title": "Modification du fournisseur : {name}"
+    },
+    "queryParamTypes": {
+        "textName": "Texte",
+        "numericName": "Numérique"
     }
 }

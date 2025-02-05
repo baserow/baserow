@@ -274,7 +274,8 @@
         "baserowLogo": {
             "label": "공유된 뷰에서 Baserow 로고 숨기기",
             "premiumModalName": "공개 로고 제거"
-        }
+        },
+        "allowPublicExportLabel": "공유된 뷰에서 내보내기 허용"
     },
     "viewsContext": {
         "personal": "개인"
@@ -338,5 +339,8 @@
     },
     "tableExcelExporter": {
         "includeHeader": "필드 이름을 헤더로 포함합니다"
+    },
+    "publicViewExport": {
+        "export": "내보내기"
     }
 }

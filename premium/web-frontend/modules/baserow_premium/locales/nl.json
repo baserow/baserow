@@ -213,7 +213,8 @@
         "baserowLogo": {
             "label": "Verberg Baserow logo in gedeelde weergave",
             "premiumModalName": "publieke logo verwijderen"
-        }
+        },
+        "allowPublicExportLabel": "Exporteren toestaan op gedeelde weergave"
     },
     "viewsContext": {
         "personal": "Persoonlijk"
@@ -350,5 +351,8 @@
     },
     "tableExcelExporter": {
         "includeHeader": "Veldnamen opnemen als koptekst"
+    },
+    "publicViewExport": {
+        "export": "Exporteren"
     }
 }
