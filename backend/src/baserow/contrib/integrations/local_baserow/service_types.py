@@ -103,6 +103,7 @@ from baserow.core.services.registries import (
     ServiceType,
 )
 from baserow.core.services.types import (
+    DispatchResult,
     ServiceDict,
     ServiceFilterDictSubClass,
     ServiceSortDictSubClass,
@@ -1120,10 +1121,12 @@ class LocalBaserowListRowsUserServiceType(
             field_ids=field_ids,
         )
 
-        return {
-            "results": serializer(dispatch_data["results"], many=True).data,
-            "has_next_page": dispatch_data["has_next_page"],
-        }
+        return DispatchResult(
+            data={
+                "results": serializer(dispatch_data["results"], many=True).data,
+                "has_next_page": dispatch_data["has_next_page"],
+            }
+        )
 
     def get_record_names(
         self,
@@ -1517,7 +1520,7 @@ class LocalBaserowAggregateRowsUserServiceType(
         :return: A dictionary containing the aggregation result.
         """
 
-        return data["data"]
+        return DispatchResult(data=data["data"])
 
     def extract_properties(self, path: List[str], **kwargs) -> List[str]:
         """
@@ -1737,7 +1740,7 @@ class LocalBaserowGetRowUserServiceType(
 
         serialized_row = serializer(dispatch_data["data"]).data
 
-        return serialized_row
+        return DispatchResult(data=serialized_row)
 
     def resolve_service_formulas(
         self,
@@ -2091,7 +2094,7 @@ class LocalBaserowUpsertRowServiceType(
         )
         serialized_row = serializer(dispatch_data["data"]).data
 
-        return serialized_row
+        return DispatchResult(data=serialized_row)
 
     def resolve_service_formulas(
         self,
@@ -2341,7 +2344,7 @@ class LocalBaserowDeleteRowServiceType(
         :return: A 204 response.
         """
 
-        return Response(status=204)
+        return DispatchResult(status=204)
 
     def dispatch_data(
         self,

@@ -307,7 +307,7 @@ class DashboardDataSourceHandler:
             data_source.service.specific, dispatch_context
         )
 
-        return service_dispatch
+        return service_dispatch.data
 
     def export_data_source(
         self,

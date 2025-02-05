@@ -953,7 +953,7 @@ def test_grouped_aggregate_rows_service_dispatch(data_fixture):
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": {
             f"field_{field.id}": Decimal("20"),
             f"field_{field_2.id}": Decimal("8"),
@@ -1003,7 +1003,7 @@ def test_grouped_aggregate_rows_service_dispatch_with_view(data_fixture):
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": {
             f"field_{field.id}": Decimal("6"),
             f"field_{field_2.id}": Decimal("4"),
@@ -1053,7 +1053,7 @@ def test_grouped_aggregate_rows_service_dispatch_with_service_filters(data_fixtu
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": {
             f"field_{field.id}": Decimal("6"),
             f"field_{field_2.id}": Decimal("4"),
@@ -1278,7 +1278,7 @@ def test_grouped_aggregate_rows_service_dispatch_with_total_aggregation(data_fix
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": {
             f"field_{field.id}": 75.0,
             f"field_{field_2.id}": 25.0,
@@ -1358,7 +1358,7 @@ def test_grouped_aggregate_rows_service_dispatch_group_by(data_fixture):
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": Decimal("1"),
@@ -1424,7 +1424,7 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_id(data_fixture):
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": Decimal("2"),
@@ -1554,7 +1554,7 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by(
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": Decimal("90"),
@@ -1655,7 +1655,7 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ro
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": None,
@@ -1764,7 +1764,7 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_without_group_by
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
     # the results are still a dictionary, not sorted on the backend
-    assert result == {
+    assert result.data == {
         "result": {
             f"field_{field.id}": Decimal("9"),
             f"field_{field_2.id}": Decimal("14"),
@@ -1869,7 +1869,7 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_field(data_fix
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": None,
@@ -1962,7 +1962,7 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_row_id(data_fi
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": "",
@@ -2207,7 +2207,7 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ig
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": None,
@@ -2298,7 +2298,7 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_group_by_fi
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": Decimal("10"),
@@ -2385,7 +2385,7 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_series(
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": Decimal("10"),
@@ -2472,7 +2472,7 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_primary_fie
 
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
-    assert result == {
+    assert result.data == {
         "result": [
             {
                 f"field_{field.id}": Decimal("10"),

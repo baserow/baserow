@@ -5,8 +5,6 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext as _
 
-from rest_framework.response import Response
-
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
     FormDataProviderChunkInvalidException,
@@ -470,7 +468,7 @@ class PreviousActionProviderType(DataProviderType):
             )
             cache.set(
                 cache_key,
-                {} if isinstance(result, Response) else result,
+                result.data,
                 timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS,
             )
 

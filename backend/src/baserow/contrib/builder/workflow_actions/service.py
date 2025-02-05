@@ -40,6 +40,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     BuilderWorkflowActionType,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.services.types import DispatchResult
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
@@ -341,4 +342,7 @@ class BuilderWorkflowActionService:
             "external", {}
         ).get(workflow_action.service.id, [])
 
-        return self.remove_unused_field_names(result, field_names)
+        return DispatchResult(
+            data=self.remove_unused_field_names(result.data, field_names),
+            status=result.status,
+        )

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import NewType, Optional, TypedDict, TypeVar
 
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
@@ -23,6 +23,12 @@ class ServiceSortDict(TypedDict):
     service: int
     field: int
     order: str
+
+
+@dataclass
+class DispatchResult:
+    data: dict = field(default_factory=dict)
+    status: int = 200
 
 
 @dataclass

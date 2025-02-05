@@ -25,7 +25,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.core.services.registries import DispatchTypes
-from baserow.core.services.types import ServiceSortDictSubClass
+from baserow.core.services.types import DispatchResult, ServiceSortDictSubClass
 from baserow.core.utils import atomic_if_not_already
 from baserow_enterprise.api.integrations.local_baserow.serializers import (
     LocalBaserowTableServiceAggregationGroupBySerializer,
@@ -513,4 +513,4 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         self,
         data: any,
     ) -> any:
-        return data["data"]
+        return DispatchResult(data=data["data"])
