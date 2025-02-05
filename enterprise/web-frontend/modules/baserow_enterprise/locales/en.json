@@ -432,6 +432,7 @@
     "daily": "Daily",
     "hourly": "Hourly",
     "whenHelper": "Provide the exact hour, minute, and second when the data sync should sync.",
+    "whenHourlyHelper": "Provide the exact minute, and second when the data sync should sync.",
     "hour": "Hour",
     "minute": "Minute",
     "second": "Second"

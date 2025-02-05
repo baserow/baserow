@@ -82,7 +82,12 @@
         </div>
       </div>
       <p class="control__helper-text">
-        {{ $t('dataSyncPeriodicIntervalForm.whenHelper') }}
+        <template v-if="values.interval === 'HOURLY'">
+          {{ $t('dataSyncPeriodicIntervalForm.whenHourlyHelper') }}
+        </template>
+        <template v-if="values.interval === 'DAILY'">
+          {{ $t('dataSyncPeriodicIntervalForm.whenHelper') }}
+        </template>
       </p>
     </template>
     <slot></slot>
