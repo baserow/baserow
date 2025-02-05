@@ -147,6 +147,7 @@ export default {
           page: sharedPage,
         }),
         store.dispatch('element/fetchPublished', {
+          builder,
           page: sharedPage,
         }),
         store.dispatch('workflowAction/fetchPublished', {
@@ -219,7 +220,7 @@ export default {
         store.dispatch('dataSource/fetchPublished', {
           page,
         }),
-        store.dispatch('element/fetchPublished', { page }),
+        store.dispatch('element/fetchPublished', { builder, page }),
         store.dispatch('workflowAction/fetchPublished', { page }),
       ])
     } catch (error) {
@@ -380,9 +381,11 @@ export default {
       // When the user login or logout, we need to refetch the elements and actions
       // as they might have changed
       await this.$store.dispatch('element/fetchPublished', {
+        builder: this.builder,
         page: this.sharedPage,
       })
       await this.$store.dispatch('element/fetchPublished', {
+        builder: this.builder,
         page: this.currentPage,
       })
       await this.$store.dispatch('workflowAction/fetchPublished', {

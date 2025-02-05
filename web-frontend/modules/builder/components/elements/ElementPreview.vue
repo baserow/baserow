@@ -108,11 +108,14 @@ export default {
   },
   computed: {
     ...mapGetters({
-      elementSelected: 'element/getSelected',
+      getElementSelected: 'element/getSelected',
       elementAncestors: 'element/getAncestors',
       getClosestSiblingElement: 'element/getClosestSiblingElement',
       loggedUser: 'userSourceUser/getUser',
     }),
+    elementSelected() {
+      return this.getElementSelected(this.builder)
+    },
     elementPage() {
       // We use the page from the element itself
       return this.$store.getters['page/getById'](
@@ -279,7 +282,7 @@ export default {
   },
   mounted() {
     if (this.isFirstElement) {
-      this.actionSelectElement({ element: this.element })
+      this.actionSelectElement({ builder: this.builder, element: this.element })
     }
   },
   methods: {
@@ -304,7 +307,10 @@ export default {
           )
         })
       ) {
-        this.actionSelectElement({ element: this.element })
+        this.actionSelectElement({
+          builder: this.builder,
+          element: this.element,
+        })
       }
     },
     showAddElementModal(direction) {
@@ -332,6 +338,7 @@ export default {
       this.isDuplicating = true
       try {
         await this.actionDuplicateElement({
+          builder: this.builder,
           page: this.elementPage,
           elementId: this.element.id,
         })
@@ -350,11 +357,15 @@ export default {
           this.parentOfElementSelected
 
         await this.actionDeleteElement({
+          builder: this.builder,
           page: this.elementPage,
           elementId: this.element.id,
         })
         if (siblingElementToSelect?.id) {
-          await this.actionSelectElement({ element: siblingElementToSelect })
+          await this.actionSelectElement({
+            builder: this.builder,
+            element: siblingElementToSelect,
+          })
         }
       } catch (error) {
         notifyIf(error)
@@ -362,7 +373,10 @@ export default {
     },
     selectParentElement() {
       if (this.parentOfElementSelected) {
-        this.actionSelectElement({ element: this.parentOfElementSelected })
+        this.actionSelectElement({
+          builder: this.builder,
+          element: this.parentOfElementSelected,
+        })
       }
     },
   },

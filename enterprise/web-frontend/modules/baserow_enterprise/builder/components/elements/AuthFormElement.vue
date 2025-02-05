@@ -122,6 +122,7 @@ export default {
           if (!found) {
             // If the user_source has been removed we need to update the element
             this.actionForceUpdateElement({
+              builder: this.builder,
               page: this.elementPage,
               element: this.element,
               values: { user_source_id: null },

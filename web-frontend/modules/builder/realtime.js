@@ -66,7 +66,9 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('element_deleted', ({ store }, data) => {
     const selectedPage = store.getters['page/getSelected']
     if (selectedPage.id === data.page_id) {
+      const builder = store.getters['application/get'](selectedPage.builder_id)
       store.dispatch('element/forceDelete', {
+        builder,
         page: selectedPage,
         elementId: data.element_id,
       })
@@ -76,7 +78,10 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('element_updated', ({ store }, { element }) => {
     const selectedPage = store.getters['page/getSelected']
     if (selectedPage.id === element.page_id) {
+      console.log('it is')
+      const builder = store.getters['application/get'](selectedPage.builder_id)
       store.dispatch('element/forceUpdate', {
+        builder,
         page: selectedPage,
         element,
         values: element,
@@ -87,7 +92,9 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('element_moved', ({ store }, data) => {
     const selectedPage = store.getters['page/getSelected']
     if (selectedPage.id === data.page_id) {
+      const builder = store.getters['application/get'](selectedPage.builder_id)
       store.dispatch('element/forceMove', {
+        builder,
         page: selectedPage,
         elementId: data.element_id,
         beforeElementId: data.before_id,
@@ -101,8 +108,12 @@ export const registerRealtimeEvents = (realtime) => {
     'element_orders_recalculated',
     ({ store, app }, data) => {
       const selectedPage = store.getters['page/getSelected']
+      const builder = store.getters['application/getById'](
+        selectedPage.builder_id
+      )
       if (generateHash(selectedPage.id) === data.page_id) {
         store.dispatch('element/fetch', {
+          builder,
           page: selectedPage,
         })
       }
@@ -112,7 +123,9 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('elements_moved', ({ store, app }, { elements }) => {
     elements.forEach((element) => {
       const selectedPage = store.getters['page/getSelected']
+      const builder = store.getters['application/get'](selectedPage.builder_id)
       store.dispatch('element/forceUpdate', {
+        builder,
         page: selectedPage,
         element,
         values: {

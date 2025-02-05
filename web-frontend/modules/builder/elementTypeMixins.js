@@ -257,6 +257,7 @@ export const CollectionElementTypeMixin = (Base) =>
         if (element.data_source_id === dataSourceId) {
           // Remove the data_source_id
           await this.app.store.dispatch('element/forceUpdate', {
+            builder,
             page,
             element,
             values: { data_source_id: null },

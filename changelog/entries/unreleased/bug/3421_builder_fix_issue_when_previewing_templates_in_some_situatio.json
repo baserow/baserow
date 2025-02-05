@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Fix issue when previewing templates in some situations",
+    "issue_number": 3421,
+    "bullet_points": [],
+    "created_at": "2025-02-05"
+}

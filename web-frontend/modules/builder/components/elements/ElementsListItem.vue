@@ -47,8 +47,11 @@ export default {
   },
   computed: {
     ...mapGetters({
-      elementSelected: 'element/getSelected',
+      getElementSelected: 'element/getSelected',
     }),
+    elementSelected() {
+      return this.getElementSelected(this.builder)
+    },
     elementSelectedId() {
       return this.elementSelected ? this.elementSelected.id : null
     },

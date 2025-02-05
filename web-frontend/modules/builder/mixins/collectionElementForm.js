@@ -163,8 +163,11 @@ export default {
       return this.$store.getters['elementContent/getElementContent'](element)
     },
     ...mapGetters({
-      element: 'element/getSelected',
+      getElementSelected: 'element/getSelected',
     }),
+    element() {
+      return this.getElementSelected(this.builder)
+    },
   },
   watch: {
     /**

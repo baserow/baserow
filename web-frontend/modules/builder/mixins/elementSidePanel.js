@@ -19,9 +19,11 @@ export default {
   },
   computed: {
     ...mapGetters({
-      element: 'element/getSelected',
+      getElementSelected: 'element/getSelected',
     }),
-
+    element() {
+      return this.getElementSelected(this.builder)
+    },
     elementType() {
       if (this.element) {
         return this.$registry.get('element', this.element.type)
@@ -50,7 +52,7 @@ export default {
   },
   methods: {
     ...mapActions({
-      actionDebouncedUpdateSelectedElement: 'element/debouncedUpdateSelected',
+      actionDebouncedUpdateElement: 'element/debouncedUpdate',
     }),
     async onChange(newValues) {
       if (
@@ -75,8 +77,10 @@ export default {
 
       if (Object.keys(differences).length > 0) {
         try {
-          await this.actionDebouncedUpdateSelectedElement({
+          await this.actionDebouncedUpdateElement({
+            builder: this.builder,
             page: this.elementPage,
+            element: this.element,
             // Here we clone the values to prevent
             // "modification outside of the store" error
             values: clone(differences),

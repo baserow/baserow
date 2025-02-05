@@ -44,13 +44,22 @@ export default {
   inject: ['workspace', 'builder'],
   computed: {
     ...mapGetters({
-      element: 'element/getSelected',
+      getElementSelected: 'element/getSelected',
     }),
+    element() {
+      return this.getElementSelected(this.builder)
+    },
     pageSidePanelTypes() {
       return this.$registry.getOrderedList('pageSidePanel')
     },
     sidePanelContext() {
-      const page = this.$store.getters['page/getSelected']
+      if (!this.element) {
+        return { builder: this.builder }
+      }
+      const page = this.$store.getters['page/getById'](
+        this.builder,
+        this.element.page_id
+      )
       return {
         page,
         builder: this.builder,

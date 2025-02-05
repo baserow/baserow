@@ -69,6 +69,9 @@ export class BuilderApplicationType extends ApplicationType {
     if (!values.user_sources) {
       values.user_sources = []
     }
+    if (!values.selectedElement) {
+      values.selectedElement = null
+    }
     values._loadedOnce = false
 
     values.userSourceUser = null
@@ -115,6 +118,7 @@ export class BuilderApplicationType extends ApplicationType {
           page: sharedPage,
         }),
         store.dispatch('element/fetch', {
+          builder,
           page: sharedPage,
         }),
         store.dispatch('workflowAction/fetch', { page: sharedPage }),

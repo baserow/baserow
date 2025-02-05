@@ -181,7 +181,7 @@ export default {
       this.hide()
     },
     selectElement(element) {
-      this.actionSelectElement({ element })
+      this.actionSelectElement({ builder: this.builder, element })
       this.hide()
     },
     /*

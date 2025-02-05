@@ -154,6 +154,7 @@ export default {
 
       try {
         await this.actionCreateElement({
+          builder: this.builder,
           page: destinationPage,
           elementType: elementType.getType(),
           beforeId,
