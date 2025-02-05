@@ -236,13 +236,17 @@ class ServiceType(
 
         return f"Service{service.id}Schema"
 
-    def generate_schema(self, service: Service) -> Optional[Dict[str, Any]]:
+    def generate_schema(
+        self, service: Service, allowed_fields: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Responsible for generating the full JSON Schema response. Must be
         overridden by child classes so that the can return their service's
         schema.
 
         :param service: The service we want to generate a schema for.
+        :param allowed_fields: A list of fields that are allowed to be included in the
+            schema.
         :return: None, or a dictionary representing the schema.
         """
 
