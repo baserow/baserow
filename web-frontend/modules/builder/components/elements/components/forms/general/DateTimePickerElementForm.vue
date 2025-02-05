@@ -94,6 +94,14 @@ export default {
   mixins: [formElementForm],
   data() {
     return {
+      allowedValues: [
+        'label',
+        'default_value',
+        'required',
+        'date_format',
+        'include_time',
+        'time_format',
+      ],
       values: {
         label: '',
         default_value: '',

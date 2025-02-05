@@ -68,6 +68,7 @@ export default {
   },
   data() {
     return {
+      allowedValues: ['column_amount', 'column_gap', 'alignment'],
       values: {
         column_amount: 1,
         column_gap: 30,

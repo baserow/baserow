@@ -50,6 +50,7 @@ export default {
   mixins: [elementForm],
   data() {
     return {
+      allowedValues: ['value', 'format', 'styles'],
       values: {
         value: '',
         format: TEXT_FORMAT_TYPES.PLAIN,
