@@ -1,4 +1,5 @@
 from django.db import ProgrammingError, connection, migrations, transaction
+from django.db.models.expressions import F
 
 from psycopg2 import sql
 
@@ -9,7 +10,9 @@ def forward(apps, schema_editor):
 
     option_table_name = SelectOption.objects.model._meta.db_table
 
-    for field in SingleSelectField.objects.all().order_by("id").iterator(chunk_size=50):
+    for field in SingleSelectField.objects.filter(
+        updated_on__gt=F("created_on")
+    ).order_by("id").iterator(chunk_size=50):
         table_name = f"database_table_{field.table_id}"
         select_column = f"field_{field.id}"
         try:
