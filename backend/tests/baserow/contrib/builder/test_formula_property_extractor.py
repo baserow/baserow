@@ -2,6 +2,7 @@ from typing import List
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pytest_unordered import unordered
 
 from baserow.contrib.builder.formula_property_extractor import (
     FormulaFieldVisitor,
@@ -107,13 +108,13 @@ def test_get_builder_used_property_names_returns_all_property_names(data_fixture
 
     results = get_builder_used_property_names(user, builder)
 
-    assert sorted(list(results)) == ["all", "external", "internal"]
-    assert sorted(results["all"][data_source.service_id]) == [
-        f"field_{field.id}" for field in fields
-    ]
-    assert sorted(results["external"][data_source.service_id]) == [
-        f"field_{field.id}" for field in fields
-    ]
+    assert list(results) == unordered(["all", "external", "internal"])
+    assert results["all"][data_source.service_id] == unordered(
+        [f"field_{field.id}" for field in fields]
+    )
+    assert results["external"][data_source.service_id] == unordered(
+        [f"field_{field.id}" for field in fields]
+    )
     assert results["internal"] == {}
 
 
