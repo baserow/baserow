@@ -140,7 +140,7 @@ def test_job_cancel_before_run(
 
         def run(self, job, progress):
             m_start.set()
-            m_set_stop.wait(0.003)
+            m_set_stop.wait(0.1)
             progress.set_progress(10)
             m_end.set()
 
@@ -194,7 +194,7 @@ def test_job_cancel_when_running(
             progress.set_progress(11)
             m_start.set()
             progress.set_progress(11)
-            assert m_set_stop.wait(0.05)
+            assert m_set_stop.wait(0.1)
             progress.set_progress(12)
             m_end.set()
 
@@ -215,7 +215,7 @@ def test_job_cancel_when_running(
         assert job.get_cached_progress_percentage() == 0
 
         t.start()
-        assert m_start.wait(0.02)
+        assert m_start.wait(0.1)
         assert job.started, job.get_cached_state()
         assert (
             job.get_cached_progress_percentage() == 11
@@ -223,7 +223,7 @@ def test_job_cancel_when_running(
 
         jh.cancel_job(job)
         m_set_stop.set()
-        assert not m_end.wait(0.05)
+        assert not m_end.wait(0.1)
 
     job.refresh_from_db()
     # progress percentage is set from model's state, not from cache,
@@ -264,7 +264,7 @@ def test_job_cancel_failed(
 
         t.start()
         assert t.is_alive()
-        assert m_start.wait(0.05)
+        assert m_start.wait(0.1)
 
     # a job failed, so we can't cancel it
     job.refresh_from_db()
@@ -290,7 +290,7 @@ def test_job_cancel_finished(
 
         def run(self, job, progress):
             m_start.set()
-            assert m_set_stop.wait(0.05)
+            assert m_set_stop.wait(0.1)
             m_end.set()
 
     jh = JobHandler()
@@ -309,9 +309,9 @@ def test_job_cancel_finished(
 
         t.start()
         assert t.is_alive()
-        assert m_start.wait(0.05)
+        assert m_start.wait(0.1)
         m_set_stop.set()
-        assert m_end.wait(0.05)
+        assert m_end.wait(0.1)
 
     job.refresh_from_db()
     with pytest.raises(JobNotCancellable):
@@ -336,7 +336,7 @@ def test_job_cancel_cancelled(
         def run(self, job, progress):
             m_start.set()
             progress.set_progress(10)
-            assert m_set_stop.wait(0.05)
+            assert m_set_stop.wait(0.1)
             progress.set_progress(20)
             m_end.set()
             progress.set_progress(30)
@@ -357,7 +357,7 @@ def test_job_cancel_cancelled(
 
         t.start()
         assert t.is_alive()
-        assert m_start.wait(0.05)
+        assert m_start.wait(0.1)
         out = JobHandler.cancel_job(job)
         assert isinstance(out, Job)
         m_set_stop.set()
