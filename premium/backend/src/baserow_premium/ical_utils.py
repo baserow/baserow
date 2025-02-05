@@ -12,7 +12,6 @@ from django.db.models import QuerySet
 from baserow_premium.views.exceptions import CalendarViewHasNoDateField
 from baserow_premium.views.models import CalendarView
 from icalendar import Calendar, Event
-from oauthlib.uri_validate import query
 
 from baserow.contrib.database.fields.models import Field
 from baserow.core.db import specific_queryset
