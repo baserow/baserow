@@ -178,8 +178,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         group_bys: list[ServiceAggregationGroupByDict] | None = None,
     ):
         with atomic_if_not_already():
-            table_fields = service.table.field_set.all()
-            table_field_ids = [field.id for field in table_fields]
+            table_field_ids = service.table.field_set.values_list("id", flat=True)
 
             def validate_agg_group_by(group_by):
                 if group_by["field_id"] not in table_field_ids:
@@ -211,16 +210,15 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         with atomic_if_not_already():
             service.service_sorts.all().delete()
             if service_sorts is not None:
-                table_fields = service.table.field_set.all()
-                table_field_ids = [field.id for field in table_fields]
+                table_field_ids = service.table.field_set.values_list("id", flat=True)
 
                 model = service.table.get_model()
                 allowed_sort_field_ids = []
                 if service.service_aggregation_group_bys.count() > 0:
                     group_by = service.service_aggregation_group_bys.all()[0]
                     allowed_sort_field_ids += (
-                        [group_by.field.id]
-                        if group_by.field is not None
+                        [group_by.field_id]
+                        if group_by.field_id is not None
                         else [model.get_primary_field().id]
                     )
 
@@ -389,19 +387,19 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         queryset = self.build_queryset(service, table, dispatch_context, model=model)
 
         allowed_sort_field_ids = [
-            series.field.id for series in service.service_aggregation_series.all()
+            series.field_id for series in service.service_aggregation_series.all()
         ]
 
         if service.service_aggregation_group_bys.count() > 0:
             group_by = service.service_aggregation_group_bys.all()[0]
             allowed_sort_field_ids += (
-                [group_by.field.id]
-                if group_by.field is not None
+                [group_by.field_id]
+                if group_by.field_id is not None
                 else [model.get_primary_field().id]
             )
 
         for sort_by in service.service_sorts.all():
-            if sort_by.field.id not in allowed_sort_field_ids:
+            if sort_by.field_id not in allowed_sort_field_ids:
                 raise ServiceImproperlyConfigured(
                     f"The field with ID {sort_by.field.id} cannot be used for sorting."
                 )
