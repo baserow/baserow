@@ -12,6 +12,7 @@ from django.db.models import QuerySet
 from baserow_premium.views.exceptions import CalendarViewHasNoDateField
 from baserow_premium.views.models import CalendarView
 from icalendar import Calendar, Event
+from oauthlib.uri_validate import query
 
 from baserow.contrib.database.fields.models import Field
 from baserow.core.db import specific_queryset
@@ -189,7 +190,7 @@ def build_calendar(
         query_field_names.add(field_name)
 
     filter_qs = {f"{date_field_name}__isnull": False}
-    qs = qs.filter(**filter_qs).only(*query_field_names)
+    qs = qs.filter(**filter_qs).defer(*query_field_names)
     if limit:
         qs = qs[:limit]
 

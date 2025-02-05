@@ -2412,3 +2412,53 @@ def test_calendar_view_ical_filters(premium_data_fixture, api_client, data_fixtu
     titles = ["title 4 - "]
     for tstart, summary in zip(titles, evsummary):
         assert summary.startswith(tstart)
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_calendar_view_ical_feed_with_date_and_select_related_field_in_queryset(
+    premium_data_fixture, api_client, data_fixture
+):
+    """
+    Basic ical feed functionality test
+    """
+
+    workspace = premium_data_fixture.create_workspace(name="Workspace 1")
+    user, token = premium_data_fixture.create_user_and_token(workspace=workspace)
+    table = premium_data_fixture.create_database_table(user=user)
+    field_title = data_fixture.create_text_field(table=table, user=user)
+    date_field = premium_data_fixture.create_date_field(
+        table=table,
+        date_include_time=True,
+    )
+    # Adding a last modified field automatically adds a select related to the query.
+    premium_data_fixture.create_last_modified_by_field(table=table)
+    view_handler = ViewHandler()
+
+    calendar_view: CalendarView = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="calendar",
+        date_field=date_field,
+    )
+
+    # make ical feed public
+    req_patch = partial(
+        api_client.patch, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    resp: Response = req_patch(
+        reverse("api:database:views:item", kwargs={"view_id": calendar_view.id}),
+        {"ical_public": True},
+    )
+    assert resp.status_code == HTTP_200_OK
+    assert resp.data["ical_feed_url"]
+
+    calendar_view.refresh_from_db()
+    req_get = partial(api_client.get, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    resp = req_get(
+        reverse(
+            "api:database:views:calendar:calendar_ical_feed",
+            kwargs={"ical_slug": calendar_view.ical_slug},
+        )
+    )
+    assert resp.status_code == HTTP_200_OK
