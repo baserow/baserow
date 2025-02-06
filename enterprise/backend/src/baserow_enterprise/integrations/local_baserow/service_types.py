@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Type
 
+from django.conf import settings
 from django.db.models import OrderBy, QuerySet
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -162,6 +163,14 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
             service.service_aggregation_series.all().delete()
             if aggregation_series is not None:
+                if (
+                    len(aggregation_series)
+                    > settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES
+                ):
+                    raise DRFValidationError(
+                        detail=f"The number of series exceeds the maximum allowed length of {settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES}.",
+                        code="max_length_exceeded",
+                    )
                 LocalBaserowTableServiceAggregationSeries.objects.bulk_create(
                     [
                         LocalBaserowTableServiceAggregationSeries(
@@ -192,6 +201,11 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
             service.service_aggregation_group_bys.all().delete()
             if group_bys is not None:
+                if len(group_bys) > 1:
+                    raise DRFValidationError(
+                        detail=f"The number of group by fields exceeds the maximum allowed length of 1.",
+                        code="max_length_exceeded",
+                    )
                 LocalBaserowTableServiceAggregationGroupBy.objects.bulk_create(
                     [
                         LocalBaserowTableServiceAggregationGroupBy(
@@ -466,8 +480,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             return result
 
         if len(group_by_values) > 0:
-            results = list(queryset.annotate(**combined_agg_dict))
-            results = [process_individual_result(result) for result in results]
+            queryset = queryset.annotate(**combined_agg_dict)[
+                : settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
+            ]
+            results = [process_individual_result(result) for result in queryset]
         else:
             results = queryset.aggregate(**combined_agg_dict)
             results = process_individual_result(results)

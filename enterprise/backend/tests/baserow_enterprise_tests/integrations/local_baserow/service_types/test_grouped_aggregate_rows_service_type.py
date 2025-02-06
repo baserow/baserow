@@ -220,6 +220,78 @@ def test_create_grouped_aggregate_rows_service_group_by_field_not_in_table(
 
 
 @pytest.mark.django_db
+def test_create_grouped_aggregate_rows_service_max_series_exceeded(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    field_3 = data_fixture.create_number_field(table=table)
+    field_4 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    values = service_type.prepare_values(
+        {
+            "view_id": view.id,
+            "table_id": view.table_id,
+            "integration_id": integration.id,
+            "aggregation_series": [
+                {"field_id": field.id, "aggregation_type": "sum"},
+                {"field_id": field_2.id, "aggregation_type": "sum"},
+                {"field_id": field_3.id, "aggregation_type": "sum"},
+                {"field_id": field_4.id, "aggregation_type": "sum"},
+            ],
+        },
+        user,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=f"The number of series exceeds the maximum allowed length of 3.",
+    ):
+        ServiceHandler().create_service(service_type, **values)
+
+
+@pytest.mark.django_db
+def test_create_grouped_aggregate_rows_service_max_group_bys_exceeded(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    values = service_type.prepare_values(
+        {
+            "view_id": view.id,
+            "table_id": view.table_id,
+            "integration_id": integration.id,
+            "aggregation_series": [
+                {"field_id": field.id, "aggregation_type": "sum"},
+            ],
+            "aggregation_group_bys": [{"field_id": field.id}, {"field_id": field_2.id}],
+        },
+        user,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=f"The number of group by fields exceeds the maximum allowed length of 1.",
+    ):
+        ServiceHandler().create_service(service_type, **values)
+
+
+@pytest.mark.django_db
 def test_create_grouped_aggregate_rows_service_sort_by_field_outside_of_series_group_bys(
     data_fixture,
 ):
@@ -570,6 +642,90 @@ def test_update_grouped_aggregate_rows_service_group_by_field_not_in_table(
 
     with pytest.raises(
         ValidationError, match=f"The field with ID {field.id} is not related"
+    ):
+        ServiceHandler().update_service(service_type, service=service, **values)
+
+
+@pytest.mark.django_db
+def test_update_grouped_aggregate_rows_service_max_series_exceeded(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    field_3 = data_fixture.create_number_field(table=table)
+    field_4 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    values = service_type.prepare_values(
+        {
+            "view_id": view.id,
+            "table_id": view.table_id,
+            "integration_id": integration.id,
+            "aggregation_series": [
+                {"field_id": field.id, "aggregation_type": "sum"},
+                {"field_id": field_2.id, "aggregation_type": "sum"},
+                {"field_id": field_3.id, "aggregation_type": "sum"},
+                {"field_id": field_4.id, "aggregation_type": "sum"},
+            ],
+        },
+        user,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=f"The number of series exceeds the maximum allowed length of 3.",
+    ):
+        ServiceHandler().update_service(service_type, service=service, **values)
+
+
+@pytest.mark.django_db
+def test_update_grouped_aggregate_rows_service_max_group_bys_exceeded(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    values = service_type.prepare_values(
+        {
+            "view_id": view.id,
+            "table_id": view.table_id,
+            "integration_id": integration.id,
+            "aggregation_series": [
+                {"field_id": field.id, "aggregation_type": "sum"},
+            ],
+            "aggregation_group_bys": [{"field_id": field.id}, {"field_id": field_2.id}],
+        },
+        user,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=f"The number of group by fields exceeds the maximum allowed length of 1.",
     ):
         ServiceHandler().update_service(service_type, service=service, **values)
 
@@ -1265,6 +1421,16 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_id(data_fixture):
     assert result == {
         "result": [
             {
+                f"field_{field.id}": Decimal("2"),
+                f"field_{field_2.id}": Decimal("2"),
+                "id": 1,
+            },
+            {
+                f"field_{field.id}": Decimal("4"),
+                f"field_{field_2.id}": Decimal("2"),
+                "id": 2,
+            },
+            {
                 f"field_{field.id}": Decimal("6"),
                 f"field_{field_2.id}": Decimal("2"),
                 "id": 3,
@@ -1273,16 +1439,6 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_id(data_fixture):
                 f"field_{field.id}": Decimal("8"),
                 f"field_{field_2.id}": Decimal("2"),
                 "id": 4,
-            },
-            {
-                f"field_{field.id}": Decimal("4"),
-                f"field_{field_2.id}": Decimal("2"),
-                "id": 2,
-            },
-            {
-                f"field_{field.id}": Decimal("2"),
-                f"field_{field_2.id}": Decimal("2"),
-                "id": 1,
             },
         ]
     }
@@ -2066,6 +2222,271 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ig
                 f"field_{field.id}": Decimal("60"),
                 f"field_{field_2.id}": Decimal("6"),
                 f"field_{field_3.id}": Decimal("6"),
+            },
+        ],
+    }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_group_by_field(
+    data_fixture, settings
+):
+    settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 4
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field_2, order=1
+    )
+    LocalBaserowTableServiceSort.objects.create(
+        service=service, field=field_2, order=1, order_by="ASC"
+    )
+
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {
+                f"field_{field.id}": 40,
+                f"field_{field_2.id}": "Z",
+            },
+            {
+                f"field_{field.id}": 20,
+                f"field_{field_2.id}": "K",
+            },
+            {
+                f"field_{field.id}": 30,
+                f"field_{field_2.id}": "L",
+            },
+            {
+                f"field_{field.id}": 10,
+                f"field_{field_2.id}": "A",
+            },
+            {
+                f"field_{field.id}": 60,
+                f"field_{field_2.id}": "H",
+            },
+            {
+                f"field_{field.id}": 50,
+                f"field_{field_2.id}": "M",
+            },
+        ],
+    )
+
+    dispatch_context = FakeDispatchContext()
+
+    result = ServiceHandler().dispatch_service(service, dispatch_context)
+
+    assert result == {
+        "result": [
+            {
+                f"field_{field.id}": Decimal("10"),
+                f"field_{field_2.id}": "A",
+            },
+            {
+                f"field_{field.id}": Decimal("60"),
+                f"field_{field_2.id}": "H",
+            },
+            {
+                f"field_{field.id}": Decimal("20"),
+                f"field_{field_2.id}": "K",
+            },
+            {
+                f"field_{field.id}": Decimal("30"),
+                f"field_{field_2.id}": "L",
+            },
+        ],
+    }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_series(
+    data_fixture, settings
+):
+    settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 4
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field_2, order=1
+    )
+    LocalBaserowTableServiceSort.objects.create(
+        service=service, field=field, order=1, order_by="ASC"
+    )
+
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {
+                f"field_{field.id}": 40,
+                f"field_{field_2.id}": "Z",
+            },
+            {
+                f"field_{field.id}": 20,
+                f"field_{field_2.id}": "K",
+            },
+            {
+                f"field_{field.id}": 30,
+                f"field_{field_2.id}": "L",
+            },
+            {
+                f"field_{field.id}": 10,
+                f"field_{field_2.id}": "A",
+            },
+            {
+                f"field_{field.id}": 60,
+                f"field_{field_2.id}": "H",
+            },
+            {
+                f"field_{field.id}": 50,
+                f"field_{field_2.id}": "M",
+            },
+        ],
+    )
+
+    dispatch_context = FakeDispatchContext()
+
+    result = ServiceHandler().dispatch_service(service, dispatch_context)
+
+    assert result == {
+        "result": [
+            {
+                f"field_{field.id}": Decimal("10"),
+                f"field_{field_2.id}": "A",
+            },
+            {
+                f"field_{field.id}": Decimal("20"),
+                f"field_{field_2.id}": "K",
+            },
+            {
+                f"field_{field.id}": Decimal("30"),
+                f"field_{field_2.id}": "L",
+            },
+            {
+                f"field_{field.id}": Decimal("40"),
+                f"field_{field_2.id}": "Z",
+            },
+        ],
+    }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_primary_field(
+    data_fixture, settings
+):
+    settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 4
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table, primary=True)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=None, order=1
+    )
+    LocalBaserowTableServiceSort.objects.create(
+        service=service, field=field_2, order=1, order_by="ASC"
+    )
+
+    rows = RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {
+                f"field_{field.id}": 40,
+                f"field_{field_2.id}": "Z",
+            },
+            {
+                f"field_{field.id}": 20,
+                f"field_{field_2.id}": "K",
+            },
+            {
+                f"field_{field.id}": 30,
+                f"field_{field_2.id}": "L",
+            },
+            {
+                f"field_{field.id}": 10,
+                f"field_{field_2.id}": "A",
+            },
+            {
+                f"field_{field.id}": 60,
+                f"field_{field_2.id}": "H",
+            },
+            {
+                f"field_{field.id}": 50,
+                f"field_{field_2.id}": "M",
+            },
+        ],
+    )
+
+    dispatch_context = FakeDispatchContext()
+
+    result = ServiceHandler().dispatch_service(service, dispatch_context)
+
+    assert result == {
+        "result": [
+            {
+                f"field_{field.id}": Decimal("10"),
+                f"field_{field_2.id}": "A",
+                "id": rows[3].id,
+            },
+            {
+                f"field_{field.id}": Decimal("60"),
+                f"field_{field_2.id}": "H",
+                "id": rows[4].id,
+            },
+            {
+                f"field_{field.id}": Decimal("20"),
+                f"field_{field_2.id}": "K",
+                "id": rows[1].id,
+            },
+            {
+                f"field_{field.id}": Decimal("30"),
+                f"field_{field_2.id}": "L",
+                "id": rows[2].id,
             },
         ],
     }
