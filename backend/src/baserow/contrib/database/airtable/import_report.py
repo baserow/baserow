@@ -9,7 +9,7 @@ from baserow.contrib.database.views.registries import view_type_registry
 
 @dataclasses.dataclass
 class ImportReportFailedItem:
-    name: str
+    object_name: str
     category: str
     table: str
     message: str
@@ -19,8 +19,8 @@ class AirtableImportReport:
     def __init__(self):
         self.items = []
 
-    def add_failed(self, name, category, table, message):
-        self.items.append(ImportReportFailedItem(name, category, table, message))
+    def add_failed(self, object_name, category, table, message):
+        self.items.append(ImportReportFailedItem(object_name, category, table, message))
 
     def get_baserow_export_table(self, order: int) -> dict:
         # Create an empty grid view because the importing of views doesn't work
@@ -35,7 +35,7 @@ class AirtableImportReport:
         exported_views = [empty_serialized_grid_view]
 
         fields = [
-            TextField(id="name", name="Name", order=0, primary=True),
+            TextField(id="object", name="Object", order=0, primary=True),
             TextField(id="category", name="Category", order=1),
             TextField(id="table", name="Table", order=2),
             LongTextField(id="message", name="Message", order=3),
@@ -53,7 +53,7 @@ class AirtableImportReport:
                 created_on=None,
                 updated_on=None,
             )
-            row["field_name"] = item.name
+            row["field_object"] = item.object_name
             row["field_category"] = item.category
             row["field_table"] = item.table
             row["field_message"] = item.message

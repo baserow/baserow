@@ -66,14 +66,14 @@ class TextAirtableColumnType(AirtableColumnType):
                 field_type = field_type_registry.get_by_model(baserow_field)
                 field_type.validator(value)
             except ValidationError:
-                row = get_airtable_row_primary_value(
+                row_name = get_airtable_row_primary_value(
                     raw_airtable_table, raw_airtable_row
                 )
                 import_report.add_failed(
-                    row,
-                    f"Field {raw_airtable_column['name']}",
+                    f"Row: \"{row_name}\", column: \"{raw_airtable_column['name']}\"",
+                    f"Cell",
                     raw_airtable_table["name"],
-                    f"Value was left empty because it didn't pass the email or URL validation.",
+                    f'Cell value "{value}" was left empty because it didn\'t pass the email or URL validation.',
                 )
                 return ""
 
@@ -232,10 +232,10 @@ class DateAirtableColumnType(AirtableColumnType):
         # date_force_timezone=None it the equivalent of airtable_timezone="client".
         if airtable_timezone == "client":
             import_report.add_failed(
-                raw_airtable_column["name"],
-                "Date field",
+                f"Date field: \"{raw_airtable_column['name']}\"",
+                "Field",
                 raw_airtable_table.get("name", ""),
-                "The field was imported, but client timezone was dropped.",
+                "The date field was imported, but the client timezone setting was dropped.",
             )
             airtable_timezone = None
 
@@ -264,14 +264,15 @@ class DateAirtableColumnType(AirtableColumnType):
             value = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ").replace(
                 tzinfo=timezone.utc
             )
-        except ValueError:
-            row = get_airtable_row_primary_value(raw_airtable_table, raw_airtable_row)
-            tb = traceback.format_exc()
+        except ValueError as e:
+            row_name = get_airtable_row_primary_value(
+                raw_airtable_table, raw_airtable_row
+            )
             import_report.add_failed(
-                row,
-                f"Field {raw_airtable_column['name']}",
+                f"Row: \"{row_name}\", column: \"{raw_airtable_column['name']}\"",
+                f"Cell",
                 raw_airtable_table["name"],
-                f"Importing datetime cell failed because of: \n{tb}",
+                f'Cell value was left empty because it didn\'t pass the datetime validation with error: "{str(e)}"',
             )
             return None
 
@@ -302,23 +303,28 @@ class FormulaAirtableColumnType(AirtableColumnType):
 
         # date_force_timezone=None it the equivalent of airtable_timezone="client".
         if airtable_timezone == "client":
-            import_report.add_failed(
-                raw_airtable_column["name"],
-                "Date field",
-                raw_airtable_table.get("name", ""),
-                "The field was imported, but client timezone was dropped.",
-            )
             airtable_timezone = None
+
+        is_last_modified = display_type == "lastModifiedTime"
+        is_created = display_type == "createdTime"
+
+        if is_last_modified or is_created and airtable_timezone == "client":
+            import_report.add_failed(
+                f"Date field: \"{raw_airtable_column['name']}\"",
+                "Field",
+                raw_airtable_table.get("name", ""),
+                "The field was imported, but the client timezone setting was dropped.",
+            )
 
         # The formula conversion isn't support yet, but because the Created on and
         # Last modified fields work as a formula, we can convert those.
-        if display_type == "lastModifiedTime":
+        if is_last_modified:
             return LastModifiedField(
                 date_show_tzinfo=date_show_tzinfo,
                 date_force_timezone=airtable_timezone,
                 **import_airtable_date_type_options(type_options),
             )
-        elif display_type == "createdTime":
+        elif is_created:
             return CreatedOnField(
                 date_show_tzinfo=date_show_tzinfo,
                 date_force_timezone=airtable_timezone,
@@ -383,11 +389,28 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
         # Airtable doesn't always provide an object with a `foreignRowId`. This can
         # happen with a synced table for example. Because we don't have access to the
         # source in that case, we need to skip them.
-        return [
-            row_id_mapping[foreign_table_id][v["foreignRowId"]]
-            for v in value
-            if "foreignRowId" in v
-        ]
+        foreign_row_ids = [v["foreignRowId"] for v in value if "foreignRowId" in v]
+
+        value = []
+        for foreign_row_id in foreign_row_ids:
+            try:
+                value.append(row_id_mapping[foreign_table_id][foreign_row_id])
+            except KeyError:
+                # If a key error is raised, then we don't have the foreign row id in
+                # the mapping. This can happen if the data integrity is compromised in
+                # the Airtable base. We don't want to fail the import, so we're
+                # reporting instead.
+                row_name = get_airtable_row_primary_value(
+                    raw_airtable_table, raw_airtable_row
+                )
+                import_report.add_failed(
+                    f"Row: \"{row_name}\", column: \"{raw_airtable_column['name']}\"",
+                    f"Cell",
+                    raw_airtable_table["name"],
+                    f'Foreign row id "{foreign_row_id}" was not added as relationship in the cell value was because it was not found in the mapping.',
+                )
+
+        return value
 
 
 class MultipleAttachmentAirtableColumnType(AirtableColumnType):
@@ -517,12 +540,14 @@ class PhoneAirtableColumnType(AirtableColumnType):
             field_type.validator(value)
             return value
         except ValidationError:
-            row = get_airtable_row_primary_value(raw_airtable_table, raw_airtable_row)
+            row_name = get_airtable_row_primary_value(
+                raw_airtable_table, raw_airtable_row
+            )
             import_report.add_failed(
-                row,
-                f"Field {raw_airtable_column['name']}",
+                f"Row: \"{row_name}\", column: \"{raw_airtable_column['name']}\"",
+                f"Cell",
                 raw_airtable_table["name"],
-                f"Value was left empty because it didn't pass the phone number validation.",
+                f'Cell value "{value}" was left empty because it didn\'t pass the phone number validation.',
             )
             return ""
 

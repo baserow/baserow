@@ -463,13 +463,11 @@ class AirtableHandler:
                 # None means that none of the field types know how to parse this field,
                 # so we must ignore it.
                 if baserow_field is None:
-                    options = json.dumps(column.get("typeOptions", {}))
                     import_report.add_failed(
-                        column["name"],
+                        f"Field: \"{column['name']}\"",
                         "Field",
                         table["name"],
-                        f"""No support for field type {column["type"]} with
-{options}""",
+                        f"""Field "{column['name']}" with field type {column["type"]} was not imported because it is not supported.""",
                     )
                     continue
 
@@ -562,10 +560,11 @@ class AirtableHandler:
             # because the views are not yet supported.
             for view in table["views"]:
                 import_report.add_failed(
-                    view["name"],
+                    f"View: \"{view['name']}\"",
                     "View",
                     table["name"],
-                    "Views are not yet supported by the Airtable import",
+                    f"View \"{view['name']}\" was not imported because views are not "
+                    f"yet supported during import.",
                 )
 
             exported_table = DatabaseExportSerializedStructure.table(
