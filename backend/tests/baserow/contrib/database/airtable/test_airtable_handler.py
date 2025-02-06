@@ -222,7 +222,7 @@ def test_to_baserow_database_export():
     assert baserow_database_export["name"] == "Test"
     assert baserow_database_export["order"] == 1
     assert baserow_database_export["type"] == "database"
-    assert len(baserow_database_export["tables"]) == 3  # 2 + import rapport table
+    assert len(baserow_database_export["tables"]) == 3  # 2 + import report table
 
     assert baserow_database_export["tables"][0]["id"] == "tblRpq315qnnIcg5IjI"
     assert baserow_database_export["tables"][0]["name"] == "Users"
@@ -511,11 +511,11 @@ def test_import_from_airtable_to_workspace(
 
     assert database.name == "Test"
     all_tables = database.table_set.all()
-    assert len(all_tables) == 3  # 2 + import rapport
+    assert len(all_tables) == 3  # 2 + import report
 
     assert all_tables[0].name == "Users"
     assert all_tables[1].name == "Data"
-    assert all_tables[2].name == "Airtable import rapport"
+    assert all_tables[2].name == "Airtable import report"
 
     user_fields = all_tables[0].field_set.all()
     assert len(user_fields) == 4
@@ -540,7 +540,7 @@ def test_import_from_airtable_to_workspace(
 
 @pytest.mark.django_db
 @responses.activate
-def test_import_from_airtable_to_workspace_with_rapport_table(data_fixture, tmpdir):
+def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdir):
     workspace = data_fixture.create_workspace()
     base_path = os.path.join(
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
@@ -605,10 +605,10 @@ def test_import_from_airtable_to_workspace_with_rapport_table(data_fixture, tmpd
         progress_builder=progress.create_child_builder(represents_progress=1000),
     )
 
-    rapport_table = database.table_set.last()
-    assert rapport_table.name == "Airtable import rapport"
+    report_table = database.table_set.last()
+    assert report_table.name == "Airtable import report"
 
-    model = rapport_table.get_model(attribute_names=True)
+    model = report_table.get_model(attribute_names=True)
     row = model.objects.last()
     assert row.name == "All interfaces"
     assert row.category == "Interfaces"

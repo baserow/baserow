@@ -18,7 +18,7 @@ from baserow.contrib.database.airtable.airtable_column_types import (
     TextAirtableColumnType,
 )
 from baserow.contrib.database.airtable.config import AirtableImportConfig
-from baserow.contrib.database.airtable.import_rapport import AirtableImportRapport
+from baserow.contrib.database.airtable.import_report import AirtableImportReport
 from baserow.contrib.database.airtable.registry import airtable_column_type_registry
 from baserow.contrib.database.fields.models import (
     BooleanField,
@@ -51,7 +51,7 @@ def test_unknown_column_type():
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert baserow_field is None
     assert baserow_field is None
@@ -69,7 +69,7 @@ def test_unknown_column_type():
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert baserow_field is None
     assert baserow_field is None
@@ -90,7 +90,7 @@ def test_airtable_import_text_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, TextField)
     assert isinstance(airtable_column_type, TextAirtableColumnType)
@@ -112,7 +112,7 @@ def test_airtable_import_checkbox_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, BooleanField)
     assert isinstance(airtable_column_type, CheckboxAirtableColumnType)
@@ -143,7 +143,7 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, CreatedOnField)
     assert isinstance(airtable_column_type, FormulaAirtableColumnType)
@@ -175,7 +175,7 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, CreatedOnField)
     assert isinstance(airtable_column_type, FormulaAirtableColumnType)
@@ -194,7 +194,7 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
             "2022-01-03T14:51:00.000Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -216,7 +216,7 @@ def test_airtable_import_date_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -234,7 +234,7 @@ def test_airtable_import_date_column(data_fixture, api_client):
             "2022-01-03T14:51:00.000Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "2022-01-03"
     )
@@ -248,7 +248,7 @@ def test_airtable_import_date_column(data_fixture, api_client):
             "0999-02-04T14:51:00.000Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "0999-02-04"
     )
@@ -262,7 +262,7 @@ def test_airtable_import_date_column(data_fixture, api_client):
             None,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -287,7 +287,7 @@ def test_airtable_import_european_date_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -305,7 +305,7 @@ def test_airtable_import_european_date_column(data_fixture, api_client):
             "2022-01-03T14:51:00.000Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "2022-01-03"
     )
@@ -319,7 +319,7 @@ def test_airtable_import_european_date_column(data_fixture, api_client):
             "2020-08-27T21:10:24.828Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "2020-08-27"
     )
@@ -333,7 +333,7 @@ def test_airtable_import_european_date_column(data_fixture, api_client):
             None,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -360,7 +360,7 @@ def test_airtable_import_datetime_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -378,7 +378,7 @@ def test_airtable_import_datetime_column(data_fixture, api_client):
             "2022-01-03T14:51:00.000Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "2022-01-03T14:51:00+00:00"
     )
@@ -392,7 +392,7 @@ def test_airtable_import_datetime_column(data_fixture, api_client):
             "2020-08-27T21:10:24.828Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "2020-08-27T21:10:24.828000+00:00"
     )
@@ -406,7 +406,7 @@ def test_airtable_import_datetime_column(data_fixture, api_client):
             None,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -435,7 +435,7 @@ def test_airtable_import_datetime_with_default_timezone_column(
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -454,7 +454,7 @@ def test_airtable_import_datetime_with_default_timezone_column(
             "2022-01-03T23:51:00.000Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "2022-01-03T23:51:00+00:00"
     )
@@ -483,7 +483,7 @@ def test_airtable_import_datetime_with_different_default_timezone_column(
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -502,7 +502,7 @@ def test_airtable_import_datetime_with_different_default_timezone_column(
             "2022-01-03T23:51:00.000Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "2022-01-03T23:51:00+00:00"
     )
@@ -529,7 +529,7 @@ def test_airtable_import_datetime_edge_case_1(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -547,7 +547,7 @@ def test_airtable_import_datetime_edge_case_1(data_fixture, api_client):
             "+020222-03-28T00:00:00.000Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -569,7 +569,7 @@ def test_airtable_import_email_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, EmailField)
     assert isinstance(airtable_column_type, TextAirtableColumnType)
@@ -584,7 +584,7 @@ def test_airtable_import_email_column(data_fixture, api_client):
             "NOT_EMAIL",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == ""
     )
@@ -598,7 +598,7 @@ def test_airtable_import_email_column(data_fixture, api_client):
             "test@test.nl",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "test@test.nl"
     )
@@ -620,7 +620,7 @@ def test_airtable_import_multiple_attachment_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, FileField)
     assert isinstance(airtable_column_type, MultipleAttachmentAirtableColumnType)
@@ -658,7 +658,7 @@ def test_airtable_import_multiple_attachment_column(data_fixture, api_client):
         ],
         files_to_download,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     ) == [
         {
             "name": "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample.txt",
@@ -695,7 +695,7 @@ def test_airtable_import_multiple_attachment_column_skip_files(
         {},
         airtable_field,
         AirtableImportConfig(skip_files=True),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, FileField)
     assert isinstance(airtable_column_type, MultipleAttachmentAirtableColumnType)
@@ -734,7 +734,7 @@ def test_airtable_import_multiple_attachment_column_skip_files(
             ],
             files_to_download,
             AirtableImportConfig(skip_files=True),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == []
     )
@@ -769,7 +769,7 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LastModifiedField)
     assert isinstance(airtable_column_type, FormulaAirtableColumnType)
@@ -804,7 +804,7 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LastModifiedField)
     assert isinstance(airtable_column_type, FormulaAirtableColumnType)
@@ -823,7 +823,7 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
             "2022-01-03T14:51:00.000Z",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "2022-01-03T14:51:00+00:00"
     )
@@ -850,7 +850,7 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
         {"id": "tblxxx"},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LinkRowField)
     assert isinstance(airtable_column_type, ForeignKeyAirtableColumnType)
@@ -880,7 +880,7 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
         ],
         {},
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     ) == [1, 2]
 
     # link to same table row
@@ -902,7 +902,7 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
         {"id": "tblRpq315qnnIcg5IjI"},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LinkRowField)
     assert isinstance(airtable_column_type, ForeignKeyAirtableColumnType)
@@ -925,7 +925,7 @@ def test_airtable_import_multiline_text_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LongTextField)
     assert isinstance(airtable_column_type, MultilineTextAirtableColumnType)
@@ -940,7 +940,7 @@ def test_airtable_import_multiline_text_column(data_fixture, api_client):
             "test",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "test"
     )
@@ -961,7 +961,7 @@ def test_airtable_import_rich_text_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LongTextField)
     assert isinstance(airtable_column_type, RichTextTextAirtableColumnType)
@@ -986,7 +986,7 @@ def test_airtable_import_rich_text_column(data_fixture, api_client):
             content,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere "
         "cubilia curae; Class aptent taciti sociosqu ad litora."
@@ -1008,7 +1008,7 @@ def test_airtable_import_rich_text_column_with_mention(data_fixture, api_client)
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LongTextField)
     assert isinstance(airtable_column_type, RichTextTextAirtableColumnType)
@@ -1039,7 +1039,7 @@ def test_airtable_import_rich_text_column_with_mention(data_fixture, api_client)
         content,
         {},
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     ) == (
         "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices "
         "@usrr5CVJ5Lz8ErVZS cubilia curae; Class aptent taciti sociosqu ad litora."
@@ -1080,7 +1080,7 @@ def test_airtable_import_multi_select_column(
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, MultipleSelectField)
     assert isinstance(airtable_column_type, MultiSelectAirtableColumnType)
@@ -1123,7 +1123,7 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, NumberField)
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
@@ -1140,7 +1140,7 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
             "10",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "10"
     )
@@ -1154,7 +1154,7 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
             10,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "10"
     )
@@ -1168,7 +1168,7 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
             "-10",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -1182,7 +1182,7 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
             -10,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -1196,7 +1196,7 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
             None,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -1222,7 +1222,7 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, NumberField)
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
@@ -1246,7 +1246,7 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, NumberField)
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
@@ -1263,7 +1263,7 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
             "10.22",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "10.22"
     )
@@ -1277,7 +1277,7 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
             10,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "10"
     )
@@ -1291,7 +1291,7 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
             "-10.555",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "-10.555"
     )
@@ -1305,7 +1305,7 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
             -10,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "-10"
     )
@@ -1319,7 +1319,7 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
             None,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -1341,7 +1341,7 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, NumberField)
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
@@ -1360,7 +1360,7 @@ def test_airtable_import_phone_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, PhoneNumberField)
     assert isinstance(airtable_column_type, PhoneAirtableColumnType)
@@ -1375,7 +1375,7 @@ def test_airtable_import_phone_column(data_fixture, api_client):
             "NOT_PHONE",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == ""
     )
@@ -1389,7 +1389,7 @@ def test_airtable_import_phone_column(data_fixture, api_client):
             "1234",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "1234"
     )
@@ -1411,7 +1411,7 @@ def test_airtable_import_rating_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, RatingField)
     assert isinstance(airtable_column_type, RatingAirtableColumnType)
@@ -1426,7 +1426,7 @@ def test_airtable_import_rating_column(data_fixture, api_client):
             5,
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == 5
     )
@@ -1466,7 +1466,7 @@ def test_airtable_import_select_column(
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, SingleSelectField)
     assert isinstance(airtable_column_type, SelectAirtableColumnType)
@@ -1505,7 +1505,7 @@ def test_airtable_import_url_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, URLField)
     assert isinstance(airtable_column_type, TextAirtableColumnType)
@@ -1520,7 +1520,7 @@ def test_airtable_import_url_column(data_fixture, api_client):
             "NOT_URL",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == ""
     )
@@ -1534,7 +1534,7 @@ def test_airtable_import_url_column(data_fixture, api_client):
             "https://test.nl",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         == "https://test.nl"
     )
@@ -1561,7 +1561,7 @@ def test_airtable_import_count_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportRapport(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, CountField)
     assert isinstance(airtable_column_type, CountAirtableColumnType)
@@ -1577,7 +1577,7 @@ def test_airtable_import_count_column(data_fixture, api_client):
             "1",
             {},
             AirtableImportConfig(),
-            AirtableImportRapport(),
+            AirtableImportReport(),
         )
         is None
     )
