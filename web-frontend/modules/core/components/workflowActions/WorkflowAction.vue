@@ -75,8 +75,14 @@ export default {
         return
       }
 
+      const differences = Object.fromEntries(
+        Object.entries(values).filter(
+          ([key, value]) => !_.isEqual(value, this.workflowAction[key])
+        )
+      )
+
       // In this case there weren't any actual changes
-      if (_.isMatch(this.workflowAction, values)) {
+      if (Object.keys(differences).length === 0) {
         return
       }
       if (values.type) {

@@ -2,20 +2,15 @@ import datetime as datetime_module
 import zoneinfo
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from decimal import Decimal
 from enum import Enum
-from functools import reduce
-from math import ceil, floor
 from types import MappingProxyType
 from typing import Any, Dict, NamedTuple, Optional, Tuple, Union
 
-from django.contrib.postgres.expressions import ArraySubquery
-from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
-from django.db.models import DateField, DateTimeField, IntegerField, OuterRef, Q, Value
+from django.db.models import DateField, DateTimeField, IntegerField, Q, Value
 from django.db.models.expressions import F, Func
 from django.db.models.fields.json import JSONField
-from django.db.models.functions import Cast, Extract, Length, Mod, TruncDate
+from django.db.models.functions import Extract, Length, Mod, TruncDate
 
 from dateutil import parser
 from dateutil.relativedelta import MO, relativedelta
@@ -26,6 +21,7 @@ from baserow.contrib.database.fields.field_filters import (
     FilterBuilder,
     OptionallyAnnotatedQ,
     filename_contains_filter,
+    parse_ids_from_csv_string,
 )
 from baserow.contrib.database.fields.field_types import (
     AutonumberFieldType,
@@ -52,7 +48,10 @@ from baserow.contrib.database.fields.field_types import (
     URLFieldType,
     UUIDFieldType,
 )
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.filter_support.base import (
+    get_jsonb_has_any_in_value_filter_expr,
+)
+from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import (
     BaserowFormulaBooleanType,
@@ -117,18 +116,18 @@ class EqualViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field):
-        value = value.strip()
+        # Check if the model_field accepts the value.
+        field_type = field_type_registry.get_by_model(field)
+        try:
+            value = field_type.parse_filter_value(field, model_field, value.strip())
+        except ValueError:
+            return self.default_filter_on_exception()
 
         # If an empty value has been provided we do not want to filter at all.
-        if value == "":
+        if value is None:
             return Q()
 
-        # Check if the model_field accepts the value.
-        try:
-            value = model_field.get_prep_value(value)
-            return Q(**{field_name: value})
-        except Exception:
-            return self.default_filter_on_exception()
+        return Q(**{field_name: value})
 
 
 class NotEqualViewFilterType(NotViewFilterTypeMixin, EqualViewFilterType):
@@ -379,26 +378,19 @@ class NumericComparisonViewFilterType(ViewFilterType):
         ),
     ]
 
-    def should_round_value_to_compare(self, value, model_field):
-        return isinstance(model_field, IntegerField) and value.find(".") != -1
-
     def get_filter(self, field_name, value, model_field, field):
-        value = value.strip()
+        field_type = field_type_registry.get_by_model(field)
+        try:
+            filter_value = field_type.parse_filter_value(
+                field, model_field, value.strip()
+            )
+        except ValueError:
+            return self.default_filter_on_exception()
 
-        # If an empty value has been provided we do not want to filter at all.
-        if value == "":
+        if filter_value is None:
             return Q()
 
-        if self.should_round_value_to_compare(value, model_field):
-            decimal_value = Decimal(value)
-            value = self.rounding_func(decimal_value)
-
-        # Check if the model_field accepts the value.
-        try:
-            value = model_field.get_prep_value(value)
-            return Q(**{f"{field_name}__{self.operator}": value})
-        except Exception:
-            return self.default_filter_on_exception()
+        return Q(**{f"{field_name}__{self.operator}": filter_value})
 
 
 class LowerThanViewFilterType(NumericComparisonViewFilterType):
@@ -409,7 +401,6 @@ class LowerThanViewFilterType(NumericComparisonViewFilterType):
 
     type = "lower_than"
     operator = "lt"
-    rounding_func = floor
 
 
 class LowerThanOrEqualViewFilterType(NumericComparisonViewFilterType):
@@ -421,7 +412,6 @@ class LowerThanOrEqualViewFilterType(NumericComparisonViewFilterType):
 
     type = "lower_than_or_equal"
     operator = "lte"
-    rounding_func = floor
 
 
 class HigherThanViewFilterType(NumericComparisonViewFilterType):
@@ -432,7 +422,6 @@ class HigherThanViewFilterType(NumericComparisonViewFilterType):
 
     type = "higher_than"
     operator = "gt"
-    rounding_func = ceil
 
 
 class HigherThanOrEqualViewFilterType(NumericComparisonViewFilterType):
@@ -444,7 +433,6 @@ class HigherThanOrEqualViewFilterType(NumericComparisonViewFilterType):
 
     type = "higher_than_or_equal"
     operator = "gte"
-    rounding_func = ceil
 
 
 class TimezoneAwareDateViewFilterType(ViewFilterType):
@@ -1084,11 +1072,15 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
         ),
     ]
 
-    def _get_filter(field_name, value, model_field, field):
+    @staticmethod
+    def _get_filter(field_name, value: int, model_field, field):
         return Q(**{f"{field_name}_id": value})
 
-    def _get_formula_filter(field_name, value, model_field, field):
-        return Q(**{f"{field_name}__id": value})
+    @staticmethod
+    def _get_formula_filter(field_name, value: int, model_field, field):
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [value], query_path="$.id"
+        )
 
     filter_functions = MappingProxyType(
         {
@@ -1143,9 +1135,8 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         return Q(**{f"{field_name}_id__in": option_ids})
 
     def _get_formula_filter(field_name, option_ids, model_field, field):
-        return reduce(
-            lambda x, y: x | y,
-            [Q(**{f"{field_name}__id": str(option_id)}) for option_id in option_ids],
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, option_ids, query_path="$.id"
         )
 
     filter_functions = MappingProxyType(
@@ -1155,36 +1146,26 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         }
     )
 
-    def parse_option_ids(self, value):
-        try:
-            return [int(v) for v in value.split(",") if v.isdigit()]
-        except ValueError:
-            return []
-
     def get_filter(self, field_name, value: str, model_field, field):
         value = value.strip()
         if not value:
             return Q()
 
-        if not (option_ids := self.parse_option_ids(value)):
+        if not (option_ids := parse_ids_from_csv_string(value)):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
         filter_function = self.filter_functions[field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
-    def set_import_serialized_value(self, value, id_mapping):
-        splitted = value.split(",")
+    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
+        # Parses the old option ids and remaps them to the new option ids.
+        old_options_ids = parse_ids_from_csv_string(value or "")
+        select_option_map = id_mapping["database_field_select_options"]
         new_values = []
-        for value in splitted:
-            try:
-                int_value = int(value)
-            except ValueError:
-                return ""
-
-            new_id = str(id_mapping["database_field_select_options"].get(int_value, ""))
-            new_values.append(new_id)
-
+        for old_id in old_options_ids:
+            if new_id := select_option_map.get(old_id):
+                new_values.append(str(new_id))
         return ",".join(new_values)
 
 
@@ -1217,24 +1198,17 @@ class BooleanViewFilterType(ViewFilterType):
     ]
 
     def get_filter(self, field_name, value, model_field, field):
-        value = value.strip().lower()
-        value = value in [
-            "y",
-            "t",
-            "o",
-            "yes",
-            "true",
-            "on",
-            "1",
-        ]
+        if value == "":  # consider an empty string as False
+            return Q(**{field_name: False})
 
-        # Check if the model_field accepts the value.
-        # noinspection PyBroadException
         try:
-            value = model_field.get_prep_value(value)
-            return Q(**{field_name: value})
-        except Exception:
-            return Q()
+            filter_value = BooleanFieldType().parse_filter_value(
+                field, model_field, value
+            )
+        except ValueError:
+            return self.default_filter_on_exception()
+
+        return Q(**{field_name: filter_value})
 
 
 class ManyToManyHasBaseViewFilter(ViewFilterType):
@@ -1245,18 +1219,35 @@ class ManyToManyHasBaseViewFilter(ViewFilterType):
     relationship to a foreignkey with the ID of 10.
     """
 
-    def get_filter(self, field_name, value, model_field, field):
+    def _get_filter(self, field_name, value, model_field, field):
+        remote_field = model_field.remote_field
+        remote_model = remote_field.model
+        return Q(
+            id__in=remote_model.objects.filter(id=value).values(
+                f"{remote_field.related_name}__id"
+            )
+        )
+
+    def _get_formula_filter(field_name, value, model_field, field):
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [value], query_path="$.id"
+        )
+
+    filter_functions = MappingProxyType({FormulaFieldType.type: _get_formula_filter})
+
+    def get_filter(self, field_name, value: str, model_field, field):
+        value = value.strip()
+        if not value:
+            return Q()
+
         try:
             val = int(value.strip())
-            remote_field = model_field.remote_field
-            remote_model = remote_field.model
-            return Q(
-                id__in=remote_model.objects.filter(id=val).values(
-                    f"{remote_field.related_name}__id"
-                )
-            )
-        except ValueError:
+        except (ValueError, TypeError):
             return Q()
+
+        field_type = field_type_registry.get_by_model(field)
+        filter_function = self.filter_functions.get(field_type.type, self._get_filter)
+        return filter_function(field_name, val, model_field, field)
 
 
 class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
@@ -1283,18 +1274,20 @@ class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
             pass
 
         if related_row_id:
-            field = view_filter.field.specific
-            # TODO: use field.get_related_primary_field() and
-            # model_field.remote_field.model here instead
-            table = field.link_row_table
-            primary_field = table.field_set.get(primary=True)
-            model = table.get_model(
-                field_ids=[], fields=[primary_field], add_dependencies=False
-            )
-
+            related_table_id = LinkRowField.objects.filter(
+                id=view_filter.field_id
+            ).values("link_row_table_id")[:1]
             try:
+                primary_field = Field.objects.select_related("table").get(
+                    primary=True, table_id=related_table_id
+                )
+
+                model = primary_field.table.get_model(
+                    field_ids=[], fields=[primary_field], add_dependencies=False
+                )
+
                 name = str(model.objects.get(pk=related_row_id))
-            except model.DoesNotExist:
+            except (Field.DoesNotExist, model.DoesNotExist):
                 pass
 
         return {"display_name": name}
@@ -1385,49 +1378,21 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         ),
     ]
 
+    @staticmethod
     def _get_filter(field_name, option_ids, model_field, field):
-        try:
-            remote_field = model_field.remote_field
-            remote_model = remote_field.model
-            return Q(
-                id__in=remote_model.objects.filter(id__in=option_ids).values(
-                    f"{remote_field.related_name}__id"
-                )
+        remote_field = model_field.remote_field
+        remote_model = remote_field.model
+        return Q(
+            id__in=remote_model.objects.filter(id__in=option_ids).values(
+                f"{remote_field.related_name}__id"
             )
-        except ValueError:
-            return Q()
+        )
 
+    @staticmethod
     def _get_formula_filter(field_name, option_ids, model_field, field):
-        model = model_field.model
-        subq = (
-            model.objects.filter(id=OuterRef("id"))
-            .annotate(
-                res=Cast(
-                    Func(
-                        Func(field_name, function="jsonb_array_elements"),
-                        Value("id"),
-                        function="jsonb_extract_path",
-                    ),
-                    output_field=IntegerField(),
-                )
-            )
-            .values("res")
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, option_ids, query_path="$[*].id"
         )
-        annotation_name = f"{field_name}_has"
-        return AnnotatedQ(
-            annotation={
-                annotation_name: ArraySubquery(
-                    subq, output_field=ArrayField(IntegerField())
-                )
-            },
-            q=Q(**{f"{annotation_name}__overlap": option_ids}),
-        )
-
-    def parse_option_ids(self, value):
-        try:
-            return [int(v) for v in value.split(",") if v.isdigit()]
-        except ValueError:
-            return []
 
     filter_functions = MappingProxyType(
         {
@@ -1441,20 +1406,24 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         if not value:
             return Q()
 
-        if not (option_ids := self.parse_option_ids(value)):
+        if not (option_ids := parse_ids_from_csv_string(value)):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
         filter_function = self.filter_functions[field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
-    def set_import_serialized_value(self, value, id_mapping):
-        try:
-            value = int(value)
-        except ValueError:
-            return ""
+    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
+        # Parses the old option ids and remaps them to the new option ids.
+        old_options_ids = parse_ids_from_csv_string(value or "")
+        select_option_map = id_mapping["database_field_select_options"]
 
-        return str(id_mapping["database_field_select_options"].get(value, ""))
+        new_values = []
+        for old_id in old_options_ids:
+            if new_id := select_option_map.get(old_id):
+                new_values.append(str(new_id))
+
+        return ",".join(new_values)
 
 
 class MultipleSelectHasNotViewFilterType(
@@ -1476,11 +1445,18 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
     """
 
     type = "multiple_collaborators_has"
-    compatible_field_types = [MultipleCollaboratorsFieldType.type]
+    compatible_field_types = [
+        MultipleCollaboratorsFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            MultipleCollaboratorsFieldType.type
+        ),
+    ]
 
     COLLABORATORS_KEY = f"available_collaborators"
 
     def get_export_serialized_value(self, value, id_mapping):
+        if value is None:
+            value = ""
         if self.COLLABORATORS_KEY not in id_mapping:
             workspace_id = id_mapping.get("workspace_id", None)
             if workspace_id is None:
@@ -1548,6 +1524,8 @@ class UserIsViewFilterType(ViewFilterType):
             return Q()
 
     def get_export_serialized_value(self, value, id_mapping):
+        if value is None:
+            value = ""
         if self.USER_KEY not in id_mapping:
             workspace_id = id_mapping.get("workspace_id", None)
             if workspace_id is None:
@@ -1629,6 +1607,7 @@ class EmptyViewFilterType(ViewFilterType):
             BaserowFormulaURLType.type,
             BaserowFormulaSingleSelectType.type,
             BaserowFormulaMultipleSelectType.type,
+            MultipleCollaboratorsFieldType.type,
             FormulaFieldType.array_of(BaserowFormulaSingleFileType.type),
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
         ),
@@ -1795,14 +1774,7 @@ DATE_FILTER_OPERATOR_DELTA_MAP = {
 }
 
 
-class DateMultiStepViewFilterType(ViewFilterType):
-    compatible_field_types = [
-        DateFieldType.type,
-        LastModifiedFieldType.type,
-        CreatedOnFieldType.type,
-        FormulaFieldType.compatible_with_formula_types(BaserowFormulaDateType.type),
-    ]
-
+class BaseDateMultiStepViewFilterType(ViewFilterType):
     incompatible_operators = []
 
     def get_filter_date(
@@ -1871,16 +1843,17 @@ class DateMultiStepViewFilterType(ViewFilterType):
 
     def split_combined_value(
         self, field, filter_value, separator=DATE_FILTER_TIMEZONE_SEPARATOR
-    ) -> Tuple[zoneinfo.ZoneInfo, str]:
+    ) -> Tuple[zoneinfo.ZoneInfo, str, str]:
         """
-        Splits the timezone and the value from the provided value. If the value
-        does not contain a timezone then the default timezone will be used.
+        Splits the timezone and the value from the provided value. If the value does not
+        contain a timezone then the default timezone will be used.
 
         :param field: The field that is being filtered.
         :param filter_value: The value that has been provided by the user.
-        :param separator: The separator that is used to split the timezone and
-            the value.
-        :return: A tuple containing the timezone and the filter_value string.
+        :param separator: The separator that is used to split the timezone and the
+            value.
+        :return: A tuple containing the timezone, the filter_value string and the
+            operator.
         """
 
         (
@@ -1889,10 +1862,8 @@ class DateMultiStepViewFilterType(ViewFilterType):
             operator,
         ) = self._split_combined_value(field, filter_value, separator)
 
-        python_timezone = (
-            zoneinfo.ZoneInfo(user_timezone_str)
-            if user_timezone_str
-            else datetime_module.timezone.utc
+        python_timezone = zoneinfo.ZoneInfo(
+            user_timezone_str if user_timezone_str else "UTC"
         )
 
         validated_filter_value = (
@@ -1914,21 +1885,27 @@ class DateMultiStepViewFilterType(ViewFilterType):
             return False
         return filter_value == DATE_FILTER_EMPTY_VALUE
 
-    def get_filter_query_dict(
+    def get_filter_expression(
         self,
-        operator: str,
         field_name: str,
-        aware_filter_date: Union[datetime, date],
-        **kwargs,
-    ) -> Dict[str, Union[date, datetime]]:
+        model_field,
+        lower_bound: date | datetime,
+        upper_bound: date | datetime,
+        timezone: zoneinfo.ZoneInfo,
+    ) -> OptionallyAnnotatedQ:
         """
-        Returns a dictionary that can be used to create a Q object.
+        Returns an OptionallyAnnotatedQ object that can be used to filter the provided
+        field_name, given the lower and upper bounds of the filter and the timezone to
+        consider.
 
-        :param operator: The operator that should be used to filter the field.
-        :param field_name: The name of the field that should be used in the
-            query.
-        :param aware_filter_date: The date that should be used to compare with
-            the field value.
+        :param field_name: The name of the field that should be used in the query.
+        :params model_field: The Django model field of the database table that is being
+            filtered.
+        :param lower_bound: The lower bound of the filter.
+        :param upper_bound: The upper bound of the filter.
+        :param timezone: The timezone that should be used to filter the provided field.
+        :return: An OptionallyAnnotatedQ object that can be used to filter the provided
+            field.
         """
 
         raise NotImplementedError()
@@ -1965,21 +1942,61 @@ class DateMultiStepViewFilterType(ViewFilterType):
         ):
             return Q(pk__in=[])
 
-        annotation = {}
-        query_field_name = field_name
-
-        if isinstance(model_field, DateTimeField):
-            if not isinstance(filter_date, datetime):
-                query_field_name = f"{field_name}_tzdate"
-                annotation[query_field_name] = TruncDate(field_name, tzinfo=timezone)
-
-        elif isinstance(model_field, DateField) and isinstance(filter_date, datetime):
+        if isinstance(model_field, DateField) and isinstance(filter_date, datetime):
             filter_date = filter_date.date()
 
         date_filter_operator = DATE_FILTER_OPERATOR_FROM_VALUE[operator]
         lower_bound, upper_bound = DATE_FILTER_OPERATOR_BOUNDS[date_filter_operator](
             filter_date
         )
+
+        return self.get_filter_expression(
+            field_name, model_field, lower_bound, upper_bound, timezone
+        )
+
+
+class DateMultiStepViewFilterType(BaseDateMultiStepViewFilterType):
+    compatible_field_types = [
+        DateFieldType.type,
+        LastModifiedFieldType.type,
+        CreatedOnFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(BaserowFormulaDateType.type),
+    ]
+
+    def get_filter_query_dict(
+        self,
+        operator: str,
+        field_name: str,
+        aware_filter_date: Union[datetime, date],
+        **kwargs,
+    ) -> Dict[str, Union[date, datetime]]:
+        """
+        Returns a dictionary that can be used to create a Q object.
+
+        :param operator: The operator that should be used to filter the field.
+        :param field_name: The name of the field that should be used in the
+            query.
+        :param aware_filter_date: The date that should be used to compare with
+            the field value.
+        """
+
+        raise NotImplementedError()
+
+    def get_filter_expression(
+        self,
+        field_name: str,
+        model_field,
+        lower_bound: date | datetime,
+        upper_bound: date | datetime,
+        timezone: zoneinfo.ZoneInfo,
+    ) -> OptionallyAnnotatedQ:
+        annotation = {}
+        query_field_name = field_name
+
+        if isinstance(model_field, DateTimeField) and isinstance(lower_bound, date):
+            tzname = str(timezone).lower().replace("/", "_")
+            query_field_name = f"{field_name}_tz_{tzname}"
+            annotation[query_field_name] = TruncDate(field_name, tzinfo=timezone)
 
         query_dict = {
             f"{field_name}__isnull": False,  # makes `NotViewFilterTypeMixin` work with timezones

@@ -333,8 +333,12 @@ export default {
       }
     },
     openConfigureDataSyncModal() {
-      this.$refs.context.hide()
-      this.$refs.configureDataSyncModal.show()
+      if (this.dataSyncDeactivated) {
+        this.$refs.deactivatedDataSyncClickModal.show()
+      } else {
+        this.$refs.context.hide()
+        this.$refs.configureDataSyncModal.show()
+      }
     },
     enableRename() {
       this.$refs.context.hide()

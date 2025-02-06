@@ -19,7 +19,7 @@ export default {
   mixins: [viewFilter],
   computed: {
     copy() {
-      const value = this.filter.value
+      const value = String(this.filter.value ?? '')
       return value === '' || value.includes(',')
         ? null
         : parseInt(value) || null

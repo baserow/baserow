@@ -46,7 +46,8 @@
     "errorPathNotUnique": "A path with this name already exists",
     "errorStartingSlash": "A path needs to start with a '/'",
     "errorValidPathCharacters": "The path contains invalid characters",
-    "errorUniquePathParams": "Path parameters have to be unique."
+    "errorUniquePathParams": "Path parameters have to be unique.",
+    "errorUniqueValidQueryParams": "Query parameter names have to be unique and valid."
   },
   "pageHeaderItemTypes": {
     "labelElements": "Elements",
@@ -88,8 +89,8 @@
     "linkDescription": "A link to page/URL",
     "image": "Image",
     "imageDescription": "Display image",
-    "inputText": "Text input",
-    "inputTextDescription": "A text input field",
+    "inputText": "Data input",
+    "inputTextDescription": "A data input field",
     "column": "Columns",
     "columnDescription": "Columns container",
     "button": "Button",
@@ -148,7 +149,8 @@
     "style": "Style",
     "visibility": "Visibility",
     "events": "Events",
-    "eventsTabDeactivatedNoEvents": "This element doesn't support any events"
+    "eventsTabDeactivatedNoEvents": "This element doesn't support any events",
+    "eventsTabInError": "One or more actions are misconfigured."
   },
   "emptySidePanelState": {
     "message": "Click on one of the elements to see more details"
@@ -379,13 +381,21 @@
     "nameSubtitle": "Unique name of the page",
     "namePlaceholder": "Enter a name...",
     "pathTitle": "Path",
+    "addAnotherParameter": "Add another query string parameter",
+    "addParameter": "Add query string parameter",
+    "queryParamsSubtitleTutorial": "Query parameters can be used to dynamically load data, depending on the provided parameter.",
     "pathSubtitle": "A parameter can be added via :parameter",
     "pathPlaceholder": "Enter a path...",
     "pathParamsTitle": "Path parameters",
+    "queryParamsTitle": "Query string parameters",
     "pathParamsSubtitle": "Are defined by :parameter in the path",
     "pathParamsSubtitleTutorial": "Path parameters can be used to dynamically load data, depending on the provided parameter. Add :parameter to the path to add one."
   },
   "pathParamTypes": {
+    "textName": "Text",
+    "numericName": "Numeric"
+  },
+  "queryParamTypes": {
     "textName": "Text",
     "numericName": "Numeric"
   },
@@ -394,7 +404,11 @@
   },
   "publicPage": {
     "siteNotFound": "Site not found",
-    "pageNotFound": "Page not found"
+    "pageNotFound": "Page not found",
+    "loginToastTitle": "Authentication Successful",
+    "loginToastMessage": "You have been successfully signed in.",
+    "authorizedToastTitle": "Authentication Required",
+    "authorizedToastMessage": "You must be signed in to access this page. Please log in to continue."
   },
   "integrationSettings": {
     "title": "Integrations",
@@ -448,6 +462,11 @@
     "paddingLabel": "Padding",
     "marginLabel": "Margin"
   },
+  "radiusStyleForm": {
+    "cornerRadiusLabel": "Corner radius",
+    "backgroundRadiusLabel": "Background",
+    "borderRadiusLabel": "Border"
+  },
   "themeConfigBlockType": {
     "color": "Colors",
     "page": "Page",
@@ -465,7 +484,10 @@
     "borderColor": "Border",
     "successColor": "Success",
     "warningColor": "Warning",
-    "errorColor": "Error"
+    "errorColor": "Error",
+    "customColors": "Custom colors",
+    "addCustomColor": "Add custom color",
+    "customColorPrefix": "Custom"
   },
   "pageThemeConfigBlock": {
     "backgroundColor": "Background color",
@@ -486,9 +508,22 @@
     "headingValue": "Heading <h{i}>",
     "color": "Color",
     "size": "Size",
+    "weight": "Weight",
     "textAlignment": "Alignment",
     "bodyLabel": "Body",
     "fontFamily": "Font"
+  },
+  "fontWeightType": {
+    "thin": "Thin",
+    "extraLight": "Extra-light",
+    "light": "Light",
+    "regular": "Regular",
+    "medium": "Medium",
+    "semiBold": "Semi-bold",
+    "bold": "Bold",
+    "extraBold": "Extra-bold",
+    "black": "Black",
+    "extraBlack": "Extra-black"
   },
   "buttonThemeConfigBlock": {
     "backgroundColor": "Background color",
@@ -504,7 +539,8 @@
     "borderRadius": "Border radius",
     "padding": "Padding",
     "fontFamily": "Font",
-    "size": "Font size"
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "linkThemeConfigBlock": {
     "color": "Color",
@@ -512,7 +548,9 @@
     "defaultState": "Default state",
     "hoverState": "Hover state",
     "alignment": "Alignment",
-    "fontFamily": "Font"
+    "fontFamily": "Font",
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "inputThemeConfigBlock": {
     "label": "Label",
@@ -524,7 +562,8 @@
     "borderRadius": "Border radius",
     "padding": "Padding",
     "fontFamily": "Font",
-    "size": "Font size"
+    "size": "Font size",
+    "weight": "Font weight"
   },
   "imageThemeConfigBlock": {
     "alignment": "Alignment",
@@ -537,7 +576,9 @@
     "imageConstraintCover": "Cover",
     "imageConstraintCoverDisabled": "Unavailable with empty max height.",
     "imageConstraintContain": "Contain",
-    "imageConstraintContainDisabled": "Unavailable with a max height."
+    "imageConstraintContainDisabled": "Unavailable with a max height.",
+    "imageBorderRadiusLabel": "Border radius",
+    "imageBorderRadiusPlaceholder": "Enter the image border radius."
   },
   "tableThemeConfigBlock": {
     "borderColor": "Border color",
@@ -550,6 +591,7 @@
     "fontFamily": "Font",
     "size": "Size",
     "fontSize": "Font size",
+    "fontWeight": "Font weight",
     "table": "Table",
     "header": "Header",
     "alignment": "Alignment",
@@ -648,7 +690,10 @@
     "orientationHorizontal": "Horizontal",
     "buttonLoadMoreLabel": "Show more label",
     "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
-    "propertySelectorMissingArrays": "No multiple valued fields found to repeat with."
+    "propertySelectorMissingArrays": "No multiple valued fields found to repeat with.",
+    "gapLabel": "Space between repetitions",
+    "gapVerticalLabel": "Vertical",
+    "gapHorizontalLabel": "Horizontal"
   },
   "recordSelectorElement": {
     "emptyAdhocState": "No records matching '{query}' found.",
@@ -810,8 +855,8 @@
     "allVisitors": "All visitors",
     "loggedInVisitors": "Logged-in visitors",
     "notLoggedInVisitors": "Logged-out visitors",
-    "warningTitle": "We're constantly enhancing the security",
-    "warningMessage": "At the moment the visibility is only applied in the UI, the underlying data is still accessible from the API. Please check the <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>documentation</a> for more information on data security.",
+    "warningTitle": "This is a security feature",
+    "warningMessage": "Check the <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>documentation</a> to learn more about how we secure data.",
     "excludedRolesLabel": "all roles except",
     "switchAllowLabel": "Allow",
     "switchDisallowLabel": "Disallow",
@@ -875,5 +920,9 @@
     "all": "On all pages",
     "only": "Only on selected pages",
     "except": "Exclude selected pages"
+  },
+  "authProviderWithModal": {
+    "authProviderInError": "Please edit this provider to fix the error.",
+    "title": "Edit provider: {name}"
   }
 }

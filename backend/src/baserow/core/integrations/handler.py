@@ -14,7 +14,7 @@ from baserow.core.integrations.registries import (
     integration_type_registry,
 )
 from baserow.core.models import Application
-from baserow.core.registries import application_type_registry
+from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
 
@@ -235,12 +235,17 @@ class IntegrationHandler:
     def export_integration(
         self,
         integration: Integration,
+        import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
     ):
         return integration.get_type().export_serialized(
-            integration, files_zip=files_zip, storage=storage, cache=cache
+            integration,
+            import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def import_integration(

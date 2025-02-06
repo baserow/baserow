@@ -50,7 +50,12 @@ export default {
     }
   },
   methods: {
-    async addPage({ name, path, path_params: pathParams }) {
+    async addPage({
+      name,
+      path,
+      path_params: pathParams,
+      query_params: queryParams,
+    }) {
       this.loading = true
       try {
         const page = await this.$store.dispatch('page/create', {
@@ -58,6 +63,7 @@ export default {
           name,
           path,
           pathParams,
+          queryParams,
         })
         this.$refs.pageForm.$v.$reset()
         this.hide()

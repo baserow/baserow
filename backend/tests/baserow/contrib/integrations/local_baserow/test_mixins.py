@@ -208,7 +208,7 @@ def test_local_baserow_table_service_filterable_mixin_get_used_field_names(
         "internal": {},
     }
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
     result = service_type.get_used_field_names(service, dispatch_context)
 
@@ -290,7 +290,7 @@ def test_local_baserow_table_service_sortable_mixin_get_used_field_names(
         "internal": {},
     }
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
     result = service_type.get_used_field_names(service, dispatch_context)
 
@@ -370,7 +370,7 @@ def test_local_baserow_table_service_searchable_mixin_get_used_field_names(
         "internal": {},
     }
 
-    dispatch_context = FakeDispatchContext(public_formula_fields=field_names)
+    dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
 
     result = service_type.get_used_field_names(service, dispatch_context)
 

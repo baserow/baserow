@@ -1,5 +1,6 @@
 .ab-form-group {
   font-size: var(--label-font-size, 13px);
+  font-weight: var(--label-font-weight, 400);
 
   &.ab-form-group--with-label {
     margin-bottom: 0.33em;
@@ -16,9 +17,9 @@
 .ab-form-group__label {
   display: block;
   font-size: var(--label-font-size, 13px);
+  font-weight: var(--label-font-weight, 500);
   color: var(--label-text-color, $color-neutral-900);
   font-family: var(--label-font-family, Inter);
-  font-weight: 500;
   margin-bottom: 0.33em;
 
   @include flex-align-items(3px);

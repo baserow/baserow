@@ -20,6 +20,18 @@ export const uuid = function () {
   return uuid
 }
 
+/**
+ * Generate a random string for small UID with low chances of collision.
+ */
+export const smallUID = (length = 5) => {
+  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
 export const upperCaseFirst = function (string) {
   return string.charAt(0).toUpperCase() + string.slice(1)
 }
@@ -149,16 +161,25 @@ export const isNumeric = (value) => {
  * @example
  * // returns 'name 2'
  * getNextAvailableNameInSequence('name', ['name', 'name 1', 'name 3']);
+ *
+ * @example
+ * // returns 'name__2'
+ * getNextAvailableNameInSequence('name', ['name', 'name 1', 'name 3'],
+ *   {pattern: (baseName, index) => `${basename}__${index + 1}`});
  */
-export const getNextAvailableNameInSequence = (baseName, excludeNames) => {
+export const getNextAvailableNameInSequence = (
+  baseName,
+  excludeNames,
+  { pattern = (baseName, index) => `${baseName} ${index + 1}` } = {}
+) => {
   let name = baseName
   let i = 0
   while (i < excludeNames.length) {
     if (!excludeNames.includes(name)) {
       return name
     }
+    name = pattern(baseName, i)
     i++
-    name = `${baseName} ${i + 1}`
   }
   return name
 }

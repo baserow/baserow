@@ -103,6 +103,7 @@ def test_create_airtable_import_job(
         "type": "airtable",
         "workspace_id": workspace.id,
         "airtable_share_id": "shrxxxxxxxxxxxxxx",
+        "skip_files": False,
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
@@ -129,6 +130,7 @@ def test_create_airtable_import_job(
         "type": "airtable",
         "workspace_id": workspace.id,
         "airtable_share_id": "shrxxxxxxxxxxxxxx",
+        "skip_files": False,
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
@@ -179,12 +181,51 @@ def test_create_airtable_import_job_long_share_id(
         "type": "airtable",
         "workspace_id": workspace.id,
         "airtable_share_id": long_share_id,
+        "skip_files": False,
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
         "database": None,
     }
     mock_run_import_from_airtable.delay.assert_called()
+
+
+@pytest.mark.django_db(transaction=True)
+@patch(
+    "baserow.contrib.database.airtable.actions.AirtableHandler"
+    ".import_from_airtable_to_workspace"
+)
+def test_create_airtable_import_job_skip_files(
+    mock_import_from_airtable_to_workspace, data_fixture, api_client
+):
+    mock_import_from_airtable_to_workspace.return_value = (
+        data_fixture.create_database_application()
+    )
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    long_share_id = (
+        "shr22aXe5Hj32sPJB/tblU0bav59SSEyOkU/"
+        "viwyUDJYyQPYuFj1F?blocks=bipEYER8Qq7fLoPbr"
+    )
+
+    response = api_client.post(
+        reverse("api:jobs:list"),
+        {
+            "type": "airtable",
+            "workspace_id": workspace.id,
+            "airtable_share_url": f"https://airtable.com/{long_share_id}",
+            "skip_files": True,
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    airtable_import_job = AirtableImportJob.objects.all().first()
+    assert airtable_import_job.skip_files is True
+    assert response.json()["skip_files"] is True
+    args = mock_import_from_airtable_to_workspace.call_args
+    assert args[1]["config"].skip_files is True
 
 
 @pytest.mark.django_db
@@ -217,6 +258,7 @@ def test_get_airtable_import_job(data_fixture, api_client):
         "type": "airtable",
         "workspace_id": airtable_job_1.workspace_id,
         "airtable_share_id": "test",
+        "skip_files": False,
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
@@ -243,6 +285,7 @@ def test_get_airtable_import_job(data_fixture, api_client):
         "type": "airtable",
         "workspace_id": airtable_job_1.workspace_id,
         "airtable_share_id": "test",
+        "skip_files": False,
         "progress_percentage": 50,
         "state": "failed",
         "human_readable_error": "Wrong",

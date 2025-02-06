@@ -48,7 +48,7 @@ class DashboardDispatchContext(DispatchContext):
     def sortings(self):
         return None
 
-    def public_formula_fields(self):
+    def public_allowed_properties(self):
         return None
 
     def validate_filter_search_sort_fields(self):

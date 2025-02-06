@@ -34,6 +34,7 @@ from baserow.contrib.database.formula.types.formula_types import (
 )
 from baserow.contrib.database.views.view_aggregations import (
     AverageViewAggregationType,
+    CountViewAggregationType,
     EmptyCountViewAggregationType,
     MaxViewAggregationType,
     MedianViewAggregationType,
@@ -44,6 +45,16 @@ from baserow.contrib.database.views.view_aggregations import (
     UniqueCountViewAggregationType,
     VarianceViewAggregationType,
 )
+
+
+class CountFieldAggregationType(FieldAggregationType):
+    """
+    Count aggregation.
+    """
+
+    type = "count"
+    raw_type = CountViewAggregationType
+    compatible_field_types = raw_type.compatible_field_types
 
 
 class EmptyCountFieldAggregationType(FieldAggregationType):

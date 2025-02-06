@@ -13,7 +13,7 @@ You can also scale up by tweaking some settings.
 
 ## The template
 
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/bram2w/baserow/tree/master)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy/?template=https://github.com/bram2w/baserow/tree/master)
 *Beta*
 
 The button above can be used to install Baserow on Heroku with one click. Click on it

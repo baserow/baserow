@@ -5,7 +5,10 @@ import {
   genericHasEmptyValueFilter,
   genericHasValueLengthLowerThanFilter,
   genericHasAllValuesEqualFilter,
+  numericHasValueComparableToFilterFunction,
+  ComparisonOperator,
 } from '@baserow/modules/database/utils/fieldFilters'
+import _ from 'lodash'
 
 export const hasEmptyValueFilterMixin = {
   getHasEmptyValueFilterFunction(field) {
@@ -24,6 +27,7 @@ export const hasAllValuesEqualFilterMixin = {
       this.getHasAllValuesEqualFilterFunction(field)(cellValue, filterValue)
     )
   },
+
   hasNotAllValuesEqualFilter(cellValue, filterValue, field) {
     return (
       filterValue === '' ||
@@ -91,11 +95,107 @@ export const hasValueLengthIsLowerThanFilterMixin = {
   },
 }
 
-export const formulaArrayFilterMixin = {
-  getSubType(field) {
-    return this.app.$registry.get('formula_type', field.array_formula_type)
+export const hasNumericValueComparableToFilterMixin = {
+  // equal to
+  getHasValueEqualFilterFunction(field) {
+    return numericHasValueComparableToFilterFunction(ComparisonOperator.EQUAL)
   },
 
+  hasValueEqualFilter(cellValue, filterValue, field) {
+    return (
+      filterValue === '' ||
+      this.getHasValueEqualFilterFunction(field)(cellValue, filterValue)
+    )
+  },
+
+  hasNotValueEqualFilter(cellValue, filterValue, field) {
+    return (
+      filterValue === '' ||
+      !this.getHasValueEqualFilterFunction(field)(cellValue, filterValue)
+    )
+  },
+
+  /**
+   * All other comparison operators: higher_than, lower_than, etc.
+   */
+  hasValueComparableToFilter(
+    cellValue,
+    filterValue,
+    field,
+    comparisonOperator
+  ) {
+    return numericHasValueComparableToFilterFunction(comparisonOperator)(
+      cellValue,
+      filterValue
+    )
+  },
+}
+
+/*
+ * Mixin for the FormulaField to handle the array formula filters for number fields.
+ */
+export const formulaFieldArrayFilterMixin = Object.assign(
+  {},
+  hasAllValuesEqualFilterMixin,
+  hasEmptyValueFilterMixin,
+  hasValueEqualFilterMixin,
+  hasValueContainsFilterMixin,
+  hasValueContainsWordFilterMixin,
+  hasValueLengthIsLowerThanFilterMixin,
+  {
+    getHasAllValuesEqualFilterFunction(field) {
+      return this.getFormulaType(field)?.getHasAllValuesEqualFilterFunction(
+        field
+      )
+    },
+
+    getHasEmptyValueFilterFunction(field) {
+      return this.getFormulaType(field)?.getHasEmptyValueFilterFunction(field)
+    },
+
+    getHasValueEqualFilterFunction(field) {
+      return this.getFormulaType(field)?.getHasValueEqualFilterFunction(field)
+    },
+
+    getHasValueContainsFilterFunction(field) {
+      return this.getFormulaType(field)?.getHasValueContainsFilterFunction(
+        field
+      )
+    },
+
+    getHasValueContainsWordFilterFunction(field) {
+      return this.getFormulaType(field)?.getHasValueContainsWordFilterFunction(
+        field
+      )
+    },
+
+    getHasValueLengthIsLowerThanFilterFunction(field) {
+      return this.getFormulaType(
+        field
+      )?.getHasValueLengthIsLowerThanFilterFunction(field)
+    },
+
+    hasValueComparableToFilter(
+      cellValue,
+      filterValue,
+      field,
+      comparisonOperator
+    ) {
+      return this.getFormulaType(field)?.hasValueComparableToFilter(
+        cellValue,
+        filterValue,
+        field,
+        comparisonOperator
+      )
+    },
+  }
+)
+
+/*
+ * Mixin for the BaserowFormulaArrayType to proxy all the array filters to the
+ * correct sub type.
+ */
+export const baserowFormulaArrayTypeFilterMixin = {
   getHasEmptyValueFilterFunction(field) {
     const subType = this.getSubType(field)
     return subType.getHasEmptyValueFilterFunction(field)
@@ -144,6 +244,20 @@ export const formulaArrayFilterMixin = {
   getHasAllValuesEqualFilterFunction(field) {
     return this.getSubType(field)?.getHasAllValuesEqualFilterFunction(field)
   },
+
+  hasValueComparableToFilter(
+    cellValue,
+    filterValue,
+    field,
+    comparisonOperator
+  ) {
+    return this.getSubType(field)?.hasValueComparableToFilter(
+      cellValue,
+      filterValue,
+      field,
+      comparisonOperator
+    )
+  },
 }
 
 export const hasSelectOptionIdEqualMixin = Object.assign(
@@ -154,16 +268,18 @@ export const hasSelectOptionIdEqualMixin = Object.assign(
       const mapOptionIdsToValues = (cellVal) =>
         cellVal.map((v) => ({
           id: v.id,
-          value: String(v.value?.id || ''),
+          value: String(v.value?.id ?? ''),
         }))
       const hasValueEqualFilter = (cellVal, fltValue) =>
         genericHasValueEqualFilter(mapOptionIdsToValues(cellVal), fltValue)
 
       return (cellValue, filterValue) => {
-        const filterValues = filterValue.trim().split(',')
-        return filterValues.reduce((acc, fltValue) => {
-          return acc || hasValueEqualFilter(cellValue, String(fltValue))
-        }, false)
+        const filterValues = String(filterValue ?? '')
+          .trim()
+          .split(',')
+        return filterValues.some((fltValue) =>
+          hasValueEqualFilter(cellValue, String(fltValue))
+        )
       }
     },
   }
@@ -193,6 +309,90 @@ export const hasSelectOptionValueContainsWordFilterMixin = Object.assign(
           cellValue.map((v) => ({ id: v.id, value: v.value?.value || '' })),
           filterValue
         )
+    },
+  }
+)
+
+export const hasNestedSelectOptionValueContainsFilterMixin = Object.assign(
+  {},
+  hasValueContainsFilterMixin,
+  {
+    getHasValueContainsFilterFunction(field) {
+      return (cellValue, filterValue) => {
+        if (!Array.isArray(cellValue) || cellValue.length === 0) {
+          return false
+        }
+        return cellValue.some((v) =>
+          genericHasValueContainsFilter(v?.value || [], filterValue)
+        )
+      }
+    },
+  }
+)
+
+export const hasNestedSelectOptionValueContainsWordFilterMixin = Object.assign(
+  {},
+  hasValueContainsWordFilterMixin,
+  {
+    getHasValueContainsWordFilterFunction(field) {
+      return (cellValue, filterValue) => {
+        if (!Array.isArray(cellValue) || cellValue.length === 0) {
+          return false
+        }
+        return cellValue.some((v) =>
+          genericHasValueContainsWordFilter(v?.value || [], filterValue)
+        )
+      }
+    },
+  }
+)
+
+export const hasMultipleSelectAnyOptionIdEqualMixin = Object.assign(
+  {},
+  hasValueEqualFilterMixin,
+  {
+    getHasValueEqualFilterFunction(field) {
+      return (cellValue, filterValue) => {
+        if (!Array.isArray(cellValue)) {
+          return false
+        }
+        const rowValueIds = new Set(
+          cellValue.flatMap((v) => (v?.value || []).map((i) => i.id))
+        )
+        const filterValues = (filterValue || '')
+          .trim()
+          .split(',')
+          .map(Number.parseInt)
+        return filterValues.some((fltValue) => rowValueIds.has(fltValue))
+      }
+    },
+  }
+)
+
+export const hasMultipleSelectOptionIdEqualMixin = Object.assign(
+  {},
+  hasValueEqualFilterMixin,
+  {
+    getHasValueEqualFilterFunction(field) {
+      return (cellValue, filterValue) => {
+        if (!Array.isArray(cellValue)) {
+          return false
+        }
+
+        const filterValues = (filterValue || '')
+          .trim()
+          .split(',')
+          .map((oid) => Number.parseInt(oid))
+
+        // create an array with the sets containing the ids per linked row
+        const rowValueIdSets = cellValue.map(
+          (v) => new Set(v?.value.map((i) => i.id))
+        )
+        // Compare if any of the linked row values match exactly the filter values
+        return rowValueIdSets.some((rowValueIdSet) =>
+          _.isEqual(rowValueIdSet, new Set(filterValues))
+        )
+      }
     },
   }
 )

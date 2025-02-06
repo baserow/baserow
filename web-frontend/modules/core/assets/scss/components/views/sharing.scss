@@ -111,6 +111,8 @@
 }
 
 .view-sharing__shared-link-box {
+  @extend %ellipsis;
+
   background-color: $palette-neutral-100;
   line-height: 32px;
   padding: 0 8px;

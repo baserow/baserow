@@ -12,6 +12,7 @@ from baserow.contrib.dashboard.data_sources.exceptions import (
 )
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.data_sources.service import DashboardDataSourceService
+from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.models import Service
@@ -43,6 +44,27 @@ def test_get_data_source_permission_denied(data_fixture):
     data_source = data_fixture.create_dashboard_data_source()
 
     with pytest.raises(PermissionException):
+        DashboardDataSourceService().get_data_source(user, data_source.id)
+
+
+@pytest.mark.django_db
+def test_get_data_source_trashed(data_fixture):
+    user = data_fixture.create_user()
+    data_source = data_fixture.create_dashboard_data_source(user=user, trashed=True)
+
+    assert data_source.trashed is True
+
+    with pytest.raises(DashboardDataSourceDoesNotExist):
+        DashboardDataSourceService().get_data_source(user, data_source.id)
+
+
+@pytest.mark.django_db
+def test_get_data_source_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
+    data_source = data_fixture.create_dashboard_data_source(dashboard=dashboard)
+
+    with pytest.raises(DashboardDataSourceDoesNotExist):
         DashboardDataSourceService().get_data_source(user, data_source.id)
 
 
@@ -96,6 +118,48 @@ def test_get_data_sources(data_fixture, stub_check_permissions):
 
 
 @pytest.mark.django_db
+def test_get_data_sources_trashed(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+    data_source1 = data_fixture.create_dashboard_local_baserow_list_rows_data_source(
+        dashboard=dashboard, user=user
+    )
+    data_source2 = data_fixture.create_dashboard_local_baserow_list_rows_data_source(
+        dashboard=dashboard, user=user, trashed=True
+    )
+    data_source3 = (
+        data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(
+            dashboard=dashboard, user=user, trashed=True
+        )
+    )
+
+    assert [
+        p.id for p in DashboardDataSourceService().get_data_sources(user, dashboard.id)
+    ] == [
+        data_source1.id,
+    ]
+
+
+@pytest.mark.django_db
+def test_get_data_sources_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    dashboard = data_fixture.create_dashboard_application(
+        workspace=workspace, trashed=True
+    )
+    data_source1 = data_fixture.create_dashboard_local_baserow_list_rows_data_source(
+        dashboard=dashboard, user=user
+    )
+    data_source2 = data_fixture.create_dashboard_local_baserow_list_rows_data_source(
+        dashboard=dashboard, user=user
+    )
+
+    with pytest.raises(DashboardDoesNotExist):
+        DashboardDataSourceService().get_data_sources(user, dashboard.id)
+
+
+@pytest.mark.django_db
 @patch("baserow.contrib.dashboard.data_sources.service.dashboard_data_source_deleted")
 def test_delete_data_source(dashboard_data_source_deleted, data_fixture):
     user = data_fixture.create_user()
@@ -116,6 +180,28 @@ def test_delete_data_source_permission_denied(data_fixture):
     data_source = data_fixture.create_dashboard_data_source()
 
     with pytest.raises(PermissionException):
+        DashboardDataSourceService().delete_data_source(user, data_source.id)
+
+
+@pytest.mark.django_db
+def test_delete_data_source_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    data_source = data_fixture.create_dashboard_data_source(
+        dashboard=dashboard, trashed=True
+    )
+
+    with pytest.raises(DashboardDataSourceDoesNotExist):
+        DashboardDataSourceService().delete_data_source(user, data_source.id)
+
+
+@pytest.mark.django_db
+def test_delete_data_source_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
+    data_source = data_fixture.create_dashboard_data_source(dashboard=dashboard)
+
+    with pytest.raises(DashboardDataSourceDoesNotExist):
         DashboardDataSourceService().delete_data_source(user, data_source.id)
 
 
@@ -153,6 +239,21 @@ def test_create_data_source_permission_denied(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_data_source_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace()
+    dashboard = data_fixture.create_dashboard_application(
+        workspace=workspace, trashed=True
+    )
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+
+    with pytest.raises(DashboardDoesNotExist):
+        DashboardDataSourceService().create_data_source(
+            user, dashboard.id, service_type, "My data source"
+        )
+
+
+@pytest.mark.django_db
 @patch("baserow.contrib.dashboard.data_sources.service.dashboard_data_source_updated")
 def test_update_data_source_name(dashboard_data_source_updated, data_fixture):
     user = data_fixture.create_user()
@@ -165,10 +266,10 @@ def test_update_data_source_name(dashboard_data_source_updated, data_fixture):
     updated_data_source = DashboardDataSourceService().update_data_source(
         user, data_source.id, data_source.service.get_type(), name="Updated name"
     )
-    assert updated_data_source.name == "Updated name"
+    assert updated_data_source.data_source.name == "Updated name"
 
     assert dashboard_data_source_updated.called_with(
-        data_source=updated_data_source, user=user
+        data_source=updated_data_source.data_source, user=user
     )
 
 
@@ -178,6 +279,34 @@ def test_update_data_source_permission_denied(data_fixture):
     data_source = data_fixture.create_dashboard_data_source()
 
     with pytest.raises(PermissionException):
+        DashboardDataSourceService().update_data_source(
+            user, data_source.id, data_source.service.get_type()
+        )
+
+
+@pytest.mark.django_db
+def test_update_data_source_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    data_source = data_fixture.create_dashboard_data_source(
+        name="Name 1", dashboard=dashboard, trashed=True
+    )
+
+    with pytest.raises(DashboardDataSourceDoesNotExist):
+        DashboardDataSourceService().update_data_source(
+            user, data_source.id, data_source.service.get_type()
+        )
+
+
+@pytest.mark.django_db
+def test_update_data_source_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
+    data_source = data_fixture.create_dashboard_data_source(
+        name="Name 1", dashboard=dashboard
+    )
+
+    with pytest.raises(DashboardDataSourceDoesNotExist):
         DashboardDataSourceService().update_data_source(
             user, data_source.id, data_source.service.get_type()
         )
@@ -230,6 +359,36 @@ def test_dispatch_data_source_permissions_denied(data_fixture):
     dispatch_context = DashboardDispatchContext(HttpRequest())
 
     with pytest.raises(PermissionException):
+        DashboardDataSourceService().dispatch_data_source(
+            user, data_source.id, dispatch_context
+        )
+
+
+@pytest.mark.django_db
+def test_dispatch_data_source_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    data_source = data_fixture.create_dashboard_data_source(
+        name="Name 1", dashboard=dashboard, trashed=True
+    )
+    dispatch_context = DashboardDispatchContext(HttpRequest())
+
+    with pytest.raises(DashboardDataSourceDoesNotExist):
+        DashboardDataSourceService().dispatch_data_source(
+            user, data_source.id, dispatch_context
+        )
+
+
+@pytest.mark.django_db
+def test_dispatch_data_source_dashboard_trashed(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
+    data_source = data_fixture.create_dashboard_data_source(
+        name="Name 1", dashboard=dashboard
+    )
+    dispatch_context = DashboardDispatchContext(HttpRequest())
+
+    with pytest.raises(DashboardDataSourceDoesNotExist):
         DashboardDataSourceService().dispatch_data_source(
             user, data_source.id, dispatch_context
         )

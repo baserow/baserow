@@ -31,6 +31,11 @@ export default {
       required: false,
       default: null,
     },
+    appendIcon: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
   data() {
     return {

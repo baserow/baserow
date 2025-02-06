@@ -2,7 +2,7 @@
   <div
     class="page-preview__wrapper"
     :class="`page-preview__wrapper--${deviceType.type}`"
-    @click.self="actionSelectElement({ element: null })"
+    @click.self="actionSelectElement({ builder, element: null })"
   >
     <PreviewNavigationBar :page="currentPage" :style="{ maxWidth }" />
     <div ref="preview" class="page-preview" :style="{ 'max-width': maxWidth }">
@@ -27,9 +27,7 @@
                 :element="element"
                 :is-first-element="index === 0"
                 :is-copying="copyingElementIndex === index"
-                :application-context-additions="{
-                  recordIndexPath: [],
-                }"
+                :application-context-additions="contextAdditions"
                 @move="moveElement($event)"
               />
             </header>
@@ -65,9 +63,7 @@
                 :element="element"
                 :is-first-element="index === 0 && headerElements.length === 0"
                 :is-copying="copyingElementIndex === index"
-                :application-context-additions="{
-                  recordIndexPath: [],
-                }"
+                :application-context-additions="contextAdditions"
                 @move="moveElement($event)"
               />
             </div>
@@ -95,9 +91,7 @@
                   elements.length === 0
                 "
                 :is-copying="copyingElementIndex === index"
-                :application-context-additions="{
-                  recordIndexPath: [],
-                }"
+                :application-context-additions="contextAdditions"
                 @move="moveElement($event)"
               />
             </footer>
@@ -141,10 +135,18 @@ export default {
     DIRECTIONS: () => DIRECTIONS,
     ...mapGetters({
       deviceTypeSelected: 'page/getDeviceTypeSelected',
-      elementSelected: 'element/getSelected',
+      getElementSelected: 'element/getSelected',
       getChildren: 'element/getChildren',
       getClosestSiblingElement: 'element/getClosestSiblingElement',
     }),
+    elementSelected() {
+      return this.getElementSelected(this.builder)
+    },
+    contextAdditions() {
+      return {
+        recordIndexPath: [],
+      }
+    },
     elements() {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
@@ -362,6 +364,7 @@ export default {
       if (nextPlaces[direction]) {
         try {
           await this.actionMoveElement({
+            builder: this.builder,
             page: elementPage,
             elementId: element.id,
             ...nextPlaces[direction],
@@ -386,7 +389,10 @@ export default {
       }
       const nextElement = this.elementsAround[direction]
       if (nextElement) {
-        await this.actionSelectElement({ element: nextElement })
+        await this.actionSelectElement({
+          builder: this.builder,
+          element: nextElement,
+        })
       }
     },
     async duplicateElement() {
@@ -397,6 +403,7 @@ export default {
       this.isDuplicating = true
       try {
         await this.actionDuplicateElement({
+          builder: this.builder,
           page: this.elementSelectedPage,
           elementId: this.elementSelected.id,
         })
@@ -418,11 +425,15 @@ export default {
           this.parentOfElementSelected
 
         await this.actionDeleteElement({
+          builder: this.builder,
           page: this.elementSelectedPage,
           elementId: this.elementSelected.id,
         })
         if (siblingElementToSelect?.id) {
-          await this.actionSelectElement({ element: siblingElementToSelect })
+          await this.actionSelectElement({
+            builder: this.builder,
+            element: siblingElementToSelect,
+          })
         }
       } catch (error) {
         notifyIf(error)
@@ -430,7 +441,10 @@ export default {
     },
     selectParentElement() {
       if (this.parentOfElementSelected) {
-        this.actionSelectElement({ element: this.parentOfElementSelected })
+        this.actionSelectElement({
+          builder: this.builder,
+          element: this.parentOfElementSelected,
+        })
       }
     },
     selectChildElement() {
@@ -439,7 +453,10 @@ export default {
         this.elementSelected
       )
       if (children.length) {
-        this.actionSelectElement({ element: children[0] })
+        this.actionSelectElement({
+          builder: this.builder,
+          element: children[0],
+        })
       }
     },
     handleKeyDown(e) {

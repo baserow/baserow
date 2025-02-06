@@ -40,7 +40,7 @@ def test_get_dashboard_data_sources(api_client, data_fixture):
     assert response_json[0] == {
         "aggregation_type": "",
         "field_id": None,
-        "context_data": None,
+        "context_data": {},
         "context_data_schema": None,
         "dashboard_id": dashboard.id,
         "filter_type": "AND",
@@ -48,7 +48,7 @@ def test_get_dashboard_data_sources(api_client, data_fixture):
         "id": data_source1.id,
         "integration_id": AnyInt(),
         "name": "Name 1",
-        "order": 1.0,
+        "order": "1.00000000000000000000",
         "schema": None,
         "search_query": "",
         "table_id": None,
@@ -65,7 +65,7 @@ def test_get_dashboard_data_sources(api_client, data_fixture):
         "id": data_source2.id,
         "integration_id": AnyInt(),
         "name": "Name 2",
-        "order": 2.0,
+        "order": "2.00000000000000000000",
         "schema": None,
         "search_query": "",
         "table_id": None,
@@ -255,8 +255,8 @@ def test_update_data_source_change_type(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_200_OK, response.json()
-    assert response.json()["type"] == "local_baserow_list_rows"
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert response.json()["error"] == "ERROR_SERVICE_CONFIGURATION_NOT_ALLOWED"
 
 
 @pytest.mark.django_db

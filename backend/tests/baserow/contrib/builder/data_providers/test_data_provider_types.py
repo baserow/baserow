@@ -1,11 +1,13 @@
 from collections import defaultdict
 from unittest.mock import MagicMock, Mock, patch
 
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest
 from django.shortcuts import reverse
 
 import pytest
+from rest_framework.response import Response
 
 from baserow.contrib.builder.data_providers.data_provider_types import (
     CurrentRecordDataProviderType,
@@ -60,7 +62,7 @@ def get_dispatch_context(data_fixture, api_request_factory, builder, page, data=
         fake_request.data = data
 
     return BuilderDispatchContext(
-        fake_request, page, only_expose_public_formula_fields=True
+        fake_request, page, only_expose_public_allowed_properties=True
     )
 
 
@@ -164,7 +166,7 @@ def test_data_source_data_provider_get_data_chunk(data_fixture):
     data_source_provider = DataSourceDataProviderType()
 
     dispatch_context = BuilderDispatchContext(
-        HttpRequest(), page, only_expose_public_formula_fields=False
+        HttpRequest(), page, only_expose_public_allowed_properties=False
     )
 
     assert (
@@ -216,7 +218,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula(data_fixture):
     }
 
     dispatch_context = BuilderDispatchContext(
-        fake_request, page, only_expose_public_formula_fields=False
+        fake_request, page, only_expose_public_allowed_properties=False
     )
 
     assert (
@@ -293,7 +295,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource(
     }
 
     dispatch_context = BuilderDispatchContext(
-        fake_request, page, only_expose_public_formula_fields=False
+        fake_request, page, only_expose_public_allowed_properties=False
     )
 
     assert (
@@ -369,7 +371,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_list_dataso
     fake_request.GET = {"count": 20}
 
     dispatch_context = BuilderDispatchContext(
-        fake_request, page, only_expose_public_formula_fields=False
+        fake_request, page, only_expose_public_allowed_properties=False
     )
 
     assert (
@@ -503,7 +505,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_recursion(
     }
 
     dispatch_context = BuilderDispatchContext(
-        fake_request, page, only_expose_public_formula_fields=False
+        fake_request, page, only_expose_public_allowed_properties=False
     )
 
     with pytest.raises(ServiceImproperlyConfigured):
@@ -573,7 +575,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_another_dat
     data_source_provider = DataSourceDataProviderType()
 
     dispatch_context = BuilderDispatchContext(
-        HttpRequest(), page, only_expose_public_formula_fields=False
+        HttpRequest(), page, only_expose_public_allowed_properties=False
     )
 
     assert (
@@ -651,7 +653,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource_
     }
 
     dispatch_context = BuilderDispatchContext(
-        fake_request, page, only_expose_public_formula_fields=False
+        fake_request, page, only_expose_public_allowed_properties=False
     )
 
     with pytest.raises(ServiceImproperlyConfigured):
@@ -780,7 +782,7 @@ def test_data_source_context_data_provider_get_data_chunk(data_fixture):
         "page_parameter": {},
     }
     dispatch_context = BuilderDispatchContext(
-        fake_request, page, only_expose_public_formula_fields=False
+        fake_request, page, only_expose_public_allowed_properties=False
     )
 
     # For fields that are not single select, `get_data_chunk` returns an empty response
@@ -883,16 +885,187 @@ def test_form_data_provider_type_import_path(data_fixture):
     assert path_imported == [str(element_duplicated.id), "test"]
 
 
-def test_previous_action_data_provider_get_data_chunk():
+@pytest.mark.django_db
+def test_previous_action_data_provider_get_data_chunk(data_fixture):
+    previous_action_data_provider = PreviousActionProviderType()
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_notification_workflow_action(
+        element=button_element, page=page
+    )
+
+    fake_request = MagicMock()
+    fake_request.data = {
+        "previous_action": {str(workflow_action.id): {"path": {"to": 100}}}
+    }
+    dispatch_context = BuilderDispatchContext(fake_request, None)
+
+    with pytest.raises(DataProviderChunkInvalidException):
+        previous_action_data_provider.get_data_chunk(
+            dispatch_context, [str(workflow_action.id), "path", "to"]
+        )
+
+    fake_request.data["previous_action"]["current_dispatch_id"] = "something"
+
+    assert (
+        previous_action_data_provider.get_data_chunk(
+            dispatch_context, [str(workflow_action.id), "path", "to"]
+        )
+        == 100
+    )
+
+    with pytest.raises(DataProviderChunkInvalidException):
+        previous_action_data_provider.get_data_chunk(dispatch_context, ["invalid"])
+
+
+@pytest.mark.django_db
+def test_previous_action_data_provider_get_data_chunk_returns_cached_result(
+    data_fixture,
+):
+    """
+    Ensure that when a current_dispatch_id is present in the request and it matches
+    a previously cached result, that result is returned.
+    """
+
+    previous_action_data_provider = PreviousActionProviderType()
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+        element=button_element, page=page
+    )
+
+    fake_request = MagicMock()
+    fake_request.data = {
+        "previous_action": {
+            "current_dispatch_id": "abc123",
+            str(workflow_action.id): {},
+        }
+    }
+    dispatch_context = BuilderDispatchContext(fake_request, None)
+
+    previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
+        return_value="bar"
+    )
+
+    with patch(
+        "baserow.contrib.builder.data_providers.data_provider_types.cache"
+    ) as mock_cache:
+        mock_cache.get.return_value = {"id": "mock-cached-data"}
+        result = previous_action_data_provider.get_data_chunk(
+            dispatch_context, [str(workflow_action.id), "id"]
+        )
+
+    assert result == "mock-cached-data"
+
+
+def test_previous_action_data_provider_post_dispatch_caches_result():
+    """
+    Ensure that when a current_dispatch_id is present in the request, the
+    provided result is cached.
+    """
+
     previous_action_data_provider = PreviousActionProviderType()
 
     fake_request = MagicMock()
-    fake_request.data = {"previous_action": {"id": 42}}
+    fake_request.data = {
+        "previous_action": {
+            "current_dispatch_id": "foo-bar-123",
+        }
+    }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
-    assert previous_action_data_provider.get_data_chunk(dispatch_context, ["id"]) == 42
-    with pytest.raises(DataProviderChunkInvalidException):
-        previous_action_data_provider.get_data_chunk(dispatch_context, ["invalid"])
+    workflow_action = MagicMock()
+    workflow_action.id = 100
+
+    mock_cache_key = "mock-cache-key"
+    mock_result = {"mock-key": "mock-value"}
+    previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
+        return_value=mock_cache_key
+    )
+
+    with patch(
+        "baserow.contrib.builder.data_providers.data_provider_types.cache"
+    ) as mock_cache:
+        previous_action_data_provider.post_dispatch(
+            dispatch_context, workflow_action, mock_result
+        )
+
+    previous_action_data_provider.get_dispatch_action_cache_key.assert_called_once_with(
+        "foo-bar-123", 100
+    )
+    mock_cache.set.assert_called_once_with(
+        mock_cache_key,
+        mock_result,
+        timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS,
+    )
+
+
+def test_previous_action_data_provider_post_dispatch_with_response_doesnt_cache_result():
+    """
+    Ensure that when a current_dispatch_id is present in the request, the
+    provided result is cached.
+    """
+
+    previous_action_data_provider = PreviousActionProviderType()
+
+    fake_request = MagicMock()
+    fake_request.data = {
+        "previous_action": {
+            "current_dispatch_id": "foo-bar-123",
+        }
+    }
+    dispatch_context = BuilderDispatchContext(fake_request, None)
+
+    workflow_action = MagicMock()
+    workflow_action.id = 100
+
+    mock_cache_key = "mock-cache-key"
+    mock_result = Response(status=204)
+    previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
+        return_value=mock_cache_key
+    )
+
+    with patch(
+        "baserow.contrib.builder.data_providers.data_provider_types.cache"
+    ) as mock_cache:
+        previous_action_data_provider.post_dispatch(
+            dispatch_context, workflow_action, mock_result
+        )
+
+    mock_cache.set.assert_called_once_with(
+        mock_cache_key,
+        {},
+        timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS,
+    )
+
+
+@pytest.mark.parametrize(
+    "dispatch_id,action_id,expected_cache_key",
+    [
+        (1, 2, "builder_dispatch_action_1_2"),
+        (123, 456, "builder_dispatch_action_123_456"),
+        ("234", "567", "builder_dispatch_action_234_567"),
+    ],
+)
+def test_get_dispatch_action_cache_key(dispatch_id, action_id, expected_cache_key):
+    """
+    Test the get_dispatch_action_cache_key() method. Ensure that the expected
+    key is returned.
+    """
+
+    previous_action_data_provider = PreviousActionProviderType()
+
+    cache_key = previous_action_data_provider.get_dispatch_action_cache_key(
+        dispatch_id, action_id
+    )
+
+    assert cache_key == expected_cache_key
 
 
 @pytest.mark.django_db
@@ -1080,7 +1253,7 @@ def test_current_record_provider_get_data_chunk(data_fixture):
     )
 
     dispatch_context = BuilderDispatchContext(
-        fake_request, page, workflow_action, only_expose_public_formula_fields=False
+        fake_request, page, workflow_action, only_expose_public_allowed_properties=False
     )
 
     assert (
@@ -1607,3 +1780,77 @@ def test_data_provider_type_extract_properties_base_method():
     result = FakeDataProviderType().extract_properties([])
 
     assert result == {}
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        [],
+        [""],
+        ["foo"],
+        ["foo", "bar", "baz"],
+    ),
+)
+@pytest.mark.django_db
+def test_previous_action_extract_properties_returns_empty_if_invalid_path_parts(
+    path,
+):
+    """
+    Test the PreviousActionProviderType::extract_properties() method.
+
+    Ensure that an empty dict is returned if the path list doesn't have exactly
+    2 elements.
+    """
+
+    result = PreviousActionProviderType().extract_properties(path)
+    assert result == {}
+
+
+@pytest.mark.django_db
+def test_previous_action_extract_properties_raises_if_invalid_service_id():
+    """
+    Test the PreviousActionProviderType::extract_properties() method.
+
+    Ensure an exception is raised if the Workflow Action ID is invalid.
+    """
+
+    # The service ID of 100 doesn't exist
+    with pytest.raises(InvalidBaserowFormula):
+        PreviousActionProviderType().extract_properties(["100", "field_123"])
+
+
+@pytest.mark.django_db
+def test_previous_action_extract_properties_returns_service_id_and_field_id(
+    data_fixture,
+):
+    """
+    Test the PreviousActionProviderType::extract_properties() method.
+
+    Ensure an exception is raised if the Workflow Action ID is invalid.
+    """
+
+    user = data_fixture.create_user()
+    _, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Fruit", "text"),
+            ("Color", "text"),
+            ("Country", "text"),
+        ],
+        rows=[
+            ["Apple", "Green", "China"],
+            ["Banana", "Yellow", "Ecuador"],
+            ["Cherry", "Red", "Turkey"],
+        ],
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+        element=button_element, page=page
+    )
+    path = [f"{workflow_action.id}", f"field_{fields[0].id}"]
+
+    properties = PreviousActionProviderType().extract_properties(path)
+
+    assert properties == {workflow_action.service.id: [f"field_{fields[0].id}"]}

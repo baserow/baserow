@@ -416,14 +416,14 @@ class LocalBaserowUserSourceType(UserSourceType):
         """
 
         if value and "database_tables" in id_mapping and prop_name == "table_id":
-            return id_mapping["database_tables"][value]
+            return id_mapping["database_tables"].get(value)
 
         if (
             value
             and "database_fields" in id_mapping
             and prop_name in ("email_field_id", "name_field_id", "role_field_id")
         ):
-            return id_mapping["database_fields"][value]
+            return id_mapping["database_fields"].get(value)
 
         return super().deserialize_property(
             prop_name,
@@ -658,7 +658,7 @@ class LocalBaserowUserSourceType(UserSourceType):
             )
         except Exception as e:
             logger.exception(e)
-            raise ("Error while creating the user") from e
+            raise UserSourceImproperlyConfigured("Error while creating the user") from e
 
         return UserSourceUser(
             user_source,
@@ -786,9 +786,15 @@ class LocalBaserowUserSourceType(UserSourceType):
             )
             user_sources = self.model_class.objects.filter(field_q)
 
+        # Narrow down the `user_sources` to only those that pass our `is_configured`
+        # check. Often this will be the same filtering as what is done in the ORM, but
+        # just in case we have additional validation requirements in `is_configured`,
+        # we will filter again here.
+        configured_user_sources = [us for us in user_sources if self.is_configured(us)]
+
         # Fetch all the table records in bulk.
         user_source_table_map = defaultdict(list)
-        for us in user_sources:
+        for us in configured_user_sources:
             user_source_table_map[us.table_id].append(us)
         tables = TableHandler.get_tables().filter(id__in=user_source_table_map.keys())
 
@@ -813,7 +819,10 @@ class LocalBaserowUserSourceType(UserSourceType):
         return user_source_count
 
     def get_user_count(
-        self, user_source: LocalBaserowUserSource, force_recount: bool = False
+        self,
+        user_source: LocalBaserowUserSource,
+        force_recount: bool = False,
+        update_if_uncached: bool = True,
     ) -> Optional[UserSourceCount]:
         """
         Responsible for retrieving a user source's count. If the user source isn't
@@ -825,6 +834,9 @@ class LocalBaserowUserSourceType(UserSourceType):
         :param user_source: The user source we want a count from.
         :param force_recount: If True, we will re-count the users and ignore any
             existing cached count.
+        :param update_if_uncached: If True, we will count the users and cache the
+            result if the cache entry is missing. Set this to False if you need to
+            know if the cache entry is missing.
         :return: A `UserSourceCount` instance if the user source is configured,
             otherwise `None`.
         """
@@ -835,7 +847,7 @@ class LocalBaserowUserSourceType(UserSourceType):
             return None
 
         cached_user_source_count = self._get_cached_user_count(user_source)
-        if cached_user_source_count and not force_recount:
+        if (cached_user_source_count and not force_recount) or not update_if_uncached:
             return cached_user_source_count
 
         queryset = UserSourceHandler().get_user_sources(

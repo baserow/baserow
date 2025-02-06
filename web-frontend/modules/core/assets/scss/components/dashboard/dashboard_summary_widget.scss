@@ -1,0 +1,18 @@
+.dashboard-summary-widget {
+  padding: 0 24px 24px;
+}
+
+.dashboard-summary-widget__summary {
+  color: $palette-neutral-1200;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 40px;
+  margin-top: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-summary-widget__summary--misconfigured {
+  color: #cdcecf;
+}

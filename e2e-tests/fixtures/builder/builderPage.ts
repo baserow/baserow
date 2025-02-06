@@ -22,6 +22,7 @@ export async function createBuilderPage(
       name: pageName,
       path,
       path_params: [],
+      query_params: [],
     }
   );
   return new BuilderPage(

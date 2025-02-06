@@ -79,7 +79,7 @@ export class PreviewPageActionType extends PageActionType {
   generatePreviewUrl(builderId, page) {
     /**
      * Responsible for generating the preview URL for a given
-     * page using the page's path parameters.
+     * page using the page's path parameters and query string parameters.
      *
      * @param builderId   The builder application ID.
      * @param page        The Page object.
@@ -90,7 +90,18 @@ export class PreviewPageActionType extends PageActionType {
       page.path_params.map(({ name, value }) => [name, page.parameters[name]])
     )
     const resolvedPagePath = toPath(pageParams)
-    return `/builder/${builderId}/preview${resolvedPagePath}`
+    const url = new URL(
+      `/builder/${builderId}/preview${resolvedPagePath}`,
+      window.location.origin
+    )
+    if (page.query_params && Array.isArray(page.query_params)) {
+      page.query_params.forEach(({ name }) => {
+        if (page.parameters[name]) {
+          url.searchParams.append(name, page.parameters[name])
+        }
+      })
+    }
+    return url.toString()
   }
 
   isActive({ workspace, page }) {

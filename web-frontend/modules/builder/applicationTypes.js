@@ -69,10 +69,26 @@ export class BuilderApplicationType extends ApplicationType {
     if (!values.user_sources) {
       values.user_sources = []
     }
+    if (!values.selectedElement) {
+      values.selectedElement = null
+    }
     values._loadedOnce = false
 
     values.userSourceUser = null
     return values
+  }
+
+  getFrontendUrls(application) {
+    const domains = this.app.store.getters['domain/getDomains']
+
+    return [
+      ...domains.map((domain) => {
+        const url = new URL(this.app.$config.PUBLIC_WEB_FRONTEND_URL)
+        return `${url.protocol}//${domain.domain_name}${
+          url.port ? `:${url.port}` : ''
+        }`
+      }),
+    ]
   }
 
   delete(application) {
@@ -102,6 +118,7 @@ export class BuilderApplicationType extends ApplicationType {
           page: sharedPage,
         }),
         store.dispatch('element/fetch', {
+          builder,
           page: sharedPage,
         }),
         store.dispatch('workflowAction/fetch', { page: sharedPage }),

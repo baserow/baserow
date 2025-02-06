@@ -70,6 +70,7 @@ from baserow.contrib.dashboard.widgets.operations import (
     DeleteWidgetOperationType,
     ListWidgetsOperationType,
     ReadWidgetOperationType,
+    RestoreWidgetOperationType,
     UpdateWidgetOperationType,
 )
 from baserow.contrib.database.airtable.operations import (
@@ -125,6 +126,7 @@ from baserow.contrib.database.tokens.operations import (
     UseTokenOperationType,
 )
 from baserow.contrib.database.views.operations import (
+    CanReceiveNotificationOnSubmitFormViewOperationType,
     CreateAndUsePersonalViewOperationType,
     CreatePublicViewOperationType,
     CreateViewDecorationOperationType,
@@ -346,6 +348,7 @@ default_roles[EDITOR_ROLE_UID].extend(
         RestoreDatabaseRowOperationType,
         ListTeamSubjectsOperationType,
         ReadTeamSubjectOperationType,
+        CanReceiveNotificationOnSubmitFormViewOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(
@@ -462,6 +465,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreateWidgetOperationType,
         UpdateWidgetOperationType,
         DeleteWidgetOperationType,
+        RestoreWidgetOperationType,
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,

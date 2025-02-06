@@ -1,0 +1,29 @@
+.page-settings-query-params {
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  &:not(:last-child) {
+    margin-bottom: 8px;
+  }
+}
+
+.page-settings-query-params__name {
+  @extend %ellipsis;
+
+  flex: 0 0 50%;
+}
+
+.page-settings-query-params__dropdown {
+  flex: 0 0 36%;
+  margin-left: 5%;
+}
+
+.page-settings-query-params__remove {
+  margin-left: 5%;
+  padding: 0 3%;
+}
+
+.page-settings-query-params__add-button {
+  margin-left: -5px;
+}

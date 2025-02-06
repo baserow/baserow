@@ -59,8 +59,8 @@ Baserow by following one the guides below:
 
 * [Understanding Baserow Formulas](tutorials/understanding-baserow-formulas.md): A
   tutorial explaining how to use the formula field in Baserow.
-* [Debugging Connection Issues](tutorials/debugging-connection-issues.md): A tutorial
-  explaining how to use the formula field in Baserow.
+* [Debugging Connection Issues](tutorials/debugging-connection-issues.md): A guide
+  to help you troubleshoot and resolve common connection issues in Baserow.
 
 ## API Usage
 
@@ -112,6 +112,7 @@ Everything related to contributing and developing for Baserow.
   and when to add your own.
 * [Metrics and Logs](./development/metrics-and-logs.md): How to work with metrics and logs
   to aid with monitoring Baserow as a developer.
+* [Backend Tests](development/running-tests.md): A guide on how to run python tests for the backend.
 
 ## Plugins
 

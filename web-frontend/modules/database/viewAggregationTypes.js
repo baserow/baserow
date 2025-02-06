@@ -1,5 +1,6 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import GenericViewAggregation from '@baserow/modules/database/components/aggregation/GenericViewAggregation'
+import DistributionAggregation from '@baserow/modules/database/components/aggregation/DistributionAggregation'
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 
 export class ViewAggregationType extends Registerable {
@@ -72,6 +73,13 @@ export class ViewAggregationType extends Registerable {
     return 50
   }
 
+  formatValue(value, context) {
+    if (isNaN(value)) {
+      return null
+    }
+    return value
+  }
+
   /**
    * Compute the final aggregation value from the value sent by the server and the given
    * context.
@@ -81,10 +89,11 @@ export class ViewAggregationType extends Registerable {
    * @returns the final aggregation value for this type.
    */
   getValue(value, context) {
-    if (isNaN(value)) {
-      return null
-    }
-    return value
+    return this.formatValue(value, context)
+  }
+
+  isAllowedInView() {
+    return true
   }
 
   /**
@@ -96,6 +105,56 @@ export class ViewAggregationType extends Registerable {
       rawType: this.getRawType(),
       name: this.getName(),
     }
+  }
+}
+
+export class CountViewAggregationType extends ViewAggregationType {
+  static getType() {
+    return 'count'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewAggregationType.count')
+  }
+
+  getCompatibleFieldTypes() {
+    return [
+      'text',
+      'long_text',
+      'boolean',
+      'url',
+      'email',
+      'number',
+      'date',
+      'last_modified',
+      'last_modified_by',
+      'created_on',
+      'created_by',
+      'link_row',
+      'file',
+      'single_select',
+      'multiple_select',
+      'phone_number',
+      'duration',
+      'password',
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'text',
+        'char',
+        'date',
+        'number',
+        'boolean',
+        FormulaFieldType.arrayOf('single_file')
+      ),
+    ]
+  }
+
+  getComponent() {
+    return GenericViewAggregation
+  }
+
+  isAllowedInView() {
+    return false
   }
 }
 
@@ -185,10 +244,10 @@ export class NotEmptyCountViewAggregationType extends ViewAggregationType {
   }
 
   getValue(value, { rowCount }) {
-    if (rowCount === 0) {
+    if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return rowCount - value
+    return this.formatValue(rowCount - value)
   }
 
   getComponent() {
@@ -241,7 +300,7 @@ export class CheckedCountViewAggregationType extends ViewAggregationType {
     if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return rowCount - value
+    return this.formatValue(rowCount - value)
   }
 
   getComponent() {
@@ -297,11 +356,18 @@ export class EmptyPercentageViewAggregationType extends ViewAggregationType {
     ]
   }
 
+  formatValue(value, context) {
+    if (isNaN(value)) {
+      return null
+    }
+    return `${Math.round(value)}%`
+  }
+
   getValue(value, { rowCount }) {
     if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return `${Math.round((value / rowCount) * 100)}%`
+    return this.formatValue((value / rowCount) * 100)
   }
 
   getComponent() {
@@ -357,11 +423,18 @@ export class NotEmptyPercentageViewAggregationType extends ViewAggregationType {
     ]
   }
 
+  formatValue(value, context) {
+    if (isNaN(value)) {
+      return null
+    }
+    return `${Math.round(value)}%`
+  }
+
   getValue(value, { rowCount }) {
     if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return `${Math.round(((rowCount - value) / rowCount) * 100)}%`
+    return this.formatValue(((rowCount - value) / rowCount) * 100)
   }
 
   getComponent() {
@@ -392,11 +465,18 @@ export class NotCheckedPercentageViewAggregationType extends ViewAggregationType
     return ['boolean', FormulaFieldType.compatibleWithFormulaTypes('boolean')]
   }
 
+  formatValue(value, context) {
+    if (isNaN(value)) {
+      return null
+    }
+    return `${Math.round(value)}%`
+  }
+
   getValue(value, { rowCount }) {
     if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return `${Math.round((value / rowCount) * 100)}%`
+    return this.formatValue((value / rowCount) * 100)
   }
 
   getComponent() {
@@ -427,11 +507,18 @@ export class CheckedPercentageViewAggregationType extends ViewAggregationType {
     return ['boolean', FormulaFieldType.compatibleWithFormulaTypes('boolean')]
   }
 
+  formatValue(value, context) {
+    if (isNaN(value)) {
+      return null
+    }
+    return `${Math.round(value)}%`
+  }
+
   getValue(value, { rowCount }) {
     if (rowCount === 0 || isNaN(value)) {
       return null
     }
-    return `${Math.round(((rowCount - value) / rowCount) * 100)}%`
+    return this.formatValue(((rowCount - value) / rowCount) * 100)
   }
 
   getComponent() {
@@ -500,7 +587,7 @@ export class MinViewAggregationType extends ViewAggregationType {
     return GenericViewAggregation
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value) || value === null) {
       return null
     }
@@ -532,7 +619,7 @@ export class MaxViewAggregationType extends ViewAggregationType {
     return GenericViewAggregation
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value) || value === null) {
       return null
     }
@@ -568,7 +655,7 @@ export class EarliestDateViewAggregationType extends ViewAggregationType {
     ]
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (!(typeof value === 'string')) {
       return null
     }
@@ -608,7 +695,7 @@ export class LatestDateViewAggregationType extends ViewAggregationType {
     ]
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (!(typeof value === 'string')) {
       return null
     }
@@ -643,7 +730,7 @@ export class SumViewAggregationType extends ViewAggregationType {
     return GenericViewAggregation
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value) || value === null) {
       return null
     }
@@ -668,7 +755,7 @@ export class AverageViewAggregationType extends ViewAggregationType {
     ]
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value)) {
       return null
     }
@@ -703,7 +790,7 @@ export class StdDevViewAggregationType extends ViewAggregationType {
     ]
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value)) {
       return null
     }
@@ -733,7 +820,7 @@ export class VarianceViewAggregationType extends ViewAggregationType {
     ]
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value)) {
       return null
     }
@@ -767,10 +854,103 @@ export class MedianViewAggregationType extends ViewAggregationType {
     return GenericViewAggregation
   }
 
-  getValue(value, { field, fieldType }) {
+  formatValue(value, { field, fieldType }) {
     if (isNaN(value)) {
       return null
     }
     return fieldType.toHumanReadableString(field, value)
+  }
+}
+
+export class DistributionViewAggregationType extends ViewAggregationType {
+  static getType() {
+    return 'distribution'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewAggregationType.distribution')
+  }
+
+  getShortName() {
+    return 'Dist.'
+  }
+
+  getCompatibleFieldTypes() {
+    return [
+      'text',
+      'long_text',
+      'url',
+      'number',
+      'rating',
+      'date',
+      'last_modified',
+      'last_modified_by',
+      'created_on',
+      'created_by',
+      'email',
+      'phone_number',
+      'single_select',
+      'duration',
+      'boolean',
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'text',
+        'char',
+        'date',
+        'number',
+        'boolean'
+      ),
+    ]
+  }
+
+  getComponent() {
+    return DistributionAggregation
+  }
+
+  getValue(value, { rowCount }) {
+    // Value is returned from the server as an array of arrays,
+    // each inner array representing one value of the distribution
+    // and its corresponding count of occurrences. This function
+    // calculates the corresponding percentages for each value and
+    // adds it to each inner array as formatted strings ready for
+    // display. Example:
+    // Input:
+    //   value = [
+    //     ["Blue", 3],
+    //     ["Red", 6]
+    //   ]
+    //   rowCount = 10
+    // Output:
+    //   [
+    //     ["Blue", "(3)", "30%"],
+    //     ["Red", "(6)", "60%"],
+    //     ["Others", "(1)", "10%"]
+    //   ]
+    if (!value) {
+      return null
+    }
+
+    const results = value.map(([label, count]) => {
+      const percentage = Math.round((count / rowCount) * 100)
+      return [label, `(${Number(count).toLocaleString()})`, `${percentage}%`]
+    })
+
+    // If the total row count is higher than the sum of distribution counts,
+    // we need to add an "Others" entry to account for them. This can happen
+    // because the server only sends the top ten distributions by count. If
+    // there were more than ten unique values, the rest need to be represented
+    // as a single entry named "Others"
+    const othersCount =
+      rowCount - value.reduce((sum, current) => sum + current[1], 0)
+    if (othersCount > 0) {
+      const percentage = Math.round((othersCount / rowCount) * 100)
+      results.push([
+        undefined,
+        `(${othersCount.toLocaleString()})`,
+        `${percentage}%`,
+      ])
+    }
+
+    return results
   }
 }

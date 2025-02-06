@@ -104,6 +104,8 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
             "navigate_to_url": "get('test2')",
             "link_name": "get('test3')",
             "target": "self",
+            "page_parameters": [],
+            "query_parameters": [],
             "variant": LinkElement.VARIANTS.BUTTON,
             "styles": {},
             "uid": uuids[1],

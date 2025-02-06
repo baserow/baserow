@@ -1,5 +1,7 @@
+from decimal import Decimal
 from typing import Any, Iterable, cast
 
+from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
 from baserow.contrib.dashboard.data_sources.dispatch_context import (
@@ -16,9 +18,14 @@ from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import find_unused_name
 
-from .types import DashboardDataSourceForUpdate
+from .types import (
+    DashboardDataSourceDict,
+    DashboardDataSourceForUpdate,
+    UpdatedDashboardDataSource,
+)
 
 
 class DashboardDataSourceHandler:
@@ -153,9 +160,9 @@ class DashboardDataSourceHandler:
         """
 
         existing_pages_names = list(
-            DashboardDataSource.objects.filter(dashboard=dashboard).values_list(
-                "name", flat=True
-            )
+            DashboardDataSource.objects_and_trash.filter(
+                dashboard=dashboard
+            ).values_list("name", flat=True)
         )
         return find_unused_name([proposed_name], existing_pages_names, max_length=255)
 
@@ -195,7 +202,7 @@ class DashboardDataSourceHandler:
         service_type: ServiceType,
         name: str | None = None,
         **kwargs,
-    ) -> DashboardDataSource:
+    ) -> UpdatedDashboardDataSource:
         """
         Updates the data source and the related service with values.
 
@@ -211,6 +218,7 @@ class DashboardDataSourceHandler:
             data_source.service.specific
         )
         original_service = data_source.service
+        updated_service = None
         if service_type != original_service_type:
             # If the service type is not the same let's create
             # a new service instead of updating the existing one
@@ -235,9 +243,10 @@ class DashboardDataSourceHandler:
             service_to_update = self.service_handler.get_service_for_update(
                 data_source.service.id
             )
-            data_source.service = self.service_handler.update_service(
+            updated_service = self.service_handler.update_service(
                 service_type, service_to_update, **kwargs
             )
+            data_source.service = updated_service.service
 
         # Update data source attributes
         if name is not None:
@@ -249,7 +258,11 @@ class DashboardDataSourceHandler:
         if original_service.id != data_source.service.id:
             self.service_handler.delete_service(service_type, original_service)
 
-        return data_source
+        return UpdatedDashboardDataSource(
+            data_source,
+            updated_service.original_service_values if updated_service else {},
+            updated_service.new_service_values if updated_service else {},
+        )
 
     def delete_data_source(self, data_source: DashboardDataSource):
         """
@@ -295,3 +308,93 @@ class DashboardDataSourceHandler:
         )
 
         return service_dispatch
+
+    def export_data_source(
+        self,
+        data_source: DashboardDataSource,
+        files_zip: ExportZipFile | None = None,
+        storage: Storage | None = None,
+        cache: dict[str, any] | None = None,
+    ) -> DashboardDataSourceDict:
+        """
+        Serializes the given data source.
+
+        :param data_source: The instance to serialize.
+        :param files_zip: A zip file to store files in necessary.
+        :param storage: Optional storage to use.
+        :param cache: Optional cache to use.
+        :return: The serialized version.
+        """
+
+        serialized_service = None
+
+        if data_source.service:
+            serialized_service = ServiceHandler().export_service(
+                data_source.service, files_zip=files_zip, storage=storage, cache=cache
+            )
+
+        return DashboardDataSourceDict(
+            id=data_source.id,
+            name=data_source.name,
+            order=str(data_source.order),
+            service=serialized_service,
+        )
+
+    def import_data_source(
+        self,
+        dashboard: Dashboard,
+        serialized_data_source: DashboardDataSourceDict,
+        id_mapping: dict[str, dict[int, int]],
+        files_zip: ExportZipFile | None = None,
+        storage: Storage | None = None,
+        cache: dict[str, any] | None = None,
+    ) -> DashboardDataSource:
+        """
+        Creates an instance using the serialized version previously exported with
+        `.export_data_source'.
+
+        :param dashboard: The dashboard instance the new data source should belong to.
+        :param serialized_data_source: The serialized version of the data source.
+        :param id_mapping: A map of old->new id per data type
+            when we have foreign keys that need to be migrated.
+        :param files_zip: Contains files to import if any.
+        :param storage: Storage to get the files from.
+        :return: the new data source instance.
+        """
+
+        if "dashboard_data_sources" not in id_mapping:
+            id_mapping["dashboard_data_sources"] = {}
+
+        service = None
+        serialized_service = serialized_data_source.get("service", None)
+        if serialized_service:
+            integration = None
+            integration_id = serialized_service.pop("integration_id", None)
+            if integration_id:
+                integration_id = id_mapping["integrations"].get(
+                    integration_id, integration_id
+                )
+                integration = Integration.objects.get(id=integration_id)
+
+            service = ServiceHandler().import_service(
+                integration,
+                serialized_service,
+                id_mapping,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
+                import_formula=lambda formula, id_mapping, **kwargs: formula,
+            )
+
+        data_source = DashboardDataSource.objects.create(
+            dashboard=dashboard,
+            service=service,
+            order=Decimal(serialized_data_source["order"]),
+            name=serialized_data_source["name"],
+        )
+
+        id_mapping["dashboard_data_sources"][
+            serialized_data_source["id"]
+        ] = data_source.id
+
+        return data_source

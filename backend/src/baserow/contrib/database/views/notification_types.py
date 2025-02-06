@@ -6,7 +6,9 @@ from django.dispatch import receiver
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 
-from baserow.contrib.database.views.operations import UpdateViewOperationType
+from baserow.contrib.database.views.operations import (
+    CanReceiveNotificationOnSubmitFormViewOperationType,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.notifications.registries import (
@@ -116,7 +118,7 @@ def create_form_submitted_notification(sender, form, row, values, user, **kwargs
     # Ensure all users still have permissions on the table to see the notification
     allowed_users = CoreHandler().check_permission_for_multiple_actors(
         users_to_notify,
-        UpdateViewOperationType.type,
+        CanReceiveNotificationOnSubmitFormViewOperationType.type,
         workspace=form.table.database.workspace,
         context=form,
     )

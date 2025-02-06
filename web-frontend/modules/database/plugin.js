@@ -108,6 +108,26 @@ import {
   HasAllValuesEqualViewFilterType,
   HasAnySelectOptionEqualViewFilterType,
   HasNoneSelectOptionEqualViewFilterType,
+  HasValueLowerThanViewFilterType,
+  HasValueLowerThanOrEqualViewFilterType,
+  HasValueHigherThanViewFilterType,
+  HasValueHigherThanOrEqualViewFilterType,
+  HasNotValueLowerThanOrEqualViewFilterType,
+  HasNotValueLowerThanViewFilterType,
+  HasNotValueHigherThanOrEqualViewFilterType,
+  HasNotValueHigherThanViewFilterType,
+  HasDateEqualViewFilterType,
+  HasNotDateEqualViewFilterType,
+  HasDateBeforeViewFilterType,
+  HasNotDateBeforeViewFilterType,
+  HasDateOnOrBeforeViewFilterType,
+  HasNotDateOnOrBeforeViewFilterType,
+  HasDateAfterViewFilterType,
+  HasNotDateAfterViewFilterType,
+  HasDateOnOrAfterViewFilterType,
+  HasNotDateOnOrAfterViewFilterType,
+  HasDateWithinViewFilterType,
+  HasNotDateWithinViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
 import {
   CSVImporterType,
@@ -264,12 +284,14 @@ import {
   BaserowFormulaNumberType,
   BaserowFormulaSingleSelectType,
   BaserowFormulaMultipleSelectType,
+  BaserowFormulaMultipleCollaboratorsType,
   BaserowFormulaSpecialType,
   BaserowFormulaTextType,
   BaserowFormulaFileType,
   BaserowFormulaURLType,
 } from '@baserow/modules/database/formula/formulaTypes'
 import {
+  CountViewAggregationType,
   EmptyCountViewAggregationType,
   NotEmptyCountViewAggregationType,
   CheckedCountViewAggregationType,
@@ -288,6 +310,7 @@ import {
   StdDevViewAggregationType,
   VarianceViewAggregationType,
   MedianViewAggregationType,
+  DistributionViewAggregationType,
 } from '@baserow/modules/database/viewAggregationTypes'
 import { FormViewFormModeType } from '@baserow/modules/database/formViewModeTypes'
 import { CollaborativeViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes'
@@ -322,6 +345,10 @@ import {
   DatabaseScratchTrackTaskFieldsOnboardingType,
   DatabaseScratchTrackTeamFieldsOnboardingType,
 } from '@baserow/modules/database/databaseScratchTrackFieldsStepType'
+import {
+  SyncedFieldsConfigureDataSyncType,
+  SettingsConfigureDataSyncType,
+} from '@baserow/modules/database/configureDataSyncTypes'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -581,6 +608,74 @@ export default (context) => {
   app.$registry.register('viewFilter', new NotEmptyViewFilterType(context))
   app.$registry.register('viewFilter', new UserIsFilterType(context))
   app.$registry.register('viewFilter', new UserIsNotFilterType(context))
+  app.$registry.register(
+    'viewFilter',
+    new HasValueHigherThanViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNotValueHigherThanViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasValueHigherThanOrEqualViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNotValueHigherThanOrEqualViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasValueLowerThanViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNotValueLowerThanViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasValueLowerThanOrEqualViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNotValueLowerThanOrEqualViewFilterType(context)
+  )
+  app.$registry.register('viewFilter', new HasDateEqualViewFilterType(context))
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateEqualViewFilterType(context)
+  )
+  app.$registry.register('viewFilter', new HasDateBeforeViewFilterType(context))
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateBeforeViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasDateOnOrBeforeViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateOnOrBeforeViewFilterType(context)
+  )
+  app.$registry.register('viewFilter', new HasDateAfterViewFilterType(context))
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateAfterViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasDateOnOrAfterViewFilterType(context)
+  )
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateOnOrAfterViewFilterType(context)
+  )
+  app.$registry.register('viewFilter', new HasDateWithinViewFilterType(context))
+  app.$registry.register(
+    'viewFilter',
+    new HasNotDateWithinViewFilterType(context)
+  )
 
   app.$registry.register(
     'viewOwnershipType',
@@ -820,6 +915,10 @@ export default (context) => {
   app.$registry.register('formula_type', new BaserowFormulaButtonType(context))
   app.$registry.register('formula_type', new BaserowFormulaLinkType(context))
   app.$registry.register('formula_type', new BaserowFormulaFileType(context))
+  app.$registry.register(
+    'formula_type',
+    new BaserowFormulaMultipleCollaboratorsType(context)
+  )
 
   // File preview types
   app.$registry.register('preview', new ImageFilePreview(context))
@@ -857,6 +956,10 @@ export default (context) => {
   )
   app.$registry.register(
     'viewAggregation',
+    new CountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'viewAggregation',
     new EmptyCountViewAggregationType(context)
   )
   app.$registry.register(
@@ -890,6 +993,10 @@ export default (context) => {
   app.$registry.register(
     'viewAggregation',
     new UniqueCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'viewAggregation',
+    new DistributionViewAggregationType(context)
   )
 
   app.$registry.register('formViewMode', new FormViewFormModeType(context))
@@ -951,6 +1058,15 @@ export default (context) => {
   app.$registry.register(
     'onboardingTrackFields',
     new DatabaseScratchTrackCustomFieldsOnboardingType(context)
+  )
+
+  app.$registry.register(
+    'configureDataSync',
+    new SyncedFieldsConfigureDataSyncType(context)
+  )
+  app.$registry.register(
+    'configureDataSync',
+    new SettingsConfigureDataSyncType(context)
   )
 
   registerRealtimeEvents(app.$realtime)

@@ -16,6 +16,8 @@ from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.contrib.builder.api.pages.errors import (
     ERROR_DUPLICATE_PATH_PARAMS_IN_PATH,
+    ERROR_DUPLICATE_QUERY_PARAMS,
+    ERROR_INVALID_QUERY_PARAM_NAME,
     ERROR_PAGE_DOES_NOT_EXIST,
     ERROR_PAGE_NAME_NOT_UNIQUE,
     ERROR_PAGE_NOT_IN_BUILDER,
@@ -32,7 +34,9 @@ from baserow.contrib.builder.api.pages.serializers import (
 )
 from baserow.contrib.builder.handler import BuilderHandler
 from baserow.contrib.builder.pages.exceptions import (
+    DuplicatePageParams,
     DuplicatePathParamsInPath,
+    InvalidQueryParamName,
     PageDoesNotExist,
     PageNameNotUnique,
     PageNotInBuilder,
@@ -76,6 +80,8 @@ class PagesView(APIView):
                     "ERROR_PAGE_PATH_NOT_UNIQUE",
                     "ERROR_PATH_PARAM_NOT_IN_PATH",
                     "ERROR_PATH_PARAM_NOT_DEFINED",
+                    "ERROR_INVALID_QUERY_PARAM_NAME",
+                    "ERROR_DUPLICATE_QUERY_PARAMS",
                 ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
@@ -90,6 +96,8 @@ class PagesView(APIView):
             PathParamNotInPath: ERROR_PATH_PARAM_NOT_IN_PATH,
             PathParamNotDefined: ERROR_PATH_PARAM_NOT_DEFINED,
             DuplicatePathParamsInPath: ERROR_DUPLICATE_PATH_PARAMS_IN_PATH,
+            InvalidQueryParamName: ERROR_INVALID_QUERY_PARAM_NAME,
+            DuplicatePageParams: ERROR_DUPLICATE_QUERY_PARAMS,
         }
     )
     @validate_body(CreatePageSerializer, return_validated=True)
@@ -102,6 +110,7 @@ class PagesView(APIView):
             data["name"],
             path=data["path"],
             path_params=data.get("path_params", None),
+            query_params=data.get("query_params", None),
         )
 
         serializer = PageSerializer(page)
@@ -133,6 +142,8 @@ class PageView(APIView):
                     "ERROR_PATH_PARAM_NOT_IN_PATH",
                     "ERROR_PATH_PARAM_NOT_DEFINED",
                     "ERROR_SHARED_PAGE_READ_ONLY",
+                    "ERROR_INVALID_QUERY_PARAM_NAME",
+                    "ERROR_DUPLICATE_QUERY_PARAMS",
                 ]
             ),
             404: get_error_schema(
@@ -151,6 +162,8 @@ class PageView(APIView):
             PathParamNotDefined: ERROR_PATH_PARAM_NOT_DEFINED,
             DuplicatePathParamsInPath: ERROR_DUPLICATE_PATH_PARAMS_IN_PATH,
             SharedPageIsReadOnly: ERROR_SHARED_PAGE_READ_ONLY,
+            InvalidQueryParamName: ERROR_INVALID_QUERY_PARAM_NAME,
+            DuplicatePageParams: ERROR_DUPLICATE_QUERY_PARAMS,
         }
     )
     @validate_body(UpdatePageSerializer, return_validated=True)

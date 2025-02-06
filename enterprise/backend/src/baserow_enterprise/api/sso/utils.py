@@ -246,3 +246,27 @@ def get_frontend_login_saml_url() -> str:
     """
 
     return urljoin(settings.PUBLIC_WEB_FRONTEND_URL, "/login/saml")
+
+
+def get_standardized_url(url: str) -> str:
+    """
+    Standardize the full URL, keeping all components but normalizing the port.
+    Ignores port 80 for HTTP and port 443 for HTTPS.
+
+    :param url: The full URL as a string.
+    :return: A standardized URL string.
+    """
+
+    parsed = urlparse(url)
+
+    default_ports = {"http": 80, "https": 443}
+    netloc = (
+        parsed.hostname
+        if parsed.port == default_ports.get(parsed.scheme)
+        else parsed.netloc
+    )
+    path = (
+        "/" if not parsed.path or parsed.path == "/" else "/" + parsed.path.strip("/")
+    )
+
+    return parsed._replace(netloc=netloc, path=path).geturl()

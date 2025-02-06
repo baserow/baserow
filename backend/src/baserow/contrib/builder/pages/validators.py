@@ -4,6 +4,7 @@ from django.core.validators import URLValidator
 from baserow.contrib.builder.pages.constants import (
     PAGE_PATH_PARAM_PREFIX,
     PATH_PARAM_EXACT_MATCH_REGEX,
+    QUERY_PARAM_EXACT_MATCH_REGEX,
 )
 
 
@@ -39,3 +40,15 @@ def path_param_name_validation(value: str):
 
     if not PATH_PARAM_EXACT_MATCH_REGEX.match(full_path_param):
         raise ValidationError(f"Path param {value} contains invalid characters")
+
+
+def query_param_name_validation(value: str):
+    """
+    Verifies that the path param is semantically valid.
+
+    :param value: The path param to check
+    :raises ValidationError: If the path param is not semantically valid
+    """
+
+    if not QUERY_PARAM_EXACT_MATCH_REGEX.match(value):
+        raise ValidationError(f"Query param {value} contains invalid characters")

@@ -108,8 +108,8 @@ class OAuth2CallbackView(APIView):
             OpenApiParameter(
                 name="code",
                 location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.INT,
-                description="The id of the provider for which to process the callback.",
+                type=OpenApiTypes.STR,
+                description="The code returned by the IDP.",
             ),
         ],
         tags=["Auth"],

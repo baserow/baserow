@@ -1,13 +1,11 @@
 from unittest.mock import MagicMock, Mock, patch
 
-from django.contrib.auth import get_user_model
 from django.http import HttpRequest
 
 import pytest
 from rest_framework.request import Request
 
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
-    CACHE_KEY_PREFIX,
     BuilderDispatchContext,
 )
 from baserow.contrib.builder.data_sources.exceptions import (
@@ -19,8 +17,6 @@ from baserow.core.user_sources.user_source_user import UserSourceUser
 from tests.baserow.contrib.builder.api.user_sources.helpers import (
     create_user_table_and_role,
 )
-
-User = get_user_model()
 
 
 def test_dispatch_context_page_range():
@@ -45,9 +41,7 @@ def test_dispatch_context_page_range():
 
 
 @pytest.mark.django_db
-@patch(
-    "baserow.contrib.builder.data_sources.builder_dispatch_context.get_builder_used_property_names"
-)
+@patch("baserow.contrib.builder.handler.get_builder_used_property_names")
 def test_dispatch_context_page_from_context(mock_get_field_names, data_fixture):
     mock_get_field_names.return_value = {"all": {}, "external": {}, "internal": {}}
 
@@ -68,7 +62,7 @@ def test_dispatch_context_page_from_context(mock_get_field_names, data_fixture):
     request.user = user_source_user
 
     dispatch_context = BuilderDispatchContext(
-        request, page, offset=0, count=5, only_expose_public_formula_fields=True
+        request, page, offset=0, count=5, only_expose_public_allowed_properties=True
     )
     dispatch_context.annotated_data = "foobar"
 
@@ -82,7 +76,7 @@ def test_dispatch_context_page_from_context(mock_get_field_names, data_fixture):
     assert new_dispatch_context.page == page
     assert new_dispatch_context.offset == 5
     assert new_dispatch_context.count == 1
-    assert new_dispatch_context.public_formula_fields == {
+    assert new_dispatch_context.public_allowed_properties == {
         "all": {},
         "external": {},
         "internal": {},
@@ -193,7 +187,7 @@ def test_dispatch_context_sortings():
 
 
 @pytest.mark.parametrize(
-    "only_expose_public_formula_fields",
+    "only_expose_public_allowed_properties",
     (
         [True],
         [True],
@@ -201,17 +195,16 @@ def test_dispatch_context_sortings():
         [False],
     ),
 )
-@patch(
-    "baserow.contrib.builder.data_sources.builder_dispatch_context.get_builder_used_property_names"
-)
+@patch("baserow.contrib.builder.handler.get_builder_used_property_names")
 def test_builder_dispatch_context_field_names_computed_on_param(
     mock_get_builder_used_property_names,
-    only_expose_public_formula_fields,
+    only_expose_public_allowed_properties,
 ):
     """
-    Test the BuilderDispatchContext::public_formula_fields property.
+    Test the BuilderDispatchContext::public_allowed_properties property.
 
-    Ensure that the public_formula_fields property is computed depending on the param.
+    Ensure that the public_allowed_properties property is computed
+    depending on the param.
     """
 
     mock_field_names = ["field_123"]
@@ -225,16 +218,16 @@ def test_builder_dispatch_context_field_names_computed_on_param(
     dispatch_context = BuilderDispatchContext(
         mock_request,
         mock_page,
-        only_expose_public_formula_fields=only_expose_public_formula_fields,
+        only_expose_public_allowed_properties=only_expose_public_allowed_properties,
     )
 
-    if only_expose_public_formula_fields:
-        assert dispatch_context.public_formula_fields == mock_field_names
+    if only_expose_public_allowed_properties:
+        assert dispatch_context.public_allowed_properties == mock_field_names
         mock_get_builder_used_property_names.assert_called_once_with(
             mock_request.user, mock_page.builder
         )
     else:
-        assert dispatch_context.public_formula_fields is None
+        assert dispatch_context.public_allowed_properties is None
         mock_get_builder_used_property_names.assert_not_called()
 
 
@@ -334,11 +327,11 @@ def test_validate_filter_search_sort_fields_without_collection_element(data_fixt
 
 
 @pytest.mark.django_db
-def test_builder_dispatch_context_public_formula_fields_is_cached(
+def test_builder_dispatch_context_public_allowed_properties_is_cached(
     data_fixture, django_assert_num_queries
 ):
     """
-    Test the BuilderDispatchContext::public_formula_fields property.
+    Test the BuilderDispatchContext::public_allowed_properties property.
 
     Ensure that the expensive call to get_formula_field_names() is cached.
     """
@@ -390,7 +383,7 @@ def test_builder_dispatch_context_public_formula_fields_is_cached(
     dispatch_context = BuilderDispatchContext(
         request,
         page,
-        only_expose_public_formula_fields=True,
+        only_expose_public_allowed_properties=True,
     )
 
     expected_results = {
@@ -401,74 +394,10 @@ def test_builder_dispatch_context_public_formula_fields_is_cached(
 
     # Initially calling the property should cause a bunch of DB queries.
     with django_assert_num_queries(12):
-        result = dispatch_context.public_formula_fields
+        result = dispatch_context.public_allowed_properties
         assert result == expected_results
 
     # Subsequent calls to the property should *not* cause any DB queries.
     with django_assert_num_queries(0):
-        result = dispatch_context.public_formula_fields
+        result = dispatch_context.public_allowed_properties
         assert result == expected_results
-
-
-@pytest.mark.parametrize(
-    "is_anonymous,is_editor_user,user_role,expected_cache_key",
-    [
-        (
-            True,
-            False,
-            "",
-            f"{CACHE_KEY_PREFIX}_100",
-        ),
-        (
-            True,
-            False,
-            "foo_role",
-            f"{CACHE_KEY_PREFIX}_100",
-        ),
-        (
-            False,
-            False,
-            "foo_role",
-            f"{CACHE_KEY_PREFIX}_100_foo_role",
-        ),
-        (
-            False,
-            False,
-            "bar_role",
-            f"{CACHE_KEY_PREFIX}_100_bar_role",
-        ),
-        # Test the "editor" role
-        (
-            False,
-            True,
-            "",
-            None,
-        ),
-    ],
-)
-def test_builder_dispatch_context_get_used_properties_cache_key(
-    is_anonymous, is_editor_user, user_role, expected_cache_key
-):
-    """
-    Test the BuilderDispatchContext::get_used_properties_cache_key() method.
-    """
-
-    mock_request = MagicMock()
-
-    if is_editor_user:
-        mock_request.user = MagicMock(spec=User)
-
-    mock_request.user.is_anonymous = is_anonymous
-    mock_request.user.role = user_role
-
-    mock_page = MagicMock()
-    mock_page.builder_id = 100
-
-    dispatch_context = BuilderDispatchContext(
-        mock_request,
-        mock_page,
-    )
-
-    cache_key = dispatch_context.get_used_properties_cache_key()
-
-    assert cache_key == expected_cache_key

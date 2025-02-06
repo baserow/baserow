@@ -203,6 +203,12 @@ def test_link_collection_field_import_export_formula(data_fixture):
                     "value": f"get('data_source.{data_source_1.id}.field_1')",
                 },
             ],
+            "query_parameters": [
+                {
+                    "name": "fooQueryParam",
+                    "value": f"get('data_source.{data_source_1.id}.field_2')",
+                },
+            ],
             "target": "",
             "variant": LinkElement.VARIANTS.BUTTON,
         },
@@ -219,10 +225,14 @@ def test_link_collection_field_import_export_formula(data_fixture):
     imported_element = field_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
+    expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
     imported_field = imported_element.fields.all()[0]
     assert imported_field.config["link_name"] == expected_formula
     assert imported_field.config["navigate_to_url"] == expected_formula
     assert imported_field.config["page_parameters"][0]["value"] == expected_formula
+    assert (
+        imported_field.config["query_parameters"][0]["value"] == expected_query_formula
+    )
 
 
 @pytest.mark.django_db
@@ -244,6 +254,12 @@ def test_link_element_import_export_formula(data_fixture):
                 "value": f"get('data_source.{data_source_1.id}.field_1')",
             },
         ],
+        query_parameters=[
+            {
+                "name": "fooQueryParam",
+                "value": f"get('data_source.{data_source_1.id}.field_2')",
+            },
+        ],
     )
     serialized = element_type.export_serialized(exported_element)
 
@@ -253,14 +269,11 @@ def test_link_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
+    expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
     assert imported_element.navigate_to_url == expected_formula
     assert imported_element.value == expected_formula
-    assert imported_element.page_parameters == [
-        {
-            "name": "fooPageParam",
-            "value": expected_formula,
-        },
-    ]
+    assert imported_element.page_parameters[0]["value"] == expected_formula
+    assert imported_element.query_parameters[0]["value"] == expected_query_formula
 
 
 @pytest.mark.django_db
@@ -640,7 +653,7 @@ def test_choice_element_is_valid_formula_data_source(data_fixture):
         page,
         offset=0,
         count=20,
-        only_expose_public_formula_fields=False,
+        only_expose_public_allowed_properties=False,
     )
 
     with pytest.raises(FormDataProviderChunkInvalidException):
@@ -652,7 +665,7 @@ def test_choice_element_is_valid_formula_data_source(data_fixture):
         page,
         offset=0,
         count=20,
-        only_expose_public_formula_fields=False,
+        only_expose_public_allowed_properties=False,
     )
 
     assert ChoiceElementType().is_valid(choice, "BMW", dispatch_context) == "BMW"
@@ -1346,7 +1359,7 @@ def test_choice_element_integer_option_values(data_fixture):
         page,
         offset=0,
         count=20,
-        only_expose_public_formula_fields=False,
+        only_expose_public_allowed_properties=False,
     )
 
     for value in expected_choices:
@@ -1398,7 +1411,7 @@ def test_record_element_is_valid(data_fixture):
     )
 
     dispatch_context = BuilderDispatchContext(
-        HttpRequest(), page, only_expose_public_formula_fields=False
+        HttpRequest(), page, only_expose_public_allowed_properties=False
     )
 
     # Record selector with no data sources is invalid

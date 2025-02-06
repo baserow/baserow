@@ -79,11 +79,14 @@ class ElementSerializer(serializers.ModelSerializer):
             "style_border_right_size",
             "style_padding_right",
             "style_margin_right",
+            "style_background_radius",
+            "style_border_radius",
             "style_background",
             "style_background_color",
             "style_background_file",
             "style_background_mode",
             "style_width",
+            "style_width_child",
             "role_type",
             "roles",
         )
@@ -146,6 +149,8 @@ class CreateElementSerializer(serializers.ModelSerializer):
             "style_border_left_size",
             "style_padding_left",
             "style_margin_left",
+            "style_background_radius",
+            "style_border_radius",
             "style_border_right_color",
             "style_border_right_size",
             "style_padding_right",
@@ -155,6 +160,7 @@ class CreateElementSerializer(serializers.ModelSerializer):
             "style_background_file",
             "style_background_mode",
             "style_width",
+            "style_width_child",
         )
         extra_kwargs = {
             "visibility": {"default": Element.VISIBILITY_TYPES.ALL},
@@ -186,6 +192,8 @@ class UpdateElementSerializer(serializers.ModelSerializer):
             "style_border_left_size",
             "style_padding_left",
             "style_margin_left",
+            "style_background_radius",
+            "style_border_radius",
             "style_border_right_color",
             "style_border_right_size",
             "style_padding_right",
@@ -195,6 +203,7 @@ class UpdateElementSerializer(serializers.ModelSerializer):
             "style_background_file",
             "style_background_mode",
             "style_width",
+            "style_width_child",
             "role_type",
             "roles",
         )

@@ -14,6 +14,7 @@ import FunctionalGridViewFieldLinkURL from '@baserow/modules/database/components
 import GridViewFieldArray from '@baserow/modules/database/components/view/grid/fields/GridViewFieldArray'
 import RowEditFieldSingleSelectReadOnly from '@baserow/modules/database/components/row/RowEditFieldSingleSelectReadOnly'
 import RowEditFieldMultipleSelectReadOnly from '@baserow/modules/database/components/row/RowEditFieldMultipleSelectReadOnly'
+import RowEditFieldMultipleCollaboratorsReadOnly from '@baserow/modules/database/components/row/RowEditFieldMultipleCollaboratorsReadOnly'
 import RowEditFieldArray from '@baserow/modules/database/components/row/RowEditFieldArray'
 import RowEditFieldLinkURL from '@baserow/modules/database/components/row/RowEditFieldLinkURL'
 import RowEditFieldButton from '@baserow/modules/database/components/row/RowEditFieldButton'
@@ -25,6 +26,7 @@ import FunctionalFormulaBooleanArrayItem from '@baserow/modules/database/compone
 import FunctionalFormulaDateArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaDateArrayItem'
 import FunctionalFormulaSingleSelectArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaSingleSelectArrayItem'
 import FunctionalFormulaMultipleSelectArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaMultipleSelectArrayItem'
+import FunctionalFormulaMultipleCollaboratorsArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaMultipleCollaboratorsArrayItem'
 import FunctionalFormulaLinkArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaLinkArrayItem'
 import FunctionalFormulaButtonArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaButtonArrayItem'
 import RowCardFieldArray from '@baserow/modules/database/components/card/RowCardFieldArray'
@@ -57,7 +59,11 @@ import {
   hasSelectOptionIdEqualMixin,
   hasSelectOptionValueContainsFilterMixin,
   hasSelectOptionValueContainsWordFilterMixin,
-  formulaArrayFilterMixin,
+  baserowFormulaArrayTypeFilterMixin,
+  hasNumericValueComparableToFilterMixin,
+  hasNestedSelectOptionValueContainsFilterMixin,
+  hasNestedSelectOptionValueContainsWordFilterMixin,
+  hasMultipleSelectOptionIdEqualMixin,
 } from '@baserow/modules/database/arrayFilterMixins'
 import _ from 'lodash'
 import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/ViewFilterTypeBoolean.vue'
@@ -65,8 +71,8 @@ import {
   genericHasAllValuesEqualFilter,
   genericHasValueContainsFilter,
 } from '@baserow/modules/database/utils/fieldFilters'
-import ViewFilterTypeSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeSelectOptions.vue'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
+import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions.vue'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
   getIconClass() {
@@ -81,16 +87,26 @@ export class BaserowFormulaTypeDefinition extends Registerable {
     )
   }
 
-  /**
-   * Returns optionally input component for a field / filter type combination
-   * @returns {null}
-   */
   getFilterInputComponent(field, filterType) {
-    return null
+    return this.app.$registry
+      .get('field', this.getFieldType())
+      .getFilterInputComponent(field, filterType)
   }
 
   getRowEditArrayFieldComponent() {
     return null
+  }
+
+  parseFilterValue(field, value) {
+    return this.app.$registry
+      .get('field', this.getFieldType())
+      .parseFilterValue(field, value)
+  }
+
+  formatFilterValue(field, value) {
+    return this.app.$registry
+      .get('field', this.getFieldType())
+      .formatFilterValue(field, value)
   }
 
   getFunctionalGridViewFieldComponent() {
@@ -217,6 +233,10 @@ export class BaserowFormulaTypeDefinition extends Registerable {
   canRepresentFiles(field) {
     return false
   }
+
+  toBaserowFormulaType(field) {
+    return this.getType()
+  }
 }
 
 export class BaserowFormulaTextType extends mix(
@@ -305,7 +325,13 @@ export class BaserowFormulaCharType extends mix(
   }
 }
 
-export class BaserowFormulaNumberType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaNumberType extends mix(
+  hasEmptyValueFilterMixin,
+  hasValueContainsFilterMixin,
+  hasNumericValueComparableToFilterMixin,
+
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'number'
   }
@@ -404,7 +430,11 @@ export class BaserowFormulaBooleanType extends BaserowFormulaTypeDefinition {
   }
 }
 
-export class BaserowFormulaDateType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaDateType extends mix(
+  hasEmptyValueFilterMixin,
+  hasValueContainsFilterMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'date'
   }
@@ -582,7 +612,7 @@ export class BaserowFormulaInvalidType extends BaserowFormulaTypeDefinition {
 }
 
 export class BaserowFormulaArrayType extends mix(
-  formulaArrayFilterMixin,
+  baserowFormulaArrayTypeFilterMixin,
   BaserowFormulaTypeDefinition
 ) {
   static getType() {
@@ -603,6 +633,26 @@ export class BaserowFormulaArrayType extends mix(
 
   getCardComponent() {
     return RowCardFieldArray
+  }
+
+  parseFilterValue(field, value) {
+    const subType = this.getSubType(field)
+    if (subType == null) {
+      return value
+    }
+    return subType.parseFilterValue(field, value)
+  }
+
+  formatFilterValue(field, value) {
+    const subType = this.getSubType(field)
+    if (subType == null) {
+      return value
+    }
+    return subType.formatFilterValue(field, value)
+  }
+
+  getSubType(field) {
+    return this.app.$registry.get('formula_type', field.array_formula_type)
   }
 
   getRowEditFieldComponent(field) {
@@ -747,6 +797,10 @@ export class BaserowFormulaArrayType extends mix(
   canGroupByInView() {
     return false
   }
+
+  toBaserowFormulaType(field) {
+    return this.getSubType(field)?.toBaserowFormulaType(field)
+  }
 }
 
 export class BaserowFormulaFileType extends BaserowFormulaTypeDefinition {
@@ -880,7 +934,7 @@ export class BaserowFormulaSingleSelectType extends mix(
   }
 
   getFilterInputComponent(field, filterType) {
-    return ViewFilterTypeSelectOptions
+    return ViewFilterTypeMultipleSelectOptions
   }
 
   getSortOrder() {
@@ -904,7 +958,13 @@ export class BaserowFormulaSingleSelectType extends mix(
   }
 }
 
-export class BaserowFormulaMultipleSelectType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaMultipleSelectType extends mix(
+  hasEmptyValueFilterMixin,
+  hasNestedSelectOptionValueContainsFilterMixin,
+  hasNestedSelectOptionValueContainsWordFilterMixin,
+  hasMultipleSelectOptionIdEqualMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'multiple_select'
   }
@@ -917,12 +977,64 @@ export class BaserowFormulaMultipleSelectType extends BaserowFormulaTypeDefiniti
     return 'baserow-icon-multiple-select'
   }
 
+  getFilterInputComponent(field, filterType) {
+    return ViewFilterTypeMultipleSelectOptions
+  }
+
   getRowEditFieldComponent(field) {
     return RowEditFieldMultipleSelectReadOnly
   }
 
   getFunctionalFieldArrayComponent() {
     return FunctionalFormulaMultipleSelectArrayItem
+  }
+
+  getSortOrder() {
+    return 8
+  }
+
+  getCanSortInView(field) {
+    return false
+  }
+
+  canBeSortedWhenInArray(field) {
+    return false
+  }
+
+  mapToSortableArray(element) {
+    return element.value
+  }
+
+  canGroupByInView() {
+    return false
+  }
+}
+
+export class BaserowFormulaMultipleCollaboratorsType extends mix(
+  BaserowFormulaTypeDefinition
+) {
+  static getType() {
+    return 'multiple_collaborators'
+  }
+
+  getFieldType() {
+    return 'multiple_collaborators'
+  }
+
+  getIconClass() {
+    return 'iconoir-community'
+  }
+
+  getFilterInputComponent(field, filterType) {
+    return null
+  }
+
+  getRowEditFieldComponent(field) {
+    return RowEditFieldMultipleCollaboratorsReadOnly
+  }
+
+  getFunctionalFieldArrayComponent() {
+    return FunctionalFormulaMultipleCollaboratorsArrayItem
   }
 
   getSortOrder() {

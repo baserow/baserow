@@ -65,11 +65,14 @@ class ElementHandler:
         "style_border_right_size",
         "style_padding_right",
         "style_margin_right",
+        "style_background_radius",
+        "style_border_radius",
         "style_background",
         "style_background_color",
         "style_background_file",
         "style_background_mode",
         "style_width",
+        "style_width_child",
     ]
 
     allowed_fields_update = [
@@ -93,11 +96,14 @@ class ElementHandler:
         "style_border_right_size",
         "style_padding_right",
         "style_margin_right",
+        "style_background_radius",
+        "style_border_radius",
         "style_background",
         "style_background_color",
         "style_background_file",
         "style_background_mode",
         "style_width",
+        "style_width_child",
         "role_type",
         "roles",
     ]
@@ -128,6 +134,24 @@ class ElementHandler:
             raise ElementDoesNotExist()
 
         return element
+
+    def get_element_property_options(
+        self, element: Element
+    ) -> Dict[str, Dict[str, bool]]:
+        """
+        Return a dict where keys are the schema_property (e.g. "field_1") for
+        every property option if the element supports it. The values are the
+        searchable, sortable, filterable values.
+        """
+
+        return {
+            po.schema_property: {
+                "filterable": po.filterable,
+                "sortable": po.sortable,
+                "searchable": po.searchable,
+            }
+            for po in element.property_options.all()
+        }
 
     def get_ancestors(
         self,

@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
+from django.db.models import Expression, F
 from django.utils.functional import lazy
 
 from baserow_premium.api.fields.exceptions import (
@@ -187,10 +188,16 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.enhance_queryset(queryset, field, name)
 
-    def get_order(self, field, field_name, order_direction, table_name=None):
+    def get_sortable_column_expression(
+        self, field: Field, field_name: str
+    ) -> Expression | F:
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.get_sortable_column_expression(field, field_name)
+
+    def get_order(self, field, field_name, order_direction, table_model=None):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.get_order(
-            field, field_name, order_direction, table_model=table_name
+            field, field_name, order_direction, table_model=table_model
         )
 
     def serialize_to_input_value(self, field, value):

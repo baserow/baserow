@@ -112,6 +112,9 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
                 "page_parameters": [
                     {"name": "id", "value": "get('current_record.field_424')"}
                 ],
+                "query_parameters": [
+                    {"name": "query_id", "value": "get('current_record.field_424')"}
+                ],
                 "roles": [],
                 "role_type": Element.ROLE_TYPES.ALLOW_ALL,
             },
@@ -169,14 +172,15 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
     assert link.value == migrated_ref
     assert link.navigate_to_url == migrated_ref
     assert link.page_parameters[0]["value"] == migrated_ref
+    assert link.query_parameters[0]["value"] == migrated_ref
 
 
 @pytest.mark.django_db
-def test_extract_formula_properties_includes_schema_property_for_nested_collection(
+def test_extract_properties_includes_schema_property_for_nested_collection(
     data_fixture,
 ):
     """
-    Ensure the RepeatElementType::extract_formula_properties() method includes
+    Ensure the RepeatElementType::extract_properties() method includes
     the schema_property field if it exists, when the Repeat is a nested element.
     """
 
@@ -203,7 +207,7 @@ def test_extract_formula_properties_includes_schema_property_for_nested_collecti
         data_source=data_source, page=page
     )
 
-    properties = RepeatElementType().extract_formula_properties(parent_repeat)
+    properties = RepeatElementType().extract_properties(parent_repeat)
     assert properties == {}
 
     # Create a child Repeat with a schema_property
@@ -217,20 +221,18 @@ def test_extract_formula_properties_includes_schema_property_for_nested_collecti
         child_repeat.parent_element_id, {}
     )
 
-    properties = RepeatElementType().extract_formula_properties(
-        child_repeat, **formula_context
-    )
+    properties = RepeatElementType().extract_properties(child_repeat, **formula_context)
 
     # We expect that the schema_property field ID to be present
     assert properties == {data_source.service_id: [f"field_{multiple_select_field.id}"]}
 
 
 @pytest.mark.django_db
-def test_extract_formula_properties_includes_schema_property_for_single_row(
+def test_extract_properties_includes_schema_property_for_single_row(
     data_fixture,
 ):
     """
-    Ensure the RepeatElementType::extract_formula_properties() method includes
+    Ensure the RepeatElementType::extract_properties() method includes
     the schema_property field if it exists, when the repeat uses a Get Row service.
     """
 
@@ -280,5 +282,5 @@ def test_extract_formula_properties_includes_schema_property_for_single_row(
         schema_property=multiple_select_field.db_column,
     )
 
-    properties = RepeatElementType().extract_formula_properties(repeat)
+    properties = RepeatElementType().extract_properties(repeat)
     assert properties == {data_source.service_id: [f"field_{multiple_select_field.id}"]}

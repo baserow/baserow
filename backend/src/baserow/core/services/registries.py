@@ -102,6 +102,20 @@ class ServiceType(
 
         return values
 
+    def export_prepared_values(self, instance: Service):
+        """
+        Returns a serializable dict of prepared values for the service attributes.
+        This method is the counterpart of `prepare_values`. It is called
+        by undo/redo ActionHandler to store the values in a way that could be
+        restored later.
+
+        :param instance: The service instance to export values for.
+        :return: A dict of prepared values.
+        """
+
+        values = {key: getattr(instance, key) for key in self.allowed_fields}
+        return values
+
     def after_create(self, instance: ServiceSubClass, values: Dict):
         """
         This hook is called right after the service has been created.
@@ -222,13 +236,17 @@ class ServiceType(
 
         return f"Service{service.id}Schema"
 
-    def generate_schema(self, service: Service) -> Optional[Dict[str, Any]]:
+    def generate_schema(
+        self, service: Service, allowed_fields: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Responsible for generating the full JSON Schema response. Must be
         overridden by child classes so that the can return their service's
         schema.
 
         :param service: The service we want to generate a schema for.
+        :param allowed_fields: A list of fields that are allowed to be included in the
+            schema.
         :return: None, or a dictionary representing the schema.
         """
 

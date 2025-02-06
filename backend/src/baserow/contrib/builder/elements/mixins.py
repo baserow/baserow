@@ -42,7 +42,6 @@ from baserow.contrib.builder.elements.types import (
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
-from baserow.core.formula.types import BaserowFormula
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import merge_dicts_no_duplicates
@@ -486,9 +485,7 @@ class CollectionElementTypeMixin:
 
         return instance
 
-    def extract_formula_properties(
-        self, instance: Element, **kwargs
-    ) -> Dict[int, List[BaserowFormula]]:
+    def extract_properties(self, instance: Element, **kwargs) -> Dict[int, List[str]]:
         """
         Some collection elements (e.g. Repeat Element) may have a nested
         collection element which uses a schema_property. This property points
@@ -499,17 +496,29 @@ class CollectionElementTypeMixin:
         included in the list of field names used by the element.
         """
 
-        properties = super().extract_formula_properties(instance, **kwargs)
+        properties = super().extract_properties(instance, **kwargs)
 
-        if schema_property := instance.schema_property:
-            # if we have a data_source_id in the context from a parent or from the
-            # current instance
-            data_source_id = instance.data_source_id or kwargs.get(
-                "data_source_id", None
-            )
-            if data_source_id:
-                data_source = DataSourceHandler().get_data_source(data_source_id)
-                properties[data_source.service_id] = [schema_property]
+        # if we have a data_source_id in the context from a parent or from the
+        # current instance
+        data_source_id = instance.data_source_id or kwargs.get("data_source_id", None)
+        data_source = (
+            DataSourceHandler().get_data_source(data_source_id)
+            if data_source_id
+            else None
+        )
+
+        if (schema_property := instance.schema_property) and data_source:
+            properties[data_source.service_id] = [schema_property]
+
+        property_options = [
+            field_name
+            for field_name, options in ElementHandler()
+            .get_element_property_options(instance)
+            .items()
+            if any(options.values())
+        ]
+        if data_source and property_options:
+            properties.setdefault(data_source.service_id, []).extend(property_options)
 
         return properties
 
@@ -728,7 +737,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
 
         return created_instance
 
-    def extract_formula_properties(
+    def extract_properties(
         self,
         instance: CollectionElementSubClass,
         **kwargs,
@@ -741,7 +750,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
         """
 
         # First get from the current element
-        result = super().extract_formula_properties(instance, **kwargs)
+        result = super().extract_properties(instance, **kwargs)
 
         # then extract the properties used in the collection field formulas
         formula_context = kwargs | self.import_context_addition(instance)
@@ -749,7 +758,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
         for collection_field in instance.fields.all():
             result = merge_dicts_no_duplicates(
                 result,
-                collection_field.get_type().extract_formula_properties(
+                collection_field.get_type().extract_properties(
                     collection_field, **formula_context
                 ),
             )

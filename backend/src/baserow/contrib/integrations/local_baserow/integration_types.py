@@ -29,6 +29,7 @@ class LocalBaserowIntegrationType(IntegrationType):
 
     serializer_field_names = ["context_data", "authorized_user"]
     allowed_fields = ["authorized_user"]
+    sensitive_fields = ["authorized_user"]
 
     serializer_field_overrides = {
         "context_data": LocalBaserowContextDataSerializer(read_only=True),
@@ -69,11 +70,17 @@ class LocalBaserowIntegrationType(IntegrationType):
             integration, prop_name, files_zip=files_zip, storage=storage, cache=cache
         )
 
-    def after_template_install(
+    def after_import(
         self, user: AbstractUser, instance: LocalBaserowIntegration
-    ):
-        """Add the user who installed the template as authorized user"""
+    ) -> None:
+        """
+        After an application has been successfully imported, run all integration
+        specific post-import logic.
+        """
 
+        # The authorized_user is a sensitive field that is excluded from the
+        # the exported workspace. Since this value is needed for the integration
+        # to work, it is manually set here using the current user.
         instance.authorized_user = user
         instance.save()
 

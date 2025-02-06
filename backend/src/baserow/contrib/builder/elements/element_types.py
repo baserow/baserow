@@ -26,7 +26,6 @@ from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
-from baserow.contrib.builder.date import FormattedDate, FormattedDateTime
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     CollectionElementTypeMixin,
@@ -77,6 +76,7 @@ from baserow.core.constants import (
     DATE_TIME_FORMAT,
     DATE_TIME_FORMAT_CHOICES,
 )
+from baserow.core.datetime import FormattedDate, FormattedDateTime
 from baserow.core.formula import (
     BaserowFormulaSyntaxError,
     get_parse_tree_for_formula,
@@ -331,6 +331,8 @@ class RepeatElementType(
         return super().allowed_fields + [
             "orientation",
             "items_per_row",
+            "horizontal_gap",
+            "vertical_gap",
         ]
 
     @property
@@ -338,6 +340,8 @@ class RepeatElementType(
         return super().serializer_field_names + [
             "orientation",
             "items_per_row",
+            "horizontal_gap",
+            "vertical_gap",
         ]
 
     class SerializedDict(
@@ -346,6 +350,8 @@ class RepeatElementType(
     ):
         orientation: str
         items_per_row: dict
+        horizontal_gap: int
+        vertical_gap: int
 
     @property
     def serializer_field_overrides(self):
@@ -483,14 +489,12 @@ class RecordSelectorElementType(
             "option_name_suffix",
         ]
 
-    def extract_formula_properties(
-        self, instance: Element, **kwargs
-    ) -> Dict[int, List[BaserowFormula]]:
+    def extract_properties(self, instance: Element, **kwargs) -> Dict[int, List[str]]:
         """
         For the record selector we always need the `id` and the row name property.
         """
 
-        properties = super().extract_formula_properties(instance, **kwargs)
+        properties = super().extract_properties(instance, **kwargs)
 
         if instance.data_source_id and instance.data_source.service_id:
             service = instance.data_source.service.specific
@@ -738,6 +742,7 @@ class NavigationElementManager:
         "navigate_to_page_id",
         "navigate_to_url",
         "page_parameters",
+        "query_parameters",
         "target",
     ]
     allowed_fields = [
@@ -745,6 +750,7 @@ class NavigationElementManager:
         "navigate_to_page_id",
         "navigate_to_url",
         "page_parameters",
+        "query_parameters",
         "target",
     ]
     simple_formula_fields = ["navigate_to_url"]
@@ -753,6 +759,7 @@ class NavigationElementManager:
         navigation_type: str
         navigate_to_page_id: int
         page_parameters: List
+        query_parameters: List
         navigate_to_url: BaserowFormula
         target: str
 
@@ -795,7 +802,14 @@ class NavigationElementManager:
             ),
             "page_parameters": PageParameterValueSerializer(
                 many=True,
+                default=[],
                 help_text=LinkElement._meta.get_field("page_parameters").help_text,
+                required=False,
+            ),
+            "query_parameters": PageParameterValueSerializer(
+                many=True,
+                default=[],
+                help_text=LinkElement._meta.get_field("query_parameters").help_text,
                 required=False,
             ),
             "target": serializers.ChoiceField(
@@ -816,6 +830,7 @@ class NavigationElementManager:
             "navigate_to_page_id": None,
             "navigate_to_url": '"http://example.com"',
             "page_parameters": [],
+            "query_parameters": [],
             "target": "blank",
         }
 
@@ -853,7 +868,7 @@ class NavigationElementManager:
 
         return ElementType.prepare_value_for_db(self, values, instance)
 
-    def _raise_if_path_params_are_invalid(self, path_params: Dict, page: Page) -> None:
+    def _raise_if_path_params_are_invalid(self, path_params: List, page: Page) -> None:
         """
         Checks if the path parameters being set are correctly correlated to the
         path parameters defined for the page.
@@ -865,7 +880,6 @@ class NavigationElementManager:
         """
 
         parameter_types = {p["name"]: p["type"] for p in page.path_params}
-
         for page_parameter in path_params:
             page_parameter_name = page_parameter["name"]
             page_parameter_type = parameter_types.get(page_parameter_name, None)
@@ -878,12 +892,11 @@ class NavigationElementManager:
 
 class LinkElementType(ElementType):
     """
-    A simple paragraph element that can be used to display a paragraph of text.
+    A link element that can be used to navigate to a page or a URL.
     """
 
     type = "link"
     model_class = LinkElement
-    PATH_PARAM_TYPE_TO_PYTHON_TYPE_MAP = {"text": str, "numeric": int}
     simple_formula_fields = NavigationElementManager.simple_formula_fields + ["value"]
 
     @property
@@ -919,7 +932,7 @@ class LinkElementType(ElementType):
         Generator that returns formula fields for the LinkElementType.
 
         Unlike other Element types, this one has its formula fields in the
-        page_parameters JSON field.
+        page_parameters and query_prameters JSON fields.
         """
 
         yield from super().formula_generator(element)
@@ -928,6 +941,12 @@ class LinkElementType(ElementType):
             new_formula = yield data["value"]
             if new_formula is not None:
                 element.page_parameters[index]["value"] = new_formula
+                yield element
+
+        for index, data in enumerate(element.query_parameters or []):
+            new_formula = yield data["value"]
+            if new_formula is not None:
+                element.query_parameters[index]["value"] = new_formula
                 yield element
 
     def deserialize_property(

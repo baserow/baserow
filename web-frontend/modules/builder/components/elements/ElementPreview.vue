@@ -38,7 +38,7 @@
       :mode="mode"
       class="element--read-only"
       :application-context-additions="applicationContextAdditions"
-      v-on="$listeners"
+      @move="$emit('move', $event)"
     />
 
     <InsertElementButton
@@ -108,11 +108,14 @@ export default {
   },
   computed: {
     ...mapGetters({
-      elementSelected: 'element/getSelected',
+      getElementSelected: 'element/getSelected',
       elementAncestors: 'element/getAncestors',
       getClosestSiblingElement: 'element/getClosestSiblingElement',
       loggedUser: 'userSourceUser/getUser',
     }),
+    elementSelected() {
+      return this.getElementSelected(this.builder)
+    },
     elementPage() {
       // We use the page from the element itself
       return this.$store.getters['page/getById'](
@@ -234,11 +237,6 @@ export default {
         this.element.parent_element_id
       )
     },
-    parentElementType() {
-      return this.parentElement
-        ? this.$registry.get('element', this.parentElement?.type)
-        : null
-    },
     inError() {
       return this.elementType.isInError({
         page: this.elementPage,
@@ -284,7 +282,7 @@ export default {
   },
   mounted() {
     if (this.isFirstElement) {
-      this.actionSelectElement({ element: this.element })
+      this.actionSelectElement({ builder: this.builder, element: this.element })
     }
   },
   methods: {
@@ -309,7 +307,10 @@ export default {
           )
         })
       ) {
-        this.actionSelectElement({ element: this.element })
+        this.actionSelectElement({
+          builder: this.builder,
+          element: this.element,
+        })
       }
     },
     showAddElementModal(direction) {
@@ -337,6 +338,7 @@ export default {
       this.isDuplicating = true
       try {
         await this.actionDuplicateElement({
+          builder: this.builder,
           page: this.elementPage,
           elementId: this.element.id,
         })
@@ -355,11 +357,15 @@ export default {
           this.parentOfElementSelected
 
         await this.actionDeleteElement({
+          builder: this.builder,
           page: this.elementPage,
           elementId: this.element.id,
         })
         if (siblingElementToSelect?.id) {
-          await this.actionSelectElement({ element: siblingElementToSelect })
+          await this.actionSelectElement({
+            builder: this.builder,
+            element: siblingElementToSelect,
+          })
         }
       } catch (error) {
         notifyIf(error)
@@ -367,7 +373,10 @@ export default {
     },
     selectParentElement() {
       if (this.parentOfElementSelected) {
-        this.actionSelectElement({ element: this.parentOfElementSelected })
+        this.actionSelectElement({
+          builder: this.builder,
+          element: this.parentOfElementSelected,
+        })
       }
     },
   },

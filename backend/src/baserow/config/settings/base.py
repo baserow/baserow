@@ -15,6 +15,7 @@ import posthog
 import sentry_sdk
 from corsheaders.defaults import default_headers
 from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from baserow.cachalot_patch import patch_cachalot_for_baserow
 from baserow.config.settings.utils import (
@@ -319,6 +320,11 @@ BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = int(
     os.getenv("BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS")
     or 600
 )
+BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
+    # Default TTL is 5 minutes
+    os.getenv("BASEROW_BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS")
+    or 300
+)
 
 
 def install_cachalot():
@@ -493,7 +499,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.30.1",
+    "VERSION": "1.31.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -515,6 +521,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "Database table view sortings"},
         {"name": "Database table view decorations"},
         {"name": "Database table view groupings"},
+        {"name": "Database table view export"},
         {"name": "Database table grid view"},
         {"name": "Database table gallery view"},
         {"name": "Database table form view"},
@@ -1272,12 +1279,14 @@ for plugin in [*BASEROW_BUILT_IN_PLUGINS, *BASEROW_BACKEND_PLUGIN_NAMES]:
 
 SENTRY_BACKEND_DSN = os.getenv("SENTRY_BACKEND_DSN")
 SENTRY_DSN = SENTRY_BACKEND_DSN or os.getenv("SENTRY_DSN")
+SENTRY_DENYLIST = DEFAULT_DENYLIST + ["username", "email", "name"]
 
 if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration(signals_spans=False, middleware_spans=False)],
         send_default_pii=False,
+        event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
     )
 

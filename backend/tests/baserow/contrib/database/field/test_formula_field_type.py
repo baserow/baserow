@@ -1,4 +1,5 @@
 import inspect
+import os
 from datetime import datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -2140,3 +2141,48 @@ def test_formula_single_select_field_type_sorting(data_fixture):
     rows = view_handler.apply_sorting(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_5.id, row_2.id, row_1.id, row_4.id, row_3.id]
+
+
+@pytest.mark.django_db
+def test_formula_text_field_type_get_order_collate(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    text_field = data_fixture.create_text_field(
+        table=table, name="field", order=1, primary=True
+    )
+    formula_field = data_fixture.create_formula_field(
+        table=table, formula="field('field')", formula_type="text"
+    )
+
+    model = table.get_model()
+
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    with open(
+        dir_path + "/../../../../../../tests/all_chars.txt", mode="r", encoding="utf-8"
+    ) as f:
+        all_chars = f.read()
+    with open(
+        dir_path + "/../../../../../../tests/sorted_chars.txt",
+        mode="r",
+        encoding="utf-8",
+    ) as f:
+        sorted_chars = f.read()
+
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {
+                f"field_{text_field.id}": char,
+            }
+            for char in all_chars
+        ],
+    )
+
+    queryset = model.objects.all().order_by_fields_string(f"field_{formula_field.id}")
+    result = ""
+    for char in queryset:
+        result += getattr(char, f"field_{formula_field.id}")
+
+    assert result == sorted_chars

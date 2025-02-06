@@ -1,5 +1,8 @@
 import BigNumber from 'bignumber.js'
 
+// We use these constants to map the separators to the values used in the database.
+// The same variables are used in the backend.
+
 const THOUSAND_SEPARATORS = {
   SPACE: ' ',
   COMMA: ',',
@@ -11,6 +14,8 @@ const DECIMAL_SEPARATORS = {
   COMMA: ',',
   PERIOD: '.',
 }
+
+const NUMBER_MAX_DECIMAL_PLACES = 10
 
 const DEFAULT_THOUSAND_SEPARATOR = THOUSAND_SEPARATORS.NONE
 const DEFAULT_DECIMAL_SEPARATOR = DECIMAL_SEPARATORS.PERIOD
@@ -57,7 +62,7 @@ export const getNumberFormatOptions = (field) => {
 
   const numberPrefix = field.number_prefix ?? ''
   const numberSuffix = field.number_suffix ?? ''
-  const decimalPlaces = field.number_decimal_places ?? 0
+  const decimalPlaces = field.number_decimal_places ?? undefined
   const allowNegative = field.number_negative ?? false
 
   return {
@@ -79,7 +84,8 @@ export const getNumberFormatOptions = (field) => {
 export const formatNumberValue = (
   field,
   value,
-  withThousandSeparator = true
+  withThousandSeparator = true,
+  roundDecimals = true
 ) => {
   if (value === null || value === undefined || value === '') {
     return ''
@@ -95,7 +101,9 @@ export const formatNumberValue = (
 
   // Parse the input value if it's a string
   let numericValue =
-    typeof value === 'string' ? parseNumberValue(field, value) : value
+    typeof value === 'string'
+      ? parseNumberValue(field, value, roundDecimals)
+      : value
 
   if (numericValue === null) {
     return null
@@ -116,9 +124,13 @@ export const formatNumberValue = (
     locale = 'en-US'
     localeThousandsSeparator = DECIMAL_SEPARATORS.COMMA
   }
+  // Format the number, but keep all decimal places if roundDecimals is false.
+  // For example, filter values are not rounded since the backend doesn't round them.
   const formatter = new Intl.NumberFormat(locale, {
     minimumFractionDigits: decimalPlaces,
-    maximumFractionDigits: decimalPlaces,
+    maximumFractionDigits: roundDecimals
+      ? decimalPlaces
+      : NUMBER_MAX_DECIMAL_PLACES,
     useGrouping: true,
   })
   let formatted = formatter.format(numericValue)
@@ -139,18 +151,22 @@ export const formatNumberValue = (
   return `${sign}${numberPrefix}${formatted}${numberSuffix}`.trim()
 }
 
-export const parseNumberValue = (field, value) => {
+export const parseNumberValue = (field, value, roundDecimals = true) => {
   const { numberPrefix, numberSuffix, decimalSeparator } =
     getNumberFormatOptions(field)
 
-  if (value === null || value === undefined || value === '') {
+  if (value == null || value === '') {
     return null
   }
 
   const toBigNumber = (val) => {
-    return new BigNumber(
-      new BigNumber(val).toFixed(field.number_decimal_places)
-    )
+    let rounded = val
+    if (roundDecimals) {
+      rounded = new BigNumber(val).decimalPlaces(
+        field.number_decimal_places ?? 0
+      )
+    }
+    return new BigNumber(rounded)
   }
 
   if (typeof value === 'number' || BigNumber.isBigNumber(value)) {
@@ -192,5 +208,16 @@ export const parseNumberValue = (field, value) => {
   }
 
   const parsedNumber = toBigNumber(result)
-  return isNaN(parsedNumber) ? null : isNegative ? -parsedNumber : parsedNumber
+  return parsedNumber.isNaN()
+    ? null
+    : isNegative
+    ? parsedNumber.negated()
+    : parsedNumber
+}
+
+export const formatFrontendNumber = (field, value) => {
+  if (value == null || value === '') {
+    return ''
+  }
+  return formatNumberValue(field, new BigNumber(value))
 }

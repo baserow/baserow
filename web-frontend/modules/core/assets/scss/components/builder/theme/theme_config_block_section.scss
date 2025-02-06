@@ -6,9 +6,11 @@
 }
 
 .theme-config-block-section__properties {
+  max-width: 60%;
   flex: 60% 0 0;
 
   .theme-config-block--no-preview & {
+    max-width: 100%;
     flex: 100% 0 0;
   }
 }

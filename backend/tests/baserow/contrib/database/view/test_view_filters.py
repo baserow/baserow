@@ -6,7 +6,6 @@ from zoneinfo import ZoneInfo
 from django.db.models import Q
 
 import pytest
-from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
 from pyinstrument import Profiler
 from pytest_unordered import unordered
@@ -21,18 +20,15 @@ from baserow.contrib.database.views.registries import (
     ViewFilterType,
     view_filter_type_registry,
 )
-from baserow.contrib.database.views.view_filters import (
-    DateFilterOperators,
-    DateIsAfterMultiStepFilterType,
-    DateIsBeforeMultiStepFilterType,
-    DateIsEqualMultiStepFilterType,
-    DateIsNotEqualMultiStepFilterType,
-    DateIsOnOrAfterMultiStepFilterType,
-    DateIsOnOrBeforeMultiStepFilterType,
-    DateIsWithinMultiStepFilterType,
-    DateMultiStepViewFilterType,
-)
+from baserow.contrib.database.views.view_filters import DateMultiStepViewFilterType
 from baserow.test_utils.helpers import setup_interesting_test_table
+
+from .date_utils import (
+    DATE_MULTI_STEP_OPERATOR_VALID_RESULTS,
+    FREEZED_TODAY,
+    MNEMONIC_VALUES,
+    TEST_MULTI_STEP_DATE_OPERATORS_DATETIMES,
+)
 
 
 @pytest.mark.django_db
@@ -5708,48 +5704,47 @@ def test_multiple_collaborators_empty_filter_type(data_fixture):
     multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
         user=user, table=table, name="Multi Collaborators"
     )
+    ref_multiple_collaborators_field = data_fixture.create_formula_field(
+        user=user, table=table, formula="field('Multi Collaborators')"
+    )
     row_handler = RowHandler()
     model = table.get_model()
-    row_1 = row_handler.create_row(
+    row_1, row_2, empty_row = row_handler.force_create_rows(
         user=user,
         table=table,
         model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-            ],
-        },
-    )
-    row_2 = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-            ],
-        },
-    )
-    empty_row = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [],
-        },
+        rows_values=[
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [],
+            },
+        ],
     )
     handler = ViewHandler()
-    view_filter = data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="empty",
-    )
+    for field in [multiple_collaborators_field, ref_multiple_collaborators_field]:
+        grid_view = data_fixture.create_grid_view(table=table)
+        view_filter = data_fixture.create_view_filter(
+            view=grid_view,
+            field=field,
+            type="empty",
+        )
 
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
 
-    assert len(ids) == 1
-    assert empty_row.id in ids
+        assert len(ids) == 1
+        assert empty_row.id in ids
 
 
 @pytest.mark.django_db
@@ -5766,49 +5761,48 @@ def test_multiple_collaborators_not_empty_filter_type(data_fixture):
     multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
         user=user, table=table, name="Multi Collaborators"
     )
+    ref_multiple_collaborators_field = data_fixture.create_formula_field(
+        user=user, table=table, formula="field('Multi Collaborators')"
+    )
     row_handler = RowHandler()
     model = table.get_model()
-    row_1 = row_handler.create_row(
+    row_1, row_2, empty_row = row_handler.force_create_rows(
         user=user,
         table=table,
         model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-            ],
-        },
-    )
-    row_2 = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-            ],
-        },
-    )
-    empty_row = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [],
-        },
+        rows_values=[
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [],
+            },
+        ],
     )
     handler = ViewHandler()
-    view_filter = data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="not_empty",
-    )
+    for field in [multiple_collaborators_field, ref_multiple_collaborators_field]:
+        grid_view = data_fixture.create_grid_view(table=table)
+        view_filter = data_fixture.create_view_filter(
+            view=grid_view,
+            field=field,
+            type="not_empty",
+        )
 
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
 
-    assert len(ids) == 2
-    assert row_1.id in ids
-    assert row_2.id in ids
+        assert len(ids) == 2
+        assert row_1.id in ids
+        assert row_2.id in ids
 
 
 @pytest.mark.django_db
@@ -5820,118 +5814,121 @@ def test_multiple_collaborators_has_filter_type(data_fixture):
     user3 = data_fixture.create_user(workspace=workspace)
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(database=database)
-    grid_view = data_fixture.create_grid_view(table=table)
 
     multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
         user=user, table=table, name="Multi Collaborators"
+    )
+    ref_multiple_collaborators_field = data_fixture.create_formula_field(
+        user=user, table=table, formula="field('Multi Collaborators')"
     )
 
     row_handler = RowHandler()
     model = table.get_model()
 
-    row_1 = row_handler.create_row(
+    row_1, row_2, _, row_with_all_collaborators = row_handler.force_create_rows(
         user=user,
         table=table,
         model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-            ],
-        },
-    )
-    row_2 = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-            ],
-        },
-    )
-
-    row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [],
-        },
-    )
-
-    row_with_all_collaborators = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-                {"id": user3.id},
-            ],
-        },
+        rows_values=[
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                    {"id": user3.id},
+                ],
+            },
+        ],
     )
 
     handler = ViewHandler()
-    view_filter = data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="multiple_collaborators_has",
-        value=f"",
-    )
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 4
+    for field in [multiple_collaborators_field, ref_multiple_collaborators_field]:
+        grid_view = data_fixture.create_grid_view(table=table)
+        view_filter = data_fixture.create_view_filter(
+            view=grid_view,
+            field=field,
+            type="multiple_collaborators_has",
+            value=f"",
+        )
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 4
 
-    view_filter.value = "not_number"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 4
+        view_filter.value = "not_number"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 4
 
-    view_filter.value = "-1"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 0
+        view_filter.value = "-1"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 0
 
-    view_filter.value = f"{user.id}"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    print(ids)
-    assert len(ids) == 3
-    assert row_1.id in ids
-    assert row_2.id in ids
-    assert row_with_all_collaborators.id in ids
+        view_filter.value = f"{user.id}"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        print(ids)
+        assert len(ids) == 3
+        assert row_1.id in ids
+        assert row_2.id in ids
+        assert row_with_all_collaborators.id in ids
 
-    view_filter.value = f"{user2.id}"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 2
-    assert row_2.id in ids
-    assert row_with_all_collaborators.id in ids
+        view_filter.value = f"{user2.id}"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 2
+        assert row_2.id in ids
+        assert row_with_all_collaborators.id in ids
 
-    # # chaining filters should also work
-    view_filter.value = f"{user2.id}"
-    view_filter.save()
+        # # chaining filters should also work
+        view_filter.value = f"{user2.id}"
+        view_filter.save()
 
-    # creating a second filter for the same field
-    data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="multiple_collaborators_has",
-        value=f"{user.id}",
-    )
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 2
-    assert row_2.id in ids
-    assert row_with_all_collaborators.id in ids
+        # creating a second filter for the same field
+        data_fixture.create_view_filter(
+            view=grid_view,
+            field=multiple_collaborators_field,
+            type="multiple_collaborators_has",
+            value=f"{user.id}",
+        )
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 2
+        assert row_2.id in ids
+        assert row_with_all_collaborators.id in ids
 
-    # # Changing the view to use "OR" for multiple filters
-    handler.update_view(user=user, view=grid_view, filter_type="OR")
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 3
-    assert row_1.id in ids
-    assert row_2.id in ids
-    assert row_with_all_collaborators.id in ids
+        # # Changing the view to use "OR" for multiple filters
+        handler.update_view(user=user, view=grid_view, filter_type="OR")
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 3
+        assert row_1.id in ids
+        assert row_2.id in ids
+        assert row_with_all_collaborators.id in ids
 
 
 @pytest.mark.django_db
@@ -5946,118 +5943,124 @@ def test_multiple_collaborators_has_not_filter_type(data_fixture):
     grid_view = data_fixture.create_grid_view(table=table)
 
     multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
-        user=user, table=table, name="Multiple Collaborators"
+        user=user, table=table, name="Multi Collaborators"
+    )
+    ref_multiple_collaborators_field = data_fixture.create_formula_field(
+        user=user, table=table, formula="field('Multi Collaborators')"
     )
 
     row_handler = RowHandler()
     model = table.get_model()
 
-    row_1 = row_handler.create_row(
+    row_1, row_2, row_3, _ = row_handler.force_create_rows(
         user=user,
         table=table,
         model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-            ],
-        },
-    )
-    row_2 = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user2.id},
-                {"id": user3.id},
-            ],
-        },
-    )
-
-    row_3 = row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [],
-        },
-    )
-
-    row_handler.create_row(
-        user=user,
-        table=table,
-        model=model,
-        values={
-            f"field_{multiple_collaborators_field.id}": [
-                {"id": user.id},
-                {"id": user2.id},
-                {"id": user3.id},
-            ],
-        },
+        rows_values=[
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user2.id},
+                    {"id": user3.id},
+                ],
+            },
+            {
+                multiple_collaborators_field.db_column: [],
+            },
+            {
+                multiple_collaborators_field.db_column: [
+                    {"id": user.id},
+                    {"id": user2.id},
+                    {"id": user3.id},
+                ],
+            },
+        ],
     )
 
     handler = ViewHandler()
-    view_filter = data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="multiple_collaborators_has_not",
-        value=f"",
-    )
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 4
+    for field in [multiple_collaborators_field, ref_multiple_collaborators_field]:
+        grid_view = data_fixture.create_grid_view(table=table)
+        view_filter = data_fixture.create_view_filter(
+            view=grid_view,
+            field=field,
+            type="multiple_collaborators_has_not",
+            value=f"",
+        )
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 4
 
-    view_filter.value = "not_number"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 4
+        view_filter.value = "not_number"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 4
 
-    view_filter.value = "-1"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 4
+        view_filter.value = "-1"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 4
 
-    view_filter.value = f"{user.id}"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 2
-    assert row_2.id in ids
-    assert row_3.id in ids
+        view_filter.value = f"{user.id}"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 2
+        assert row_2.id in ids
+        assert row_3.id in ids
 
-    view_filter.value = f"{user2.id}"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 1
-    assert row_3.id in ids
+        view_filter.value = f"{user2.id}"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 1
+        assert row_3.id in ids
 
-    view_filter.value = f"{user3.id}"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 2
-    assert row_1.id in ids
-    assert row_3.id in ids
+        view_filter.value = f"{user3.id}"
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 2
+        assert row_1.id in ids
+        assert row_3.id in ids
 
-    # chaining filters should also work
-    view_filter.value = f"{user3.id}"
-    view_filter.save()
+        # chaining filters should also work
+        view_filter.value = f"{user3.id}"
+        view_filter.save()
 
-    # creating a second filter for the same field
-    data_fixture.create_view_filter(
-        view=grid_view,
-        field=multiple_collaborators_field,
-        type="multiple_collaborators_has_not",
-        value=f"{user2.id}",
-    )
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 1
-    assert row_3.id in ids
+        # creating a second filter for the same field
+        data_fixture.create_view_filter(
+            view=grid_view,
+            field=multiple_collaborators_field,
+            type="multiple_collaborators_has_not",
+            value=f"{user2.id}",
+        )
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 1
+        assert row_3.id in ids
 
-    # Changing the view to use "OR" for multiple filters
-    handler.update_view(user=user, view=grid_view, filter_type="OR")
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 2
-    assert row_1.id in ids
-    assert row_3.id in ids
+        # Changing the view to use "OR" for multiple filters
+        handler.update_view(user=user, view=grid_view, filter_type="OR")
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 2
+        assert row_1.id in ids
+        assert row_3.id in ids
 
 
 @pytest.mark.django_db
@@ -6642,587 +6645,6 @@ def test_duplicate_table_single_select_is_one_of(data_fixture):
     assert duplicated_filter.value != f"{option_1.id},{option_2.id}"
 
 
-# given today is 2024-05-24, please provide some datetime values for
-# all the DateFilterOperators
-FREEZED_TODAY = datetime(2024, 5, 24, 9, 30, 0, tzinfo=timezone.utc)
-
-# fmt:off
-TEST_MULTI_STEP_DATE_OPERATORS_DATETIMES = [
-    FREEZED_TODAY - relativedelta(days=1),    # 0. yesterday
-    FREEZED_TODAY,                            # 1. today
-    FREEZED_TODAY + relativedelta(days=1),    # 2. tomorrow
-    FREEZED_TODAY - relativedelta(weeks=1),   # 3. a week ago
-    FREEZED_TODAY - relativedelta(months=1),  # 4. a month ago
-    FREEZED_TODAY - relativedelta(years=1),   # 5. a year ago
-    FREEZED_TODAY + relativedelta(weeks=1),   # 6. a week from now
-    FREEZED_TODAY + relativedelta(months=1),  # 7. a month from now
-    FREEZED_TODAY + relativedelta(years=1),   # 8. a year from now
-]
-# fmt:on
-
-MNEMONIC_VALUES = {
-    "-1d": 0,
-    "now": 1,
-    "+1d": 2,
-    "-1w": 3,
-    "-1m": 4,
-    "-1y": 5,
-    "+1w": 6,
-    "+1m": 7,
-    "+1y": 8,
-}
-
-# expected_results contains a list of the valid indexes of the
-# TEST_MULTI_STEP_DATE_OPERATORS_DATETIMES that should be returned when the filter type
-# and the operator is applied to the given dates
-DATE_MULTI_STEP_OPERATOR_VALID_RESULTS = {
-    DateIsEqualMultiStepFilterType.type: {
-        DateFilterOperators.YESTERDAY: {"expected_results": ["-1d"]},
-        DateFilterOperators.TODAY: {"expected_results": ["now"]},
-        DateFilterOperators.TOMORROW: {"expected_results": ["+1d"]},
-        DateFilterOperators.ONE_WEEK_AGO: {"expected_results": ["-1w"]},
-        DateFilterOperators.ONE_MONTH_AGO: {"expected_results": ["-1m"]},
-        DateFilterOperators.ONE_YEAR_AGO: {"expected_results": ["-1y"]},
-        DateFilterOperators.THIS_WEEK: {"expected_results": ["-1d", "now", "+1d"]},
-        DateFilterOperators.THIS_MONTH: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "+1w"]
-        },
-        DateFilterOperators.THIS_YEAR: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "+1w", "+1m"]
-        },
-        DateFilterOperators.NEXT_WEEK: {"expected_results": ["+1w"]},
-        DateFilterOperators.NEXT_MONTH: {"expected_results": ["+1m"]},
-        DateFilterOperators.NEXT_YEAR: {"expected_results": ["+1y"]},
-        DateFilterOperators.NR_DAYS_AGO: {"expected_results": ["-1w"], "value": 7},
-        DateFilterOperators.NR_WEEKS_AGO: {"expected_results": ["-1w"], "value": 1},
-        DateFilterOperators.NR_MONTHS_AGO: {"expected_results": ["-1m"], "value": 1},
-        DateFilterOperators.NR_YEARS_AGO: {"expected_results": ["-1y"], "value": 1},
-        DateFilterOperators.NR_DAYS_FROM_NOW: {"expected_results": ["+1w"], "value": 7},
-        DateFilterOperators.NR_WEEKS_FROM_NOW: {
-            "expected_results": ["+1w"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_FROM_NOW: {
-            "expected_results": ["+1m"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_FROM_NOW: {
-            "expected_results": ["+1y"],
-            "value": 1,
-        },
-        DateFilterOperators.EXACT_DATE: {
-            "expected_results": ["now"],
-            "value": "2024-05-24",
-        },
-    },
-    DateIsNotEqualMultiStepFilterType.type: {
-        DateFilterOperators.YESTERDAY: {
-            "expected_results": ["now", "+1d", "-1w", "-1m", "-1y", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.TODAY: {
-            "expected_results": ["-1d", "+1d", "-1w", "-1m", "-1y", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.TOMORROW: {
-            "expected_results": ["-1d", "now", "-1w", "-1m", "-1y", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.ONE_WEEK_AGO: {
-            "expected_results": ["-1d", "now", "+1d", "-1m", "-1y", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.ONE_MONTH_AGO: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1y", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.ONE_YEAR_AGO: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.THIS_WEEK: {
-            "expected_results": ["-1w", "-1m", "-1y", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.THIS_MONTH: {
-            "expected_results": ["-1y", "-1m", "+1m", "+1y"]
-        },
-        DateFilterOperators.THIS_YEAR: {"expected_results": ["-1y", "+1y"]},
-        DateFilterOperators.NEXT_WEEK: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1m", "+1y"]
-        },
-        DateFilterOperators.NEXT_MONTH: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w", "+1y"]
-        },
-        DateFilterOperators.NEXT_YEAR: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w", "+1m"]
-        },
-        DateFilterOperators.NR_DAYS_AGO: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1m",
-                "-1y",
-                "+1w",
-                "+1m",
-                "+1y",
-            ],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_AGO: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1m",
-                "-1y",
-                "+1w",
-                "+1m",
-                "+1y",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_AGO: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1w",
-                "-1y",
-                "+1w",
-                "+1m",
-                "+1y",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_AGO: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1w",
-                "-1m",
-                "+1w",
-                "+1m",
-                "+1y",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.NR_DAYS_FROM_NOW: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1w",
-                "-1m",
-                "-1y",
-                "+1m",
-                "+1y",
-            ],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_FROM_NOW: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1w",
-                "-1m",
-                "-1y",
-                "+1m",
-                "+1y",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_FROM_NOW: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1w",
-                "-1m",
-                "-1y",
-                "+1w",
-                "+1y",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_FROM_NOW: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1w",
-                "-1m",
-                "-1y",
-                "+1w",
-                "+1m",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.EXACT_DATE: {
-            "expected_results": [
-                "-1d",
-                "+1d",
-                "-1w",
-                "-1m",
-                "-1y",
-                "+1w",
-                "+1m",
-                "+1y",
-            ],
-            "value": "2024-05-24",
-        },
-    },
-    DateIsBeforeMultiStepFilterType.type: {
-        DateFilterOperators.YESTERDAY: {"expected_results": ["-1w", "-1m", "-1y"]},
-        DateFilterOperators.TODAY: {"expected_results": ["-1d", "-1w", "-1m", "-1y"]},
-        DateFilterOperators.TOMORROW: {
-            "expected_results": ["-1d", "now", "-1w", "-1m", "-1y"]
-        },
-        DateFilterOperators.ONE_WEEK_AGO: {"expected_results": ["-1m", "-1y"]},
-        DateFilterOperators.ONE_MONTH_AGO: {"expected_results": ["-1y"]},
-        DateFilterOperators.ONE_YEAR_AGO: {"expected_results": []},
-        DateFilterOperators.THIS_WEEK: {"expected_results": ["-1w", "-1m", "-1y"]},
-        DateFilterOperators.THIS_MONTH: {"expected_results": ["-1m", "-1y"]},
-        DateFilterOperators.THIS_YEAR: {"expected_results": ["-1y"]},
-        DateFilterOperators.NEXT_WEEK: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y"]
-        },
-        DateFilterOperators.NEXT_MONTH: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w"]
-        },
-        DateFilterOperators.NEXT_YEAR: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w", "+1m"]
-        },
-        DateFilterOperators.NR_DAYS_AGO: {
-            "expected_results": ["-1m", "-1y"],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_AGO: {
-            "expected_results": ["-1m", "-1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_AGO: {"expected_results": ["-1y"], "value": 1},
-        DateFilterOperators.NR_YEARS_AGO: {"expected_results": [], "value": 1},
-        DateFilterOperators.NR_DAYS_FROM_NOW: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y"],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_FROM_NOW: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_FROM_NOW: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_FROM_NOW: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1w",
-                "-1m",
-                "-1y",
-                "+1w",
-                "+1m",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.EXACT_DATE: {
-            "expected_results": ["-1d", "-1w", "-1m", "-1y"],
-            "value": "2024-05-24",
-        },
-    },
-    DateIsOnOrBeforeMultiStepFilterType.type: {
-        DateFilterOperators.YESTERDAY: {
-            "expected_results": ["-1d", "-1w", "-1m", "-1y"]
-        },
-        DateFilterOperators.TODAY: {
-            "expected_results": ["-1d", "now", "-1w", "-1m", "-1y"]
-        },
-        DateFilterOperators.TOMORROW: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y"]
-        },
-        DateFilterOperators.ONE_WEEK_AGO: {"expected_results": ["-1w", "-1m", "-1y"]},
-        DateFilterOperators.ONE_MONTH_AGO: {"expected_results": ["-1m", "-1y"]},
-        DateFilterOperators.ONE_YEAR_AGO: {"expected_results": ["-1y"]},
-        DateFilterOperators.THIS_WEEK: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y"]
-        },
-        DateFilterOperators.THIS_MONTH: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w"]
-        },
-        DateFilterOperators.THIS_YEAR: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w", "+1m"]
-        },
-        DateFilterOperators.NEXT_WEEK: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w"]
-        },
-        DateFilterOperators.NEXT_MONTH: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w", "+1m"]
-        },
-        DateFilterOperators.NEXT_YEAR: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1w",
-                "-1m",
-                "-1y",
-                "+1w",
-                "+1m",
-                "+1y",
-            ]
-        },
-        DateFilterOperators.NR_DAYS_AGO: {
-            "expected_results": ["-1w", "-1m", "-1y"],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_AGO: {
-            "expected_results": ["-1w", "-1m", "-1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_AGO: {
-            "expected_results": ["-1m", "-1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_AGO: {
-            "expected_results": ["-1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_DAYS_FROM_NOW: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w"],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_FROM_NOW: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "-1m", "-1y", "+1w"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_FROM_NOW: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1w",
-                "-1m",
-                "-1y",
-                "+1w",
-                "+1m",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_FROM_NOW: {
-            "expected_results": [
-                "-1d",
-                "now",
-                "+1d",
-                "-1w",
-                "-1m",
-                "-1y",
-                "+1w",
-                "+1m",
-                "+1y",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.EXACT_DATE: {
-            "expected_results": ["-1d", "now", "-1w", "-1m", "-1y"],
-            "value": "2024-05-24",
-        },
-    },
-    DateIsAfterMultiStepFilterType.type: {
-        DateFilterOperators.YESTERDAY: {
-            "expected_results": ["now", "+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.TODAY: {"expected_results": ["+1d", "+1w", "+1m", "+1y"]},
-        DateFilterOperators.TOMORROW: {"expected_results": ["+1w", "+1m", "+1y"]},
-        DateFilterOperators.ONE_WEEK_AGO: {
-            "expected_results": ["-1d", "now", "+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.ONE_MONTH_AGO: {
-            "expected_results": ["-1w", "-1d", "now", "+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.ONE_YEAR_AGO: {
-            "expected_results": ["-1m", "-1w", "-1d", "now", "+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.THIS_WEEK: {"expected_results": ["+1w", "+1m", "+1y"]},
-        DateFilterOperators.THIS_MONTH: {"expected_results": ["+1m", "+1y"]},
-        DateFilterOperators.THIS_YEAR: {"expected_results": ["+1y"]},
-        DateFilterOperators.NEXT_WEEK: {"expected_results": ["+1m", "+1y"]},
-        DateFilterOperators.NEXT_MONTH: {"expected_results": ["+1y"]},
-        DateFilterOperators.NEXT_YEAR: {"expected_results": []},
-        DateFilterOperators.NR_DAYS_AGO: {
-            "expected_results": ["-1d", "now", "+1d", "+1w", "+1m", "+1y"],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_AGO: {
-            "expected_results": ["-1d", "now", "+1d", "+1w", "+1m", "+1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_AGO: {
-            "expected_results": ["-1w", "-1d", "now", "+1d", "+1w", "+1m", "+1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_AGO: {
-            "expected_results": [
-                "-1m",
-                "-1w",
-                "-1d",
-                "now",
-                "+1d",
-                "+1w",
-                "+1m",
-                "+1y",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.NR_DAYS_FROM_NOW: {
-            "expected_results": ["+1m", "+1y"],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_FROM_NOW: {
-            "expected_results": ["+1m", "+1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_FROM_NOW: {
-            "expected_results": ["+1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_FROM_NOW: {
-            "expected_results": [],
-            "value": 1,
-        },
-        DateFilterOperators.EXACT_DATE: {
-            "expected_results": ["+1d", "+1w", "+1m", "+1y"],
-            "value": "2024-05-24",
-        },
-    },
-    DateIsOnOrAfterMultiStepFilterType.type: {
-        DateFilterOperators.YESTERDAY: {
-            "expected_results": ["-1d", "now", "+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.TODAY: {
-            "expected_results": ["now", "+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.TOMORROW: {
-            "expected_results": ["+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.ONE_WEEK_AGO: {
-            "expected_results": ["-1w", "-1d", "now", "+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.ONE_MONTH_AGO: {
-            "expected_results": ["-1m", "-1w", "-1d", "now", "+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.ONE_YEAR_AGO: {
-            "expected_results": [
-                "-1y",
-                "-1m",
-                "-1w",
-                "-1d",
-                "now",
-                "+1d",
-                "+1w",
-                "+1m",
-                "+1y",
-            ]
-        },
-        DateFilterOperators.THIS_WEEK: {
-            "expected_results": ["-1d", "now", "+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.THIS_MONTH: {
-            "expected_results": ["-1d", "now", "+1d", "-1w", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.THIS_YEAR: {
-            "expected_results": ["-1d", "now", "+1d", "-1m", "-1w", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.NEXT_WEEK: {"expected_results": ["+1w", "+1m", "+1y"]},
-        DateFilterOperators.NEXT_MONTH: {"expected_results": ["+1m", "+1y"]},
-        DateFilterOperators.NEXT_YEAR: {"expected_results": ["+1y"]},
-        DateFilterOperators.NR_DAYS_AGO: {
-            "expected_results": ["-1w", "-1d", "now", "+1d", "+1w", "+1m", "+1y"],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_AGO: {
-            "expected_results": ["-1w", "-1d", "now", "+1d", "+1w", "+1m", "+1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_AGO: {
-            "expected_results": [
-                "-1m",
-                "-1w",
-                "-1d",
-                "now",
-                "+1d",
-                "+1w",
-                "+1m",
-                "+1y",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_AGO: {
-            "expected_results": [
-                "-1y",
-                "-1m",
-                "-1w",
-                "-1d",
-                "now",
-                "+1d",
-                "+1w",
-                "+1m",
-                "+1y",
-            ],
-            "value": 1,
-        },
-        DateFilterOperators.NR_DAYS_FROM_NOW: {
-            "expected_results": ["+1w", "+1m", "+1y"],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_FROM_NOW: {
-            "expected_results": ["+1w", "+1m", "+1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_FROM_NOW: {
-            "expected_results": ["+1m", "+1y"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_FROM_NOW: {
-            "expected_results": ["+1y"],
-            "value": 1,
-        },
-        DateFilterOperators.EXACT_DATE: {
-            "expected_results": ["now", "+1d", "+1w", "+1m", "+1y"],
-            "value": "2024-05-24",
-        },
-    },
-    DateIsWithinMultiStepFilterType.type: {
-        DateFilterOperators.TOMORROW: {"expected_results": ["now", "+1d"]},
-        DateFilterOperators.NEXT_WEEK: {"expected_results": ["now", "+1d", "+1w"]},
-        DateFilterOperators.NEXT_MONTH: {
-            "expected_results": ["now", "+1d", "+1w", "+1m"]
-        },
-        DateFilterOperators.NEXT_YEAR: {
-            "expected_results": ["now", "+1d", "+1w", "+1m", "+1y"]
-        },
-        DateFilterOperators.NR_DAYS_FROM_NOW: {
-            "expected_results": ["now", "+1d", "+1w"],
-            "value": 7,
-        },
-        DateFilterOperators.NR_WEEKS_FROM_NOW: {
-            "expected_results": ["now", "+1d", "+1w"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_MONTHS_FROM_NOW: {
-            "expected_results": ["now", "+1d", "+1w", "+1m"],
-            "value": 1,
-        },
-        DateFilterOperators.NR_YEARS_FROM_NOW: {
-            "expected_results": ["now", "+1d", "+1w", "+1m", "+1y"],
-            "value": 1,
-        },
-        DateFilterOperators.EXACT_DATE: {
-            "expected_results": ["now", "+1d"],
-            "value": "2024-05-25",
-        },
-    },
-}
-
-
 @pytest.mark.django_db
 def test_ensure_all_multi_step_filter_type_and_operators_are_tested(data_fixture):
     for filter_type in view_filter_type_registry.get_all():
@@ -7239,7 +6661,7 @@ def test_ensure_all_multi_step_filter_type_and_operators_are_tested(data_fixture
             ), f"'expected_results' missing for {filter_type.type} - {operator.value}"
 
 
-@pytest.fixture
+@pytest.fixture()
 def table_view_fields_rows(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

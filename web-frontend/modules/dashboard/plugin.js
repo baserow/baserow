@@ -7,7 +7,9 @@ import it from '@baserow/modules/dashboard/locales/it.json'
 import pl from '@baserow/modules/dashboard/locales/pl.json'
 import ko from '@baserow/modules/dashboard/locales/ko.json'
 
+import { registerRealtimeEvents } from '@baserow/modules/dashboard/realtime'
 import { DashboardApplicationType } from '@baserow/modules/dashboard/applicationTypes'
+import { SummaryWidgetType } from '@baserow/modules/dashboard/widgetTypes'
 import dashboardApplicationStore from '@baserow/modules/dashboard/store/dashboardApplication'
 import { FF_DASHBOARDS } from '@baserow/modules/core/plugins/featureFlags'
 
@@ -27,9 +29,16 @@ export default (context) => {
     i18n.mergeLocaleMessage('ko', ko)
   }
 
+  registerRealtimeEvents(app.$realtime)
+
   store.registerModule('dashboardApplication', dashboardApplicationStore)
+  store.registerModule(
+    'template/dashboardApplication',
+    dashboardApplicationStore
+  )
 
   if (app.$featureFlagIsEnabled(FF_DASHBOARDS)) {
     app.$registry.register('application', new DashboardApplicationType(context))
+    app.$registry.register('dashboardWidget', new SummaryWidgetType(context))
   }
 }

@@ -4,6 +4,7 @@
 //    list of file names, we don't want the filterValue to accidentally match the end
 //    of one filename and the start of another.
 import _ from 'lodash'
+import BigNumber from 'bignumber.js'
 
 export function filenameContainsFilter(
   rowValue,
@@ -31,8 +32,8 @@ export function genericContainsFilter(
   if (humanReadableRowValue == null) {
     return false
   }
-  humanReadableRowValue = humanReadableRowValue.toString().toLowerCase().trim()
-  filterValue = filterValue.toString().toLowerCase().trim()
+  humanReadableRowValue = String(humanReadableRowValue).toLowerCase().trim()
+  filterValue = String(filterValue).toLowerCase().trim()
 
   return humanReadableRowValue.includes(filterValue)
 }
@@ -45,8 +46,8 @@ export function genericContainsWordFilter(
   if (humanReadableRowValue == null) {
     return false
   }
-  humanReadableRowValue = humanReadableRowValue.toString().toLowerCase().trim()
-  filterValue = filterValue.toString().toLowerCase().trim()
+  humanReadableRowValue = String(humanReadableRowValue).toLowerCase().trim()
+  filterValue = String(filterValue).toLowerCase().trim()
   // check using regex to match whole words
   // make sure to escape the filterValue as it may contain regex special characters
   filterValue = filterValue.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&')
@@ -61,7 +62,11 @@ export function genericHasEmptyValueFilter(cellValue, filterValue) {
   for (let i = 0; i < cellValue.length; i++) {
     const value = cellValue[i].value
 
-    if (value === '' || value === null) {
+    if (
+      value === '' ||
+      value === null ||
+      (Array.isArray(value) && value.length === 0)
+    ) {
       return true
     }
   }
@@ -100,10 +105,10 @@ export function genericHasValueContainsFilter(cellValue, filterValue) {
     return false
   }
 
-  filterValue = filterValue.toString().toLowerCase().trim()
+  filterValue = String(filterValue).toLowerCase().trim()
 
   for (let i = 0; i < cellValue.length; i++) {
-    const value = cellValue[i].value.toString().toLowerCase().trim()
+    const value = String(cellValue[i].value).toLowerCase().trim()
 
     if (value.includes(filterValue)) {
       return true
@@ -118,14 +123,14 @@ export function genericHasValueContainsWordFilter(cellValue, filterValue) {
     return false
   }
 
-  filterValue = filterValue.toString().toLowerCase().trim()
+  filterValue = String(filterValue).toLowerCase().trim()
   filterValue = filterValue.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&')
 
   for (let i = 0; i < cellValue.length; i++) {
     if (cellValue[i].value == null) {
       continue
     }
-    const value = cellValue[i].value.toString().toLowerCase().trim()
+    const value = String(cellValue[i].value).toLowerCase().trim()
     if (value.match(new RegExp(`\\b${filterValue}\\b`))) {
       return true
     }
@@ -143,11 +148,61 @@ export function genericHasValueLengthLowerThanFilter(cellValue, filterValue) {
     if (cellValue[i].value == null) {
       continue
     }
-    const valueLength = cellValue[i].value.toString().length
+    const valueLength = String(cellValue[i].value).length
     if (valueLength < filterValue) {
       return true
     }
   }
 
   return false
+}
+
+export const ComparisonOperator = {
+  EQUAL: '=',
+  HIGHER_THAN: '>',
+  HIGHER_THAN_OR_EQUAL: '>=',
+  LOWER_THAN: '<',
+  LOWER_THAN_OR_EQUAL: '<=',
+}
+
+function doNumericArrayComparison(cellValue, filterValue, compareFunc) {
+  const filterNr = new BigNumber(filterValue)
+  if (!Array.isArray(cellValue) || filterNr.isNaN()) {
+    return false
+  }
+  return _.some(_.map(cellValue, 'value'), (item) =>
+    compareFunc(new BigNumber(item), filterNr)
+  )
+}
+
+export function numericHasValueComparableToFilterFunction(comparisonOp) {
+  return (cellValue, filterValue) => {
+    let compareFunc
+    switch (comparisonOp) {
+      case ComparisonOperator.EQUAL:
+        compareFunc = (a, b) => a.isEqualTo(b)
+        break
+      case ComparisonOperator.HIGHER_THAN:
+        compareFunc = (a, b) => a.isGreaterThan(b)
+        break
+      case ComparisonOperator.HIGHER_THAN_OR_EQUAL:
+        compareFunc = (a, b) => a.isGreaterThanOrEqualTo(b)
+        break
+      case ComparisonOperator.LOWER_THAN:
+        compareFunc = (a, b) => a.isLessThan(b)
+        break
+      case ComparisonOperator.LOWER_THAN_OR_EQUAL:
+        compareFunc = (a, b) => a.isLessThanOrEqualTo(b)
+        break
+    }
+    if (compareFunc === undefined) {
+      throw new Error('Invalid comparison operator')
+    }
+
+    return doNumericArrayComparison(
+      cellValue,
+      filterValue,
+      (arrayItemNr, filterNr) => compareFunc(arrayItemNr, filterNr)
+    )
+  }
 }

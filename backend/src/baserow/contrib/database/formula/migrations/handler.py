@@ -11,6 +11,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from baserow.contrib.database.fields.field_cache import FieldCache
+from baserow.contrib.database.fields.signals import fields_type_changed
 from baserow.contrib.database.formula import FormulaHandler
 from baserow.contrib.database.formula.migrations.migrations import (
     ALL_FORMULAS,
@@ -77,6 +78,10 @@ def _recalculate_formula_metadata_dependencies_first_order(
                     force_recreate_column=force_recreate_columns,
                 )
                 model.objects_and_trash.all().update(**{f"{field.db_column}": expr})
+                fields_type_changed.send(
+                    _recalculate_formula_metadata_dependencies_first_order,
+                    fields=[field]
+                )
             except Exception as e:
                 field.mark_as_invalid_and_save(
                     "Failed to recalculate cell values after formula update."
@@ -341,7 +346,7 @@ class FormulaMigrationHandler:
 
         for field in formulas_to_rebuild_dependencies_for.iterator():
             try:
-                FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+                FieldDependencyHandler.rebuild_dependencies([field], field_cache)
             except Exception as e:
                 logger.warning(
                     f"Failed to recalculate dependencies for field: "

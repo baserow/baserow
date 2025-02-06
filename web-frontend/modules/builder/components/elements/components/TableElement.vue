@@ -40,6 +40,7 @@
                   rowIndex,
                 ],
                 field,
+                dispatchRefinements: adhocRefinements,
               }"
               v-bind="value"
             />

@@ -9,24 +9,24 @@
     }"
   >
     <div class="grid-field-number">
-      {{ $options.methods.formatNumberValue(props.field, props.value) }}
+      {{
+        props.value === 'NaN'
+          ? parent.$t('fieldErrors.invalidNumber')
+          : $options.methods.formatFrontendNumber(props.field, props.value)
+      }}
     </div>
   </div>
 </template>
 
 <script>
-import { formatNumberValue } from '@baserow/modules/database/utils/number'
-import BigNumber from 'bignumber.js'
+import { formatFrontendNumber } from '@baserow/modules/database/utils/number'
 
 export default {
   name: 'FunctionalGridViewFieldNumber',
   functional: true,
   methods: {
-    formatNumberValue(field, value) {
-      if (value == null || value === '') {
-        return ''
-      }
-      return formatNumberValue(field, new BigNumber(value))
+    formatFrontendNumber(field, value) {
+      return formatFrontendNumber(field, value)
     },
   },
 }

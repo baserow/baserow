@@ -6,7 +6,11 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import SET_NULL, QuerySet
 
-from baserow.contrib.builder.constants import BACKGROUND_IMAGE_MODES, VerticalAlignments
+from baserow.contrib.builder.constants import (
+    BACKGROUND_IMAGE_MODES,
+    COLOR_FIELD_MAX_LENGTH,
+    VerticalAlignments,
+)
 from baserow.core.constants import DATE_FORMAT_CHOICES, DATE_TIME_FORMAT_CHOICES
 from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
@@ -32,6 +36,12 @@ class BackgroundTypes(models.TextChoices):
 class WidthTypes(models.TextChoices):
     FULL = "full"
     FULL_WIDTH = "full-width"
+    NORMAL = "normal"
+    MEDIUM = "medium"
+    SMALL = "small"
+
+
+class ChildWidthTypes(models.TextChoices):
     NORMAL = "normal"
     MEDIUM = "medium"
     SMALL = "small"
@@ -136,7 +146,7 @@ class Element(
     )
 
     style_border_top_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",
         blank=True,
         help_text="Top border color.",
@@ -153,7 +163,7 @@ class Element(
     )
 
     style_border_bottom_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",
         blank=True,
         help_text="Bottom border color",
@@ -170,7 +180,7 @@ class Element(
     )
 
     style_border_left_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",
         blank=True,
         help_text="Left border color",
@@ -187,7 +197,7 @@ class Element(
     )
 
     style_border_right_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",
         blank=True,
         help_text="Right border color",
@@ -203,6 +213,13 @@ class Element(
         help_text="Margin size of the right border.",
     )
 
+    style_background_radius = models.SmallIntegerField(
+        default=0, db_default=0, help_text="Background radius."
+    )
+    style_border_radius = models.SmallIntegerField(
+        default=0, db_default=0, help_text="Border radius."
+    )
+
     style_background = models.CharField(
         choices=BackgroundTypes.choices,
         default=BackgroundTypes.NONE,
@@ -210,7 +227,7 @@ class Element(
         max_length=20,
     )
     style_background_color = models.CharField(
-        max_length=20,
+        max_length=COLOR_FIELD_MAX_LENGTH,
         default="#ffffffff",
         blank=True,
         help_text="The background color if `style_background` is color.",
@@ -234,8 +251,16 @@ class Element(
     style_width = models.CharField(
         choices=WidthTypes.choices,
         default=WidthTypes.NORMAL,
-        help_text="Indicates the width of the element.",
+        help_text="Indicates the width of the root element.",
         max_length=20,
+    )
+
+    style_width_child = models.CharField(
+        choices=ChildWidthTypes.choices,
+        default=ChildWidthTypes.NORMAL,
+        db_default=ChildWidthTypes.NORMAL,
+        help_text="Indicates the width of the child element.",
+        max_length=6,
     )
 
     class Meta:
@@ -461,6 +486,12 @@ class NavigationElementMixin(models.Model):
     page_parameters = models.JSONField(
         default=list,
         help_text="The parameters for each parameters of the selected page if any.",
+        null=True,
+    )
+    query_parameters = models.JSONField(
+        db_default=[],
+        default=list,
+        help_text="The query parameters for each parameter of the selected page if any.",
         null=True,
     )
     target = models.CharField(
@@ -848,6 +879,24 @@ class RepeatElement(CollectionElement, ContainerElement):
         default=dict,
         help_text="The amount repetitions per row, per device type. "
         "Only applicable when the orientation is horizontal.",
+    )
+    horizontal_gap = models.IntegerField(
+        default=0,
+        db_default=0,
+        help_text="The amount of horizontal space between repeat elements.",
+        validators=[
+            MinValueValidator(0, message="Value cannot be less than 0."),
+            MaxValueValidator(2000, message="Value cannot be greater than 2000."),
+        ],
+    )
+    vertical_gap = models.IntegerField(
+        default=0,
+        db_default=0,
+        help_text="The amount of vertical space between repeat elements.",
+        validators=[
+            MinValueValidator(0, message="Value cannot be less than 0."),
+            MaxValueValidator(2000, message="Value cannot be greater than 2000."),
+        ],
     )
 
 

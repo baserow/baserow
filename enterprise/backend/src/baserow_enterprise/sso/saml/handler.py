@@ -174,6 +174,7 @@ class SamlAuthProviderHandler:
             name = authn_identity["user.name"][0]
         else:
             name = email
+
         return UserInfo(email, name, **saml_request_data)
 
     @classmethod
@@ -280,7 +281,7 @@ class SamlAuthProviderHandler:
     def get_sign_in_url_for_auth_provider(
         cls,
         saml_auth_provider: SamlAuthProviderModelMixin,
-        original_url: str = "",
+        relay_state: str = "",
     ) -> str:
         """
         Returns the redirect url to the identity provider. This url is used to
@@ -288,15 +289,15 @@ class SamlAuthProviderHandler:
 
         :param saml_auth_provider: The identity provider to which the user
             should be redirected.
-        :param original_url: The url to which the user should be redirected
-            after a successful login.
+        :param relay_state: Data relayed by the Idp. Usually the url to which the user
+            should be redirected after a successful login.
         :raises InvalidSamlConfiguration: If the SAML configuration is invalid.
         :return: The redirect URL to the identity provider.
         """
 
         saml_client = cls.prepare_saml_client(saml_auth_provider)
 
-        _, info = saml_client.prepare_for_authenticate(relay_state=original_url)
+        _, info = saml_client.prepare_for_authenticate(relay_state=relay_state)
 
         for key, value in info["headers"]:
             if key == "Location":
@@ -310,7 +311,7 @@ class SamlAuthProviderHandler:
         cls,
         query_params: Dict[str, str],
         base_queryset: QuerySet | None = None,
-        redirect_to: str | None = None,
+        relay_state: str | None = None,
     ) -> str:
         """
         Returns the sign in url for the correct identity provider. This url is
@@ -318,7 +319,7 @@ class SamlAuthProviderHandler:
 
         :param query_params: A dict containing the query parameters from the
             sign in request.
-        :param redirect_to: if set, used as relay state url.
+        :param relay_state: if set, used as relay state.
         :raises InvalidSamlRequest: If the email address is invalid.
         :raises InvalidSamlConfiguration: If the SAML configuration is invalid.
         :return: The redirect url to the identity provider.
@@ -326,18 +327,16 @@ class SamlAuthProviderHandler:
 
         user_email = query_params.pop("email", None)
 
-        if redirect_to:
-            valid_relay_state_url = redirect_to
-        else:
+        if relay_state is None:
             original_url = query_params.pop("original", "")
-            valid_relay_state_url = get_valid_frontend_url(original_url, query_params)
+            relay_state = get_valid_frontend_url(original_url, query_params)
 
         try:
             saml_auth_provider = cls.get_saml_auth_provider_from_email(
                 user_email, base_queryset=base_queryset
             )
             return cls.get_sign_in_url_for_auth_provider(
-                saml_auth_provider, valid_relay_state_url
+                saml_auth_provider, relay_state
             )
         except (InvalidSamlRequest, InvalidSamlConfiguration) as exc:
             logger.exception(exc)

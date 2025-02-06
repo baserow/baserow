@@ -271,7 +271,19 @@
     "isAfter": "is after",
     "isOnOrBefore": "is on or before",
     "isOnOrAfter": "is on or after",
-    "isWithin": "is within"
+    "isWithin": "is within",
+    "hasDateEqual": "has date equal",
+    "hasNotDateEqual": "doesn't have date equal",
+    "hasDateBefore": "has date before",
+    "hasNotDateBefore": "doesn't have date before",
+    "hasDateOnOrBefore": "has date on or before",
+    "hasNotDateOnOrBefore": "doesn't have date on or before",
+    "hasDateAfter": "has date after",
+    "hasNotDateAfter": "doesn't have date after",
+    "hasDateOnOrAfter": "has date on or after",
+    "hasNotDateOnOrAfter": "doesn't have date on or after",
+    "hasDateWithin": "has date within",
+    "hasNotDateWithin": "doesn't have date within"
   },
   "viewType": {
     "grid": "Grid",
@@ -458,7 +470,7 @@
   },
   "formulaFunctions": {
     "upperDescription": "Returns its argument in upper case.",
-    "lowerDescription": "Returns its argument in lower case.",
+    "lowerDescription": "Returns its argument in lower case.", 
     "splitPartDescription": "Extracts a segment from a delimited string based on a delimiter and index (numeric indicator indicating which element from string should be returned)",
     "concatDescription": "Returns its arguments joined together as a single piece of text.",
     "addDescription": "Returns its two arguments added together.",
@@ -501,7 +513,7 @@
     "leftDescription": "Extracts the left most characters from the first input, stops when it has extracted the number of characters specified by the second input.",
     "rightDescription": "Extracts the right most characters from the first input, stops when it has extracted the number of characters specified by the second input.",
     "trimDescription": "Removes all whitespace from the left and right sides of the input.",
-    "regexReplaceDescription": "Replaces any text in the first input which matches the regex specified by the second input with the text in the third input.",
+    "regexReplaceDescription": "Replaces any text in the first input which matches the regex specified by the second input with the text in the third input. Returns '#ERROR!' if the regex pattern is invalid.",
     "greatestDescription": "Returns the greatest value of the two inputs.",
     "leastDescription": "Returns the smallest of the two inputs.",
     "monthDescription": "Returns the number of months in the provided date.",

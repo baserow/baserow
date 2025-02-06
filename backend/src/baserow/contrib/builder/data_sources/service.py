@@ -314,9 +314,9 @@ class DataSourceService:
 
         results = self.handler.dispatch_data_sources(data_sources, dispatch_context)
 
-        # When public_formula_fields is None, it indicates that filtering
+        # When public_allowed_properties is None, it indicates that filtering
         # shouldn't be applied, thus the results are returned without changes.
-        if dispatch_context.public_formula_fields is None:
+        if dispatch_context.public_allowed_properties is None:
             return results
 
         # We filter the fields before returning the result
@@ -326,7 +326,7 @@ class DataSourceService:
                 new_results[data_source.id] = results[data_source.id]
                 continue
 
-            field_names = dispatch_context.public_formula_fields.get(
+            field_names = dispatch_context.public_allowed_properties.get(
                 "external", {}
             ).get(data_source.service.id, [])
 

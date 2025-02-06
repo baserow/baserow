@@ -73,11 +73,15 @@ class PublicServiceSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_context_data(self, instance):
-        return instance.get_type().get_context_data(instance.specific)
+        return instance.get_type().get_context_data(
+            instance.specific, allowed_fields=self.context.get("allowed_fields")
+        )
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_schema(self, instance):
-        return instance.get_type().generate_schema(instance.specific)
+        return instance.get_type().generate_schema(
+            instance.specific, allowed_fields=self.context.get("allowed_fields")
+        )
 
     class Meta:
         model = Service

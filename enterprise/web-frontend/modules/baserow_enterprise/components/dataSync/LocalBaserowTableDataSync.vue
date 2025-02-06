@@ -9,7 +9,7 @@
       />
     </div>
     <div class="row margin-bottom-3">
-      <div class="col col-4">
+      <div class="col col-6 margin-bottom-2">
         <FormGroup
           small-label
           :label="$t('localBaserowTableDataSync.workspace')"
@@ -29,7 +29,7 @@
           </Dropdown>
         </FormGroup>
       </div>
-      <div class="col col-4">
+      <div class="col col-6 margin-bottom-2">
         <FormGroup
           small-label
           :label="$t('localBaserowTableDataSync.database')"
@@ -49,7 +49,7 @@
           </Dropdown>
         </FormGroup>
       </div>
-      <div class="col col-4">
+      <div class="col col-6">
         <FormGroup
           :error="fieldHasErrors('source_table_id')"
           small-label
@@ -57,10 +57,10 @@
           required
         >
           <Dropdown
-            v-model="values.source_table_id"
+            :value="values.source_table_id"
             :error="fieldHasErrors('source_table_id')"
             :disabled="disabled"
-            @input="$v.values.source_table_id.$touch()"
+            @input="tableChanged"
           >
             <DropdownItem
               v-for="table in tables"
@@ -81,6 +81,32 @@
           </template>
         </FormGroup>
       </div>
+      <div class="col col-6">
+        <FormGroup
+          :error="fieldHasErrors('source_table_view_id')"
+          small-label
+          :label="$t('localBaserowTableDataSync.view')"
+          :help-icon-tooltip="$t('localBaserowTableDataSync.viewHelper')"
+          required
+        >
+          <div v-if="viewsLoading" class="loading"></div>
+          <Dropdown
+            v-else
+            v-model="values.source_table_view_id"
+            :error="fieldHasErrors('source_table_view_id')"
+            :disabled="disabled"
+            @input="$v.values.source_table_view_id.$touch()"
+          >
+            <DropdownItem
+              v-for="view in views"
+              :key="view.id"
+              :name="view.name"
+              :value="view.id"
+              :icon="view._.type.iconClass"
+            ></DropdownItem>
+          </Dropdown>
+        </FormGroup>
+      </div>
     </div>
   </form>
 </template>
@@ -91,6 +117,7 @@ import { required, numeric } from 'vuelidate/lib/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
+import ViewService from '@baserow/modules/database/services/view'
 
 export default {
   name: 'LocalBaserowTableDataSync',
@@ -109,13 +136,16 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['source_table_id'],
+      allowedValues: ['source_table_id', 'source_table_view_id'],
       values: {
         source_table_id: '',
+        source_table_view_id: null,
       },
       selectedWorkspaceId:
         this.$store.getters['workspace/getSelected'].id || null,
       selectedDatabaseId: null,
+      views: [],
+      viewsLoading: false,
     }
   },
   computed: {
@@ -150,6 +180,13 @@ export default {
       userName: 'auth/getName',
     }),
   },
+  watch: {
+    'values.source_table_id'(newValueType, oldValue) {
+      if (newValueType !== oldValue) {
+        this.loadViewsIfNeeded()
+      }
+    },
+  },
   mounted() {
     // If the source table id is set, the database and workspace ID must be selected
     // in the dropdown.
@@ -175,6 +212,7 @@ export default {
   validations: {
     values: {
       source_table_id: { required, numeric },
+      source_table_view_id: { numeric },
     },
   },
   methods: {
@@ -185,6 +223,7 @@ export default {
       this.selectedWorkspaceId = value
       this.selectedDatabaseId = null
       this.values.source_table_id = null
+      this.values.source_table_view_id = null
     },
     databaseChanged(value) {
       if (this.selectedDatabaseId === value) {
@@ -192,6 +231,49 @@ export default {
       }
       this.selectedDatabaseId = value
       this.values.source_table_id = null
+      this.values.source_table_view_id = null
+    },
+    tableChanged(value) {
+      this.$v.values.source_table_id.$touch()
+      if (this.values.source_table_id === value) {
+        return
+      }
+      this.values.source_table_id = value
+      this.values.source_table_view_id = null
+    },
+    async loadViewsIfNeeded() {
+      if (this.values.source_table_id === null) {
+        return
+      }
+
+      this.viewsLoading = true
+
+      try {
+        // Because the authorized user changes when a view is created or updated, it's
+        // fine to just fetch all the views that the user has access to.
+        const { data } = await ViewService(this.$client).fetchAll(
+          this.values.source_table_id,
+          false,
+          false,
+          false,
+          false
+        )
+        this.views = data
+          .filter((view) => {
+            const viewType = this.$registry.get('view', view.type)
+            return viewType.canFilter
+          })
+          .map((view) => {
+            const viewType = this.$registry.get('view', view.type)
+            view._ = { type: viewType.serialize() }
+            return view
+          })
+          .sort((a, b) => {
+            return a.order - b.order
+          })
+      } finally {
+        this.viewsLoading = false
+      }
     },
   },
 }

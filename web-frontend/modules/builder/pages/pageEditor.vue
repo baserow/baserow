@@ -46,22 +46,25 @@ export default {
    */
   beforeRouteUpdate(to, from, next) {
     // Unselect previously selected element
+    const currentBuilder = this.$store.getters['application/get'](
+      parseInt(from.params.builderId)
+    )
     this.$store.dispatch('element/select', {
+      builder: currentBuilder,
       element: null,
     })
     if (from.params.builderId !== to.params?.builderId) {
       // When we switch from one application to another we want to logoff the current
       // user
-      const builder = this.$store.getters['application/get'](
-        parseInt(from.params.builderId)
-      )
-      if (builder) {
+      if (currentBuilder) {
         // We want to reload once only data for this builder next time
         this.$store.dispatch('application/forceUpdate', {
-          application: builder,
+          application: currentBuilder,
           data: { _loadedOnce: false },
         })
-        this.$store.dispatch('userSourceUser/logoff', { application: builder })
+        this.$store.dispatch('userSourceUser/logoff', {
+          application: currentBuilder,
+        })
       }
     }
     next()
@@ -72,14 +75,17 @@ export default {
    */
   beforeRouteLeave(to, from, next) {
     this.$store.dispatch('page/unselect')
-    // Unselect previously selected element
-    this.$store.dispatch('element/select', {
-      element: null,
-    })
 
     const builder = this.$store.getters['application/get'](
       parseInt(from.params.builderId)
     )
+
+    // Unselect previously selected element
+    this.$store.dispatch('element/select', {
+      builder,
+      element: null,
+    })
+
     if (builder) {
       // We want to reload once only data for this builder next time
       this.$store.dispatch('application/forceUpdate', {
@@ -128,7 +134,7 @@ export default {
         store.dispatch('dataSource/fetch', {
           page,
         }),
-        store.dispatch('element/fetch', { page }),
+        store.dispatch('element/fetch', { builder, page }),
         store.dispatch('workflowAction/fetch', { page }),
       ])
 

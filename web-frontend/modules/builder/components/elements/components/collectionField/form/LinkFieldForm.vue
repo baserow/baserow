@@ -13,9 +13,10 @@
       />
       <template #after-input>
         <CustomStyle
+          :key="values.variant"
           v-model="values.styles"
           style-key="cell"
-          :config-block-types="['table', 'button']"
+          :config-block-types="linkFieldBlockTypes"
           :theme="baseTheme"
           :extra-args="{ onlyCell: true, noAlignment: true }"
           variant="normal"
@@ -67,6 +68,14 @@ export default {
     }
   },
   computed: {
+    linkFieldBlockTypes() {
+      const defaultBlocks = ['table']
+      if (this.values.variant === LINK_VARIANTS.LINK) {
+        return [...defaultBlocks, 'link']
+      } else {
+        return [...defaultBlocks, 'button']
+      }
+    },
     LINK_VARIANTS() {
       return [
         {

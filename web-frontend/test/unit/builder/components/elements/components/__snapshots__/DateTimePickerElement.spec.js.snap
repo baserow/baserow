@@ -15,7 +15,7 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -70,7 +70,7 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -125,7 +125,7 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -180,7 +180,7 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -239,7 +239,7 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -298,7 +298,7 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -357,7 +357,7 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -416,7 +416,7 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          
@@ -475,7 +475,7 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       class="control__elements"
     >
       <div
-        class="flex-grow-1"
+        class="control__elements-wrapper"
       >
         <!---->
          

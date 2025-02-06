@@ -326,6 +326,7 @@ class DataSourceHandler:
         :return: The updated data_source.
         """
 
+        new_service_type = None
         if "new_service_type" in kwargs:
             new_service_type = kwargs.pop("new_service_type")
 
@@ -353,7 +354,7 @@ class DataSourceHandler:
                 )
                 data_source.service = service
 
-        if data_source.service and kwargs:
+        if data_source.service and kwargs and new_service_type is None:
             service_to_update = self.service_handler.get_service_for_update(
                 data_source.service.id
             )

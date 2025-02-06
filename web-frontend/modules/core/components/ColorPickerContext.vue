@@ -15,7 +15,12 @@
         <DropdownItem name="RGB" :value="COLOR_NOTATIONS.RGB"></DropdownItem>
       </Dropdown>
       <div v-if="type === 'hex'" class="color-picker-context__color-hex">
-        <FormInput v-model="fakeHexExcludingAlpha" small @blur="hexChanged" />
+        <FormInput
+          ref="hexInput"
+          v-model="fakeHexExcludingAlpha"
+          small
+          @blur="hexChanged"
+        />
       </div>
       <div v-if="type === 'rgb'" class="color-picker-context__color-rgb">
         <FormInput
@@ -64,8 +69,11 @@
       v-if="Object.keys(variables).length > 0"
       class="color-picker-context__variables"
     >
-      <Dropdown :value="selectedVariable?.name || ''" @input="setVariable">
-        <DropdownItem name="Custom" value=""></DropdownItem>
+      <Dropdown
+        :value="selectedVariable?.name || ''"
+        :placeholder="$t('colorPickerContext.pickColorPlaceholder')"
+        @input="setVariable"
+      >
         <DropdownItem
           v-for="variable in variables"
           :key="variable.name"
@@ -175,10 +183,12 @@ export default {
      * re-opening the color picker we should display the original persisted
      * value.
      */
-    onShown() {
+    async onShown() {
       if (this.value !== this.fakeHexExcludingAlpha) {
         this.fakeHexExcludingAlpha = this.value
       }
+      await this.$nextTick()
+      this.$refs.hexInput.focus()
     },
     setColorFromPicker(value) {
       if (this.selectedVariable) {

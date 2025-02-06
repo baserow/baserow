@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Restore decoration value ids during table import",
+    "issue_number": 3193,
+    "bullet_points": [],
+    "created_at": "2024-12-04"
+}

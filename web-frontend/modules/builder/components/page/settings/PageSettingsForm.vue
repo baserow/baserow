@@ -24,13 +24,22 @@
     </div>
     <div class="row">
       <div class="col col-6">
+        <PageSettingsQueryParamsFormElement
+          :disabled="!hasPermission"
+          :query-params="localQueryParams"
+          :has-errors="fieldHasErrors('query_params')"
+          :validation-state="$v.values.query_params"
+          @update="onQueryParamUpdate"
+          @add="addQueryParam"
+        />
+      </div>
+      <div class="col col-6">
         <PageSettingsPathParamsFormElement
           :disabled="!hasPermission"
           :path-params="values.path_params"
           @update="onPathParamUpdate"
         />
       </div>
-      <div class="col col-6"></div>
     </div>
     <slot></slot>
   </form>
@@ -43,12 +52,14 @@ import form from '@baserow/modules/core/mixins/form'
 import PageSettingsNameFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsNameFormElement'
 import PageSettingsPathFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsPathFormElement'
 import PageSettingsPathParamsFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsPathParamsFormElement'
+import PageSettingsQueryParamsFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsQueryParamsFormElement'
 import {
   getPathParams,
   PATH_PARAM_REGEX,
   ILLEGAL_PATH_SAMPLE_CHARACTER,
   VALID_PATH_CHARACTERS,
 } from '@baserow/modules/builder/utils/path'
+import { QUERY_PARAM_REGEX } from '@baserow/modules/builder/utils/params'
 import {
   getNextAvailableNameInSequence,
   slugify,
@@ -58,6 +69,7 @@ export default {
   name: 'PageSettingsForm',
   components: {
     PageSettingsPathParamsFormElement,
+    PageSettingsQueryParamsFormElement,
     PageSettingsPathFormElement,
     PageSettingsNameFormElement,
   },
@@ -81,7 +93,9 @@ export default {
         name: '',
         path: '',
         path_params: [],
+        query_params: [],
       },
+      localQueryParams: [],
       hasPathBeenEdited: false,
     }
   },
@@ -200,6 +214,16 @@ export default {
       },
       immediate: true,
     },
+    'values.query_params': {
+      handler(newQueryParams) {
+        this.localQueryParams = [...newQueryParams]
+        // Touch the validation when params change
+        if (this.$v.values.query_params) {
+          this.$v.values.query_params.$touch()
+        }
+      },
+      immediate: true,
+    },
   },
   created() {
     if (this.isCreation) {
@@ -226,6 +250,21 @@ export default {
         }
       })
     },
+    onQueryParamUpdate(updatedQueryParams) {
+      this.localQueryParams = updatedQueryParams
+      this.values.query_params = updatedQueryParams
+      if (this.$v.values.query_params) {
+        this.$v.values.query_params.$touch()
+      }
+    },
+    getFormValues() {
+      return Object.assign({}, this.values, this.getChildFormsValues(), {
+        query_params: this.localQueryParams,
+      })
+    },
+    addQueryParam(newParam) {
+      this.localQueryParams.push(newParam)
+    },
     isNameUnique(name) {
       return !this.pageNames.includes(name) || name === this.page?.name
     },
@@ -249,6 +288,32 @@ export default {
       const pathParams = getPathParams(path)
       return new Set(pathParams).size === pathParams.length
     },
+    areQueryParamsUnique(queryParams) {
+      const uniqueParams = new Set()
+
+      // First check if all query param names match the regex pattern
+      for (const param of queryParams) {
+        // Create a regex with ^ and $ to ensure full string match
+        const fullMatchRegex = new RegExp(`^${QUERY_PARAM_REGEX.source}$`)
+        if (!fullMatchRegex.test(param.name)) {
+          return false
+        }
+      }
+
+      // Then check for uniqueness against path params and other query params
+      for (const pathParam of this.values.path_params) {
+        uniqueParams.add(pathParam.name)
+      }
+
+      for (const param of queryParams) {
+        if (uniqueParams.has(param.name)) {
+          return false
+        }
+        uniqueParams.add(param.name)
+      }
+
+      return true
+    },
   },
   validations() {
     return {
@@ -257,6 +322,9 @@ export default {
           required,
           isUnique: this.isNameUnique,
           maxLength: maxLength(255),
+        },
+        query_params: {
+          uniqueQueryParams: this.areQueryParamsUnique,
         },
         path: {
           required,

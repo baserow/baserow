@@ -55,7 +55,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
       'integration/getIntegrationById'
     ](application, service.integration_id)
 
-    const databases = integration.context_data?.databases
+    const databases = integration?.context_data?.databases || []
 
     const tableSelected = databases
       .map((database) => database.tables)
@@ -238,6 +238,23 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
     return LocalBaserowAggregateRowsForm
   }
 
+  getResult(service, data) {
+    if (data && data.result !== undefined && service !== undefined) {
+      const field = service.context_data.field
+      const fieldType = this.app.$registry.get('field', field.type)
+      const aggregationType = this.app.$registry.get(
+        'viewAggregation',
+        service.aggregation_type
+      )
+      const formattedResult = aggregationType.formatValue(data.result, {
+        field,
+        fieldType,
+      })
+      return formattedResult
+    }
+    return null
+  }
+
   isValid(service) {
     return (
       super.isValid(service) &&
@@ -251,7 +268,7 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
       'integration/getIntegrationById'
     ](application, service.integration_id)
 
-    const databases = integration.context_data?.databases
+    const databases = integration?.context_data?.databases || []
 
     const tableSelected = databases
       .map((database) => database.tables)

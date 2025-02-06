@@ -656,3 +656,77 @@ def test_get_first_ancestor_of_type(data_fixture, django_assert_num_queries):
     )
 
     assert nearest_column_ancestor.specific == grandparent
+
+
+@pytest.fixture
+def property_options_fixture(data_fixture):
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Fruit", "text"),
+            ("Color", "text"),
+        ],
+        rows=[
+            ["Apple", "Green"],
+            ["Blueberry", "Blue"],
+            ["Cherry", "Red"],
+        ],
+    )
+    view = data_fixture.create_grid_view(user, table=table)
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        view=view,
+        table=table,
+    )
+    table_element = data_fixture.create_builder_table_element(
+        page=page, data_source=data_source
+    )
+
+    return {
+        "table": table,
+        "table_element": table_element,
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "filterable,searchable,sortable",
+    [
+        (True, False, False),
+        (False, True, False),
+        (False, False, True),
+        (True, True, True),
+        (False, False, False),
+    ],
+)
+def test_get_element_property_options_returns_expected_options(
+    property_options_fixture, filterable, searchable, sortable
+):
+    table = property_options_fixture["table"]
+    filterable_field = table.field_set.get(name="Fruit")
+
+    table_element = property_options_fixture["table_element"]
+    table_element.property_options.create(
+        schema_property=filterable_field.db_column,
+        filterable=filterable,
+        searchable=searchable,
+        sortable=sortable,
+    )
+
+    result = ElementHandler().get_element_property_options(table_element)
+
+    assert result == {
+        filterable_field.db_column: {
+            "filterable": filterable,
+            "searchable": searchable,
+            "sortable": sortable,
+        },
+    }

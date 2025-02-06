@@ -1,0 +1,7 @@
+{
+  "type": "refactor",
+  "message": "Various small query performance improvements related to deleting and updating fields.",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2024-12-24"
+}

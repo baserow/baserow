@@ -29,6 +29,20 @@
         {{ $t('importFromAirtable.linkError') }}
       </template>
     </FormGroup>
+    <div class="margin-bottom-2">
+      <Checkbox v-model="values.skipFiles">
+        {{ $t('importFromAirtable.skipFiles') }}
+        <HelpIcon
+          :tooltip="$t('importFromAirtable.skipFilesHelper')"
+          :tooltip-content-type="'plain'"
+          :tooltip-content-classes="[
+            'tooltip__content--expandable',
+            'tooltip__content--expandable-plain-text',
+          ]"
+          :icon="'info-empty'"
+        />
+      </Checkbox>
+    </div>
     <slot></slot>
   </form>
 </template>
@@ -43,6 +57,7 @@ export default {
     return {
       values: {
         airtableUrl: '',
+        skipFiles: false,
       },
     }
   },

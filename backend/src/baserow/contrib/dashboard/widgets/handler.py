@@ -1,18 +1,21 @@
 from typing import Iterable, cast
 
+from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
 from baserow.contrib.dashboard.models import Dashboard
+from baserow.contrib.dashboard.types import WidgetDict
 from baserow.contrib.dashboard.widgets.registries import (
     WidgetType,
     widget_type_registry,
 )
 from baserow.core.db import specific_iterator
+from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
 
 from .exceptions import WidgetDoesNotExist
 from .models import Widget
-from .types import WidgetForUpdate
+from .types import UpdatedWidget, WidgetForUpdate
 
 
 class WidgetHandler:
@@ -125,7 +128,7 @@ class WidgetHandler:
 
         return widget
 
-    def update_widget(self, widget: WidgetForUpdate, **kwargs) -> Widget:
+    def update_widget(self, widget: WidgetForUpdate, **kwargs) -> UpdatedWidget:
         """
         Updates a widget with values if the values are allowed
         to be set on the widget.
@@ -135,18 +138,21 @@ class WidgetHandler:
         :return: The updated widget.
         """
 
-        allowed_updates = extract_allowed(kwargs, widget.get_type().allowed_fields)
+        allowed_values = extract_allowed(kwargs, widget.get_type().allowed_fields)
 
-        allowed_updates = widget.get_type().prepare_value_for_db(
-            allowed_updates, instance=widget
+        original_widget_values = widget.get_type().export_prepared_values(
+            instance=widget
         )
 
-        for key, value in allowed_updates.items():
+        for key, value in allowed_values.items():
             setattr(widget, key, value)
 
         widget.full_clean()
         widget.save()
-        return widget
+
+        new_widget_values = widget.get_type().export_prepared_values(instance=widget)
+
+        return UpdatedWidget(widget, original_widget_values, new_widget_values)
 
     def delete_widget(self, widget: Widget):
         """
@@ -158,3 +164,61 @@ class WidgetHandler:
         widget_type = widget_type_registry.get_by_model(widget)
         widget.delete()
         widget_type.after_delete(widget)
+
+    def export_widget(
+        self,
+        widget: Widget,
+        files_zip: ExportZipFile | None = None,
+        storage: Storage | None = None,
+        cache: dict[str, any] | None = None,
+    ) -> WidgetDict:
+        """
+        Serializes the given widget.
+
+        :param widget: The instance to serialize.
+        :param files_zip: A zip file to store files in necessary.
+        :param storage: Optional storage to use.
+        :param cache: Optional cache to use.
+        :return: The serialized version.
+        """
+
+        widget_type = widget_type_registry.get_by_model(widget)
+
+        return cast(
+            WidgetDict,
+            widget_type.export_serialized(
+                widget, files_zip=files_zip, storage=storage, cache=cache
+            ),
+        )
+
+    def import_widget(
+        self,
+        dashboard: Dashboard,
+        serialized_widget: WidgetDict,
+        id_mapping: dict[str, dict[int, int]],
+        files_zip: ExportZipFile | None = None,
+        storage: Storage | None = None,
+        cache: dict[str, any] | None = None,
+    ) -> Widget:
+        """
+        Creates a widget instance from its serialized form.
+
+        :param dashboard: The dashboard instance the new widget should belong to.
+        :param serialized_widget: The serialized version of the widget.
+        :param id_mapping: A map of old->new id per data type
+            when we have foreign keys that need to be migrated.
+        :param files_zip: Contains files to import if any.
+        :param storage: Storage to get the files from.
+        :return: the new widget instance.
+        """
+
+        widget_type = widget_type_registry.get(serialized_widget["type"])
+        widget = widget_type.import_serialized(
+            dashboard,
+            serialized_widget,
+            id_mapping,
+            files_zip,
+            storage,
+            cache,
+        )
+        return widget

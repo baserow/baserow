@@ -75,7 +75,6 @@ from baserow.contrib.database.views.operations import (
     UpdateViewFilterGroupOperationType,
     UpdateViewFilterOperationType,
     UpdateViewGroupByOperationType,
-    UpdateViewOperationType,
     UpdateViewPublicOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
@@ -165,7 +164,7 @@ from .signals import (
     view_updated,
     views_reordered,
 )
-from .utils import AnnotatedAggregation
+from .utils import AnnotatedAggregation, DistributionAggregation
 from .validators import value_is_empty_for_required_form_field
 
 FieldOptionsDict = Dict[int, Dict[str, Any]]
@@ -350,7 +349,7 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         return cls.drop_index_if_unused(view)
 
     @classmethod
-    def after_field_changed_or_deleted(cls, field: Field):
+    def after_fields_changed_or_deleted(cls, fields: List[Field]):
         """
         Called when a field is deleted. This will remove any indexes that are no
         longer required.
@@ -359,7 +358,9 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         views_need_to_be_updated = View.objects.filter(
-            viewsort__field_id=field.pk, db_index_name__isnull=False
+            Q(viewsort__field_id__in=[field.id for field in fields])
+            | Q(viewgroupby__field_id__in=[field.id for field in fields]),
+            db_index_name__isnull=False,
         )
         for view in views_need_to_be_updated:
             cls.schedule_index_update(view)
@@ -945,7 +946,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         :param user: The user on whose behalf the view is updated.
         :param view: The view instance that needs to be updated.
-        :param data: The fields that need to be updated.
+        :param data: The properties that need to be updated.
         :raises ValueError: When the provided view not an instance of View.
         :return: The updated view instance.
         """
@@ -953,15 +954,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         if not isinstance(view, View):
             raise ValueError("The view is not an instance of View.")
 
-        workspace = view.table.database.workspace
-        CoreHandler().check_permissions(
-            user, UpdateViewOperationType.type, workspace=workspace, context=view
-        )
+        view_type = view_type_registry.get_by_model(view)
+        view_type.check_view_update_permissions(user, view, data)
+        view_type.before_view_update(data, view, user)
 
         old_view = deepcopy(view)
-
-        view_type = view_type_registry.get_by_model(view)
-        view_type.before_view_update(data, view, user)
 
         view_values = view_type.prepare_values(data, view.table, user)
         allowed_fields = [
@@ -970,6 +967,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             "filters_disabled",
             "public_view_password",
             "show_logo",
+            "allow_public_export",
         ] + view_type.allowed_fields
 
         changed_allowed_keys = set(extract_allowed(view_values, allowed_fields).keys())
@@ -1001,6 +999,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         )
         view = set_allowed_attrs(view_values, allowed_attrs, view)
         if previous_public_value != view.public:
+            workspace = view.table.database.workspace
             CoreHandler().check_permissions(
                 user,
                 UpdateViewPublicOperationType.type,
@@ -1298,61 +1297,92 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         for view_type in view_type_registry.get_all():
             view_type.after_field_moved_between_tables(field, original_table_id)
 
-    def field_type_changed(self, field: Field):
+    def fields_type_changed(self, fields: List[Field]):
         """
         This method is called by the FieldHandler when the field type of a field has
-        changed. It could be that the field has filters or sortings that are not
-        compatible anymore. If that is the case then those need to be removed.
-        All view_type `after_field_type_change` of views that are linked to this field
-        are also called to react on this change.
+        changed. It could be that the field has filters, sortings, or other view
+        related things are not compatible anymore. If that is the case then those
+        need to be removed. All view_type `after_field_type_change` of views that are
+        linked to this field are also called to react on this change.
 
-        :param field: The new field object.
+        It's recommended to call this method in bulk instead of for every changed
+        field individually because it's not query efficient that way.
+
+        :param fields: The fields that have changed.
         """
 
-        field_type = field_type_registry.get_by_model(field.specific_class)
+        if len(fields) == 0:
+            return
 
-        # If the new field type does not support sorting then all sortings will be
-        # removed.
-        if not field_type.check_can_order_by(field):
-            deleted_count, _ = field.viewsort_set.all().delete()
+        # Keep track of the changed fields so that the
+        # `after_fields_changed_or_deleted` can be called in bulk and make it query
+        # efficient.
+        changed_fields = set()
+
+        fields_to_delete_sortings = [
+            f
+            for f in fields
+            if not field_type_registry.get_by_model(
+                f.specific_class
+            ).check_can_order_by(f)
+        ]
+
+        # If it's a primary field, we also need to remove any sortings on the
+        # link row fields pointing to this table.
+        primary_fields_table_ids = [
+            field.table_id for field in fields_to_delete_sortings if field.primary
+        ]
+        if len(primary_fields_table_ids) > 0:
+            related_fields = LinkRowField.objects.filter(
+                link_row_table_id__in=primary_fields_table_ids
+            )
+            fields_to_delete_sortings += list(related_fields)
+
+        if fields_to_delete_sortings:
+            deleted_count, _ = ViewSort.objects.filter(
+                field_id__in=[field.id for field in fields_to_delete_sortings]
+            ).delete()
             if deleted_count > 0:
-                ViewIndexingHandler.after_field_changed_or_deleted(field)
+                changed_fields.update(fields_to_delete_sortings)
 
-            # If it's a primary field, we also need to remove any sortings on the
-            # link row fields pointing to this table.
-            if field.primary:
-                related_fields = LinkRowField.objects.filter(
-                    link_row_table_id=field.table_id
-                )
-                deleted_count, _ = ViewSort.objects.filter(
-                    field__in=related_fields
-                ).delete()
-                if deleted_count > 0:
-                    for field in related_fields:
-                        ViewIndexingHandler.after_field_changed_or_deleted(field)
-
-        # If the new field type does not support grouping then all group bys will be
-        # removed.
-        if not field_type.check_can_group_by(field):
-            deleted_count, _ = field.viewgroupby_set.all().delete()
+        fields_to_delete_groupings = [
+            f
+            for f in fields
+            if not field_type_registry.get_by_model(
+                f.specific_class
+            ).check_can_group_by(f)
+        ]
+        if fields_to_delete_groupings:
+            deleted_count, _ = ViewGroupBy.objects.filter(
+                field_id__in=[field.id for field in fields_to_delete_groupings]
+            ).delete()
             if deleted_count > 0:
-                ViewIndexingHandler.after_field_changed_or_deleted(field)
+                changed_fields.update(fields_to_delete_sortings)
 
-        # Check which filters are not compatible anymore and remove those.
-        for filter in field.viewfilter_set.all():
-            filter_type = view_filter_type_registry.get(filter.type)
+        if len(changed_fields) > 0:
+            ViewIndexingHandler.after_fields_changed_or_deleted(list(changed_fields))
 
-            if not filter_type.field_is_compatible(field):
-                filter.delete()
+        filters_to_check = ViewFilter.objects.filter(
+            field_id__in=[f.id for f in fields]
+        ).select_related("field")
+        incompatible_filter_ids = [
+            filter.id
+            for filter in filters_to_check
+            if not view_filter_type_registry.get(filter.type).field_is_compatible(
+                filter.field
+            )
+        ]
+        if len(incompatible_filter_ids) > 0:
+            ViewFilter.objects.filter(id__in=incompatible_filter_ids).delete()
 
         # Call view types hook
         for view_type in view_type_registry.get_all():
-            view_type.after_field_type_change(field)
+            view_type.after_fields_type_change(fields)
 
         for (
             decorator_value_provider_type
         ) in decorator_value_provider_type_registry.get_all():
-            decorator_value_provider_type.after_field_type_change(field)
+            decorator_value_provider_type.after_fields_type_change(fields)
 
     def field_value_updated(self, updated_fields: Union[Iterable[Field], Field]):
         """
@@ -3008,6 +3038,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         aggregation_dict = {}
+        distribution_dict = {}
 
         for field_instance, aggregation_type_name in aggregations:
             field_name = field_instance.db_column
@@ -3024,24 +3055,38 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
             aggregation_type = view_aggregation_type_registry.get(aggregation_type_name)
 
-            aggregation_dict[field_name] = aggregation_type.get_aggregation(
+            aggregation_object = aggregation_type.get_aggregation(
                 field_name, model_field, field
             )
 
-        # Check if the returned aggregations contain a `AnnotatedAggregation`,
-        # and if so, apply the annotations and only keep the actual aggregation in
-        # the dict. This is needed because some aggregations require annotated values
-        # before they work.
-        for key, value in aggregation_dict.items():
-            if isinstance(value, AnnotatedAggregation):
-                queryset = queryset.annotate(**value.annotations)
-                aggregation_dict[key] = value.aggregation
+            if isinstance(aggregation_object, AnnotatedAggregation):
+                # Check if the returned aggregations contain a `AnnotatedAggregation`,
+                # and if so, apply the annotations and only keep the actual aggregation
+                # in the dict. This is needed because some aggregations require
+                # annotated values before they work.
+                queryset = queryset.annotate(**aggregation_object.annotations)
+                aggregation_dict[field_name] = aggregation_object.aggregation
+            elif isinstance(aggregation_object, DistributionAggregation):
+                # To calculate the results of every DistributionAggregation, we need
+                # to pass in a copy of the current queryset, which may already have
+                # filters and search applied to it. This is needed because a GROUP BY
+                # is required for the distribution calculation, and applying a GROUP
+                # BY on the original queryset will cause other aggregations to return
+                # incorrect results.
+                distribution_dict[field_name] = aggregation_object.calculate(
+                    queryset.all()
+                )
+            else:
+                # For any other aggregation type, we can simply execute it as is
+                aggregation_dict[field_name] = aggregation_object
 
         # Add total to allow further calculation on the client if required
         if with_total:
             aggregation_dict["total"] = Count("id", distinct=True)
 
-        return queryset.aggregate(**aggregation_dict)
+        aggregations = queryset.aggregate(**aggregation_dict)
+        aggregations.update(distribution_dict)
+        return aggregations
 
     def rotate_view_slug(
         self, user: AbstractUser, view: View, slug_field: str = "slug"

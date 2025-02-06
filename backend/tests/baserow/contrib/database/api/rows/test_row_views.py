@@ -36,6 +36,10 @@ from baserow.test_utils.helpers import (
     assert_undo_redo_actions_are_valid,
     setup_interesting_test_table,
 )
+from tests.baserow.contrib.database.utils import (
+    autonumber_field_factory,
+    uuid_field_factory,
+)
 
 
 @pytest.mark.django_db
@@ -2173,7 +2177,7 @@ def test_update_row(api_client, data_fixture):
         "non_field_errors": [
             {
                 "code": "invalid",
-                "error": "Invalid data. Expected a dictionary, but got str.",
+                "error": "Invalid data. Expected types are: dict, but got str.",
             }
         ]
     }
@@ -4326,3 +4330,59 @@ def test_list_rows_can_combine_view_id_with_include_exclude(
         {"id": AnyInt(), "order": AnyStr(), "Name": "Paul"},
         {"id": AnyInt(), "order": AnyStr(), "Name": "Jack"},
     ]
+
+
+def number_formula_field_factory(data_fixture, table, user, **kwargs):
+    return data_fixture.create_formula_field(
+        table=table,
+        name="target",
+        number_decimal_places=1,
+        formula="row_id()",
+        **kwargs,
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "primary_field_factory",
+    [
+        uuid_field_factory,
+        autonumber_field_factory,
+        number_formula_field_factory,
+    ],
+)
+def test_link_row_field_validate_input_data_for_read_only_primary_fields(
+    data_fixture, api_client, primary_field_factory
+):
+    # providing an incompatible value to a read-only field should be handled correctly.
+    # This fixes the issue #3347
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table_b = data_fixture.create_database_table(user=user)
+    pk_field = primary_field_factory(data_fixture, table_b, user, primary=True)
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(
+        user=user, table_b=table_b
+    )
+
+    (row_b1,) = RowHandler().create_rows(user, table_b, [{}])
+    row_b1_pk = str(getattr(row_b1, pk_field.db_column))
+
+    # using a valid value as reference to the row should work
+    response = api_client.post(
+        reverse("api:database:rows:batch", kwargs={"table_id": table_a.id}),
+        data={"items": [{link_a_to_b.db_column: [row_b1_pk]}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_items = response.json()["items"][0][link_a_to_b.db_column]
+    assert response_items[0]["id"] == row_b1.id
+
+    # using an invalid value as reference to the row should fail with a 400
+    response = api_client.post(
+        reverse("api:database:rows:batch", kwargs={"table_id": table_a.id}),
+        data={"items": [{link_a_to_b.db_column: ["X"]}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST

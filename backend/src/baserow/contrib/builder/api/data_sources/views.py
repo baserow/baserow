@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import (
     map_exceptions,
+    require_request_data_type,
     validate_body,
     validate_body_custom_fields,
 )
@@ -242,6 +243,7 @@ class DataSourceView(APIView):
             InvalidServiceTypeDispatchSource: ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
         }
     )
+    @require_request_data_type(dict)
     def patch(self, request, data_source_id: int):
         """
         Update a data_source.
@@ -492,7 +494,7 @@ class DispatchDataSourceView(APIView):
             request,
             data_source.page,
             element=element,
-            only_expose_public_formula_fields=False,
+            only_expose_public_allowed_properties=False,
         )
 
         response = DataSourceService().dispatch_data_source(
@@ -544,7 +546,7 @@ class DispatchDataSourcesView(APIView):
 
         page = PageHandler().get_page(page_id)
         dispatch_context = BuilderDispatchContext(
-            request, page, only_expose_public_formula_fields=False
+            request, page, only_expose_public_allowed_properties=False
         )
         service_contents = DataSourceService().dispatch_page_data_sources(
             request.user, page, dispatch_context

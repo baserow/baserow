@@ -15,14 +15,7 @@ import {
   isValidEmail,
   isValidURL,
 } from '@baserow/modules/core/utils/string'
-import {
-  hasValueContainsFilterMixin,
-  hasValueEqualFilterMixin,
-  hasValueContainsWordFilterMixin,
-  hasValueLengthIsLowerThanFilterMixin,
-  hasEmptyValueFilterMixin,
-  hasAllValuesEqualFilterMixin,
-} from '@baserow/modules/database/arrayFilterMixins'
+import { formulaFieldArrayFilterMixin } from '@baserow/modules/database/arrayFilterMixins'
 import {
   parseNumberValue,
   formatNumberValue,
@@ -496,6 +489,13 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Return a representation of the value in the aggregation context.
+   */
+  toAggregationString(field, value) {
+    return this.toHumanReadableString(field, value)
+  }
+
+  /**
    * When searching a cells value this should return the value to match the users
    * user term against.
    */
@@ -709,8 +709,31 @@ export class FieldType extends Registerable {
     )
   }
 
+  /**
+   * Returns optionally input component for a field / filter type combination.
+   * This is called by FilterType to get the component. FilterType should provide
+   * a default if FieldType returns null.
+   *
+   * @returns {null}
+   */
   getFilterInputComponent(field, filterType) {
     return null
+  }
+
+  /**
+   * Return a valid filter value for the field type. This is used to parse the
+   * filter value from the frontend to the backend.
+   */
+  parseFilterValue(field, filterValue) {
+    return filterValue
+  }
+
+  /**
+   * Given a field value, format it as a string to be used in a filter value
+   * and sent to the backend.
+   */
+  formatFilterValue(field, value) {
+    return String(value ?? '')
   }
 
   /**
@@ -861,6 +884,10 @@ export class FieldType extends Registerable {
   getAlias() {
     return null
   }
+
+  toBaserowFormulaType(field) {
+    return this.getType()
+  }
 }
 
 class SelectOptionBaseFieldType extends FieldType {
@@ -879,6 +906,19 @@ class SelectOptionBaseFieldType extends FieldType {
 
   getFormViewFieldOptionsComponent() {
     return FormViewFieldOptionsAllowedSelectOptions
+  }
+
+  formatFilterValue(field, value) {
+    // Filter out any invalid option IDs before sending to the backend.
+    // This prevents confusion where invalid IDs might be interpreted as no option selected,
+    // but the backend will reject them.
+    const validOptionIds = field.select_options.map((option) =>
+      String(option.id)
+    )
+    return value
+      .split(',')
+      .filter((id) => validOptionIds.includes(String(id)))
+      .join(',')
   }
 }
 
@@ -1643,6 +1683,11 @@ export class NumberFieldType extends FieldType {
     }
     return new BigNumber(value)
   }
+
+  parseFilterValue(field, value) {
+    const res = parseNumberValue(field, String(value ?? ''), false)
+    return res === null || res.isNaN() ? '' : res.toString()
+  }
 }
 
 BigNumber.config({ EXPONENTIAL_AT: NumberFieldType.getMaxNumberLength() })
@@ -1839,6 +1884,14 @@ export class BooleanFieldType extends FieldType {
     }
   }
 
+  toHumanReadableString(field, value) {
+    if (typeof value === 'boolean') {
+      return `${value}`
+    }
+
+    return super.toHumanReadableString(field, value)
+  }
+
   /**
    * Check if the clipboard data text contains a string that might indicate if the
    * value is true.
@@ -1913,6 +1966,10 @@ export class BooleanFieldType extends FieldType {
 
   getHasNotValueEqualFilterFunction(field) {
     return this.getHasValueEqualFilterFunction(field, true)
+  }
+
+  parseFilterValue(field, value) {
+    return this.parseInputValue(field, String(value ?? ''))
   }
 }
 
@@ -2139,6 +2196,10 @@ class BaseDateFieldType extends FieldType {
       )
     }
     return super.isEqual(field, value1, value2)
+  }
+
+  toBaserowFormulaType(field) {
+    return 'date'
   }
 }
 
@@ -2434,6 +2495,10 @@ export class LastModifiedByFieldType extends FieldType {
       name: 'John',
     }
   }
+
+  toAggregationString(field, value) {
+    return value
+  }
 }
 
 export class CreatedByFieldType extends FieldType {
@@ -2571,6 +2636,10 @@ export class CreatedByFieldType extends FieldType {
       id: 1,
       name: 'John',
     }
+  }
+
+  toAggregationString(field, value) {
+    return value
   }
 }
 
@@ -3268,6 +3337,10 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     return value.value
   }
 
+  toAggregationString(field, value) {
+    return value
+  }
+
   getDocsDataType() {
     return 'integer or string'
   }
@@ -3745,12 +3818,7 @@ export class PhoneNumberFieldType extends FieldType {
 }
 
 export class FormulaFieldType extends mix(
-  hasAllValuesEqualFilterMixin,
-  hasEmptyValueFilterMixin,
-  hasValueEqualFilterMixin,
-  hasValueContainsFilterMixin,
-  hasValueContainsWordFilterMixin,
-  hasValueLengthIsLowerThanFilterMixin,
+  formulaFieldArrayFilterMixin,
   FieldType
 ) {
   static getType() {
@@ -3792,7 +3860,15 @@ export class FormulaFieldType extends mix(
     return i18n.t('fieldType.formula')
   }
 
-  getFormulaSubtype(field) {
+  parseFilterValue(field, value) {
+    return this.getFormulaType(field)?.parseFilterValue(field, value)
+  }
+
+  formatFilterValue(field, value) {
+    return this.getFormulaType(field)?.formatFilterValue(field, value)
+  }
+
+  getFormulaType(field) {
     return this.app.$registry.get('formula_type', field.formula_type)
   }
 
@@ -3813,7 +3889,7 @@ export class FormulaFieldType extends mix(
   }
 
   getFilterInputComponent(field, filterType) {
-    return this.getFormulaSubtype(field)?.getFilterInputComponent(
+    return this.getFormulaType(field)?.getFilterInputComponent(
       field,
       filterType
     )
@@ -3824,15 +3900,15 @@ export class FormulaFieldType extends mix(
   }
 
   getCardValueHeight(field) {
-    return this.getFormulaSubtype(field)?.getCardComponent().height || 0
+    return this.getFormulaType(field)?.getCardComponent().height || 0
   }
 
   getCanSortInView(field) {
-    return this.getFormulaSubtype(field)?.getCanSortInView(field)
+    return this.getFormulaType(field)?.getCanSortInView(field)
   }
 
   getSort(name, order, field) {
-    return this.getFormulaSubtype(field)?.getSort(name, order, field)
+    return this.getFormulaType(field)?.getSort(name, order, field)
   }
 
   getEmptyValue(field) {
@@ -3840,7 +3916,7 @@ export class FormulaFieldType extends mix(
   }
 
   getDocsDataType(field) {
-    return this.getFormulaSubtype(field)?.getDocsDataType(field)
+    return this.getFormulaType(field)?.getDocsDataType(field)
   }
 
   getDocsDescription(field) {
@@ -3852,11 +3928,11 @@ export class FormulaFieldType extends mix(
   }
 
   getDocsResponseExample(field) {
-    return this.getFormulaSubtype(field)?.getDocsResponseExample(field)
+    return this.getFormulaType(field)?.getDocsResponseExample(field)
   }
 
   prepareValueForCopy(field, value) {
-    return this.getFormulaSubtype(field)?.prepareValueForCopy(field, value)
+    return this.getFormulaType(field)?.prepareValueForCopy(field, value)
   }
 
   getContainsFilterFunction(field) {
@@ -3876,11 +3952,11 @@ export class FormulaFieldType extends mix(
   }
 
   toHumanReadableString(field, value) {
-    return this.getFormulaSubtype(field)?.toHumanReadableString(field, value)
+    return this.getFormulaType(field)?.toHumanReadableString(field, value)
   }
 
   getSortIndicator(field) {
-    return this.getFormulaSubtype(field)?.getSortIndicator(field)
+    return this.getFormulaType(field)?.getSortIndicator(field)
   }
 
   getFormComponent() {
@@ -3912,57 +3988,29 @@ export class FormulaFieldType extends mix(
   }
 
   canRepresentDate(field) {
-    return this.getFormulaSubtype(field)?.canRepresentDate(field)
+    return this.getFormulaType(field)?.canRepresentDate(field)
   }
 
   getCanGroupByInView(field) {
-    return this.getFormulaSubtype(field)?.canGroupByInView(field)
+    return this.getFormulaType(field)?.canGroupByInView(field)
   }
 
   parseInputValue(field, value) {
-    const underlyingFieldType = this.getFormulaSubtype(field)
+    const underlyingFieldType = this.getFormulaType(field)
     return underlyingFieldType.parseInputValue(field, value)
   }
 
   parseFromLinkedRowItemValue(field, value) {
-    const underlyingFieldType = this.getFormulaSubtype(field)
+    const underlyingFieldType = this.getFormulaType(field)
     return underlyingFieldType.parseFromLinkedRowItemValue(field, value)
   }
 
   canRepresentFiles(field) {
-    return this.getFormulaSubtype(field)?.canRepresentFiles(field)
+    return this.getFormulaType(field)?.canRepresentFiles(field)
   }
 
-  getHasAllValuesEqualFilterFunction(field) {
-    return this.getFormulaSubtype(field)?.getHasAllValuesEqualFilterFunction(
-      field
-    )
-  }
-
-  getHasEmptyValueFilterFunction(field) {
-    return this.getFormulaSubtype(field)?.getHasEmptyValueFilterFunction(field)
-  }
-
-  getHasValueEqualFilterFunction(field) {
-    return this.getFormulaSubtype(field)?.getHasValueEqualFilterFunction(field)
-  }
-
-  getHasValueContainsFilterFunction(field) {
-    return this.getFormulaSubtype(field)?.getHasValueContainsFilterFunction(
-      field
-    )
-  }
-
-  getHasValueContainsWordFilterFunction(field) {
-    return this.getFormulaSubtype(field)?.getHasValueContainsWordFilterFunction(
-      field
-    )
-  }
-
-  getHasValueLengthIsLowerThanFilterFunction(field) {
-    return this.getFormulaSubtype(
-      field
-    )?.getHasValueLengthIsLowerThanFilterFunction(field)
+  toBaserowFormulaType(field) {
+    return this.getFormulaType(field).toBaserowFormulaType(field)
   }
 }
 
@@ -4154,7 +4202,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     }
     const nameList = this._collaboratorCellValueToListOfNames(value)
 
-    return this.app.$papa.arrayToString(nameList)
+    return this.app.$papa.unparse([nameList], { delimiter: ', ' })
   }
 
   _collaboratorCellValueToListOfNames(value) {
@@ -4204,8 +4252,14 @@ export class MultipleCollaboratorsFieldType extends FieldType {
 
         return uniqueValuesOnly
           .map((emailOrName) => {
+            // verify if it respects the format `$name ($email)`
+            const matches = emailOrName.match(/(.*)\s*<(.*)>/)
+            let email = emailOrName
+            if (matches) {
+              email = matches[2]
+            }
             const workspaceUser =
-              this.app.store.getters['workspace/getUserByEmail'](emailOrName)
+              this.app.store.getters['workspace/getUserByEmail'](email)
             if (workspaceUser !== undefined) {
               return workspaceUser
             }
@@ -4252,6 +4306,10 @@ export class MultipleCollaboratorsFieldType extends FieldType {
       return ''
     }
     return this._collaboratorCellValueToListOfNames(value).join(delimiter)
+  }
+
+  canBeReferencedByFormulaField() {
+    return true
   }
 }
 

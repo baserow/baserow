@@ -13,6 +13,7 @@
 @import 'empty_side_panel_state';
 @import 'page_editor';
 @import 'page_settings_path_params_form_element';
+@import 'page_settings_query_params_form_element';
 @import 'domain_card';
 @import 'dns_status';
 @import 'domains_settings';
@@ -36,4 +37,6 @@
 @import 'page';
 @import 'data_source_item';
 @import 'collection_element_header';
+@import 'auth_provider_with_modal';
 @import 'side_bar';
+@import 'custom_color_input';

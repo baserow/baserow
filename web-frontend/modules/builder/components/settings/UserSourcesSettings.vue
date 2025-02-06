@@ -150,11 +150,11 @@ export default {
   },
   async mounted() {
     try {
-      await Promise.all([
-        this.actionFetchIntegrations({
-          application: this.builder,
-        }),
-      ])
+      await this.actionFetchIntegrations({
+        application: this.builder,
+      })
+      // We load the domains here because some providers might use them
+      await this.actionFetchDomains({ builderId: this.builder.id })
     } catch (error) {
       notifyIf(error)
     }
@@ -165,6 +165,7 @@ export default {
       actionCreateUserSource: 'userSource/create',
       actionUpdateUserSource: 'userSource/update',
       actionDeleteUserSource: 'userSource/delete',
+      actionFetchDomains: 'domain/fetch',
     }),
     getUserSourceType(userSource) {
       return this.$registry.get('userSource', userSource.type)

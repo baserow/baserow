@@ -30,6 +30,7 @@ import { LocalBaserowUserSourceType } from '@baserow_enterprise/integrations/use
 import {
   LocalBaserowPasswordAppAuthProviderType,
   SamlAppAuthProviderType,
+  OpenIdConnectAppAuthProviderType,
 } from '@baserow_enterprise/integrations/appAuthProviderTypes'
 import { AuthFormElementType } from '@baserow_enterprise/builder/elementTypes'
 import {
@@ -49,6 +50,7 @@ import {
   GitLabIssuesDataSyncType,
   HubspotContactsDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
+import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 
 import { FF_AB_SSO } from '@baserow/modules/core/plugins/featureFlags'
 
@@ -126,6 +128,10 @@ export default (context) => {
       'appAuthProvider',
       new SamlAppAuthProviderType(context)
     )
+    app.$registry.register(
+      'appAuthProvider',
+      new OpenIdConnectAppAuthProviderType(context)
+    )
   }
 
   app.$registry.register('roles', new EnterpriseAdminRoleType(context))
@@ -144,4 +150,9 @@ export default (context) => {
   app.$registry.register('dataSync', new GitHubIssuesDataSyncType(context))
   app.$registry.register('dataSync', new GitLabIssuesDataSyncType(context))
   app.$registry.register('dataSync', new HubspotContactsDataSyncType(context))
+
+  app.$registry.register(
+    'configureDataSync',
+    new PeriodicIntervalFieldsConfigureDataSyncType(context)
+  )
 }

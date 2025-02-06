@@ -96,13 +96,13 @@ class DispatchContext(RuntimeFormulaContext, ABC):
 
     @property
     @abstractmethod
-    def public_formula_fields(self) -> Optional[Dict[str, Dict[int, List[str]]]]:
+    def public_allowed_properties(self) -> Optional[Dict[str, Dict[int, List[str]]]]:
         """
         Return a Dict where keys are ["all", "external", "internal"] and values
         dicts. The internal dicts' keys are Service IDs and values are a list
         of Data Source field names.
 
-        Returns None if public_formula_fields shouldn't be included in the dispatch
+        Returns None if public_allowed_properties shouldn't be included in the dispatch
         context. This is mainly to support a feature flag for this new feature.
 
         The field names are used to improve the security of the backend by

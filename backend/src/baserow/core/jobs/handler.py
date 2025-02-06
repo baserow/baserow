@@ -16,6 +16,7 @@ from .exceptions import (
 )
 from .models import Job
 from .registries import job_type_registry
+from .signals import job_started
 from .tasks import run_async_job
 from .types import AnyJob
 
@@ -68,6 +69,8 @@ class JobHandler:
 
         progress = Progress(100)
         progress.register_updated_event(progress_updated)
+
+        job_started.send(JobHandler, job=job, user=job.user)
 
         job_type = job_type_registry.get_by_model(job)
         out = job_type.run(job, progress)

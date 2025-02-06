@@ -1,4 +1,5 @@
 import {
+  ensureString,
   ensureNonEmptyString,
   ensurePositiveInteger,
 } from '@baserow/modules/core/utils/validator'
@@ -21,6 +22,10 @@ export const DIRECTIONS = {
 export const PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS = {
   numeric: ensurePositiveInteger,
   text: ensureNonEmptyString,
+}
+export const QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS = {
+  numeric: (n) => ensurePositiveInteger(n, { allowNull: true }),
+  text: ensureString,
 }
 
 export const ALLOWED_LINK_PROTOCOLS = [
@@ -95,6 +100,12 @@ export const WIDTH_TYPES = {
   NORMAL: { value: 'normal', name: 'widthTypes.normal' },
   FULL: { value: 'full', name: 'widthTypes.fullBleed' },
   FULL_WIDTH: { value: 'full-width', name: 'widthTypes.fullWidth' },
+}
+
+export const CHILD_WIDTH_TYPES = {
+  SMALL: { value: 'small', name: 'widthTypes.small' },
+  MEDIUM: { value: 'medium', name: 'widthTypes.medium' },
+  NORMAL: { value: 'normal', name: 'widthTypes.normal' },
 }
 
 export const SHARE_TYPES = {

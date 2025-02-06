@@ -45,6 +45,9 @@ from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationType
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_iterator, specific_queryset
 from baserow.core.handler import CoreHandler
 from baserow.core.utils import ChildProgressBuilder
@@ -175,13 +178,19 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
 class LocalBaserowTableDataSyncType(DataSyncType):
     type = "local_baserow_table"
     model_class = LocalBaserowTableDataSync
-    allowed_fields = ["source_table_id", "authorized_user_id"]
-    serializer_field_names = ["source_table_id"]
+    allowed_fields = ["source_table_id", "source_table_view_id", "authorized_user_id"]
+    serializer_field_names = ["source_table_id", "source_table_view_id"]
     serializer_field_overrides = {
         "source_table_id": serializers.IntegerField(
             help_text="The ID of the source table that must be synced.",
             required=True,
             allow_null=False,
+        ),
+        "source_table_view_id": serializers.IntegerField(
+            help_text="If provided, then only the visible fields and rows matching the "
+            "filters will be synced.",
+            required=False,
+            allow_null=True,
         ),
     }
 
@@ -207,7 +216,7 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             instance.authorized_user = user
             instance.save()
 
-    def _get_table(self, instance):
+    def _get_table_and_view(self, instance):
         try:
             table = TableHandler().get_table(instance.source_table_id)
         except TableDoesNotExist:
@@ -222,10 +231,26 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         ):
             raise SyncError("The authorized user doesn't have access to the table.")
 
-        return table
+        view = None
+        view_id = instance.source_table_view_id
+        if view_id is not None:
+            try:
+                view = (
+                    ViewHandler()
+                    .get_view_as_user(
+                        instance.authorized_user,
+                        instance.source_table_view_id,
+                        table_id=table.id,
+                    )
+                    .specific
+                )
+            except ViewDoesNotExist:
+                raise SyncError(f"The view with id {view_id} does not exist.")
+
+        return table, view
 
     def get_properties(self, instance) -> List[DataSyncProperty]:
-        table = self._get_table(instance)
+        table, view = self._get_table_and_view(instance)
         # The `table_id` is not set if when just listing the properties using the
         # `DataSyncTypePropertiesView` endpoint, but it will be set when creating the
         # view.
@@ -233,9 +258,18 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             LicenseHandler.raise_if_workspace_doesnt_have_feature(
                 DATA_SYNC, instance.table.database.workspace
             )
-        fields = specific_iterator(
-            table.field_set.all().prefetch_related("select_options")
-        )
+
+        field_queryset = table.field_set.all().prefetch_related("select_options")
+
+        # If a view is provided, then we don't want to expose hidden fields,
+        # so we filter on the visible options to prevent that.
+        if view:
+            view_type = view_type_registry.get_by_model(view)
+            visible_field_options = view_type.get_visible_field_options_in_order(view)
+            visible_field_ids = {o.field_id for o in visible_field_options}
+            field_queryset = field_queryset.filter(id__in=visible_field_ids)
+
+        fields = specific_iterator(field_queryset)
         properties = [RowIDDataSyncProperty("id", "Row ID")]
 
         return properties + [
@@ -259,7 +293,7 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         # that must completed. We're therefore using working with a total of 10 where
         # most of it is related to fetching the row values.
         progress = ChildProgressBuilder.build(progress_builder, child_total=10)
-        table = self._get_table(instance)
+        table, view = self._get_table_and_view(instance)
         enabled_properties = DataSyncSyncedProperty.objects.filter(
             data_sync=instance
         ).prefetch_related(
@@ -267,8 +301,16 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         )
         enabled_property_field_ids = [p.key for p in enabled_properties]
         model = table.get_model()
+        queryset = model.objects.all()
+
+        # If a view is provided then we must not expose rows that don't match the
+        # filters.
+        if view:
+            queryset = ViewHandler().apply_filters(view, queryset)
+            queryset = ViewHandler().apply_sorting(view, queryset)
+
         progress.increment(by=1)  # makes the total `1`
-        rows_queryset = model.objects.all().values(*["id"] + enabled_property_field_ids)
+        rows_queryset = queryset.values(*["id"] + enabled_property_field_ids)
         progress.increment(by=7)  # makes the total `8`
 
         # Loop over all properties and rows to prepare the value if needed .This is

@@ -1,0 +1,7 @@
+{
+    "type": "feature",
+    "message": "[Builder] Ensure that sensitive Integration data is not exported.",
+    "issue_number": 1863,
+    "bullet_points": [],
+    "created_at": "2024-12-04"
+}

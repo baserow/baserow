@@ -244,7 +244,16 @@
         "integer": "Entier",
         "decimal": "Décimal",
         "decimalPlacesLabel": "Précision",
-        "allowNegative": "Autoriser les nombres négatifs"
+        "allowNegative": "Autoriser les nombres négatifs",
+        "separatorLabel": "Séparateur de milliers et de décimales",
+        "prefixPlaceholder": "Préfixe",
+        "suffixPlaceholder": "Suffixe",
+        "prefixAndSuffixLabel": "Préfixe / suffixe",
+        "spaceComma": "Espace, virgule (1 000 000,00)",
+        "spacePeriod": "Espace, point (1 000 000.00)",
+        "commaPeriod": "Virgule, point (1,000,000.00)",
+        "periodComma": "Point, virgule (1.000.000,00)",
+        "noFormatting": "Pas de formatage"
     },
     "fieldContext": {
         "editField": "Modifier le champ",
@@ -469,7 +478,15 @@
     },
     "viewFilter": {
         "filter": "Filtre | 1 Filtre | {count} Filtres",
-        "hasAllValuesEqual": "a toutes les valeurs égales"
+        "hasAllValuesEqual": "a toutes les valeurs égales",
+        "hasValueHigherThan": "a une valeur supérieure à",
+        "hasValueHigherThanOrEqual": "a une valeur supérieure ou égale à",
+        "hasNotValueLowerThanOrEqual": "n'a pas une valeur inférieure ou égale à",
+        "hasValueLowerThan": "a une valeur inférieure à",
+        "hasValueLowerThanOrEqual": "a une valeur inférieure ou égale à",
+        "hasNotValueHigherThan": "n'a pas une valeur supérieure à",
+        "hasNotValueHigherThanOrEqual": "n'a pas une valeur supérieure ou égale à",
+        "hasNotValueLowerThan": "n'a pas une valeur inférieure à"
     },
     "viewContext": {
         "exportView": "Exporter la vue",
@@ -605,7 +622,8 @@
         "notEmptyPercentage": "Pourcentage de renseignées",
         "notEmptyCount": "Renseignées",
         "emptyCount": "Vides",
-        "emptyPercentage": "Pourcentage de vides"
+        "emptyPercentage": "Pourcentage de vides",
+        "count": "Compter"
     },
     "databaseForm": {
         "importLabel": "Souhaitez-vous importer des données existantes ?",
@@ -630,7 +648,9 @@
         "stateImportingTable": "Import de la table {table}",
         "errorJobAlreadyRunningTitle": "Déjà en cours",
         "errorJobAlreadyRunningDescription": "Une autre tâche est déjà en cours. Vous devez attendre que celle-ci finisse avant d'en démarrer une autre.",
-        "linkError": "Le lien devrait ressembler à : https://airtable.com/shrxxxxxxxxxxxxxx"
+        "linkError": "Le lien devrait ressembler à : https://airtable.com/shrxxxxxxxxxxxxxx",
+        "skipFilesHelper": "Une base Airtable contenant de nombreux fichiers peut ralentir l'importation. L'activation de cette option permet d'ignorer l'importation des fichiers.",
+        "skipFiles": "Ne pas importer les fichiers"
     },
     "chooseSingleSelectField": {
         "addSelectField": "Ajouter une liste déroulante",

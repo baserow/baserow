@@ -874,7 +874,10 @@
         "export": "Data exporteren",
         "download": "Downloaden",
         "importingState": "Importeren",
-        "noExports": "Nog geen exports voor deze werkruimte."
+        "noExports": "Nog geen exports voor deze werkruimte.",
+        "exportingState": "Exporteren",
+        "exportingCreateArchiveState": "Archief aanmaken",
+        "exportingTableState": "Tabel exporteren: {table}"
     },
     "exportWorkspaceForm": {
         "exportSettingsLabel": "Export instellingen",
@@ -903,7 +906,8 @@
         "invalidResourceTitle": "Ongeldige bron",
         "invalidResourceMessage": "Het geleverde bestand is geen geldige Baserow export.",
         "untrustedPublicKeyTitle": "Onbetrouwbare handtekening",
-        "untrustedPublicKeyMessage": "Het geleverde bestand is ondertekend met een onbetrouwbare openbare sleutel. Vraag je beheerder om de openbare sleutel toe te voegen aan de lijst van vertrouwde sleutels of de handtekeningverificatie uit te schakelen om dit bestand te kunnen importeren."
+        "untrustedPublicKeyMessage": "Het geleverde bestand is ondertekend met een onbetrouwbare openbare sleutel. Vraag je beheerder om de openbare sleutel toe te voegen aan de lijst van vertrouwde sleutels of de handtekeningverificatie uit te schakelen om dit bestand te kunnen importeren.",
+        "importingState": "Importeren"
     },
     "user": {
         "isStaff": "Is personeel",
@@ -1016,5 +1020,8 @@
     },
     "userSourceType": {
         "userCountSummary": "{count} gebruikers ({lastUpdated})"
+    },
+    "colorPickerContext": {
+        "pickColorPlaceholder": "Of kies een vooraf gedefinieerde kleur"
     }
 }

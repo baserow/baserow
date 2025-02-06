@@ -1,7 +1,11 @@
 import re
 from typing import Any, Dict, List, Optional, Type, Union
 
+from django.conf import settings
+from django.core.cache import cache
 from django.utils.translation import gettext as _
+
+from rest_framework.response import Response
 
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
@@ -31,6 +35,7 @@ from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import get_value_at_path
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
+from baserow.core.workflow_actions.models import WorkflowAction
 
 RE_DEFAULT_ROLE = re.compile(rf"{DEFAULT_USER_ROLE_PREFIX}(\d+)")
 
@@ -401,14 +406,73 @@ class PreviousActionProviderType(DataProviderType):
 
     type = "previous_action"
 
+    def get_dispatch_action_cache_key(self, dispatch_id: str, action_id: int) -> str:
+        """
+        Return a unique string to key the intermediate dispatch results in
+        the cache.
+        """
+
+        return f"builder_dispatch_action_{dispatch_id}_{action_id}"
+
     def get_data_chunk(self, dispatch_context: DispatchContext, path: List[str]):
         previous_action_id, *rest = path
-        previous_action = dispatch_context.request.data.get("previous_action", {})
 
-        if previous_action_id not in previous_action:
+        previous_action_results = dispatch_context.request.data.get(
+            "previous_action", {}
+        )
+
+        if previous_action_id not in previous_action_results:
             message = "The previous action id is not present in the dispatch context"
             raise DataProviderChunkInvalidException(message)
-        return get_value_at_path(previous_action, path)
+
+        if "current_dispatch_id" not in previous_action_results:
+            message = "The dispatch id is missing in the dispatch context"
+            raise DataProviderChunkInvalidException(message)
+
+        dispatch_id = previous_action_results.get("current_dispatch_id")
+
+        workflow_action = BuilderWorkflowActionHandler().get_workflow_action(
+            previous_action_id
+        )
+
+        if getattr(workflow_action.get_type(), "is_server_workflow", False):
+            # If the previous action was a server action we get the previous result
+            # from the cache instead
+            cache_key = self.get_dispatch_action_cache_key(
+                dispatch_id, workflow_action.id
+            )
+            return get_value_at_path(cache.get(cache_key), rest)
+        else:
+            return get_value_at_path(previous_action_results[previous_action_id], rest)
+
+    def post_dispatch(
+        self,
+        dispatch_context: DispatchContext,
+        workflow_action: WorkflowAction,
+        result: Any,
+    ) -> None:
+        """
+        If the current_dispatch_id exists in the request data, create a unique
+        cache key and store the result in the cache.
+
+        The current_dispatch_id is used to keep track of results of chained
+        workflow actions. For security reasons, the result of a workflow action
+        is not returned to the frontend; it is instead stored in the cache. Should
+        a subsequent workflow action require the result, it can fetch it from
+        the cache.
+        """
+
+        if dispatch_id := dispatch_context.request.data.get("previous_action", {}).get(
+            "current_dispatch_id"
+        ):
+            cache_key = self.get_dispatch_action_cache_key(
+                dispatch_id, workflow_action.id
+            )
+            cache.set(
+                cache_key,
+                {} if isinstance(result, Response) else result,
+                timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS,
+            )
 
     def import_path(self, path, id_mapping, **kwargs):
         workflow_action_id, *rest = path
@@ -428,6 +492,45 @@ class PreviousActionProviderType(DataProviderType):
             rest = service_type.import_path(rest, id_mapping)
 
         return [str(workflow_action_id), *rest]
+
+    def extract_properties(
+        self,
+        path: List[str],
+        **kwargs,
+    ) -> Dict[str, List[str]]:
+        """
+        Given a formula path, validates that the Workflow Action is valid
+        and returns a dict where the key is the Workflow Action's service ID
+        and the value is a list of field names.
+
+        E.g. supposing the original formula string is:
+        'previous_action.456.field_1234', the `path` would be `['456', 'field_5769']`.
+
+        If the workflow action's service ID is 123, the following would be
+        returned: `{123: ['field_1234']}`.
+        """
+
+        if not path:
+            return {}
+
+        previous_id, *rest = path
+
+        try:
+            previous_id = int(previous_id)
+        except ValueError:
+            return {}
+
+        try:
+            previous_action = BuilderWorkflowActionHandler().get_workflow_action(
+                previous_id
+            )
+        except WorkflowActionDoesNotExist as exc:
+            raise InvalidBaserowFormula() from exc
+
+        service_type = previous_action.service.specific.get_type()
+        return {
+            previous_action.service.id: service_type.extract_properties(rest, **kwargs)
+        }
 
 
 class UserDataProviderType(DataProviderType):

@@ -13,7 +13,7 @@ export const ContainerElementTypeMixin = (Base) =>
      * @returns {Array}
      */
     get childStylesForbidden() {
-      return []
+      return ['style_width']
     }
 
     get defaultPlaceInContainer() {
@@ -35,13 +35,18 @@ export const ContainerElementTypeMixin = (Base) =>
      * A Container element without any child elements is invalid. Return true
      * if there are no children, otherwise return false.
      */
-    isInError({ page, element }) {
+    isInError({ page, element, builder }) {
       const children = this.app.store.getters['element/getChildren'](
         page,
         element
       )
 
-      return !children.length
+      // A container element needs at least one child.
+      if (!children.length) {
+        return true
+      }
+
+      return super.isInError({ page, element, builder })
     }
   }
 
@@ -252,6 +257,7 @@ export const CollectionElementTypeMixin = (Base) =>
         if (element.data_source_id === dataSourceId) {
           // Remove the data_source_id
           await this.app.store.dispatch('element/forceUpdate', {
+            builder,
             page,
             element,
             values: { data_source_id: null },
@@ -356,9 +362,5 @@ export const MultiPageElementTypeMixin = (Base) =>
         default:
           return false
       }
-    }
-
-    get childStylesForbidden() {
-      return ['style_width']
     }
   }

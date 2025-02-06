@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.dashboard.handler import DashboardHandler
+from baserow.contrib.dashboard.widgets.exceptions import WidgetDoesNotExist
 from baserow.contrib.dashboard.widgets.operations import (
     CreateWidgetOperationType,
     DeleteWidgetOperationType,
@@ -10,9 +11,12 @@ from baserow.contrib.dashboard.widgets.operations import (
 )
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.trash.handler import TrashHandler
 
 from .handler import WidgetHandler
 from .models import Widget
+from .signals import widget_created, widget_deleted, widget_updated
+from .types import UpdatedWidget
 
 
 class WidgetService:
@@ -33,6 +37,9 @@ class WidgetService:
         """
 
         widget = self.handler.get_widget(widget_id)
+
+        if TrashHandler.item_has_a_trashed_parent(widget):
+            raise WidgetDoesNotExist()
 
         CoreHandler().check_permissions(
             user,
@@ -115,9 +122,13 @@ class WidgetService:
             **kwargs,
         )
 
+        widget_created.send(self, user=user, widget=new_widget)
+
         return new_widget
 
-    def update_widget(self, user: AbstractUser, widget_id: int, **kwargs) -> Widget:
+    def update_widget(
+        self, user: AbstractUser, widget_id: int, **kwargs
+    ) -> UpdatedWidget:
         """
         Updates a widget given the user permissions.
 
@@ -131,6 +142,9 @@ class WidgetService:
 
         widget = self.handler.get_widget_for_update(widget_id)
 
+        if TrashHandler.item_has_a_trashed_parent(widget):
+            raise WidgetDoesNotExist()
+
         CoreHandler().check_permissions(
             user,
             UpdateWidgetOperationType.type,
@@ -139,9 +153,10 @@ class WidgetService:
         )
 
         updated_widget = self.handler.update_widget(widget, **kwargs)
+        widget_updated.send(self, user=user, widget=updated_widget.widget)
         return updated_widget
 
-    def delete_widget(self, user: AbstractUser, widget_id: int):
+    def delete_widget(self, user: AbstractUser, widget_id: int) -> Widget:
         """
         Deletes the widget based on the provided widget id if the
         user has correct permissions to do so.
@@ -153,6 +168,9 @@ class WidgetService:
 
         widget = self.handler.get_widget(widget_id)
 
+        if TrashHandler.item_has_a_trashed_parent(widget):
+            raise WidgetDoesNotExist()
+
         CoreHandler().check_permissions(
             user,
             DeleteWidgetOperationType.type,
@@ -160,4 +178,8 @@ class WidgetService:
             context=widget,
         )
 
-        self.handler.delete_widget(widget)
+        TrashHandler.trash(user, widget.dashboard.workspace, widget.dashboard, widget)
+
+        widget_deleted.send(self, user=user, widget=widget)
+
+        return widget

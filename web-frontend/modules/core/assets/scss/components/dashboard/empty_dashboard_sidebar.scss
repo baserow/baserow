@@ -1,0 +1,37 @@
+.empty-dashboard-sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 20%;
+  text-align: center;
+}
+
+.empty-dashboard-sidebar__icon {
+  font-size: 20px;
+  color: $color-neutral-400;
+  margin-bottom: 24px;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid $palette-neutral-200;
+  box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
+}
+
+.empty-dashboard-sidebar__title {
+  color: $palette-neutral-1200;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 20px;
+  margin-bottom: 16px;
+}
+
+.empty-dashboard-sidebar__message {
+  color: $palette-neutral-900;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px;
+}

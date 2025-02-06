@@ -1,9 +1,7 @@
-from datetime import timezone
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 from django.test.utils import override_settings
-from django.utils.dateparse import parse_date, parse_datetime
 
 import pytest
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
@@ -12,14 +10,6 @@ from openpyxl import load_workbook
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.test_utils.helpers import setup_interesting_test_table
-
-
-def _parse_datetime(datetime):
-    return parse_datetime(datetime).replace(tzinfo=timezone.utc)
-
-
-def _parse_date(date):
-    return parse_date(date)
 
 
 @pytest.mark.django_db
@@ -83,6 +73,7 @@ def test_can_export_every_interesting_different_field_to_json(
     "link_row_without_related": [],
     "decimal_link_row": [],
     "file_link_row": [],
+    "multiple_collaborators_link_row": [],
     "file": [],
     "single_select": "",
     "multiple_select": [],
@@ -104,11 +95,13 @@ def test_can_export_every_interesting_different_field_to_json(
         "url": "https://google.com"
     },
     "formula_multipleselect": [],
+    "formula_multiple_collaborators": [],
     "count": 0,
     "rollup": "0.000",
     "duration_rollup_sum": "0:00",
     "duration_rollup_avg": "0:00",
     "lookup": [],
+    "multiple_collaborators_lookup": [],
     "uuid": "00000000-0000-4000-8000-000000000001",
     "autonumber": 1,
     "password": "",
@@ -179,6 +172,15 @@ def test_can_export_every_interesting_different_field_to_json(
         ],
         "unnamed row 2"
     ],
+    "multiple_collaborators_link_row": [
+        [
+            "User2 <user2@example.com>",
+            "User3 <user3@example.com>"
+        ],
+        [
+            "User2 <user2@example.com>"
+        ]
+    ],
     "file": [
         {
             "visible_name": "a.txt",
@@ -196,8 +198,8 @@ def test_can_export_every_interesting_different_field_to_json(
         "E"
     ],
     "multiple_collaborators": [
-        "user2@example.com",
-        "user3@example.com"
+        "User2 <user2@example.com>",
+        "User3 <user3@example.com>"
     ],
     "phone_number": "+4412345678",
     "formula_text": "test FORMULA",
@@ -220,6 +222,10 @@ def test_can_export_every_interesting_different_field_to_json(
         "D",
         "E"
     ],
+    "formula_multiple_collaborators": [
+        "User2 <user2@example.com>",
+        "User3 <user3@example.com>"
+    ],
     "count": 3,
     "rollup": "-122.222",
     "duration_rollup_sum": "0:04",
@@ -228,6 +234,15 @@ def test_can_export_every_interesting_different_field_to_json(
         "linked_row_1",
         "linked_row_2",
         ""
+    ],
+    "multiple_collaborators_lookup": [
+        [
+            "User2 <user2@example.com>",
+            "User3 <user3@example.com>"
+        ],
+        [
+            "User2 <user2@example.com>"
+        ]
     ],
     "uuid": "00000000-0000-4000-8000-000000000002",
     "autonumber": 2,
@@ -366,6 +381,7 @@ def test_can_export_every_interesting_different_field_to_xml(
       <link-row-without-related/>
       <decimal-link-row/>
       <file-link-row/>
+      <multiple-collaborators-link-row/>
       <file/>
       <single-select/>
       <multiple-select/>
@@ -387,11 +403,13 @@ def test_can_export_every_interesting_different_field_to_xml(
          <url>https://google.com</url>
       </formula-link-url-only>
       <formula-multipleselect/>
+      <formula-multiple-collaborators/>
       <count>0</count>
       <rollup>0.000</rollup>
       <duration-rollup-sum>0:00</duration-rollup-sum>
       <duration-rollup-avg>0:00</duration-rollup-avg>
       <lookup/>
+      <multiple-collaborators-lookup/>
       <uuid>00000000-0000-4000-8000-000000000001</uuid>
       <autonumber>1</autonumber>
       <password/>
@@ -462,6 +480,15 @@ def test_can_export_every_interesting_different_field_to_xml(
          </item>
          <item>unnamed row 2</item>
       </file-link-row>
+      <multiple-collaborators-link-row>
+        <item>
+            <item>User2 &lt;user2@example.com&gt;</item>
+            <item>User3 &lt;user3@example.com&gt;</item>
+        </item>
+        <item>
+            <item>User2 &lt;user2@example.com&gt;</item>
+        </item>
+      </multiple-collaborators-link-row>
       <file>
          <item>
             <visible_name>a.txt</visible_name>
@@ -479,8 +506,8 @@ def test_can_export_every_interesting_different_field_to_xml(
          <item>E</item>
       </multiple-select>
       <multiple-collaborators>
-         <item>user2@example.com</item>
-         <item>user3@example.com</item>
+         <item>User2 &lt;user2@example.com&gt;</item>
+         <item>User3 &lt;user3@example.com&gt;</item>
       </multiple-collaborators>
       <phone-number>+4412345678</phone-number>
       <formula-text>test FORMULA</formula-text>
@@ -499,10 +526,14 @@ def test_can_export_every_interesting_different_field_to_xml(
          <url>https://google.com</url>
       </formula-link-url-only>
       <formula-multipleselect>
-            <item>C</item>
-            <item>D</item>
-            <item>E</item>
+         <item>C</item>
+         <item>D</item>
+         <item>E</item>
       </formula-multipleselect>
+      <formula-multiple-collaborators>
+         <item>User2 &lt;user2@example.com&gt;</item>
+         <item>User3 &lt;user3@example.com&gt;</item>
+      </formula-multiple-collaborators>
       <count>3</count>
       <rollup>-122.222</rollup>
       <duration-rollup-sum>0:04</duration-rollup-sum>
@@ -512,6 +543,15 @@ def test_can_export_every_interesting_different_field_to_xml(
          <item>linked_row_2</item>
          <item/>
       </lookup>
+      <multiple-collaborators-lookup>
+        <item>
+            <item>User2 &lt;user2@example.com&gt;</item>
+            <item>User3 &lt;user3@example.com&gt;</item>
+        </item>
+        <item>
+            <item>User2 &lt;user2@example.com&gt;</item>
+        </item>
+      </multiple-collaborators-lookup>
       <uuid>00000000-0000-4000-8000-000000000002</uuid>
       <autonumber>2</autonumber>
       <password>true</password>
@@ -727,6 +767,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "link_row_without_related",
         "decimal_link_row",
         "file_link_row",
+        "multiple_collaborators_link_row",
         "file",
         "single_select",
         "multiple_select",
@@ -743,11 +784,13 @@ def test_can_export_every_interesting_different_field_to_excel(
         "formula_link_with_label",
         "formula_link_url_only",
         "formula_multipleselect",
+        "formula_multiple_collaborators",
         "count",
         "rollup",
         "duration_rollup_sum",
         "duration_rollup_avg",
         "lookup",
+        "multiple_collaborators_lookup",
         "uuid",
         "autonumber",
         "password",
@@ -803,6 +846,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         None,
         None,
         None,
+        None,
         "test FORMULA",
         "1",
         "True",
@@ -814,10 +858,12 @@ def test_can_export_every_interesting_different_field_to_excel(
         "label (https://google.com)",
         "https://google.com",
         None,
+        None,
         "0",
         "0.000",
         "0:00",
         "0:00",
+        None,
         None,
         "00000000-0000-4000-8000-000000000001",
         "1",
@@ -869,10 +915,11 @@ def test_can_export_every_interesting_different_field_to_excel(
         "linked_row_1,linked_row_2",
         "1.234,-123.456,unnamed row 3",
         "name.txt (http://localhost:8000/media/user_files/test_hash.txt),unnamed row 2",
+        '"User2 <user2@example.com>,User3 <user3@example.com>",User2 <user2@example.com>',
         "a.txt (http://localhost:8000/media/user_files/hashed_name.txt),b.txt (http://localhost:8000/media/user_files/other_name.txt)",
         "A",
         "D,C,E",
-        "user2@example.com,user3@example.com",
+        "User2 <user2@example.com>,User3 <user3@example.com>",
         "+4412345678",
         "test FORMULA",
         "1",
@@ -885,11 +932,13 @@ def test_can_export_every_interesting_different_field_to_excel(
         "label (https://google.com)",
         "https://google.com",
         "C,D,E",
+        "User2 <user2@example.com>,User3 <user3@example.com>",
         "3",
         "-122.222",
         "0:04",
         "0:02",
         "linked_row_1,linked_row_2,",
+        '"User2 <user2@example.com>,User3 <user3@example.com>",User2 <user2@example.com>',
         "00000000-0000-4000-8000-000000000002",
         "2",
         "True",

@@ -5,7 +5,7 @@ from django.db.models import Expression, Q, Value
 
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.models import Field, LinkRowField
-from baserow.contrib.database.fields.signals import field_updated
+from baserow.contrib.database.fields.signals import field_updated, fields_type_changed
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.constants import (
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
@@ -326,6 +326,17 @@ class FieldUpdateCollector:
 
         self._update_statement_collector = self._init_update_statement_collector()
 
+        # Keep a set of all the fields that have changed, and for which it's expected
+        # the `ViewHandler::fields_type_changed` is called. That way, they can be
+        # called combined, instead of one by one to save queries when many updated have
+        # been made.
+        self._fields_type_changed = set()
+
+        # Keep a set of all the fields where the dependencies must be rebuild for. That
+        # way, we can efficiently call the rebuild_dependencies method in bulk to reduce
+        # the number of queries.
+        self._rebuild_field_dependencies = set()
+
     def _init_update_statement_collector(self):
         return PathBasedUpdateStatementCollector(
             self._starting_table,
@@ -401,10 +412,31 @@ class FieldUpdateCollector:
             self._starting_row_ids,
             deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
         )
+
         return updated_rows_count
 
+    def apply_fields_type_changed(self, field_cache: FieldCache):
+        if len(self._fields_type_changed) > 0:
+            fields_type_changed.send(self, fields=list(self._fields_type_changed))
+            self._fields_type_changed = set()
+
+    def apply_rebuild_field_dependencies(self, field_cache: FieldCache):
+        if len(self._rebuild_field_dependencies) > 0:
+            from baserow.contrib.database.fields.dependencies.handler import (
+                FieldDependencyHandler,
+            )
+
+            FieldDependencyHandler.rebuild_dependencies(
+                list(self._rebuild_field_dependencies), field_cache
+            )
+            self._rebuild_field_dependencies = set()
+
     def apply_updates_and_get_updated_fields(
-        self, field_cache: FieldCache, skip_search_updates=False
+        self,
+        field_cache: FieldCache,
+        skip_search_updates=False,
+        skip_fields_type_changed=False,
+        skip_rebuild_field_dependencies=False,
     ) -> List[Field]:
         """
         Triggers all update statements to be executed in the correct order in as few
@@ -434,6 +466,12 @@ class FieldUpdateCollector:
         # will only send signals for the newly updated fields.
         self._pending_field_updates = FieldUpdatesTracker()
         self._update_statement_collector = self._init_update_statement_collector()
+
+        if not skip_fields_type_changed:
+            self.apply_fields_type_changed(field_cache)
+
+        if not skip_rebuild_field_dependencies:
+            self.apply_rebuild_field_dependencies(field_cache)
 
         return updated_fields
 
@@ -479,3 +517,9 @@ class FieldUpdateCollector:
 
     def _get_updated_fields_in_table(self, table) -> List[Field]:
         return [field for field in self._pending_field_updates.fields(table)]
+
+    def add_to_fields_type_changed(self, field: Field):
+        self._fields_type_changed.add(field)
+
+    def add_to_rebuild_field_dependencies(self, field: Field):
+        self._rebuild_field_dependencies.add(field)

@@ -25,10 +25,7 @@ const populateElement = (element, registry) => {
   return element
 }
 
-const state = {
-  // The currently selected element
-  selected: null,
-}
+const state = {}
 
 const updateContext = {
   updateTimeout: null,
@@ -74,8 +71,8 @@ const updateCachedValues = (page) => {
 }
 
 const mutations = {
-  SET_ITEMS(state, { page, elements }) {
-    state.selected = null
+  SET_ITEMS(state, { builder, page, elements }) {
+    builder.selectedElement = null
     page.elements = elements.map((element) =>
       populateElement(element, this.$registry)
     )
@@ -85,7 +82,7 @@ const mutations = {
     page.elements.push(populateElement(element, this.$registry))
     updateCachedValues(page)
   },
-  UPDATE_ITEM(state, { page, element: elementToUpdate, values }) {
+  UPDATE_ITEM(state, { builder, page, element: elementToUpdate, values }) {
     let updateCached = false
     page.elements.forEach((element) => {
       if (element.id === elementToUpdate.id) {
@@ -99,8 +96,8 @@ const mutations = {
         Object.assign(element, values)
       }
     })
-    if (state.selected?.id === elementToUpdate.id) {
-      Object.assign(state.selected, values)
+    if (builder.selectedElement?.id === elementToUpdate.id) {
+      Object.assign(builder.selectedElement, values)
     }
     if (updateCached) {
       // We need to update cached values only if order or place of an element has
@@ -118,8 +115,8 @@ const mutations = {
   MOVE_ITEM(state, { page, index, oldIndex }) {
     page.elements.splice(index, 0, page.elements.splice(oldIndex, 1)[0])
   },
-  SELECT_ITEM(state, { element }) {
-    state.selected = element
+  SELECT_ITEM(state, { builder, element }) {
+    builder.selectedElement = element
   },
   CLEAR_ITEMS(state, { page }) {
     page.elements = []
@@ -144,16 +141,16 @@ const actions = {
     const elementType = this.$registry.get('element', element.type)
     elementType.afterCreate(element, page)
   },
-  forceUpdate({ commit }, { page, element, values }) {
-    commit('UPDATE_ITEM', { page, element, values })
+  forceUpdate({ commit }, { builder, page, element, values }) {
+    commit('UPDATE_ITEM', { builder, page, element, values })
     const elementType = this.$registry.get('element', element.type)
     elementType.afterUpdate(element, page)
   },
-  forceDelete({ commit, getters }, { page, elementId }) {
+  forceDelete({ commit, getters }, { builder, page, elementId }) {
     const elementToDelete = getters.getElementById(page, elementId)
 
-    if (getters.getSelected?.id === elementId) {
-      commit('SELECT_ITEM', { element: null })
+    if (getters.getSelected(builder)?.id === elementId) {
+      commit('SELECT_ITEM', { builder, element: null })
     }
     commit('DELETE_ITEM', { page, elementId })
 
@@ -162,7 +159,14 @@ const actions = {
   },
   forceMove(
     { commit, getters },
-    { page, elementId, beforeElementId, parentElementId, placeInContainer }
+    {
+      builder,
+      page,
+      elementId,
+      beforeElementId,
+      parentElementId,
+      placeInContainer,
+    }
   ) {
     const element = getters.getElementById(page, elementId)
 
@@ -189,6 +193,7 @@ const actions = {
     }
 
     commit('UPDATE_ITEM', {
+      builder,
       page,
       element,
       values: {
@@ -198,13 +203,14 @@ const actions = {
       },
     })
   },
-  select({ commit }, { element }) {
+  select({ commit }, { builder, element }) {
     updateContext.lastUpdatedValues = null
-    commit('SELECT_ITEM', { element })
+    commit('SELECT_ITEM', { builder, element })
   },
   async create(
     { dispatch },
     {
+      builder,
       page,
       elementType: elementTypeName,
       beforeId = null,
@@ -224,12 +230,12 @@ const actions = {
     if (forceCreate) {
       await dispatch('forceCreate', { page, element })
 
-      await dispatch('select', { element })
+      await dispatch('select', { builder, element })
     }
 
     return element
   },
-  async update({ dispatch }, { page, element, values }) {
+  async update({ dispatch }, { builder, page, element, values }) {
     const oldValues = {}
     const newValues = {}
     Object.keys(values).forEach((name) => {
@@ -239,19 +245,25 @@ const actions = {
       }
     })
 
-    await dispatch('forceUpdate', { page, element, values: newValues })
+    await dispatch('forceUpdate', { builder, page, element, values: newValues })
 
     try {
       await ElementService(this.$client).update(element.id, values)
     } catch (error) {
-      await dispatch('forceUpdate', { page, element, values: oldValues })
+      await dispatch('forceUpdate', {
+        builder,
+        page,
+        element,
+        values: oldValues,
+      })
       throw error
     }
   },
 
-  async debouncedUpdateSelected({ dispatch, getters }, { page, values }) {
-    const element = getters.getSelected
-
+  async debouncedUpdate(
+    { dispatch, getters },
+    { builder, page, element, values }
+  ) {
     const oldValues = {}
     Object.keys(values).forEach((name) => {
       if (Object.prototype.hasOwnProperty.call(element, name)) {
@@ -263,6 +275,7 @@ const actions = {
     })
 
     await dispatch('forceUpdate', {
+      builder,
       page,
       element,
       values: updateContext.valuesToUpdate,
@@ -279,6 +292,7 @@ const actions = {
         } catch (error) {
           // Revert to old values on error
           await dispatch('forceUpdate', {
+            builder,
             page,
             element,
             values: updateContext.lastUpdatedValues,
@@ -303,18 +317,18 @@ const actions = {
       updateContext.promiseResolve = resolve
     })
   },
-  async delete({ dispatch, getters }, { page, elementId }) {
+  async delete({ dispatch, getters }, { builder, page, elementId }) {
     const elementToDelete = getters.getElementById(page, elementId)
     const descendants = getters.getDescendants(page, elementToDelete)
 
     // First delete all children
     await Promise.all(
       descendants.map((descendant) =>
-        dispatch('forceDelete', { page, elementId: descendant.id })
+        dispatch('forceDelete', { builder, page, elementId: descendant.id })
       )
     )
 
-    await dispatch('forceDelete', { page, elementId })
+    await dispatch('forceDelete', { builder, page, elementId })
 
     try {
       await ElementService(this.$client).delete(elementId)
@@ -332,12 +346,12 @@ const actions = {
       throw error
     }
   },
-  async fetch({ dispatch, commit }, { page }) {
+  async fetch({ dispatch, commit }, { builder, page }) {
     const { data: elements } = await ElementService(this.$client).fetchAll(
       page.id
     )
 
-    commit('SET_ITEMS', { page, elements })
+    commit('SET_ITEMS', { builder, page, elements })
 
     // Set the element namespace path of all elements we've fetched.
     await Promise.all(
@@ -348,12 +362,12 @@ const actions = {
 
     return elements
   },
-  async fetchPublished({ dispatch, commit }, { page }) {
+  async fetchPublished({ dispatch, commit }, { builder, page }) {
     const { data: elements } = await PublicBuilderService(
       this.$client
     ).fetchElements(page)
 
-    commit('SET_ITEMS', { page, elements })
+    commit('SET_ITEMS', { builder, page, elements })
 
     // Set the element namespace ath of all published elements we've fetched.
     await Promise.all(
@@ -367,6 +381,7 @@ const actions = {
   async move(
     { commit, dispatch, getters },
     {
+      builder,
       page,
       elementId,
       beforeElementId,
@@ -378,6 +393,7 @@ const actions = {
     const { order: previousOrder, place_in_container: previousPlace } = element
 
     await dispatch('forceMove', {
+      builder,
       page,
       elementId,
       beforeElementId,
@@ -392,6 +408,7 @@ const actions = {
         ).move(elementId, beforeElementId, parentElementId, placeInContainer)
 
         dispatch('forceUpdate', {
+          builder,
           page,
           element: elementUpdated,
           values: {
@@ -403,6 +420,7 @@ const actions = {
       } catch (error) {
         // Restore previous order and place_in_container properties
         await dispatch('forceUpdate', {
+          builder,
           page,
           element,
           values: { order: previousOrder, place_in_container: previousPlace },
@@ -414,7 +432,7 @@ const actions = {
     clearTimeout(updateContext.moveTimeout)
     updateContext.moveTimeout = setTimeout(fire, 1000)
   },
-  async duplicate({ commit, dispatch, getters }, { page, elementId }) {
+  async duplicate({ commit, dispatch, getters }, { builder, page, elementId }) {
     const {
       data: { elements, workflow_actions: workflowActions },
     } = await ElementService(this.$client).duplicate(elementId)
@@ -438,7 +456,7 @@ const actions = {
         parentId === elementToDuplicate.parent_element_id
     )
 
-    commit('SELECT_ITEM', { element: elementToSelect })
+    commit('SELECT_ITEM', { builder, element: elementToSelect })
 
     return elements
   },
@@ -588,8 +606,8 @@ const getters = {
 
     return elementsInPlace.find((e) => getOrder(e).gt(getOrder(after)))
   },
-  getSelected(state) {
-    return state.selected
+  getSelected: (state) => (builder) => {
+    return builder.selectedElement
   },
   getElementNamespacePath: (state) => (element) => {
     return element._.elementNamespacePath

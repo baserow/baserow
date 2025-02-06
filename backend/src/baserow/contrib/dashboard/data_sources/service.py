@@ -20,14 +20,19 @@ from baserow.contrib.dashboard.data_sources.operations import (
 from baserow.contrib.dashboard.handler import DashboardHandler
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
-from baserow.core.services.registries import DispatchTypes, ServiceType
+from baserow.core.services.registries import (
+    DispatchTypes,
+    ServiceType,
+    service_type_registry,
+)
 
-from .exceptions import ServiceConfigurationNotAllowed
+from .exceptions import DashboardDataSourceDoesNotExist, ServiceConfigurationNotAllowed
 from .signals import (
     dashboard_data_source_created,
     dashboard_data_source_deleted,
     dashboard_data_source_updated,
 )
+from .types import UpdatedDashboardDataSource
 
 
 class DashboardDataSourceService:
@@ -51,6 +56,9 @@ class DashboardDataSourceService:
         """
 
         data_source = self.handler.get_data_source(data_source_id)
+
+        if data_source.dashboard.trashed:
+            raise DashboardDataSourceDoesNotExist()
 
         CoreHandler().check_permissions(
             user,
@@ -157,7 +165,7 @@ class DashboardDataSourceService:
         data_source_id: int,
         service_type: ServiceType,
         **kwargs,
-    ) -> DashboardDataSource:
+    ) -> UpdatedDashboardDataSource:
         """
         Updates a data source if the user has sufficient permissions.
         Will also check if the values are allowed to be set on the
@@ -178,6 +186,9 @@ class DashboardDataSourceService:
 
         data_source = self.handler.get_data_source_for_update(data_source_id)
 
+        if data_source.dashboard.trashed:
+            raise DashboardDataSourceDoesNotExist()
+
         CoreHandler().check_permissions(
             user,
             UpdateDashboardDataSourceOperationType.type,
@@ -192,15 +203,22 @@ class DashboardDataSourceService:
             raise ServiceConfigurationNotAllowed()
 
         service = data_source.service.specific
+        original_service_type = service_type_registry.get_by_model(service)
+
+        if original_service_type != service_type:
+            raise ServiceConfigurationNotAllowed()
+
         prepared_values = service_type.prepare_values(kwargs, user, instance=service)
 
-        data_source = self.handler.update_data_source(
+        updated_data_source = self.handler.update_data_source(
             data_source, service_type=service_type, **prepared_values
         )
 
-        dashboard_data_source_updated.send(self, user=user, data_source=data_source)
+        dashboard_data_source_updated.send(
+            self, user=user, data_source=updated_data_source.data_source
+        )
 
-        return data_source
+        return updated_data_source
 
     def delete_data_source(self, user: AbstractUser, data_source_id: int):
         """
@@ -216,6 +234,9 @@ class DashboardDataSourceService:
         """
 
         data_source = self.handler.get_data_source_for_update(data_source_id)
+
+        if data_source.dashboard.trashed:
+            raise DashboardDataSourceDoesNotExist()
 
         CoreHandler().check_permissions(
             user,
@@ -255,6 +276,9 @@ class DashboardDataSourceService:
         """
 
         data_source = self.handler.get_data_source(data_source_id)
+
+        if data_source.dashboard.trashed:
+            raise DashboardDataSourceDoesNotExist()
 
         CoreHandler().check_permissions(
             user,

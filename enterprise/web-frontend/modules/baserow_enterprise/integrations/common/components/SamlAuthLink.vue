@@ -18,7 +18,7 @@
                   : ''
                 : ''
             "
-            :autocomplete="isEditMode ? 'off' : ''"
+            :autocomplete="readOnly ? 'off' : ''"
             required
           >
             <ABInput
@@ -47,16 +47,35 @@ import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvid
 export default {
   components: { ThemeProvider },
   mixins: [form, error],
-  inject: ['builder', 'mode'],
   props: {
     userSource: { type: Object, required: true },
     authProviders: {
       type: Array,
       required: true,
     },
+    authProviderType: {
+      type: Object,
+      required: true,
+    },
     loginButtonLabel: {
       type: String,
       required: true,
+    },
+    readonly: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    authenticate: {
+      type: Function,
+      required: true,
+    },
+    beforeLogin: {
+      type: Function,
+      required: false,
+      default: () => {
+        return () => {}
+      },
     },
   },
   data() {
@@ -66,14 +85,8 @@ export default {
     }
   },
   computed: {
-    isAuthenticated() {
-      return this.$store.getters['userSourceUser/isAuthenticated'](this.builder)
-    },
     hasMultipleSamlProvider() {
       return this.authProviders.length > 1
-    },
-    isEditMode() {
-      return this.mode === 'editing'
     },
     buttonLabel() {
       return this.$t('samlAuthLink.placeholderWithSaml', {
@@ -90,11 +103,7 @@ export default {
       }
     },
     async login() {
-      if (this.isAuthenticated) {
-        await this.$store.dispatch('userSourceUser/logoff', {
-          application: this.builder,
-        })
-      }
+      await this.beforeLogin()
 
       if (this.hasMultipleSamlProvider) {
         this.$v.$touch()

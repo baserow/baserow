@@ -110,6 +110,7 @@ from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaDateType,
     BaserowFormulaDurationType,
     BaserowFormulaLinkType,
+    BaserowFormulaMultipleCollaboratorsType,
     BaserowFormulaMultipleSelectType,
     BaserowFormulaNumberType,
     BaserowFormulaSingleFileType,
@@ -238,7 +239,6 @@ def register_formula_functions(registry):
     registry.register(BaserowHasOption())
     registry.register(BaserowMultipleSelectCount())
     registry.register(BaserowStringAggMultipleSelectValues())
-    registry.register(BaserowStringAggArrayOfMultipleSelectValues())
     # Link functions
     registry.register(BaserowLink())
     registry.register(BaserowButton())
@@ -257,6 +257,10 @@ def register_formula_functions(registry):
     registry.register(BaserowArrayAggNoNesting())
     registry.register(BaserowGetFileCount())
     registry.register(BaserowToURL())
+    # ManyToMany functions
+    registry.register(BaserowStringAggManyToManyValues())
+    registry.register(BaserowManyToManyCount())
+    registry.register(BaserowManyToManyAgg())
 
 
 class BaserowUpper(OneArgumentBaserowFunction):
@@ -2102,13 +2106,18 @@ def string_agg_array_of_multiple_select_field(
     )
 
 
-def aggregate_multiple_selects_options(
+def aggregate_many_to_many_values(
     expr_with_metadata: WrappedExpressionWithMetadata, model
 ) -> WrappedExpressionWithMetadata:
     """
-    This function aggregates an array of multiple select field options into a
-    JSON array. The array is a result of a lookup operation. Each select option
-    will be represented by a JSON object with an id, a color and a value.
+    This function aggregates values coming from a many-to-many field
+    (i.e. multiple select field or multiple collaborators field) into a
+    JSON array. The array is a result of a lookup operation. Each item
+    will be represented by a JSON object with an id, and the properties
+    of the many-to-many field. For a multiple select field, the JSON
+    object will contain a value and a color. For a multiple collaborators
+    field, the JSON object will contain a user id and the first_name of the
+    user.
 
     For example, consider a formula like `lookup('link_row_field',
     'multiple_select_field')`. This formula would call this function to
@@ -2214,11 +2223,13 @@ class BaserowArrayAggNoNesting(BaserowArrayAgg, CollapseManyBaserowFunction):
         return array_agg_expression(args, context, nest_in_value=False)
 
 
-class BaserowMultipleSelectOptionsAgg(
-    OneArgumentBaserowFunction, CollapseManyBaserowFunction
-):
-    type = "multiple_select_options_agg"
-    arg_type = [MustBeManyExprChecker(BaserowFormulaMultipleSelectType)]
+class BaserowManyToManyAgg(OneArgumentBaserowFunction, CollapseManyBaserowFunction):
+    type = "many_to_many_agg"
+    arg_type = [
+        MustBeManyExprChecker(
+            BaserowFormulaMultipleSelectType, BaserowFormulaMultipleCollaboratorsType
+        )
+    ]
     aggregate = True
 
     def type_function(
@@ -2236,8 +2247,14 @@ class BaserowMultipleSelectOptionsAgg(
         args: List["WrappedExpressionWithMetadata"],
         context: BaserowExpressionContext,
     ) -> "WrappedExpressionWithMetadata":
-        expr = aggregate_multiple_selects_options(args[0], context.model)
+        expr = aggregate_many_to_many_values(args[0], context.model)
         return super().to_django_expression_given_args([expr], context)
+
+
+# Deprecated, use BaserowManyToManyAgg instead. This is kept for backwards compatibility
+# and will be removed in the future with a proper formula migration.
+class BaserowMultipleSelectOptionsAgg(BaserowManyToManyAgg):
+    type = "multiple_select_options_agg"
 
 
 class Baserow2dArrayAgg(OneArgumentBaserowFunction, CollapseManyBaserowFunction):
@@ -2270,13 +2287,18 @@ class Baserow2dArrayAgg(OneArgumentBaserowFunction, CollapseManyBaserowFunction)
         )
 
 
-class BaserowMultipleSelectCount(OneArgumentBaserowFunction):
-    type = "multiple_select_count"
-    arg_type = [BaserowFormulaMultipleSelectType]
+class BaserowManyToManyCount(OneArgumentBaserowFunction):
+    type = "many_to_many_count"
+    arg_type = [
+        BaserowFormulaMultipleSelectType,
+        BaserowFormulaMultipleCollaboratorsType,
+    ]
     aggregate = True
 
     def can_accept_arg(self, arg):
-        return isinstance(arg.expression_type, BaserowFormulaMultipleSelectType)
+        return isinstance(
+            arg.expression_type, BaserowFormulaMultipleSelectType
+        ) or isinstance(arg.expression_type, BaserowFormulaMultipleCollaboratorsType)
 
     def type_function(
         self,
@@ -2310,22 +2332,44 @@ class BaserowMultipleSelectCount(OneArgumentBaserowFunction):
         )
 
 
-class BaserowStringAggMultipleSelectValues(OneArgumentBaserowFunction):
-    type = "string_agg_multiple_select_values"
+# Deprecated, use BaserowManyToManyAgg instead. This is kept for backwards compatibility
+# and will be removed in the future with a proper formula migration.
+class BaserowMultipleSelectCount(BaserowManyToManyCount):
+    type = "multiple_select_count"
     arg_type = [BaserowFormulaMultipleSelectType]
+
+    def can_accept_arg(self, arg):
+        return isinstance(arg.expression_type, BaserowFormulaMultipleSelectType)
+
+
+class BaserowStringAggManyToManyValues(OneArgumentBaserowFunction):
+    type = "string_agg_many_to_many_values"
+    arg_type = [
+        BaserowFormulaMultipleSelectType,
+        BaserowFormulaMultipleCollaboratorsType,
+    ]
     aggregate = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Can be overridden in type_function from the arg.expression_type
+        self.value_key = "value"
 
     def type_function(
         self,
         func_call: BaserowFunctionCall,
         arg: BaserowExpression[BaserowFormulaValidType],
     ) -> BaserowExpression[BaserowFormulaType]:
+        if value_key := getattr(
+            arg.expression_type, "custom_string_agg_value_key", None
+        ):
+            self.value_key = value_key
         return func_call.with_valid_type(BaserowFormulaTextType())
 
     def to_django_expression(self, arg: Expression) -> Expression:
         return Func(
             Func(arg, function="jsonb_array_elements"),
-            Value("value"),
+            Value(self.value_key),
             function="jsonb_extract_path_text",
             output_field=fields.TextField(),
         )
@@ -2345,30 +2389,10 @@ class BaserowStringAggMultipleSelectValues(OneArgumentBaserowFunction):
         )
 
 
-class BaserowStringAggArrayOfMultipleSelectValues(OneArgumentBaserowFunction):
-    type = "string_agg_array_of_multiple_select_values"
-    arg_type = [MustBeManyExprChecker(BaserowFormulaMultipleSelectType)]
-    aggregate = True
-
-    def type_function(
-        self,
-        func_call: BaserowFunctionCall,
-        arg: BaserowExpression[BaserowFormulaValidType],
-    ) -> BaserowExpression[BaserowFormulaType]:
-        return func_call.with_valid_type(
-            BaserowFormulaArrayType(BaserowFormulaTextType())
-        )
-
-    def to_django_expression(self, arg: Expression) -> Expression:
-        return arg
-
-    def to_django_expression_given_args(
-        self,
-        args: List["WrappedExpressionWithMetadata"],
-        context: BaserowExpressionContext,
-    ) -> "WrappedExpressionWithMetadata":
-        expr = string_agg_array_of_multiple_select_field(args[0], context.model)
-        return super().to_django_expression_given_args([expr], context)
+# Deprecated, use BaserowManyToManyAgg instead. This is kept for backwards compatibility
+# and will be removed in the future with a proper formula migration.
+class BaserowStringAggMultipleSelectValues(BaserowStringAggManyToManyValues):
+    type = "string_agg_multiple_select_values"
 
 
 class BaserowCount(OneArgumentBaserowFunction):
@@ -2376,6 +2400,7 @@ class BaserowCount(OneArgumentBaserowFunction):
     arg_type = [
         MustBeManyExprChecker(BaserowFormulaValidType),
         BaserowFormulaMultipleSelectType,
+        BaserowFormulaMultipleCollaboratorsType,
     ]
     aggregate = True
     try_coerce_nullable_args_to_not_null = False
@@ -3082,7 +3107,8 @@ class BaserowRegexReplace(ThreeArgumentBaserowFunction):
             arg2,
             arg3,
             Value("g", output_field=fields.TextField()),
-            function="regexp_replace",
+            Value("#ERROR!", output_field=fields.TextField()),
+            function="try_regexp_replace",
             output_field=fields.TextField(),
         )
 

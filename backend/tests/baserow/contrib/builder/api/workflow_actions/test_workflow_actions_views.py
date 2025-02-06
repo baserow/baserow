@@ -1,5 +1,7 @@
+import json
 from unittest.mock import patch
 
+from django.db import transaction
 from django.urls import reverse
 
 import pytest
@@ -23,6 +25,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     NotificationWorkflowActionType,
     UpdateRowWorkflowActionType,
 )
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
@@ -548,17 +551,26 @@ def test_dispatch_local_baserow_create_row_workflow_action(api_client, data_fixt
         kwargs={"workflow_action_id": workflow_action.id},
     )
 
-    response = api_client.post(
-        url,
-        {},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {workflow_action.service.id: ["id", color_field.db_column]},
+            "external": {workflow_action.service.id: ["id", color_field.db_column]},
+        }
+        response = api_client.post(
+            url,
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
+
+    assert "id" in response_json
     assert response_json[color_field.db_column] == "Brown"
-    assert response_json[animal_field.db_column] == "Horse"
+    assert animal_field.db_column not in response_json
 
 
 @pytest.mark.django_db
@@ -597,18 +609,26 @@ def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixt
         kwargs={"workflow_action_id": workflow_action.id},
     )
 
-    response = api_client.post(
-        url,
-        {},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {workflow_action.service.id: ["id", color_field.db_column]},
+            "external": {workflow_action.service.id: ["id", color_field.db_column]},
+        }
+        response = api_client.post(
+            url,
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["id"] == first_row.id
+
     assert response_json[color_field.db_column] == "Blue"
-    assert response_json[animal_field.db_column] == "Horse"
+    assert animal_field.db_column not in response_json
 
 
 @pytest.mark.django_db
@@ -648,17 +668,154 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
         "api:builder:workflow_action:dispatch",
         kwargs={"workflow_action_id": workflow_action.id},
     )
-
-    response = api_client.post(
-        url,
-        {"current_record": 123},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {workflow_action.service.id: [index.db_column]},
+            "external": {workflow_action.service.id: [index.db_column]},
+        }
+        response = api_client.post(
+            url,
+            {"current_record": 123},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
+    assert "id" not in response_json
     assert response_json[index.db_column] == "Index 123"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dispatch_local_baserow_upsert_row_workflow_action_with_adhoc_refinements(
+    api_client, data_fixture
+):
+    with transaction.atomic():
+        user, token = data_fixture.create_user_and_token()
+        workspace = data_fixture.create_workspace(user=user)
+        database = data_fixture.create_database_application(workspace=workspace)
+        table = TableHandler().create_table_and_fields(
+            user=user,
+            database=database,
+            name=data_fixture.fake.name(),
+            fields=[
+                ("Category", "text", {}),
+            ],
+        )
+        field = table.field_set.get()
+        RowHandler().create_rows(
+            user,
+            table,
+            rows_values=[
+                {f"field_{field.id}": "Community Engagement"},
+                {f"field_{field.id}": "Construction"},
+                {f"field_{field.id}": "Complex Construction Design"},
+                {f"field_{field.id}": "Simple Construction Design"},
+                {f"field_{field.id}": "Landscape Design"},
+                {f"field_{field.id}": "Infrastructure Design"},
+            ],
+        )
+
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user, authorized_user=user
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+    )
+    table_element = data_fixture.create_builder_table_element(
+        page=page,
+        data_source=data_source,
+        fields=[
+            {
+                "name": "Button",
+                "type": "button",
+                "config": {"value": f"'Click me'"},
+            },
+        ],
+    )
+    table_element.property_options.create(
+        schema_property=field.db_column,
+        sortable=True,
+        filterable=True,
+        searchable=True,
+    )
+
+    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+        page=page,
+        element=table_element,
+        event=EventTypes.CLICK,
+        user=user,
+    )
+    service = workflow_action.service.specific
+    service.table = table
+    service.row_id = "get('current_record.id')"
+    service.save()
+    service.field_mappings.create(
+        field=field, value=f"concat('Updated row ', get('current_record.id'))"
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+
+    advanced_filters = {
+        "filter_type": "OR",
+        "filters": [
+            {
+                "field": field.id,
+                "type": "contains",
+                "value": "construction",
+            }
+        ],
+    }
+
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {workflow_action.service.id: ["id", field.db_column]},
+            "external": {workflow_action.service.id: ["id", field.db_column]},
+        }
+        model = table.get_model()
+
+        # 1. The filters reduce it to 3 results.
+        # 2. The search query reduces it to 2 results.
+        # 3. We sort alphabetically, and dispatch the first one,
+        #   "Complex Construction Design".
+        url_with_querystring = (
+            f"{url}?filters={json.dumps(advanced_filters)}"
+            f"&search_query=design&order_by={field.db_column}"
+        )
+
+        # Dispatch at index=0, this will be "Complex Construction Design".
+        response = api_client.post(
+            url_with_querystring,
+            {"current_record": 0, "data_source": {"element": table_element.id}},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        row3 = model.objects.get(pk=3)
+        assert getattr(row3, f"field_{field.id}") == "Updated row 3"
+
+        # Dispatch at index=0, this will now be "Simple Construction Design".
+        response = api_client.post(
+            url_with_querystring,
+            {"current_record": 0, "data_source": {"element": table_element.id}},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        row4 = model.objects.get(pk=4)
+        assert getattr(row4, f"field_{field.id}") == "Updated row 4"
 
 
 @pytest.mark.django_db
@@ -758,16 +915,36 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
         kwargs={"workflow_action_id": workflow_action.id},
     )
 
-    response = api_client.post(
-        url,
-        {},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {
+                data_source.service.id: [fields[1].db_column],
+                shared_data_source.service.id: [fields2[0].db_column],
+                workflow_action.service.id: [
+                    color_field.db_column,
+                    animal_field.db_column,
+                ],
+            },
+            "external": {
+                data_source.service.id: [fields[1].db_column],
+                shared_data_source.service.id: [fields2[0].db_column],
+                workflow_action.service.id: [
+                    color_field.db_column,
+                    animal_field.db_column,
+                ],
+            },
+        }
+        response = api_client.post(
+            url,
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
-    assert response_json["id"] == first_row.id
     assert response_json[color_field.db_column] == "Orange"
     assert response_json[animal_field.db_column] == f"{rows[1].id}"
 
@@ -902,3 +1079,253 @@ def test_update_delete_row_workflow_action(api_client, data_fixture):
     assert response_json["service"]["row_id"] == service.row_id
     assert response_json["service"]["table_id"] == service.table_id
     assert response_json["service"]["integration_id"] == service.integration_id
+
+
+@pytest.fixture
+def workflow_action_hidden_fields_fixture(data_fixture):
+    """Fixture to help test hidden fields related to Workflow Actions."""
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Food", "text"),
+            ("Spiciness", "number"),
+            ("Color", "text"),
+        ],
+        rows=[
+            ["Paneer Tikka", 5, "Red"],
+            ["Gobi Manchurian", 8, "Yellow"],
+        ],
+    )
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(builder=builder)
+
+    # Create the button and workflow actions
+    button = data_fixture.create_builder_button_element(page=page)
+
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table,
+        integration=integration,
+    )
+    service.field_mappings.create(
+        field=fields[0],
+        value=f"'Palak Paneer'",
+    )
+    service.field_mappings.create(
+        field=fields[1],
+        value=f"'3'",
+    )
+    service.field_mappings.create(
+        field=fields[2],
+        value=f"'Green'",
+    )
+
+    return {
+        "user": user,
+        "token": token,
+        "page": page,
+        "service": service,
+        "integration": integration,
+        "button": button,
+        "fields": fields,
+    }
+
+
+@pytest.mark.django_db
+def test_workflow_action_dispatch_does_not_return_fields(
+    data_fixture, api_client, workflow_action_hidden_fields_fixture
+):
+    """
+    An Integration test to ensure that a Workflow Action does not return any
+    field information by default.
+    """
+
+    page = workflow_action_hidden_fields_fixture["page"]
+    service = workflow_action_hidden_fields_fixture["service"]
+    button = workflow_action_hidden_fields_fixture["button"]
+    token = workflow_action_hidden_fields_fixture["token"]
+
+    action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page,
+        service=service,
+        element=button,
+        event=EventTypes.CLICK,
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch", kwargs={"workflow_action_id": action.id}
+    )
+    response = api_client.post(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200
+
+    # Ensure that field information is not returned.
+    assert response.json() == {}
+
+
+@pytest.mark.django_db
+def test_notification_action_can_access_the_field_of_previous_action(
+    data_fixture, api_client, workflow_action_hidden_fields_fixture
+):
+    """
+    An Integration test to ensure that a chained Workflow Action has access to
+    the Previous Action field. In this test, there are two Workflow Actions:
+    'Create Row' followed by a 'Show Notification'.
+
+    When dispatching a Workflow Action, the response will not contain any field
+    information by default.
+
+    However, if a field is explicitly referenced, e.g. in a Show Notification
+    Workflow Action where the description uses the field, that field will
+    be returned in the dispatch response. The field is needed for the frontend
+    to correctly display the value.
+    """
+
+    page = workflow_action_hidden_fields_fixture["page"]
+    service = workflow_action_hidden_fields_fixture["service"]
+    button = workflow_action_hidden_fields_fixture["button"]
+    fields = workflow_action_hidden_fields_fixture["fields"]
+    token = workflow_action_hidden_fields_fixture["token"]
+
+    action_1 = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page,
+        service=service,
+        element=button,
+        event=EventTypes.CLICK,
+    )
+
+    # This second workflow action references the field that was just created
+    # by the first workflow action.
+    _ = data_fixture.create_notification_workflow_action(
+        page=page,
+        element=button,
+        event=EventTypes.CLICK,
+        description=f"get('previous_action.{action_1.id}.{fields[0].db_column}')",
+        title=f"'hello world'",
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": action_1.id},
+    )
+    response = api_client.post(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200
+
+    # Since the first field was used in action_2, the dispatch response action
+    # returns the field so that the frontend can display the value.
+    #
+    # Conversely, the other DB columns aren't returned, since they aren't used.
+    assert response.json() == {
+        fields[0].db_column: "Palak Paneer",
+    }
+
+
+@pytest.mark.django_db
+def test_create_row_action_can_access_the_field_of_previous_action(
+    data_fixture, api_client, workflow_action_hidden_fields_fixture
+):
+    """
+    An Integration test to ensure that a chained Workflow Action has access to
+    the Previous Action field. In this test, there are two Workflow Actions:
+    'Create Row' followed by another 'Create row'.
+
+    The second 'Create row' creates a new row in a different table, inserting
+    the `id` of the previous 'Create row' action.
+    """
+
+    user = workflow_action_hidden_fields_fixture["user"]
+    page = workflow_action_hidden_fields_fixture["page"]
+    service = workflow_action_hidden_fields_fixture["service"]
+    button = workflow_action_hidden_fields_fixture["button"]
+    token = workflow_action_hidden_fields_fixture["token"]
+    integration = workflow_action_hidden_fields_fixture["integration"]
+
+    action_1 = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page,
+        service=service,
+        element=button,
+        event=EventTypes.CLICK,
+    )
+
+    table_2, fields_2, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+        ],
+        rows=[],
+    )
+    service_2 = data_fixture.create_local_baserow_upsert_row_service(
+        table=table_2,
+        integration=integration,
+    )
+    service_2.field_mappings.create(
+        field=fields_2[0],
+        value=f"get('previous_action.{action_1.id}.id')",
+    )
+    # This second workflow action references the field that was just created
+    # by the first workflow action.
+    action_2 = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page,
+        element=button,
+        service=service_2,
+        event=EventTypes.CLICK,
+    )
+
+    mock_dispatch_id = "3ae8b86c-6f5d-4215-918a-dd1aad85eb3a"
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": action_1.id},
+    )
+    payload = {
+        "previous_action": {
+            "current_dispatch_id": mock_dispatch_id,
+        },
+    }
+    response = api_client.post(
+        url,
+        payload,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {}
+
+    # Ensure that the 2nd table currently has zero rows
+    assert action_2.service.table.get_model().objects.all().count() == 0
+
+    # Now dispatch the 2nd Workflow Action
+    payload["previous_action"][action_1.id] = {}
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": action_2.id},
+    )
+    response = api_client.post(
+        url,
+        payload,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {}
+
+    results = table_2.get_model().objects.all()
+    assert len(results) == 1
+    # The ID of the new row that was created by the first Workflow Action
+    row_id = action_1.service.table.get_model().objects.all()[2].id
+    assert getattr(results[0], fields_2[0].db_column) == str(row_id)

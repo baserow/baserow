@@ -4,6 +4,7 @@ import Context from '@baserow/modules/core/components/Context'
 import Modal from '@baserow/modules/core/components/Modal'
 import Editable from '@baserow/modules/core/components/Editable'
 import Dropdown from '@baserow/modules/core/components/Dropdown'
+import DropdownSection from '@baserow/modules/core/components/DropdownSection'
 import DropdownItem from '@baserow/modules/core/components/DropdownItem'
 import Picker from '@baserow/modules/core/components/Picker'
 import ProgressBar from '@baserow/modules/core/components/ProgressBar'
@@ -39,6 +40,7 @@ import FormRow from '@baserow/modules/core/components/FormRow'
 import Logo from '@baserow/modules/core/components/Logo'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import FormSection from '@baserow/modules/core/components/FormSection'
+import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 
 import lowercase from '@baserow/modules/core/filters/lowercase'
 import uppercase from '@baserow/modules/core/filters/uppercase'
@@ -65,6 +67,7 @@ function setupVue(Vue) {
   Vue.component('Modal', Modal)
   Vue.component('Editable', Editable)
   Vue.component('Dropdown', Dropdown)
+  Vue.component('DropdownSection', DropdownSection)
   Vue.component('DropdownItem', DropdownItem)
   Vue.component('Checkbox', Checkbox)
   Vue.component('Radio', Radio)
@@ -107,6 +110,7 @@ function setupVue(Vue) {
   Vue.component('Logo', Logo)
   Vue.component('ReadOnlyForm', ReadOnlyForm)
   Vue.component('FormSection', FormSection)
+  Vue.component('SegmentControl', SegmentControl)
 
   Vue.filter('lowercase', lowercase)
   Vue.filter('uppercase', uppercase)

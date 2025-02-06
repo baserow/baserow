@@ -2150,7 +2150,7 @@ def test_dispatch_data_source_view(
         ANY,
         mock_data_source.page,
         element=None,
-        only_expose_public_formula_fields=False,
+        only_expose_public_allowed_properties=False,
     )
     mock_dispatch_data_source.assert_called_once_with(
         ANY, mock_data_source, mock_dispatch_context
@@ -2265,7 +2265,7 @@ def test_dispatch_data_sources_view(
     assert response.json() == mock_service_contents
     mock_get_page.assert_called_once_with(str(mock_page_id))
     mock_builder_dispatch_context.assert_called_once_with(
-        ANY, mock_page, only_expose_public_formula_fields=False
+        ANY, mock_page, only_expose_public_allowed_properties=False
     )
     mock_dispatch_page_data_sources.assert_called_once_with(
         ANY, mock_page, mock_dispatch_context

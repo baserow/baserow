@@ -260,6 +260,7 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
         model, RowSerializer, is_response=True, user_field_names=True
     )
     serializer_instance = serializer_class([row], many=True)
+    u2, u3 = context["user2"], context["user3"]
     expected_result = json.loads(
         json.dumps(
             {
@@ -372,6 +373,18 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                     {"id": context["user2"].id, "name": context["user2"].first_name},
                     {"id": context["user3"].id, "name": context["user3"].first_name},
                 ],
+                "multiple_collaborators_link_row": [
+                    {
+                        "id": 1,
+                        "value": f"{u2.first_name} <{u2.email}>, {u3.first_name} <{u3.email}>",
+                        "order": "1.00000000000000000000",
+                    },
+                    {
+                        "id": 2,
+                        "value": f"{u2.first_name} <{u2.email}>",
+                        "order": "2.00000000000000000000",
+                    },
+                ],
                 "multiple_select": [
                     {
                         "color": "yellow",
@@ -419,6 +432,10 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                         "value": "E",
                     },
                 ],
+                "formula_multiple_collaborators": [
+                    {"id": u2.id, "name": u2.first_name},
+                    {"id": u3.id, "name": u3.first_name},
+                ],
                 "formula_text": "test FORMULA",
                 "count": "3",
                 "rollup": "-122.222",
@@ -428,6 +445,21 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                     {"id": 1, "value": "linked_row_1"},
                     {"id": 2, "value": "linked_row_2"},
                     {"id": 3, "value": ""},
+                ],
+                "multiple_collaborators_lookup": [
+                    {
+                        "id": 1,
+                        "value": [
+                            {"id": u2.id, "name": u2.first_name},
+                            {"id": u3.id, "name": u3.first_name},
+                        ],
+                    },
+                    {
+                        "id": 2,
+                        "value": [
+                            {"id": u2.id, "name": u2.first_name},
+                        ],
+                    },
                 ],
                 "formula_link_url_only": {"label": None, "url": "https://google.com"},
                 "formula_link_with_label": {

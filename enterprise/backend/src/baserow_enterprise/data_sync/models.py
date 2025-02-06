@@ -3,8 +3,51 @@ from django.db import models
 
 from baserow.contrib.database.data_sync.models import DataSync
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.models import View
 
 User = get_user_model()
+
+
+DATA_SYNC_INTERVAL_MANUAL = "MANUAL"
+DATA_SYNC_INTERVAL_DAILY = "DAILY"
+DATA_SYNC_INTERVAL_HOURLY = "HOURLY"
+
+
+class PeriodicDataSyncInterval(models.Model):
+    data_sync = models.OneToOneField(
+        DataSync,
+        on_delete=models.CASCADE,
+        help_text="The periodic data sync.",
+        related_name="periodic_interval",
+    )
+    last_periodic_sync = models.DateTimeField(
+        null=True, help_text="Timestamp when the table was last periodically synced."
+    )
+    interval = models.CharField(
+        choices=(
+            (DATA_SYNC_INTERVAL_MANUAL, DATA_SYNC_INTERVAL_MANUAL),
+            (DATA_SYNC_INTERVAL_DAILY, DATA_SYNC_INTERVAL_DAILY),
+            (DATA_SYNC_INTERVAL_HOURLY, DATA_SYNC_INTERVAL_HOURLY),
+        ),
+        default=DATA_SYNC_INTERVAL_MANUAL,
+    )
+    when = models.TimeField()
+    automatically_deactivated = models.BooleanField(
+        default=False,
+        help_text="Indicates whether the periodic data sync has been deactivated.",
+    )
+    consecutive_failed_count = models.SmallIntegerField(
+        default=0,
+        help_text="The number of failed sync data sync operations that have failed. "
+        "This is used to deactivate the periodic sync if it keeps failing.",
+    )
+    authorized_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        help_text="The user on whose behalf the data is periodically synced."
+        "Automatically set when the interval changes.",
+    )
 
 
 class LocalBaserowTableDataSync(DataSync):
@@ -14,6 +57,15 @@ class LocalBaserowTableDataSync(DataSync):
         on_delete=models.SET_NULL,
         help_text="The source table containing the data you would like to get the data "
         "from.",
+    )
+    # Deliberately don't make a ForeignKey because if the view is deleted the data sync
+    # must fail in that case. If the view fields are filters are ignored, it could
+    # accidentally expose data.
+    source_table_view_id = models.PositiveIntegerField(
+        View,
+        null=True,
+        help_text="If provided, then only the visible fields and rows matching the "
+        "filters will be synced.",
     )
     authorized_user = models.ForeignKey(
         User,

@@ -7,6 +7,7 @@
   color: var(--button-text-color, $white);
   background-color: var(--button-background-color, $black);
   font-size: var(--button-font-size, 12px);
+  font-weight: var(--button-font-weight, 400);
   border: var(--button-border-size, 0) solid var(--button-border-color, black);
   border-radius: var(--button-border-radius, 4px);
   width: var(--button-width, auto);

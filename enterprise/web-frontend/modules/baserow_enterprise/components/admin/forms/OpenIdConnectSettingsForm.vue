@@ -24,7 +24,7 @@
     <FormGroup
       small-label
       :label="$t('oauthSettingsForm.baseUrl')"
-      :error="fieldHasErrors('base_url') || !!serverErrors.baseUrl"
+      :error="fieldHasErrors('base_url') || !!serverErrors.base_url"
       class="margin-bottom-2"
       required
     >
@@ -32,9 +32,10 @@
         ref="base_url"
         v-model="values.base_url"
         size="large"
-        :error="fieldHasErrors('base_url') || !!serverErrors.baseUrl"
+        :error="fieldHasErrors('base_url') || !!serverErrors.base_url"
         :placeholder="$t('oauthSettingsForm.baseUrlPlaceholder')"
         @blur="$v.values.base_url.$touch()"
+        @input="serverErrors.base_url = null"
       ></FormInput>
 
       <template #error>
@@ -44,7 +45,13 @@
         <div v-else-if="$v.values.base_url.$dirty && !$v.values.base_url.url">
           {{ $t('oauthSettingsForm.invalidBaseUrl') }}
         </div>
-        <div v-else-if="!!serverErrors.baseUrl">
+        <div v-else-if="serverErrors.base_url?.code === 'duplicate_url'">
+          {{ $t('oauthSettingsForm.duplicateBaseUrl') }}
+        </div>
+        <div v-else-if="serverErrors.base_url?.code === 'invalid_url'">
+          {{ $t('oauthSettingsForm.invalidBaseUrl') }}
+        </div>
+        <div v-else-if="!!serverErrors.base_url">
           {{ $t('oauthSettingsForm.invalidBaseUrl') }}
         </div>
       </template>
@@ -96,13 +103,15 @@
         </span>
       </template>
     </FormGroup>
-    <FormGroup
-      small-label
-      :label="$t('oauthSettingsForm.callbackUrl')"
-      required
-    >
-      <code>{{ callbackUrl }}</code>
-    </FormGroup>
+    <slot name="config">
+      <FormGroup
+        small-label
+        :label="$t('oauthSettingsForm.callbackUrl')"
+        required
+      >
+        <code>{{ callbackUrl }}</code>
+      </FormGroup>
+    </slot>
     <slot></slot>
   </form>
 </template>

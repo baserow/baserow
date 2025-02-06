@@ -544,3 +544,31 @@ def test_run_delete_mentions_marked_for_deletion(data_fixture):
         delete_mentions_marked_for_deletion()
 
     assert RichTextFieldMention.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_link_row_fields_deps_are_excluded_from_periodic_updates(data_fixture):
+    # Fixes https://gitlab.com/baserow/baserow/-/issues/3379
+    with freeze_time("2023-01-01"):
+        table_b = data_fixture.create_database_table()
+        primary_b = data_fixture.create_formula_field(
+            table=table_b, primary=True, formula="now()"
+        )
+        table_a = data_fixture.create_database_table(database=table_b.database)
+        link_a_to_b = data_fixture.create_link_row_field(
+            table=table_a, link_row_table=table_b
+        )
+        formula_a = data_fixture.create_formula_field(
+            table=table_a,
+            formula=f"join(datetime_format(field('{link_a_to_b.name}'), 'DD'), ',')",
+        )
+        row_b = RowHandler().force_create_row(None, table_b, {})
+        row_a = RowHandler().force_create_row(
+            None, table_a, {link_a_to_b.db_column: [row_b.id]}
+        )
+
+    with freeze_time("2023-01-02"):
+        run_periodic_fields_updates()
+
+    row_a.refresh_from_db()
+    assert getattr(row_a, formula_a.db_column) == "02"

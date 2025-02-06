@@ -23,6 +23,7 @@ from rest_framework.serializers import Serializer
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
 from baserow.core.registries import OperationType
 from baserow.core.registry import (
@@ -581,12 +582,12 @@ class ViewType(
             have been updated.
         """
 
-    def after_field_type_change(self, field: "Field") -> None:
+    def after_fields_type_change(self, fields: List["Field"]) -> None:
         """
         This hook is called after the type of a field has changed and gives the
         possibility to check compatibility with view stuff like specific field options.
 
-        :param field: The concerned field.
+        :param fields: The concerned fields.
         """
 
     def after_field_delete(self, field: "Field") -> None:
@@ -681,7 +682,7 @@ class ViewType(
         times for an event but with different fields. This hook gives a view type the
         opportunity to react on any value change for a field.
 
-        :param update_fields: a unique or a list of affected field.
+        :param updated_fields: a unique or a list of affected field.
         """
 
     def after_field_update(self, updated_fields: Union[Iterable["Field"], "Field"]):
@@ -837,6 +838,29 @@ class ViewType(
             },
         )
 
+    def check_view_update_permissions(
+        self, user: AbstractUser, view: "View", data: Dict[str, Any]
+    ):
+        """
+        Hook that's called just before a view is updated. By default, it checks the
+        `UpdateViewOperationType`, but when overwritten, it can optionally check for
+        different permissions depending on the data. It returns nothing if the user has
+        permissions, or raises a PermissionDenied error otherwise.
+
+        :param user: The user on whose behalf the view is updated.
+        :param view: The view instance that needs to be updated.
+        :param data: The properties that need to be updated.
+        :raises PermissionDenied: if the user doesn't have permissions to update the
+            view.
+        """
+
+        from .operations import UpdateViewOperationType
+
+        workspace = view.table.database.workspace
+        CoreHandler().check_permissions(
+            user, UpdateViewOperationType.type, workspace=workspace, context=view
+        )
+
 
 class ViewTypeRegistry(
     APIUrlsRegistryMixin, CustomFieldsRegistryMixin, ModelRegistryMixin, Registry
@@ -931,35 +955,34 @@ class ViewFilterType(Instance):
 
         return {}
 
-    def get_export_serialized_value(self, value, id_mapping: Dict) -> str:
+    def get_export_serialized_value(self, value: str | None, id_mapping: dict) -> str:
         """
         This method is called before the filter value is exported. Here it can
         optionally be modified.
 
         :param value: The original value.
-        :type value: str
         :param id_mapping: Cache for mapping object ids.
         :return: The updated value.
-        :rtype: str
         """
 
+        if value is None:
+            return ""
         return value
 
-    def set_import_serialized_value(self, value, id_mapping) -> str:
+    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
         """
         This method is called before a field is imported. It can optionally be
         modified. If the value for example points to a field or select option id, it
         can be replaced with the correct value by doing a lookup in the id_mapping.
 
         :param value: The original exported value.
-        :type value: str
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
-        :type id_mapping: dict
         :return: The new value that will be imported.
-        :rtype: str
         """
 
+        if value is None:
+            return ""
         return value
 
     def field_is_compatible(self, field):
@@ -1003,6 +1026,8 @@ class ViewAggregationType(Instance):
     If you want to aggregate the values of fields in a view, you can use a field
     aggregation. For example you can compute a sum of all values of a field in a table.
     """
+
+    allowed_in_view = True
 
     def get_aggregation(
         self,
@@ -1162,12 +1187,12 @@ class DecoratorValueProviderType(CustomFieldsInstanceMixin, Instance):
         :param deleted_field: the deleted field.
         """
 
-    def after_field_type_change(self, field: "Field"):
+    def after_fields_type_change(self, fields: List["Field"]):
         """
         This hook is called after the type of a field has changed and gives the
         possibility to check compatibility or update configuration.
 
-        :param field: The concerned field.
+        :param fields: The concerned fields.
         """
 
     def get_serializer_class(self, *args, **kwargs):

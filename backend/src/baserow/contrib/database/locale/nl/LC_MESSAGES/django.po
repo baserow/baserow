@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2024-01-19 09:37+0000\n"
+"PO-Revision-Date: 2025-02-04 01:45+0000\n"
 "Last-Translator: Bram <bram@baserow.io>\n"
 "Language-Team: Dutch <https://hosted.weblate.org/projects/baserow/"
 "backend-database/nl/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.4-dev\n"
+"X-Generator: Weblate 5.10-dev\n"
 
 #: src/baserow/contrib/database/action/scopes.py:9
 #, python-format
@@ -66,10 +66,10 @@ msgid "Export Table"
 msgstr "Tabel exporteren"
 
 #: src/baserow/contrib/database/export/actions.py:21
-#, fuzzy, python-format
-#| msgid "View \"%(view_name)s\" (%(view_id)s) updated"
+#, python-format
 msgid "View \"%(view_name)s\" (%(view_id)s) exported to %(export_type)s"
-msgstr "Weergave \"%(view_name)s\" (%(view_id)s) bijgewerkt"
+msgstr ""
+"Weergave \"%(view_name)s\" (%(view_id)s) geëxporteerd naar %(export_type)s"
 
 #: src/baserow/contrib/database/export/actions.py:82
 #, fuzzy, python-format

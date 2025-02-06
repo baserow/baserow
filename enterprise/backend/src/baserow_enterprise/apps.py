@@ -3,6 +3,8 @@ from django.db.models.signals import post_migrate
 
 from tqdm import tqdm
 
+from baserow.core.feature_flags import FF_DASHBOARDS, feature_flag_is_enabled
+
 
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
@@ -27,6 +29,7 @@ class BaserowEnterpriseConfig(AppConfig):
             operation_type_registry,
             plugin_registry,
         )
+        from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
         from baserow_enterprise.api.member_data_types import (
             EnterpriseMemberTeamsDataType,
@@ -174,11 +177,24 @@ class BaserowEnterpriseConfig(AppConfig):
             LocalBaserowPasswordAppAuthProviderType()
         )
 
+        from baserow_enterprise.integrations.common.sso.oauth2.app_auth_provider_types import (
+            OpenIdConnectAppAuthProviderType,
+        )
         from baserow_enterprise.integrations.common.sso.saml.app_auth_provider_types import (
             SamlAppAuthProviderType,
         )
 
         app_auth_provider_type_registry.register(SamlAppAuthProviderType())
+        app_auth_provider_type_registry.register(OpenIdConnectAppAuthProviderType())
+
+        from baserow_enterprise.integrations.local_baserow.service_types import (
+            LocalBaserowGroupedAggregateRowsUserServiceType,
+        )
+
+        if feature_flag_is_enabled(FF_DASHBOARDS):
+            service_type_registry.register(
+                LocalBaserowGroupedAggregateRowsUserServiceType()
+            )
 
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
@@ -203,6 +219,12 @@ class BaserowEnterpriseConfig(AppConfig):
         data_sync_type_registry.register(GitHubIssuesDataSyncType())
         data_sync_type_registry.register(GitLabIssuesDataSyncType())
         data_sync_type_registry.register(HubspotContactsDataSyncType())
+
+        from baserow_enterprise.data_sync.actions import (
+            UpdatePeriodicDataSyncIntervalActionType,
+        )
+
+        action_type_registry.register(UpdatePeriodicDataSyncIntervalActionType())
 
         # Create default roles
         post_migrate.connect(sync_default_roles_after_migrate, sender=self)

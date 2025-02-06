@@ -16,6 +16,16 @@ tests you think make sense. Some ideas on what to test:
 
 ## Installation and running locally
 
+You'll need Node.js to run the end-to-end test suite locally. Using [nvm](https://github.com/nvm-sh/nvm),
+it can be installed with:
+```bash
+nvm install v<version>
+```
+
+Replace `<version>` with a supported Node.js version listed in
+`baserow/docs/installation/supported.md`.
+
+To run the end-to-end tests:
 ```bash
 # Startup your local env which will be tested
 $ ./dev.sh
@@ -40,4 +50,3 @@ Besides Playwright configuration defined in `e2e-tests/playwright.config.ts` you
 environment variables to target a Baserow instance on any URL
 with `PUBLIC_WEB_FRONTEND_URL` and `PUBLIC_BACKEND_URL`. You can also
 use `e2e-tests/.env` file to do so, see `e2e-tests/.env-example`.
-

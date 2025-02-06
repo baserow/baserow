@@ -38,6 +38,15 @@ export class ServiceType extends Registerable {
   }
 
   /**
+   * This method can be used to process service data
+   * in the frontend when displaying raw data
+   * is not enough.
+   */
+  getResult(service, data) {
+    return null
+  }
+
+  /**
    * Should return a JSON schema of the data returned by this service.
    */
   getDataSchema(applicationContext, service) {

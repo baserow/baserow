@@ -6,8 +6,8 @@
   "logo": "https://baserow.io/img/favicon_192.png",
   "success_url": "/",
   "addons": [
-    "heroku-postgresql:mini",
-    "heroku-redis:mini",
+    "heroku-postgresql:essential-0",
+    "heroku-redis:premium-0",
     "mailgun:starter"
   ],
   "formation": {

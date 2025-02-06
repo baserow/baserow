@@ -22,6 +22,7 @@ from baserow.contrib.database.export.operations import ExportTableOperationType
 from baserow.contrib.database.export.tasks import run_export_job
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.exceptions import ViewNotInTable
+from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.handler import CoreHandler
@@ -37,14 +38,35 @@ from .exceptions import (
 )
 from .file_writer import PaginatedExportJobFileWriter
 from .registries import TableExporter, table_exporter_registry
+from .utils import view_is_publicly_exportable
 
 User = get_user_model()
 
 
 class ExportHandler:
     @staticmethod
+    def _raise_if_no_export_permissions(
+        user: Optional[User], table: Table, view: Optional[View]
+    ):
+        if view_is_publicly_exportable(user, view):
+            # No need to do the permission check if no user is provided, the view is
+            # public, and allowed to export from publicly shared view because this
+            # can be initiated by an anonymous user.
+            pass
+        else:
+            CoreHandler().check_permissions(
+                user,
+                ExportTableOperationType.type,
+                workspace=table.database.workspace,
+                context=table,
+            )
+
+    @staticmethod
     def create_and_start_new_job(
-        user: User, table: Table, view: Optional[View], export_options: Dict[str, Any]
+        user: Optional[User],
+        table: Table,
+        view: Optional[View],
+        export_options: Dict[str, Any],
     ) -> ExportJob:
         """
         For the provided user, table, optional view and options will create a new
@@ -69,7 +91,10 @@ class ExportHandler:
 
     @staticmethod
     def create_pending_export_job(
-        user: User, table: Table, view: Optional[View], export_options: Dict[str, Any]
+        user: Optional[User],
+        table: Table,
+        view: Optional[View],
+        export_options: Dict[str, Any],
     ):
         """
         Creates a new pending export job configured with the providing options but does
@@ -92,12 +117,7 @@ class ExportHandler:
         exporter = table_exporter_registry.get(exporter_type)
         exporter.before_job_create(user, table, view, export_options)
 
-        CoreHandler().check_permissions(
-            user,
-            ExportTableOperationType.type,
-            workspace=table.database.workspace,
-            context=table,
-        )
+        ExportHandler._raise_if_no_export_permissions(user, table, view)
 
         if view and view.table.id != table.id:
             raise ViewNotInTable()
@@ -105,6 +125,7 @@ class ExportHandler:
         _cancel_unfinished_jobs(user)
 
         _raise_if_invalid_view_or_table_for_exporter(exporter_type, view)
+        _raise_if_invalid_order_by_or_filters(table, view, export_options)
 
         job = ExportJob.objects.create(
             user=user,
@@ -132,12 +153,8 @@ class ExportHandler:
 
         # Ensure the user still has permissions when the export job runs.
         table = job.table
-        CoreHandler().check_permissions(
-            job.user,
-            ExportTableOperationType.type,
-            workspace=table.database.workspace,
-            context=table,
-        )
+        view = job.view
+        ExportHandler._raise_if_no_export_permissions(job.user, table, view)
         try:
             return _mark_job_as_finished(_open_file_and_run_export(job))
         except ExportJobCanceledException:
@@ -206,6 +223,51 @@ def _raise_if_invalid_view_or_table_for_exporter(
             raise ViewUnsupportedForExporterType()
 
 
+def _raise_if_invalid_order_by_or_filters(
+    table: Table, view: Optional[View], export_options: dict
+):
+    """
+    Validates that the filters and order_by specified in export_options only reference
+    fields that exist in the table and are visible in the view (if provided).
+
+    This method attempts to apply the filters and ordering to a queryset to catch any
+    invalid field references before starting the actual export job. It raises an
+    exception if any validation fails.
+
+    :param table: The table where to check the IDs in.
+    :param view: Optionally provide a view to check the visible fields off.
+    :param export_options: The export options where to extract the filters and order_by
+        from.
+    """
+
+    model = table.get_model()
+    queryset = model.objects.all()
+
+    only_by_field_ids = None
+    if view:
+        view_type = view_type_registry.get_by_model(view.specific_class)
+        visible_field_objects_in_view, model = view_type.get_visible_fields_and_model(
+            view
+        )
+        only_by_field_ids = [f["field"].id for f in visible_field_objects_in_view]
+
+    # Validate the filter object before the job start, so that the validation error
+    # can be shown to the user.
+    filters_dict = export_options.get("filters", None)
+    if filters_dict is not None:
+        filters = AdHocFilters.from_dict(filters_dict)
+        filters.only_filter_by_field_ids = only_by_field_ids
+        filters.apply_to_queryset(model, queryset)
+
+    # Validate the sort object before the job start, so that the validation error
+    # can be shown to the user.
+    order_by = export_options.get("order_by", None)
+    if order_by is not None:
+        queryset.order_by_fields_string(
+            order_by, only_order_by_field_ids=only_by_field_ids
+        )
+
+
 def _cancel_unfinished_jobs(user):
     """
     Will cancel any in progress jobs by setting their state to cancelled. Any
@@ -216,8 +278,11 @@ def _cancel_unfinished_jobs(user):
     :return The number of jobs cancelled.
     """
 
-    jobs = ExportJob.unfinished_jobs(user=user)
-    return jobs.update(state=EXPORT_JOB_CANCELLED_STATUS)
+    if user is None:
+        return 0
+    else:
+        jobs = ExportJob.unfinished_jobs(user=user)
+        return jobs.update(state=EXPORT_JOB_CANCELLED_STATUS)
 
 
 def _mark_job_as_finished(export_job: ExportJob) -> ExportJob:
@@ -287,12 +352,30 @@ def _open_file_and_run_export(job: ExportJob) -> ExportJob:
     # TODO: refactor to use the jobs systems
     _register_action(job)
 
+    filters = job.export_options.pop("filters", None)
+    order_by = job.export_options.pop("order_by", None)
+    visible_fields_in_order = job.export_options.pop("fields", None)
+    only_by_field_ids = None
+
     with _create_storage_dir_if_missing_and_open(storage_location) as file:
         queryset_serializer_class = exporter.queryset_serializer_class
         if job.view is None:
             serializer = queryset_serializer_class.for_table(job.table)
         else:
-            serializer = queryset_serializer_class.for_view(job.view)
+            serializer, visible_fields_in_view = queryset_serializer_class.for_view(
+                job.view, visible_fields_in_order
+            )
+            only_by_field_ids = [f["field"].id for f in visible_fields_in_view]
+
+        if filters is not None:
+            serializer.add_ad_hoc_filters_dict_to_queryset(
+                filters, only_by_field_ids=only_by_field_ids
+            )
+
+        if order_by is not None:
+            serializer.add_add_hoc_order_by_to_queryset(
+                order_by, only_by_field_ids=only_by_field_ids
+            )
 
         serializer.write_to_file(
             PaginatedExportJobFileWriter(file, job), **job.export_options

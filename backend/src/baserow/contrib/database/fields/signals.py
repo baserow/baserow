@@ -8,6 +8,7 @@ field_restored = Signal()
 field_updated = Signal()
 field_deleted = Signal()
 before_field_deleted = Signal()
+fields_type_changed = Signal()
 
 
 @receiver(post_delete, sender=Field)

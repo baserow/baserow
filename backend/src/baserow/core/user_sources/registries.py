@@ -6,6 +6,9 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Type,
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.core.app_auth_providers.handler import AppAuthProviderHandler
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
 from baserow.core.integrations.handler import IntegrationHandler
@@ -93,12 +96,21 @@ class UserSourceType(
         """
 
         if "auth_providers" in values:
+            errors = []
             for ap in values["auth_providers"]:
                 ap_type = app_auth_provider_type_registry.get(ap["type"])
                 ap_type.check_user_source_compatibility(user_source)
-                AppAuthProviderHandler.create_app_auth_provider(
-                    user, ap_type, user_source, **ap
-                )
+
+                try:
+                    AppAuthProviderHandler.create_app_auth_provider(
+                        user, ap_type, user_source, **ap
+                    )
+                    errors.append({})
+                except DRFValidationError as e:
+                    errors.append(e.detail)
+                    raise RequestBodyValidationException(
+                        {"auth_providers": errors},
+                    ) from e
 
     def after_update(
         self,
@@ -354,7 +366,10 @@ class UserSourceType(
 
     @abstractmethod
     def get_user_count(
-        self, user_source, force_recount: bool = False
+        self,
+        user_source: UserSource,
+        force_recount: bool = False,
+        update_if_uncached: bool = True,
     ) -> UserSourceCount:
         """
         Responsible for retrieving a user source's count.
@@ -362,6 +377,9 @@ class UserSourceType(
         :param user_source: The user source we want a count from.
         :param force_recount: If True, we will re-count the users and ignore any
             existing cached count.
+        :param update_if_uncached: If True, we will count the users and cache the
+            result if the cache entry is missing. Set this to False if you need to
+            know if the cache entry is missing.
         :return: A `UserSourceCount` instance or `None`.
         """
 

@@ -103,11 +103,14 @@ export class ElementType extends Registerable {
       'style_border_bottom',
       'style_border_left',
       'style_border_right',
+      'style_border_radius',
+      'style_background_radius',
       'style_background',
       'style_background_color',
       'style_background_file',
       'style_background_mode',
       'style_width',
+      'style_width_child',
     ]
   }
 
@@ -210,11 +213,36 @@ export class ElementType extends Registerable {
   }
 
   /**
+   * If this element supports events, then this function will iterate over
+   * them and ensure that they are configured properly. If they are in error,
+   * this will propagate into an 'element in error' state.
+   */
+  workflowActionsInError({ page, element, builder }) {
+    const workflowActions = this.app.store.getters[
+      'workflowAction/getElementWorkflowActions'
+    ](page, element.id)
+    return workflowActions.some((workflowAction) => {
+      const workflowActionType = this.app.$registry.get(
+        'workflowAction',
+        workflowAction.type
+      )
+      return workflowActionType.isInError(workflowAction, {
+        page,
+        element,
+        builder,
+      })
+    })
+  }
+
+  /**
    * Returns whether the element configuration is valid or not.
    * @param {object} param An object containing the page, element, and builder
    * @returns true if the element is in error
    */
   isInError({ page, element, builder }) {
+    if (this.getEvents(element).length > 0) {
+      return this.workflowActionsInError({ page, element, builder })
+    }
     return false
   }
 
@@ -723,10 +751,6 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     })
   }
 
-  get childStylesForbidden() {
-    return ['style_width']
-  }
-
   getEvents(element) {
     return [new SubmitEvent({ ...this.app })]
   }
@@ -735,7 +759,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
    * A form container is invalid if it has no workflow actions, or it has no
    * children.
    */
-  isInError({ page, element }) {
+  isInError({ page, element, builder }) {
     const workflowActions = this.app.store.getters[
       'workflowAction/getElementWorkflowActions'
     ](page, element.id)
@@ -744,7 +768,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
       return true
     }
 
-    return super.isInError({ page, element })
+    return super.isInError({ page, element, builder })
   }
 }
 
@@ -810,7 +834,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
   }
 
   get childStylesForbidden() {
-    return ['style_width']
+    return ['style_width', 'style_width_child']
   }
 
   get defaultPlaceInContainer() {
@@ -1088,8 +1112,11 @@ export class HeadingElementType extends ElementType {
    * A value is mandatory for the Heading element. Return true if the value
    * is empty to indicate an error, otherwise return false.
    */
-  isInError({ element }) {
-    return element.value.length === 0
+  isInError({ page, element, builder }) {
+    if (element.value.length === 0) {
+      return true
+    }
+    return super.isInError({ page, element, builder })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1132,8 +1159,11 @@ export class TextElementType extends ElementType {
    * A value is mandatory for the Text element. Return true if the value
    * is empty to indicate an error, otherwise return false.
    */
-  isInError({ element }) {
-    return element.value.length === 0
+  isInError({ page, element, builder }) {
+    if (element.value.length === 0) {
+      return true
+    }
+    return super.isInError({ page, element, builder })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1182,7 +1212,7 @@ export class LinkElementType extends ElementType {
    * When the Navigate To is a Custom URL, a Destination URL value must be
    * provided.
    */
-  isInError({ element, builder }) {
+  isInError({ page, element, builder }) {
     // A Link without any text isn't usable
     if (!element.value) {
       return true
@@ -1199,7 +1229,7 @@ export class LinkElementType extends ElementType {
     } else if (element.navigation_type === 'custom') {
       return Boolean(!element.navigate_to_url)
     }
-    return true
+    return super.isInError({ page, element, builder })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1267,12 +1297,19 @@ export class ImageElementType extends ElementType {
    * to indicate an error when an image source doesn't exist, otherwise
    * return false.
    */
-  isInError({ element }) {
-    if (element.image_source_type === IMAGE_SOURCE_TYPES.UPLOAD) {
-      return Boolean(!element.image_file?.url)
-    } else {
-      return Boolean(!element.image_url)
+  isInError({ page, element, builder }) {
+    if (
+      element.image_source_type === IMAGE_SOURCE_TYPES.UPLOAD &&
+      !element.image_file?.url
+    ) {
+      return true
+    } else if (
+      element.image_source_type === IMAGE_SOURCE_TYPES.URL &&
+      !element.image_url
+    ) {
+      return true
     }
+    return super.isInError({ page, element, builder })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1319,7 +1356,7 @@ export class ButtonElementType extends ElementType {
    * A Button element must have a Workflow Action to be considered valid. Return
    * true if there are no Workflow Actions, otherwise return false.
    */
-  isInError({ page, element }) {
+  isInError({ page, element, builder }) {
     // If Button without any label should be considered invalid
     if (!element.value) {
       return true
@@ -1329,7 +1366,10 @@ export class ButtonElementType extends ElementType {
       'workflowAction/getElementWorkflowActions'
     ](page, element.id)
 
-    return !workflowActions.length
+    if (!workflowActions.length) {
+      return true
+    }
+    return super.isInError({ page, element, builder })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1455,16 +1495,17 @@ export class ChoiceElementType extends FormElementType {
     return !(element.required && !validOption)
   }
 
-  isInError({ element }) {
-    switch (element.option_type) {
-      case CHOICE_OPTION_TYPES.MANUAL:
-        return element.options.length === 0
-      case CHOICE_OPTION_TYPES.FORMULAS: {
-        return element.formula_value === ''
-      }
-      default:
+  isInError({ page, element, builder }) {
+    if (element.option_type === CHOICE_OPTION_TYPES.MANUAL) {
+      if (element.options.length === 0) {
         return true
+      }
+    } else if (element.option_type === CHOICE_OPTION_TYPES.FORMULAS) {
+      if (element.formula_value === '') {
+        return true
+      }
     }
+    return super.isInError({ page, element, builder })
   }
 
   getDataSchema(element) {
@@ -1557,7 +1598,7 @@ export class IFrameElementType extends ElementType {
    * source_type. If the value doesn't exist, return true to indicate an error,
    * otherwise return false.
    */
-  isInError({ element }) {
+  isInError({ page, element, builder }) {
     if (element.source_type === IFRAME_SOURCE_TYPES.URL && !element.url) {
       return true
     } else if (
@@ -1565,9 +1606,8 @@ export class IFrameElementType extends ElementType {
       !element.embed
     ) {
       return true
-    } else {
-      return false
     }
+    return super.isInError({ page, element, builder })
   }
 
   getDisplayName(element, applicationContext) {
@@ -1668,8 +1708,11 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
    * @param {Object} element the element to check the error
    * @returns
    */
-  isInError({ element }) {
-    return !element.data_source_id
+  isInError({ page, element, builder }) {
+    if (!element.data_source_id) {
+      return true
+    }
+    return super.isInError({ page, element, builder })
   }
 
   getDataSchema(element) {

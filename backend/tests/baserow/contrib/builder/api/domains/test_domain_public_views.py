@@ -147,6 +147,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
                 "name": "__shared__",
                 "path": "__shared__",
                 "path_params": [],
+                "query_params": [],
                 "shared": True,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -157,6 +158,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
                 "name": page.name,
                 "path": page.path,
                 "path_params": [],
+                "query_params": [],
                 "shared": False,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -167,6 +169,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
                 "name": page2.name,
                 "path": page2.path,
                 "path_params": [],
+                "query_params": [],
                 "shared": False,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -276,6 +279,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
                 "name": "__shared__",
                 "path": "__shared__",
                 "path_params": [],
+                "query_params": [],
                 "shared": True,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -286,6 +290,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
                 "name": page.name,
                 "path": page.path,
                 "path_params": [],
+                "query_params": [],
                 "shared": False,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -296,6 +301,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
                 "name": page2.name,
                 "path": page2.path,
                 "path_params": [],
+                "query_params": [],
                 "shared": False,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -411,11 +417,14 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
         "style_border_right_size": 0,
         "style_padding_right": 20,
         "style_margin_right": 0,
+        "style_background_radius": 0,
+        "style_border_radius": 0,
         "style_background": "none",
         "style_background_color": "#ffffffff",
         "style_background_file": None,
         "style_background_mode": "fill",
         "style_width": "normal",
+        "style_width_child": "normal",
         "role_type": "allow_all",
         "roles": [],
         "value": "",
@@ -612,7 +621,7 @@ def test_public_dispatch_data_source_view(
         ANY,
         mock_data_source.page,
         element=None,
-        only_expose_public_formula_fields=True,
+        only_expose_public_allowed_properties=True,
     )
     mock_dispatch_data_source.assert_called_once_with(
         ANY, mock_data_source, mock_dispatch_context
@@ -656,7 +665,7 @@ def test_public_dispatch_data_sources_view(
     assert response.json() == mock_service_contents
     mock_get_page.assert_called_once_with(mock_page_id)
     mock_builder_dispatch_context.assert_called_once_with(
-        ANY, mock_page, only_expose_public_formula_fields=True
+        ANY, mock_page, only_expose_public_allowed_properties=True
     )
     mock_dispatch_page_data_sources.assert_called_once_with(
         ANY, mock_page, mock_dispatch_context
@@ -738,7 +747,7 @@ def test_public_dispatch_data_sources_view_returns_error(
     }
     mock_get_page.assert_called_once_with(mock_page_id)
     mock_builder_dispatch_context.assert_called_once_with(
-        ANY, mock_page, only_expose_public_formula_fields=True
+        ANY, mock_page, only_expose_public_allowed_properties=True
     )
     mock_dispatch_page_data_sources.assert_called_once_with(
         ANY, mock_page, mock_dispatch_context
@@ -1896,7 +1905,10 @@ def test_list_elements_with_page_visibility_all(
                 "style_padding_left": 20,
                 "style_padding_right": 20,
                 "style_padding_top": 10,
+                "style_background_radius": 0,
+                "style_border_radius": 0,
                 "style_width": "normal",
+                "style_width_child": "normal",
                 "styles": {},
                 "type": "heading",
                 "value": f"get('data_source.{data_source.id}.field_{field_id}')",
@@ -2067,7 +2079,10 @@ def test_list_elements_with_page_visibility_logged_in(
                 "style_padding_left": 20,
                 "style_padding_right": 20,
                 "style_padding_top": 10,
+                "style_background_radius": 0,
+                "style_border_radius": 0,
                 "style_width": "normal",
+                "style_width_child": "normal",
                 "styles": {},
                 "type": "heading",
                 "value": f"get('data_source.{data_source.id}.field_{field_id}')",
@@ -2076,3 +2091,185 @@ def test_list_elements_with_page_visibility_logged_in(
         ]
     else:
         assert response.json() == []
+
+
+@pytest.mark.django_db
+def test_get_data_source_context_fields_are_excluded(api_client, data_fixture):
+    """
+    Test the PublicDataSourcesView. Ensure that data source context fields are
+    filtered out from the response.
+    """
+
+    user = data_fixture.create_user()
+    builder_from = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(user=user, workspace=None)
+    page = data_fixture.create_builder_page(builder=builder_to, user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder_to, authorized_user=user, name="test"
+    )
+    database = data_fixture.create_database_application(workspace=builder_to.workspace)
+    table = data_fixture.create_database_table(database=database)
+    multiple_select_field = data_fixture.create_multiple_select_field(
+        table=table, name="option_field", order=1, primary=True
+    )
+    option_1 = data_fixture.create_select_option(
+        field=multiple_select_field, value="doom-red", color="red", order=0
+    )
+    option_2 = data_fixture.create_select_option(
+        field=multiple_select_field, value="quake-green", color="green", order=1
+    )
+    option_3 = data_fixture.create_select_option(
+        field=multiple_select_field, value="warcraft-blue", color="blue", order=1
+    )
+    options = [option_1, option_2, option_3]
+
+    data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, user=user, integration=integration, table=table, row_id="1"
+    )
+    data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, user=user, integration=integration, table=table
+    )
+
+    data_fixture.create_builder_custom_domain(
+        domain_name="test.getbaserow.io",
+        published_to=page.builder,
+        builder=builder_from,
+    )
+
+    url = reverse(
+        "api:builder:domains:list_data_sources",
+        kwargs={"page_id": page.id},
+    )
+    response = api_client.get(
+        url,
+        format="json",
+    )
+
+    response_json = response.json()
+
+    assert response.status_code == HTTP_200_OK
+
+    # Test the Get Row data source
+    field_name = f"field_{multiple_select_field.id}"
+    assert response_json[0]["context_data"] == {}
+    assert field_name not in response_json[0]["schema"]["properties"]
+    assert field_name not in response_json[0]["schema"]["properties"]
+
+    # Test the List Rows data source
+    assert response_json[1]["context_data"] == {}
+    assert field_name not in response_json[1]["schema"]["items"]["properties"]
+
+
+@pytest.mark.django_db
+def test_get_data_source_context_fields_are_included(api_client, data_fixture):
+    """
+    Test the PublicDataSourcesView. Ensure that data source context fields are
+    included if they are used by an element.
+    """
+
+    user = data_fixture.create_user()
+    builder_from = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(user=user, workspace=None)
+    page = data_fixture.create_builder_page(builder=builder_to, user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder_to, authorized_user=user, name="test"
+    )
+    database = data_fixture.create_database_application(workspace=builder_to.workspace)
+    table = data_fixture.create_database_table(database=database)
+    multiple_select_field = data_fixture.create_multiple_select_field(
+        table=table, name="option_field", order=1, primary=True
+    )
+    option_1 = data_fixture.create_select_option(
+        field=multiple_select_field, value="doom-red", color="red", order=0
+    )
+    option_2 = data_fixture.create_select_option(
+        field=multiple_select_field, value="quake-green", color="green", order=1
+    )
+    option_3 = data_fixture.create_select_option(
+        field=multiple_select_field, value="warcraft-blue", color="blue", order=1
+    )
+    options = [option_1, option_2, option_3]
+
+    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, user=user, integration=integration, table=table, row_id="1"
+    )
+    data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, user=user, integration=integration, table=table
+    )
+
+    # Create an element that uses the field
+    data_fixture.create_builder_heading_element(
+        page=page,
+        value=f"get('data_source.{data_source_1.id}.field_{multiple_select_field.id}')",
+    )
+
+    data_fixture.create_builder_custom_domain(
+        domain_name="test.getbaserow.io",
+        published_to=page.builder,
+        builder=builder_from,
+    )
+
+    url = reverse(
+        "api:builder:domains:list_data_sources",
+        kwargs={"page_id": page.id},
+    )
+    response = api_client.get(
+        url,
+        format="json",
+    )
+
+    response_json = response.json()
+
+    assert response.status_code == HTTP_200_OK
+
+    expected_context_data = [
+        {
+            "color": option.color,
+            "id": option.id,
+            "value": option.value,
+        }
+        for option in options
+    ]
+    expected_properties = {
+        "color": {
+            "title": "color",
+            "type": "string",
+        },
+        "id": {
+            "title": "id",
+            "type": "number",
+        },
+        "value": {
+            "title": "value",
+            "type": "string",
+        },
+    }
+
+    # Test the Get Row data source
+    field_name = f"field_{multiple_select_field.id}"
+    assert response_json[0]["context_data"] == {field_name: expected_context_data}
+    assert (
+        response_json[0]["schema"]["properties"][field_name]["items"]["properties"]
+        == expected_properties
+    )
+    assert (
+        response_json[0]["schema"]["properties"][field_name]["metadata"][
+            "select_options"
+        ]
+        == expected_context_data
+    )
+
+    # Test the List Rows data source
+    assert response_json[1]["context_data"] == {field_name: expected_context_data}
+    assert (
+        response_json[1]["schema"]["items"]["properties"][field_name]["items"][
+            "properties"
+        ]
+        == expected_properties
+    )
+    assert (
+        response_json[1]["schema"]["items"]["properties"][field_name]["metadata"][
+            "select_options"
+        ]
+        == expected_context_data
+    )

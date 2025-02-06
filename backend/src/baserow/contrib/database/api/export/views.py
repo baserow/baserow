@@ -22,9 +22,16 @@ from baserow.contrib.database.api.export.serializers import (
     BaseExporterOptionsSerializer,
     ExportJobSerializer,
 )
+from baserow.contrib.database.api.fields.errors import (
+    ERROR_FILTER_FIELD_NOT_FOUND,
+    ERROR_ORDER_BY_FIELD_NOT_FOUND,
+    ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
+)
 from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
 from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_DOES_NOT_EXIST,
+    ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+    ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
     ERROR_VIEW_NOT_IN_TABLE,
 )
 from baserow.contrib.database.export.exceptions import (
@@ -34,9 +41,19 @@ from baserow.contrib.database.export.exceptions import (
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.contrib.database.export.models import ExportJob
 from baserow.contrib.database.export.registries import table_exporter_registry
+from baserow.contrib.database.fields.exceptions import (
+    FilterFieldNotFound,
+    OrderByFieldNotFound,
+    OrderByFieldNotPossible,
+)
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
-from baserow.contrib.database.views.exceptions import ViewDoesNotExist, ViewNotInTable
+from baserow.contrib.database.views.exceptions import (
+    ViewDoesNotExist,
+    ViewFilterTypeDoesNotExist,
+    ViewFilterTypeNotAllowedForField,
+    ViewNotInTable,
+)
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.exceptions import UserNotInWorkspace
 
@@ -95,6 +112,11 @@ class ExportTableView(APIView):
                     "ERROR_TABLE_ONLY_EXPORT_UNSUPPORTED",
                     "ERROR_VIEW_UNSUPPORTED_FOR_EXPORT_TYPE",
                     "ERROR_VIEW_NOT_IN_TABLE",
+                    "ERROR_FILTER_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
+                    "ERROR_ORDER_BY_FIELD_NOT_FOUND",
+                    "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE",
                 ]
             ),
             404: get_error_schema(
@@ -110,6 +132,11 @@ class ExportTableView(APIView):
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             TableOnlyExportUnsupported: ERROR_TABLE_ONLY_EXPORT_UNSUPPORTED,
             ViewNotInTable: ERROR_VIEW_NOT_IN_TABLE,
+            FilterFieldNotFound: ERROR_FILTER_FIELD_NOT_FOUND,
+            ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+            ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
+            OrderByFieldNotFound: ERROR_ORDER_BY_FIELD_NOT_FOUND,
+            OrderByFieldNotPossible: ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
         }
     )
     def post(self, request, table_id):

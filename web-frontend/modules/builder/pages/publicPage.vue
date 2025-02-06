@@ -61,6 +61,7 @@ export default {
     req,
     redirect,
     route,
+    query,
   }) {
     let mode = 'public'
     const builderId = params.builderId ? parseInt(params.builderId, 10) : null
@@ -146,6 +147,7 @@ export default {
           page: sharedPage,
         }),
         store.dispatch('element/fetchPublished', {
+          builder,
           page: sharedPage,
         }),
         store.dispatch('workflowAction/fetchPublished', {
@@ -190,7 +192,7 @@ export default {
       })
     }
 
-    const [pageFound, path, pageParamsValue] = found
+    const [pageFound, path, pageParams] = found
     // Handle 404
     if (pageFound.shared) {
       return error({
@@ -199,6 +201,18 @@ export default {
       })
     }
 
+    // Merge the query string values with the page parameters
+    const pageParamsValue = Object.assign({}, query, pageParams)
+    pageFound.query_params.forEach((queryParam) => {
+      if (queryParam.name in pageParamsValue) {
+        return
+      }
+      if (queryParam.type === 'text') {
+        pageParamsValue[queryParam.name] = ''
+      } else {
+        pageParamsValue[queryParam.name] = null
+      }
+    })
     const page = await store.getters['page/getById'](builder, pageFound.id)
 
     try {
@@ -206,7 +220,7 @@ export default {
         store.dispatch('dataSource/fetchPublished', {
           page,
         }),
-        store.dispatch('element/fetchPublished', { page }),
+        store.dispatch('element/fetchPublished', { builder, page }),
         store.dispatch('workflowAction/fetchPublished', { page }),
       ])
     } catch (error) {
@@ -367,9 +381,11 @@ export default {
       // When the user login or logout, we need to refetch the elements and actions
       // as they might have changed
       await this.$store.dispatch('element/fetchPublished', {
+        builder: this.builder,
         page: this.sharedPage,
       })
       await this.$store.dispatch('element/fetchPublished', {
+        builder: this.builder,
         page: this.currentPage,
       })
       await this.$store.dispatch('workflowAction/fetchPublished', {
@@ -389,8 +405,8 @@ export default {
     },
   },
   async mounted() {
-    await this.maybeRedirectUserToLoginPage()
     await this.checkProviderAuthentication()
+    await this.maybeRedirectUserToLoginPage()
   },
   methods: {
     /**
@@ -412,6 +428,10 @@ export default {
 
         const currentPath = this.$route.fullPath
         if (url !== currentPath) {
+          this.$store.dispatch('toast/info', {
+            title: this.$t('publicPage.authorizedToastTitle'),
+            message: this.$t('publicPage.authorizedToastMessage'),
+          })
           const nextPath = encodeURIComponent(currentPath)
           this.$router.push({ path: url, query: { next: nextPath } })
         }
@@ -449,6 +469,10 @@ export default {
           await this.$store.dispatch('userSourceUser/refreshAuth', {
             application: this.builder,
             token: refreshTokenFromProvider,
+          })
+          this.$store.dispatch('toast/info', {
+            title: this.$t('publicPage.loginToastTitle'),
+            message: this.$t('publicPage.loginToastMessage'),
           })
         } catch (error) {
           if (error.response?.status === 401) {

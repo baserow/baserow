@@ -415,7 +415,7 @@ def test_dispatch_data_source(data_fixture):
     )
 
     dispatch_context = BuilderDispatchContext(
-        HttpRequest(), page, only_expose_public_formula_fields=False
+        HttpRequest(), page, only_expose_public_allowed_properties=False
     )
     result = DataSourceService().dispatch_data_source(
         user, data_source, dispatch_context
@@ -477,7 +477,7 @@ def test_dispatch_page_data_sources(data_fixture):
     )
 
     dispatch_context = BuilderDispatchContext(
-        HttpRequest(), page, only_expose_public_formula_fields=False
+        HttpRequest(), page, only_expose_public_allowed_properties=False
     )
     result = DataSourceService().dispatch_page_data_sources(
         user, page, dispatch_context
@@ -529,7 +529,7 @@ def test_dispatch_data_source_permission_denied(data_fixture, stub_check_permiss
     )
 
     dispatch_context = BuilderDispatchContext(
-        HttpRequest(), page, only_expose_public_formula_fields=False
+        HttpRequest(), page, only_expose_public_allowed_properties=False
     )
 
     with stub_check_permissions(raise_permission_denied=True), pytest.raises(
@@ -559,7 +559,7 @@ def test_dispatch_data_source_improperly_configured(data_fixture):
     )
 
     dispatch_context = BuilderDispatchContext(
-        HttpRequest(), page, only_expose_public_formula_fields=False
+        HttpRequest(), page, only_expose_public_allowed_properties=False
     )
 
     with pytest.raises(DataSourceImproperlyConfigured):
@@ -701,19 +701,19 @@ def test_dispatch_data_sources_excludes_unused_get_row_data_sources(
     # alternative is to create an Element with a formula for each data
     # source we want to test.
     field_names = [f"field_{field.id}" for field in fields]
-    external_public_formula_fields = {
+    external_public_allowed_properties = {
         data_source.service.id: field_names for data_source in data_sources
     }
 
     with patch(
-        "baserow.contrib.builder.data_sources.service.BuilderDispatchContext.public_formula_fields",
+        "baserow.contrib.builder.data_sources.builder_dispatch_context.BuilderDispatchContext.public_allowed_properties",
         new_callable=PropertyMock,
-    ) as mock_public_formula_fields:
-        mock_public_formula_fields.return_value = {
-            "external": external_public_formula_fields
+    ) as mock_public_allowed_properties:
+        mock_public_allowed_properties.return_value = {
+            "external": external_public_allowed_properties
         }
         dispatch_context = BuilderDispatchContext(
-            HttpRequest(), page, only_expose_public_formula_fields=True
+            HttpRequest(), page, only_expose_public_allowed_properties=True
         )
         result = DataSourceService().dispatch_data_sources(
             user, data_sources, dispatch_context
@@ -723,11 +723,12 @@ def test_dispatch_data_sources_excludes_unused_get_row_data_sources(
     # in the page.
     assert len(result.keys()) == len(data_sources)
 
-    for index, data_source in enumerate(data_sources):
+    # Ensure field_names are not in the returned result for security reasons.
+    for data_source in data_sources:
         row = result[data_source.id]
         for field in fields:
             field_name = f"field_{field.id}"
-            assert row[field_name] == getattr(rows[index], field_name)
+            assert field_name not in row
 
 
 @pytest.mark.django_db
@@ -791,19 +792,19 @@ def test_dispatch_data_sources_excludes_unused_list_rows_data_sources(
     # alternative is to create an Element with a formula for each data
     # source we want to test.
     field_names = [f"field_{field.id}" for field in fields]
-    external_public_formula_fields = {
+    external_public_allowed_properties = {
         data_source.service.id: field_names for data_source in data_sources
     }
 
     with patch(
-        "baserow.contrib.builder.data_sources.service.BuilderDispatchContext.public_formula_fields",
+        "baserow.contrib.builder.data_sources.service.BuilderDispatchContext.public_allowed_properties",
         new_callable=PropertyMock,
-    ) as mock_public_formula_fields:
-        mock_public_formula_fields.return_value = {
-            "external": external_public_formula_fields
+    ) as mock_public_allowed_properties:
+        mock_public_allowed_properties.return_value = {
+            "external": external_public_allowed_properties
         }
         dispatch_context = BuilderDispatchContext(
-            HttpRequest(), page, only_expose_public_formula_fields=True
+            HttpRequest(), page, only_expose_public_allowed_properties=True
         )
         result = DataSourceService().dispatch_data_sources(
             user, data_sources, dispatch_context
@@ -812,13 +813,6 @@ def test_dispatch_data_sources_excludes_unused_list_rows_data_sources(
     # Ensure that the results size equals the number of data sources used
     # in the page.
     assert len(result.keys()) == len(data_sources)
-
-    for index, data_source in enumerate(data_sources):
-        assert result[data_source.id]["has_next_page"] is False
-        row = result[data_source.id]["results"][0]
-        for field in fields:
-            field_name = f"field_{field.id}"
-            assert row[field_name] == getattr(rows[index], field_name)
 
 
 @pytest.mark.django_db
@@ -845,12 +839,12 @@ def test_dispatch_data_sources_skips_exceptions_in_results(data_fixture):
     expected_error = ValueError("Foo Error")
 
     with patch(
-        "baserow.contrib.builder.data_sources.service.BuilderDispatchContext.public_formula_fields",
+        "baserow.contrib.builder.data_sources.service.BuilderDispatchContext.public_allowed_properties",
         new_callable=PropertyMock,
-    ) as mock_public_formula_fields:
+    ) as mock_public_allowed_properties:
         # Any non None return value is sufficient, so that the test can reach
         # the for-loop of data_sources.
-        mock_public_formula_fields.return_value = {
+        mock_public_allowed_properties.return_value = {
             "external": {
                 200: ["field_1"],
                 201: ["field_2"],
@@ -873,7 +867,7 @@ def test_dispatch_data_sources_skips_exceptions_in_results(data_fixture):
         service.handler.dispatch_data_sources = MagicMock(return_value=results)
 
         dispatch_context = BuilderDispatchContext(
-            HttpRequest(), page, only_expose_public_formula_fields=True
+            HttpRequest(), page, only_expose_public_allowed_properties=True
         )
         result = service.dispatch_data_sources(user, data_sources, dispatch_context)
 

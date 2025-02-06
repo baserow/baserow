@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-17 08:48+0000\n"
+"POT-Creation-Date: 2025-01-15 13:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,14 +18,55 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow/api/authentication.py:25
+#: src/baserow/api/authentication.py:26
 msgid "Token contained no recognizable user identification"
 msgstr ""
 
-#: src/baserow/api/authentication.py:33
+#: src/baserow/api/authentication.py:34
 msgid "User not found"
 msgstr ""
 
-#: src/baserow/contrib/dashboard/data_sources/service.py:140
+#: src/baserow/contrib/dashboard/actions.py:3
+#, python-format
+msgid "in dashboard \"%(dashboard_name)s\" (%(dashboard_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/dashboard/data_sources/actions.py:19
+msgid "Update dashboard data source"
+msgstr ""
+
+#: src/baserow/contrib/dashboard/data_sources/actions.py:20
+#, python-format
+msgid "Data source \"%(data_source_name)s\" (%(data_source_id)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/dashboard/data_sources/service.py:148
 msgid "Data source"
+msgstr ""
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:20
+msgid "Create widget"
+msgstr ""
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:21
+#, python-format
+msgid "Widget \"%(widget_title)s\" (%(widget_id)s) created"
+msgstr ""
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:83
+msgid "Update widget"
+msgstr ""
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:84
+#, python-format
+msgid "Widget \"%(widget_title)s\" (%(widget_id)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:154
+msgid "Delete widget"
+msgstr ""
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:155
+#, python-format
+msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
 msgstr ""

@@ -45,6 +45,11 @@ export default {
       required: false,
       default: true,
     },
+    indented: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
     return {

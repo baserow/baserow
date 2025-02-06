@@ -5,6 +5,8 @@ from rest_framework.fields import (
     BooleanField,
     CharField,
     ChoiceField,
+    DateField,
+    DateTimeField,
     DecimalField,
     EmailField,
     FloatField,
@@ -18,7 +20,14 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
-from baserow.core.formula.validator import ensure_array, ensure_boolean, ensure_string
+from baserow.core.formula.validator import (
+    ensure_array,
+    ensure_boolean,
+    ensure_date,
+    ensure_datetime,
+    ensure_integer,
+    ensure_string,
+)
 
 
 def test_guess_type_for_response_serialize_field_permutations():
@@ -27,6 +36,8 @@ def test_guess_type_for_response_serialize_field_permutations():
     TYPE_STRING = {"type": "string"}
     TYPE_NUMBER = {"type": "number"}
     TYPE_BOOLEAN = {"type": "boolean"}
+    TYPE_DATE = {"type": "string", "format": "date"}
+    TYPE_DATE_TIME = {"type": "string", "format": "date-time"}
     TYPE_ARRAY_CHILD_OBJECT = {
         "type": "array",
         "items": TYPE_OBJECT,
@@ -70,6 +81,11 @@ def test_guess_type_for_response_serialize_field_permutations():
     assert (
         guess_json_type_from_response_serializer_field(BooleanField()) == TYPE_BOOLEAN
     )
+    assert guess_json_type_from_response_serializer_field(DateField()) == TYPE_DATE
+    assert (
+        guess_json_type_from_response_serializer_field(DateTimeField())
+        == TYPE_DATE_TIME
+    )
     assert (
         guess_json_type_from_response_serializer_field(
             ListSerializer(child=Serializer())
@@ -92,8 +108,11 @@ def test_guess_type_for_response_serialize_field_permutations():
         (CharField(), ensure_string),
         (UUIDField(), ensure_string),
         (EmailField(), ensure_string),
+        (IntegerField(), ensure_integer),
         (DecimalField(decimal_places=2, max_digits=4), ensure_string),
         (BooleanField(), ensure_boolean),
+        (DateField(), ensure_date),
+        (DateTimeField(), ensure_datetime),
         (ListSerializer(child=Serializer()), ensure_array),
         ("unknown", None),
         (None, None),

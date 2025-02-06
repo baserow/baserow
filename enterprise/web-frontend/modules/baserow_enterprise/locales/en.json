@@ -98,7 +98,8 @@
     "password": "Email and password authentication",
     "saml": "SSO SAML provider",
     "ssoSamlProviderName": "SSO SAML: {domain}",
-    "ssoSamlProviderNameUnconfigured": "Unconfigured SSO SAML"
+    "ssoSamlProviderNameUnconfigured": "Unconfigured SSO SAML",
+    "ssoOIDCProviderNameUnconfigured": "Unconfigured OpenId connect"
   },
   "editAuthProviderMenuContext": {
     "edit": "Edit",
@@ -271,6 +272,7 @@
     "secretPlaceholder": "Provider's secret",
     "baseUrl": "URL",
     "baseUrlPlaceholder": "Provider's base URL",
+    "duplicateBaseUrl": "The entered URL already exists in another provider",
     "invalidBaseUrl": "The entered URL is not a valid provider URL",
     "callbackUrl": "Callback URL"
   },
@@ -315,20 +317,22 @@
   },
   "appAuthProviderType": {
     "localBaserowPassword": "Email/Password",
-    "commonSaml": "Saml SSO"
+    "commonSaml": "Saml SSO",
+    "openIdConnect": "OpenID Connect"
   },
   "localBaserowPasswordAppAuthProviderForm": {
     "passwordFieldLabel": "Select password field",
     "noFields": "No compatible fields"
   },
-  "commonSamlSettingModal": {
-    "title": "Edit provider",
-    "relayStateTitle": "Default Relay State URL per domain (Click to copy)",
-    "acsTitle": "Single Sign On URL per domain (Click to copy)",
-    "preview": "Preview"
-  },
   "commonSamlSettingForm": {
-    "authProviderInError": "Please edit this provider to fix the error."
+    "relayStateTitle": "Default Relay State URL (Click to copy)",
+    "acsTitle": "Single Sign On url (Click to copy)",
+    "addDomainNotice": "Available when one or more domains have been added"
+  },
+  "commonOidcSettingForm": {
+    "callbackTitle": "Callback URLs (Click to copy)",
+    "callbackHelperText": "Add these URLs to your Openid connect provider redirect URI settings.",
+    "preview": "Preview"
   },
   "enterpriseSettings": {
     "branding": "Branding",
@@ -370,7 +374,9 @@
     "authorizing": "You're authorizing your account to select the data from the source table.",
     "workspace": "Workspace",
     "database": "Database",
-    "table": "Table"
+    "table": "Table",
+    "view": "View",
+    "viewHelper": "Only visibile fields and rows matching the filters are synced."
   },
   "jiraIssuesDataSync": {
     "jiraUrl": "Jira instance URL",
@@ -403,9 +409,35 @@
     "accessTokenHelper": "To generate a private app access token in HubSpot, click on Settings in the top bar, navigate to Integrations > Private Apps, and create a new private app. Assign the following scopes: crm.objects.contacts.read, crm.schemas.contacts.read, and crm.objects.custom.read. Finally, click Create app to generate the token."
   },
   "samlAuthLink": {
-    "loginWithSaml": "Login with SAML",
     "placeholderWithSaml": "{login} with SAML",
     "provideEmail": "Provide your SAML account email",
     "emailPlaceholder": "Enter your email..."
+  },
+  "configureDataSyncModal": {
+    "periodicInterval": "Periodic settings"
+  },
+  "configureDataSyncPeriodicInterval": {
+    "title": "Periodic settings",
+    "saved": "Saved",
+    "deactivatedTitle": "Periodic data sync deactivated",
+    "deactivatedText": "The periodic data sync was deactivated because it failed to many consecutive times. Please try to sync manually, and if it works as expected, then click on the activate button.",
+    "activate": "Activate periodic sync",
+    "enterprise": "Periodic data sync is an advanced/enterprise feature.",
+    "more": "More information"
+  },
+  "dataSyncPeriodicIntervalForm": {
+    "intervalLabel": "Interval",
+    "intervalHelper": "How frequently should the the data sync automatically sync.",
+    "manual": "Manual",
+    "daily": "Daily",
+    "hourly": "Hourly",
+    "whenHelper": "Provide the exact hour, minute, and second when the data sync should sync.",
+    "whenHourlyHelper": "Provide the exact minute, and second when the data sync should sync.",
+    "hour": "Hour",
+    "minute": "Minute",
+    "second": "Second"
+  },
+  "oidcAuthLink": {
+    "placeholderWithOIDC": "{login} with {provider}"
   }
 }

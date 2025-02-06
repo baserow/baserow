@@ -13,7 +13,21 @@ export class pageSidePanelType extends Registerable {
     return null
   }
 
-  getDeactivatedText(element) {
+  /**
+   * The message which appears in the tooltip when the page side panel
+   * detects that the tab should be deactivated.
+   * @returns {string}
+   */
+  getDeactivatedText() {
+    return ''
+  }
+
+  /**
+   * The message which appears in the tooltip when the page side panel
+   * is misconfigured and in-error.
+   * @returns {string}
+   */
+  getInErrorText() {
     return ''
   }
 
@@ -23,6 +37,17 @@ export class pageSidePanelType extends Registerable {
 
   getOrder() {
     return this.order
+  }
+
+  /**
+   * Returns whether this side panel is in error, or not. Allows us to append
+   * an error icon after the panel title so that the page designer can be
+   * informed.
+   * @param applicationContext
+   * @returns {boolean}
+   */
+  isInError(applicationContext) {
+    return false
   }
 }
 
@@ -93,9 +118,24 @@ export class EventsPageSidePanelType extends pageSidePanelType {
     return EventsSidePanel
   }
 
-  getDeactivatedText(element) {
+  /**
+   * The message which appears in the tooltip when the events page side panel
+   * detects that the selected element doesn't support any events.
+   * @returns {string}
+   */
+  getDeactivatedText() {
     const { i18n } = this.app
     return i18n.t('pageSidePanelType.eventsTabDeactivatedNoEvents')
+  }
+
+  /**
+   * The message which appears in the tooltip when the events page side panel
+   * is misconfigured, as one or more workflow actions are in-error.
+   * @returns {string}
+   */
+  getInErrorText() {
+    const { i18n } = this.app
+    return i18n.t('pageSidePanelType.eventsTabInError')
   }
 
   isDeactivated(element) {
@@ -105,5 +145,33 @@ export class EventsPageSidePanelType extends pageSidePanelType {
 
   getOrder() {
     return 40
+  }
+
+  /**
+   * Returns whether this side panel is in error, or not. Allows us to append
+   * an error icon after the panel title so that the page designer can be
+   * informed.
+   * @returns {boolean}
+   */
+  isInError({ page, element, builder }) {
+    if (!element) {
+      // If we don't have an element, then this element type
+      // doesn't support events, so it can't be in-error.
+      return false
+    }
+    const workflowActions = this.app.store.getters[
+      'workflowAction/getElementWorkflowActions'
+    ](page, element.id)
+    return workflowActions.some((workflowAction) => {
+      const workflowActionType = this.app.$registry.get(
+        'workflowAction',
+        workflowAction.type
+      )
+      return workflowActionType.isInError(workflowAction, {
+        page,
+        element,
+        builder,
+      })
+    })
   }
 }
