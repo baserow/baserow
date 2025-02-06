@@ -507,6 +507,12 @@ class CollectionElementTypeMixin:
             else None
         )
 
+        service = data_source.service.specific
+        # We need the id for the element
+        id_property = service.get_type().get_id_property(service)
+        if id_property not in properties.setdefault(data_source.service_id, []):
+            properties[instance.data_source.service_id].append(id_property)
+
         if (schema_property := instance.schema_property) and data_source:
             properties[data_source.service_id] = [schema_property]
 

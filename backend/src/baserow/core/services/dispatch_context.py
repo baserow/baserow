@@ -22,6 +22,14 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         :params service: The service we want the pagination for.
         """
 
+    @abstractmethod
+    def only_record_id(self):
+        """
+        Should return the record id requested for the given service. Used by list
+        services to select only one record. For instance by the builder current record
+        data provider to narrow down the result of a list service.
+        """
+
     @classmethod
     def from_context(
         cls, context: RuntimeFormulaContextSubClass, **kwargs
