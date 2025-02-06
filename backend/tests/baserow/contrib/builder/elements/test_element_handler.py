@@ -557,11 +557,12 @@ def test_duplicate_element_with_workflow_action(data_fixture):
 def test_get_element_workflow_actions(data_fixture):
     page = data_fixture.create_builder_page()
     element = data_fixture.create_builder_button_element()
-    workflow_action_one = data_fixture.create_notification_workflow_action(
-        page=page, element=element
-    )
+    # Order is intentionally switched to check that the result is ordered correctly
     workflow_action_two = data_fixture.create_notification_workflow_action(
-        page=page, element=element
+        page=page, element=element, order=2
+    )
+    workflow_action_one = data_fixture.create_notification_workflow_action(
+        page=page, element=element, order=1
     )
 
     [
@@ -644,7 +645,7 @@ def test_get_first_ancestor_of_type(data_fixture, django_assert_num_queries):
     )
     child = data_fixture.create_builder_choice_element(page=page, parent_element=parent)
 
-    with django_assert_num_queries(7):
+    with django_assert_num_queries(6):
         nearest_column_ancestor = ElementHandler().get_first_ancestor_of_type(
             child.id, ColumnElementType
         )

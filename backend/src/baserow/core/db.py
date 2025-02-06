@@ -18,7 +18,6 @@ from typing import (
 )
 
 from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 from django.db import DEFAULT_DB_ALIAS, connection, transaction
 from django.db.models import ForeignKey, ManyToManyField, Max, Model, QuerySet
 from django.db.models.functions import Collate
@@ -81,7 +80,7 @@ def specific_iterator(
     objects with the least amount of queries. If a queryset is provided respects the
     annotations, select related and prefetch related of the provided query. This
     function is only compatible with models having the `PolymorphicContentTypeMixin`
-    and `content_type property.`
+    and `content_type` property.
 
     Can be used like:
 
@@ -137,8 +136,9 @@ def specific_iterator(
 
     types_and_pks = defaultdict(list)
     for item in resolved_queryset:
-        content_type = ContentType.objects.get_for_id(item.content_type_id)
-        types_and_pks[content_type].append(item.id)
+        # get the content type from the cache or the item property if we have
+        # used the select_related for this property
+        types_and_pks[item.get_content_type()].append(item.id)
 
     # Fetch the specific objects by executing a single query for each unique content
     # type and construct a mapping containing them by id.
@@ -153,8 +153,8 @@ def specific_iterator(
         if per_content_type_queryset_hook is not None:
             objects = per_content_type_queryset_hook(model, objects)
 
-        for object in objects:
-            specific_objects[object.id] = object
+        for obj in objects:
+            specific_objects[obj.id] = obj
 
     # Create an array with specific objects in the right order.
     ordered_specific_objects = []

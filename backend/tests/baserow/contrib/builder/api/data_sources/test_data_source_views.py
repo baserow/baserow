@@ -2,6 +2,7 @@ import json
 from unittest.mock import ANY, MagicMock, patch
 
 from django.db import transaction
+from django.test import override_settings
 from django.urls import reverse
 
 import pytest
@@ -17,10 +18,7 @@ from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.services.models import Service
 from baserow.core.user_sources.user_source_user import UserSourceUser
-from baserow.test_utils.helpers import AnyInt, AnyStr
-from tests.baserow.contrib.builder.api.user_sources.helpers import (
-    create_user_table_and_role,
-)
+from baserow.test_utils.helpers import AnyInt, AnyStr, setup_interesting_test_table
 
 
 @pytest.fixture
@@ -47,8 +45,7 @@ def data_source_fixture(data_fixture):
     )
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
-    user_source, _ = create_user_table_and_role(
-        data_fixture,
+    user_source, _ = data_fixture.create_user_table_and_role(
         user,
         builder,
         "foo_user_role",
@@ -812,6 +809,114 @@ def test_dispatch_data_source(api_client, data_fixture):
         fields[0].db_column: "Audi",
         fields[1].db_column: "Orange",
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.disabled_in_ci
+# You must add --run-disabled-in-ci -s to pytest to run this test, you can do this in
+# intellij by editing the run config for this test and adding --run-disabled-in-ci -s
+# to additional args.
+# pytest -k "test_dispatch_data_source_perf" -s --run-disabled-in-ci
+@override_settings(TESTS=False)
+def test_dispatch_data_source_perf(api_client, data_fixture, profiler):
+    user, token = data_fixture.create_user_and_token()
+    table, _, _, _, _ = setup_interesting_test_table(data_fixture, user)
+
+    view = data_fixture.create_grid_view(user, table=table)
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        view=view,
+        table=table,
+    )
+
+    url = reverse(
+        "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source.id}
+    )
+
+    with profiler(html_report_name="data_source_dispatch_perf"):
+        for _ in range(30):
+            api_client.post(
+                url,
+                {},
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+
+
+@pytest.mark.django_db
+@pytest.mark.disabled_in_ci
+# You must add --run-disabled-in-ci -s to pytest to run this test, you can do this in
+# intellij by editing the run config for this test and adding --run-disabled-in-ci -s
+# to additional args.
+# pytest -k "test_dispatch_data_sources_perf" -s --run-disabled-in-ci
+@override_settings(TESTS=False)
+def test_dispatch_data_sources_perf(api_client, data_fixture, profiler):
+    user, token = data_fixture.create_user_and_token()
+    table1, _, _, _, _ = setup_interesting_test_table(data_fixture, user)
+    table2, _, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            [["2CV", "Green"]] * 40,
+        ],
+    )
+    table3, _, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            [["Twingo", "White"]] * 40,
+        ],
+    )
+
+    view = data_fixture.create_grid_view(user, table=table1)
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source1 = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        view=view,
+        table=table1,
+    )
+    data_source2 = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table2,
+    )
+    data_source3 = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table3,
+    )
+
+    url = reverse("api:builder:data_source:dispatch-all", kwargs={"page_id": page.id})
+
+    with profiler(html_report_name="data_sources_dispatch_perf"):
+        for _ in range(30):
+            api_client.post(
+                url,
+                {},
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
 
 
 @pytest.mark.django_db

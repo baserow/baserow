@@ -30,8 +30,6 @@ class AppAuthProviderHandler(BaseAuthProviderHandler):
         base_queryset = cls.base_class.objects.filter(
             user_source=user_source
         ).select_related(
-            "user_source",
-            "user_source__application",
             "user_source__application__workspace",
         )
 
