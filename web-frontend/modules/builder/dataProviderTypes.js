@@ -384,7 +384,10 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   }
 
   getActionDispatchContext(applicationContext) {
-    return applicationContext.recordIndexPath.at(-1)
+    return {
+      record_id: applicationContext.recordId,
+      index: applicationContext.recordIndexPath.at(-1),
+    }
   }
 
   getDataChunk(applicationContext, path) {

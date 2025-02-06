@@ -100,6 +100,8 @@ export default {
           ({ event: eventName }) => eventName === event.name
         )
 
+        console.log('fire', structuredClone(this.applicationContext))
+
         try {
           await event.fire({
             workflowActions,

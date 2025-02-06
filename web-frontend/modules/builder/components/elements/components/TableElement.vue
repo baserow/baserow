@@ -40,6 +40,7 @@
                   rowIndex,
                 ],
                 field,
+                recordId: rows[rowIndex]?.__recordId__,
                 dispatchRefinements: adhocRefinements,
               }"
               v-bind="value"
@@ -117,6 +118,8 @@ export default {
           })
         )
         newRow.__id__ = uuid()
+        newRow.__recordId__ =
+          row?.[this.dataSourceType.getIdProperty(this.data_source, row)]
         return newRow
       })
     },
