@@ -16,6 +16,7 @@ import {
   extractRowReadOnlyValues,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
+  updateRowMetadataType,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import fieldOptionsStoreFactory from '@baserow/modules/database/store/view/fieldOptions'
@@ -270,18 +271,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       row._.matchSearch = matchSearch
     },
     UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
-      const currentValue = row._.metadata[rowMetadataType]
-      const newValue = updateFunction(currentValue)
-
-      if (
-        !Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)
-      ) {
-        const metaDataCopy = clone(row._.metadata)
-        metaDataCopy[rowMetadataType] = newValue
-        Vue.set(row._, 'metadata', metaDataCopy)
-      } else {
-        Vue.set(row._.metadata, rowMetadataType, newValue)
-      }
+      updateRowMetadataType(row, rowMetadataType, updateFunction)
     },
     SET_ADHOC_FILTERING(state, adhocFiltering) {
       state.adhocFiltering = adhocFiltering

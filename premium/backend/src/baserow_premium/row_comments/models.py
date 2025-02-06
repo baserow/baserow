@@ -63,6 +63,9 @@ ALL_ROW_COMMENT_NOTIFICATION_MODES = [
 ]
 
 
+ROW_COMMENT_NOTIFICATION_DEFAULT_MODE = RowCommentsNotificationModes.MODE_ONLY_MENTIONS
+
+
 class RowCommentsNotificationMode(CreatedAndUpdatedOnMixin, models.Model):
     """
     A many to many relationship between users and table rows to keep track of
@@ -91,7 +94,7 @@ class RowCommentsNotificationMode(CreatedAndUpdatedOnMixin, models.Model):
             (RowCommentsNotificationModes.MODE_ALL_COMMENTS, "All comments"),
             (RowCommentsNotificationModes.MODE_ONLY_MENTIONS, "Only mentions"),
         ),
-        default=RowCommentsNotificationModes.MODE_ONLY_MENTIONS,
+        default=ROW_COMMENT_NOTIFICATION_DEFAULT_MODE,
         help_text="The notification mode for this user and row.",
     )
 

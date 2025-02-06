@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fixed an issue where the notification mode settings were not displayed correctly if the row was not in the view.",
+    "issue_number": 3411,
+    "bullet_points": [],
+    "created_at": "2025-02-05"
+}

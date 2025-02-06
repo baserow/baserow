@@ -4,9 +4,9 @@ from django.db.models import Count
 
 from baserow_premium.row_comments.models import (
     ALL_ROW_COMMENT_NOTIFICATION_MODES,
+    ROW_COMMENT_NOTIFICATION_DEFAULT_MODE,
     RowComment,
     RowCommentsNotificationMode,
-    RowCommentsNotificationModes,
 )
 from rest_framework import serializers
 from rest_framework.fields import Field
@@ -30,7 +30,7 @@ class RowCommentCountMetadataType(RowMetadataType):
             )
         }
 
-    def get_example_serializer_field(self) -> Field:
+    def get_example_serializer_field_for_rows(self) -> Field:
         return serializers.IntegerField(
             min_value=0,
             help_text="How many row comments exist for this row.",
@@ -38,8 +38,23 @@ class RowCommentCountMetadataType(RowMetadataType):
         )
 
 
-class RowCommentsNotificationModeMetadataType(RowCommentCountMetadataType):
+class RowCommentsNotificationModeMetadataType(RowMetadataType):
     type = "row_comments_notification_mode"
+
+    def generate_metadata_for_single_row(self, user, table, row_id: int) -> Any | None:
+        notification_mode = RowCommentsNotificationMode.objects.filter(
+            user=user,
+            table=table,
+            row_id=row_id,
+        ).first()
+        return (
+            notification_mode.mode
+            if notification_mode is not None
+            else ROW_COMMENT_NOTIFICATION_DEFAULT_MODE
+        )
+
+    def get_example_serializer_field_for_single_row(self) -> Field:
+        return self.get_example_serializer_field_for_rows()
 
     def generate_metadata_for_rows(
         self, user, table, row_ids: List[int]
@@ -61,12 +76,12 @@ class RowCommentsNotificationModeMetadataType(RowCommentCountMetadataType):
                     table=table,
                     row_id__in=row_ids,
                 )
-                .exclude(mode=RowCommentsNotificationModes.MODE_ONLY_MENTIONS)
+                .exclude(mode=ROW_COMMENT_NOTIFICATION_DEFAULT_MODE)
                 .values("row_id", "mode")
             )
         }
 
-    def get_example_serializer_field(self) -> Field:
+    def get_example_serializer_field_for_rows(self) -> Field:
         return serializers.ChoiceField(
             required=False, choices=ALL_ROW_COMMENT_NOTIFICATION_MODES
         )

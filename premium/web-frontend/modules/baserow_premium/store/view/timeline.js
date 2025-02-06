@@ -3,7 +3,7 @@ import TimelineService from '@baserow_premium/services/views/timeline'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata,
+    metadata: { ...metadata, ...(row.metadata || {}) },
   }
   return row
 }

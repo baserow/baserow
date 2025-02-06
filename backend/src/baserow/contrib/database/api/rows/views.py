@@ -14,6 +14,7 @@ from rest_framework.status import HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
 from baserow.api.decorators import (
+    allowed_includes,
     map_exceptions,
     require_request_data_type,
     validate_body,
@@ -63,6 +64,7 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
+from baserow.contrib.database.api.views.utils import serialize_single_row_metadata
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     FilterFieldNotFound,
@@ -702,6 +704,16 @@ class RowView(APIView):
                     "field names (e.g., field_123)."
                 ),
             ),
+            OpenApiParameter(
+                name="include",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description=(
+                    "Optionally include row's `metadata` in the response. "
+                    "The `metadata` object includes extra row specific data like the "
+                    "'row_comments_notification_mode' settings, if available."
+                ),
+            ),
         ],
         tags=["Database table rows"],
         operation_id="get_database_table_row",
@@ -737,7 +749,8 @@ class RowView(APIView):
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
         }
     )
-    def get(self, request, table_id, row_id):
+    @allowed_includes("metadata")
+    def get(self, request, table_id, row_id, metadata):
         """
         Responds with a serializer version of the row related to the provided row_id
         and table_id.
@@ -753,10 +766,15 @@ class RowView(APIView):
             model, RowSerializer, is_response=True, user_field_names=user_field_names
         )
         serializer = serializer_class(row)
+        response_data = serializer.data
+
+        if metadata:
+            row_metadata = serialize_single_row_metadata(request.user, row)
+            response_data["metadata"] = row_metadata
 
         rows_loaded.send(sender=self, table=table)
 
-        return Response(serializer.data)
+        return Response(response_data)
 
     @extend_schema(
         parameters=[

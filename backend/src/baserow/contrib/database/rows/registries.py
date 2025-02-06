@@ -70,6 +70,19 @@ class RowMetadataRegistry(Registry):
         else:
             return {}
 
+    def generate_and_merge_metadata_for_single_row(
+        self, user, table, row_id: int
+    ) -> Dict[int, Dict[str, Any]]:
+        metadata_types = self.get_all()
+        row_metadata = {}
+        for metadata_type in metadata_types:
+            metadata_type_value = metadata_type.generate_metadata_for_single_row(
+                user, table, row_id
+            )
+            if metadata_type_value is not None:
+                row_metadata[metadata_type.type] = metadata_type_value
+        return row_metadata
+
 
 class RowMetadataType(Instance, abc.ABC):
     """
@@ -101,7 +114,7 @@ class RowMetadataType(Instance, abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_example_serializer_field(self) -> Field:
+    def get_example_serializer_field_for_rows(self) -> Field:
         """
         Used to construct the rest api documentation. Should be a serializer field which
         represents the values in the dict returned by generate_metadata_for_rows.
@@ -111,6 +124,33 @@ class RowMetadataType(Instance, abc.ABC):
         """
 
         pass
+
+    def generate_metadata_for_single_row(self, user, table, row_id: int) -> Any | None:
+        """
+        Generates metadata for this type for the given row_id in the table. By default,
+        this function returns None, meaning no metadata will be attached to the row.
+
+        :param user: The user for whom the metadata is being generated.
+        :param table: The table containing the row_id.
+        :param row_id: The row id for which to generate metadata.
+        :return: The metadata value to attach to the row, or None if no metadata is
+            generated.
+        """
+
+        return None
+
+    def get_example_serializer_field_for_single_row(self) -> Field | None:
+        """
+        Used to construct the rest api documentation. Should be a serializer field which
+        represents the value returned by generate_metadata_for_single_row. By default
+        this function will return None, meaning no metadata will be attached to the
+        single row.
+
+        :return: A drf field with help_text and other example data set for use by the
+            api documentation or None if no metadata is generated for a single row.
+        """
+
+        return None
 
 
 class ChangeRowHistoryRegistry(Registry):

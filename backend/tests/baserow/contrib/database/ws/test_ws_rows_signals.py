@@ -101,7 +101,7 @@ def test_populates_with_row_id_metadata():
         ) -> Dict[int, Any]:
             return {row_id: row_id for row_id in row_ids}
 
-        def get_example_serializer_field(self) -> Field:
+        def get_example_serializer_field_for_rows(self) -> Field:
             return serializers.CharField()
 
     return RowIdMetadata()

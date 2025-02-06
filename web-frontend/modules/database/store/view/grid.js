@@ -23,6 +23,7 @@ import {
   prepareRowForRequest,
   prepareNewOldAndUpdateRequestValues,
   extractRowReadOnlyValues,
+  updateRowMetadataType,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
@@ -32,7 +33,7 @@ const ORDER_STEP_BEFORE = '0.00000000000000000001'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata,
+    metadata: { ...metadata, ...(row.metadata || {}) },
     persistentId: uuid(),
     loading: false,
     hover: false,
@@ -439,18 +440,7 @@ export const mutations = {
     row[`field_${field.id}`] = value
   },
   UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
-    const currentValue = row._.metadata[rowMetadataType]
-    const newValue = updateFunction(currentValue)
-
-    if (
-      !Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)
-    ) {
-      const metaDataCopy = clone(row._.metadata)
-      metaDataCopy[rowMetadataType] = newValue
-      Vue.set(row._, 'metadata', metaDataCopy)
-    } else {
-      Vue.set(row._.metadata, rowMetadataType, newValue)
-    }
+    updateRowMetadataType(row, rowMetadataType, updateFunction)
   },
   FINALIZE_ROWS_IN_BUFFER(state, { oldRows, newRows, fields }) {
     const stateRowsCopy = { ...state.rows }

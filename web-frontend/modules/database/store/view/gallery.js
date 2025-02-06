@@ -3,7 +3,7 @@ import GalleryService from '@baserow/modules/database/services/view/gallery'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata,
+    metadata: { ...metadata, ...(row.metadata || {}) },
     dragging: false,
   }
   return row
