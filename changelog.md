@@ -1,5 +1,85 @@
 # Changelog
 
+## Released 1.31.0
+
+### New features
+* Allow optionally exporting in publicly shared views. [#1213](https://gitlab.com/baserow/baserow/-/issues/1213)
+* Allow skipping files during Airtable import [#1225](https://gitlab.com/baserow/baserow/-/issues/1225)
+* [Builder] Introducing query parameters [#1661](https://gitlab.com/baserow/baserow/-/issues/1661)
+* [Builder] Ensure that sensitive Integration data is not exported. [#1863](https://gitlab.com/baserow/baserow/-/issues/1863)
+* Add support for the Collaborator field type in formulas and lookups. [#1890](https://gitlab.com/baserow/baserow/-/issues/1890)
+* [Builder] Enhance security by excluding unused fields from the Data Source context. [#3001](https://gitlab.com/baserow/baserow/-/issues/3001)
+* Add distribution aggregation. [#3056](https://gitlab.com/baserow/baserow/-/issues/3056)
+* [Builder] Added radius settings for Element background and border. [#3068](https://gitlab.com/baserow/baserow/-/issues/3068)
+* [Builder] Add support for Custom Colors in Theme settings. [#3068](https://gitlab.com/baserow/baserow/-/issues/3068)
+* [Builder] Add vertical and horizontal gap to Repeat Element. [#3068](https://gitlab.com/baserow/baserow/-/issues/3068)
+* [Builder] Added the ability to set the Font Weight for various elements in the Theme settings. [#3068](https://gitlab.com/baserow/baserow/-/issues/3068)
+* Periodic data sync [#3071](https://gitlab.com/baserow/baserow/-/issues/3071)
+* Number lookup field filters [#3112](https://gitlab.com/baserow/baserow/-/issues/3112)
+* Improve the export progress update [#3184](https://gitlab.com/baserow/baserow/-/issues/3184)
+* Notify other windows about started jobs. [#3198](https://gitlab.com/baserow/baserow/-/issues/3198)
+* Workspace context menu search [#3265](https://gitlab.com/baserow/baserow/-/issues/3265)
+* Optionally allow choosing view in the local Baserow table data sync. [#3266](https://gitlab.com/baserow/baserow/-/issues/3266)
+* Add support to filter lookup of multiple select fields. [#3277](https://gitlab.com/baserow/baserow/-/issues/3277)
+* Added support for filtering lookups of date fields. [#3362](https://gitlab.com/baserow/baserow/-/issues/3362)
+* Add filter support for formula referencing a multiple collaborator field. [#3400](https://gitlab.com/baserow/baserow/-/issues/3400)
+* Add button xlarge type variant.
+* [Builder] Focus search input when opening add element modal
+
+### Bug fixes
+* Fix invalid regular expression error raised when creating a formula with an invalid regex [#1053](https://gitlab.com/baserow/baserow/-/issues/1053)
+* Fix formula issue with lookup and UUID as primary field [#1867](https://gitlab.com/baserow/baserow/-/issues/1867)
+* Fix formula issue with lookup and UUID as primary field [#2354](https://gitlab.com/baserow/baserow/-/issues/2354)
+* Fix import/export/snapshot issue with broken formulas [#2711](https://gitlab.com/baserow/baserow/-/issues/2711)
+* Validate request.data before views reaching to .data early [#2740](https://gitlab.com/baserow/baserow/-/issues/2740)
+* [Builder] Fix worfklow action navigation for pages with no parameters [#2833](https://gitlab.com/baserow/baserow/-/issues/2833)
+* Fix issue with text changing position when renaming items in the sidebar [#2883](https://gitlab.com/baserow/baserow/-/issues/2883)
+* Display progress of pending jobs in the sidebar when the workspace is empty [#2904](https://gitlab.com/baserow/baserow/-/issues/2904)
+* Fix is empty/not empty filter behavior for single select field with deleted options [#3053](https://gitlab.com/baserow/baserow/-/issues/3053)
+* [Builder] Filter out unused fields from dispatched Workflow Actions. [#3090](https://gitlab.com/baserow/baserow/-/issues/3090)
+* Restore decoration value ids during table import [#3193](https://gitlab.com/baserow/baserow/-/issues/3193)
+* Allow editors to subscribe to a form view. [#3271](https://gitlab.com/baserow/baserow/-/issues/3271)
+* Fix crash when invalid value is passed to link row fields with read-only primary field in the linked table. [#3277](https://gitlab.com/baserow/baserow/-/issues/3277)
+* Long text in full text search overflows window content. [#3285](https://gitlab.com/baserow/baserow/-/issues/3285)
+* [Builder] Resolved an error triggered when a workflow action would attempt to write or update a row pointing to a date field with an invalid value. [#3286](https://gitlab.com/baserow/baserow/-/issues/3286)
+* [Builder] Resolved an issue with the 'refresh data source' action when the data source was shared across multiple pages. [#3308](https://gitlab.com/baserow/baserow/-/issues/3308)
+* Count/Rollup fields will reset through_field when recalculating linked row field removal [#3309](https://gitlab.com/baserow/baserow/-/issues/3309)
+* Fix a bug causing the backend to fail hard when sorting by an AI Field. [#3310](https://gitlab.com/baserow/baserow/-/issues/3310)
+* Fix Airtable import failing if the 'foreignRowId' key is missing. [#3317](https://gitlab.com/baserow/baserow/-/issues/3317)
+* [Builder] Fixed a bug that caused an error during export when the application had a background image in the page section of the theme. [#3320](https://gitlab.com/baserow/baserow/-/issues/3320)
+* [Builder] Resolved an error which was thrown when a data source's integration was destroyed. [#3323](https://gitlab.com/baserow/baserow/-/issues/3323)
+* [Builder] Resolved a styling issue in the Link element, and the Table element link type when swapping between link and button variants. [#3325](https://gitlab.com/baserow/baserow/-/issues/3325)
+* Fix an issue with frontend when looking up formatted number fields. [#3332](https://gitlab.com/baserow/baserow/-/issues/3332)
+* [Builder] Allow children of Header and Footer elements to set their width. [#3333](https://gitlab.com/baserow/baserow/-/issues/3333)
+* Fix field settings suggestions for lookup and formula fields. [#3336](https://gitlab.com/baserow/baserow/-/issues/3336)
+* Fix a bug causing the frontend to crash when trying to hide fields directly after creating a timeline. [#3358](https://gitlab.com/baserow/baserow/-/issues/3358)
+* [Builder] Fixed bug that caused a workspace import to fail when certain fields were missing. [#3375](https://gitlab.com/baserow/baserow/-/issues/3375)
+* Exclude Link to table fields dependencies from periodic updates [#3379](https://gitlab.com/baserow/baserow/-/issues/3379)
+* [Builder] Resolved a bug in filtered table elements which prevented their workflow actions from dispatching properly. [#3399](https://gitlab.com/baserow/baserow/-/issues/3399)
+* Fix broken Heroku addons and one-click-deploy button URL. [#3401](https://gitlab.com/baserow/baserow/-/issues/3401)
+* Fix backend/frontend formula sort differences. [#3410](https://gitlab.com/baserow/baserow/-/issues/3410)
+* [Builder] Fix children element style in element menu when the container is selected [#3420](https://gitlab.com/baserow/baserow/-/issues/3420)
+* [Builder] Fix issue when previewing templates in some situations [#3421](https://gitlab.com/baserow/baserow/-/issues/3421)
+* [Builder] Fix failing delete action
+* [Builder] Resolved an error which prevented 'summarize field' data sources from being used.
+* Fix dashboard no workspace translations
+* Fix publicly shared view URL not always visible because it does't fit.
+* Remove checkbox line-height
+
+### Refactors
+* Upgrade vue-chartjs from 4.x to 5.x [#1683](https://gitlab.com/baserow/baserow/-/issues/1683)
+* Code cleanup for advanced number formatting [#3293](https://gitlab.com/baserow/baserow/-/issues/3293)
+* Add user id to sentry issues. [#3338](https://gitlab.com/baserow/baserow/-/issues/3338)
+* [Builder] Improve element selection performance when there are many elements
+* Improve field dependency rebuild by doing operations in bulk.
+* Improve lookup rebuild from field names method performance.
+* Improve view field change type performance by doing update in bulk.
+* Various small query performance improvements related to deleting and updating fields.
+
+### Breaking API changes
+* Remove support for PostgreSQL 11. [#3371](https://gitlab.com/baserow/baserow/-/issues/3371)
+
+
 ## Released 1.30.1
 
 ### Bug fixes
