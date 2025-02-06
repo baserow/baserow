@@ -25,6 +25,7 @@
                 :value="row[field.name]"
                 :field="field"
                 :row-index="index"
+                :row="row"
               >
                 <td :key="field.id" class="baserow-table__cell">
                   {{ row[field.name] }}
@@ -55,6 +56,7 @@
                 :value="row[field.name]"
                 :field="field"
                 :row-index="rowIndex"
+                :row="row"
               >
                 <td
                   class="baserow-table__cell"

@@ -10,12 +10,13 @@
         <slot name="field-name" :field="field">{{ field.name }}</slot>
       </th>
     </template>
-    <template #cell-content="{ rowIndex, value, field }">
+    <template #cell-content="{ rowIndex, value, field, row }">
       <slot
         name="cell-content"
         :value="value"
         :field="field"
         :row-index="rowIndex"
+        :row="row"
       >
         <td :key="field.id" class="ab-table__cell">
           <div class="ab-table__cell-content">

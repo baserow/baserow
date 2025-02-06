@@ -36,6 +36,22 @@ export class ServiceType extends Registerable {
   }
 
   /**
+   * In a service which returns a list, this method is used to
+   * return the name of the given record.
+   */
+  getRecordName(service, record) {
+    throw new Error('Must be set on the type.')
+  }
+
+  /**
+   * In a service which returns a list, this method is used to
+   * return the id of the given record.
+   */
+  getIdProperty(service, record) {
+    throw new Error('Must be set on the type.')
+  }
+
+  /**
    * The maximum number of records that can be returned by this service
    */
   get maxResultLimit() {

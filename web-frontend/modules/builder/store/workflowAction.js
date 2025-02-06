@@ -200,15 +200,10 @@ const actions = {
       updateContext.promiseResolve = resolve
     })
   },
-  async dispatchAction(
-    { dispatch },
-    { workflowActionId, workflowActionContext, data }
-  ) {
-    const { dispatchRefinements = {} } = workflowActionContext
+  async dispatchAction({ dispatch }, { workflowActionId, data }) {
     const { data: result } = await WorkflowActionService(this.$client).dispatch(
       workflowActionId,
-      data,
-      dispatchRefinements
+      data
     )
     return result
   },

@@ -246,7 +246,10 @@ const actions = {
           // using the results key and set the range for future paging.
           commit('SET_CONTENT', {
             element,
-            value: data.results,
+            value: data.results.map((row) => ({
+              ...row,
+              __recordId__: row[serviceType.getIdProperty(service, row)],
+            })),
             range,
           })
         } else {

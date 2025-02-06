@@ -110,10 +110,10 @@ def test_get_builder_used_property_names_returns_all_property_names(data_fixture
 
     assert list(results) == unordered(["all", "external", "internal"])
     assert results["all"][data_source.service_id] == unordered(
-        [f"field_{field.id}" for field in fields]
+        [f"field_{field.id}" for field in fields] + ["id"]
     )
     assert results["external"][data_source.service_id] == unordered(
-        [f"field_{field.id}" for field in fields]
+        [f"field_{field.id}" for field in fields] + ["id"]
     )
     assert results["internal"] == {}
 
@@ -169,10 +169,10 @@ def test_get_builder_used_property_names_returns_some_property_names(data_fixtur
     # only one property, ensure that specific property is the only one returned.
     assert results == {
         "all": {
-            data_source.service_id: [f"field_{fields[0].id}"],
+            data_source.service_id: [f"field_{fields[0].id}", "id"],
         },
         "external": {
-            data_source.service_id: [f"field_{fields[0].id}"],
+            data_source.service_id: [f"field_{fields[0].id}", "id"],
         },
         "internal": {},
     }
@@ -997,6 +997,7 @@ def test_get_builder_used_property_names_returns_merged_property_names_integrati
         "all": {
             data_source.service_id: sorted(
                 [
+                    "id",
                     f"field_{fields[0].id}",
                     f"field_{fields[2].id}",
                 ]
@@ -1019,6 +1020,7 @@ def test_get_builder_used_property_names_returns_merged_property_names_integrati
         "external": {
             data_source.service_id: [
                 f"field_{fields[0].id}",  # From heading_element_1
+                "id",
             ],
             data_source_2.service_id: [
                 f"field_{fields[2].id}"

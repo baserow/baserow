@@ -68,6 +68,29 @@ class ServiceType(
     # `DISPATCH_WORKFLOW_ACTION` should be chosen.
     dispatch_type = None
 
+    def get_id_property(self, service: Service) -> str:
+        """
+        Returns the property name that contains the unique `ID` of a row for this
+        service.
+
+        :param service: the instance of the service.
+        :return: a string identifying the ID property name.
+        """
+
+        # Sane default
+        return "id"
+
+    def get_name_property(self, service: Service) -> Optional[str]:
+        """
+        We need the name of the records for some elements (like the record selector).
+        This method returns it depending on the service.
+
+        :param service: the instance of the service.
+        :return: a string identifying the name property name.
+        """
+
+        return None
+
     def prepare_values(
         self,
         values: Dict[str, Any],
@@ -342,29 +365,6 @@ class ListServiceTypeMixin:
     """A mixin for services that return lists."""
 
     returns_list = True
-
-    def get_id_property(self, service: Service) -> str:
-        """
-        Returns the property name that contains the unique `ID` of a row for this
-        service.
-
-        :param service: the instance of the service.
-        :return: a string identifying the ID property name.
-        """
-
-        # Sane default
-        return "id"
-
-    def get_name_property(self, service: Service) -> Optional[str]:
-        """
-        We need the name of the records for some elements (like the record selector).
-        This method returns it depending on the service.
-
-        :param service: the instance of the service.
-        :return: a string identifying the name property name.
-        """
-
-        return None
 
     @abstractmethod
     def get_record_names(

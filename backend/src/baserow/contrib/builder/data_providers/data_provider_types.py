@@ -298,7 +298,9 @@ class CurrentRecordDataProviderType(DataProviderType):
         """
 
         try:
-            current_record = dispatch_context.request.data["current_record"]
+            current_record_data = dispatch_context.request.data["current_record"]
+            current_record = current_record_data["index"]
+            current_record_id = current_record_data["record_id"]
         except KeyError:
             return None
 
@@ -318,8 +320,9 @@ class CurrentRecordDataProviderType(DataProviderType):
         # Narrow down our range to just our record index.
         dispatch_context = dispatch_context.from_context(
             dispatch_context,
-            offset=current_record,
+            offset=0,
             count=1,
+            only_record_id=current_record_id,
         )
 
         return DataSourceDataProviderType().get_data_chunk(

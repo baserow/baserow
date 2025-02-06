@@ -38,12 +38,8 @@ export class LocalBaserowTableServiceType extends ServiceType {
     return service.context_data_schema
   }
 
-  /**
-   * In a Local Baserow service which returns a list, this method is used to
-   * return the name of the given record.
-   */
-  getRecordName(service, record) {
-    return ''
+  getIdProperty(service, record) {
+    return 'id'
   }
 
   /**

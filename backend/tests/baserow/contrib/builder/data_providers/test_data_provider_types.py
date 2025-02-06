@@ -1208,20 +1208,14 @@ def test_current_record_provider_get_data_chunk_without_record_index(data_fixtur
 def test_current_record_provider_get_data_chunk_for_idx():
     current_record_provider = CurrentRecordDataProviderType()
     fake_request = HttpRequest()
-    fake_request.data = {"current_record": 123}
+    fake_request.data = {"current_record": {"index": 123, "record_id": 123}}
     dispatch_context = BuilderDispatchContext(fake_request, None)
     assert current_record_provider.get_data_chunk(dispatch_context, ["__idx__"]) == 123
 
 
 @pytest.mark.django_db
 def test_current_record_provider_get_data_chunk(data_fixture):
-    current_record_provider = CurrentRecordDataProviderType()
-
     user, token = data_fixture.create_user_and_token()
-
-    fake_request = HttpRequest()
-    fake_request.user = user
-    fake_request.data = {"current_record": 0}
 
     table, fields, rows = data_fixture.build_table(
         user=user,
@@ -1252,9 +1246,15 @@ def test_current_record_provider_get_data_chunk(data_fixture):
         page=page, element=button_element, event=EventTypes.CLICK, user=user
     )
 
+    fake_request = HttpRequest()
+    fake_request.user = user
+    fake_request.data = {"current_record": {"index": 0, "record_id": rows[0].id}}
+
     dispatch_context = BuilderDispatchContext(
         fake_request, page, workflow_action, only_expose_public_allowed_properties=False
     )
+
+    current_record_provider = CurrentRecordDataProviderType()
 
     assert (
         current_record_provider.get_data_chunk(dispatch_context, [field.db_column])
