@@ -153,7 +153,7 @@ docker run \
   --name baserow-pgautoupgrade \
   # ALL THE ARGUMENTS YOU NORMALLY ADD TO YOUR BASEROW INSTANCE
   --restart no \
-  baserow/baserow-pgautoupgrade:1.31.0
+  baserow/baserow-pgautoupgrade:1.30.1
 ```
 
 3. If the upgrade was successful, the container should exit with a success message, you can now start Baserow as you did before.
@@ -170,7 +170,7 @@ docker run \
   --name baserow-pg11 \
   # ALL THE ARGUMENTS YOU NORMALLY ADD TO YOUR BASEROW INSTANCE
   --restart unless-stopped \
-  baserow/baserow-pg11:1.31.0
+  baserow/baserow-pg11:1.30.1
 ```
 
 ## Example Commands
