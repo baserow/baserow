@@ -208,3 +208,8 @@ export const TIME_FORMATS = {
     example: '11:00 PM',
   },
 }
+
+export const MENU_ORIENTATION = {
+  HORIZONTAL: 'horizontal',
+  VERTICAL: 'vertical',
+}

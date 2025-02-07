@@ -123,7 +123,11 @@
     "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
     "notAllowedInsideContainer": "This element is not allowed inside a container",
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
-    "notAllowedLocation": "This element is not allowed at this location"
+    "notAllowedLocation": "This element is not allowed at this location",
+    "menu": "Menu",
+    "menuDescription": "Menu element",
+    "menuItem": "Menu item",
+    "menuItemDescription": "Menu item element"
   },
   "addElementButton": {
     "label": "Element"
@@ -187,6 +191,21 @@
     "textFormatTypeLabel": "Format",
     "textFormatTypePlain": "Plain text",
     "textFormatTypeMarkdown": "Markdown"
+  },
+  "menuElementForm": {
+    "orientationLabel": "Orientation",
+    "orientationHorizontal": "Horizontal",
+    "orientationVertical": "Vertical",
+    "menuItemsLabel": "Menu items",
+    "addMenuItemLink": "Add...",
+    "menuItemDefaultName": "Page",
+    "menuItemLabelLabel": "Label",
+    "menuItemTypeLabel": "Type",
+    "menuItemTypeItem": "Item",
+    "menuItemTypeSeparator": "Separator",
+    "menuItemVariantLabel": "Variant",
+    "menuItemVariantLink": "Link",
+    "menuItemVariantButton": "Button"
   },
   "imageElement": {
     "missingValue": "Missing alt text...",
