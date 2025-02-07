@@ -726,7 +726,7 @@
         "back": "대시보드로 돌아가기"
     },
     "viewAggregationType": {
-        "emptyCount": "(비어 있음)",
+        "emptyCount": "빈 값",
         "notEmptyCount": "채워짐",
         "emptyPercentage": "비어 있는 비율",
         "notEmptyPercentage": "채워진 비율",
