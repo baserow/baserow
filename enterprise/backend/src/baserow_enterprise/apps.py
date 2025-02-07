@@ -187,6 +187,8 @@ class BaserowEnterpriseConfig(AppConfig):
         app_auth_provider_type_registry.register(SamlAppAuthProviderType())
         app_auth_provider_type_registry.register(OpenIdConnectAppAuthProviderType())
 
+        from baserow.contrib.dashboard.widgets.registries import widget_type_registry
+        from baserow_enterprise.dashboard.widgets.widget_types import ChartWidgetType
         from baserow_enterprise.integrations.local_baserow.service_types import (
             LocalBaserowGroupedAggregateRowsUserServiceType,
         )
@@ -195,6 +197,7 @@ class BaserowEnterpriseConfig(AppConfig):
             service_type_registry.register(
                 LocalBaserowGroupedAggregateRowsUserServiceType()
             )
+            widget_type_registry.register(ChartWidgetType())
 
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
