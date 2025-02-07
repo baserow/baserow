@@ -51,12 +51,10 @@ def test_local_baserow_table_service_refinement_manager(data_fixture):
     ingredient.trashed = True
     ingredient.save()
 
-    assert LocalBaserowTableServiceFilter.objects.filter(service=service).count() == 2
+    assert LocalBaserowTableServiceFilter.objects.filter(service=service).count() == 1
     assert (
-        LocalBaserowTableServiceFilter.objects_and_without_trash.filter(
-            service=service
-        ).count()
-        == 1
+        LocalBaserowTableServiceFilter.objects_and_trash.filter(service=service).count()
+        == 2
     )
 
     assert LocalBaserowTableServiceSort.objects.filter(service=service).count() == 1

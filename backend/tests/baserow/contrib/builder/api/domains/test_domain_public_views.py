@@ -19,6 +19,7 @@ from baserow.contrib.builder.data_sources.exceptions import (
 )
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -2277,7 +2278,7 @@ def test_get_data_source_context_fields_are_included(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_public_dispatch_data_source_with_service_filter_referencing_trashed_field(
+def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
@@ -2296,9 +2297,10 @@ def test_public_dispatch_data_source_with_service_filter_referencing_trashed_fie
         integration=integration,
         table=table,
     )
-    data_fixture.create_local_baserow_table_service_filter(
+    service_filter = data_fixture.create_local_baserow_table_service_filter(
         service=data_source.service, field=trashed_field, value="abc", order=0
     )
+
     url = reverse(
         "api:builder:domains:public_dispatch",
         kwargs={"data_source_id": data_source.id},
@@ -2309,5 +2311,23 @@ def test_public_dispatch_data_source_with_service_filter_referencing_trashed_fie
     assert response.json() == {
         "error": "ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST",
         "detail": "A data source filter is misconfigured: "
-        f"Filter property {trashed_field.id} does not exist.",
+        "One or more filtered properties no longer exist.",
+    }
+
+    service_filter.delete()
+
+    data_fixture.create_local_baserow_table_service_sort(
+        service=data_source.service,
+        field=trashed_field,
+        order_by=SORT_ORDER_ASC,
+        order=0,
+    )
+
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST",
+        "detail": "A data source sort is misconfigured: "
+        "One or more sorted properties no longer exist.",
     }

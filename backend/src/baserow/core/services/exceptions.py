@@ -22,4 +22,8 @@ class InvalidServiceTypeDispatchSource(Exception):
 
 
 class ServiceFilterPropertyDoesNotExist(Exception):
-    """Raised when trying to get a filter property that doesn't exist."""
+    """Raised when trying to dispatch a filter property that doesn't exist."""
+
+
+class ServiceSortPropertyDoesNotExist(Exception):
+    """Raised when trying to dispatch a sort property that doesn't exist."""

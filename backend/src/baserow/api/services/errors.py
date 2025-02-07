@@ -11,3 +11,9 @@ ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST = (
     HTTP_400_BAD_REQUEST,
     "A data source filter is misconfigured: {e}",
 )
+
+ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST = (
+    "ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST",
+    HTTP_400_BAD_REQUEST,
+    "A data source sort is misconfigured: {e}",
+)

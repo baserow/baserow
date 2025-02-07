@@ -33,7 +33,7 @@
           >
             <LocalBaserowTableServiceSortForm
               v-if="values.table_id"
-              v-model="dataSourceSortings"
+              v-model="values.sortings"
               :fields="tableFields"
             ></LocalBaserowTableServiceSortForm>
             <p v-if="!values.table_id">

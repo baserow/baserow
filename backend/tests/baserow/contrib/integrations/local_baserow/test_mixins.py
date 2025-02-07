@@ -14,15 +14,15 @@ from baserow.contrib.integrations.local_baserow.mixins import (
     LocalBaserowTableServiceSearchableMixin,
     LocalBaserowTableServiceSortableMixin,
 )
-from baserow.contrib.integrations.local_baserow.models import (
-    LocalBaserowTableServiceFilter,
-)
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowTableServiceType,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
-from baserow.core.services.exceptions import ServiceFilterPropertyDoesNotExist
+from baserow.core.services.exceptions import (
+    ServiceFilterPropertyDoesNotExist,
+    ServiceSortPropertyDoesNotExist,
+)
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -175,14 +175,9 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
     # Pluck out the imported builder records.
     imported_page = imported_builder.page_set.get()
     imported_datasource = imported_page.datasource_set.get()
-    imported_untrashed_field_filters = (
-        LocalBaserowTableServiceFilter.objects_and_without_trash.filter(
-            service=imported_datasource.service
-        )
-    )
     imported_filters = [
         {"field_id": sf.field_id, "value": sf.value}
-        for sf in imported_untrashed_field_filters
+        for sf in imported_datasource.service.service_filters.all()
     ]
 
     assert imported_filters == [
@@ -245,7 +240,7 @@ def test_local_baserow_table_service_filterable_mixin_get_dispatch_filters_raise
     with pytest.raises(ServiceFilterPropertyDoesNotExist) as exc:
         service_type.get_dispatch_filters(service, [], model, FakeDispatchContext())
 
-    assert exc.value.args[0] == f"Filter property {field.id} does not exist."
+    assert exc.value.args[0] == f"One or more filtered properties no longer exist."
 
 
 @pytest.mark.django_db
@@ -328,6 +323,27 @@ def test_local_baserow_table_service_sortable_mixin_get_used_field_names(
     result = service_type.get_used_field_names(service, dispatch_context)
 
     assert result == [field.db_column]
+
+
+@pytest.mark.django_db
+def test_local_baserow_table_service_sortable_mixin_get_dispatch_sorts_raises_exception_on_trashed_field(
+    data_fixture,
+):
+    service_type = get_test_service_type(LocalBaserowTableServiceSortableMixin)
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    model = table.get_model(field_ids=[])
+    field = data_fixture.create_text_field(name="Surname", table=table, trashed=True)
+
+    service = data_fixture.create_local_baserow_list_rows_service(table=table)
+    data_fixture.create_local_baserow_table_service_sort(
+        service=service, field=field, order_by=SORT_ORDER_ASC, order=0
+    )
+
+    with pytest.raises(ServiceSortPropertyDoesNotExist) as exc:
+        service_type.get_dispatch_sorts(service, [], model)
+
+    assert exc.value.args[0] == f"One or more sorted properties no longer exist."
 
 
 @pytest.mark.django_db(transaction=True)

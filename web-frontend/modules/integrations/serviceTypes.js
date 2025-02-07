@@ -16,8 +16,8 @@ export class LocalBaserowTableServiceType extends ServiceType {
 
   /**
    * Responsible for determining if this service is in error. It will be if the
-   * `table_id` is missing, or if one or more filters point to a field that does
-   * not exist in the table schema (i.e. it's trashed).
+   * `table_id` is missing, or if one or more filters/sortings point to a field that
+   * has been trashed.
    * @param service - The service object.
    * @returns {boolean} - If the service is valid.
    */
@@ -25,19 +25,9 @@ export class LocalBaserowTableServiceType extends ServiceType {
     if (service === undefined) {
       return false
     }
-    const schema = this.getDataSchema(service)
-    let filtersInError = false
-    if (schema) {
-      const schemaProperties =
-        schema.type === 'array' ? schema.items.properties : schema.properties
-      const fieldsIds = Object.values(schemaProperties)
-        .filter(({ metadata }) => metadata)
-        .map((prop) => prop.metadata.id)
-      filtersInError = service.filters.some(
-        (filter) => !fieldsIds.includes(filter.field)
-      )
-    }
-    return Boolean(!service.table_id || filtersInError)
+    const filtersInError = service.filters.some((filter) => filter.trashed)
+    const sortingsInError = service.sortings.some((sorting) => sorting.trashed)
+    return Boolean(!service.table_id || filtersInError || sortingsInError)
   }
 
   getDataSchema(service) {

@@ -34,6 +34,14 @@
   padding: 16px 0;
   gap: 16px;
 
+  .sortings__misconfigured {
+    flex-grow: 1;
+
+    p {
+      color: $palette-red-800;
+    }
+  }
+
   &--scrollable {
     overflow-y: scroll;
   }

@@ -133,12 +133,8 @@ class LocalBaserowTableServiceFilter(ServiceFilter):
     A service filter applicable to a `LocalBaserowTableService` integration service.
     """
 
-    # By default, we want to include filters with trashed fields in the queryset.
-    # Note that this is not the case with `LocalBaserowTableServiceSort`. We do this
-    # here because we need to ensure that when the service is dispatched, if the field
-    # is trashed, we raise an exception. Skipping the filter would be a security risk.
-    objects = models.Manager()
-    objects_and_without_trash = LocalBaserowTableServiceRefinementManager()
+    objects = LocalBaserowTableServiceRefinementManager()
+    objects_and_trash = models.Manager()
 
     field = models.ForeignKey(
         "database.Field",
