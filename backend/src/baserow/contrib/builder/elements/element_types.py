@@ -25,6 +25,7 @@ from baserow.contrib.builder.api.elements.serializers import ChoiceOptionSeriali
 from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
 )
+from baserow.contrib.builder.api.elements.serializers import MenuItemSerializer
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
@@ -52,7 +53,7 @@ from baserow.contrib.builder.elements.models import (
     InputTextElement,
     LinkElement,
     MenuElement,
-    MenuElementItem,
+    MenuItemElement,
     NavigationElementMixin,
     RecordSelectorElement,
     RepeatElement,
@@ -1974,13 +1975,14 @@ class MenuElementType(ElementType):
     A menu element that helps with navigating the application.
     """
 
-    type = "menu_element"
+    type = "menu"
     model_class = MenuElement
-    serializer_field_names = ["orientation"]
+    serializer_field_names = ["orientation", "menu_items"]
     allowed_fields = ["orientation"]
 
     class SerializedDict(ElementDict):
         orientation: str
+        menu_items: List[Dict]
 
     @property
     def serializer_field_overrides(self):
@@ -1999,53 +2001,127 @@ class MenuElementType(ElementType):
                 theme_config_block_type_name=TypographyThemeConfigBlockType.type,
                 serializer_kwargs={"required": False},
             ),
+            "menu_items": MenuItemSerializer(many=True, required=False),
         }
 
         return overrides
+    
+    def after_create(self, instance: MenuItemElement, values):
+        menu_items = values.get("menu_items", [])
+
+        created_menu_items = MenuItemElement.objects.bulk_create(
+            [
+                MenuItemElement(**item, menu_item_order=index)
+                for index, item in enumerate(menu_items)
+            ]
+        )
+        instance.menu_items.add(*created_menu_items)
+
+    def after_update(
+        self, instance: MenuItemElement, values, changes: Dict[str, Tuple]
+    ):
+        """
+        After the element has been updated we need to update the fields.
+
+        :param instance: The instance of the element that has been updated.
+        :param values: The values that have been updated.
+        :param changes: A dictionary containing all changes which were made to the
+            collection element prior to `after_update` being called.
+        :return: None
+        """
+
+        if "menu_items" in values:
+            # Remove previous fields
+            instance.menu_items.all().delete()
+
+            items_to_create = []
+            for index, item in enumerate(values["menu_items"]):
+                item.pop("menu_item_order", None)
+                items_to_create.append(
+                    MenuItemElement(**item, menu_item_order=index)
+                )
+
+            created_items = MenuItemElement.objects.bulk_create(
+                items_to_create
+            )
+            instance.menu_items.add(*created_items)
+
+        super().after_update(instance, values, changes)
 
     def get_pytest_params(self, pytest_data_fixture):
         return {"orientation": RepeatElement.ORIENTATIONS.VERTICAL}
+    
+    def serialize_property(
+        self,
+        element: MenuElement,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """
+        You can customize the behavior of the serialization of a property with this
+        hook.
+        """
+
+        if prop_name == "menu_items":
+            return [
+                MenuItemElementType.export_serialized(i)
+                for i in element.menu_items.all()
+            ]
+
+        return super().serialize_property(
+            element,
+            prop_name,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
 
 
-class MenuElementItemType(ElementType):
+class MenuItemElementType(ElementType):
     """
     A menu element that helps with navigating the application.
     """
 
-    type = "menu_element_item"
-    model_class = MenuElementItem
-    serializer_field_names = ["variant", "type", "menu_item_order"]
-    allowed_fields = ["variant", "type", "menu_item_order"]
+    type = "menu_item"
+    model_class = MenuItemElement
+    serializer_field_names = ["menu_item_variant", "type", "menu_item_order", "name"]
+    allowed_fields = ["menu_item_variant", "type", "menu_item_order", "name"]
     simple_formula_fields = NavigationElementManager.simple_formula_fields
 
-    class SerializedDict(ElementDict):
-        variant: str
+    class SerializedDict(NavigationElementManager.SerializedDict):
+        menu_item_variant: str
         type: str
+        name: str
         menu_item_order: int
 
     @property
+    def serializer_field_names(self):
+        return (
+            super().serializer_field_names
+            + NavigationElementManager.serializer_field_names
+        )
+
+    @property
+    def allowed_fields(self):
+        return (
+            super().allowed_fields
+            + NavigationElementManager.allowed_fields
+        )
+
+    @property
     def serializer_field_overrides(self):
-        from baserow.contrib.builder.api.theme.serializers import (
-            DynamicConfigBlockSerializer,
+        return (
+            super().serializer_field_overrides
+            | NavigationElementManager().get_serializer_field_overrides()
         )
-        from baserow.contrib.builder.theme.theme_config_block_types import (
-            TypographyThemeConfigBlockType,
-        )
-
-        overrides = {
-            "styles": DynamicConfigBlockSerializer(
-                required=False,
-                property_name="typography",
-                theme_config_block_type_name=TypographyThemeConfigBlockType.type,
-                serializer_kwargs={"required": False},
-            ),
-        }
-
-        return overrides
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
-            "variant": MenuElementItem.VARIANTS.LINK,
-            "type": MenuElementItem.TYPES.ITEM,
+            "menu_item_variant": MenuItemElement.VARIANTS.LINK,
+            "type": MenuItemElement.TYPES.ITEM,
             "menu_item_order": 1,
         }
