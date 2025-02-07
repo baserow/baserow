@@ -51,6 +51,9 @@ import MultiPageContainerElementForm from '@baserow/modules/builder/components/e
 import MultiPageContainerElement from '@baserow/modules/builder/components/elements/components/MultiPageContainerElement'
 import DateTimePickerElement from '@baserow/modules/builder/components/elements/components/DateTimePickerElement'
 import DateTimePickerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm'
+import MenuElement from '@baserow/modules/builder/components/elements/components/MenuElement'
+import MenuElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementForm'
+import MenuItemElement from '@baserow/modules/builder/components/elements/components/MenuItemElement'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import {
   ContainerElementTypeMixin,
@@ -1955,5 +1958,43 @@ export class FooterElementType extends HeaderElementType {
       }
     }
     return null
+  }
+}
+
+export class MenuElementType extends ElementType {
+  static getType() {
+    return 'menu'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.menu')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.menuDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-square-cursor'
+  }
+
+  get component() {
+    return MenuElement
+  }
+
+  get generalFormComponent() {
+    return MenuElementForm
+  }
+
+  getEvents(element) {
+    return [new ClickEvent({ ...this.app })]
+  }
+
+  isInError({ page, element, builder }) {
+    return super.isInError({ page, element, builder })
+  }
+
+  getDisplayName(element, applicationContext) {
+    return this.name
   }
 }
