@@ -1,6 +1,7 @@
 from abc import ABC
 from decimal import Decimal
 
+from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import WidgetDict
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -31,6 +32,17 @@ class WidgetType(
     parent_property_name = "dashboard"
     id_mapping_name = DASHBOARD_WIDGETS
     allowed_fields = ["title", "description"]
+
+    def before_create(self, dashboard: Dashboard):
+        """
+        This function allows you to perform checks and operations
+        before a widget is created.
+
+        :param dashboard: The dashboard where the widget should be
+            created.
+        """
+
+        pass
 
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
         """

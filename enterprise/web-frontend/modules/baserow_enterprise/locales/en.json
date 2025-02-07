@@ -439,5 +439,8 @@
   },
   "oidcAuthLink": {
     "placeholderWithOIDC": "{login} with {provider}"
+  },
+  "chartWidget": {
+    "name": "Chart"
   }
 }

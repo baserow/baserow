@@ -3,29 +3,26 @@
     <h2 class="box__title">
       {{ $t('createWidgetModal.title') }}
     </h2>
-    <div>
-      <a
+    <div class="create-widget-modal__cards">
+      <CreateWidgetCard
         v-for="widgetType in widgetTypes"
         :key="widgetType.type"
-        class="create-widget-card"
-        @click="widgetTypeSelected(widgetType.type)"
+        :dashboard="dashboard"
+        :widget-type="widgetType"
+        @widget-type-selected="widgetTypeSelected"
       >
-        <div class="create-widget-card__img-container">
-          <img :src="widgetType.createWidgetImage" />
-        </div>
-        <div class="create-widget-card__name">
-          {{ widgetType.name }}
-        </div>
-      </a>
+      </CreateWidgetCard>
     </div>
   </Modal>
 </template>
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
+import CreateWidgetCard from '@baserow/modules/dashboard/components/CreateWidgetCard'
 
 export default {
   name: 'CreateWidgetModal',
+  components: { CreateWidgetCard },
   mixins: [modal],
   props: {
     dashboard: {

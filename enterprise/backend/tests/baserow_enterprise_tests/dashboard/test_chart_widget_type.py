@@ -1,5 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.deletion import ProtectedError
+from django.test.utils import override_settings
 
 import pytest
 
@@ -14,7 +15,9 @@ from baserow_enterprise.integrations.local_baserow.models import (
 
 
 @pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_create_chart_widget_creates_data_source(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
     dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
     widget_type = "chart"
