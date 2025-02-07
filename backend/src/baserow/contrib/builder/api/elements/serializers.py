@@ -18,6 +18,7 @@ from baserow.contrib.builder.elements.models import (
     CollectionElementPropertyOptions,
     CollectionField,
     Element,
+    MenuItemElement,
 )
 from baserow.contrib.builder.elements.registries import (
     collection_field_type_registry,
@@ -378,3 +379,47 @@ class CollectionElementPropertyOptionsSerializer(
     class Meta:
         model = CollectionElementPropertyOptions
         fields = ["schema_property", "filterable", "sortable", "searchable"]
+
+
+
+@extend_schema_serializer(exclude_fields=("config",))
+class MenuItemSerializer(serializers.ModelSerializer):
+    """
+    This serializer transform the flat properties object from/to a config dict property.
+    This allows us to see the field on the frontend side as a simple polymorphic
+    object.
+    """
+
+    default_allowed_fields = [
+        "menu_item_variant", "type", "menu_item_order", "uid", "name",
+        "navigation_type", "navigate_to_page", "navigate_to_url",
+        "page_parameters", "query_parameters", "target",
+    ]
+
+    class Meta:
+        model = MenuItemElement
+        fields = [
+            "menu_item_variant", "type", "menu_item_order", "uid", "parent_menu_item", "name",
+            "navigation_type", "navigate_to_page", "navigate_to_url",
+            "page_parameters", "query_parameters", "target",
+        ]
+    
+    def to_representation(self, instance):
+        """
+        Flatten the config dict to an object.
+        """
+        return {
+            "id": instance.id,
+            "menu_item_variant": instance.menu_item_variant,
+            "name": instance.name,
+            "type": instance.type,
+            "menu_item_order": instance.menu_item_order,
+            "uid": instance.uid,
+            "parent_menu_item": instance.parent_menu_item_id if instance.parent_menu_item else None,
+            "navigation_type": instance.navigation_type,
+            "navigate_to_page": instance.navigate_to_page,
+            "navigate_to_url": instance.navigate_to_url,
+            "page_parameters": instance.page_parameters,
+            "query_parameters": instance.query_parameters,
+            "target": instance.target,
+        }
