@@ -240,7 +240,7 @@ def test_create_grouped_aggregate_rows_service_max_series_exceeded(
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
                 {"field_id": field_2.id, "aggregation_type": "sum"},
                 {"field_id": field_3.id, "aggregation_type": "sum"},
@@ -276,10 +276,13 @@ def test_create_grouped_aggregate_rows_service_max_group_bys_exceeded(
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": field.id}, {"field_id": field_2.id}],
+            "service_aggregation_group_bys": [
+                {"field_id": field.id},
+                {"field_id": field_2.id},
+            ],
         },
         user,
     )
@@ -673,7 +676,7 @@ def test_update_grouped_aggregate_rows_service_max_series_exceeded(
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
                 {"field_id": field_2.id, "aggregation_type": "sum"},
                 {"field_id": field_3.id, "aggregation_type": "sum"},
@@ -715,10 +718,13 @@ def test_update_grouped_aggregate_rows_service_max_group_bys_exceeded(
             "view_id": view.id,
             "table_id": view.table_id,
             "integration_id": integration.id,
-            "aggregation_series": [
+            "service_aggregation_series": [
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
-            "aggregation_group_bys": [{"field_id": field.id}, {"field_id": field_2.id}],
+            "service_aggregation_group_bys": [
+                {"field_id": field.id},
+                {"field_id": field_2.id},
+            ],
         },
         user,
     )
