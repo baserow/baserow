@@ -187,6 +187,8 @@ class BuilderConfig(AppConfig):
             RepeatElementType,
             TableElementType,
             TextElementType,
+            MenuElementType,
+            MenuItemElementType,
         )
         from .elements.registries import element_type_registry
 
@@ -207,6 +209,8 @@ class BuilderConfig(AppConfig):
         element_type_registry.register(DateTimePickerElementType())
         element_type_registry.register(HeaderElementType())
         element_type_registry.register(FooterElementType())
+        element_type_registry.register(MenuElementType())
+        element_type_registry.register(MenuItemElementType())
 
         from .domains.domain_types import CustomDomainType, SubDomainType
         from .domains.registries import domain_type_registry
