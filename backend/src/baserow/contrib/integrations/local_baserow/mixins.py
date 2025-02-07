@@ -205,13 +205,7 @@ class LocalBaserowTableServiceFilterableMixin:
 
         yield from super().formula_generator(service)
 
-        # Only yield formulas with untrashed fields.
-        service_filters = [
-            service_filter
-            for service_filter in service.service_filters.all()
-            if not service_filter.field.trashed
-        ]
-        for service_filter in service_filters:
+        for service_filter in service.service_filters.all():
             if service_filter.value_is_formula:
                 # Service types like LocalBaserowGetRow do not have a value attribute.
                 new_formula = yield service_filter.value
