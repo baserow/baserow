@@ -1173,9 +1173,6 @@ class LocalBaserowAggregateRowsUserServiceType(
     type = "local_baserow_aggregate_rows"
     model_class = LocalBaserowAggregateRows
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
-    # Mark the request serializer field names as empty, otherwise
-    # the polymorphic request serializer will try and serialize tables.
-    # request_serializer_field_names = []
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
     def get_schema_name(self, service: LocalBaserowAggregateRows) -> str:
