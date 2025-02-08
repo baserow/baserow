@@ -25,18 +25,20 @@
 
         <div v-if="sortMisconfigured(sort)">
           <div class="sortings__misconfigured">
-            <p>{{ $t('localBaserowTableServiceSortForm.sortMisconfigured') }}</p>
+            <p>
+              {{ $t('localBaserowTableServiceSortForm.sortMisconfigured') }}
+            </p>
           </div>
         </div>
 
         <template v-else>
           <div class="sortings__description">
             <template v-if="index === 0">{{
-                $t('localBaserowTableServiceSortForm.sortBy')
-              }}</template>
+              $t('localBaserowTableServiceSortForm.sortBy')
+            }}</template>
             <template v-if="index > 0">{{
-                $t('localBaserowTableServiceSortForm.thenBy')
-              }}</template>
+              $t('localBaserowTableServiceSortForm.thenBy')
+            }}</template>
           </div>
           <div class="sortings__field">
             <Dropdown
@@ -65,8 +67,8 @@
               @click="updateSort(sort, { order_by: 'ASC' })"
             >
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                  getSortIndicator(field, 1)
-                }}</template>
+                getSortIndicator(field, 1)
+              }}</template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 1)"
@@ -75,8 +77,8 @@
               <i class="iconoir-arrow-right"></i>
 
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                  getSortIndicator(field, 2)
-                }}</template>
+                getSortIndicator(field, 2)
+              }}</template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 2)"
@@ -88,8 +90,8 @@
               @click="updateSort(sort, { order_by: 'DESC' })"
             >
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                  getSortIndicator(field, 2)
-                }}</template>
+                getSortIndicator(field, 2)
+              }}</template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 2)"
@@ -98,8 +100,8 @@
               <i class="iconoir-arrow-right"></i>
 
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
-                  getSortIndicator(field, 1)
-                }}</template>
+                getSortIndicator(field, 1)
+              }}</template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
                 :class="getSortIndicator(field, 1)"
@@ -107,7 +109,6 @@
             </a>
           </div>
         </template>
-
       </div>
     </div>
     <template v-if="value.length < availableFieldsLength && !disableSort">
