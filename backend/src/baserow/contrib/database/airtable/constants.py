@@ -13,3 +13,9 @@ AIRTABLE_BASEROW_COLOR_MAPPING = {
     "purple": "dark-blue",
     "gray": "light-gray",
 }
+AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING = {
+    "commaPeriod": "COMMA_PERIOD",
+    "periodComma": "PERIOD_COMMA",
+    "spaceComma": "SPACE_COMMA",
+    "spacePeriod": "SPACE_PERIOD",
+}

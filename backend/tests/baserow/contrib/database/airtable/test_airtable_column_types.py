@@ -1196,6 +1196,9 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
     assert baserow_field.number_decimal_places == 0
     assert baserow_field.number_negative is False
+    assert baserow_field.number_separator == ""
+    assert baserow_field.number_prefix == ""
+    assert baserow_field.number_suffix == ""
 
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
@@ -1293,7 +1296,7 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
     )
     assert isinstance(baserow_field, NumberField)
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
-    assert baserow_field.number_decimal_places == 1
+    assert baserow_field.number_decimal_places == 0
     assert baserow_field.number_negative is False
 
     airtable_field = {
@@ -1319,6 +1322,9 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
     assert baserow_field.number_decimal_places == 2
     assert baserow_field.number_negative is True
+    assert baserow_field.number_separator == ""
+    assert baserow_field.number_prefix == ""
+    assert baserow_field.number_suffix == ""
 
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
@@ -1414,6 +1420,102 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
     assert baserow_field.number_decimal_places == 10
     assert baserow_field.number_negative is True
+    assert baserow_field.number_separator == ""
+    assert baserow_field.number_prefix == ""
+    assert baserow_field.number_suffix == ""
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_currency_column(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Currency",
+        "type": "number",
+        "typeOptions": {
+            "format": "currency",
+            "precision": 3,
+            "symbol": "$",
+            "separatorFormat": "commaPeriod",
+            "negative": False,
+        },
+    }
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+    assert isinstance(baserow_field, NumberField)
+    assert isinstance(airtable_column_type, NumberAirtableColumnType)
+    assert baserow_field.number_decimal_places == 3
+    assert baserow_field.number_negative is False
+    assert baserow_field.number_separator == "COMMA_PERIOD"
+    assert baserow_field.number_prefix == "$"
+    assert baserow_field.number_suffix == ""
+
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Currency",
+        "type": "number",
+        "typeOptions": {
+            "format": "currency",
+            "precision": 2,
+            "symbol": "€",
+            "separatorFormat": "spacePeriod",
+            "negative": True,
+        },
+    }
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+    assert isinstance(baserow_field, NumberField)
+    assert isinstance(airtable_column_type, NumberAirtableColumnType)
+    assert baserow_field.number_decimal_places == 2
+    assert baserow_field.number_negative is True
+    assert baserow_field.number_separator == "SPACE_PERIOD"
+    assert baserow_field.number_prefix == "€"
+    assert baserow_field.number_suffix == ""
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_percentage_column(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Currency",
+        "type": "number",
+        "typeOptions": {
+            "format": "percentage",
+            "precision": 1,
+            "negative": False,
+        },
+    }
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+    assert isinstance(baserow_field, NumberField)
+    assert isinstance(airtable_column_type, NumberAirtableColumnType)
+    assert baserow_field.number_decimal_places == 1
+    assert baserow_field.number_negative is False
+    assert baserow_field.number_separator == ""
+    assert baserow_field.number_prefix == ""
+    assert baserow_field.number_suffix == "%"
 
 
 @pytest.mark.django_db

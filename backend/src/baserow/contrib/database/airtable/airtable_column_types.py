@@ -28,6 +28,7 @@ from baserow.contrib.database.fields.models import (
 from baserow.contrib.database.fields.registries import field_type_registry
 
 from .config import AirtableImportConfig
+from .constants import AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING
 from .helpers import import_airtable_date_type_options, set_select_options_on_field
 from .import_report import (
     ERROR_TYPE_DATA_TYPE_MISMATCH,
@@ -155,17 +156,28 @@ class NumberAirtableColumnType(AirtableColumnType):
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
         type_options = raw_airtable_column.get("typeOptions", {})
-        decimal_places = 0
+        options_format = type_options.get("format")
+        suffix = ""
 
-        if type_options.get("format", "integer") == "decimal":
-            # Minimum of 1 and maximum of 5 decimal places.
-            decimal_places = min(
-                max(1, type_options.get("precision", 1)), NUMBER_MAX_DECIMAL_PLACES
-            )
+        if "percent" in options_format:
+            suffix = "%"
+
+        # Set the number of decimal places if the precision is set.
+        decimal_places = min(
+            max(0, type_options.get("precision", 0)), NUMBER_MAX_DECIMAL_PLACES
+        )
+        prefix = type_options.get("symbol", "")
+        separator_format = type_options.get("separatorFormat", "")
+        number_separator = AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING.get(
+            separator_format, ""
+        )
 
         return NumberField(
             number_decimal_places=decimal_places,
             number_negative=type_options.get("negative", True),
+            number_prefix=prefix,
+            number_suffix=suffix,
+            number_separator=number_separator,
         )
 
     def to_baserow_export_serialized_value(
