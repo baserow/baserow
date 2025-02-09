@@ -1,4 +1,3 @@
-import traceback
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, Optional
@@ -269,7 +268,7 @@ class DateAirtableColumnType(AirtableColumnType):
                 raw_airtable_table, raw_airtable_row
             )
             import_report.add_failed(
-                f"Row: \"{row_name}\", column: \"{raw_airtable_column['name']}\"",
+                f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
                 f"Cell",
                 raw_airtable_table["name"],
                 f'Cell value was left empty because it didn\'t pass the datetime validation with error: "{str(e)}"',
@@ -301,10 +300,6 @@ class FormulaAirtableColumnType(AirtableColumnType):
         airtable_timezone = type_options.get("timeZone", None)
         date_show_tzinfo = type_options.get("shouldDisplayTimeZone", False)
 
-        # date_force_timezone=None it the equivalent of airtable_timezone="client".
-        if airtable_timezone == "client":
-            airtable_timezone = None
-
         is_last_modified = display_type == "lastModifiedTime"
         is_created = display_type == "createdTime"
 
@@ -315,6 +310,10 @@ class FormulaAirtableColumnType(AirtableColumnType):
                 raw_airtable_table.get("name", ""),
                 "The field was imported, but the client timezone setting was dropped.",
             )
+
+        # date_force_timezone=None it the equivalent of airtable_timezone="client".
+        if airtable_timezone == "client":
+            airtable_timezone = None
 
         # The formula conversion isn't support yet, but because the Created on and
         # Last modified fields work as a formula, we can convert those.
@@ -404,7 +403,7 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
                     raw_airtable_table, raw_airtable_row
                 )
                 import_report.add_failed(
-                    f"Row: \"{row_name}\", column: \"{raw_airtable_column['name']}\"",
+                    f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
                     f"Cell",
                     raw_airtable_table["name"],
                     f'Foreign row id "{foreign_row_id}" was not added as relationship in the cell value was because it was not found in the mapping.',

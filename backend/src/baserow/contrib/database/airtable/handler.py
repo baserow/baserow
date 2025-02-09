@@ -596,7 +596,9 @@ class AirtableHandler:
             "All interfaces", "Interfaces", "", "Baserow doesn't support interfaces."
         )
 
-        # @TODO docs
+        # Convert the import report to the serialized export format of a Baserow table,
+        # so that a new table is created with the import report result for the user to
+        # see.
         exported_tables.append(
             import_report.get_baserow_export_table(len(schema["tableSchemas"]) + 1)
         )

@@ -136,6 +136,7 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
             "resultIsArray": False,
         },
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
@@ -143,7 +144,7 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportReport(),
+        import_report,
     )
     assert isinstance(baserow_field, CreatedOnField)
     assert isinstance(airtable_column_type, FormulaAirtableColumnType)
@@ -151,6 +152,9 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
     assert baserow_field.date_force_timezone is None
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == ('Date field: "Created"')
+    assert import_report.items[0].category == "Field"
 
     airtable_field = {
         "id": "fldcTpJuoUVpsDNoszO",
@@ -207,8 +211,9 @@ def test_airtable_import_date_column(data_fixture, api_client):
         "id": "fldyAXIzheHfugGhuFD",
         "name": "ISO DATE",
         "type": "date",
-        "typeOptions": {"isDateTime": False, "dateFormat": "US"},
+        "typeOptions": {"isDateTime": False, "dateFormat": "US", "timeZone": "client"},
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
@@ -216,13 +221,16 @@ def test_airtable_import_date_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportReport(),
+        import_report,
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
     assert baserow_field.date_format == "US"
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == ('Date field: "ISO DATE"')
+    assert import_report.items[0].category == "Field"
 
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
@@ -266,6 +274,26 @@ def test_airtable_import_date_column(data_fixture, api_client):
         )
         is None
     )
+
+    import_report = AirtableImportReport()
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            "+000000-06-19T21:09:30.000Z",
+            {},
+            AirtableImportConfig(),
+            import_report,
+        )
+        is None
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == ('Row: "row1", field: "ISO DATE"')
+    assert import_report.items[0].category == "Cell"
+    assert import_report.items[0].table == "Test"
 
 
 @pytest.mark.django_db
@@ -762,6 +790,7 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
             "resultIsArray": False,
         },
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
@@ -769,7 +798,7 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportReport(),
+        import_report,
     )
     assert isinstance(baserow_field, LastModifiedField)
     assert isinstance(airtable_column_type, FormulaAirtableColumnType)
@@ -777,6 +806,9 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
     assert baserow_field.date_force_timezone is None
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == ('Date field: "Last"')
+    assert import_report.items[0].category == "Field"
 
     airtable_field = {
         "id": "fldws6n8xdrEJrMxJFJ",
@@ -882,6 +914,37 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
         AirtableImportConfig(),
         AirtableImportReport(),
     ) == [1, 2]
+
+    # missing value
+    import_report = AirtableImportReport()
+    assert airtable_column_type.to_baserow_export_serialized_value(
+        {
+            "tblRpq315qnnIcg5IjI": {
+                "recWkle1IOXcLmhILmO": 1,
+            }
+        },
+        {"name": "Test"},
+        {"id": "row1"},
+        airtable_field,
+        baserow_field,
+        [
+            {
+                "foreignRowId": "recWkle1IOXcLmhILmO",
+                "foreignRowDisplayName": "Bram 1",
+            },
+            {
+                "foreignRowId": "rec5pdtuKyE71lfK1Ah",
+                "foreignRowDisplayName": "Bram 2",
+            },
+        ],
+        {},
+        AirtableImportConfig(),
+        import_report,
+    ) == [1]
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == ('Row: "row1", field: "Link to Users"')
+    assert import_report.items[0].category == "Cell"
+    assert import_report.items[0].table == "Test"
 
     # link to same table row
     airtable_field = {
@@ -1365,6 +1428,7 @@ def test_airtable_import_phone_column(data_fixture, api_client):
     assert isinstance(baserow_field, PhoneNumberField)
     assert isinstance(airtable_column_type, PhoneAirtableColumnType)
 
+    import_report = AirtableImportReport()
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
@@ -1375,10 +1439,14 @@ def test_airtable_import_phone_column(data_fixture, api_client):
             "NOT_PHONE",
             {},
             AirtableImportConfig(),
-            AirtableImportReport(),
+            import_report,
         )
         == ""
     )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == ('Row: "row1", column: "Phone"')
+    assert import_report.items[0].category == "Cell"
+    assert import_report.items[0].table == "Test"
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
@@ -1510,6 +1578,7 @@ def test_airtable_import_url_column(data_fixture, api_client):
     assert isinstance(baserow_field, URLField)
     assert isinstance(airtable_column_type, TextAirtableColumnType)
 
+    import_report = AirtableImportReport()
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
@@ -1520,10 +1589,15 @@ def test_airtable_import_url_column(data_fixture, api_client):
             "NOT_URL",
             {},
             AirtableImportConfig(),
-            AirtableImportReport(),
+            import_report,
         )
         == ""
     )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == ('Row: "row1", column: "Name"')
+    assert import_report.items[0].category == "Cell"
+    assert import_report.items[0].table == "Test"
+
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},

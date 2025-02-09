@@ -48,7 +48,7 @@ class AirtableImportReport:
         exported_rows = []
         for index, item in enumerate(self.items):
             row = DatabaseExportSerializedStructure.row(
-                id=index,
+                id=index + 1,
                 order=f"{index + 1}.00000000000000000000",
                 created_on=None,
                 updated_on=None,

@@ -315,6 +315,27 @@ def test_to_baserow_database_export():
         }
     ]
 
+    assert baserow_database_export["tables"][2]["rows"][0] == {
+        "id": 1,
+        "order": "1.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object": 'View: "All"',
+        "field_category": "View",
+        "field_table": "Users",
+        "field_message": 'View "All" was not imported because views are not yet supported during import.',
+    }
+    assert baserow_database_export["tables"][2]["rows"][1] == {
+        "id": 2,
+        "order": "2.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object": 'Field: "Name lookup (from Users)"',
+        "field_category": "Field",
+        "field_table": "Data",
+        "field_message": 'Field "Name lookup (from Users)" with field type lookup was not imported because it is not supported.',
+    }
+
 
 @pytest.mark.django_db
 @responses.activate
