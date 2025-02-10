@@ -2182,28 +2182,27 @@ export const actions = {
      * This helper function will make sure that the values of the related row are
      * updated the right way.
      */
-
-    const originalRow = clone(row)
-
-    const updateValues = async (values, optimisticUpdate = true) => {
+    const updateValues = async (values, optimisticUpdate) => {
       const rowExistsInBuffer = getters.getRow(row.id) !== undefined
 
       if (rowExistsInBuffer) {
         // If the row exists in the buffer, we can visually show to the user that
         // the values have changed, without immediately reflecting the change in
         // the buffer.
+        if (optimisticUpdate) {
+          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+            fields,
+            registry: this.$registry,
+            row,
+            increase: false,
+            decrease: true,
+          })
+        }
         commit('UPDATE_ROW_VALUES', {
           row,
           values: { ...values },
         })
         if (optimisticUpdate) {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: this.$registry,
-            row: originalRow,
-            increase: false,
-            decrease: true,
-          })
           commit('UPDATE_GROUP_BY_METADATA_COUNT', {
             fields,
             registry: this.$registry,
@@ -2250,9 +2249,10 @@ export const actions = {
       getters.getActiveSearchTerm
     )
 
-    // When possible update the values before making a request to the backend to make it feel
-    // instant for the user. If we can't safely do it in the frontend, then we have to show
-    // a loading state and update the row after the request has been made.
+    // When possible update the values before making a request to the backend to make
+    // it feel instant for the user. If we can't safely do it in the frontend, then
+    // we have to show a loading state and update the row after the request has been
+    // made.
     await updateValues(newRowValues, canUpdateOptimistically)
     if (!canUpdateOptimistically) {
       commit('SET_ROW_LOADING', { row, value: true })
@@ -2276,9 +2276,9 @@ export const actions = {
           this.$registry
         )
         // Update the remaining values like formula, which depend on the backend.
-        await updateValues(readOnlyData)
-        // If we can't optimistically update the row, refresh it to stop the loading state,
-        // show proper messages, and update its position and state.
+        await updateValues(readOnlyData, true)
+        // If we can't optimistically update the row, refresh it to stop the loading
+        // state, show proper messages, and update its position and state.
         if (!canUpdateOptimistically) {
           commit('SET_ROW_LOADING', { row, value: false })
           setTimeout(() => {
@@ -2292,7 +2292,7 @@ export const actions = {
         })
       }, row._.persistentId)
     } catch (error) {
-      await updateValues(oldRowValues)
+      await updateValues(oldRowValues, true)
       throw error
     }
   },
