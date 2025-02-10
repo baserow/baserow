@@ -97,7 +97,7 @@ class ServiceType(
                         f"The integration with ID {integration_id} does not exist."
                     )
 
-                if instance:
+                if instance and instance.integration_id:
                     # `integration` cannot belong to a different application
                     # than the one that `instance.integration` points to.
                     current_integration_id = instance.integration.application_id
