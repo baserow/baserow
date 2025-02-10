@@ -17,11 +17,13 @@ import {
   extractRowReadOnlyValues,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
+  updateRowMetadataType,
+  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata,
+    metadata: getRowMetadata(row, metadata),
     dragging: false,
   }
   return row
@@ -180,18 +182,7 @@ export const mutations = {
     Object.assign(row, values)
   },
   UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
-    const currentValue = row._.metadata[rowMetadataType]
-    const newValue = updateFunction(currentValue)
-
-    if (
-      !Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)
-    ) {
-      const metaDataCopy = clone(row._.metadata)
-      metaDataCopy[rowMetadataType] = newValue
-      Vue.set(row._, 'metadata', metaDataCopy)
-    } else {
-      Vue.set(row._.metadata, rowMetadataType, newValue)
-    }
+    updateRowMetadataType(row, rowMetadataType, updateFunction)
   },
   SET_ADHOC_FILTERING(state, adhocFiltering) {
     state.adhocFiltering = adhocFiltering

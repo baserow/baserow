@@ -221,6 +221,22 @@ def serialize_rows_metadata(
     )
 
 
+def serialize_single_row_metadata(
+    user: AbstractUser, row: GeneratedTableModel
+) -> Dict[str, Any]:
+    """
+    Serializes the metadata for the provided row.
+
+    :param user: The user to serialize the metadata for.
+    :param row: The row to serialize the metadata for.
+    :return: The serialized metadata for the provided rows.
+    """
+
+    return row_metadata_registry.generate_and_merge_metadata_for_row(
+        user, row.baserow_table, row.id
+    )
+
+
 def serialize_group_by_fields_metadata(
     queryset: QuerySet[GeneratedTableModel],
     group_by_fields: List[Field],

@@ -677,3 +677,31 @@ def test_check_token(api_client, data_fixture):
     )
     assert response.status_code == HTTP_200_OK
     assert response.json() == {"token": "OK"}
+
+
+@pytest.mark.django_db
+def test_cannot_get_row_metadata_from_token(api_client, data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    token = data_fixture.create_token(user=user, workspace=workspace)
+
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    row = table.get_model().objects.create()
+
+    def get_row_from_api_with_metadata():
+        return api_client.get(
+            reverse(
+                "api:database:rows:item",
+                kwargs={"table_id": table.id, "row_id": row.id},
+            )
+            + "?include=metadata",
+            HTTP_AUTHORIZATION=f"Token {token.key}",
+        )
+
+    response = get_row_from_api_with_metadata()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_CANNOT_INCLUDE_ROW_METADATA",
+        "detail": "The token cannot include row metadata.",
+    }

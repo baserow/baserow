@@ -1,3 +1,5 @@
+import { updateRowMetadataType } from '@baserow/modules/database/utils/row'
+
 /**
  * This store exists to always keep a copy of the row that's being edited via the
  * row edit modal. It sometimes happen that row from the original source, where it was
@@ -53,6 +55,13 @@ export const mutations = {
   UPDATE_ROW(state, { componentId, row }) {
     Object.assign(state.rows[componentId].row, row)
   },
+  UPDATE_ROW_METADATA(state, { rowId, rowMetadataType, updateFunction }) {
+    Object.values(state.rows)
+      .filter((data) => data.row.id === rowId)
+      .forEach((data) =>
+        updateRowMetadataType(data.row, rowMetadataType, updateFunction)
+      )
+  },
 }
 
 export const actions = {
@@ -101,6 +110,14 @@ export const actions = {
         commit('UPDATE_ROW', { componentId: key, row: values })
       }
     })
+  },
+  /**
+   * If a row is open in the modal but it's not present in the buffer, we need to
+   * manually update the metadata of the row. This is used for example to update the
+   * notification_mode setting of a row.
+   */
+  updateRowMetadata({ commit }, { rowId, rowMetadataType, updateFunction }) {
+    commit('UPDATE_ROW_METADATA', { rowId, rowMetadataType, updateFunction })
   },
 }
 
