@@ -165,7 +165,13 @@ def test_grouped_aggregate_rows_update_data_source(api_client, enterprise_data_f
         {"field_id": field_3.id, "order": 0}
     ]
     assert response_json["sortings"] == [
-        {"id": AnyInt(), "field": field.id, "order": 0, "order_by": "ASC"}
+        {
+            "id": AnyInt(),
+            "field": field.id,
+            "trashed": False,
+            "order": 0,
+            "order_by": "ASC",
+        }
     ]
 
 
