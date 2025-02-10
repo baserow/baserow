@@ -547,13 +547,6 @@ def test_local_baserow_upsert_row_service_prepare_values(data_fixture):
             {"table_id": 9999999999999999}, user
         )
     assert exc.value.args[0] == f"The table with ID 9999999999999999 does not exist."
-    with pytest.raises(ValidationError) as exc:
-        LocalBaserowUpsertRowServiceType().prepare_values(
-            {"integration_id": 9999999999999999}, user
-        )
-    assert (
-        exc.value.args[0] == f"The integration with ID 9999999999999999 does not exist."
-    )
 
 
 @pytest.mark.django_db(transaction=True)

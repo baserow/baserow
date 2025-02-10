@@ -4,9 +4,9 @@ from django.db.models import Count
 
 from baserow_premium.row_comments.models import (
     ALL_ROW_COMMENT_NOTIFICATION_MODES,
+    ROW_COMMENT_NOTIFICATION_DEFAULT_MODE,
     RowComment,
     RowCommentsNotificationMode,
-    RowCommentsNotificationModes,
 )
 from rest_framework import serializers
 from rest_framework.fields import Field
@@ -38,7 +38,7 @@ class RowCommentCountMetadataType(RowMetadataType):
         )
 
 
-class RowCommentsNotificationModeMetadataType(RowCommentCountMetadataType):
+class RowCommentsNotificationModeMetadataType(RowMetadataType):
     type = "row_comments_notification_mode"
 
     def generate_metadata_for_rows(
@@ -61,7 +61,7 @@ class RowCommentsNotificationModeMetadataType(RowCommentCountMetadataType):
                     table=table,
                     row_id__in=row_ids,
                 )
-                .exclude(mode=RowCommentsNotificationModes.MODE_ONLY_MENTIONS)
+                .exclude(mode=ROW_COMMENT_NOTIFICATION_DEFAULT_MODE)
                 .values("row_id", "mode")
             )
         }

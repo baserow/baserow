@@ -44,6 +44,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
 )
 from baserow.contrib.database.api.rows.serializers import (
+    get_example_multiple_rows_metadata_serializer,
     get_example_row_serializer_class,
 )
 from baserow.contrib.database.api.utils import get_include_exclude_field_ids
@@ -56,6 +57,7 @@ from baserow.contrib.database.api.views.serializers import FieldOptionsField
 from baserow.contrib.database.api.views.utils import (
     get_public_view_authorization_token,
     paginate_and_serialize_queryset,
+    serialize_rows_metadata,
     serialize_view_field_options,
 )
 from baserow.contrib.database.fields.exceptions import (
@@ -105,12 +107,12 @@ class TimelineViewView(APIView):
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.STR,
                 description=(
-                    "A comma separated list allowing the values of "
-                    "`field_options` which will add the object/objects with the "
-                    "same "
+                    "A comma separated list allowing the values of `field_options` and "
+                    "`row_metadata` which will add the object/objects with the same "
                     "name to the response if included. The `field_options` object "
-                    "contains user defined view settings for each field. For "
-                    "example the field's width is included in here."
+                    "contains user defined view settings for each field. For example "
+                    "the field's width is included in here. The `row_metadata` object"
+                    " includes extra row specific data on a per row basis."
                 ),
             ),
             ONLY_COUNT_API_PARAM,
@@ -152,6 +154,7 @@ class TimelineViewView(APIView):
                         serializer_class=TimelineViewFieldOptionsSerializer,
                         required=False,
                     ),
+                    "row_metadata": get_example_multiple_rows_metadata_serializer(),
                 },
                 serializer_name="PaginationSerializerWithTimelineViewFieldOptions",
             ),
@@ -185,9 +188,9 @@ class TimelineViewView(APIView):
             IncompatibleField: ERROR_INCOMPATIBLE_FIELD,
         }
     )
-    @allowed_includes("field_options")
+    @allowed_includes("field_options", "row_metadata")
     @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
-    def get(self, request, view_id, field_options, query_params):
+    def get(self, request, view_id, field_options, row_metadata, query_params):
         """
         Lists all the rows of a timeline view, paginated either by a page or
         offset/limit. If the limit get parameter is provided the limit/offset pagination
@@ -238,10 +241,17 @@ class TimelineViewView(APIView):
         if "count" in request.GET:
             return Response({"count": queryset.count()})
 
-        response, _, _ = paginate_and_serialize_queryset(queryset, request, field_ids)
+        response, page, _ = paginate_and_serialize_queryset(
+            queryset, request, field_ids
+        )
 
         if field_options:
             response.data.update(**serialize_view_field_options(view, model))
+
+        if row_metadata:
+            response.data.update(
+                row_metadata=serialize_rows_metadata(request.user, view, page)
+            )
 
         view_loaded.send(
             sender=self,

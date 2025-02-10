@@ -236,6 +236,14 @@
   align-items: center;
   position: relative;
 
+  &.filters__condition-item--misconfigured {
+    display: flex;
+
+    .filters__misconfigured-text {
+      color: $palette-red-800;
+    }
+  }
+
   &.filters__condition-item--loading {
     &::before {
       content: '';

@@ -96,6 +96,18 @@ class ServiceType(
                     raise DRFValidationError(
                         f"The integration with ID {integration_id} does not exist."
                     )
+
+                if instance and instance.integration_id:
+                    # `integration` cannot belong to a different application
+                    # than the one that `instance.integration` points to.
+                    current_integration_id = instance.integration.application_id
+                    if integration.application_id != current_integration_id:
+                        raise DRFValidationError(
+                            detail=f"The integration with ID {integration_id} is not "
+                            f"related to the given application {current_integration_id}.",
+                            code="invalid_integration",
+                        )
+
                 values["integration"] = integration
             else:
                 values["integration"] = None

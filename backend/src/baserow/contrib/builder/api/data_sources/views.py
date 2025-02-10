@@ -17,6 +17,10 @@ from baserow.api.decorators import (
 )
 from baserow.api.errors import ERROR_PERMISSION_DENIED
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
+from baserow.api.services.errors import (
+    ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
+    ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
+)
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
     DiscriminatorCustomFieldsMappingSerializer,
@@ -64,7 +68,9 @@ from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidServiceTypeDispatchSource,
+    ServiceFilterPropertyDoesNotExist,
     ServiceImproperlyConfigured,
+    ServiceSortPropertyDoesNotExist,
 )
 from baserow.core.services.registries import service_type_registry
 
@@ -471,6 +477,8 @@ class DispatchDataSourceView(APIView):
             DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
             DataSourceRefinementForbidden: ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
             ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+            ServiceSortPropertyDoesNotExist: ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
+            ServiceFilterPropertyDoesNotExist: ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
         }
     )

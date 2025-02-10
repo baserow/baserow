@@ -19,8 +19,13 @@ export class ServiceType extends Registerable {
     return null
   }
 
-  isValid(service) {
-    return true
+  /**
+   * Whether the service is valid.
+   * @param service - The service object.
+   * @returns {boolean} - If the service is valid.
+   */
+  isInError({ service }) {
+    return false
   }
 
   /**

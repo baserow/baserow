@@ -7,16 +7,18 @@ from baserow_enterprise.integrations.local_baserow.models import (
 
 
 class LocalBaserowTableServiceAggregationSeriesSerializer(serializers.ModelSerializer):
+    field_id = serializers.IntegerField()
     order = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = LocalBaserowTableServiceAggregationSeries
-        fields = ("id", "order", "field", "aggregation_type")
+        fields = ("order", "aggregation_type", "field_id")
 
 
 class LocalBaserowTableServiceAggregationGroupBySerializer(serializers.ModelSerializer):
+    field_id = serializers.IntegerField()
     order = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = LocalBaserowTableServiceAggregationGroupBy
-        fields = ("id", "order", "field")
+        fields = ("order", "field_id")

@@ -3995,14 +3995,24 @@ export class FormulaFieldType extends mix(
     return this.getFormulaType(field)?.canGroupByInView(field)
   }
 
+  isEqual(field, value1, value2) {
+    return this.getFormulaType(field).isEqual(field, value1, value2)
+  }
+
+  getRowValueFromGroupValue(field, value) {
+    return this.getFormulaType(field).getRowValueFromGroupValue(field, value)
+  }
+
+  getGroupValueFromRowValue(field, value) {
+    return this.getFormulaType(field).getGroupValueFromRowValue(field, value)
+  }
+
   parseInputValue(field, value) {
-    const underlyingFieldType = this.getFormulaType(field)
-    return underlyingFieldType.parseInputValue(field, value)
+    return this.getFormulaType(field).parseInputValue(field, value)
   }
 
   parseFromLinkedRowItemValue(field, value) {
-    const underlyingFieldType = this.getFormulaType(field)
-    return underlyingFieldType.parseFromLinkedRowItemValue(field, value)
+    return this.getFormulaType(field).parseFromLinkedRowItemValue(field, value)
   }
 
   canRepresentFiles(field) {

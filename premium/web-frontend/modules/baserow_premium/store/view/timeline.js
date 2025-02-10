@@ -1,9 +1,10 @@
 import bufferedRows from '@baserow/modules/database/store/view/bufferedRows'
 import TimelineService from '@baserow_premium/services/views/timeline'
+import { getRowMetadata } from '@baserow/modules/database/utils/row'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata,
+    metadata: getRowMetadata(row, metadata),
   }
   return row
 }
@@ -32,7 +33,6 @@ export const actions = {
       fields,
       initialRowArguments: {
         includeFieldOptions: true,
-        includeRowMetadata: false,
       },
       adhocFiltering,
       adhocSorting,

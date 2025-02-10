@@ -13,7 +13,10 @@ from baserow.api.utils import get_serializer_class
 from baserow.contrib.database.api.rows.fields import UserFieldNamesField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.models import RowHistory
-from baserow.contrib.database.rows.registries import row_metadata_registry
+from baserow.contrib.database.rows.registries import (
+    RowMetadataType,
+    row_metadata_registry,
+)
 
 
 class RowSerializer(serializers.ModelSerializer):
@@ -173,18 +176,18 @@ class BatchDeleteRowsSerializer(serializers.Serializer):
     )
 
 
-def get_example_row_serializer_class(example_type="get", user_field_names=False):
+def get_example_row_serializer_class(
+    example_type: str = "get",
+    user_field_names: bool = False,
+) -> serializers.Serializer:
     """
     Generates a serializer containing a field for each field type. It is only used for
     example purposes in the openapi documentation.
 
     :param example_type: Sets various parameters. Can be get, post, patch.
-    :type example_type: str
     :param user_field_names: Whether this example serializer help text should indicate
         the fields names can be switched using the `user_field_names` GET parameter.
-    :type user_field_names: bool
     :return: Generated serializer containing a field for each field type.
-    :rtype: Serializer
     """
 
     config = {
@@ -192,24 +195,28 @@ def get_example_row_serializer_class(example_type="get", user_field_names=False)
             "class_name": "ExampleRowResponseSerializer",
             "add_id": True,
             "add_order": True,
+            "add_metadata": True,
             "read_only_fields": True,
         },
         "post": {
             "class_name": "ExampleRowRequestSerializer",
             "add_id": False,
             "add_order": False,
+            "add_metadata": False,
             "read_only_fields": False,
         },
         "patch": {
             "class_name": "ExampleUpdateRowRequestSerializer",
             "add_id": False,
             "add_order": False,
+            "add_metadata": False,
             "read_only_fields": False,
         },
         "patch_batch": {
             "class_name": "ExampleBatchUpdateRowRequestSerializer",
             "add_id": True,
             "add_order": False,
+            "add_metadata": False,
             "read_only_fields": False,
         },
     }
@@ -217,6 +224,7 @@ def get_example_row_serializer_class(example_type="get", user_field_names=False)
     class_name = config[example_type]["class_name"]
     add_id = config[example_type]["add_id"]
     add_order = config[example_type]["add_order"]
+    add_metadata = config[example_type]["add_metadata"]
     add_readonly_fields = config[example_type]["read_only_fields"]
     is_response_example = add_readonly_fields
 
@@ -243,6 +251,16 @@ def get_example_row_serializer_class(example_type="get", user_field_names=False)
             required=False,
             help_text="Indicates the position of the row, lowest first and highest "
             "last.",
+        )
+
+    if add_metadata:
+        metadata_serializer = get_example_row_metadata_serializer()
+        fields["metadata"] = metadata_serializer(
+            required=False,
+            help_text=(
+                "Additional metadata for the row, if `include=metadata' "
+                "is provided as query parameter."
+            ),
         )
 
     field_types = field_type_registry.registry.values()
@@ -285,30 +303,37 @@ def get_example_row_serializer_class(example_type="get", user_field_names=False)
     return class_object
 
 
-def get_example_row_metadata_field_serializer():
+def get_example_row_metadata_serializer() -> serializers.Serializer:
     """
-    Generates a serializer containing a field for each row metadata type which
+     Generates a serializer containing a field for each row metadata type which
     represents the metadata for a single row.
-    It is only used for example purposes in the openapi documentation.
-
-    :return: Generated serializer for a single rows metadata
-    :rtype: Serializer
+    :return: A serializer containing a field for each row metadata type.
     """
 
-    metadata_types = row_metadata_registry.get_all()
-
-    if len(metadata_types) == 0:
-        return None
+    metadata_types: List[RowMetadataType] = row_metadata_registry.get_all()
 
     fields = {}
     for metadata_type in metadata_types:
         fields[metadata_type.type] = metadata_type.get_example_serializer_field()
 
-    per_row_serializer = type(
-        "RowMetadataSerializer", (serializers.Serializer,), fields
-    )()
+    return type("RowMetadataSerializer", (serializers.Serializer,), fields)
+
+
+def get_example_multiple_rows_metadata_serializer() -> serializers.Serializer:
+    """
+    Generates a serializer containing a field for each row metadata type which
+    represents the metadata for a single row. The single row serializer is then
+    nested in a dictionary where the key is the row id and the value is the single row
+    metadata serializer.
+    It is only used for example purposes in the openapi documentation.
+
+    :return: A serializer containing a dictionary of row id to row metadata.
+    """
+
+    per_row_serializer = get_example_row_metadata_serializer()
+
     return serializers.DictField(
-        child=per_row_serializer,
+        child=per_row_serializer(),
         required=False,
         help_text="An object keyed by row id with a value being an object containing "
         "additional metadata about that row. A row might not have metadata and will "

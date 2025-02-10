@@ -1,3 +1,6 @@
+import Vue from 'vue'
+import { clone } from '@baserow/modules/core/utils/object'
+
 /**
  * Serializes a row to make sure that the values are according to what the API expects.
  *
@@ -102,4 +105,30 @@ export function extractRowReadOnlyValues(row, allFields, registry) {
     }
   })
   return readOnlyValues
+}
+
+/**
+ * Call the given updateFunction with the current value of the row metadata type and
+ * set the new value. If the row metadata type does not exist yet, it will be
+ * created.
+ */
+export function updateRowMetadataType(row, rowMetadataType, updateFunction) {
+  const currentValue = row._.metadata[rowMetadataType]
+  const newValue = updateFunction(currentValue)
+
+  if (!Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)) {
+    const metaDataCopy = clone(row._.metadata)
+    metaDataCopy[rowMetadataType] = newValue
+    Vue.set(row._, 'metadata', metaDataCopy)
+  } else {
+    Vue.set(row._.metadata, rowMetadataType, newValue)
+  }
+}
+
+/**
+ * Return the metadata of a row. If the metadata does not exist yet, it will be created
+ * as an empty object.
+ */
+export function getRowMetadata(row, metadata = {}) {
+  return { ...metadata, ...(row.metadata || {}) }
 }

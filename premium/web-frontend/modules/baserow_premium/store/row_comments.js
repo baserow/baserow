@@ -326,13 +326,22 @@ export const actions = {
   /**
    * Forcefully update the notification mode for a comments on a row.
    */
-  async forceUpdateNotificationMode({ commit }, { tableId, rowId, mode }) {
+  async forceUpdateNotificationMode({ dispatch }, { tableId, rowId, mode }) {
+    const updateFunction = () => mode.toString()
+    const rowMetadataType = 'row_comments_notification_mode'
     await updateRowMetadataInViews(
       this,
       tableId,
       rowId,
-      'row_comments_notification_mode',
-      () => mode.toString()
+      rowMetadataType,
+      updateFunction
+    )
+    // Let's also make sure the local copy of the row edit modal is updated in case the
+    // row is not in any view buffer.
+    dispatch(
+      'rowModal/updateRowMetadata',
+      { rowId, rowMetadataType, updateFunction },
+      { root: true }
     )
   },
 }

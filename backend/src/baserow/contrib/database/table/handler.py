@@ -277,17 +277,17 @@ class TableUsageHandler:
                         storage_usage_updated_at=Now(),
                     )
                 )
-                return TableUsage.objects.bulk_create(
-                    entries,
-                    update_conflicts=True,
-                    update_fields=[
-                        "row_count",
-                        "row_count_updated_at",
-                        "storage_usage",
-                        "storage_usage_updated_at",
-                    ],
-                    unique_fields=["table_id"],
-                )
+            return TableUsage.objects.bulk_create(
+                entries,
+                update_conflicts=True,
+                update_fields=[
+                    "row_count",
+                    "row_count_updated_at",
+                    "storage_usage",
+                    "storage_usage_updated_at",
+                ],
+                unique_fields=["table_id"],
+            )
 
         while True:
             # Postgres needs a lock for every table in the loop, so this limits

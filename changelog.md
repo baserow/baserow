@@ -1,5 +1,17 @@
 # Changelog
 
+## Released 1.31.1
+
+### Bug fixes
+* [Builder] Resolved an issue in data source filters and sortings which prevented them from working correctly when the database field they were associated with were trashed. [#3378](https://gitlab.com/baserow/baserow/-/issues/3378)
+* Fixed an issue where the notification mode settings were not displayed correctly if the row was not in the view. [#3411](https://gitlab.com/baserow/baserow/-/issues/3411)
+* Disable optimistic updates for rows with filters, sorts, or group by on backend-calculated read-only fields. [#3415](https://gitlab.com/baserow/baserow/-/issues/3415)
+* Fixed issue where collaborator names were not displayed in filter when scrolling or searching [#3431](https://gitlab.com/baserow/baserow/-/issues/3431)
+* [Builder] Resolved an issue which prevented tables from paging correctly.
+* Fix indentation bug where duplicate table entries were added.
+* Fix iCal feed when the table has select_related fields from enhance_queryset.
+
+
 ## Released 1.31.0
 
 ### New features

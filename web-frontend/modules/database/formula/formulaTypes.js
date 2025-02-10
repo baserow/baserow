@@ -230,6 +230,30 @@ export class BaserowFormulaTypeDefinition extends Registerable {
     return false
   }
 
+  isEqual(field, value1, value2) {
+    const underlyingFieldType = this.app.$registry.get(
+      'field',
+      this._mapFormulaTypeToFieldType(field.formula_type)
+    )
+    return underlyingFieldType.isEqual(field, value1, value2)
+  }
+
+  getRowValueFromGroupValue(field, value) {
+    const underlyingFieldType = this.app.$registry.get(
+      'field',
+      this._mapFormulaTypeToFieldType(field.formula_type)
+    )
+    return underlyingFieldType.getRowValueFromGroupValue(field, value)
+  }
+
+  getGroupValueFromRowValue(field, value) {
+    const underlyingFieldType = this.app.$registry.get(
+      'field',
+      this._mapFormulaTypeToFieldType(field.formula_type)
+    )
+    return underlyingFieldType.getGroupValueFromRowValue(field, value)
+  }
+
   canRepresentFiles(field) {
     return false
   }

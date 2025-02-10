@@ -1,9 +1,10 @@
 import bufferedRows from '@baserow/modules/database/store/view/bufferedRows'
 import GalleryService from '@baserow/modules/database/services/view/gallery'
+import { getRowMetadata } from '@baserow/modules/database/utils/row'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata,
+    metadata: getRowMetadata(row, metadata),
     dragging: false,
   }
   return row

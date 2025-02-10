@@ -2412,3 +2412,48 @@ def test_calendar_view_ical_filters(premium_data_fixture, api_client, data_fixtu
     titles = ["title 4 - "]
     for tstart, summary in zip(titles, evsummary):
         assert summary.startswith(tstart)
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_calendar_view_ical_feed_with_date_and_select_related_field_in_queryset(
+    premium_data_fixture, api_client, data_fixture
+):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table, _, _, _, context = setup_interesting_test_table(
+        premium_data_fixture, user=user
+    )
+    date_field = premium_data_fixture.create_date_field(
+        table=table,
+        date_include_time=True,
+    )
+    view_handler = ViewHandler()
+
+    calendar_view: CalendarView = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="calendar",
+        date_field=date_field,
+    )
+
+    req_patch = partial(
+        api_client.patch, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    resp: Response = req_patch(
+        reverse("api:database:views:item", kwargs={"view_id": calendar_view.id}),
+        {"ical_public": True},
+    )
+    assert resp.status_code == HTTP_200_OK
+    assert resp.data["ical_feed_url"]
+
+    calendar_view.refresh_from_db()
+    req_get = partial(api_client.get, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    resp = req_get(
+        reverse(
+            "api:database:views:calendar:calendar_ical_feed",
+            kwargs={"ical_slug": calendar_view.ical_slug},
+        )
+    )
+    assert resp.status_code == HTTP_200_OK

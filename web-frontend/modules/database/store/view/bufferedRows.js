@@ -16,6 +16,8 @@ import {
   extractRowReadOnlyValues,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
+  updateRowMetadataType,
+  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import fieldOptionsStoreFactory from '@baserow/modules/database/store/view/fieldOptions'
@@ -59,13 +61,16 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
 
   const populateRow = (row, metadata = {}) => {
     if (customPopulateRow) {
-      customPopulateRow(row)
+      customPopulateRow(row, metadata)
     }
+
+    // Add the metadata to the row so that it can be used in the front-end.
     if (row._ == null) {
       row._ = {
-        metadata,
+        metadata: getRowMetadata(row, metadata),
       }
     }
+
     // Matching rows for front-end only search is not yet properly
     // supported and tested in this store mixin. Only server-side search
     // implementation is finished.
@@ -270,18 +275,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       row._.matchSearch = matchSearch
     },
     UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
-      const currentValue = row._.metadata[rowMetadataType]
-      const newValue = updateFunction(currentValue)
-
-      if (
-        !Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)
-      ) {
-        const metaDataCopy = clone(row._.metadata)
-        metaDataCopy[rowMetadataType] = newValue
-        Vue.set(row._, 'metadata', metaDataCopy)
-      } else {
-        Vue.set(row._.metadata, rowMetadataType, newValue)
-      }
+      updateRowMetadataType(row, rowMetadataType, updateFunction)
     },
     SET_ADHOC_FILTERING(state, adhocFiltering) {
       state.adhocFiltering = adhocFiltering
@@ -507,7 +501,8 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           })
 
           data.results.forEach((row, index) => {
-            rows[rangeToFetch.offset + index] = populateRow(row)
+            const metadata = extractRowMetadata(data, row.id)
+            rows[rangeToFetch.offset + index] = populateRow(row, metadata)
           })
 
           if (includeFieldOptions) {

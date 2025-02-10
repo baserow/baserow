@@ -233,7 +233,7 @@ def test_get_example_row_serializer_class():
     num_readonly_fields = len(
         [ftype for ftype in field_type_registry.registry.values() if ftype.read_only]
     )
-    num_extra_response_fields = 2  # id + order
+    num_extra_response_fields = 3  # id + order + metadata
     num_difference = num_readonly_fields + num_extra_response_fields
 
     assert num_request_fields == num_response_fields - num_difference
