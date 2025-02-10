@@ -11,7 +11,7 @@ See below for an example docker-compose file that will enable Baserow with Traef
 version: "3.4"
 services:
   baserow:
-    image: baserow/baserow:1.31.0
+    image: baserow/baserow:1.31.1
     container_name: baserow
     labels:
         # Explicitly tell Traefik to expose this container
