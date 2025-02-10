@@ -5,6 +5,7 @@
     :value="copy"
     :show-empty-value="false"
     :fixed-items="true"
+    :initial-display-name="initialDisplayName"
     class="dropdown--floating filters__value-dropdown"
     @input="input"
   ></FieldCollaboratorDropdown>
@@ -23,6 +24,12 @@ export default {
     copy() {
       const value = this.filter.value
       return value === '' ? null : parseInt(value) || null
+    },
+    initialDisplayName() {
+      const selected = this.workspaceCollaborators.find(
+        (c) => c.user_id === this.copy
+      )
+      return selected?.name
     },
   },
   methods: {

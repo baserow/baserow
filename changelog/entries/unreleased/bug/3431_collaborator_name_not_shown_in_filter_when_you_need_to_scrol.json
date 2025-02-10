@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Fixed issue where collaborator names were not displayed in filter when scrolling or searching",
+    "issue_number": 3431,
+    "bullet_points": [],
+    "created_at": "2025-02-10"
+}
