@@ -17,7 +17,10 @@
       class="select-options__dropdown-selected dropdown__selected"
       @click="show()"
     >
-      <div v-if="hasValue()">
+      <div v-if="initialDisplayName">
+        {{ initialDisplayName }}
+      </div>
+      <div v-else-if="hasValue()">
         {{ selectedName }}
       </div>
       <i
