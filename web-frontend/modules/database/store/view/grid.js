@@ -1956,8 +1956,13 @@ export const actions = {
           })
         }
         dispatch('onRowChange', { view, row, fields })
+        const rowId = row.id
         setTimeout(() => {
-          if (!row._.selected) {
+          // Get the latest row so that any changes that might have been made in the
+          // meantime are included. This is needed to pass the correct row into the
+          // `refreshRow` that shows/hide the row.
+          const row = getters.getRow(rowId)
+          if (row && !row._.selected) {
             dispatch('refreshRow', { grid: view, row, fields })
           }
         }, REFRESH_ROW_DELAY)
@@ -2272,9 +2277,15 @@ export const actions = {
         // If we can't optimistically update the row, refresh it to stop the loading
         // state, show proper messages, and update its position and state.
         if (!canUpdateOptimistically) {
+          const rowId = row.id
           commit('SET_ROW_LOADING', { row, value: false })
           setTimeout(() => {
-            if (!row._.selected) {
+            // Get the latest row so that updated `readOnlyData` values are included,
+            // and any other changes that might have been made in the meantime. This is
+            // needed to pass the correct row into the `refreshRow` that shows/hide the
+            // row.
+            const row = getters.getRow(rowId)
+            if (row && !row._.selected) {
               dispatch('refreshRow', { grid: view, row, fields })
             }
           }, REFRESH_ROW_DELAY)
