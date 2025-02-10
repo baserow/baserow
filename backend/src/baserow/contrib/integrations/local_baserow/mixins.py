@@ -14,8 +14,8 @@ from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.contrib.integrations.local_baserow.api.serializers import (
-    LocalBaserowTableServiceFilterSerializer,
-    LocalBaserowTableServiceSortSerializer,
+    LocalBaserowTableServiceFilterSerializerMixin,
+    LocalBaserowTableServiceSortSerializerMixin,
 )
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowViewService
 from baserow.core.formula import BaserowFormula, resolve_formula
@@ -24,7 +24,11 @@ from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_integer, ensure_string
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceFilterPropertyDoesNotExist,
+    ServiceImproperlyConfigured,
+    ServiceSortPropertyDoesNotExist,
+)
 from baserow.core.services.types import ServiceDict, ServiceSubClass
 from baserow.core.services.utils import ServiceAdhocRefinements
 
@@ -43,12 +47,9 @@ class LocalBaserowTableServiceFilterableMixin:
     """
 
     mixin_allowed_fields = ["filter_type"]
-    mixin_serializer_field_names = ["filters", "filter_type"]
-    mixin_serializer_field_overrides = {
-        "filters": LocalBaserowTableServiceFilterSerializer(
-            many=True, source="service_filters", required=False
-        ),
-    }
+    mixin_serializer_field_names = ["filter_type"]
+    mixin_serializer_field_overrides = {}
+    mixin_serializer_mixins = [LocalBaserowTableServiceFilterSerializerMixin]
 
     class SerializedDict(ServiceDict):
         filter_type: str
@@ -150,6 +151,17 @@ class LocalBaserowTableServiceFilterableMixin:
         if isinstance(service, LocalBaserowViewService) and service.view_id:
             view_filter_builder = ViewHandler().get_filter_builder(service.view, model)
             queryset = view_filter_builder.apply_to_queryset(queryset)
+
+        # If there are filters pointing to trashed fields, throw an exception.
+        # We won't allow the service to be dispatched as it could leak data.
+        if (
+            service.service_filters(manager="objects_and_trash")
+            .filter(field__trashed=True)
+            .exists()
+        ):
+            raise ServiceFilterPropertyDoesNotExist(
+                f"One or more filtered properties no longer exist.",
+            )
 
         service_filter_builder = FilterBuilder(filter_type=service.filter_type)
         for service_filter in service.service_filters.all():
@@ -258,12 +270,9 @@ class LocalBaserowTableServiceSortableMixin:
     applied to their service's table or view are applied to the queryset.
     """
 
-    mixin_serializer_field_names = ["sortings"]
-    mixin_serializer_field_overrides = {
-        "sortings": LocalBaserowTableServiceSortSerializer(
-            many=True, source="service_sorts", required=False
-        ),
-    }
+    mixin_serializer_field_names = []
+    mixin_serializer_field_overrides = {}
+    mixin_serializer_mixins = [LocalBaserowTableServiceSortSerializerMixin]
 
     class SerializedDict(ServiceDict):
         sortings: List[Dict]
@@ -326,6 +335,16 @@ class LocalBaserowTableServiceSortableMixin:
         :param model: The `service.view.table`'s `GeneratedTableModel`.
         :return: A list of `OrderBy` expressions.
         """
+
+        # If there are sorts pointing to trashed fields, throw an exception.
+        if (
+            service.service_sorts(manager="objects_and_trash")
+            .filter(field__trashed=True)
+            .exists()
+        ):
+            raise ServiceSortPropertyDoesNotExist(
+                f"One or more sorted properties no longer exist.",
+            )
 
         service_sorts = service.service_sorts.all()
         sort_ordering = [service_sort.get_order_by() for service_sort in service_sorts]

@@ -377,7 +377,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         service_sorts: Optional[List[ServiceSortDictSubClass]] = None,
     ):
         with atomic_if_not_already():
-            service.service_sorts.all().delete()
+            service.service_sorts(manager="objects_and_trash").all().delete()
             LocalBaserowTableServiceSort.objects.bulk_create(
                 [
                     LocalBaserowTableServiceSort(
@@ -393,7 +393,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         service_filters: Optional[List[ServiceFilterDictSubClass]] = None,
     ):
         with atomic_if_not_already():
-            service.service_filters.all().delete()
+            service.service_filters(manager="objects_and_trash").all().delete()
             LocalBaserowTableServiceFilter.objects.bulk_create(
                 [
                     LocalBaserowTableServiceFilter(
@@ -425,8 +425,8 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         # and sorts. This is due to the fact that both point at specific table fields.
         from_table, to_table = changes.get("table", (None, None))
         if from_table and to_table:
-            instance.service_filters.all().delete()
-            instance.service_sorts.all().delete()
+            instance.service_filters(manager="objects_and_trash").all().delete()
+            instance.service_sorts(manager="objects_and_trash").all().delete()
         else:
             if "service_filters" in values:
                 self.update_service_filters(instance, values["service_filters"])
@@ -834,6 +834,10 @@ class LocalBaserowListRowsUserServiceType(
     model_class = LocalBaserowListRows
     max_result_limit = 200
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
+    serializer_mixins = (
+        LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
+        + LocalBaserowTableServiceSortableMixin.mixin_serializer_mixins
+    )
 
     @property
     def simple_formula_fields(self):
@@ -1169,6 +1173,7 @@ class LocalBaserowAggregateRowsUserServiceType(
     type = "local_baserow_aggregate_rows"
     model_class = LocalBaserowAggregateRows
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
+    serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
     def get_schema_name(self, service: LocalBaserowAggregateRows) -> str:
         """
@@ -1541,6 +1546,10 @@ class LocalBaserowGetRowUserServiceType(
     type = "local_baserow_get_row"
     model_class = LocalBaserowGetRow
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
+    serializer_mixins = (
+        LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
+        + LocalBaserowTableServiceSortableMixin.mixin_serializer_mixins
+    )
 
     @property
     def simple_formula_fields(self):

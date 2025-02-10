@@ -478,6 +478,9 @@
     "addCondition": "Add condition",
     "addConditionGroup": "Add condition group"
   },
+  "viewFieldConditionItem": {
+    "filterMisconfigured": "The field this filter is associated with has been trashed."
+  },
   "viewFilterContext": {
     "addFilter": "Add filter",
     "addFilterGroup": "Add filter group",

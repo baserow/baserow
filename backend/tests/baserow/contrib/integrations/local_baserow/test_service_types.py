@@ -1058,12 +1058,12 @@ def test_local_baserow_table_service_type_after_update_table_change_deletes_filt
     assert not mock_instance.service_sorts.all.return_value.delete.called
 
     service_type.after_update(mock_instance, {}, change_table_from_None_to_Table)
-    assert not mock_instance.service_filters.all.return_value.delete.called
-    assert not mock_instance.service_sorts.all.return_value.delete.called
+    assert not mock_instance.service_filters.return_value.all.return_value.delete.called
+    assert not mock_instance.service_sorts.return_value.all.return_value.delete.called
 
     service_type.after_update(mock_instance, {}, change_table_from_Table_to_Table)
-    assert mock_instance.service_filters.all.return_value.delete.called
-    assert mock_instance.service_sorts.all.return_value.delete.called
+    assert mock_instance.service_filters.return_value.all.return_value.delete.called
+    assert mock_instance.service_sorts.return_value.all.return_value.delete.called
 
 
 @pytest.mark.django_db

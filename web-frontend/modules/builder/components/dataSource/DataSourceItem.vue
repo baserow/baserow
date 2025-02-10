@@ -4,11 +4,12 @@
       class="flex-grow-1"
       :title="dataSource.name"
       size="medium"
-      :image="integrationType?.image"
-      :initials="integrationType?.image ? null : '?'"
+      :image="!isInError ? image : null"
+      :icon="isInError ? 'iconoir-warning-circle' : null"
+      :initials="image ? null : '?'"
       :subtitle="subtitle"
       :rounded-icon="false"
-      avatar-color="neutral"
+      :avatar-color="isInError ? 'red' : 'neutral'"
       @click="$emit('edit', dataSource)"
     />
     <div
@@ -64,6 +65,9 @@ export default {
     },
   },
   computed: {
+    isInError() {
+      return this.dataSourceType?.isInError({ service: this.dataSource })
+    },
     dataSourceType() {
       if (!this.dataSource.type) {
         return null

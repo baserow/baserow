@@ -10,6 +10,10 @@ from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions
 from baserow.api.errors import ERROR_PERMISSION_DENIED
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
+from baserow.api.services.errors import (
+    ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
+    ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
+)
 from baserow.api.utils import (
     DiscriminatorCustomFieldsMappingSerializer,
     apply_exception_mapping,
@@ -54,7 +58,12 @@ from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
-from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    ServiceFilterPropertyDoesNotExist,
+    ServiceImproperlyConfigured,
+    ServiceSortPropertyDoesNotExist,
+)
 from baserow.core.services.registries import service_type_registry
 
 from .serializers import PublicDataSourceSerializer, PublicElementSerializer
@@ -340,11 +349,13 @@ class PublicDispatchDataSourceView(APIView):
     @transaction.atomic
     @map_exceptions(
         {
-            DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
-            DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
-            ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
-            DataSourceRefinementForbidden: ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
+            DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
+            DataSourceRefinementForbidden: ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
+            DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+            ServiceSortPropertyDoesNotExist: ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
+            ServiceFilterPropertyDoesNotExist: ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
+            ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
         }
     )
     def post(self, request, data_source_id: int):

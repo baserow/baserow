@@ -3,6 +3,7 @@ from rest_framework.reverse import reverse
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceSort,
 )
@@ -38,8 +39,11 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=data_source1.service, field=field_3, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=data_source1.service, field=field_3, order=2, order_by="ASC"
+    enterprise_data_fixture.create_local_baserow_table_service_sort(
+        service=data_source1.service,
+        field=field_3,
+        order_by=SORT_ORDER_ASC,
+        order=2,
     )
     data_source2 = (
         enterprise_data_fixture.create_dashboard_local_baserow_list_rows_data_source(
@@ -71,7 +75,13 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
         "filter_type": "AND",
         "filters": [],
         "sortings": [
-            {"field": field_3.id, "id": AnyInt(), "order": 2, "order_by": "ASC"}
+            {
+                "field": field_3.id,
+                "id": AnyInt(),
+                "trashed": False,
+                "order": 2,
+                "order_by": "ASC",
+            }
         ],
         "id": data_source1.id,
         "integration_id": AnyInt(),
@@ -155,7 +165,13 @@ def test_grouped_aggregate_rows_update_data_source(api_client, enterprise_data_f
         {"field_id": field_3.id, "order": 0}
     ]
     assert response_json["sortings"] == [
-        {"id": AnyInt(), "field": field.id, "order": 0, "order_by": "ASC"}
+        {
+            "id": AnyInt(),
+            "field": field.id,
+            "trashed": False,
+            "order": 0,
+            "order_by": "ASC",
+        }
     ]
 
 

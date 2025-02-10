@@ -34,6 +34,10 @@
   padding: 16px 0;
   gap: 16px;
 
+  .sortings__misconfigured-text {
+    color: $palette-red-800;
+  }
+
   &--scrollable {
     overflow-y: scroll;
   }
