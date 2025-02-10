@@ -381,8 +381,6 @@ class CollectionElementPropertyOptionsSerializer(
         fields = ["schema_property", "filterable", "sortable", "searchable"]
 
 
-
-@extend_schema_serializer(exclude_fields=("config",))
 class MenuItemSerializer(serializers.ModelSerializer):
     """
     This serializer transform the flat properties object from/to a config dict property.
@@ -390,36 +388,30 @@ class MenuItemSerializer(serializers.ModelSerializer):
     object.
     """
 
-    default_allowed_fields = [
-        "menu_item_variant", "type", "menu_item_order", "uid", "name",
-        "navigation_type", "navigate_to_page", "navigate_to_url",
-        "page_parameters", "query_parameters", "target",
-    ]
+    navigate_to_page_id = serializers.IntegerField(
+        allow_null=True,
+        default=None,
+        required=False,
+    )
+    navigate_to_url = serializers.CharField(
+        default="",
+        allow_blank=True,
+        required=False,
+    )
 
     class Meta:
         model = MenuItemElement
         fields = [
-            "menu_item_variant", "type", "menu_item_order", "uid", "parent_menu_item", "name",
-            "navigation_type", "navigate_to_page", "navigate_to_url",
-            "page_parameters", "query_parameters", "target",
+            "menu_item_variant",
+            "type",
+            "menu_item_order",
+            "uid",
+            "parent_menu_item",
+            "name",
+            "navigation_type",
+            "navigate_to_page_id",
+            "navigate_to_url",
+            "page_parameters",
+            "query_parameters",
+            "target",
         ]
-    
-    def to_representation(self, instance):
-        """
-        Flatten the config dict to an object.
-        """
-        return {
-            "id": instance.id,
-            "menu_item_variant": instance.menu_item_variant,
-            "name": instance.name,
-            "type": instance.type,
-            "menu_item_order": instance.menu_item_order,
-            "uid": instance.uid,
-            "parent_menu_item": instance.parent_menu_item_id if instance.parent_menu_item else None,
-            "navigation_type": instance.navigation_type,
-            "navigate_to_page": instance.navigate_to_page,
-            "navigate_to_url": instance.navigate_to_url,
-            "page_parameters": instance.page_parameters,
-            "query_parameters": instance.query_parameters,
-            "target": instance.target,
-        }

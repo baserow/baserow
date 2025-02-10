@@ -2066,10 +2066,8 @@ class MenuElementType(ElementType):
         """
 
         if prop_name == "menu_items":
-            return [
-                MenuItemElementType.export_serialized(i)
-                for i in element.menu_items.all()
-            ]
+            # TODO
+            return []
 
         return super().serialize_property(
             element,
@@ -2079,49 +2077,3 @@ class MenuElementType(ElementType):
             cache=cache,
             **kwargs,
         )
-
-
-class MenuItemElementType(ElementType):
-    """
-    A menu element that helps with navigating the application.
-    """
-
-    type = "menu_item"
-    model_class = MenuItemElement
-    serializer_field_names = ["menu_item_variant", "type", "menu_item_order", "name"]
-    allowed_fields = ["menu_item_variant", "type", "menu_item_order", "name"]
-    simple_formula_fields = NavigationElementManager.simple_formula_fields
-
-    class SerializedDict(NavigationElementManager.SerializedDict):
-        menu_item_variant: str
-        type: str
-        name: str
-        menu_item_order: int
-
-    @property
-    def serializer_field_names(self):
-        return (
-            super().serializer_field_names
-            + NavigationElementManager.serializer_field_names
-        )
-
-    @property
-    def allowed_fields(self):
-        return (
-            super().allowed_fields
-            + NavigationElementManager.allowed_fields
-        )
-
-    @property
-    def serializer_field_overrides(self):
-        return (
-            super().serializer_field_overrides
-            | NavigationElementManager().get_serializer_field_overrides()
-        )
-
-    def get_pytest_params(self, pytest_data_fixture):
-        return {
-            "menu_item_variant": MenuItemElement.VARIANTS.LINK,
-            "type": MenuItemElement.TYPES.ITEM,
-            "menu_item_order": 1,
-        }
