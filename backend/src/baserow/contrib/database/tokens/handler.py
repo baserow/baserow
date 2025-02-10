@@ -395,8 +395,41 @@ class TokenHandler:
         # At least one must be True
         return any([v is True for v in token_permission.values()])
 
+    def get_token_from_request(self, request: Request) -> Token | None:
+        """
+        Extracts the token from the request. If the token is not found then None is
+        returned.
+
+        :param request: The request from which the token must be extracted.
+        :return: The extracted token or None if it could not be found.
+        """
+
+        return getattr(request, "user_token", None)
+
+    def raise_table_permission_error(self, table: Table, type_name: str | list[str]):
+        """
+        Raises an exception indicating that the provided token does not have permission
+        to the provided table. Used to raise a consistent exception when the token does
+        not have permission to the table.
+
+        :param table: The table object to check the permissions for.
+        :param type_name: The CRUD operation, create, read, update or delete to check
+            the permissions for. Can be a list if you want to check at least one of the
+            listed operation.
+        :raises NoPermissionToTable: Raised when the token does not have permissions to
+        """
+
+        raise NoPermissionToTable(
+            f"The provided token does not have {type_name} "
+            f"permissions to table {table.id}."
+        )
+
     def check_table_permissions(
-        self, request_or_token, type_name, table, force_check=False
+        self,
+        request_or_token: Request | Token,
+        type_name: str | list[str],
+        table: Table,
+        force_check=False,
     ):
         """
         Instead of returning True or False, this method will raise an exception if the
@@ -404,51 +437,34 @@ class TokenHandler:
 
         :param request_or_token: If a request is provided then the token will be
             extracted from the request. Otherwise a token object is expected.
-        :type request_or_token: Request or Token
         :param type_name: The CRUD operation, create, read, update or delete to check
             the permissions for. Can be a list if you want to check at least one of the
             listed operation.
-        :type type_name: str | list
         :param table: The table object to check the permissions for.
-        :type table: Table
         :param force_check: Indicates if a NoPermissionToTable exception must be raised
             when the token could not be extracted from the request. This can be
             useful if a view accepts multiple types of authentication.
-        :type force_check: bool
         :raises ValueError: when neither a Token or HttpRequest is provided.
         :raises NoPermissionToTable: when the token does not have permissions to the
             table.
         """
 
         token = None
-
-        if not isinstance(request_or_token, Request) and not isinstance(
-            request_or_token, Token
-        ):
-            raise ValueError(
-                "The provided instance should be a HttpRequest or Token " "object."
-            )
-
-        if isinstance(request_or_token, Request) and hasattr(
-            request_or_token, "user_token"
-        ):
-            token = request_or_token.user_token
-
         if isinstance(request_or_token, Token):
             token = request_or_token
-
-        if not token and not force_check:
-            return
-
-        if (
-            not token
-            and force_check
-            or not TokenHandler().has_table_permission(token, type_name, table)
-        ):
-            raise NoPermissionToTable(
-                f"The provided token does not have {type_name} "
-                f"permissions to table {table.id}."
+        elif isinstance(request_or_token, Request):
+            token = self.get_token_from_request(request_or_token)
+        else:
+            raise ValueError(
+                "The provided instance should be a HttpRequest or Token object."
             )
+
+        should_check_permissions = token is not None or force_check
+        has_table_permissions = token is not None and self.has_table_permission(
+            token, type_name, table
+        )
+        if should_check_permissions and not has_table_permissions:
+            self.raise_table_permission_error(table, type_name)
 
     def delete_token(self, user, token):
         """

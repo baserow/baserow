@@ -232,7 +232,7 @@ def serialize_single_row_metadata(
     :return: The serialized metadata for the provided rows.
     """
 
-    return row_metadata_registry.generate_and_merge_metadata_for_single_row(
+    return row_metadata_registry.generate_and_merge_metadata_for_row(
         user, row.baserow_table, row.id
     )
 

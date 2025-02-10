@@ -52,7 +52,10 @@ from baserow.contrib.database.api.rows.exceptions import InvalidJoinParameterExc
 from baserow.contrib.database.api.rows.serializers import GetRowAdjacentSerializer
 from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
 from baserow.contrib.database.api.tokens.authentications import TokenAuthentication
-from baserow.contrib.database.api.tokens.errors import ERROR_NO_PERMISSION_TO_TABLE
+from baserow.contrib.database.api.tokens.errors import (
+    ERROR_CANNOT_INCLUDE_ROW_METADATA,
+    ERROR_NO_PERMISSION_TO_TABLE,
+)
 from baserow.contrib.database.api.utils import (
     extract_link_row_joins_from_request,
     extract_send_webhook_events_from_params,
@@ -102,7 +105,10 @@ from baserow.contrib.database.table.operations import (
     ListRowNamesDatabaseTableOperationType,
     ListRowsDatabaseTableOperationType,
 )
-from baserow.contrib.database.tokens.exceptions import NoPermissionToTable
+from baserow.contrib.database.tokens.exceptions import (
+    NoPermissionToTable,
+    TokenCannotIncludeRowMetadata,
+)
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.contrib.database.views.exceptions import (
     ViewDoesNotExist,
@@ -747,6 +753,7 @@ class RowView(APIView):
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
+            TokenCannotIncludeRowMetadata: ERROR_CANNOT_INCLUDE_ROW_METADATA,
         }
     )
     @allowed_includes("metadata")
@@ -758,7 +765,13 @@ class RowView(APIView):
 
         table = TableHandler().get_table(table_id)
 
-        TokenHandler().check_table_permissions(request, "read", table, False)
+        token_handler = TokenHandler()
+        db_token = token_handler.get_token_from_request(request)
+        if db_token is not None:
+            if metadata:
+                raise TokenCannotIncludeRowMetadata()
+            token_handler.check_table_permissions(db_token, "read", table)
+
         user_field_names = extract_user_field_names_from_params(request.GET)
         model = table.get_model()
         row = RowHandler().get_row(request.user, table, row_id, model)

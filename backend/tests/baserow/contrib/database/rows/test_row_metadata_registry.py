@@ -28,7 +28,7 @@ def test_merges_together_row_metadata_by_type_and_row_id():
         ) -> Dict[int, Any]:
             return {row_id: row_id for row_id in row_ids}
 
-        def get_example_serializer_field_for_rows(self) -> Field:
+        def get_example_serializer_field(self) -> Field:
             return serializers.CharField()
 
     class EvenRowsMetadata(RowMetadataType):
@@ -39,7 +39,7 @@ def test_merges_together_row_metadata_by_type_and_row_id():
         ) -> Dict[int, Any]:
             return {row_id: True for row_id in row_ids if row_id % 2 == 0}
 
-        def get_example_serializer_field_for_rows(self) -> Field:
+        def get_example_serializer_field(self) -> Field:
             return serializers.BooleanField()
 
     registry.register(EvenRowsMetadata())

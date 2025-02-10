@@ -124,3 +124,11 @@ export function updateRowMetadataType(row, rowMetadataType, updateFunction) {
     Vue.set(row._.metadata, rowMetadataType, newValue)
   }
 }
+
+/**
+ * Return the metadata of a row. If the metadata does not exist yet, it will be created
+ * as an empty object.
+ */
+export function getRowMetadata(row, metadata = {}) {
+  return { ...metadata, ...(row.metadata || {}) }
+}

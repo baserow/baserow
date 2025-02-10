@@ -16,3 +16,9 @@ class NoPermissionToTable(Exception):
     """
     Raised when a token does not have permissions to perform an operation for a table.
     """
+
+
+class TokenCannotIncludeRowMetadata(Exception):
+    """
+    Raised if requested to include a row's metadata via token.
+    """

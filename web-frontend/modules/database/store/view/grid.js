@@ -24,6 +24,7 @@ import {
   prepareNewOldAndUpdateRequestValues,
   extractRowReadOnlyValues,
   updateRowMetadataType,
+  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
@@ -33,7 +34,7 @@ const ORDER_STEP_BEFORE = '0.00000000000000000001'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata: { ...metadata, ...(row.metadata || {}) },
+    metadata: getRowMetadata(row, metadata),
     persistentId: uuid(),
     loading: false,
     hover: false,
@@ -51,6 +52,7 @@ export function populateRow(row, metadata = {}) {
     selected: false,
     selectedFieldId: -1,
   }
+
   return row
 }
 

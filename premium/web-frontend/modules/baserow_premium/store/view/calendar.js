@@ -22,12 +22,13 @@ import {
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
+  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata: { ...metadata, ...(row.metadata || {}) },
+    metadata: getRowMetadata(row, metadata),
     // Whether the row should be displayed based on the current activeSearchTerm term.
     matchSearch: true,
     // Contains the specific field ids which match the activeSearchTerm term.

@@ -254,16 +254,8 @@ def get_example_row_serializer_class(
         )
 
     if add_metadata:
-        row_metadata_fields = {}
-        for metadata_type in row_metadata_registry.get_all():
-            field_serializer = (
-                metadata_type.get_example_serializer_field_for_single_row()
-            )
-            if field_serializer:
-                row_metadata_fields[metadata_type.type] = field_serializer
-        fields["metadata"] = type(
-            "RowMetadataSerializer", (serializers.Serializer,), row_metadata_fields
-        )(
+        metadata_serializer = get_example_row_metadata_serializer()
+        fields["metadata"] = metadata_serializer(
             required=False,
             help_text=(
                 "Additional metadata for the row, if `include=metadata' "
@@ -311,32 +303,37 @@ def get_example_row_serializer_class(
     return class_object
 
 
-def get_example_row_metadata_field_serializer():
+def get_example_row_metadata_serializer() -> serializers.Serializer:
     """
-    Generates a serializer containing a field for each row metadata type which
+     Generates a serializer containing a field for each row metadata type which
     represents the metadata for a single row.
-    It is only used for example purposes in the openapi documentation.
-
-    :return: Generated serializer for a single rows metadata
-    :rtype: Serializer
+    :return: A serializer containing a field for each row metadata type.
     """
 
     metadata_types: List[RowMetadataType] = row_metadata_registry.get_all()
 
-    if len(metadata_types) == 0:
-        return None
-
     fields = {}
     for metadata_type in metadata_types:
-        fields[
-            metadata_type.type
-        ] = metadata_type.get_example_serializer_field_for_rows()
+        fields[metadata_type.type] = metadata_type.get_example_serializer_field()
 
-    per_row_serializer = type(
-        "RowMetadataSerializer", (serializers.Serializer,), fields
-    )()
+    return type("RowMetadataSerializer", (serializers.Serializer,), fields)
+
+
+def get_example_multiple_rows_metadata_serializer() -> serializers.Serializer:
+    """
+    Generates a serializer containing a field for each row metadata type which
+    represents the metadata for a single row. The single row serializer is then
+    nested in a dictionary where the key is the row id and the value is the single row
+    metadata serializer.
+    It is only used for example purposes in the openapi documentation.
+
+    :return: A serializer containing a dictionary of row id to row metadata.
+    """
+
+    per_row_serializer = get_example_row_metadata_serializer()
+
     return serializers.DictField(
-        child=per_row_serializer,
+        child=per_row_serializer(),
         required=False,
         help_text="An object keyed by row id with a value being an object containing "
         "additional metadata about that row. A row might not have metadata and will "

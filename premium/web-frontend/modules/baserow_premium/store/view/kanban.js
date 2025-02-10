@@ -18,11 +18,12 @@ import {
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
+  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata: { ...metadata, ...(row.metadata || {}) },
+    metadata: getRowMetadata(row, metadata),
     dragging: false,
   }
   return row

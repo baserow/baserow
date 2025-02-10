@@ -673,7 +673,7 @@ def test_can_get_row_comment_notification_mode_from_row_metadata(
 
     response = get_row_from_api_with_metadata()
     assert response.status_code == HTTP_200_OK
-    assert response.json()["metadata"]["row_comments_notification_mode"] == "mentions"
+    assert response.json()["metadata"] == {}
 
     response = api_client.put(
         reverse(

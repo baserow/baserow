@@ -526,7 +526,7 @@ def test_list_rows_include_row_metadata(api_client, data_fixture):
         ) -> Dict[int, Any]:
             return {row_id: row_id for row_id in row_ids}
 
-        def get_example_serializer_field_for_rows(self) -> Field:
+        def get_example_serializer_field(self) -> Field:
             return serializers.CharField()
 
     with register_instance_temporarily(row_metadata_registry, ExampleRowMetadata()):

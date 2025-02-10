@@ -30,7 +30,7 @@ class RowCommentCountMetadataType(RowMetadataType):
             )
         }
 
-    def get_example_serializer_field_for_rows(self) -> Field:
+    def get_example_serializer_field(self) -> Field:
         return serializers.IntegerField(
             min_value=0,
             help_text="How many row comments exist for this row.",
@@ -40,21 +40,6 @@ class RowCommentCountMetadataType(RowMetadataType):
 
 class RowCommentsNotificationModeMetadataType(RowMetadataType):
     type = "row_comments_notification_mode"
-
-    def generate_metadata_for_single_row(self, user, table, row_id: int) -> Any | None:
-        notification_mode = RowCommentsNotificationMode.objects.filter(
-            user=user,
-            table=table,
-            row_id=row_id,
-        ).first()
-        return (
-            notification_mode.mode
-            if notification_mode is not None
-            else ROW_COMMENT_NOTIFICATION_DEFAULT_MODE
-        )
-
-    def get_example_serializer_field_for_single_row(self) -> Field:
-        return self.get_example_serializer_field_for_rows()
 
     def generate_metadata_for_rows(
         self, user, table, row_ids: List[int]
@@ -81,7 +66,7 @@ class RowCommentsNotificationModeMetadataType(RowMetadataType):
             )
         }
 
-    def get_example_serializer_field_for_rows(self) -> Field:
+    def get_example_serializer_field(self) -> Field:
         return serializers.ChoiceField(
             required=False, choices=ALL_ROW_COMMENT_NOTIFICATION_MODES
         )
