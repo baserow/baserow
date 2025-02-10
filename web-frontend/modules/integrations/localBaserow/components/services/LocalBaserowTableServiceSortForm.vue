@@ -24,8 +24,8 @@
         </a>
 
         <div v-if="sortMisconfigured(sort)">
-          <div class="sortings__misconfigured">
-            <p>
+          <div class="flex-grow-1">
+            <p class="sortings__misconfigured-text">
               {{ $t('localBaserowTableServiceSortForm.sortMisconfigured') }}
             </p>
           </div>

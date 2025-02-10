@@ -6,8 +6,10 @@
       'filters__condition-item--misconfigured': filterMisconfigured,
     }"
   >
-    <div v-if="filterMisconfigured" class="filters__misconfigured">
-      <p>{{ $t('viewFieldConditionItem.filterMisconfigured') }}</p>
+    <div v-if="filterMisconfigured" class="flex-grow-1">
+      <p class="filters__misconfigured-text">
+        {{ $t('viewFieldConditionItem.filterMisconfigured') }}
+      </p>
     </div>
     <template v-else>
       <div class="filters__field">

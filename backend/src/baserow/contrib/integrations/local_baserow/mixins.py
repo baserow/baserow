@@ -259,7 +259,7 @@ class LocalBaserowTableServiceFilterableMixin:
             super()
             .enhance_queryset(queryset)
             .prefetch_related(
-                "service_filters__field",
+                "service_filters",
             )
         )
 
