@@ -484,12 +484,16 @@ export function isAdhocSorting(app, workspace, view, publicView) {
  * fields and the UI cannot predict the outcome reliably.
  */
 export function canRowsBeOptimisticallyUpdatedInView(
+  $registry,
   view,
   fields,
   activeSearchTerm
 ) {
+  const isFieldReadOnly = (field) => {
+    return field.read_only || $registry.get('field', field.type).isReadOnly
+  }
   const readOnlyFieldIds = new Set(
-    fields.filter((field) => field.read_only).map((field) => String(field.id))
+    fields.filter(isFieldReadOnly).map((field) => String(field.id))
   )
   const isReadOnlyField = (sort) => readOnlyFieldIds.has(String(sort.field))
   const readOnlyGroupBys = view.group_bys
