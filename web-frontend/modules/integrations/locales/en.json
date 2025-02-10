@@ -15,7 +15,8 @@
     "localBaserowGetRow": "Get single row",
     "localBaserowListRows": "List multiple rows",
     "localBaserowAggregateRows": "Summarize field",
-    "misconfigured": "Misconfigured"
+    "misconfigured": "Misconfigured",
+    "trashedField": "Trashed field"
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"

@@ -261,10 +261,15 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
   }
 
   isInError({ service }) {
-    return (
-      super.isInError({ service }) ||
-      Boolean(!service.field_id) ||
-      Boolean(!service.aggregation_type)
+    if (service === undefined) {
+      return false
+    }
+    const filtersInError = service.filters.some((filter) => filter.trashed)
+    return Boolean(
+      !service.table_id ||
+        !service.field_id ||
+        !service.aggregation_type ||
+        filtersInError
     )
   }
 
@@ -286,7 +291,10 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
         const fieldSelected = tableSelected.fields.find(
           ({ id }) => id === service.field_id
         )
-        return `${defaultTableDescription} - ${fieldSelected.name}`
+        const fieldName = fieldSelected
+          ? fieldSelected.name
+          : this.app.i18n.t('serviceType.trashedField')
+        return `${defaultTableDescription} - ${fieldName}`
       }
 
       return defaultTableDescription
