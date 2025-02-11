@@ -9,7 +9,7 @@
         <LinkElement :element="getElement(item)" />
       </template>
       <template v-else-if="item.menu_item_variant === 'button'">
-        <ButtonElement :element="getElement(item)" />
+        <MenuItemButtonElement :element="getElement(item)" />
       </template>
     </div>
   </div>
@@ -21,6 +21,7 @@ import { ensureString } from '@baserow/modules/core/utils/validator'
 import ABLink from '@baserow/modules/builder/components/elements/components/collectionField/LinkField.vue'
 import LinkElement from '@baserow/modules/builder/components/elements/components/LinkElement.vue'
 import ButtonElement from '@baserow/modules/builder/components/elements/components/ButtonElement.vue'
+import MenuItemButtonElement from '@baserow/modules/builder/components/elements/components/MenuItemButtonElement.vue'
 /**
  * @typedef MenuElement
  */
@@ -31,6 +32,7 @@ export default {
     ABLink,
     ButtonElement,
     LinkElement,
+    MenuItemButtonElement,
   },
   mixins: [element],
   props: {
@@ -46,7 +48,12 @@ export default {
   methods: {
     getElement(item) {
       return {
-        id: item.id,
+        // TODO: this is probably not needed
+        id: this.element.id,
+        // Needed for the MenuItemElementType.getEvents()
+        element_id: this.element.id,
+        menu_item_id: item.id,
+        uid: item.uid,
         target: item.target || 'self',
         variant: item.menu_item_variant,
         value: item.name,
