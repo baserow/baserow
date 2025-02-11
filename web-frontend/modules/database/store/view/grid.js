@@ -2295,6 +2295,9 @@ export const actions = {
         })
       }, row._.persistentId)
     } catch (error) {
+      if (!canUpdateOptimistically) {
+        commit('SET_ROW_LOADING', { row, value: false })
+      }
       await updateValues(oldRowValues, true)
       throw error
     }
