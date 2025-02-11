@@ -390,6 +390,9 @@ import GridViewRowsAddContext from '@baserow/modules/database/components/view/gr
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING } from '@baserow/modules/database/constants'
 
+const isRowOpenedInModal = (row) =>
+  this.$store.getters['rowModalNavigation/getRow']?.id === row.id
+
 export default {
   name: 'GridView',
   components: {
@@ -799,7 +802,7 @@ export default {
             field,
             value,
             oldValue,
-            isRowOpenedInModal: this.rowOpenedInModal?.id === row.id,
+            isRowOpenedInModal,
           }
         )
       } catch (error) {
@@ -926,6 +929,7 @@ export default {
             fields: this.fields,
             rows: Array.from(Array(rowsAmount)).map(() => ({})),
             selectPrimaryCell: true,
+            isRowOpenedInModal,
           }
         )
       } catch (error) {
@@ -1105,7 +1109,7 @@ export default {
             row,
             field,
             getScrollTop,
-            isRowOpenedInModal: this.rowOpenedInModal?.id === row.id,
+            isRowOpenedInModal,
           }
         )
       })
