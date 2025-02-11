@@ -4,10 +4,15 @@
   justify-content: space-between; 
 }
 
-// .menu-element__menu-items-label {
-//   justify-content: flex-start;
-// }
+.menu-items-container {
+  display: flex;
+}
 
-// .menu-element__add-menu-item-button {
-//   justify-content: flex-end;
-// }
+.menu-items-container.vertical {
+  flex-direction: column;
+}
+
+.menu-items-container.horizontal {
+  flex-direction: row;
+  gap: 20px;
+}

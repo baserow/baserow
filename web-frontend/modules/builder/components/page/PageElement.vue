@@ -6,6 +6,7 @@
     :style="elementStyles"
   >
     <div class="element__inner-wrapper">
+      eId: {{ element.id }}
       <component
         :is="component"
         :key="element._.uid"

@@ -7,25 +7,19 @@
       :theme="builder.theme"
     />
 
-    <FormSection
+    <FormGroup
+      :label="$t('repeatElementForm.orientationLabel')"
+      small-label
+      required
       class="margin-bottom-2"
-      :title="$t('menuElementForm.orientationLabel')"
     >
-      <RadioButton
+      <RadioGroup
         v-model="values.orientation"
-        icon="iconoir-view-columns-3"
-        :value="MENU_ORIENTATION.HORIZONTAL"
+        :options="orientationOptions"
+        type="button"
       >
-        {{ $t('menuElementForm.orientationHorizontal') }}
-      </RadioButton>
-      <RadioButton
-        v-model="values.orientation"
-        icon="iconoir-table-rows"
-        :value="MENU_ORIENTATION.VERTICAL"
-      >
-        {{ $t('menuElementForm.orientationVertical') }}
-      </RadioButton>
-    </FormSection>
+      </RadioGroup>
+    </FormGroup>
 
     <div class="menu-element__add-item-container">
       <div>
@@ -68,7 +62,7 @@
                 v-if="!expanded && menuItemInError(item)"
                 class="table-element-form__field-error iconoir-warning-circle"
               ></i>
-              {{ item.name }}
+              {{ getResolvedName(item.name) }}
             </div>
             <i
               :class="
@@ -134,11 +128,10 @@
                 : ''
             "
           >
-            <FormInput
+            <InjectedFormulaInput
               v-model="item.name"
-              class="table-element-form__field-label"
-            >
-            </FormInput>
+              :placeholder="$t('linkElementForm.textPlaceholder')"
+            />
             <template v-if="values.menu_items.length > 1" #after-input>
               <ButtonIcon icon="iconoir-bin" @click="removeMenuItem(item)" />
             </template>
@@ -164,6 +157,8 @@ import {
   getNextAvailableNameInSequence,
   uuid,
 } from '@baserow/modules/core/utils/string'
+import { resolveFormula } from '@baserow/modules/core/formula'
+import { ensureString } from '@baserow/modules/core/utils/validator'
 import LinkNavigationSelectionForm from '@baserow/modules/builder/components/elements/components/forms/general/LinkNavigationSelectionForm'
 import { mapGetters } from 'vuex'
 
@@ -180,9 +175,10 @@ export default {
       values: {
         value: '',
         styles: {},
+        orientation: 'vertical',
         menu_items: [],
       },
-      allowedValues: ['value', 'styles', 'menu_items'],
+      allowedValues: ['value', 'styles', 'menu_items', 'orientation'],
     }
   },
   computed: {
@@ -219,14 +215,29 @@ export default {
     element() {
       return this.getElementSelected(this.builder)
     },
+    orientationOptions() {
+      return [
+        {
+          label: this.$t('menuElementForm.orientationVertical'),
+          value: 'vertical',
+          icon: 'iconoir-table-rows',
+        },
+        {
+          label: this.$t('repeatElementForm.orientationHorizontal'),
+          value: 'horizontal',
+          icon: 'iconoir-view-columns-3',
+        },
+      ]
+    },
   },
   methods: {
     async addMenuItem() {
+      const name = getNextAvailableNameInSequence(
+        this.$t('menuElementForm.menuItemDefaultName'),
+        this.values.menu_items.map(({ name }) => this.getResolvedName(name))
+      )
       this.values.menu_items.push({
-        name: getNextAvailableNameInSequence(
-          this.$t('menuElementForm.menuItemDefaultName'),
-          this.values.menu_items.map(({ name }) => name)
-        ),
+        name: `'${name}'`,
         menu_item_variant: 'link',
         value: '',
         type: 'item',
@@ -234,13 +245,16 @@ export default {
         uid: uuid(),
       })
     },
+    getResolvedName(value) {
+      return ensureString(resolveFormula(value))
+    },
     changeItemType(itemToUpdate, newType) {
       this.values.menu_items = this.values.menu_items.map((item) => {
         if (item.id === itemToUpdate.id) {
           return {
             id: item.id,
             uid: uuid(),
-            name: item.name,
+            name: this.getResolvedName(item.name),
             menu_item_variant: item.menu_item_variant,
             value: item.value,
             parent_menu_item: item.parent_menu_item,
@@ -256,7 +270,7 @@ export default {
           return {
             id: item.id,
             uid: uuid(),
-            name: item.name,
+            name: this.getResolvedName(item.name),
             menu_item_variant: newVariant,
             value: item.value,
             parent_menu_item: item.parent_menu_item,

@@ -53,7 +53,6 @@ import DateTimePickerElement from '@baserow/modules/builder/components/elements/
 import DateTimePickerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm'
 import MenuElement from '@baserow/modules/builder/components/elements/components/MenuElement'
 import MenuElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementForm'
-import MenuItemElement from '@baserow/modules/builder/components/elements/components/MenuItemElement'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import {
   ContainerElementTypeMixin,
