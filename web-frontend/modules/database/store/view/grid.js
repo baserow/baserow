@@ -1739,7 +1739,7 @@ export const actions = {
    */
   removeRowSelectedBy(
     { dispatch, commit },
-    { grid, row, field, fields, getScrollTop, isRowOpenedInModal = false }
+    { grid, row, field, fields, getScrollTop, isRowOpenedInModal = undefined }
   ) {
     commit('REMOVE_ROW_SELECTED_BY', { row, fieldId: field.id })
     dispatch('refreshRow', {
@@ -1776,6 +1776,7 @@ export const actions = {
       values = {},
       before = null,
       selectPrimaryCell = false,
+      isRowOpenedInModal = undefined,
     }
   ) {
     await dispatch('createNewRows', {
@@ -1785,11 +1786,20 @@ export const actions = {
       rows: [values],
       before,
       selectPrimaryCell,
+      isRowOpenedInModal,
     })
   },
   async createNewRows(
     { commit, getters, dispatch, state },
-    { view, table, fields, rows = {}, before = null, selectPrimaryCell = false }
+    {
+      view,
+      table,
+      fields,
+      rows = {},
+      before = null,
+      selectPrimaryCell = false,
+      isRowOpenedInModal = undefined,
+    }
   ) {
     // Create an object of default field values that can be used to fill the row with
     // missing default values
@@ -1963,7 +1973,12 @@ export const actions = {
           // `refreshRow` that shows/hide the row.
           const row = getters.getRow(rowId)
           if (row && !row._.selected) {
-            dispatch('refreshRow', { grid: view, row, fields })
+            dispatch('refreshRow', {
+              grid: view,
+              row,
+              fields,
+              isRowOpenedInModal,
+            })
           }
         }, REFRESH_ROW_DELAY)
       }
@@ -2173,7 +2188,16 @@ export const actions = {
    */
   async updateRowValue(
     { commit, dispatch, getters },
-    { table, view, row, field, fields, value, oldValue }
+    {
+      table,
+      view,
+      row,
+      field,
+      fields,
+      value,
+      oldValue,
+      isRowOpenedInModal = undefined,
+    }
   ) {
     /**
      * This helper function will make sure that the values of the related row are
@@ -2245,15 +2269,15 @@ export const actions = {
       fields,
       getters.getActiveSearchTerm
     )
+    if (!canUpdateOptimistically) {
+      commit('SET_ROW_LOADING', { row, value: true })
+    }
 
     // When possible update the values before making a request to the backend to make
     // it feel instant for the user. If we can't safely do it in the frontend, then
     // we have to show a loading state and update the row after the request has been
     // made.
     await updateValues(newRowValues, canUpdateOptimistically)
-    if (!canUpdateOptimistically) {
-      commit('SET_ROW_LOADING', { row, value: true })
-    }
 
     try {
       // Add the update actual update function to the queue so that the same row
@@ -2286,7 +2310,12 @@ export const actions = {
             // row.
             const row = getters.getRow(rowId)
             if (row && !row._.selected) {
-              dispatch('refreshRow', { grid: view, row, fields })
+              dispatch('refreshRow', {
+                grid: view,
+                row,
+                fields,
+                isRowOpenedInModal,
+              })
             }
           }, REFRESH_ROW_DELAY)
         }
@@ -2295,6 +2324,9 @@ export const actions = {
         })
       }, row._.persistentId)
     } catch (error) {
+      if (!canUpdateOptimistically) {
+        commit('SET_ROW_LOADING', { row, value: false })
+      }
       await updateValues(oldRowValues, true)
       throw error
     }
@@ -2986,7 +3018,7 @@ export const actions = {
       rowId,
       fields,
       getScrollTop = undefined,
-      isRowOpenedInModal = false,
+      isRowOpenedInModal = undefined,
     }
   ) {
     const row = getters.getRow(rowId)
@@ -3008,14 +3040,19 @@ export const actions = {
    */
   async refreshRow(
     { dispatch, commit },
-    { grid, row, fields, getScrollTop = undefined, isRowOpenedInModal = false }
+    {
+      grid,
+      row,
+      fields,
+      getScrollTop = undefined,
+      isRowOpenedInModal = undefined,
+    }
   ) {
-    const rowShouldBeHidden = !row._.matchFilters || !row._.matchSearch
-    if (
-      row._.selectedBy.length === 0 &&
-      rowShouldBeHidden &&
-      !isRowOpenedInModal
-    ) {
+    const rowShouldBeHidden =
+      (!row._.matchFilters || !row._.matchSearch) && !row._.loading
+    const openedInModal =
+      isRowOpenedInModal !== undefined ? isRowOpenedInModal(row) : false
+    if (row._.selectedBy.length === 0 && rowShouldBeHidden && !openedInModal) {
       commit('DELETE_ROW_IN_BUFFER', row)
     } else if (row._.selectedBy.length === 0 && !row._.matchSortings) {
       await dispatch('updatedExistingRow', {
