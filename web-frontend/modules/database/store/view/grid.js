@@ -2245,15 +2245,15 @@ export const actions = {
       fields,
       getters.getActiveSearchTerm
     )
+    if (!canUpdateOptimistically) {
+      commit('SET_ROW_LOADING', { row, value: true })
+    }
 
     // When possible update the values before making a request to the backend to make
     // it feel instant for the user. If we can't safely do it in the frontend, then
     // we have to show a loading state and update the row after the request has been
     // made.
     await updateValues(newRowValues, canUpdateOptimistically)
-    if (!canUpdateOptimistically) {
-      commit('SET_ROW_LOADING', { row, value: true })
-    }
 
     try {
       // Add the update actual update function to the queue so that the same row
@@ -3010,7 +3010,8 @@ export const actions = {
     { dispatch, commit },
     { grid, row, fields, getScrollTop = undefined, isRowOpenedInModal = false }
   ) {
-    const rowShouldBeHidden = !row._.matchFilters || !row._.matchSearch
+    const rowShouldBeHidden =
+      (!row._.matchFilters || !row._.matchSearch) && !row._.loading
     if (
       row._.selectedBy.length === 0 &&
       rowShouldBeHidden &&
