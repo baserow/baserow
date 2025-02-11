@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Optional
 
 from django.core.exceptions import ValidationError
@@ -156,13 +156,12 @@ class NumberAirtableColumnType(AirtableColumnType):
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
         type_options = raw_airtable_column.get("typeOptions", {})
-        options_format = type_options.get("format")
+        options_format = type_options.get("format", "")
         suffix = ""
 
         if "percent" in options_format:
             suffix = "%"
 
-        # Set the number of decimal places if the precision is set.
         decimal_places = min(
             max(0, type_options.get("precision", 0)), NUMBER_MAX_DECIMAL_PLACES
         )
@@ -171,6 +170,16 @@ class NumberAirtableColumnType(AirtableColumnType):
         number_separator = AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING.get(
             separator_format, ""
         )
+
+        if separator_format != "" and number_separator == "":
+            import_report.add_failed(
+                f"Number field: \"{raw_airtable_column['name']}\"",
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the separator format "
+                f"{separator_format} was dropped because it doesn't exist in Baserow.",
+            )
 
         return NumberField(
             number_decimal_places=decimal_places,
@@ -192,13 +201,38 @@ class NumberAirtableColumnType(AirtableColumnType):
         config,
         import_report,
     ):
-        if value is not None:
+        if value is None:
+            return None
+
+        try:
             value = Decimal(value)
+        except InvalidOperation:
+            # If the value can't be parsed as decimal, then it might be corrupt, so we
+            # need to inform the user and skip the import.
+            row_name = get_airtable_row_primary_value(
+                raw_airtable_table, raw_airtable_row
+            )
+            import_report.add_failed(
+                f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                SCOPE_CELL,
+                raw_airtable_table["name"],
+                ERROR_TYPE_DATA_TYPE_MISMATCH,
+                f"Cell value was left empty because the numeric value {value} "
+                f'could not be parsed"',
+            )
+            return None
 
-        if value is not None and not baserow_field.number_negative and value < 0:
-            value = None
+        # Airtable stores 10% as 0.1, so we would need to multiply it by 100 so get the
+        # correct value in Baserow.
+        type_options = raw_airtable_column.get("typeOptions", {})
+        options_format = type_options.get("format", "")
+        if "percent" in options_format:
+            value = value * 100
 
-        return None if value is None else str(value)
+        if not baserow_field.number_negative and value < 0:
+            return None
+
+        return str(value)
 
 
 class RatingAirtableColumnType(AirtableColumnType):
