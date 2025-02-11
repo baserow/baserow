@@ -212,7 +212,7 @@ class DomainHandler:
             else applications
         )
 
-    def publish(self, domain: Domain, progress: Progress):
+    def publish(self, domain: Domain, progress: Progress | None = None):
         """
         Publishes a builder for the given domain object. If the builder was
         already published, the previous version is deleted and a new one is created.

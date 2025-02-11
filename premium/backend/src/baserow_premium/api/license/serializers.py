@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Dict, Optional
+from typing import Optional
 
 from django.contrib.auth import get_user_model
 
@@ -68,7 +68,6 @@ class LicenseSerializer(serializers.ModelSerializer):
             "free_users_count",
             "seats_taken",
             "seats",
-            "addon_product_code",
             "application_users",
             "application_users_taken",
             "application_users_left",
@@ -98,15 +97,18 @@ class LicenseSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_application_users(self, obj) -> int:
-        return self.get_cached_builder_usage_summary(obj).application_users_licensed
+        usage = self.get_cached_builder_usage_summary(obj)
+        return usage.application_users if usage else None
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_application_users_taken(self, obj) -> int:
-        return self.get_cached_builder_usage_summary(obj).application_users_taken
+        usage = self.get_cached_builder_usage_summary(obj)
+        return usage.application_users_taken if usage else None
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_application_users_left(self, obj) -> int:
-        return self.get_cached_builder_usage_summary(obj).application_users_left
+        usage = self.get_cached_builder_usage_summary(obj)
+        return usage.application_users_left if usage else None
 
 
 class RegisterLicenseSerializer(serializers.Serializer):

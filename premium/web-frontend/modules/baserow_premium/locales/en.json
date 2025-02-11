@@ -191,7 +191,8 @@
     "premium": "Premium",
     "expired": "Expired",
     "validity": "Valid from {start} through {end}",
-    "seats": "seats"
+    "seats": "seats",
+    "applicationUsers": "Application users"
   },
   "license": {
     "title": "{name} plan",

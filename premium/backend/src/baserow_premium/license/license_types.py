@@ -5,18 +5,6 @@ from baserow_premium.license.registries import LicenseType, SeatUsageSummary
 from baserow.core.models import User
 
 
-class FreeLicenseType(LicenseType):
-    type = "free"
-    order = 1
-    features = []
-
-    def handle_seat_overflow(self, seats_taken: int, license_object: License):
-        """
-        Free licenses do not have any seats, so we can ignore
-        what happens when they overflow.
-        """
-
-
 class PremiumLicenseType(LicenseType):
     type = "premium"
     order = 10

@@ -128,18 +128,3 @@ export class PremiumLicenseType extends LicenseType {
   }
 }
 
-export class LicenseAddonType extends Registerable {
-  /**
-   * A human-readable name of the license addon type.
-   */
-  getName() {
-    return null
-  }
-
-  /**
-   * A list of features that this license addon provides.
-   */
-  getFeatures() {
-    throw new Error('Must be set by the implementing sub class.')
-  }
-}

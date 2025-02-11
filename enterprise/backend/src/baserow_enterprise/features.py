@@ -8,3 +8,8 @@ SECURE_FILE_SERVE = "secure_file_serve"
 ENTERPRISE_SETTINGS = "ENTERPRISE_SETTINGS"
 DATA_SYNC = "data_sync"
 CHART_WIDGET = "chart_widget"
+
+BUILDER_SSO = "application_user_sso"
+BUILDER_CUSTOM_CSS_JS = "custom_css_js"
+BUILDER_PAYMENT_ELEMENT = "payment_element"
+BUILDER_PRODUCT_SPECIALIST = "product_specialist"

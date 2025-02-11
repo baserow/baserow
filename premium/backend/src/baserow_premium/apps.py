@@ -98,25 +98,10 @@ class BaserowPremiumConfig(AppConfig):
 
         view_ownership_type_registry.register(PersonalViewOwnershipType())
 
-        from baserow_premium.license.license_types import (
-            FreeLicenseType,
-            PremiumLicenseType,
-        )
+        from baserow_premium.license.license_types import PremiumLicenseType
         from baserow_premium.license.registries import license_type_registry
 
-        license_type_registry.register(FreeLicenseType())
         license_type_registry.register(PremiumLicenseType())
-
-        from baserow_premium.license.addons.license_addon_types import (
-            BusinessLicenseAddonType,
-            ProLicenseAddonType,
-        )
-        from baserow_premium.license.addons.registries import (
-            license_addon_type_registry,
-        )
-
-        license_addon_type_registry.register(ProLicenseAddonType())
-        license_addon_type_registry.register(BusinessLicenseAddonType())
 
         from baserow_premium.row_comments.actions import (
             CreateRowCommentActionType,

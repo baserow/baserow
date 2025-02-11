@@ -428,7 +428,7 @@ class LicenseHandler:
             if (
                 builder_summary is not None
                 and builder_summary.application_users_taken
-                > builder_summary.application_users_licensed
+                > builder_summary.application_users
             ):
                 license_object.license_type.handle_application_user_overflow(
                     builder_summary.application_users_taken, license_object
