@@ -1,8 +1,11 @@
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
 import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
 import { rangeDiff } from '@baserow/modules/core/utils/range'
+import axios from 'axios'
 
 const state = {}
+
+const queriesInProgress = {}
 
 const mutations = {
   SET_CONTENT(state, { element, value, range = null }) {
@@ -206,12 +209,27 @@ const actions = {
           service = PublishedBuilderService
         }
 
+        if (!queriesInProgress[element.id]) {
+          queriesInProgress[element.id] = {}
+        }
+
+        if (queriesInProgress[element.id][`${rangeToFetch}`]) {
+          queriesInProgress[element.id][`${rangeToFetch}`].abort()
+        }
+
         commit('SET_LOADING', { element, value: true })
+
+        queriesInProgress[element.id][`${rangeToFetch}`] =
+          global.AbortController ? new AbortController() : null
+
         const { data } = await service(this.app.$client).dispatch(
           dataSource.id,
           dispatchContext,
-          { range: rangeToFetch, filters, sortings, search, searchMode }
+          { range: rangeToFetch, filters, sortings, search, searchMode },
+          queriesInProgress[element.id][`${rangeToFetch}`]?.signal
         )
+
+        delete queriesInProgress[element.id][`${rangeToFetch}`]
 
         // With a list-type data source, the data object will return
         // a `has_next_page` field for paging to the next set of results.
@@ -254,16 +272,25 @@ const actions = {
         })
       }
     } catch (e) {
-      // If fetching the content failed, and we're trying to
-      // replace the element's content, then we'll clear the
-      // element instead of reverting to our previousContent
-      // as it could be out of date anyway.
-      if (replace) {
-        commit('CLEAR_CONTENT', { element })
+      if (!axios.isCancel(e)) {
+        // If fetching the content failed, and we're trying to
+        // replace the element's content, then we'll clear the
+        // element instead of reverting to our previousContent
+        // as it could be out of date anyway.
+        if (replace) {
+          commit('CLEAR_CONTENT', { element })
+        }
+        // Let's stop all other queries
+        Object.values(queriesInProgress[element.id] | {}).forEach(
+          (controller) => controller.abort()
+        )
+        queriesInProgress[element.id] = {}
+        throw e
       }
-      throw e
     } finally {
-      commit('SET_LOADING', { element, value: false })
+      if (!Object.keys(queriesInProgress[element.id]).length) {
+        commit('SET_LOADING', { element, value: false })
+      }
     }
   },
   clearElementContent({ commit }, { element }) {

@@ -26,12 +26,23 @@ export default (client) => {
         `builder/domains/published/page/${pageId}/workflow_actions/`
       )
     },
-    dispatch(dataSourceId, dispatchContext, dispatchRefinements) {
+    dispatch(
+      dataSourceId,
+      dispatchContext,
+      dispatchRefinements,
+      signal = null
+    ) {
       const params = prepareDispatchParams(dispatchRefinements)
+      const config = { params }
+
+      if (signal !== null) {
+        config.signal = signal
+      }
+
       return client.post(
         `builder/domains/published/data-source/${dataSourceId}/dispatch/`,
         dispatchContext,
-        { params }
+        config
       )
     },
     dispatchAll(pageId, params) {
