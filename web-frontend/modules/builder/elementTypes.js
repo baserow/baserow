@@ -1985,8 +1985,32 @@ export class MenuElementType extends ElementType {
     return MenuElementForm
   }
 
+  getEventByName(element, name) {
+    return this.getEvents(element).find((event) => event.name === name)
+  }
+
   getEvents(element) {
-    return [new ClickEvent({ ...this.app })]
+    return []
+    // TODO: this shouldn't be needed, since we are explicitly calling MenuItemElementType
+    //
+    // return (element.menu_items || [])
+    //   .map((item) => {
+    //     const { menu_item_variant, name, uid } = item
+    //     if (menu_item_variant === 'button') {
+    //       const resolvedName = this.resolveFormula(name, {})
+    //       console.log('generateing ClickEvent for item: ', item)
+    //       return [
+    //         new ClickEvent({
+    //           ...this.app,
+    //           namePrefix: uid,
+    //           labelSuffix: `- ${resolvedName}`,
+    //           applicationContextAdditions: { allowSameElement: true },
+    //         })
+    //       ]
+    //     }
+    //     return []        
+    //   })
+    //   .flat()
   }
 
   isInError({ page, element, builder }) {
@@ -2025,8 +2049,23 @@ export class MenuItemElementType extends ElementType {
     return MenuElementForm
   }
 
+  getEventByName(element, name) {
+    return this.getEvents(element).find((event) => event.name === name)
+  }
+
   getEvents(element) {
-    return [new ClickEvent({ ...this.app })]
+    if (element.variant === 'button') {
+      const resolvedName = this.resolveFormula(element.name, {})
+      return [
+        new ClickEvent({
+          ...this.app,
+          namePrefix: element.uid,
+          labelSuffix: `- ${resolvedName}`,
+          applicationContextAdditions: { allowSameElement: true },
+        })
+      ]
+    }
+    return []
   }
 
   isInError({ page, element, builder }) {
