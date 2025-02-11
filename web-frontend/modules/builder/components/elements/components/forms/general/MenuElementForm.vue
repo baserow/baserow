@@ -293,9 +293,8 @@ export default {
       )
     },
     updateItem(menuItem, values) {
-      console.log('got a request to updatee the field..: ', values)
       this.values.menu_items = this.values.menu_items.map((item) => {
-        if (item.id === menuItem.id) {
+        if (item.uid === menuItem.uid) {
           return { ...item, ...values }
         }
         return item
