@@ -14,7 +14,7 @@
     <FormGroup
       :label="$t('generalForm.requiredTitle')"
       class="margin-bottom-2"
-      small-labelt
+      small-label
     >
       <Checkbox v-model="values.required" />
     </FormGroup>
@@ -41,7 +41,7 @@
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
-import RatingFormFields from '../RatingFormFields.vue'
+import RatingFormFields from '@baserow/modules/builder/components/elements/components/forms/RatingFormFields.vue'
 
 export default {
   name: 'RatingInputElementForm',

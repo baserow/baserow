@@ -43,22 +43,3 @@ export default {
   },
 }
 </script>
-
-<style lang="scss">
-@import '@baserow/modules/core/assets/scss/colors';
-@import '@baserow/modules/core/assets/scss/placeholders';
-@import '@baserow/modules/core/assets/scss/mixins/helpers';
-@import '@baserow/modules/core/assets/scss/components/rating';
-.rating-field {
-  .rating {
-    .rating__star.rating__star {
-      color: var(--rating-color) !important;
-      opacity: 0.3;
-
-      &.rating__star--selected {
-        opacity: 1;
-      }
-    }
-  }
-}
-</style>

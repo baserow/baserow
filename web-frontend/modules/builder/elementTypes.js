@@ -15,6 +15,7 @@ import {
   ensureArray,
   ensureBoolean,
   ensureInteger,
+  ensurePositiveInteger,
   ensureString,
   ensureStringOrInteger,
 } from '@baserow/modules/core/utils/validator'
@@ -2086,12 +2087,9 @@ export class RatingInputElementType extends FormElementType {
   getInitialFormDataValue(element, applicationContext) {
     try {
       return (
-        Number(
-          this.resolveFormula(element.default_value, {
-            element,
-            ...applicationContext,
-          })
-        ) || 0
+        ensurePositiveInteger(this.resolveFormula(this.element.value), {
+          allowNull: true,
+        }) || 0
       )
     } catch {
       return 0
@@ -2153,13 +2151,11 @@ export class RatingElementType extends ElementType {
 
   getInitialFormDataValue(element, applicationContext) {
     try {
-      return (
-        Number(
-          this.resolveFormula(element.default_value, {
-            element,
-            ...applicationContext,
-          })
-        ) || 0
+      return ensurePositiveInteger(
+        this.resolveFormula(element.default_value, {
+          element,
+          ...applicationContext,
+        })
       )
     } catch {
       return 0

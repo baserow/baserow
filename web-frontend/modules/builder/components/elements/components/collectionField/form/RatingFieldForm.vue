@@ -1,12 +1,22 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <div class="control">
-      <label class="control__label">{{ $t('ratingFieldForm.value') }}</label>
-      <div class="control__elements">
-        <InjectedFormulaInput v-model="values.value" />
+    <FormGroup
+      small-label
+      :label="$t('generalForm.labelTitle')"
+      class="margin-bottom-2"
+      horizontal
+      required
+    >
+      <div class="control">
+        <label class="control__label">{{
+          $t('ratingElementForm.value')
+        }}</label>
+        <div class="control__elements">
+          <InjectedFormulaInput v-model="values.value" />
+        </div>
       </div>
-    </div>
-    <RatingFormFields :values="values" />
+      <RatingFormFields :values="values" />
+    </FormGroup>
   </form>
 </template>
 

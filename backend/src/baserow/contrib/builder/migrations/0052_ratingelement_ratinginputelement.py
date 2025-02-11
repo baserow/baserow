@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     dependencies = [
         (
             "builder",
-            "0050_page_query_params",
+            "0051_alter_builderworkflowaction_options",
         ),
     ]
 

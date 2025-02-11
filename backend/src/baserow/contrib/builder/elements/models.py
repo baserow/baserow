@@ -12,7 +12,11 @@ from baserow.contrib.builder.constants import (
     HorizontalAlignments,
     VerticalAlignments,
 )
-from baserow.core.constants import DATE_FORMAT_CHOICES, DATE_TIME_FORMAT_CHOICES
+from baserow.core.constants import (
+    DATE_FORMAT_CHOICES,
+    DATE_TIME_FORMAT_CHOICES,
+    RatingStyleChoices,
+)
 from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
@@ -26,14 +30,6 @@ from baserow.core.user_files.models import UserFile
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.pages.models import Page
-
-
-class RatingStyles(models.TextChoices):
-    STAR = "star"
-    HEART = "heart"
-    THUMBS_UP = "thumbs-up"
-    FLAG = "flag"
-    SMILE = "smile"
 
 
 class BackgroundTypes(models.TextChoices):
@@ -616,13 +612,13 @@ class BaseRatingElement(Element):
         default="dark-orange",
     )
     style = models.CharField(
-        choices=RatingStyles,
+        choices=RatingStyleChoices,
         default="star",
         max_length=50,
         blank=False,
         help_text=(
             "Rating style. Allowed values: "
-            f"{', '.join([value for value in RatingStyles.values])}."
+            f"{', '.join([value for value in RatingStyleChoices.values])}."
         ),
     )
 

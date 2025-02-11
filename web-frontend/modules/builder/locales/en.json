@@ -252,10 +252,9 @@
     "labelTitle": "Label",
     "labelPlaceholder": "Enter label",
     "valueTitle": "Value",
-    "valuePlaceholder": "Enter value (optional)",
-    "valueRequiredPlaceholder": "Enter value (required)",
+    "valuePlaceholder": "Enter value",
     "placeholderTitle": "Placeholder",
-    "placeholderPlaceholder": "Enter a placeholder (optional)",
+    "placeholderPlaceholder": "Enter a placeholder",
     "requiredTitle": "Required",
     "validationTitle": "Validation"
   },

@@ -9,7 +9,7 @@
     >
       <InjectedFormulaInput
         v-model="values.value"
-        :placeholder="$t('generalForm.valueRequiredPlaceholder')"
+        :placeholder="$t('generalForm.valuePlaceholder')"
         @input="emitChange"
         @blur="$v.values.value.$touch()"
       />
@@ -22,7 +22,7 @@
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
-import RatingFormFields from '../RatingFormFields.vue'
+import RatingFormFields from '@baserow/modules/builder/components/elements/components/forms/RatingFormFields.vue'
 
 export default {
   name: 'RatingElementForm',

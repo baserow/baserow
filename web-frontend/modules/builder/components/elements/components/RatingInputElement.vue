@@ -50,11 +50,11 @@ export default {
   },
   computed: {
     resolvedValue() {
-      return (
-        ensurePositiveInteger(this.resolveFormula(this.element.value), {
-          throwError: false,
-        }) || 0
-      )
+      try {
+        return ensurePositiveInteger(this.resolveFormula(this.element.value))
+      } catch {
+        return 0
+      }
     },
     maxValue() {
       return (

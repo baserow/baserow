@@ -5,11 +5,7 @@ from django.core.validators import MinValueValidator
 from rest_framework import serializers
 
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
-from baserow.contrib.builder.elements.models import (
-    CollectionField,
-    LinkElement,
-    RatingStyles,
-)
+from baserow.contrib.builder.elements.models import CollectionField, LinkElement
 from baserow.contrib.builder.elements.registries import CollectionFieldType
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.formula.serializers import (
@@ -18,6 +14,7 @@ from baserow.core.formula.serializers import (
 )
 from baserow.core.formula.types import BaserowFormula
 from baserow.core.registry import Instance
+from core.constants import RatingStyleChoices
 
 
 class BooleanCollectionFieldType(CollectionFieldType):
@@ -60,7 +57,7 @@ class RatingCollectionFieldType(CollectionFieldType):
                 help_text="The rating value.",
                 required=False,
                 allow_blank=True,
-                default=0,
+                default="",
             ),
             "color": serializers.CharField(
                 help_text="The color of the rating.",
@@ -69,10 +66,10 @@ class RatingCollectionFieldType(CollectionFieldType):
                 default="",
             ),
             "style": serializers.ChoiceField(
-                choices=RatingStyles.choices,
+                choices=RatingStyleChoices.choices,
                 help_text="The style of the rating.",
                 required=False,
-                default=RatingStyles.STAR,
+                default=RatingStyleChoices.STAR,
             ),
             "max_value": serializers.IntegerField(
                 help_text="The maximum value of the rating.",
@@ -126,6 +123,12 @@ class LinkCollectionFieldType(CollectionFieldType):
         connect_link_collection_field_type_to_page_delete_signal()
 
     def before_unregister(self):
+        """
+        Before the `LinkCollectionFieldType` is unregistered, we disconnect the
+        `page_deleted` signal from the `page_deleted_update_link_collection_fields`
+        receiver.
+        """
+
         super(LinkCollectionFieldType, self).before_unregister()
         from baserow.contrib.builder.elements.receivers import (
             disconnect_link_collection_field_type_from_page_delete_signal,
@@ -183,6 +186,12 @@ class LinkCollectionFieldType(CollectionFieldType):
     def formula_generator(
         self, collection_field: CollectionField
     ) -> Generator[str | Instance, str, None]:
+        """
+        Generator that iterates over formula fields for LinkCollectionFieldType.
+
+        Some formula fields are in the config JSON field, e.g. page_parameters.
+        """
+
         yield from super().formula_generator(collection_field)
 
         for index, page_parameter in enumerate(
@@ -259,6 +268,13 @@ class TagsCollectionFieldType(CollectionFieldType):
     def formula_generator(
         self, collection_field: CollectionField
     ) -> Generator[str | Instance, str, None]:
+        """
+        Generator that iterates over formula fields for TagsCollectionFieldType.
+
+        Some formula fields are in the config JSON field. Whether the field is
+        a formula field or not is controlled by additional keys.
+        """
+
         yield from super().formula_generator(collection_field)
 
         if collection_field.config.get("colors_is_formula"):
@@ -289,6 +305,7 @@ class ButtonCollectionFieldType(CollectionFieldType):
         }
 
     def before_delete(self, instance: CollectionField):
+        # We delete the related workflow actions
         BuilderWorkflowAction.objects.filter(event__startswith=instance.uid).delete()
 
 

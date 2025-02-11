@@ -42,6 +42,7 @@ from baserow.core.mixins import (
     WithRegistry,
 )
 from baserow.core.utils import remove_special_characters, to_snake_case
+from core.constants import RatingStyleChoices
 
 from .fields import SerialField
 
@@ -62,14 +63,6 @@ NUMBER_DECIMAL_PLACES_CHOICES = [
     (8, "1.00000000"),
     (9, "1.000000000"),
     (NUMBER_MAX_DECIMAL_PLACES, "1.0000000000"),
-]
-
-RATING_STYLE_CHOICES = [
-    ("star", "Star"),
-    ("heart", "Heart"),
-    ("thumbs-up", "Thumbs-up"),
-    ("flag", "Flags"),
-    ("smile", "Smile"),
 ]
 
 
@@ -393,13 +386,13 @@ class RatingField(Field):
         default="dark-orange",
     )
     style = models.CharField(
-        choices=RATING_STYLE_CHOICES,
+        choices=RatingStyleChoices,
         default="star",
         max_length=50,
         blank=False,
         help_text=(
             "Rating style. Allowed values: "
-            f"{', '.join([value for (value, _) in RATING_STYLE_CHOICES])}."
+            f"{', '.join([value for value in RatingStyleChoices.values])}."
         ),
     )
 

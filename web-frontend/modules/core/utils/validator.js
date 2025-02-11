@@ -29,30 +29,19 @@ export const ensureInteger = (value) => {
  * @param {*} value - The value to ensure is a non-negative integer.
  * @param {Object} options - Configuration options
  * @param {Boolean} [options.allowNull=false] - Whether to return null if value is null
- * @param {Boolean} [options.throwError=true] - Whether to throw an error if value is invalid
  * @returns {number|null} The value as an integer if conversion is successful,
  * or null if allowNull is true or throwError is false
  * @throws {Error} If the value is not a valid non-negative integer
  */
-export const ensurePositiveInteger = (
-  value,
-  { allowNull = false, throwError = true } = {}
-) => {
+export const ensurePositiveInteger = (value, { allowNull = false } = {}) => {
   if (allowNull && value === null) {
     return null
   }
-  try {
-    const validInteger = ensureInteger(value)
-    if (validInteger < 0) {
-      throw new Error('Value is not a positive integer.')
-    }
-    return validInteger
-  } catch (error) {
-    if (throwError) {
-      throw error
-    }
-    return null
+  const validInteger = ensureInteger(value)
+  if (validInteger < 0) {
+    throw new Error('Value is not a positive integer.')
   }
+  return validInteger
 }
 /**
  * Ensures that the value is a string or try to convert it.

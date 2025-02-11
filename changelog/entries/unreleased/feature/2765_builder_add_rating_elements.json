@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "[Builder] Add rating elements",
+    "message": "[Builder] Add rating element, collection rating field and rating input field.",
     "issue_number": 2765,
     "bullet_points": [],
     "created_at": "2025-02-04"
