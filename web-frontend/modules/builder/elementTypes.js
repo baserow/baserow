@@ -1997,3 +1997,43 @@ export class MenuElementType extends ElementType {
     return this.name
   }
 }
+
+
+export class MenuItemElementType extends ElementType {
+  static getType() {
+    return 'menu_item'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.menuItem')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.menuItemDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-square-cursor'
+  }
+
+  // TODO: define actual component and form
+  get component() {
+    return MenuElement
+  }
+
+  get generalFormComponent() {
+    return MenuElementForm
+  }
+
+  getEvents(element) {
+    return [new ClickEvent({ ...this.app })]
+  }
+
+  isInError({ page, element, builder }) {
+    return super.isInError({ page, element, builder })
+  }
+
+  getDisplayName(element, applicationContext) {
+    return this.name
+  }
+}

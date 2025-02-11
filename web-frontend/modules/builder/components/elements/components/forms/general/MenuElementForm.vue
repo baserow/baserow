@@ -37,10 +37,10 @@
       </div>
     </div>
 
-    <div v-for="(item, index) in values.menu_items" :key="item.id">
+    <div v-for="(item, index) in values.menu_items" :key="item.uid">
       <Expandable
         v-sortable="{
-          id: item.id,
+          id: item.uid,
           update: orderMenuItems,
           enabled: $hasPermission(
             'builder.page.element.update',
@@ -250,9 +250,8 @@ export default {
     },
     changeItemType(itemToUpdate, newType) {
       this.values.menu_items = this.values.menu_items.map((item) => {
-        if (item.id === itemToUpdate.id) {
+        if (item.uid === itemToUpdate.uid) {
           return {
-            id: item.id,
             uid: uuid(),
             name: this.getResolvedName(item.name),
             menu_item_variant: item.menu_item_variant,
@@ -265,20 +264,7 @@ export default {
       })
     },
     changeItemVariant(itemToUpdate, newVariant) {
-      this.values.menu_items = this.values.menu_items.map((item) => {
-        if (item.id === itemToUpdate.id) {
-          return {
-            id: item.id,
-            uid: uuid(),
-            name: this.getResolvedName(item.name),
-            menu_item_variant: newVariant,
-            value: item.value,
-            parent_menu_item: item.parent_menu_item,
-            type: item.type,
-          }
-        }
-        return item
-      })
+      this.updateItem(itemToUpdate, {menu_item_variant: newVariant})
     },
     orderMenuItems(newOrder) {
       // TODO
