@@ -7,7 +7,7 @@ from baserow_enterprise.integrations.local_baserow.models import (
 
 
 class LocalBaserowTableServiceAggregationSeriesSerializer(serializers.ModelSerializer):
-    field_id = serializers.IntegerField()
+    field_id = serializers.IntegerField(allow_null=True)
     order = serializers.IntegerField(read_only=True)
 
     class Meta:

@@ -1,10 +1,115 @@
-<template><div></div></template>
+<template>
+  <form @submit.prevent>
+    <FormSection
+      :title="$t('groupedAggregateRowsDataSourceForm.data')"
+      class="margin-bottom-2"
+    >
+      <FormGroup
+        :label="$t('groupedAggregateRowsDataSourceForm.sourceFieldLabel')"
+        class="margin-bottom-2"
+        small-label
+        required
+        horizontal
+        horizontal-narrow
+      >
+        <Dropdown
+          v-model="values.table_id"
+          :show-search="true"
+          fixed-items
+          :error="fieldHasErrors('table_id')"
+          @change="$v.values.table_id.$touch()"
+        >
+          <DropdownSection
+            v-for="database in databases"
+            :key="database.id"
+            :title="`${database.name} (${database.id})`"
+          >
+            <DropdownItem
+              v-for="table in database.tables"
+              :key="table.id"
+              :name="table.name"
+              :value="table.id"
+              :indented="true"
+            >
+              {{ table.name }}
+            </DropdownItem>
+          </DropdownSection>
+        </Dropdown>
+      </FormGroup>
+      <FormGroup
+        v-if="values.table_id && !fieldHasErrors('table_id')"
+        :label="$t('groupedAggregateRowsDataSourceForm.viewFieldLabel')"
+        class="margin-bottom-2"
+        small-label
+        required
+        horizontal
+        horizontal-narrow
+      >
+        <Dropdown
+          v-model="values.view_id"
+          :show-search="false"
+          fixed-items
+          :error="fieldHasErrors('view_id')"
+          @change="$v.values.view_id.$touch()"
+        >
+          <DropdownItem
+            :name="$t('groupedAggregateRowsDataSourceForm.notSelected')"
+            :value="null"
+            >{{
+              $t('groupedAggregateRowsDataSourceForm.notSelected')
+            }}</DropdownItem
+          >
+          <DropdownItem
+            v-for="view in tableViews"
+            :key="view.id"
+            :name="view.name"
+            :value="view.id"
+          >
+            {{ view.name }}
+          </DropdownItem>
+        </Dropdown>
+      </FormGroup>
+    </FormSection>
+    <FormSection
+      v-if="values.table_id && !fieldHasErrors('table_id')"
+      :title="$t('groupedAggregateRowsDataSourceForm.series')"
+      class="margin-bottom-2"
+    >
+      <template #title-slot>
+        <ButtonText icon="iconoir-plus" type="secondary" @click="addSeries">{{
+          $t('groupedAggregateRowsDataSourceForm.addSeries')
+        }}</ButtonText>
+      </template>
+      <div class="margin-bottom-2"></div>
+      <AggregationSeriesForm
+        v-for="(series, index) in values.aggregation_series"
+        :key="index"
+        :table-fields="tableFields"
+        :series-index="index"
+        :default-values="series"
+        @delete-series="deleteSeries"
+        @values-changed="onAggregationSeriesUpdated(index, $event)"
+      >
+      </AggregationSeriesForm>
+    </FormSection>
+  </form>
+</template>
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
+import { required } from 'vuelidate/lib/validators'
+import AggregationSeriesForm from '@baserow_enterprise/dashboard/components/data_source/AggregationSeriesForm'
+
+const includesIfSet = (array) => (value) => {
+  if (value === null || value === undefined) {
+    return true
+  }
+  return array.includes(value)
+}
 
 export default {
   name: 'GroupedAggregateRowsDataSourceForm',
+  components: { AggregationSeriesForm },
   mixins: [form],
   props: {
     dashboard: {
@@ -23,6 +128,125 @@ export default {
       type: String,
       required: false,
       default: '',
+    },
+  },
+  data() {
+    return {
+      allowedValues: ['table_id', 'view_id', 'aggregation_series'],
+      values: {
+        table_id: null,
+        view_id: null,
+        aggregation_series: [],
+      },
+      tableLoading: false,
+      databaseSelectedId: null,
+      emitValuesOnReset: false,
+    }
+  },
+  computed: {
+    integration() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getIntegrationById`
+      ](this.dataSource.integration_id)
+    },
+    databases() {
+      return this.integration.context_data.databases
+    },
+    databaseSelected() {
+      return this.databases.find(
+        (database) => database.id === this.databaseSelectedId
+      )
+    },
+    tables() {
+      return this.databases.map((database) => database.tables).flat()
+    },
+    tableIds() {
+      return this.tables.map((table) => table.id)
+    },
+    tableSelected() {
+      return this.tables.find(({ id }) => id === this.values.table_id)
+    },
+    tableFields() {
+      return this.tableSelected?.fields || []
+    },
+    tableFieldIds() {
+      return this.tableFields.map((field) => field.id)
+    },
+    tableViews() {
+      return (
+        this.databaseSelected?.views.filter(
+          (view) => view.table_id === this.values.table_id
+        ) || []
+      )
+    },
+    tableViewIds() {
+      return this.tableViews.map((view) => view.id)
+    },
+  },
+  watch: {
+    dataSource: {
+      handler() {
+        // Reset the form to set default values
+        // again after a different widget is selected
+        this.reset(true)
+        // Run form validation so that
+        // problems are highlighted immediately
+        this.$v.$touch(true)
+      },
+      immediate: true,
+      deep: true,
+    },
+    'values.table_id': {
+      handler(tableId) {
+        if (tableId !== null) {
+          const databaseOfTableId = this.databases.find((database) =>
+            database.tables.some((table) => table.id === tableId)
+          )
+          if (databaseOfTableId) {
+            this.databaseSelectedId = databaseOfTableId.id
+          }
+
+          // If the values are not changed by the user
+          // we don't want to continue with preselecting
+          // default values
+          if (tableId === this.defaultValues.table_id) {
+            return
+          }
+
+          if (
+            !this.tableViews.some((view) => view.id === this.values.view_id)
+          ) {
+            this.values.view_id = null
+          }
+        }
+      },
+      immediate: true,
+    },
+  },
+  validations() {
+    return {
+      values: {
+        table_id: { required, isValidTableId: includesIfSet(this.tableIds) },
+        view_id: { isValidViewId: includesIfSet(this.tableViewIds) },
+      },
+    }
+  },
+  methods: {
+    addSeries() {
+      this.values.aggregation_series.push({
+        field_id: null,
+        aggregation_type: '',
+      })
+    },
+    deleteSeries(index) {
+      this.values.aggregation_series.splice(index, 1)
+    },
+    onAggregationSeriesUpdated(index, aggregationSeriesValues) {
+      const updatedAggregationSeries = this.values.aggregation_series
+      updatedAggregationSeries[index] = aggregationSeriesValues
+      this.$emit('values-changed', {
+        aggregation_series: updatedAggregationSeries,
+      })
     },
   },
 }
