@@ -390,9 +390,6 @@ import GridViewRowsAddContext from '@baserow/modules/database/components/view/gr
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING } from '@baserow/modules/database/constants'
 
-const isRowOpenedInModal = (row) =>
-  this.$store.getters['rowModalNavigation/getRow']?.id === row.id
-
 export default {
   name: 'GridView',
   components: {
@@ -802,7 +799,7 @@ export default {
             field,
             value,
             oldValue,
-            isRowOpenedInModal,
+            isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
       } catch (error) {
@@ -911,6 +908,7 @@ export default {
             values,
             before,
             selectPrimaryCell: true,
+            isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
       } catch (error) {
@@ -929,7 +927,7 @@ export default {
             fields: this.fields,
             rows: Array.from(Array(rowsAmount)).map(() => ({})),
             selectPrimaryCell: true,
-            isRowOpenedInModal,
+            isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
       } catch (error) {
@@ -1074,6 +1072,16 @@ export default {
       })
     },
     /**
+     * This function helps the store determine whether it is safe to hide a row. Since
+     * some filters or groups may depend on values computed in the backend, the store
+     * needs to know if a row that does not meet the filters can be safely hidden when
+     * the values become available or if it should remain visible until the modal is
+     * closed.
+     */
+    isRowOpenedInModal(row) {
+      return this.$store.getters['rowModalNavigation/getRow']?.id === row.id
+    },
+    /**
      * When a cell is unselected need to change the selected state of the row.
      */
     unselectedCell({ component, row, field }) {
@@ -1109,7 +1117,7 @@ export default {
             row,
             field,
             getScrollTop,
-            isRowOpenedInModal,
+            isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
       })
