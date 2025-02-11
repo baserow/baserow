@@ -799,6 +799,7 @@ export default {
             field,
             value,
             oldValue,
+            isRowOpenedInModal: this.rowOpenedInModal?.id === row.id,
           }
         )
       } catch (error) {

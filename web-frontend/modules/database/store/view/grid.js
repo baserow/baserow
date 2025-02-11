@@ -2173,7 +2173,16 @@ export const actions = {
    */
   async updateRowValue(
     { commit, dispatch, getters },
-    { table, view, row, field, fields, value, oldValue }
+    {
+      table,
+      view,
+      row,
+      field,
+      fields,
+      value,
+      oldValue,
+      isRowOpenedInModal = false,
+    }
   ) {
     /**
      * This helper function will make sure that the values of the related row are
@@ -2286,7 +2295,12 @@ export const actions = {
             // row.
             const row = getters.getRow(rowId)
             if (row && !row._.selected) {
-              dispatch('refreshRow', { grid: view, row, fields })
+              dispatch('refreshRow', {
+                grid: view,
+                row,
+                fields,
+                isRowOpenedInModal,
+              })
             }
           }, REFRESH_ROW_DELAY)
         }
