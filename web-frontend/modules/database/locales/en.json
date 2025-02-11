@@ -1054,5 +1054,8 @@
   "configureDataSyncSettings": {
     "title": "Change data sync",
     "syncTable": "Sync when save"
+  },
+  "webhookDeactivatedNotification": {
+    "body": "{name} webhook has been deactivated because it failed too many times consecutively."
   }
 }

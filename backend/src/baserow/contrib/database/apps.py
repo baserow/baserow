@@ -946,6 +946,9 @@ class DatabaseConfig(AppConfig):
         from baserow.contrib.database.views.notification_types import (
             FormSubmittedNotificationType,
         )
+        from baserow.contrib.database.webhooks.notification_types import (
+            WebhookDeactivatedNotificationType,
+        )
         from baserow.core.notifications.registries import notification_type_registry
 
         notification_type_registry.register(CollaboratorAddedToRowNotificationType())
@@ -953,6 +956,7 @@ class DatabaseConfig(AppConfig):
             UserMentionInRichTextFieldNotificationType()
         )
         notification_type_registry.register(FormSubmittedNotificationType())
+        notification_type_registry.register(WebhookDeactivatedNotificationType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

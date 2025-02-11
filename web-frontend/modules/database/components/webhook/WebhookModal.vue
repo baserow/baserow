@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal @hidden="$emit('hidden')">
     <h2 class="box__title">
       {{ $t('webhookModal.title', { name: table.name }) }}
     </h2>

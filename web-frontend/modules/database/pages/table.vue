@@ -17,6 +17,7 @@
         (row, activeSearchTerm) => setAdjacentRow(false, row, activeSearchTerm)
       "
     ></Table>
+    <NuxtChild :database="database" :table="table" :fields="fields" />
   </div>
 </template>
 

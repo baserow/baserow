@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-15 11:59+0000\n"
+"POT-Creation-Date: 2025-02-11 17:20+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -38,11 +38,11 @@ msgid ""
 "\"%(database_name)s\" (%(database_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/database/airtable/actions.py:22
+#: src/baserow/contrib/database/airtable/actions.py:23
 msgid "Import database from Airtable"
 msgstr ""
 
-#: src/baserow/contrib/database/airtable/actions.py:24
+#: src/baserow/contrib/database/airtable/actions.py:25
 #, python-format
 msgid ""
 "Imported database "
@@ -80,7 +80,7 @@ msgstr ""
 msgid "The data sync synchronized"
 msgstr ""
 
-#: src/baserow/contrib/database/data_sync/handler.py:186
+#: src/baserow/contrib/database/data_sync/handler.py:187
 #: src/baserow/contrib/database/table/handler.py:548
 msgid "Grid"
 msgstr ""
@@ -148,8 +148,8 @@ msgid ""
 "%(new_primary_field_name)s"
 msgstr ""
 
-#: src/baserow/contrib/database/fields/models.py:415
-#: src/baserow/contrib/database/fields/models.py:594
+#: src/baserow/contrib/database/fields/models.py:453
+#: src/baserow/contrib/database/fields/models.py:632
 msgid "The format of the duration."
 msgstr ""
 
@@ -601,12 +601,12 @@ msgstr ""
 msgid "Row (%(row_id)s) created via form submission"
 msgstr ""
 
-#: src/baserow/contrib/database/views/notification_types.py:84
+#: src/baserow/contrib/database/views/notification_types.py:86
 #, python-format
 msgid "%(form_name)s has been submitted in %(table_name)s"
 msgstr ""
 
-#: src/baserow/contrib/database/views/notification_types.py:101
+#: src/baserow/contrib/database/views/notification_types.py:103
 #, python-format
 msgid "and 1 more field"
 msgid_plural "and %(count)s more fields"
@@ -644,4 +644,16 @@ msgstr ""
 msgid ""
 "Webhook \"%(webhook_name)s\" (%(webhook_id)s) as %(webhook_request_method)s "
 "to %(webhook_url)s\" updated"
+msgstr ""
+
+#: src/baserow/contrib/database/webhooks/notification_types.py:70
+#, python-format
+msgid "%(name)s webhook has been deactivated."
+msgstr ""
+
+#: src/baserow/contrib/database/webhooks/notification_types.py:77
+#, python-format
+msgid ""
+"The webhook failed more than %(max_failures)s consecutive times and was "
+"therefore deactivated."
 msgstr ""

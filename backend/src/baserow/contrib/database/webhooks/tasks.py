@@ -88,6 +88,7 @@ def call_webhook(
 
     from .handler import WebhookHandler
     from .models import TableWebhook, TableWebhookCall
+    from .notification_types import WebhookDeactivatedNotificationType
 
     if self.request.retries > retries:
         retries = self.request.retries
@@ -186,6 +187,14 @@ def call_webhook(
                 # The user can manually activate it again when it's fixed.
                 webhook.active = False
                 webhook.save()
+
+                # Send a notification to the workspace admins that the webhook was
+                # deactivated.
+                transaction.on_commit(
+                    lambda: WebhookDeactivatedNotificationType.notify_admins_in_workspace(
+                        webhook
+                    )
+                )
 
             # After the transaction successfully commits we can delay the next call
             # in the queue, so that only one call is triggered concurrently.
