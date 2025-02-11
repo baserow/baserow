@@ -415,8 +415,11 @@ def test_check_licenses_with_authority_check(premium_data_fixture):
         license="instance_id_mismatch"
     )
     updated_license = premium_data_fixture.create_premium_license(license="update")
-    ok_license = premium_data_fixture.create_premium_license(
+    valid_license_without_builder = premium_data_fixture.create_premium_license(
         license=VALID_TWO_SEAT_LICENSE.decode()
+    )
+    valid_license_with_builder = premium_data_fixture.create_premium_license(
+        license=VALID_PREMIUM_TEN_SEAT_TEN_APP_USER_LICENSE.decode()
     )
 
     with freeze_time("2021-07-01 12:00"):
@@ -436,6 +439,10 @@ def test_check_licenses_with_authority_check(premium_data_fixture):
                     "new_license_payload": VALID_ONE_SEAT_LICENSE.decode(),
                 },
                 VALID_TWO_SEAT_LICENSE.decode(): {"type": "ok", "detail": ""},
+                VALID_PREMIUM_TEN_SEAT_TEN_APP_USER_LICENSE.decode(): {
+                    "type": "ok",
+                    "detail": "",
+                },
             },
             status=200,
         )
@@ -446,18 +453,21 @@ def test_check_licenses_with_authority_check(premium_data_fixture):
                 does_not_exist_license,
                 instance_id_mismatch_license,
                 updated_license,
-                ok_license,
+                valid_license_without_builder,
+                valid_license_with_builder,
             ]
         )
 
         all_licenses = License.objects.all().order_by("id")
-        assert len(all_licenses) == 2
+        assert len(all_licenses) == 3
         assert all_licenses[0].id == updated_license.id
         assert all_licenses[0].license == VALID_ONE_SEAT_LICENSE.decode()
         assert all_licenses[0].license_id == "1"
         assert all_licenses[0].last_check.year == 2021
-        assert all_licenses[1].id == ok_license.id
+        assert all_licenses[1].id == valid_license_without_builder.id
         assert all_licenses[1].last_check.year == 2021
+        assert all_licenses[2].id == valid_license_with_builder.id
+        assert all_licenses[2].last_check.year == 2021
 
 
 @pytest.mark.django_db

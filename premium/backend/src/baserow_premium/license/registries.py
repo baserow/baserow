@@ -80,8 +80,8 @@ class LicenseType(abc.ABC, Instance):
 
     def get_builder_usage_summary(self, obj: License) -> Optional[BuilderUsageSummary]:
         """
-        If it makes sense for a license to have builder usage then it should be calculated
-        and returned here.
+        If it makes sense for a license to have builder usage then it should be
+        calculated and returned here.
         If it doesn't make sense for this license type then this should return None.
         """
 
