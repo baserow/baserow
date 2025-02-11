@@ -50,9 +50,13 @@ import {
   GitLabIssuesDataSyncType,
   HubspotContactsDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
+import { ChartWidgetType } from '@baserow_enterprise/dashboard/widgetTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 
-import { FF_AB_SSO } from '@baserow/modules/core/plugins/featureFlags'
+import {
+  FF_AB_SSO,
+  FF_DASHBOARDS,
+} from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -155,4 +159,8 @@ export default (context) => {
     'configureDataSync',
     new PeriodicIntervalFieldsConfigureDataSyncType(context)
   )
+
+  if (app.$featureFlagIsEnabled(FF_DASHBOARDS)) {
+    app.$registry.register('dashboardWidget', new ChartWidgetType(context))
+  }
 }
