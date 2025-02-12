@@ -4,15 +4,21 @@
   justify-content: space-between; 
 }
 
-.menu-items-container {
+.menu-element__menu-items-container {
   display: flex;
+  align-items: center;
 }
 
-.menu-items-container.vertical {
+.menu-element__menu-items-container.vertical {
   flex-direction: column;
 }
 
-.menu-items-container.horizontal {
+.menu-element__menu-items-container.horizontal {
   flex-direction: row;
   gap: 20px;
+}
+
+.menu-element__menu-item-link a {
+  text-decoration: none;
+  color: black;
 }
