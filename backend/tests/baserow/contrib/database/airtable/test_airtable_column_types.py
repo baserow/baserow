@@ -18,7 +18,11 @@ from baserow.contrib.database.airtable.airtable_column_types import (
     TextAirtableColumnType,
 )
 from baserow.contrib.database.airtable.config import AirtableImportConfig
-from baserow.contrib.database.airtable.import_report import AirtableImportReport
+from baserow.contrib.database.airtable.import_report import (
+    SCOPE_CELL,
+    SCOPE_FIELD,
+    AirtableImportReport,
+)
 from baserow.contrib.database.airtable.registry import airtable_column_type_registry
 from baserow.contrib.database.fields.models import (
     BooleanField,
@@ -154,7 +158,7 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
     assert baserow_field.date_force_timezone is None
     assert len(import_report.items) == 1
     assert import_report.items[0].object_name == "Created"
-    assert import_report.items[0].scope == "Field"
+    assert import_report.items[0].scope == SCOPE_FIELD
 
     airtable_field = {
         "id": "fldcTpJuoUVpsDNoszO",
@@ -230,7 +234,7 @@ def test_airtable_import_date_column(data_fixture, api_client):
     assert baserow_field.date_time_format == "24"
     assert len(import_report.items) == 1
     assert import_report.items[0].object_name == "ISO DATE"
-    assert import_report.items[0].scope == "Field"
+    assert import_report.items[0].scope == SCOPE_FIELD
 
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
@@ -292,7 +296,7 @@ def test_airtable_import_date_column(data_fixture, api_client):
     )
     assert len(import_report.items) == 1
     assert import_report.items[0].object_name == 'Row: "row1", field: "ISO DATE"'
-    assert import_report.items[0].scope == "Cell"
+    assert import_report.items[0].scope == SCOPE_CELL
     assert import_report.items[0].table == "Test"
 
 
@@ -808,7 +812,7 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
     assert baserow_field.date_force_timezone is None
     assert len(import_report.items) == 1
     assert import_report.items[0].object_name == "Last"
-    assert import_report.items[0].scope == "Field"
+    assert import_report.items[0].scope == SCOPE_FIELD
 
     airtable_field = {
         "id": "fldws6n8xdrEJrMxJFJ",
@@ -943,7 +947,7 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
     ) == [1]
     assert len(import_report.items) == 1
     assert import_report.items[0].object_name == 'Row: "row1", field: "Link to Users"'
-    assert import_report.items[0].scope == "Cell"
+    assert import_report.items[0].scope == SCOPE_CELL
     assert import_report.items[0].table == "Test"
 
     # link to same table row
@@ -1445,7 +1449,7 @@ def test_airtable_import_phone_column(data_fixture, api_client):
     )
     assert len(import_report.items) == 1
     assert import_report.items[0].object_name == 'Row: "row1", field: "Phone"'
-    assert import_report.items[0].scope == "Cell"
+    assert import_report.items[0].scope == SCOPE_CELL
     assert import_report.items[0].table == "Test"
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
@@ -1595,7 +1599,7 @@ def test_airtable_import_url_column(data_fixture, api_client):
     )
     assert len(import_report.items) == 1
     assert import_report.items[0].object_name == 'Row: "row1", field: "Name"'
-    assert import_report.items[0].scope == "Cell"
+    assert import_report.items[0].scope == SCOPE_CELL
     assert import_report.items[0].table == "Test"
 
     assert (

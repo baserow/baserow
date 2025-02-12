@@ -321,9 +321,9 @@ def test_to_baserow_database_export():
         "created_on": None,
         "updated_on": None,
         "field_object_name": "All",
-        "field_scope": "View",
-        "field_table": "Users",
-        "field_error_type": "Unsupported feature",
+        "field_scope": "scope_view",
+        "field_table": "table_Users",
+        "field_error_type": "error_type_unsupported_feature",
         "field_message": 'View "All" was not imported because views are not yet supported during import.',
     }
     assert baserow_database_export["tables"][2]["rows"][1] == {
@@ -332,9 +332,9 @@ def test_to_baserow_database_export():
         "created_on": None,
         "updated_on": None,
         "field_object_name": "Name lookup (from Users)",
-        "field_scope": "Field",
-        "field_table": "Data",
-        "field_error_type": "Unsupported feature",
+        "field_scope": "scope_field",
+        "field_table": "table_Data",
+        "field_error_type": "error_type_unsupported_feature",
         "field_message": 'Field "Name lookup (from Users)" with field type lookup was not imported because it is not supported.',
     }
 
@@ -634,9 +634,9 @@ def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdi
     model = report_table.get_model(attribute_names=True)
     row = model.objects.last()
     assert row.object_name == "All interfaces"
-    assert row.scope == "Interfaces"
-    assert row.table == ""
-    assert row.error_type == "Unsupported feature"
+    assert row.scope.value == "Interfaces"
+    assert row.table is None
+    assert row.error_type.value == "Unsupported feature"
     assert row.message == "Baserow doesn't support interfaces."
 
 

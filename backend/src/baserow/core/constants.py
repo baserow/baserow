@@ -18,3 +18,35 @@ DATE_TIME_FORMAT = {
 
 # Django's choices to use with models.TextField
 DATE_TIME_FORMAT_CHOICES = [(k, v["name"]) for k, v in DATE_TIME_FORMAT.items()]
+
+# Should stay in sync with `light-`, (non-prefixed), and 'dark-' in
+# `modules/core/assets/scss/colors.scss::$colors`.
+BASEROW_COLORS = [
+    "light-blue",
+    "light-cyan",
+    "light-orange",
+    "light-yellow",
+    "light-red",
+    "light-brown",
+    "light-purple",
+    "light-pink",
+    "light-gray",
+    "blue",
+    "cyan",
+    "orange",
+    "yellow",
+    "red",
+    "brown",
+    "purple",
+    "pink",
+    "gray",
+    "dark-blue",
+    "dark-cyan",
+    "dark-orange",
+    "dark-yellow",
+    "dark-red",
+    "dark-brown",
+    "dark-purple",
+    "dark-pink",
+    "dark-gray",
+]
