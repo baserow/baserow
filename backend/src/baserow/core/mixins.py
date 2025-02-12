@@ -214,8 +214,9 @@ class PolymorphicContentTypeMixin:
         super().save(*args, **kwargs)
 
     def _ensure_content_type_is_set(self):
-        if not self.content_type_id:
-            self.content_type = ContentType.objects.get_for_model(self)
+        if not self.id:
+            if not self.content_type_id:
+                self.content_type = ContentType.objects.get_for_model(self)
 
     @cached_property
     def specific(self):

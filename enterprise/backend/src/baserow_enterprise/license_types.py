@@ -12,11 +12,11 @@ from baserow.contrib.builder.handler import BuilderHandler
 from baserow.core.models import Workspace
 from baserow_enterprise.features import (
     AUDIT_LOG,
-    CHART_WIDGET,
     BUILDER_CUSTOM_CSS_JS,
     BUILDER_PAYMENT_ELEMENT,
     BUILDER_PRODUCT_SPECIALIST,
     BUILDER_SSO,
+    CHART_WIDGET,
     DATA_SYNC,
     ENTERPRISE_SETTINGS,
     RBAC,
