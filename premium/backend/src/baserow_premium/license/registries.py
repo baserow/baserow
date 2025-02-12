@@ -22,10 +22,6 @@ class SeatUsageSummary:
 class BuilderUsageSummary:
     # How many application users are currently being used.
     application_users_taken: int
-    # How many application users the license allows.
-    application_users: int
-    # How many application users are remaining.
-    application_users_left: int
 
 
 class LicenseType(abc.ABC, Instance):

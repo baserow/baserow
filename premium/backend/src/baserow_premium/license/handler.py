@@ -338,7 +338,13 @@ class LicenseHandler:
                     "The license authority can't be reached because it didn't returned "
                     "with an ok response."
                 )
-        except RequestException:
+        except RequestException as exc:
+            # If we're running tests with the `responses` mocking library, and we are
+            # matching responses with the `json_params_matcher` matcher, we don't want
+            # to raise `LicenseAuthorityUnavailable`, we want the error to propagate
+            # and fail our tests.
+            if settings.TESTS and "request.body doesn't match" in str(exc.args[0]):
+                raise exc
             raise LicenseAuthorityUnavailable(
                 "The license authority can't be reached because of a network error."
             )
@@ -427,8 +433,9 @@ class LicenseHandler:
             )
             if (
                 builder_summary is not None
+                and license_object.application_users is not None
                 and builder_summary.application_users_taken
-                > builder_summary.application_users
+                > license_object.application_users
             ):
                 license_object.license_type.handle_application_user_overflow(
                     builder_summary.application_users_taken, license_object

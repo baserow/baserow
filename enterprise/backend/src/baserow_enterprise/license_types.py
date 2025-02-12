@@ -69,9 +69,8 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
 
     def get_builder_usage_summary(self, obj: License) -> Optional[BuilderUsageSummary]:
         """
-        We implement this method here because any license can purchase addons, even
-        free license. This method is used to calculate the number of application users
-        that are being used and how many are remaining.
+        This method is used to calculate the number of application users that are
+        being used and how many are remaining.
 
         :param obj: The License instance.
         :return: A summary of the builder usage.
@@ -82,14 +81,8 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
             if hasattr(obj, "application_users_taken")
             else BuilderHandler().aggregate_user_source_counts()
         )
-        application_users = (
-            obj.application_users if obj.application_users is not None else 0
-        )
-        application_users_left = application_users - application_users_taken
         return BuilderUsageSummary(
             application_users_taken=application_users_taken,
-            application_users=application_users,
-            application_users_left=application_users_left,
         )
 
     def handle_application_user_overflow(

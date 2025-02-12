@@ -11,7 +11,7 @@ import pytest
 import responses
 from freezegun import freeze_time
 from itsdangerous.exc import BadSignature, SignatureExpired
-from responses import json_params_matcher
+from responses.matchers import json_params_matcher
 
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.models import Database, Table
