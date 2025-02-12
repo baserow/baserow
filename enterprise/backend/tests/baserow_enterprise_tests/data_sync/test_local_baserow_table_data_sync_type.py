@@ -1620,4 +1620,3 @@ def test_table_with_trashed_synced_field(enterprise_data_fixture):
 
     data_sync.refresh_from_db()
     assert data_sync.last_error is None
-    assert False
