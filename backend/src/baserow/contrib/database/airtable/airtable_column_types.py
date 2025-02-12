@@ -29,7 +29,13 @@ from baserow.contrib.database.fields.registries import field_type_registry
 
 from .config import AirtableImportConfig
 from .helpers import import_airtable_date_type_options, set_select_options_on_field
-from .import_report import AirtableImportReport
+from .import_report import (
+    ERROR_TYPE_DATA_TYPE_MISMATCH,
+    ERROR_TYPE_UNSUPPORTED_FEATURE,
+    SCOPE_CELL,
+    SCOPE_FIELD,
+    AirtableImportReport,
+)
 from .registry import AirtableColumnType
 from .utils import get_airtable_row_primary_value
 
@@ -69,9 +75,10 @@ class TextAirtableColumnType(AirtableColumnType):
                     raw_airtable_table, raw_airtable_row
                 )
                 import_report.add_failed(
-                    f"Row: \"{row_name}\", column: \"{raw_airtable_column['name']}\"",
-                    f"Cell",
+                    f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                    SCOPE_CELL,
                     raw_airtable_table["name"],
+                    ERROR_TYPE_DATA_TYPE_MISMATCH,
                     f'Cell value "{value}" was left empty because it didn\'t pass the email or URL validation.',
                 )
                 return ""
@@ -231,9 +238,10 @@ class DateAirtableColumnType(AirtableColumnType):
         # date_force_timezone=None it the equivalent of airtable_timezone="client".
         if airtable_timezone == "client":
             import_report.add_failed(
-                f"Date field: \"{raw_airtable_column['name']}\"",
-                "Field",
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
                 raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
                 "The date field was imported, but the client timezone setting was dropped.",
             )
             airtable_timezone = None
@@ -269,8 +277,9 @@ class DateAirtableColumnType(AirtableColumnType):
             )
             import_report.add_failed(
                 f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
-                f"Cell",
+                SCOPE_CELL,
                 raw_airtable_table["name"],
+                ERROR_TYPE_DATA_TYPE_MISMATCH,
                 f'Cell value was left empty because it didn\'t pass the datetime validation with error: "{str(e)}"',
             )
             return None
@@ -305,9 +314,10 @@ class FormulaAirtableColumnType(AirtableColumnType):
 
         if is_last_modified or is_created and airtable_timezone == "client":
             import_report.add_failed(
-                f"Date field: \"{raw_airtable_column['name']}\"",
-                "Field",
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
                 raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
                 "The field was imported, but the client timezone setting was dropped.",
             )
 
@@ -404,8 +414,9 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
                 )
                 import_report.add_failed(
                     f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
-                    f"Cell",
+                    SCOPE_CELL,
                     raw_airtable_table["name"],
+                    ERROR_TYPE_DATA_TYPE_MISMATCH,
                     f'Foreign row id "{foreign_row_id}" was not added as relationship in the cell value was because it was not found in the mapping.',
                 )
 
@@ -543,9 +554,10 @@ class PhoneAirtableColumnType(AirtableColumnType):
                 raw_airtable_table, raw_airtable_row
             )
             import_report.add_failed(
-                f"Row: \"{row_name}\", column: \"{raw_airtable_column['name']}\"",
-                f"Cell",
+                f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                SCOPE_CELL,
                 raw_airtable_table["name"],
+                ERROR_TYPE_DATA_TYPE_MISMATCH,
                 f'Cell value "{value}" was left empty because it didn\'t pass the phone number validation.',
             )
             return ""

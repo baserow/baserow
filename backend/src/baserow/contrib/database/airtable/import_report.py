@@ -6,12 +6,23 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.views.models import GridView
 from baserow.contrib.database.views.registries import view_type_registry
 
+SCOPE_FIELD = "Field"
+SCOPE_CELL = "Cell"
+SCOPE_VIEW = "View"
+SCOPE_AUTOMATIONS = "Automations"
+SCOPE_INTERFACES = "Interfaces"
+
+ERROR_TYPE_UNSUPPORTED_FEATURE = "Unsupported feature"
+ERROR_TYPE_DATA_TYPE_MISMATCH = "Data type mismatch"
+ERROR_TYPE_OTHER = "Other"
+
 
 @dataclasses.dataclass
 class ImportReportFailedItem:
     object_name: str
-    category: str
+    scope: str
     table: str
+    error_type: str
     message: str
 
 
@@ -19,8 +30,10 @@ class AirtableImportReport:
     def __init__(self):
         self.items = []
 
-    def add_failed(self, object_name, category, table, message):
-        self.items.append(ImportReportFailedItem(object_name, category, table, message))
+    def add_failed(self, object_name, scope, table, error_type, message):
+        self.items.append(
+            ImportReportFailedItem(object_name, scope, table, error_type, message)
+        )
 
     def get_baserow_export_table(self, order: int) -> dict:
         # Create an empty grid view because the importing of views doesn't work
@@ -35,10 +48,11 @@ class AirtableImportReport:
         exported_views = [empty_serialized_grid_view]
 
         fields = [
-            TextField(id="object", name="Object", order=0, primary=True),
-            TextField(id="category", name="Category", order=1),
+            TextField(id="object_name", name="Object name", order=0, primary=True),
+            TextField(id="scope", name="Scope", order=1),
             TextField(id="table", name="Table", order=2),
-            LongTextField(id="message", name="Message", order=3),
+            TextField(id="error_type", name="Error type", order=3),
+            LongTextField(id="message", name="Message", order=4),
         ]
         exported_fields = [
             field_type_registry.get_by_model(field).export_serialized(field)
@@ -53,9 +67,10 @@ class AirtableImportReport:
                 created_on=None,
                 updated_on=None,
             )
-            row["field_object"] = item.object_name
-            row["field_category"] = item.category
+            row["field_object_name"] = item.object_name
+            row["field_scope"] = item.scope
             row["field_table"] = item.table
+            row["field_error_type"] = item.error_type
             row["field_message"] = item.message
             exported_rows.append(row)
 

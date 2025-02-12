@@ -40,7 +40,14 @@ from .exceptions import (
     AirtableImportNotRespectingConfig,
     AirtableShareIsNotABase,
 )
-from .import_report import AirtableImportReport
+from .import_report import (
+    ERROR_TYPE_UNSUPPORTED_FEATURE,
+    SCOPE_AUTOMATIONS,
+    SCOPE_FIELD,
+    SCOPE_INTERFACES,
+    SCOPE_VIEW,
+    AirtableImportReport,
+)
 
 User = get_user_model()
 
@@ -464,9 +471,10 @@ class AirtableHandler:
                 # so we must ignore it.
                 if baserow_field is None:
                     import_report.add_failed(
-                        f"Field: \"{column['name']}\"",
-                        "Field",
+                        column["name"],
+                        SCOPE_FIELD,
                         table["name"],
+                        ERROR_TYPE_UNSUPPORTED_FEATURE,
                         f"""Field "{column['name']}" with field type {column["type"]} was not imported because it is not supported.""",
                     )
                     continue
@@ -560,9 +568,10 @@ class AirtableHandler:
             # because the views are not yet supported.
             for view in table["views"]:
                 import_report.add_failed(
-                    f"View: \"{view['name']}\"",
-                    "View",
+                    view["name"],
+                    SCOPE_VIEW,
                     table["name"],
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
                     f"View \"{view['name']}\" was not imported because views are not "
                     f"yet supported during import.",
                 )
@@ -590,10 +599,18 @@ class AirtableHandler:
 
         # Just to be really clear that the automations and interfaces are not included.
         import_report.add_failed(
-            "All automations", "Automations", "", "Baserow doesn't support automations."
+            "All automations",
+            SCOPE_AUTOMATIONS,
+            "",
+            ERROR_TYPE_UNSUPPORTED_FEATURE,
+            "Baserow doesn't support automations.",
         )
         import_report.add_failed(
-            "All interfaces", "Interfaces", "", "Baserow doesn't support interfaces."
+            "All interfaces",
+            SCOPE_INTERFACES,
+            "",
+            ERROR_TYPE_UNSUPPORTED_FEATURE,
+            "Baserow doesn't support interfaces.",
         )
 
         # Convert the import report to the serialized export format of a Baserow table,
