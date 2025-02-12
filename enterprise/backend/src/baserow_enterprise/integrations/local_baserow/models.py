@@ -83,6 +83,7 @@ class LocalBaserowTableServiceAggregationSeries(models.Model):
     field = models.ForeignKey(
         "database.Field",
         help_text="The aggregated field.",
+        null=True,
         on_delete=models.CASCADE,
     )
     aggregation_type = models.CharField(

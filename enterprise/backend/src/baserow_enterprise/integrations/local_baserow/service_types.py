@@ -130,36 +130,39 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             table_field_ids = [field.id for field in table_fields]
 
             def validate_agg_series(agg_series):
-                if agg_series["field_id"] not in table_field_ids:
-                    raise DRFValidationError(
-                        detail=f"The field with ID {agg_series['field_id']} is not "
-                        "related to the given table.",
-                        code="invalid_field",
-                    )
+                if agg_series["aggregation_type"]:
+                    try:
+                        agg_type = field_aggregation_registry.get(
+                            agg_series["aggregation_type"]
+                        )
+                    except AggregationTypeDoesNotExist:
+                        raise DRFValidationError(
+                            detail=f"The aggregation type '{agg_series['aggregation_type']}' "
+                            f"doesn't exist",
+                            code="invalid_aggregation_raw_type",
+                        )
 
-                try:
-                    agg_type = field_aggregation_registry.get(
-                        agg_series["aggregation_type"]
+                if agg_series["field_id"] is not None:
+                    if agg_series["field_id"] not in table_field_ids:
+                        raise DRFValidationError(
+                            detail=f"The field with ID {agg_series['field_id']} is not "
+                            "related to the given table.",
+                            code="invalid_field",
+                        )
+
+                    field = next(
+                        (
+                            field
+                            for field in table_fields
+                            if field.id == agg_series["field_id"]
+                        )
                     )
-                except AggregationTypeDoesNotExist:
-                    raise DRFValidationError(
-                        detail=f"The aggregation type '{agg_series['aggregation_type']}' "
-                        f"doesn't exist",
-                        code="invalid_aggregation_raw_type",
-                    )
-                field = next(
-                    (
-                        field
-                        for field in table_fields
-                        if field.id == agg_series["field_id"]
-                    )
-                )
-                if not agg_type.field_is_compatible(field):
-                    raise DRFValidationError(
-                        detail=f"The field with ID {agg_series['field_id']} is not compatible "
-                        f"with aggregation type {agg_series['aggregation_type']}.",
-                        code="invalid_aggregation_raw_type",
-                    )
+                    if not agg_type.field_is_compatible(field):
+                        raise DRFValidationError(
+                            detail=f"The field with ID {agg_series['field_id']} is not compatible "
+                            f"with aggregation type {agg_series['aggregation_type']}.",
+                            code="invalid_aggregation_raw_type",
+                        )
 
                 return True
 
@@ -446,6 +449,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 f"There are no aggregation series defined."
             )
         for agg_series in defined_agg_series:
+            if agg_series.field is None:
+                raise ServiceImproperlyConfigured(
+                    f"The aggregation series field has to be set."
+                )
             if agg_series.field.trashed:
                 raise ServiceImproperlyConfigured(
                     f"The field with ID {agg_series.field.id} is trashed."

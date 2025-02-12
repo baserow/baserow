@@ -442,5 +442,18 @@
   },
   "chartWidget": {
     "name": "Chart"
+  },
+  "groupedAggregateRowsDataSourceForm": {
+    "series": "Series",
+    "addSeries": "Add series",
+    "data": "Data",
+    "sourceFieldLabel": "Source",
+    "viewFieldLabel": "View",
+    "notSelected": "Not selected"
+  },
+  "aggregationSeriesForm": {
+    "aggregationFieldLabel": "Field",
+    "aggregationTypeLabel": "Summary type",
+    "deleteSeries": "Delete series"
   }
 }
