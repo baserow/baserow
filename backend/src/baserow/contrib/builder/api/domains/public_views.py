@@ -239,7 +239,7 @@ class PublicDataSourcesView(APIView):
 
         handler = BuilderHandler()
         public_properties = handler.get_builder_public_properties(
-            request.user, page.builder
+            request.user_source_user, page.builder
         )
 
         allowed_fields = []

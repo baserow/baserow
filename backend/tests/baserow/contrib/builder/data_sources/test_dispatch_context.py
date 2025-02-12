@@ -59,7 +59,7 @@ def test_dispatch_context_page_from_context(mock_get_field_names, data_fixture):
     )
 
     request = Request(HttpRequest())
-    request.user = user_source_user
+    request.user_source_user = user_source_user
 
     dispatch_context = BuilderDispatchContext(
         request, page, offset=0, count=5, only_expose_public_allowed_properties=True
@@ -211,7 +211,7 @@ def test_builder_dispatch_context_field_names_computed_on_param(
     mock_get_builder_used_property_names.return_value = mock_field_names
 
     mock_request = MagicMock()
-    mock_request.user.is_anonymous = True
+    mock_request.user_source_user.is_anonymous = True
     mock_page = MagicMock()
     mock_page.builder = MagicMock()
 
@@ -224,7 +224,7 @@ def test_builder_dispatch_context_field_names_computed_on_param(
     if only_expose_public_allowed_properties:
         assert dispatch_context.public_allowed_properties == mock_field_names
         mock_get_builder_used_property_names.assert_called_once_with(
-            mock_request.user, mock_page.builder
+            mock_request.user_source_user, mock_page.builder
         )
     else:
         assert dispatch_context.public_allowed_properties is None
@@ -378,7 +378,7 @@ def test_builder_dispatch_context_public_allowed_properties_is_cached(
     )
 
     request = Request(HttpRequest())
-    request.user = user_source_user
+    request.user_source_user = user_source_user
 
     dispatch_context = BuilderDispatchContext(
         request,

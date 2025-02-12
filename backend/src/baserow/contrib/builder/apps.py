@@ -315,4 +315,5 @@ class BuilderConfig(AppConfig):
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
+        import baserow.contrib.builder.signals  # noqa: F403, F401
         import baserow.contrib.builder.ws.signals  # noqa: F403, F401

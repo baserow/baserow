@@ -798,7 +798,7 @@ class ModelRegistryMixin(Generic[DjangoModel, InstanceSubClass]):
         if isinstance(model_instance, type):
             clazz = model_instance
         else:
-            clazz = type(model_instance)
+            clazz = model_instance.__class__
 
         return self.get_for_class(clazz)
 
