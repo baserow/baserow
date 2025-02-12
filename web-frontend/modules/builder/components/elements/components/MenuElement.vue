@@ -2,8 +2,11 @@
   <div
     class="menu-element"
     :style="getStyleOverride(element.variant)"
-    :class="['menu-items-container', element.orientation === 'horizontal' ? 'horizontal' : 'vertical']"
-    >
+    :class="[
+      'menu-items-container',
+      element.orientation === 'horizontal' ? 'horizontal' : 'vertical',
+    ]"
+  >
     <div v-for="item in element.menu_items" :key="item.id">
       <template v-if="item.menu_item_variant === 'link'">
         <LinkElement :element="getElement(item)" />

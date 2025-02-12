@@ -264,7 +264,7 @@ export default {
       })
     },
     changeItemVariant(itemToUpdate, newVariant) {
-      this.updateItem(itemToUpdate, {menu_item_variant: newVariant})
+      this.updateItem(itemToUpdate, { menu_item_variant: newVariant })
     },
     orderMenuItems(newOrder) {
       // TODO

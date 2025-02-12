@@ -51,7 +51,7 @@ export default {
     },
     menuItemElementType() {
       return this.$registry.get('element', 'menu_item')
-    }
+    },
   },
 }
 </script>
