@@ -55,7 +55,10 @@ DATABASE_PASSWORD=$DATABASE_PASSWORD \
 DATABASE_OPTIONS=$DATABASE_OPTIONS \
 python3 << END
 import sys
-import psycopg
+try:
+    import psycopg
+except ImportError:
+    import psycopg2 as psycopg
 import json
 import os
 DATABASE_NAME=os.getenv('DATABASE_NAME')
@@ -99,7 +102,10 @@ else
 DATABASE_URL=$DATABASE_URL \
 python3 << END
 import sys
-import psycopg
+try:
+    import psycopg
+except ImportError:
+    import psycopg2 as psycopg
 import os
 DATABASE_URL=os.getenv('DATABASE_URL')
 try:

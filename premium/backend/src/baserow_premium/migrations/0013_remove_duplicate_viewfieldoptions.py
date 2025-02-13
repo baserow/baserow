@@ -2,7 +2,7 @@
 
 from django.db import connection, migrations
 
-from psycopg import sql
+from baserow.core.psycopg import sql
 
 
 def remove_duplicates(model, view):

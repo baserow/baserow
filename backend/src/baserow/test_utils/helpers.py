@@ -13,7 +13,6 @@ from django.contrib.auth.models import AbstractUser
 from django.db import connection
 from django.utils.dateparse import parse_date, parse_datetime
 
-import psycopg
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
@@ -27,6 +26,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionType
 from baserow.core.models import Workspace
+from baserow.core.psycopg import psycopg
 
 User = get_user_model()
 

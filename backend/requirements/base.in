@@ -2,8 +2,7 @@ django==5.0.9
 django-cors-headers==4.3.1
 djangorestframework==3.15.1
 djangorestframework-simplejwt==5.3.1
-psycopg==3.2.3
-psycopg-binary==3.2.3
+psycopg2==2.9.10
 Faker==25.0.1
 Twisted==24.3.0
 gunicorn==22.0.0
@@ -52,6 +51,7 @@ opentelemetry-instrumentation-dbapi==0.50b0
 opentelemetry-instrumentation-grpc==0.50b0
 opentelemetry-instrumentation-logging==0.50b0
 opentelemetry-instrumentation-redis==0.50b0
+opentelemetry-instrumentation-psycopg2==0.50b0
 opentelemetry-instrumentation-psycopg==0.50b0
 opentelemetry-instrumentation-requests==0.50b0
 opentelemetry-instrumentation-wsgi==0.50b0

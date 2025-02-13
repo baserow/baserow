@@ -4,11 +4,11 @@ from django.db import connection
 from django.test import override_settings
 
 import pytest
-from psycopg2 import sql
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.psycopg import sql
 
 
 # @pytest.mark.disabled_in_ci  # Disable this test in CI in next release.
