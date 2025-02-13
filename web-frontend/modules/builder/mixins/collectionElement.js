@@ -142,7 +142,7 @@ export default {
           mode: this.applicationContext.mode,
           replace,
         })
-        this.currentOffset += this.element.items_per_page
+        this.currentOffset = range[0] + this.element.items_per_page
       } catch (error) {
         // Handle the HTTP error if needed
         this.onContentFetchError(error)
