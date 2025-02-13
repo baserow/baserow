@@ -74,20 +74,22 @@ class LicenseType(abc.ABC, Instance):
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
         pass
 
-    def get_builder_usage_summary(self, obj: License) -> Optional[BuilderUsageSummary]:
+    def get_builder_usage_summary(
+        self, license_object: License
+    ) -> Optional[BuilderUsageSummary]:
         """
         This method is used to calculate the number of application users that are
         being used and how many are remaining.
 
-        :param obj: The License instance.
+        :param license_object: The License instance.
         :return: A summary of the builder usage.
         """
 
         from baserow.contrib.builder.handler import BuilderHandler
 
         application_users_taken = (
-            obj.application_users_taken
-            if hasattr(obj, "application_users_taken")
+            license_object.application_users_taken
+            if hasattr(license_object, "application_users_taken")
             else BuilderHandler().aggregate_user_source_counts()
         )
         return BuilderUsageSummary(
