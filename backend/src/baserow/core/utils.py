@@ -16,6 +16,7 @@ from itertools import chain, islice
 from numbers import Number
 from typing import (
     Any,
+    Callable,
     Dict,
     Iterable,
     List,
@@ -24,7 +25,6 @@ from typing import (
     Tuple,
     Type,
     Union,
-    Callable,
 )
 
 from django.conf import settings
