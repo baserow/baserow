@@ -2,6 +2,7 @@ from datetime import tzinfo
 from typing import Any, Dict, Tuple, Union
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
+from baserow.contrib.database.airtable.import_report import AirtableImportReport
 from baserow.contrib.database.fields.models import Field
 from baserow.core.registry import Instance, Registry
 
@@ -13,6 +14,7 @@ class AirtableColumnType(Instance):
         raw_airtable_column: dict,
         timezone: tzinfo,
         config: AirtableImportConfig,
+        import_report: AirtableImportReport,
     ) -> Union[Field, None]:
         """
         Converts the raw Airtable column to a Baserow field object. It should be
@@ -24,6 +26,8 @@ class AirtableColumnType(Instance):
             converted.
         :param timezone: The main timezone used for date conversions if needed.
         :param config: Additional configuration related to the import.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
         :return: The Baserow field type related to the Airtable column. If None is
             provided, then the column is ignored in the conversion.
         """
@@ -33,11 +37,14 @@ class AirtableColumnType(Instance):
     def to_baserow_export_serialized_value(
         self,
         row_id_mapping: Dict[str, Dict[str, int]],
+        raw_airtable_table: dict,
+        raw_airtable_row: dict,
         raw_airtable_column: dict,
         baserow_field: Field,
         value: Any,
         files_to_download: Dict[str, str],
         config: AirtableImportConfig,
+        import_report: AirtableImportReport,
     ):
         """
         This method should convert a raw Airtable row value to a Baserow export row
@@ -47,6 +54,8 @@ class AirtableColumnType(Instance):
 
         :param row_id_mapping: A mapping containing the table as key as the value is
             another mapping where the Airtable row id maps the Baserow row id.
+        :param raw_airtable_table: The original Airtable table object.
+        :param raw_airtable_row: The original row object.
         :param raw_airtable_column: A dict containing the raw Airtable column values.
         :param baserow_field: The Baserow field that the column has been converted to.
         :param value: The raw Airtable value that must be converted.
@@ -54,6 +63,8 @@ class AirtableColumnType(Instance):
             be downloaded. The key is the file name and the value the URL. Additional
             files can be added to this dict.
         :param config: Additional configuration related to the import.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
         :return: The converted value is Baserow export format.
         """
 
@@ -68,6 +79,7 @@ class AirtableColumnTypeRegistry(Registry):
         raw_airtable_table: dict,
         raw_airtable_column: dict,
         config: AirtableImportConfig,
+        import_report: AirtableImportReport,
     ) -> Union[Tuple[Field, AirtableColumnType], Tuple[None, None]]:
         """
         Tries to find a Baserow field that matches that raw Airtable column data. If
@@ -76,6 +88,8 @@ class AirtableColumnTypeRegistry(Registry):
         :param raw_airtable_table: The raw Airtable table data related to the column.
         :param raw_airtable_column: The raw Airtable column data that must be imported.
         :param config: Additional configuration related to the import.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
         :return: The related Baserow field and AirtableColumnType that should be used
             for the conversion.
         """
@@ -84,7 +98,7 @@ class AirtableColumnTypeRegistry(Registry):
             type_name = raw_airtable_column.get("type", "")
             airtable_column_type = self.get(type_name)
             baserow_field = airtable_column_type.to_baserow_field(
-                raw_airtable_table, raw_airtable_column, config
+                raw_airtable_table, raw_airtable_column, config, import_report
             )
 
             if baserow_field is None:

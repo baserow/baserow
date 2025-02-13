@@ -18,6 +18,11 @@ from baserow.contrib.database.airtable.airtable_column_types import (
     TextAirtableColumnType,
 )
 from baserow.contrib.database.airtable.config import AirtableImportConfig
+from baserow.contrib.database.airtable.import_report import (
+    SCOPE_CELL,
+    SCOPE_FIELD,
+    AirtableImportReport,
+)
 from baserow.contrib.database.airtable.registry import airtable_column_type_registry
 from baserow.contrib.database.fields.models import (
     BooleanField,
@@ -50,6 +55,7 @@ def test_unknown_column_type():
         {},
         airtable_field,
         AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert baserow_field is None
     assert baserow_field is None
@@ -64,7 +70,10 @@ def test_unknown_column_type():
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert baserow_field is None
     assert baserow_field is None
@@ -82,7 +91,10 @@ def test_airtable_import_text_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, TextField)
     assert isinstance(airtable_column_type, TextAirtableColumnType)
@@ -101,7 +113,10 @@ def test_airtable_import_checkbox_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, BooleanField)
     assert isinstance(airtable_column_type, CheckboxAirtableColumnType)
@@ -125,11 +140,15 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
             "resultIsArray": False,
         },
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
     )
     assert isinstance(baserow_field, CreatedOnField)
     assert isinstance(airtable_column_type, FormulaAirtableColumnType)
@@ -137,6 +156,9 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
     assert baserow_field.date_force_timezone is None
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Created"
+    assert import_report.items[0].scope == SCOPE_FIELD
 
     airtable_field = {
         "id": "fldcTpJuoUVpsDNoszO",
@@ -158,7 +180,10 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, CreatedOnField)
     assert isinstance(airtable_column_type, FormulaAirtableColumnType)
@@ -170,11 +195,14 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "2022-01-03T14:51:00.000Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -187,53 +215,89 @@ def test_airtable_import_date_column(data_fixture, api_client):
         "id": "fldyAXIzheHfugGhuFD",
         "name": "ISO DATE",
         "type": "date",
-        "typeOptions": {"isDateTime": False, "dateFormat": "US"},
+        "typeOptions": {"isDateTime": False, "dateFormat": "US", "timeZone": "client"},
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
     assert baserow_field.date_format == "US"
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "ISO DATE"
+    assert import_report.items[0].scope == SCOPE_FIELD
 
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "2022-01-03T14:51:00.000Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "2022-01-03"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "0999-02-04T14:51:00.000Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "0999-02-04"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             None,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         is None
     )
+
+    import_report = AirtableImportReport()
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            "+000000-06-19T21:09:30.000Z",
+            {},
+            AirtableImportConfig(),
+            import_report,
+        )
+        is None
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == 'Row: "row1", field: "ISO DATE"'
+    assert import_report.items[0].scope == SCOPE_CELL
+    assert import_report.items[0].table == "Test"
 
 
 @pytest.mark.django_db
@@ -252,7 +316,10 @@ def test_airtable_import_european_date_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -263,33 +330,42 @@ def test_airtable_import_european_date_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "2022-01-03T14:51:00.000Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "2022-01-03"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "2020-08-27T21:10:24.828Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "2020-08-27"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             None,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -313,7 +389,10 @@ def test_airtable_import_datetime_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -324,33 +403,42 @@ def test_airtable_import_datetime_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "2022-01-03T14:51:00.000Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "2022-01-03T14:51:00+00:00"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "2020-08-27T21:10:24.828Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "2020-08-27T21:10:24.828000+00:00"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             None,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -376,7 +464,10 @@ def test_airtable_import_datetime_with_default_timezone_column(
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -388,11 +479,14 @@ def test_airtable_import_datetime_with_default_timezone_column(
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "2022-01-03T23:51:00.000Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "2022-01-03T23:51:00+00:00"
     )
@@ -418,7 +512,10 @@ def test_airtable_import_datetime_with_different_default_timezone_column(
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -430,11 +527,14 @@ def test_airtable_import_datetime_with_different_default_timezone_column(
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "2022-01-03T23:51:00.000Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "2022-01-03T23:51:00+00:00"
     )
@@ -458,7 +558,10 @@ def test_airtable_import_datetime_edge_case_1(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, DateField)
     assert isinstance(airtable_column_type, DateAirtableColumnType)
@@ -469,11 +572,14 @@ def test_airtable_import_datetime_edge_case_1(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "+020222-03-28T00:00:00.000Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -492,7 +598,10 @@ def test_airtable_import_email_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, EmailField)
     assert isinstance(airtable_column_type, TextAirtableColumnType)
@@ -500,22 +609,28 @@ def test_airtable_import_email_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "NOT_EMAIL",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == ""
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "test@test.nl",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "test@test.nl"
     )
@@ -534,7 +649,10 @@ def test_airtable_import_multiple_attachment_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, FileField)
     assert isinstance(airtable_column_type, MultipleAttachmentAirtableColumnType)
@@ -542,6 +660,8 @@ def test_airtable_import_multiple_attachment_column(data_fixture, api_client):
     files_to_download = {}
     assert airtable_column_type.to_baserow_export_serialized_value(
         {},
+        {"name": "Test"},
+        {"id": "row1"},
         airtable_field,
         baserow_field,
         [
@@ -570,6 +690,7 @@ def test_airtable_import_multiple_attachment_column(data_fixture, api_client):
         ],
         files_to_download,
         AirtableImportConfig(),
+        AirtableImportReport(),
     ) == [
         {
             "name": "70e50b90fb83997d25e64937979b6b5b_f3f62d23_file-sample.txt",
@@ -603,7 +724,10 @@ def test_airtable_import_multiple_attachment_column_skip_files(
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig(skip_files=True)
+        {},
+        airtable_field,
+        AirtableImportConfig(skip_files=True),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, FileField)
     assert isinstance(airtable_column_type, MultipleAttachmentAirtableColumnType)
@@ -612,6 +736,8 @@ def test_airtable_import_multiple_attachment_column_skip_files(
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             [
@@ -640,6 +766,7 @@ def test_airtable_import_multiple_attachment_column_skip_files(
             ],
             files_to_download,
             AirtableImportConfig(skip_files=True),
+            AirtableImportReport(),
         )
         == []
     )
@@ -667,11 +794,15 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
             "resultIsArray": False,
         },
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
     )
     assert isinstance(baserow_field, LastModifiedField)
     assert isinstance(airtable_column_type, FormulaAirtableColumnType)
@@ -679,6 +810,9 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
     assert baserow_field.date_force_timezone is None
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Last"
+    assert import_report.items[0].scope == SCOPE_FIELD
 
     airtable_field = {
         "id": "fldws6n8xdrEJrMxJFJ",
@@ -703,7 +837,10 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LastModifiedField)
     assert isinstance(airtable_column_type, FormulaAirtableColumnType)
@@ -715,11 +852,14 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "2022-01-03T14:51:00.000Z",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "2022-01-03T14:51:00+00:00"
     )
@@ -743,7 +883,10 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {"id": "tblxxx"}, airtable_field, AirtableImportConfig()
+        {"id": "tblxxx"},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LinkRowField)
     assert isinstance(airtable_column_type, ForeignKeyAirtableColumnType)
@@ -757,6 +900,8 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
                 "rec5pdtuKyE71lfK1Ah": 2,
             }
         },
+        {"name": "Test"},
+        {"id": "row1"},
         airtable_field,
         baserow_field,
         [
@@ -771,7 +916,39 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
         ],
         {},
         AirtableImportConfig(),
+        AirtableImportReport(),
     ) == [1, 2]
+
+    # missing value
+    import_report = AirtableImportReport()
+    assert airtable_column_type.to_baserow_export_serialized_value(
+        {
+            "tblRpq315qnnIcg5IjI": {
+                "recWkle1IOXcLmhILmO": 1,
+            }
+        },
+        {"name": "Test"},
+        {"id": "row1"},
+        airtable_field,
+        baserow_field,
+        [
+            {
+                "foreignRowId": "recWkle1IOXcLmhILmO",
+                "foreignRowDisplayName": "Bram 1",
+            },
+            {
+                "foreignRowId": "rec5pdtuKyE71lfK1Ah",
+                "foreignRowDisplayName": "Bram 2",
+            },
+        ],
+        {},
+        AirtableImportConfig(),
+        import_report,
+    ) == [1]
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == 'Row: "row1", field: "Link to Users"'
+    assert import_report.items[0].scope == SCOPE_CELL
+    assert import_report.items[0].table == "Test"
 
     # link to same table row
     airtable_field = {
@@ -789,7 +966,10 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {"id": "tblRpq315qnnIcg5IjI"}, airtable_field, AirtableImportConfig()
+        {"id": "tblRpq315qnnIcg5IjI"},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LinkRowField)
     assert isinstance(airtable_column_type, ForeignKeyAirtableColumnType)
@@ -809,7 +989,10 @@ def test_airtable_import_multiline_text_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LongTextField)
     assert isinstance(airtable_column_type, MultilineTextAirtableColumnType)
@@ -817,11 +1000,14 @@ def test_airtable_import_multiline_text_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "test",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "test"
     )
@@ -839,7 +1025,10 @@ def test_airtable_import_rich_text_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LongTextField)
     assert isinstance(airtable_column_type, RichTextTextAirtableColumnType)
@@ -857,11 +1046,14 @@ def test_airtable_import_rich_text_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             content,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere "
         "cubilia curae; Class aptent taciti sociosqu ad litora."
@@ -880,7 +1072,10 @@ def test_airtable_import_rich_text_column_with_mention(data_fixture, api_client)
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, LongTextField)
     assert isinstance(airtable_column_type, RichTextTextAirtableColumnType)
@@ -904,11 +1099,14 @@ def test_airtable_import_rich_text_column_with_mention(data_fixture, api_client)
     }
     assert airtable_column_type.to_baserow_export_serialized_value(
         {},
+        {"name": "Test"},
+        {"id": "row1"},
         airtable_field,
         baserow_field,
         content,
         {},
         AirtableImportConfig(),
+        AirtableImportReport(),
     ) == (
         "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices "
         "@usrr5CVJ5Lz8ErVZS cubilia curae; Class aptent taciti sociosqu ad litora."
@@ -946,7 +1144,10 @@ def test_airtable_import_multi_select_column(
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, MultipleSelectField)
     assert isinstance(airtable_column_type, MultiSelectAirtableColumnType)
@@ -986,7 +1187,10 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, NumberField)
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
@@ -996,55 +1200,70 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "10",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "10"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             10,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "10"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "-10",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         is None
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             -10,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         is None
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             None,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -1067,7 +1286,10 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, NumberField)
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
@@ -1088,7 +1310,10 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, NumberField)
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
@@ -1098,55 +1323,70 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "10.22",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "10.22"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             10,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "10"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "-10.555",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "-10.555"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             -10,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "-10"
     )
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             None,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         is None
     )
@@ -1165,7 +1405,10 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, NumberField)
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
@@ -1181,30 +1424,44 @@ def test_airtable_import_phone_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, PhoneNumberField)
     assert isinstance(airtable_column_type, PhoneAirtableColumnType)
 
+    import_report = AirtableImportReport()
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "NOT_PHONE",
             {},
             AirtableImportConfig(),
+            import_report,
         )
         == ""
     )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == 'Row: "row1", field: "Phone"'
+    assert import_report.items[0].scope == SCOPE_CELL
+    assert import_report.items[0].table == "Test"
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "1234",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "1234"
     )
@@ -1223,7 +1480,10 @@ def test_airtable_import_rating_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, RatingField)
     assert isinstance(airtable_column_type, RatingAirtableColumnType)
@@ -1231,11 +1491,14 @@ def test_airtable_import_rating_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             5,
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == 5
     )
@@ -1272,7 +1535,10 @@ def test_airtable_import_select_column(
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, SingleSelectField)
     assert isinstance(airtable_column_type, SelectAirtableColumnType)
@@ -1308,30 +1574,45 @@ def test_airtable_import_url_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, URLField)
     assert isinstance(airtable_column_type, TextAirtableColumnType)
 
+    import_report = AirtableImportReport()
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "NOT_URL",
             {},
             AirtableImportConfig(),
+            import_report,
         )
         == ""
     )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == 'Row: "row1", field: "Name"'
+    assert import_report.items[0].scope == SCOPE_CELL
+    assert import_report.items[0].table == "Test"
+
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "https://test.nl",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         == "https://test.nl"
     )
@@ -1355,7 +1636,10 @@ def test_airtable_import_count_column(data_fixture, api_client):
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {}, airtable_field, AirtableImportConfig()
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
     )
     assert isinstance(baserow_field, CountField)
     assert isinstance(airtable_column_type, CountAirtableColumnType)
@@ -1364,11 +1648,14 @@ def test_airtable_import_count_column(data_fixture, api_client):
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
+            {"name": "Test"},
+            {"id": "row1"},
             airtable_field,
             baserow_field,
             "1",
             {},
             AirtableImportConfig(),
+            AirtableImportReport(),
         )
         is None
     )

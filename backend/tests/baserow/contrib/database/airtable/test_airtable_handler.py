@@ -222,7 +222,7 @@ def test_to_baserow_database_export():
     assert baserow_database_export["name"] == "Test"
     assert baserow_database_export["order"] == 1
     assert baserow_database_export["type"] == "database"
-    assert len(baserow_database_export["tables"]) == 2
+    assert len(baserow_database_export["tables"]) == 3  # 2 + import report table
 
     assert baserow_database_export["tables"][0]["id"] == "tblRpq315qnnIcg5IjI"
     assert baserow_database_export["tables"][0]["name"] == "Users"
@@ -314,6 +314,29 @@ def test_to_baserow_database_export():
             "owned_by": None,
         }
     ]
+
+    assert baserow_database_export["tables"][2]["rows"][0] == {
+        "id": 1,
+        "order": "1.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object_name": "All",
+        "field_scope": "scope_view",
+        "field_table": "table_Users",
+        "field_error_type": "error_type_unsupported_feature",
+        "field_message": 'View "All" was not imported because views are not yet supported during import.',
+    }
+    assert baserow_database_export["tables"][2]["rows"][1] == {
+        "id": 2,
+        "order": "2.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object_name": "Name lookup (from Users)",
+        "field_scope": "scope_field",
+        "field_table": "table_Data",
+        "field_error_type": "error_type_unsupported_feature",
+        "field_message": 'Field "Name lookup (from Users)" with field type lookup was not imported because it is not supported.',
+    }
 
 
 @pytest.mark.django_db
@@ -511,10 +534,11 @@ def test_import_from_airtable_to_workspace(
 
     assert database.name == "Test"
     all_tables = database.table_set.all()
-    assert len(all_tables) == 2
+    assert len(all_tables) == 3  # 2 + import report
 
     assert all_tables[0].name == "Users"
     assert all_tables[1].name == "Data"
+    assert all_tables[2].name == "Airtable import report"
 
     user_fields = all_tables[0].field_set.all()
     assert len(user_fields) == 4
@@ -535,6 +559,85 @@ def test_import_from_airtable_to_workspace(
     row_0, row_1, *_ = data_model.objects.all()
     assert row_0.checkbox is True
     assert row_1.checkbox is False
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdir):
+    workspace = data_fixture.create_workspace()
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.signed/file-sample.txt",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/appZkaH3aWX3ZjT3b",
+            status=200,
+            body=file.read(),
+            headers={"Set-Cookie": "brw=test;"},
+        )
+
+    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
+            status=200,
+            body=file.read(),
+        )
+
+    progress = Progress(1000)
+
+    database = AirtableHandler.import_from_airtable_to_workspace(
+        workspace,
+        "appZkaH3aWX3ZjT3b",
+        storage=storage,
+        progress_builder=progress.create_child_builder(represents_progress=1000),
+    )
+
+    report_table = database.table_set.last()
+    assert report_table.name == "Airtable import report"
+
+    model = report_table.get_model(attribute_names=True)
+    row = model.objects.last()
+    assert row.object_name == "All interfaces"
+    assert row.scope.value == "Interfaces"
+    assert row.table is None
+    assert row.error_type.value == "Unsupported feature"
+    assert row.message == "Baserow doesn't support interfaces."
 
 
 @pytest.mark.django_db
