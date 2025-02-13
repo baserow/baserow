@@ -107,7 +107,7 @@ export default {
   methods: {
     copyToClipboard,
     checkValidity() {
-      if (!this.$refs.form.isFormValid() && this.$refs.form.$v.$anyDirty) {
+      if (!this.$refs.form.isFormValid() && this.$refs.form.v$.$anyDirty) {
         this.inError = true
       } else {
         this.inError = false

@@ -15,6 +15,7 @@
         :error="fieldHasErrors('ical_url')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
+        @blur="v$.values.ical_url.$touch"
       >
       </FormInput>
       <template #error>

@@ -149,6 +149,7 @@ export default {
             })
           ),
         },
+        jira_project_key: {},
       },
     }
   },

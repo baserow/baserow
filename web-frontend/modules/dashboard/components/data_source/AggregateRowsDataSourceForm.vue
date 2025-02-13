@@ -227,15 +227,14 @@ export default {
   },
   watch: {
     dataSource: {
-      handler() {
+      handler(values) {
         // Reset the form to set default values
         // again after a different widget is selected
         this.reset(true)
         // Run form validation so that
         // problems are highlighted immediately
-        this.v$.$touch()
+        this.v$.$validate()
       },
-      immediate: true,
       deep: true,
     },
     'values.table_id': {
@@ -291,14 +290,37 @@ export default {
     },
   },
   validations() {
+    const self = this // Capture the current context
     return {
       values: {
-        table_id: { required, isValidTableId: includesIfSet(this.tableIds) },
-        view_id: { isValidViewId: includesIfSet(this.tableViewIds) },
-        field_id: { required, isValidFieldId: includes(this.tableFieldIds) },
+        table_id: {
+          required,
+          isValidTableId: (value) => {
+            const ids = self.tableIds // Access the latest state
+            return includes(ids)(value)
+          },
+        },
+        view_id: {
+          required,
+          isValidViewId: (value) => {
+            const ids = self.tableViewIds // Access the latest state
+
+            return includesIfSet(ids)(value)
+          },
+        },
+        field_id: {
+          required,
+          isValidFieldId: (value) => {
+            const ids = self.tableFieldIds // Access the latest state
+            return includes(ids)(value)
+          },
+        },
         aggregation_type: {
           required,
-          isValidAggregationType: includes(this.aggregationTypeNames),
+          isValidAggregationType: (value) => {
+            const types = self.aggregationTypeNames // Access the latest state
+            return includes(types)(value)
+          },
         },
       },
     }

@@ -202,11 +202,9 @@ export default {
      * first level of children.
      */
     async reset(deep = false) {
-      Object.assign(
-        this.values,
-        this.$options.data.call(this).values,
-        this.getDefaultValues()
-      )
+      for (const [key, value] of Object.entries(this.getDefaultValues())) {
+        this.values[key] = value
+      }
 
       if ('v$' in this) {
         this.v$.$reset()

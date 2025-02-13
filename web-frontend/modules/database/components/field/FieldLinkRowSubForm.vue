@@ -252,6 +252,7 @@ export default {
             required
           ),
         },
+        link_row_limit_selection_view_id: {},
       },
     }
   },

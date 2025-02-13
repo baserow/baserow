@@ -44,8 +44,21 @@
       </FormInput>
 
       <template #warning>
-        <span v-show="values.username !== user.username">
+        <span
+          v-show="
+            values.username !== user.username && !v$.values.username.$invalid
+          "
+        >
           {{ $t('userForm.warning.changeEmail') }}
+        </span>
+      </template>
+
+      <template #error>
+        <span v-if="v$.values.username.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
+        <span v-else-if="v$.values.username.email.$invalid">
+          {{ $t('error.invalidEmail') }}
         </span>
       </template>
     </FormGroup>

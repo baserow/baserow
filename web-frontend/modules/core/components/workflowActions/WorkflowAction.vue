@@ -15,6 +15,7 @@
         @delete="$emit('delete')"
       />
     </div>
+
     <component
       :is="workflowActionType.form"
       v-if="workflowActionType.form"
