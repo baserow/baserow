@@ -1,52 +1,89 @@
+from contextlib import contextmanager
 from typing import Any, Callable
+
+from django.conf import settings
 
 from asgiref.local import Local
 
-# Thread/Async-local storage
-_local = Local()
 
-
-def get_short_cache(key: str, default: Any | Callable = None):
+class LocalCache:
     """
-    Get a value from the short cache. If the key is not present:
-      - If the default is callable, call it to get the value.
-      - Otherwise, use the plain default value.
-    The computed or plain default value is stored in the cache.
-    As the cache is shared, ensure the key is unique to prevent collision.
+    A thread-safe and async-safe local cache implementation using asgiref.Local.
+
+    This cache provides request-scoped storage in Django applications via the
+    LocalCacheMiddleware. It ensures that data is isolated between different requests
+    and is automatically cleaned up after each request cycle, preventing data leakage
+    and maintaining proper cache lifecycle management.
     """
 
-    if not hasattr(_local, "cache"):
-        _local.cache = {}
-    cache = _local.cache
+    def __init__(self):
+        self._local = Local()
 
-    if key not in cache:
-        value = default() if callable(default) else default
-        cache[key] = value
+    def get(self, key: str, default: Any | Callable = None):
+        """
+        Get a value from the cache. If the key is not present:
+        - If the default is callable, call it to get the value.
+        - Otherwise, use the plain default value.
+        The computed or plain default value is stored in the cache.
+        As the cache is shared, ensure the key is unique to prevent collision.
+        """
 
-    return cache[key]
+        if not settings.BASEROW_USE_LOCAL_CACHE:
+            return default() if callable(default) else default
+
+        if not hasattr(self._local, "cache"):
+            self._local.cache = {}
+
+        cache = self._local.cache
+
+        if key not in cache:
+            value = default() if callable(default) else default
+            cache[key] = value
+
+        return cache[key]
+
+    def clear(self):
+        """
+        Clear all data from the cache.
+        """
+
+        if hasattr(self._local, "cache"):
+            del self._local.cache
+
+    @contextmanager
+    def context(self):
+        """
+        Context manager for automatic cache lifecycle management. Clears the cache
+        before entering the context and ensures cleanup after exiting, even if an
+        exception occurs.
+        """
+
+        self.clear()
+        try:
+            yield self
+        finally:
+            self.clear()
 
 
-def clear_short_cache():
-    """Clear the short cache (cleanup)."""
-
-    if hasattr(_local, "cache"):
-        del _local.cache
+local_cache = LocalCache()
 
 
-class ShortCacheMiddleware:
-    """Middleware to manage thread/async-local cache for each request."""
+class LocalCacheMiddleware:
+    """
+    Django middleware for managing the lifecycle of LocalCache.
+
+    This middleware ensures that the cache is cleared before and after
+    each request, preventing data leakage between requests and maintaining
+    proper cleanup.
+
+    Usage:
+        Add to MIDDLEWARE in Django settings:
+        'baserow.core.cache.LocalCacheMiddleware'
+    """
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        # Clear short cache before each request
-        clear_short_cache()
-
-        try:
-            response = self.get_response(request)
-        finally:
-            # And after
-            clear_short_cache()
-
-        return response
+        with local_cache.context():
+            return self.get_response(request)

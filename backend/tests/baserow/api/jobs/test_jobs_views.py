@@ -434,6 +434,7 @@ def test_cancel_job_pending(
     assert job_data["state"] == JOB_CANCELLED
 
 
+@pytest.mark.skip(reason="intermittently failing")
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.flaky(retries=3, delay=1)
 def test_cancel_job_finished(

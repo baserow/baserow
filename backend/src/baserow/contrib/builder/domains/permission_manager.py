@@ -13,7 +13,7 @@ from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
     ListBuilderWorkflowActionsPageOperationType,
 )
-from baserow.core.cache import get_short_cache
+from baserow.core.cache import local_cache
 from baserow.core.operations import ReadApplicationOperationType
 from baserow.core.registries import PermissionManagerType, operation_type_registry
 from baserow.core.subjects import AnonymousUserSubjectType, UserSubjectType
@@ -70,7 +70,7 @@ class AllowPublicBuilderManagerType(PermissionManagerType):
             except Builder.DoesNotExist:
                 return None
 
-        return get_short_cache(f"ab_builder_{builder_id}", get_builder_if_exists)
+        return local_cache.get(f"ab_builder_{builder_id}", get_builder_if_exists)
 
     def get_builder_from_instance(self, instance, property_name):
         """
@@ -81,7 +81,7 @@ class AllowPublicBuilderManagerType(PermissionManagerType):
         prop_id_name = f"{property_name}_id"
 
         if getattr(instance.__class__, property_name).is_cached(instance):
-            return get_short_cache(
+            return local_cache.get(
                 f"ab_builder_{getattr(instance, prop_id_name)}",
                 lambda: getattr(instance, property_name),
             )
@@ -138,7 +138,7 @@ class AllowPublicBuilderManagerType(PermissionManagerType):
                     and DomainHandler().get_domain_for_builder(b) is not None
                 )
 
-            is_public = get_short_cache(
+            is_public = local_cache.get(
                 f"ab_is_public_builder_{builder.id}",
                 functools.partial(is_public_callback, builder),
             )

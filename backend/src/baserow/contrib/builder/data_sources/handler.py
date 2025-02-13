@@ -17,7 +17,7 @@ from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.types import DataSourceDict
-from baserow.core.cache import get_short_cache
+from baserow.core.cache import local_cache
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.services.handler import ServiceHandler
@@ -57,7 +57,7 @@ class DataSourceHandler:
         """
 
         if with_cache and not base_queryset:
-            return get_short_cache(
+            return local_cache.get(
                 f"ab_data_source_{data_source_id}_{specific}",
                 lambda: self._get_data_source(
                     data_source_id, base_queryset, specific=specific
@@ -179,7 +179,7 @@ class DataSourceHandler:
 
         if with_cache:
             for ds in data_sources:
-                get_short_cache(
+                local_cache.get(
                     f"ab_data_source_{ds.id}_{specific}",
                     ds,
                 )
@@ -273,7 +273,7 @@ class DataSourceHandler:
         :return: The data_sources of the page.
         """
 
-        return get_short_cache(
+        return local_cache.get(
             f"ab_data_sources_{page.id}_{specific}",
             lambda: DataSourceHandler().get_data_sources(
                 page,

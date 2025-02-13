@@ -49,7 +49,7 @@ from baserow.contrib.database.views.operations import (
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
 )
-from baserow.core.cache import get_short_cache
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied, PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import PermissionManagerType, object_scope_type_registry
@@ -174,7 +174,7 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             ):
                 continue
 
-            premium = get_short_cache(
+            premium = local_cache.get(
                 f"has_premium_permission_{actor.id}_{workspace.id}",
                 partial(LicenseHandler.user_has_feature, PREMIUM, actor, workspace),
             )
@@ -264,7 +264,7 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
         if not workspace:
             return queryset
 
-        premium = get_short_cache(
+        premium = local_cache.get(
             f"has_premium_permission_{actor.id}_{workspace.id}",
             lambda: LicenseHandler.user_has_feature(PREMIUM, actor, workspace),
         )

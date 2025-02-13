@@ -7,7 +7,7 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow_premium.license.handler import LicenseHandler
 
-from baserow.core.cache import get_short_cache
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
 from baserow.core.registries import (
@@ -44,7 +44,7 @@ class RolePermissionManagerType(PermissionManagerType):
         :param workspace: The workspace in which we want to use this permission manager.
         """
 
-        return get_short_cache(
+        return local_cache.get(
             f"has_rbac_permission_{workspace.id}",
             partial(LicenseHandler.workspace_has_feature, RBAC, workspace),
         )

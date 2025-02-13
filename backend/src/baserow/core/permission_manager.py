@@ -3,7 +3,7 @@ from typing import Iterable, List
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
-from baserow.core.cache import get_short_cache
+from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
@@ -205,7 +205,7 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
         a few seconds to prevent queries.
         """
 
-        cached = get_short_cache(f"workspace_user_{workspace.id}", dict)
+        cached = local_cache.get(f"workspace_user_{workspace.id}", dict)
 
         missing = []
         for user in users_to_query:
@@ -389,7 +389,7 @@ class StaffOnlySettingOperationPermissionManagerType(PermissionManagerType):
         return always_allowed_operations, staff_only_operations
 
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
-        (always_allowed_ops, staff_only_ops) = get_short_cache(
+        (always_allowed_ops, staff_only_ops) = local_cache.get(
             "settings", self.get_permitted_operations_for_settings
         )
 
