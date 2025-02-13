@@ -272,7 +272,7 @@ def test_get_job(data_fixture, api_client):
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.skip(reason="intermittently failing")
+@pytest.mark.flaky(retries=3, delay=1)
 def test_cancel_job_running(
     data_fixture,
     api_client,
@@ -361,7 +361,7 @@ def test_cancel_job_running(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.skip(reason="intermittently failing")
+@pytest.mark.flaky(retries=3, delay=1)
 def test_cancel_job_pending(
     data_fixture,
     api_client,
@@ -435,7 +435,7 @@ def test_cancel_job_pending(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.skip(reason="intermittently failing")
+@pytest.mark.flaky(retries=3, delay=1)
 def test_cancel_job_finished(
     data_fixture,
     api_client,
@@ -496,9 +496,9 @@ def test_cancel_job_finished(
         assert job.pending, job.get_cached_state()
 
         t.start()
-        assert m_start.wait(0.1)
+        assert m_start.wait(0.5)
         m_set_stop.set()
-        assert m_end.wait(0.1)
+        assert m_end.wait(0.5)
 
         response = api_client.post(
             reverse("api:jobs:cancel", args=(job.id,)),

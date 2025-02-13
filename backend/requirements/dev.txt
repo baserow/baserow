@@ -224,6 +224,7 @@ pytest==8.2.0
     #   pytest-metadata
     #   pytest-mock
     #   pytest-ordering
+    #   pytest-retry
     #   pytest-split
     #   pytest-unordered
     #   pytest-xdist
@@ -245,13 +246,15 @@ pytest-mock==3.14.0
     # via -r dev.in
 pytest-ordering==0.6
     # via -r dev.in
+pytest-retry==1.7.0
+    # via -r dev.in
 pytest-split==0.8.2
     # via -r dev.in
 pytest-unordered==0.6.0
     # via -r dev.in
 pytest-xdist==3.6.1
     # via -r dev.in
-python-dateutil==2.9.0.post0
+python-dateutil==2.8.2
     # via
     #   -c base.txt
     #   freezegun
