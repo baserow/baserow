@@ -37,7 +37,7 @@
       </div>
     </div>
 
-    <div v-for="(item, index) in values.menu_items" :key="item.uid">
+    <div v-for="(item, index) in values.menu_items.filter(item => item.parent_menu_item === null)" :key="item.uid">
       <Expandable
         v-sortable="{
           id: item.uid,
@@ -130,7 +130,7 @@
           >
             <InjectedFormulaInput
               v-model="item.name"
-              :placeholder="$t('linkElementForm.textPlaceholder')"
+              :placeholder="$t('menuElementForm.namePlaceholder')"
             />
             <template v-if="values.menu_items.length > 1" #after-input>
               <ButtonIcon icon="iconoir-bin" @click="removeMenuItem(item)" />
@@ -141,6 +141,19 @@
             :default-values="item"
             @values-changed="updateItem(item, $event)"
           />
+
+          <div class="menu-element__menu-item-footer" />
+          
+          <div class="menu-element__add-sub-link-container">
+            <ButtonText
+              type="primary"
+              icon="iconoir-plus"
+              size="small"
+              @click="addSubLink(item)"
+            >
+              {{ $t('menuElementForm.addSubLink') }}
+            </ButtonText>
+          </div>
         </template>
       </Expandable>
     </div>
@@ -234,7 +247,9 @@ export default {
     async addMenuItem() {
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemDefaultName'),
-        this.values.menu_items.map(({ name }) => this.getResolvedName(name))
+        this.values.menu_items
+          .filter((item) => item.parent_menu_item === null)
+          .map(({ name }) => this.getResolvedName(name))
       )
       this.values.menu_items.push({
         name: `'${name}'`,
@@ -285,6 +300,26 @@ export default {
         }
         return item
       })
+    },
+    addSubLink(item) {
+      const name = getNextAvailableNameInSequence(
+        this.$t('menuElementForm.menuItemSubLinkDefaultName'),
+        this.values.menu_items
+          .filter((item) => item.parent_menu_item !== null)
+          .map(({ name }) => this.getResolvedName(name))
+      )
+      const subItem = {
+        name: `'${name}'`,
+        menu_item_variant: 'link',
+        type: 'item',
+        uid: uuid(),
+      }
+
+      if (!Array.isArray(item.children)) {
+        this.$set(item, 'children', [subItem])
+      } else {
+        this.$set(item.children, item.children.length, subItem)
+      }
     },
   },
   validations() {

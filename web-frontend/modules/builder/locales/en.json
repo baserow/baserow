@@ -205,7 +205,10 @@
     "menuItemTypeSeparator": "Separator",
     "menuItemVariantLabel": "Variant",
     "menuItemVariantLink": "Link",
-    "menuItemVariantButton": "Button"
+    "menuItemVariantButton": "Button",
+    "namePlaceholder": "Page",
+    "addSubLink": "Add sublink",
+    "menuItemSubLinkDefaultName": "Sublink"
   },
   "imageElement": {
     "missingValue": "Missing alt text...",

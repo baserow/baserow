@@ -398,6 +398,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
         allow_blank=True,
         required=False,
     )
+    children = serializers.SerializerMethodField()
 
     class Meta:
         model = MenuItemElement
@@ -415,4 +416,26 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "page_parameters",
             "query_parameters",
             "target",
+            "children",
         ]
+
+    def get_children(self, obj):
+        """
+        Fetch related menu items where this item is the parent.
+        """
+        children = obj.menu_item_children.filter(parent_menu_item=obj)
+        return MenuItemSerializer(children, many=True).data
+
+    def to_internal_value(self, data):
+        """
+        "children" is a read-only field and not a real writeable field.
+
+        We need to extract it so that the serializer doesn't discard it.        
+        """
+        children = data.pop('children', None)
+        validated_data = super().to_internal_value(data)
+        
+        if children is not None:
+            validated_data['children'] = children
+            
+        return validated_data

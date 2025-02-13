@@ -22,3 +22,14 @@
   text-decoration: none;
   color: black;
 }
+
+.menu-element__menu-item-footer {
+  border-top: 1px solid #d7d8d9;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.menu-element__add-sub-link-container {
+  display: flex;
+  justify-content: flex-end;
+}

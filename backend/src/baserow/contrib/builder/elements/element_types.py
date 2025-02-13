@@ -1984,6 +1984,8 @@ class MenuElementType(ElementType):
         orientation: str
         menu_items: List[Dict]
 
+    
+
     @property
     def serializer_field_overrides(self):
         from baserow.contrib.builder.api.theme.serializers import (
@@ -2001,12 +2003,17 @@ class MenuElementType(ElementType):
                 theme_config_block_type_name=TypographyThemeConfigBlockType.type,
                 serializer_kwargs={"required": False},
             ),
-            "menu_items": MenuItemSerializer(many=True, required=False),
+            "menu_items": MenuItemSerializer(
+                many=True,
+                required=False,
+            ),
         }
 
         return overrides
     
     def after_create(self, instance: MenuItemElement, values):
+        # TODO: refactor this to ensure children are also created (when duplicating)
+
         menu_items = values.get("menu_items", [])
 
         created_menu_items = MenuItemElement.objects.bulk_create(
@@ -2035,8 +2042,17 @@ class MenuElementType(ElementType):
             instance.menu_items.all().delete()
 
             items_to_create = []
+            child_uids_parent_uids = {}
             for index, item in enumerate(values["menu_items"]):
                 item.pop("menu_item_order", None)
+                
+                # Keep track of child-parent relationship via the uid
+                for child_index, child in enumerate(item.pop("children", [])):
+                    items_to_create.append(
+                        MenuItemElement(**child, menu_item_order=child_index)
+                    )
+                    child_uids_parent_uids[child["uid"]] = item["uid"]
+
                 items_to_create.append(
                     MenuItemElement(**item, menu_item_order=index)
                 )
@@ -2044,6 +2060,12 @@ class MenuElementType(ElementType):
             created_items = MenuItemElement.objects.bulk_create(
                 items_to_create
             )
+            # Re-associate the child-parent
+            for item in created_items:
+                if parent_uid := child_uids_parent_uids.get(item.uid):
+                    item.parent_menu_item = MenuItemElement.objects.get(uid=parent_uid)
+                    item.save()
+
             instance.menu_items.add(*created_items)
 
         super().after_update(instance, values, changes)
@@ -2060,13 +2082,13 @@ class MenuElementType(ElementType):
         cache=None,
         **kwargs,
     ):
-        """
-        You can customize the behavior of the serialization of a property with this
-        hook.
-        """
-
         if prop_name == "menu_items":
             # TODO
+            # serializer = MenuItemSerializer(
+            #     element.menu_items.filter(parent_menu_item__isnull=True), 
+            #     many=True
+            # )
+            # return serializer.data
             return []
 
         return super().serialize_property(
