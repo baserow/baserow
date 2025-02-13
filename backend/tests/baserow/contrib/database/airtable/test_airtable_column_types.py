@@ -1196,6 +1196,9 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
     assert baserow_field.number_decimal_places == 0
     assert baserow_field.number_negative is False
+    assert baserow_field.number_separator == ""
+    assert baserow_field.number_prefix == ""
+    assert baserow_field.number_suffix == ""
 
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
@@ -1271,6 +1274,50 @@ def test_airtable_import_number_integer_column(data_fixture, api_client):
 
 @pytest.mark.django_db
 @responses.activate
+def test_airtable_import_number_invalid_number(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Number",
+        "type": "number",
+        "typeOptions": {
+            "format": "integer",
+            "negative": False,
+            "validatorName": "positive",
+        },
+    }
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+
+    import_report = AirtableImportReport()
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            "INVALID_NUMBER",
+            {},
+            AirtableImportConfig(),
+            import_report,
+        )
+        is None
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == 'Row: "row1", field: "Number"'
+    assert import_report.items[0].scope == SCOPE_CELL
+    assert import_report.items[0].table == "Test"
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_airtable_import_number_decimal_column(data_fixture, api_client):
     airtable_field = {
         "id": "fldZBmr4L45mhjILhlA",
@@ -1293,7 +1340,7 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
     )
     assert isinstance(baserow_field, NumberField)
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
-    assert baserow_field.number_decimal_places == 1
+    assert baserow_field.number_decimal_places == 0
     assert baserow_field.number_negative is False
 
     airtable_field = {
@@ -1319,6 +1366,9 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
     assert baserow_field.number_decimal_places == 2
     assert baserow_field.number_negative is True
+    assert baserow_field.number_separator == ""
+    assert baserow_field.number_prefix == ""
+    assert baserow_field.number_suffix == ""
 
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
@@ -1414,6 +1464,203 @@ def test_airtable_import_number_decimal_column(data_fixture, api_client):
     assert isinstance(airtable_column_type, NumberAirtableColumnType)
     assert baserow_field.number_decimal_places == 10
     assert baserow_field.number_negative is True
+    assert baserow_field.number_separator == ""
+    assert baserow_field.number_prefix == ""
+    assert baserow_field.number_suffix == ""
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_currency_column(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Currency",
+        "type": "number",
+        "typeOptions": {
+            "format": "currency",
+            "precision": 3,
+            "symbol": "$",
+            "separatorFormat": "commaPeriod",
+            "negative": False,
+        },
+    }
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+    assert isinstance(baserow_field, NumberField)
+    assert isinstance(airtable_column_type, NumberAirtableColumnType)
+    assert baserow_field.number_decimal_places == 3
+    assert baserow_field.number_negative is False
+    assert baserow_field.number_separator == "COMMA_PERIOD"
+    assert baserow_field.number_prefix == "$"
+    assert baserow_field.number_suffix == ""
+
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Currency",
+        "type": "number",
+        "typeOptions": {
+            "format": "currency",
+            "precision": 2,
+            "symbol": "€",
+            "separatorFormat": "spacePeriod",
+            "negative": True,
+        },
+    }
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+    assert isinstance(baserow_field, NumberField)
+    assert isinstance(airtable_column_type, NumberAirtableColumnType)
+    assert baserow_field.number_decimal_places == 2
+    assert baserow_field.number_negative is True
+    assert baserow_field.number_separator == "SPACE_PERIOD"
+    assert baserow_field.number_prefix == "€"
+    assert baserow_field.number_suffix == ""
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_currency_column_non_existing_separator_format(
+    data_fixture, api_client
+):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Currency",
+        "type": "number",
+        "typeOptions": {
+            "format": "currency",
+            "precision": 3,
+            "symbol": "$",
+            "separatorFormat": "TEST",
+            "negative": False,
+        },
+    }
+    import_report = AirtableImportReport()
+    airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == 'Number field: "Currency"'
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_percentage_column(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Currency",
+        "type": "number",
+        "typeOptions": {
+            "format": "percentage",
+            "precision": 1,
+            "negative": False,
+        },
+    }
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+    assert isinstance(baserow_field, NumberField)
+    assert isinstance(airtable_column_type, NumberAirtableColumnType)
+    assert baserow_field.number_decimal_places == 1
+    assert baserow_field.number_negative is False
+    assert baserow_field.number_separator == ""
+    assert baserow_field.number_prefix == ""
+    assert baserow_field.number_suffix == "%"
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            0.5,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "50.0"
+    )
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            0.5,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "50.0"
+    )
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            "0.05",
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == "5.00"
+    )
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            "",
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        is None
+    )
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            None,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        is None
+    )
 
 
 @pytest.mark.django_db

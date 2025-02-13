@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Optional
 
 from django.core.exceptions import ValidationError
@@ -28,6 +28,7 @@ from baserow.contrib.database.fields.models import (
 from baserow.contrib.database.fields.registries import field_type_registry
 
 from .config import AirtableImportConfig
+from .constants import AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING
 from .helpers import import_airtable_date_type_options, set_select_options_on_field
 from .import_report import (
     ERROR_TYPE_DATA_TYPE_MISMATCH,
@@ -155,17 +156,37 @@ class NumberAirtableColumnType(AirtableColumnType):
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
         type_options = raw_airtable_column.get("typeOptions", {})
-        decimal_places = 0
+        options_format = type_options.get("format", "")
+        suffix = ""
 
-        if type_options.get("format", "integer") == "decimal":
-            # Minimum of 1 and maximum of 5 decimal places.
-            decimal_places = min(
-                max(1, type_options.get("precision", 1)), NUMBER_MAX_DECIMAL_PLACES
+        if "percent" in options_format:
+            suffix = "%"
+
+        decimal_places = min(
+            max(0, type_options.get("precision", 0)), NUMBER_MAX_DECIMAL_PLACES
+        )
+        prefix = type_options.get("symbol", "")
+        separator_format = type_options.get("separatorFormat", "")
+        number_separator = AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING.get(
+            separator_format, ""
+        )
+
+        if separator_format != "" and number_separator == "":
+            import_report.add_failed(
+                f"Number field: \"{raw_airtable_column['name']}\"",
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the separator format "
+                f"{separator_format} was dropped because it doesn't exist in Baserow.",
             )
 
         return NumberField(
             number_decimal_places=decimal_places,
             number_negative=type_options.get("negative", True),
+            number_prefix=prefix,
+            number_suffix=suffix,
+            number_separator=number_separator,
         )
 
     def to_baserow_export_serialized_value(
@@ -180,13 +201,38 @@ class NumberAirtableColumnType(AirtableColumnType):
         config,
         import_report,
     ):
-        if value is not None:
+        if value is None:
+            return None
+
+        try:
             value = Decimal(value)
+        except InvalidOperation:
+            # If the value can't be parsed as decimal, then it might be corrupt, so we
+            # need to inform the user and skip the import.
+            row_name = get_airtable_row_primary_value(
+                raw_airtable_table, raw_airtable_row
+            )
+            import_report.add_failed(
+                f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                SCOPE_CELL,
+                raw_airtable_table["name"],
+                ERROR_TYPE_DATA_TYPE_MISMATCH,
+                f"Cell value was left empty because the numeric value {value} "
+                f'could not be parsed"',
+            )
+            return None
 
-        if value is not None and not baserow_field.number_negative and value < 0:
-            value = None
+        # Airtable stores 10% as 0.1, so we would need to multiply it by 100 so get the
+        # correct value in Baserow.
+        type_options = raw_airtable_column.get("typeOptions", {})
+        options_format = type_options.get("format", "")
+        if "percent" in options_format:
+            value = value * 100
 
-        return None if value is None else str(value)
+        if not baserow_field.number_negative and value < 0:
+            return None
+
+        return str(value)
 
 
 class RatingAirtableColumnType(AirtableColumnType):
