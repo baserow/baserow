@@ -273,6 +273,6 @@ class BuilderDispatchContext(DispatchContext):
             return None
 
         return BuilderHandler().get_builder_public_properties(
-            self.request.user,
+            self.request.user_source_user,
             self.page.builder,
         )

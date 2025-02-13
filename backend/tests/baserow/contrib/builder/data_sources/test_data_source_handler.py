@@ -574,7 +574,7 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
         {},
         HTTP_USERSOURCEAUTHORIZATION=f"JWT {user_source_user_token}",
     )
-    fake_request.user = user_source_user
+    fake_request.user_source_user = user_source_user
     dispatch_context = BuilderDispatchContext(fake_request, page)
 
     mock_get_builder_used_property_names.return_value = {

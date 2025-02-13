@@ -14,14 +14,27 @@ from decimal import Decimal
 from fractions import Fraction
 from itertools import chain, islice
 from numbers import Number
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import ForeignKey, ManyToManyField, Model
 from django.db.models.fields import NOT_PROVIDED
 from django.db.transaction import get_connection
 
+from redis.exceptions import LockNotOwnedError
 from requests.utils import guess_json_utf
 
 from baserow.contrib.database.db.schema import optional_atomic
@@ -1193,3 +1206,81 @@ def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
     ips1 = get_all_ips(hostname1)
     ips2 = get_all_ips(hostname2)
     return not ips1.isdisjoint(ips2)
+
+
+def safe_get_or_set_cache(
+    cache_key: str,
+    version_cache_key: str = None,
+    default: Any | Callable = None,
+    timeout: int = 60,
+) -> Any:
+    """
+    Retrieves a value from the cache if it exists; otherwise, sets it using the
+    provided default value. If a version cache key is provided, the function uses
+    a versioned key to manage cache invalidation.
+
+    This function also uses a lock (if available on the cache backend) to ensure
+    multi call safety when setting a new value.
+
+    :param cache_key: The base key to look up in the cache.
+    :param version_cache_key: An optional key used to version the cache. If
+                              provided,.
+    :param default: The default value to store in the cache if the key is absent.
+                    Can be either a literal value or a callable. If it's a callable,
+                    the function is called to retrieve the default value.
+    :param timeout: The cache timeout in seconds for newly set values. Defaults to 60.
+    :return: The cached value if it exists; otherwise, the newly set value.
+    """
+
+    cached = cache.get(cache_key)
+
+    cache_key_to_use = cache_key
+    if version_cache_key is not None:
+        version = cache.get(version_cache_key, 0)
+        cache_key_to_use = f"{cache_key}__version_{version}"
+
+    if cached is None:
+        use_lock = hasattr(cache, "lock")
+        if use_lock:
+            cache_lock = cache.lock(f"{cache_key_to_use}__lock", timeout=10)
+            cache_lock.acquire()
+        try:
+            cached = cache.get(cache_key_to_use)
+            # We check again to make sure it hasn't been populated in the meantime
+            # while acquiring the lock
+            if cached is None:
+                if callable(default):
+                    cached = default()
+                else:
+                    cached = default
+
+                cache.set(
+                    cache_key_to_use,
+                    cached,
+                    timeout=timeout,
+                )
+        finally:
+            if use_lock:
+                try:
+                    cache_lock.release()
+                except LockNotOwnedError:
+                    # If the lock release fails, it might be because of the timeout
+                    # and it's been stolen so we don't really care
+                    pass
+
+    return cached
+
+
+def invalidate_versioned_cache(version_cache_key: str):
+    """
+    Invalidates (or increments) the version associated with a versioned cache,
+    forcing future reads on this versioned key to miss the cache.
+
+    :param version_cache_key: The key whose version is to be incremented in the cache.
+    """
+
+    try:
+        cache.incr(version_cache_key, 1)
+    except ValueError:
+        # No cache key, we create one
+        cache.set(version_cache_key, 1)

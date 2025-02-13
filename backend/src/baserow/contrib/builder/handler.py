@@ -3,7 +3,6 @@ from typing import Dict, List, Optional
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
-from django.core.cache import cache
 
 from baserow.contrib.builder.formula_property_extractor import (
     get_builder_used_property_names,
@@ -11,9 +10,11 @@ from baserow.contrib.builder.formula_property_extractor import (
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.utils import invalidate_versioned_cache, safe_get_or_set_cache
 
 User = get_user_model()
 CACHE_KEY_PREFIX = "used_properties_for_page"
+BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS = 60
 
 
 class BuilderHandler:
@@ -41,6 +42,10 @@ class BuilderHandler:
             .specific
         )
 
+    @classmethod
+    def _get_builder_version_cache(cls, builder: Builder):
+        return f"{CACHE_KEY_PREFIX}_version_{builder.id}"
+
     def get_builder_used_properties_cache_key(
         self, user: AbstractUser, builder: Builder
     ) -> Optional[str]:
@@ -54,15 +59,17 @@ class BuilderHandler:
         attribute, unlike the User Source User.
         """
 
-        if isinstance(user, User):
-            return None
-        elif user.is_anonymous:
+        if user.is_anonymous or not user.role:
             # When the user is anonymous, only use the prefix + page ID.
             role = ""
         else:
             role = f"_{user.role}"
 
         return f"{CACHE_KEY_PREFIX}_{builder.id}{role}"
+
+    @classmethod
+    def invalidate_builder_public_properties_cache(cls, builder):
+        invalidate_versioned_cache(cls._get_builder_version_cache(builder))
 
     def get_builder_public_properties(
         self, user: AbstractUser, builder: Builder
@@ -80,15 +87,11 @@ class BuilderHandler:
         (required only by the backend).
         """
 
-        cache_key = self.get_builder_used_properties_cache_key(user, builder)
-        properties = cache.get(cache_key) if cache_key else None
-        if properties is None:
-            properties = get_builder_used_property_names(user, builder)
-            if cache_key:
-                cache.set(
-                    cache_key,
-                    properties,
-                    timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS,
-                )
-
-        return properties
+        return safe_get_or_set_cache(
+            self.get_builder_used_properties_cache_key(user, builder),
+            self._get_builder_version_cache(builder),
+            default=lambda: get_builder_used_property_names(user, builder),
+            timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS
+            if builder.workspace_id
+            else BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS,
+        )
