@@ -1673,7 +1673,7 @@ def test_delete_non_unique_primary_data_sync_field(data_fixture):
 
 @pytest.mark.django_db
 @responses.activate
-def test_delete_field_and_then_sync(data_fixture):
+def test_trash_field_and_then_sync(data_fixture):
     responses.add(
         responses.GET,
         "https://baserow.io/ical.ics",
@@ -1700,6 +1700,82 @@ def test_delete_field_and_then_sync(data_fixture):
     data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     assert data_sync.last_error is None
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_trash_field_is_synced(data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical2.ics",
+        status=200,
+        body=ICAL_FEED_WITH_TWO_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart"],
+        ical_url="https://baserow.io/ical.ics",
+    )
+    data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    data_sync.ical_url = "https://baserow.io/ical2.ics"
+    data_sync.save()
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    FieldHandler().delete_field(user, fields[1])
+
+    data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    model = data_sync.table.get_model()
+    rows = model.objects.all()
+
+    assert getattr(rows[1], f"field_{fields[1].id}") == datetime(
+        2024, 9, 2, 11, 0, tzinfo=timezone.utc
+    )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_set_data_sync_not_recreate_trashed_field_property_on_sync(data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_TWO_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart"],
+        ical_url="https://baserow.io/ical.ics",
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    FieldHandler().delete_field(user, fields[1])
+
+    data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert Field.objects_and_trash.filter(table=data_sync.table).count() == 2
 
 
 @pytest.mark.field_duration
