@@ -11,10 +11,10 @@ from baserow.contrib.builder.formula_property_extractor import (
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.core.handler import CoreHandler
-from baserow.core.utils import invalidate_versioned_cache, safe_get_or_set_cache
 from baserow.core.models import Workspace
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.models import UserSource
+from baserow.core.utils import invalidate_versioned_cache, safe_get_or_set_cache
 
 User = get_user_model()
 CACHE_KEY_PREFIX = "used_properties_for_page"
