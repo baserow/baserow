@@ -76,23 +76,42 @@ class LicenseType(abc.ABC, Instance):
 
     def get_builder_usage_summary(self, obj: License) -> Optional[BuilderUsageSummary]:
         """
-        If it makes sense for a license to have builder usage then it should be
-        calculated and returned here.
-        If it doesn't make sense for this license type then this should return None.
+        This method is used to calculate the number of application users that are
+        being used and how many are remaining.
+
+        :param obj: The License instance.
+        :return: A summary of the builder usage.
         """
 
-        return None
+        from baserow.contrib.builder.handler import BuilderHandler
+
+        application_users_taken = (
+            obj.application_users_taken
+            if hasattr(obj, "application_users_taken")
+            else BuilderHandler().aggregate_user_source_counts()
+        )
+        return BuilderUsageSummary(
+            application_users_taken=application_users_taken,
+        )
 
     def get_builder_usage_summary_for_workspace(
         self, workspace: Workspace
     ) -> Optional[BuilderUsageSummary]:
         """
-        If it makes sense for a workspace to have builder usage, then this should return
-        a summary of it. If it doesn't make sense for this license type then this
-        should return None.
+        This method is used to calculate the number of external users that are being
+        used in this workspace and how many are remaining.
+
+        :param workspace: The workspace we are calculating the builder usage for.
+        :return: A summary of the builder usage.
         """
 
-        return None
+        from baserow.contrib.builder.handler import BuilderHandler
+
+        return BuilderUsageSummary(
+            application_users_taken=BuilderHandler().aggregate_user_source_counts(
+                workspace
+            )
+        )
 
     def handle_application_user_overflow(
         self, application_users_taken: int, license_object: License
