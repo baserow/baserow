@@ -27,7 +27,8 @@ from django.db.transaction import Atomic, get_connection
 
 from loguru import logger
 
-from .psycopg import sql
+from baserow.core.psycopg import sql
+
 from .utils import find_intermediate_order
 
 ModelInstance = TypeVar("ModelInstance", bound=object)
