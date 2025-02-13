@@ -2048,6 +2048,9 @@ class MenuElementType(ElementType):
                 
                 # Keep track of child-parent relationship via the uid
                 for child_index, child in enumerate(item.pop("children", [])):
+                    child.pop("menu_item_order", None)
+                    child.pop("parent_menu_item", None)
+                    child.pop("children", None)
                     items_to_create.append(
                         MenuItemElement(**child, menu_item_order=child_index)
                     )

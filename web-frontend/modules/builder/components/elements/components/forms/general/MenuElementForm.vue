@@ -142,6 +142,63 @@
             @values-changed="updateItem(item, $event)"
           />
 
+          <div v-if="item.children && item.children.length > 0">
+            <div v-for="(child, childIndex) in item.children" :key="child.uid">
+              <Expandable class="table-element-form__field">
+                <template #header="{ toggle, expanded }">
+                  <div class="table-element-form__field-header" @click.stop="toggle">
+                    <div
+                      class="table-element-form__field-handle"
+                      data-sortable-handle
+                    />
+                    <div class="table-element-form__field-name">
+                      <i
+                        v-if="!expanded && menuItemInError(child)"
+                        class="table-element-form__field-error iconoir-warning-circle"
+                      ></i>
+                      {{ getResolvedName(child.name) }}
+                    </div>
+                    <i
+                      :class="
+                        expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
+                      "
+                    />
+                  </div>
+                </template>
+
+                <template #default>
+                  <FormGroup
+                    small-label
+                    horizontal
+                    required
+                    class="margin-bottom-2"
+                    :label="$t('menuElementForm.menuItemLabelLabel')"
+                    :error-message="
+                      !$v.values.menu_items.$each[index].children.$each[childIndex].name.required
+                        ? $t('error.requiredField')
+                        : !$v.values.menu_items.$each[index].children.$each[childIndex].name.maxLength
+                        ? $t('error.maxLength', { max: 255 })
+                        : ''
+                    "
+                  >
+                    <InjectedFormulaInput
+                      v-model="child.name"
+                      :placeholder="$t('menuElementForm.namePlaceholder')"
+                    />
+                    <template #after-input>
+                      <ButtonIcon icon="iconoir-bin" @click="removeChildItem(item, child)" />
+                    </template>
+                  </FormGroup>
+
+                  <LinkNavigationSelectionForm
+                    :default-values="item"
+                    @values-changed="updateItem(item, $event)"
+                  />
+                </template>
+              </Expandable>
+            </div>
+          </div>
+          
           <div class="menu-element__menu-item-footer" />
           
           <div class="menu-element__add-sub-link-container">
@@ -293,6 +350,17 @@ export default {
         (item) => item !== menuItem
       )
     },
+    removeChildItem(parent, child) {
+      this.values.menu_items = this.values.menu_items.map((item) => {
+        if (item.uid === parent.uid) {
+          return {
+            ...item,
+            children: item.children.filter((c) => c.uid !== child.uid),
+          }
+        }
+        return item
+      })
+    },
     updateItem(menuItem, values) {
       this.values.menu_items = this.values.menu_items.map((item) => {
         if (item.uid === menuItem.uid) {
@@ -330,6 +398,14 @@ export default {
             name: {
               required,
               maxLength: maxLength(225),
+            },
+            children: {
+              $each: {
+                name: {
+                  required,
+                  maxLength: maxLength(225),
+                },
+              },
             },
           },
         },
