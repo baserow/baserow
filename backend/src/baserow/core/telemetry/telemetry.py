@@ -8,7 +8,6 @@ from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
-from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.django import DjangoInstrumentor
 from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
@@ -19,6 +18,7 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import PeriodicExportingMetricReader
 from opentelemetry.trace import ProxyTracerProvider
 
+from baserow.core.telemetry.instrumentation import BaserowCeleryInstrumentor
 from baserow.core.telemetry.provider import DifferentSamplerPerLibraryTracerProvider
 from baserow.core.telemetry.utils import BatchBaggageSpanProcessor, otel_is_enabled
 
@@ -134,7 +134,7 @@ def _setup_standard_backend_instrumentation():
     Psycopg2Instrumentor().instrument()
     RedisInstrumentor().instrument()
     RequestsInstrumentor().instrument()
-    CeleryInstrumentor().instrument()
+    BaserowCeleryInstrumentor().instrument()
 
 
 def _setup_django_process_instrumentation():
