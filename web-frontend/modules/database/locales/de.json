@@ -425,7 +425,7 @@
         "add": "Hinzufügen {view}"
     },
     "shareViewLink": {
-        "shareView": "Teilen {viewTypeSharingLinkName}",
+        "shareView": "{viewTypeSharingLinkName} teilen",
         "shareViewTitle": "Erstellen Sie einen privaten, gemeinsam nutzbaren Link zum {ViewTypeSharingLinkName}",
         "sharedViewTitle": "Dieser {ViewTypeSharingLinkName} ist derzeit über einen privaten Link freigegeben",
         "sharedViewDescription": "Personen, die den Link haben, können den {ViewTypeSharingLinkName} sehen.",
@@ -452,9 +452,9 @@
         "generateNewURL": "Neue URL generieren"
     },
     "viewFieldsContext": {
-        "coverField": "Deckungsfeld",
-        "noCover": "Keine Deckung",
-        "search": "Suchfelder",
+        "coverField": "Coverfeld",
+        "noCover": "Kein Cover",
+        "search": "Felder durchsuchen",
         "hideAll": "Alle ausblenden",
         "showAll": "Alle anzeigen"
     },
