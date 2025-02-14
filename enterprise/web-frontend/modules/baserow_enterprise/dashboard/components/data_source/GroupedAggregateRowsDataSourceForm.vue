@@ -92,6 +92,13 @@
       >
       </AggregationSeriesForm>
     </FormSection>
+    <AggregationGroupByForm
+      v-if="values.table_id && !fieldHasErrors('table_id')"
+      :aggregation-group-bys="values.aggregation_group_bys"
+      :table-fields="tableFields"
+      @value-changed="onGroupByUpdated($event)"
+    >
+    </AggregationGroupByForm>
   </form>
 </template>
 
@@ -99,6 +106,7 @@
 import form from '@baserow/modules/core/mixins/form'
 import { required } from 'vuelidate/lib/validators'
 import AggregationSeriesForm from '@baserow_enterprise/dashboard/components/data_source/AggregationSeriesForm'
+import AggregationGroupByForm from '@baserow_enterprise/dashboard/components/data_source/AggregationGroupByForm'
 
 const includesIfSet = (array) => (value) => {
   if (value === null || value === undefined) {
@@ -109,7 +117,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'GroupedAggregateRowsDataSourceForm',
-  components: { AggregationSeriesForm },
+  components: { AggregationSeriesForm, AggregationGroupByForm },
   mixins: [form],
   props: {
     dashboard: {
@@ -132,11 +140,17 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['table_id', 'view_id', 'aggregation_series'],
+      allowedValues: [
+        'table_id',
+        'view_id',
+        'aggregation_series',
+        'aggregation_group_bys',
+      ],
       values: {
         table_id: null,
         view_id: null,
         aggregation_series: [],
+        aggregation_group_bys: [],
       },
       tableLoading: false,
       databaseSelectedId: null,
@@ -246,6 +260,17 @@ export default {
       updatedAggregationSeries[index] = aggregationSeriesValues
       this.$emit('values-changed', {
         aggregation_series: updatedAggregationSeries,
+      })
+    },
+    onGroupByUpdated(groupBy) {
+      const aggregationGroupBys = []
+      if (groupBy !== 'none') {
+        aggregationGroupBys.push({
+          field_id: groupBy,
+        })
+      }
+      this.$emit('values-changed', {
+        aggregation_group_bys: aggregationGroupBys,
       })
     },
   },

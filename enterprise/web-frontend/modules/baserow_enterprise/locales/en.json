@@ -455,5 +455,10 @@
     "aggregationFieldLabel": "Field",
     "aggregationTypeLabel": "Summary type",
     "deleteSeries": "Delete series"
+  },
+  "aggregationGroupByForm": {
+    "groupByFieldLabel": "Group by",
+    "groupByNone": "None",
+    "groupByRowId": "Row Id"
   }
 }

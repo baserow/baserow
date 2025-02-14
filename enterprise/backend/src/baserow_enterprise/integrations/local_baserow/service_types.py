@@ -195,7 +195,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             table_field_ids = service.table.field_set.values_list("id", flat=True)
 
             def validate_agg_group_by(group_by):
-                if group_by["field_id"] not in table_field_ids:
+                if (
+                    group_by["field_id"] not in table_field_ids
+                    and group_by["field_id"] is not None
+                ):
                     raise DRFValidationError(
                         detail=f"The field with ID {group_by['field_id']} is not "
                         "related to the given table.",
