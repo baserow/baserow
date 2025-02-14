@@ -191,8 +191,8 @@
                   </FormGroup>
 
                   <LinkNavigationSelectionForm
-                    :default-values="item"
-                    @values-changed="updateItem(item, $event)"
+                    :default-values="child"
+                    @values-changed="updateSubLink(child, $event)"
                   />
                 </template>
               </Expandable>
@@ -365,6 +365,19 @@ export default {
       this.values.menu_items = this.values.menu_items.map((item) => {
         if (item.uid === menuItem.uid) {
           return { ...item, ...values }
+        }
+        return item
+      })
+    },
+    updateSubLink(child, values) {
+      this.values.menu_items = this.values.menu_items.map((item) => {
+        if (item.children) {
+          return {
+            ...item,
+            children: item.children.map((subItem) => 
+              subItem.uid === child.uid ? { ...subItem, ...values } : subItem
+            )
+          }
         }
         return item
       })

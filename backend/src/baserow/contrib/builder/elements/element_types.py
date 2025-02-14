@@ -2043,7 +2043,13 @@ class MenuElementType(ElementType):
 
             items_to_create = []
             child_uids_parent_uids = {}
+
             for index, item in enumerate(values["menu_items"]):
+                # Ignore any top-level items that are actually sub-links
+                # TODO: this shouldn't even be returned by the serializer.
+                if item.get("parent_menu_item", None):
+                    continue
+
                 item.pop("menu_item_order", None)
                 
                 # Keep track of child-parent relationship via the uid
@@ -2051,11 +2057,13 @@ class MenuElementType(ElementType):
                     child.pop("menu_item_order", None)
                     child.pop("parent_menu_item", None)
                     child.pop("children", None)
+            
                     items_to_create.append(
                         MenuItemElement(**child, menu_item_order=child_index)
                     )
                     child_uids_parent_uids[child["uid"]] = item["uid"]
 
+            
                 items_to_create.append(
                     MenuItemElement(**item, menu_item_order=index)
                 )
@@ -2063,6 +2071,7 @@ class MenuElementType(ElementType):
             created_items = MenuItemElement.objects.bulk_create(
                 items_to_create
             )
+
             # Re-associate the child-parent
             for item in created_items:
                 if parent_uid := child_uids_parent_uids.get(item.uid):
@@ -2072,6 +2081,10 @@ class MenuElementType(ElementType):
             instance.menu_items.add(*created_items)
 
         super().after_update(instance, values, changes)
+    
+    def before_delete(self, instance: MenuElement):
+        # TODO: Call the before_delete hook of all fields
+        instance.menu_items.all().delete()
 
     def get_pytest_params(self, pytest_data_fixture):
         return {"orientation": RepeatElement.ORIENTATIONS.VERTICAL}
