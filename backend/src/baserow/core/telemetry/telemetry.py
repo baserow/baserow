@@ -133,8 +133,8 @@ def _setup_log_exporting(logger):
 
 meter = metrics.get_meter("celery_tasks")
 task_counter = meter.create_counter(
-    name="baserow.celery_task_counter",
-    description="Number of times each Celery task has been executed",
+    name="baserow.celery_task_scheduled",
+    description="Number of times each Celery task has been scheduled",
     unit="1",
 )
 
