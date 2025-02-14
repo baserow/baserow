@@ -134,6 +134,7 @@ class ElementsView(APIView):
     @map_exceptions(
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
+            ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
             ElementNotInSamePage: ERROR_ELEMENT_NOT_IN_SAME_PAGE,
         }
     )
