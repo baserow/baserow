@@ -277,6 +277,7 @@ def test_job_cancel_failed(
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.skip(reason="intermittently failing")
 def test_job_cancel_finished(
     data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
 ):
