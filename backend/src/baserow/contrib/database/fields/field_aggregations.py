@@ -35,6 +35,7 @@ from baserow.contrib.database.formula.types.formula_types import (
 from baserow.contrib.database.views.view_aggregations import (
     AverageViewAggregationType,
     CountViewAggregationType,
+    DistributionViewAggregationType,
     EmptyCountViewAggregationType,
     MaxViewAggregationType,
     MedianViewAggregationType,
@@ -340,4 +341,15 @@ class MedianFieldAggregationType(FieldAggregationType):
 
     type = "median"
     raw_type = MedianViewAggregationType
+    compatible_field_types = raw_type.compatible_field_types
+
+
+class DistributionFieldAggregationType(FieldAggregationType):
+    """
+    Compute the distribution of values
+    """
+
+    type = "distribution"
+    result_type = "array"
+    raw_type = DistributionViewAggregationType
     compatible_field_types = raw_type.compatible_field_types

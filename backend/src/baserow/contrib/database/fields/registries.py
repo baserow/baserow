@@ -52,7 +52,10 @@ from baserow.contrib.database.views.exceptions import (
     AggregationTypeAlreadyRegistered,
     AggregationTypeDoesNotExist,
 )
-from baserow.contrib.database.views.utils import AnnotatedAggregation
+from baserow.contrib.database.views.utils import (
+    AnnotatedAggregation,
+    DistributionAggregation,
+)
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     APIUrlsInstanceMixin,
@@ -2241,6 +2244,7 @@ class FieldAggregationType(Instance):
             raise IncompatibleField()
 
         aggregation_dict = self._get_aggregation_dict(queryset, model_field, field)
+        distribution_dict = self._get_distribution_dict(queryset, model_field, field)
 
         # Check if the returned aggregations contain a `AnnotatedAggregation`,
         # and if so, apply the annotations and only keep the actual aggregation in
@@ -2252,8 +2256,10 @@ class FieldAggregationType(Instance):
                 aggregation_dict[key] = value.aggregation
 
         results = queryset.aggregate(**aggregation_dict)
+        results.update(distribution_dict)
         return self._compute_final_aggregation(
-            results[f"{field.db_column}_raw"], results.get("total", None)
+            results.get(f"{field.db_column}_raw", results[field.db_column]),
+            results.get("total", None),
         )
 
     def field_is_compatible(self, field: "Field") -> bool:
@@ -2286,6 +2292,36 @@ class FieldAggregationType(Instance):
 
         return self.raw_type().get_aggregation(field.db_column, model_field, field)
 
+    def _get_distribution_dict(
+        self, queryset: QuerySet, model_field: DjangoField, field: Field
+    ) -> dict[str, any]:
+        """
+        Returns a dictionary defining the distributions for the queryset.aggregate
+        call.
+
+        :param queryset: The queryset to select only the rows that should
+            be aggregated.
+        :param model_field: The Django model field of the field that
+            the aggregation is for.
+        :param field: The field that the aggregation is for.
+        :return:
+        """
+
+        aggregation = self._get_raw_aggregation(model_field, field.specific)
+        if not isinstance(aggregation, DistributionAggregation):
+            return {}
+
+        formatted = []
+        raw_calculation = aggregation.calculate(queryset.all())
+        for result in raw_calculation:
+            formatted.append(
+                {
+                    "value": result[0],
+                    "count": result[1],
+                }
+            )
+        return {field.db_column: formatted}
+
     def _get_aggregation_dict(
         self,
         queryset: QuerySet,
@@ -2294,7 +2330,7 @@ class FieldAggregationType(Instance):
         include_agg_type=False,
     ) -> dict:
         """
-        Returns a dictinary defining the aggregation for the queryset.aggregate
+        Returns a dictionary defining the aggregation for the queryset.aggregate
         call.
 
         :param queryset: The queryset to select only the rows that should
@@ -2307,6 +2343,10 @@ class FieldAggregationType(Instance):
         aggregation = self._get_raw_aggregation(model_field, field.specific)
         key = f"{field.db_column}_{self.type}" if include_agg_type else field.db_column
         aggregation_dict = {f"{key}_raw": aggregation}
+        if isinstance(aggregation, DistributionAggregation):
+            return {}
+
+        aggregation_dict = {f"{field.db_column}_raw": aggregation}
         # Check if the returned aggregations contain a `AnnotatedAggregation`,
         # and if so, apply the annotations and only keep the actual aggregation in
         # the dict. This is needed because some aggregations require annotated values

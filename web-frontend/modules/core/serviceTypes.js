@@ -29,9 +29,11 @@ export class ServiceType extends Registerable {
   }
 
   /**
-   * Whether the service returns a collection of records.
+   * Whether the service returns a collection of records. Most of the time this
+   * will simply return true or false, but a service can be provided to determine
+   * if a specific service type returns a list of records.
    */
-  get returnsList() {
+  returnsList({ service }) {
     return false
   }
 

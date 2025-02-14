@@ -131,7 +131,7 @@ export class LocalBaserowListRowsServiceType extends LocalBaserowTableServiceTyp
     return LocalBaserowAdhocHeader
   }
 
-  get returnsList() {
+  returnsList({ service }) {
     return true
   }
 
@@ -234,6 +234,15 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
     return 'local_baserow_aggregate_rows'
   }
 
+  returnsList({ service }) {
+    // TODO: store this in the registry
+    return service.aggregation_type === 'distribution'
+  }
+
+  get maxResultLimit() {
+    return 100
+  }
+
   get name() {
     return this.app.i18n.t('serviceType.localBaserowAggregateRows')
   }
@@ -242,12 +251,19 @@ export class LocalBaserowAggregateRowsServiceType extends LocalBaserowTableServi
     return LocalBaserowAggregateRowsForm
   }
 
-  /**
-   * Local Baserow aggregate rows does not currently support the distribution
-   * aggregation type, this will be resolved in a future release.
-   */
-  get unsupportedAggregationTypes() {
-    return [DistributionViewAggregationType.getType()]
+  getDefaultCollectionFields(service) {
+    return Object.keys(service.schema.items.properties)
+      .filter((field) => field !== 'id')
+      .map((field) => {
+        const outputType = 'text'
+        const valueFormula = `get('current_record.${field}')`
+        return {
+          name: service.schema.items.properties[field].title,
+          type: outputType,
+          value: valueFormula,
+          id: uuid(),
+        }
+      })
   }
 
   getResult(service, data) {

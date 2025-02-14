@@ -1,4 +1,5 @@
 import { ELEMENT_EVENTS, SHARE_TYPES } from '@baserow/modules/builder/enums'
+import { LocalBaserowAggregateRowsServiceType } from '@baserow/modules/integrations/serviceTypes'
 
 export const ContainerElementTypeMixin = (Base) =>
   class extends Base {
@@ -53,6 +54,17 @@ export const ContainerElementTypeMixin = (Base) =>
 export const CollectionElementTypeMixin = (Base) =>
   class extends Base {
     isCollectionElement = true
+
+    /**
+     * Response for returning whether this collection element, using this dataSource,
+     * supports adhoc filtering (e.g. filtering, sorting, searching). Normally they
+     * will, but if the collection element is used by an aggregation returning a list
+     * of records, then it will not.
+     * @param dataSource
+     */
+    adhocFilteringSupported(dataSource) {
+      return dataSource.type !== LocalBaserowAggregateRowsServiceType.getType()
+    }
 
     /**
      * A helper function responsible for returning this collection element's
@@ -326,7 +338,10 @@ export const CollectionElementTypeMixin = (Base) =>
       const serviceType = this.app.$registry.get('service', dataSource.type)
 
       // If the data source type doesn't return a list, we should have a schema_property
-      if (!serviceType.returnsList && !parentWithDataSource.schema_property) {
+      if (
+        !serviceType.returnsList({ service: dataSource }) &&
+        !parentWithDataSource.schema_property
+      ) {
         return true
       }
 
