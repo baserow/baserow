@@ -244,6 +244,7 @@ class DatabaseConfig(AppConfig):
             CheckedFieldAggregationType,
             CheckedPercentageFieldAggregationType,
             CountFieldAggregationType,
+            DistributionFieldAggregationType,
             EarliestDateFieldAggregationType,
             EmptyCountFieldAggregationType,
             EmptyPercentageFieldAggregationType,
@@ -280,6 +281,7 @@ class DatabaseConfig(AppConfig):
         field_aggregation_registry.register(StdDevFieldAggregationType())
         field_aggregation_registry.register(VarianceFieldAggregationType())
         field_aggregation_registry.register(MedianFieldAggregationType())
+        field_aggregation_registry.register(DistributionFieldAggregationType())
 
         from .fields.field_converters import (
             AutonumberFieldConverter,

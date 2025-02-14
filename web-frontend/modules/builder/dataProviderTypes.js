@@ -117,7 +117,7 @@ export class DataSourceDataProviderType extends DataProviderType {
 
     const serviceType = this.app.$registry.get('service', dataSource.type)
 
-    if (serviceType.returnsList) {
+    if (serviceType.returnsList({ service: dataSource })) {
       return dataSourceContents[dataSource.id]?.results
     } else {
       return dataSourceContents[dataSource.id]
