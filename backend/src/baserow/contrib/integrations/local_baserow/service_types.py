@@ -17,7 +17,6 @@ from django.db.models import QuerySet
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from rest_framework.response import Response
 
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
@@ -1100,7 +1099,7 @@ class LocalBaserowListRowsUserServiceType(
             "public_allowed_properties": only_field_names,
         }
 
-    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> Any:
+    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
         Given the rows found in `dispatch_data`, serializes them.
 
@@ -1511,7 +1510,7 @@ class LocalBaserowAggregateRowsUserServiceType(
     def dispatch_transform(
         self,
         data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+    ) -> DispatchResult:
         """
         Responsible for transforming the data returned by the `dispatch_data`
         method into a format that can be used by the frontend.
@@ -1717,7 +1716,7 @@ class LocalBaserowGetRowUserServiceType(
             **kwargs,
         )
 
-    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> Any:
+    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
         Responsible for serializing the `dispatch_data` row.
 
@@ -2072,7 +2071,7 @@ class LocalBaserowUpsertRowServiceType(
     def enhance_queryset(self, queryset):
         return super().enhance_queryset(queryset).prefetch_related("field_mappings")
 
-    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> Any:
+    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
         Responsible for serializing the `dispatch_data` row.
 
@@ -2334,14 +2333,14 @@ class LocalBaserowDeleteRowServiceType(
         resolved_values = super().resolve_service_formulas(service, dispatch_context)
         return self.resolve_row_id(resolved_values, service, dispatch_context)
 
-    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> Response:
+    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
         The delete row action's `dispatch_data` will contain an empty
         `data` dictionary. When we get to this method and wish to transform
         the data, we can simply return a 204 response.
 
         :param dispatch_data: The `dispatch_data` result.
-        :return: A 204 response.
+        :return: A dispatch result with no data, and a 204 status code.
         """
 
         return DispatchResult(status=204)

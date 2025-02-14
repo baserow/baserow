@@ -512,5 +512,5 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     def dispatch_transform(
         self,
         data: any,
-    ) -> any:
+    ) -> DispatchResult:
         return DispatchResult(data=data["data"])
