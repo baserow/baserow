@@ -1,7 +1,0 @@
-{
-    "type": "refactor",
-    "message": "Do not trace task scheduling in celery",
-    "issue_number": 1957,
-    "bullet_points": [],
-    "created_at": "2025-02-13"
-}
