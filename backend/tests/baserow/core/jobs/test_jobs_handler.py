@@ -121,6 +121,7 @@ def test_job_progress_changed_bug_regression(data_fixture, mutable_job_type_regi
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.flaky(retries=3, delay=1)
 def test_job_cancel_before_run(
     data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
 ):
@@ -140,7 +141,7 @@ def test_job_cancel_before_run(
 
         def run(self, job, progress):
             m_start.set()
-            m_set_stop.wait(0.1)
+            m_set_stop.wait(0.5)
             progress.set_progress(10)
             m_end.set()
 
@@ -172,7 +173,7 @@ def test_job_cancel_before_run(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.skip(reason="intermittently failing")
+@pytest.mark.flaky(retries=3, delay=1)
 def test_job_cancel_when_running(
     data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
 ):
@@ -194,7 +195,7 @@ def test_job_cancel_when_running(
             progress.set_progress(11)
             m_start.set()
             progress.set_progress(11)
-            assert m_set_stop.wait(0.1)
+            assert m_set_stop.wait(0.5)
             progress.set_progress(12)
             m_end.set()
 
@@ -215,7 +216,7 @@ def test_job_cancel_when_running(
         assert job.get_cached_progress_percentage() == 0
 
         t.start()
-        assert m_start.wait(0.1)
+        assert m_start.wait(0.5)
         assert job.started, job.get_cached_state()
         assert (
             job.get_cached_progress_percentage() == 11
@@ -223,7 +224,7 @@ def test_job_cancel_when_running(
 
         jh.cancel_job(job)
         m_set_stop.set()
-        assert not m_end.wait(0.1)
+        assert not m_end.wait(0.5)
 
     job.refresh_from_db()
     # progress percentage is set from model's state, not from cache,
@@ -233,7 +234,7 @@ def test_job_cancel_when_running(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.skip(reason="intermittently failing")
+@pytest.mark.flaky(retries=3, delay=1)
 def test_job_cancel_failed(
     data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
 ):
@@ -265,7 +266,7 @@ def test_job_cancel_failed(
 
         t.start()
         assert t.is_alive()
-        assert m_start.wait(0.1)
+        assert m_start.wait(0.5)
 
     # a job failed, so we can't cancel it
     job.refresh_from_db()
@@ -277,6 +278,7 @@ def test_job_cancel_failed(
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.flaky(retries=3, delay=1)
 def test_job_cancel_finished(
     data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
 ):
@@ -291,7 +293,7 @@ def test_job_cancel_finished(
 
         def run(self, job, progress):
             m_start.set()
-            assert m_set_stop.wait(0.1)
+            assert m_set_stop.wait(0.5)
             m_end.set()
 
     jh = JobHandler()
@@ -310,9 +312,9 @@ def test_job_cancel_finished(
 
         t.start()
         assert t.is_alive()
-        assert m_start.wait(0.1)
+        assert m_start.wait(0.5)
         m_set_stop.set()
-        assert m_end.wait(0.1)
+        assert m_end.wait(0.5)
 
     job.refresh_from_db()
     with pytest.raises(JobNotCancellable):
@@ -321,7 +323,7 @@ def test_job_cancel_finished(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.disabled_in_ci
+@pytest.mark.flaky(retries=3, delay=1)
 def test_job_cancel_cancelled(
     data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
 ):
@@ -337,7 +339,7 @@ def test_job_cancel_cancelled(
         def run(self, job, progress):
             m_start.set()
             progress.set_progress(10)
-            assert m_set_stop.wait(0.1)
+            assert m_set_stop.wait(0.5)
             progress.set_progress(20)
             m_end.set()
             progress.set_progress(30)
@@ -358,7 +360,7 @@ def test_job_cancel_cancelled(
 
         t.start()
         assert t.is_alive()
-        assert m_start.wait(0.1)
+        assert m_start.wait(0.5)
         out = JobHandler.cancel_job(job)
         assert isinstance(out, Job)
         m_set_stop.set()

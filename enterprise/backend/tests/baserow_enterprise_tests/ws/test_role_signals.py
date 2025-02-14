@@ -448,6 +448,7 @@ async def test_unsubscribe_subject_from_table_teams_multiple_users(
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
+@pytest.mark.flaky(retries=3, delay=1)
 async def test_unsubscribe_user_from_tables_and_rows_when_role_updated(data_fixture):
     channel_layer = get_channel_layer()
     user_1, token_1 = data_fixture.create_user_and_token()
@@ -536,6 +537,7 @@ async def test_unsubscribe_user_from_tables_and_rows_when_role_updated(data_fixt
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
+@pytest.mark.flaky(retries=3, delay=1)
 async def test_unsubscribe_user_from_tables_and_rows_when_team_trashed(
     data_fixture, enterprise_data_fixture
 ):
