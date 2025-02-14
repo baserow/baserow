@@ -165,7 +165,7 @@ class JobHandler:
         return model_class.objects.filter().is_pending_or_running()
 
     def create_and_start_job(
-        self, user: AbstractUser, job_type_name: str, sync=False, **kwargs
+        self, user: AbstractUser, job_type_name: str, sync: bool = False, **kwargs
     ) -> Job:
         """
         Creates a new job and schedule the asynchronous task.
@@ -173,6 +173,61 @@ class JobHandler:
         :param user: The user whom launch the task.
         :param job_type_name: The job type we want to launch.
         :param sync: True if you want to execute the job immediately.
+
+        :return: The newly created job.
+        """
+
+        job = self.create_job(user, job_type_name, **kwargs)
+        if sync:
+            self.run_job(job)
+        else:
+            self.schedule_job(job)
+
+        return job
+
+    def run_job(self, job: Job):
+        """
+        Runs the job immediately. Once the job is finished, the job will be saved and
+        the state will be updated.
+
+        :param job: The job that needs to be executed.
+        """
+
+        run_async_job(job.id)
+        job.refresh_from_db()
+
+    def schedule_job(self, job: Job):
+        """
+        Schedules the job to be executed asynchronously.
+
+        :param job: The job that needs to be executed
+        """
+
+        # This wrapper ensure the job doesn't stay in pending state if something
+        # goes wrong during the delay call. This is related to the redis connection
+        # failure that triggers a sys.exit(1) to be called in gunicorn.
+        def call_async_job_safe():
+            try:
+                run_async_job.delay(job.id)
+            except BaseException as e:
+                job.refresh_from_db()
+                if job.pending:
+                    job.set_state_failed(
+                        str(e),
+                        f"Something went wrong during the job({job.id}) execution.",
+                    )
+                    job.save()
+                raise
+
+        transaction.on_commit(call_async_job_safe)
+
+    def create_job(self, user: AbstractUser, job_type_name: str, **kwargs):
+        """
+        Creates a new job without scheduling the asynchronous task.
+
+        :param user: The user whom launch the task.
+        :param job_type_name: The job type we want to launch.
+        :param kwargs: The arguments to pass to the job type.
 
         :return: The newly created job.
         """
@@ -194,29 +249,6 @@ class JobHandler:
         job_values = job_type.prepare_values(kwargs, user)
         job: AnyJob = model_class.objects.create(user=user, **job_values)
         job_type.after_job_creation(job, kwargs)
-
-        if sync:
-            run_async_job(job.id)
-            job.refresh_from_db()
-        else:
-            # This wrapper ensure the job doesn't stay in pending state if something
-            # goes wrong during the delay call. This is related to the redis connection
-            # failure that triggers a sys.exit(1) to be called in gunicorn.
-            def call_async_job_safe():
-                try:
-                    run_async_job.delay(job.id)
-                except BaseException as e:
-                    job.refresh_from_db()
-                    if job.pending:
-                        job.set_state_failed(
-                            str(e),
-                            f"Something went wrong during the job({job.id}) execution.",
-                        )
-                        job.save()
-                    raise
-
-            transaction.on_commit(call_async_job_safe)
-
         return job
 
     def clean_up_jobs(self):

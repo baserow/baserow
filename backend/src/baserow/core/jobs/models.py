@@ -105,17 +105,24 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
         ordering = ("id",)
         indexes = [models.Index(fields=["-updated_on"])]
 
-    def set_cached_state(self):
+    def _set_cached_state(self, state: str, progress_percentage: int):
         """
         Updates job progress cache key.
         """
 
         progress = {
-            "progress_percentage": self.progress_percentage,
-            "state": self.state,
+            "progress_percentage": progress_percentage,
+            "state": state,
             "updated_on": datetime.now(),
         }
         cache.set(job_progress_key(self.id), progress, timeout=None)
+
+    def set_cached_state(self):
+        """
+        Updates job progress cache key.
+        """
+
+        self._set_cached_state(self.state, self.progress_percentage)
 
     def set_state(
         self, state: str, error: str | None = None, message: str | None = None
