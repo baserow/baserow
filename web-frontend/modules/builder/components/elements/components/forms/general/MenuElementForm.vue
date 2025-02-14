@@ -174,10 +174,12 @@
                     class="margin-bottom-2"
                     :label="$t('menuElementForm.menuItemLabelLabel')"
                     :error-message="
-                      !$v.values.menu_items.$each[index].children.$each[childIndex].name.required
-                        ? $t('error.requiredField')
-                        : !$v.values.menu_items.$each[index].children.$each[childIndex].name.maxLength
-                        ? $t('error.maxLength', { max: 255 })
+                      $v.values?.menu_items?.$each[index]?.children?.$each[childIndex]?.name
+                        ? (!$v.values.menu_items.$each[index].children.$each[childIndex].name.required
+                            ? $t('error.requiredField')
+                            : !$v.values.menu_items.$each[index].children.$each[childIndex].name.maxLength
+                              ? $t('error.maxLength', { max: 255 })
+                              : '')
                         : ''
                     "
                   >
@@ -315,6 +317,7 @@ export default {
         type: 'item',
         parent_menu_item: null,
         uid: uuid(),
+        children: [],
       })
     },
     getResolvedName(value) {
@@ -413,6 +416,7 @@ export default {
               maxLength: maxLength(225),
             },
             children: {
+              required: false,
               $each: {
                 name: {
                   required,
