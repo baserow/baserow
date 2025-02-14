@@ -620,7 +620,7 @@
     "colorThemeConfigBlockType": {
         "primary": "Primär",
         "secondary": "Sekundär",
-        "border": "Umrandung",
+        "border": "Rahmen",
         "transparent": "Transparent",
         "warning": "Warnung",
         "success": "Erfolgreich",
@@ -631,7 +631,7 @@
         "secondaryColor": "Sekundär",
         "primaryColor": "Primär",
         "warningColor": "Warnung",
-        "borderColor": "Umrandung",
+        "borderColor": "Rahmen",
         "successColor": "Erfolgreich",
         "errorColor": "Fehler"
     },
