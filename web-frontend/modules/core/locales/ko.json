@@ -24,7 +24,7 @@
     "sidebar": {
         "createWorkspace": "작업공간 생성",
         "addNewWorkspace": "새 작업공간 추가",
-        "inviteOthers": "다른 사람 초대",
+        "inviteOthers": "초대",
         "members": "멤버",
         "logoff": "로그아웃",
         "errorNoWorkspace": "작업공간이 없습니다.",
