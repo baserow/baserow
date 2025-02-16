@@ -53,7 +53,7 @@ class TextAirtableColumnType(AirtableColumnType):
         elif validator_name == "email":
             return EmailField()
         else:
-            return TextField()
+            return TextField(text_default=raw_airtable_column.get("default", ""))
 
     def to_baserow_export_serialized_value(
         self,
@@ -155,6 +155,10 @@ class NumberAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        self.add_import_report_failed_if_default_is_provided(
+            raw_airtable_table, raw_airtable_column, import_report
+        )
+
         type_options = raw_airtable_column.get("typeOptions", {})
         options_format = type_options.get("format", "")
         suffix = ""
@@ -252,6 +256,9 @@ class CheckboxAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        self.add_import_report_failed_if_default_is_provided(
+            raw_airtable_table, raw_airtable_column, import_report
+        )
         return BooleanField()
 
     def to_baserow_export_serialized_value(
@@ -275,6 +282,10 @@ class DateAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        self.add_import_report_failed_if_default_is_provided(
+            raw_airtable_table, raw_airtable_column, import_report
+        )
+
         type_options = raw_airtable_column.get("typeOptions", {})
         # Check if a timezone is provided in the type options, if so, we might want
         # to use that timezone for the conversion later on.
@@ -515,6 +526,10 @@ class SelectAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        self.add_import_report_failed_if_default_is_provided(
+            raw_airtable_table, raw_airtable_column, import_report
+        )
+
         field = SingleSelectField()
         field = set_select_options_on_field(
             field,
@@ -546,6 +561,10 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        self.add_import_report_failed_if_default_is_provided(
+            raw_airtable_table, raw_airtable_column, import_report
+        )
+
         field = MultipleSelectField()
         field = set_select_options_on_field(
             field,
