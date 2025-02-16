@@ -283,13 +283,6 @@ class DateAirtableColumnType(AirtableColumnType):
 
         # date_force_timezone=None it the equivalent of airtable_timezone="client".
         if airtable_timezone == "client":
-            import_report.add_failed(
-                raw_airtable_column["name"],
-                SCOPE_FIELD,
-                raw_airtable_table.get("name", ""),
-                ERROR_TYPE_UNSUPPORTED_FEATURE,
-                "The date field was imported, but the client timezone setting was dropped.",
-            )
             airtable_timezone = None
 
         return DateField(
@@ -357,15 +350,6 @@ class FormulaAirtableColumnType(AirtableColumnType):
 
         is_last_modified = display_type == "lastModifiedTime"
         is_created = display_type == "createdTime"
-
-        if is_last_modified or is_created and airtable_timezone == "client":
-            import_report.add_failed(
-                raw_airtable_column["name"],
-                SCOPE_FIELD,
-                raw_airtable_table.get("name", ""),
-                ERROR_TYPE_UNSUPPORTED_FEATURE,
-                "The field was imported, but the client timezone setting was dropped.",
-            )
 
         # date_force_timezone=None it the equivalent of airtable_timezone="client".
         if airtable_timezone == "client":

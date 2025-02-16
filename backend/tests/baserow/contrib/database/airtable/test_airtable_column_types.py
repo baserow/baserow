@@ -156,9 +156,7 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
     assert baserow_field.date_force_timezone is None
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Created"
-    assert import_report.items[0].scope == SCOPE_FIELD
+    assert len(import_report.items) == 0
 
     airtable_field = {
         "id": "fldcTpJuoUVpsDNoszO",
@@ -232,9 +230,7 @@ def test_airtable_import_date_column(data_fixture, api_client):
     assert baserow_field.date_format == "US"
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "ISO DATE"
-    assert import_report.items[0].scope == SCOPE_FIELD
+    assert len(import_report.items) == 0
 
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
@@ -810,9 +806,7 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
     assert baserow_field.date_force_timezone is None
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Last"
-    assert import_report.items[0].scope == SCOPE_FIELD
+    assert len(import_report.items) == 0
 
     airtable_field = {
         "id": "fldws6n8xdrEJrMxJFJ",
