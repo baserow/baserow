@@ -31,15 +31,18 @@
         @delete-widget="$emit('delete-widget', $event)"
       ></WidgetContextMenu>
     </div>
+    <Chart :data-source="dataSource" :data-source-data="dataForDataSource">
+    </Chart>
   </div>
 </template>
 
 <script>
 import WidgetContextMenu from '@baserow/modules/dashboard/components/widget/WidgetContextMenu'
+import Chart from '@baserow_enterprise/dashboard/components/widget/Chart'
 
 export default {
   name: 'ChartWidget',
-  components: { WidgetContextMenu },
+  components: { WidgetContextMenu, Chart },
   props: {
     dashboard: {
       type: Object,
