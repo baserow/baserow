@@ -1114,6 +1114,7 @@ def test_airtable_import_rich_text_column(data_fixture, api_client):
     )
     assert isinstance(baserow_field, LongTextField)
     assert isinstance(airtable_column_type, RichTextTextAirtableColumnType)
+    assert baserow_field.long_text_enable_rich_text is True
 
     content = {
         "otDocumentId": "otdHtbNg2tJKWj62WMn",
@@ -1125,20 +1126,19 @@ def test_airtable_import_rich_text_column(data_fixture, api_client):
             {"insert": " cubilia curae; Class aptent taciti sociosqu ad litora."},
         ],
     }
-    assert (
-        airtable_column_type.to_baserow_export_serialized_value(
-            {},
-            {"name": "Test"},
-            {"id": "row1"},
-            airtable_field,
-            baserow_field,
-            content,
-            {},
-            AirtableImportConfig(),
-            AirtableImportReport(),
-        )
-        == "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere "
-        "cubilia curae; Class aptent taciti sociosqu ad litora."
+    assert airtable_column_type.to_baserow_export_serialized_value(
+        {},
+        {"name": "Test"},
+        {"id": "row1"},
+        airtable_field,
+        baserow_field,
+        content,
+        {},
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    ) == (
+        "**Vestibulum** ante ipsum primis in faucibus orci luctus et ultrices "
+        "_posuere_ cubilia curae; Class aptent taciti sociosqu ad litora."
     )
 
 
@@ -1161,6 +1161,7 @@ def test_airtable_import_rich_text_column_with_mention(data_fixture, api_client)
     )
     assert isinstance(baserow_field, LongTextField)
     assert isinstance(airtable_column_type, RichTextTextAirtableColumnType)
+    assert baserow_field.long_text_enable_rich_text is True
 
     content = {
         "otDocumentId": "otdHtbNg2tJKWj62WMn",
@@ -1190,7 +1191,7 @@ def test_airtable_import_rich_text_column_with_mention(data_fixture, api_client)
         AirtableImportConfig(),
         AirtableImportReport(),
     ) == (
-        "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices "
+        "**Vestibulum** ante ipsum primis in faucibus orci luctus et ultrices "
         "@usrr5CVJ5Lz8ErVZS cubilia curae; Class aptent taciti sociosqu ad litora."
     )
 
@@ -1682,7 +1683,7 @@ def test_airtable_import_currency_column_non_existing_separator_format(
         import_report,
     )
     assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == 'Number field: "Currency"'
+    assert import_report.items[0].object_name == "Currency"
     assert import_report.items[0].scope == SCOPE_FIELD
     assert import_report.items[0].table == ""
 

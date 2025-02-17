@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from django.core.exceptions import ValidationError
 
@@ -44,7 +44,7 @@ from .import_report import (
     AirtableImportReport,
 )
 from .registry import AirtableColumnType
-from .utils import get_airtable_row_primary_value
+from .utils import get_airtable_row_primary_value, quill_to_markdown
 
 
 class TextAirtableColumnType(AirtableColumnType):
@@ -108,7 +108,7 @@ class RichTextTextAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
-        return LongTextField()
+        return LongTextField(long_text_enable_rich_text=True)
 
     def to_baserow_export_serialized_value(
         self,
@@ -122,37 +122,7 @@ class RichTextTextAirtableColumnType(AirtableColumnType):
         config,
         import_report,
     ):
-        # We don't support rich text formatting yet, so this converts the value to
-        # plain text.
-        rich_values = []
-        for v in value["documentValue"]:
-            insert_value = v["insert"]
-            if isinstance(insert_value, str):
-                rich_values.append(insert_value)
-            elif isinstance(insert_value, dict):
-                rich_value = self._extract_value_from_airtable_rich_value_dict(
-                    insert_value
-                )
-                if rich_value is not None:
-                    rich_values.append(rich_value)
-
-        return "".join(rich_values)
-
-    def _extract_value_from_airtable_rich_value_dict(
-        self, insert_value_dict: Dict[Any, Any]
-    ) -> Optional[str]:
-        """
-        Airtable rich text fields can contain references to users. For now this method
-        attempts to return a @userId reference string. In the future if Baserow has
-        a rich text field and the ability to reference users in them we should map
-        this airtable userId to the corresponding Baserow user id.
-        """
-
-        mention = insert_value_dict.get("mention")
-        if isinstance(mention, dict):
-            user_id = mention.get("userId")
-            if user_id is not None:
-                return f"@{user_id}"
+        return quill_to_markdown(value["documentValue"])
 
 
 class NumberAirtableColumnType(AirtableColumnType):
@@ -220,7 +190,7 @@ class NumberAirtableColumnType(AirtableColumnType):
 
         if separator_format != "" and number_separator == "":
             import_report.add_failed(
-                f"Number field: \"{raw_airtable_column['name']}\"",
+                raw_airtable_column["name"],
                 SCOPE_FIELD,
                 raw_airtable_table.get("name", ""),
                 ERROR_TYPE_UNSUPPORTED_FEATURE,

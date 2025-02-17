@@ -39,3 +39,124 @@ def get_airtable_row_primary_value(table, row):
         primary_value = row["id"]
 
     return primary_value
+
+
+def quill_parse_inline(insert, attributes):
+    if "bold" in attributes:
+        insert = f"**{insert}**"
+    if "italic" in attributes:
+        insert = f"_{insert}_"
+    if "strike" in attributes:
+        insert = f"~{insert}~"
+    if "code" in attributes:
+        insert = f"`{insert}`"
+    if "link" in attributes:
+        insert = f"[{insert}]({attributes['link']})"
+    if isinstance(insert, object) and "mention" in insert:
+        insert = f"@{insert['mention'].get('userId', '')}"
+
+    return insert
+
+
+def quill_wrap_block(attributes):
+    prepend = ""
+    append = ""
+    multi_line = False
+    if "header" in attributes:
+        prepend = "#" * attributes["header"] + " "
+    if "list" in attributes:
+        list_type = attributes["list"]
+        prepend = " " * attributes.get("indent", 0) * 4
+        if list_type == "ordered":
+            prepend += f"1. "
+        elif list_type == "bullet":
+            prepend += "- "
+        elif list_type == "unchecked":
+            prepend += "- [ ] "
+        elif list_type == "checked":
+            prepend += "- [x] "
+    if "blockquote" in attributes:
+        prepend = "> "
+    if "≈≈" in attributes:
+        prepend = "> "
+    if "code-block" in attributes:
+        prepend = "```\n"
+        append = "```\n"
+        multi_line = True
+    return prepend, append, multi_line
+
+
+def quill_split_with_newlines(value):
+    parts = re.split(r"(\n)", value)
+    if parts and parts[0] == "":
+        parts.pop(0)
+    if parts and parts[-1] == "":
+        parts.pop()
+    return parts
+
+
+def quill_to_markdown(ops: list) -> str:
+    """
+    Airtable uses the QuillJS editor for their rich text field. There is no library
+    to convert it in Baserow compatible markdown. This is a simple, custom writter
+
+    :param ops: The QuillJS delta object that must be converted to markdown.
+    :return: The converted markdown data.
+    """
+
+    md_output = []
+    current_object = ""
+    current_multi_line = None
+
+    def flush_line():
+        nonlocal md_output
+        nonlocal current_object
+        if current_object != "":
+            md_output.append(current_object)
+            current_object = ""
+
+    def flush_multi_line(current_prepend, current_append):
+        nonlocal current_object
+        nonlocal current_multi_line
+        if current_multi_line is not None and current_multi_line != (
+            current_prepend,
+            current_append,
+        ):
+            current_object = (
+                current_multi_line[0] + current_object + current_multi_line[1]
+            )
+            flush_line()
+            current_multi_line = None
+
+    for index, op in enumerate(ops):
+        raw_insert = op.get("insert", "")
+        attributes = op.get("attributes", {})
+
+        if isinstance(raw_insert, str):
+            insert_lines = quill_split_with_newlines(raw_insert)
+        else:
+            insert_lines = [raw_insert]
+
+        for insert_line in insert_lines:
+            is_new_line = insert_line == "\n"
+
+            if is_new_line:
+                prepend, append, multi_line = quill_wrap_block(attributes)
+                flush_multi_line(prepend, append)
+
+                # Starting a new multi-line block. All the following lines will be
+                # enclosed by the prepend and append.
+                if multi_line and current_multi_line is None:
+                    current_multi_line = (prepend, append)
+
+            parsed_insert = quill_parse_inline(insert_line, attributes)
+            current_object += parsed_insert
+
+            if is_new_line and not multi_line:
+                current_object = prepend + current_object + append
+                flush_line()
+
+    flush_multi_line(None, None)
+    flush_line()
+
+    return "".join(md_output).strip()
