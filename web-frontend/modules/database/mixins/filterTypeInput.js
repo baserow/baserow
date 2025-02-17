@@ -70,11 +70,9 @@ export default {
       }
 
       if (immediately) {
-        console.log('immediately', value)
         this.$emit('input', value)
       } else {
         delayTimeout = setTimeout(() => {
-          console.log('delayed', value)
           this.$emit('input', value)
         }, 400)
       }
