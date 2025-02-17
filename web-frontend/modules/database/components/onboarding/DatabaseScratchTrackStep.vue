@@ -19,7 +19,7 @@
     </div>
     <FormGroup
       v-if="what === 'own'"
-      :error="$v.tableName.$dirty && !$v.tableName.required"
+      :error="v$.tableName.$error"
       :label="$t('databaseScratchTrackStep.tableName')"
       required
       small-label
@@ -29,43 +29,50 @@
         v-model="tableName"
         :placeholder="$t('databaseScratchTrackStep.tableName') + '...'"
         size="large"
-        :error="$v.tableName.$dirty && !$v.tableName.required"
+        :error="v$.tableName.$error"
         @input="updateValue"
-        @blur="$v.tableName.$touch()"
+        @blur="v$.tableName.$touch"
       />
-      <template #error>{{ $t('error.requiredField') }}</template>
+      <template #error>
+        {{ v$.tableName.$errors[0].$message }}
+      </template>
     </FormGroup>
 
-    <template v-if="what !== ''">
-      <FormGroup
-        v-for="(row, index) in [0, 1, 2]"
-        :key="index"
-        class="margin-bottom-2"
-        :error="$v['row' + index].$dirty && $v['row' + index].$invalid"
-        small-label
+    <FormGroup
+      v-for="(row, index) in [0, 1, 2]"
+      v-show="what !== ''"
+      :key="index"
+      class="margin-bottom-2"
+      :error="v$['row' + index]?.$error"
+      small-label
+    >
+      <template v-if="index === 0" #label>
+        {{ $t('databaseScratchTrackStep.thisIncludes') }}</template
       >
-        <template v-if="index === 0" #label>
-          {{ $t('databaseScratchTrackStep.thisIncludes') }}</template
-        >
-        <FormInput
-          v-model="$data['row' + index]"
-          :placeholder="$t('databaseScratchTrackStep.rowName') + '...'"
-          size="large"
-          :error="$v['row' + index].$dirty && $v['row' + index].$invalid"
-          @input="updateValue"
-          @blur="$v['row' + index].$touch()"
-        />
-        <template #error>{{ $t('error.requiredField') }}</template>
-      </FormGroup>
-    </template>
+      <FormInput
+        v-model="v$['row' + index].$model"
+        :placeholder="$t('databaseScratchTrackStep.rowName') + '...'"
+        size="large"
+        :error="v$['row' + index]?.$error"
+        @input="updateValue"
+        @blur="v$['row' + index].$touch"
+      />
+      <template #error>
+        {{ v$['row' + index].$errors[0].$message }}
+      </template>
+    </FormGroup>
   </div>
 </template>
 
 <script>
-import { required, requiredIf } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 
 export default {
   name: 'DatabaseScratchTrackStep',
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       what: '',
@@ -108,17 +115,19 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.$v.$invalid
+      return !!this.what && !this.v$.$invalid && this.v$.$dirty
     },
     select(value) {
       if (
         this.what !== value &&
         Object.prototype.hasOwnProperty.call(this.whatItems, value)
       ) {
-        this.row0 = this.whatItems[value][0]
-        this.row1 = this.whatItems[value][1]
-        this.row2 = this.whatItems[value][2]
+        this.v$.row0.$model = this.whatItems[value][0]
+        this.v$.row1.$model = this.whatItems[value][1]
+        this.v$.row2.$model = this.whatItems[value][2]
       }
+
+      // this.v$.row0?.$touch()
       this.what = value
       this.updateValue()
     },
@@ -129,17 +138,25 @@ export default {
     },
   },
   validations() {
-    return {
-      what: { required },
-      tableName: {
-        required: requiredIf(() => {
-          return this.what === 'own'
-        }),
-      },
-      row0: { required },
-      row1: {},
-      row2: {},
+    const rules = {}
+
+    rules.row0 = {
+      required: helpers.withMessage(this.$t('error.requiredField'), required),
     }
+    rules.row1 = {
+      required: helpers.withMessage(this.$t('error.requiredField'), required),
+    }
+    rules.row2 = {
+      required: helpers.withMessage(this.$t('error.requiredField'), required),
+    }
+
+    if (this.what === 'own') {
+      rules.tableName = {
+        required: helpers.withMessage(this.$t('error.requiredField'), required),
+      }
+    }
+
+    return rules
   },
 }
 </script>

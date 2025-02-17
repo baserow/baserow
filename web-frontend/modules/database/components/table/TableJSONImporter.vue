@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="control">
-      <template v-if="filename === ''">
+      <template v-if="values.filename === ''">
         <label class="control__label control__label--small">{{
           $t('tableJSONImporter.fileLabel')
         }}</label>
@@ -46,7 +46,7 @@
             {{ $t('tableJSONImporter.chooseButton') }}
           </Button>
           <div v-if="state === null" class="file-upload__file">
-            {{ filename }}
+            {{ values.filename }}
           </div>
           <template v-else>
             <ProgressBar
@@ -58,12 +58,12 @@
             />
           </template>
         </div>
-        <div v-if="$v.filename.$error" class="error">
-          {{ $t('error.requiredField') }}
+        <div v-if="v$.values.filename.$error" class="error">
+          {{ v$.values.filename.$errors[0]?.$message }}
         </div>
       </div>
     </div>
-    <div v-if="filename !== ''" class="control margin-top-2">
+    <div v-if="values.filename !== ''" class="control margin-top-2">
       <label class="control__label control__label--small">{{
         $t('tableJSONImporter.encodingLabel')
       }}</label>
@@ -83,7 +83,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required, helpers } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
 
 import form from '@baserow/modules/core/mixins/form'
 import CharsetDropdown from '@baserow/modules/core/components/helpers/CharsetDropdown'
@@ -93,21 +94,36 @@ export default {
   name: 'TableCSVImporter',
   components: { CharsetDropdown },
   mixins: [form, importer],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       encoding: 'utf-8',
-      filename: '',
+      values: {
+        filename: '',
+      },
       rawData: null,
     }
   },
-  validations: {
-    filename: { required },
+  validations() {
+    return {
+      values: {
+        filename: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
   computed: {
     isDisabled() {
       return this.disabled || this.state !== null
     },
   },
+
   methods: {
     /**
      * Method that is called when a file has been chosen. It will check if the file is
@@ -127,7 +143,7 @@ export default {
         parseInt(this.$config.BASEROW_MAX_IMPORT_FILE_SIZE_MB, 10) * 1024 * 1024
 
       if (file.size > maxSize) {
-        this.filename = ''
+        this.values.filename = ''
         this.handleImporterError(
           this.$t('tableJSONImporter.limitFileSize', {
             limit: this.$config.BASEROW_MAX_IMPORT_FILE_SIZE_MB,
@@ -136,7 +152,7 @@ export default {
       } else {
         this.state = 'loading'
         this.$emit('changed')
-        this.filename = file.name
+        this.values.filename = file.name
         const reader = new FileReader()
         reader.addEventListener('progress', (event) => {
           this.fileLoadingProgress = (event.loaded / event.total) * 100

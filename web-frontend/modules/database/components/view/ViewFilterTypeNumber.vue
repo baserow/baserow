@@ -2,7 +2,7 @@
   <FormInput
     ref="input"
     :value="focused ? copy : formattedValue"
-    :error="$v.copy.$error"
+    :error="v$.copy.$error"
     :disabled="disabled"
     @blur="onBlur()"
     @keypress="onKeyPress($event)"
@@ -37,7 +37,6 @@ export default {
     },
   },
   created() {
-    this.copy = this.prepareCopy(this.filter.value)
     this.updateFormattedValue(this.field, this.copy)
   },
   methods: {
@@ -53,9 +52,6 @@ export default {
         this.delayedUpdate(newValue, immediately)
       }
     },
-  },
-  validations: {
-    copy: {},
   },
 }
 </script>

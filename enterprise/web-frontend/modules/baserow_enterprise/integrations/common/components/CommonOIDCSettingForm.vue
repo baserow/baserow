@@ -68,7 +68,7 @@ export default {
     },
   },
   data() {
-    return { inError: false }
+    return { inError: false, values: {} }
   },
   computed: {
     ...mapGetters({ domains: 'domain/getDomains' }),
@@ -100,14 +100,14 @@ export default {
     },
   },
   watch: {
-    '$v.$anyDirty'() {
+    'v$.$anyDirty'() {
       this.checkValidity()
     },
   },
   methods: {
     copyToClipboard,
     checkValidity() {
-      if (!this.$refs.form.isFormValid() && this.$refs.form.$v.$anyDirty) {
+      if (!this.$refs.form.isFormValid() && this.$refs.form.v$.$anyDirty) {
         this.inError = true
       } else {
         this.inError = false

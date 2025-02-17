@@ -10,7 +10,7 @@
         :label="$t('styleBoxForm.borderColor')"
       >
         <ColorInput
-          v-model="values.border_color"
+          v-model="v$.values.border_color.$model"
           small
           :color-variables="colorVariables"
         />
@@ -22,9 +22,9 @@
         required
         :label="$t('styleBoxForm.borderLabel')"
         horizontal-narrow
-        :error-message="sizeError"
+        :error-message="getFirstErrorMessage('border_size')"
       >
-        <PixelValueSelector v-model="values.border_size" />
+        <PixelValueSelector v-model="v$.values.border_size.$model" />
       </FormGroup>
       <FormGroup
         v-if="paddingIsAllowed"
@@ -33,9 +33,9 @@
         required
         :label="$t('styleBoxForm.paddingLabel')"
         horizontal-narrow
-        :error-message="paddingError"
+        :error-message="getFirstErrorMessage('padding')"
       >
-        <PixelValueSelector v-model="values.padding" />
+        <PixelValueSelector v-model="v$.values.padding.$model" />
       </FormGroup>
       <FormGroup
         v-if="marginIsAllowed"
@@ -44,16 +44,17 @@
         required
         :label="$t('styleBoxForm.marginLabel')"
         horizontal-narrow
-        :error-message="marginError"
+        :error-message="getFirstErrorMessage('margin')"
       >
-        <PixelValueSelector v-model="values.margin" />
+        <PixelValueSelector v-model="v$.values.margin.$model" />
       </FormGroup>
     </FormSection>
   </form>
 </template>
 
 <script>
-import { required, integer, between } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, integer, between, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
@@ -89,12 +90,15 @@ export default {
       default: () => false,
     },
   },
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
       values: {
         margin: 0,
         padding: 0,
-        border_color: 'border',
+        border_color: '',
         border_size: 0,
       },
     }
@@ -109,27 +113,6 @@ export default {
         this.builder.theme
       )
     },
-    marginError() {
-      if (this.$v.values.margin.$invalid) {
-        return this.$t('error.minMaxValueField', { min: 0, max: 200 })
-      } else {
-        return ''
-      }
-    },
-    paddingError() {
-      if (this.$v.values.padding.$invalid) {
-        return this.$t('error.minMaxValueField', { min: 0, max: 200 })
-      } else {
-        return ''
-      }
-    },
-    sizeError() {
-      if (this.$v.values.border_size.$invalid) {
-        return this.$t('error.minMaxValueField', { min: 0, max: 200 })
-      } else {
-        return ''
-      }
-    },
   },
   methods: {
     getDefaultValues() {
@@ -143,19 +126,43 @@ export default {
     return {
       values: {
         padding: {
-          required,
-          integer,
-          between: between(0, 200),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          between: helpers.withMessage(
+            this.$t('error.minMaxValueField', { min: 0, max: 200 }),
+            between(0, 200)
+          ),
         },
         border_size: {
-          required,
-          integer,
-          between: between(0, 200),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          between: helpers.withMessage(
+            this.$t('error.minMaxValueField', { min: 0, max: 200 }),
+            between(0, 200)
+          ),
         },
         margin: {
-          required,
-          integer,
-          between: between(0, 200),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          between: helpers.withMessage(
+            this.$t('error.minMaxValueField', { min: 0, max: 200 }),
+            between(0, 200)
+          ),
+        },
+        border_color: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
         },
       },
     }

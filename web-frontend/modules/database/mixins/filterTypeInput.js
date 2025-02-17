@@ -1,4 +1,6 @@
 import viewFilter from '@baserow/modules/database/mixins/viewFilter'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive } from 'vue'
 
 let delayTimeout = null
 
@@ -10,9 +12,21 @@ let delayTimeout = null
  */
 export default {
   mixins: [viewFilter],
+  setup() {
+    const values = reactive({
+      copy: null,
+    })
+
+    const rules = {
+      copy: {},
+    }
+    return {
+      copy: values.copy,
+      v$: useVuelidate(rules, values, { $lazy: true }),
+    }
+  },
   data() {
     return {
-      copy: null,
       // This can be used to avoid changing the value if the user is editing it
       // Or can be set i.e. by onFocus event
       focused: false,
@@ -29,15 +43,15 @@ export default {
       clearTimeout(delayTimeout)
     },
   },
-  created() {
+  mounted() {
     this.copy = this.prepareCopy(this.filter.value)
     if (this.copy) {
-      this.$v.$touch()
+      this.v$.$touch()
     }
   },
   methods: {
     isInputValid() {
-      return !this.$v.copy.$error
+      return !this.v$.copy.$error
     },
     prepareCopy(value) {
       return value
@@ -49,7 +63,7 @@ export default {
       }
 
       clearTimeout(delayTimeout)
-      this.$v.$touch()
+      this.v$.$touch()
 
       if (!this.isInputValid()) {
         return
@@ -63,8 +77,5 @@ export default {
         }, 400)
       }
     },
-  },
-  validations: {
-    copy: {},
   },
 }

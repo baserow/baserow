@@ -15,5 +15,10 @@ export default {
   name: 'OpenPageWorkflowActionForm',
   components: { LinkNavigationSelectionForm },
   mixins: [form],
+  data() {
+    return {
+      values: {},
+    }
+  },
 }
 </script>

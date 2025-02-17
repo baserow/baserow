@@ -2,10 +2,7 @@
   <FormGroup
     small-label
     :label="$t('pageForm.queryParamsTitle')"
-    :error="
-      hasErrors ||
-      (validationState.$dirty && !validationState.uniqueQueryParams)
-    "
+    :error="hasErrors || validationState.uniqueQueryParams.$invalid"
     required
   >
     <div
@@ -57,12 +54,10 @@
         }}
       </ButtonText>
     </div>
-    <span
-      v-if="validationState.$dirty && !validationState.uniqueQueryParams"
-      class="error"
-    >
+
+    <template #error>
       {{ $t('pageErrors.errorUniqueValidQueryParams') }}
-    </span>
+    </template>
   </FormGroup>
 </template>
 

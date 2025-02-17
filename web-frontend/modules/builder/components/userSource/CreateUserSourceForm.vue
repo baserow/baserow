@@ -2,14 +2,15 @@
   <form @submit.prevent="submit">
     <FormGroup
       :label="$t('createUserSourceForm.userSourceType')"
-      :error-message="getError('type')"
+      :error-message="getFirstErrorMessage('type')"
       required
       small-label
       class="margin-bottom-2"
       size="large"
     >
       <Dropdown
-        v-model="$v.values.type.$model"
+        v-model="v$.values.type.$model"
+        :error="v$.values.type.$error"
         :show-search="false"
         class="user-source-settings__user-source-type"
         size="large"
@@ -25,13 +26,14 @@
     </FormGroup>
     <FormGroup
       :label="$t('createUserSourceForm.userSourceIntegration')"
-      :error-message="getError('integration_id')"
+      :error-message="getFirstErrorMessage('integration_id')"
       required
       small-label
       class="margin-bottom-2"
     >
       <IntegrationDropdown
-        v-model="$v.values.integration_id.$model"
+        v-model="v$.values.integration_id.$model"
+        :error="v$.values.integration_id.$error"
         :application="builder"
         :integrations="integrations"
         :integration-type="currentUserSourceType?.integrationType"
@@ -40,12 +42,16 @@
     </FormGroup>
 
     <FormGroup
-      :error-message="getError('name')"
       :label="$t('createUserSourceForm.userSourceName')"
       required
       small-label
+      :error-message="getFirstErrorMessage('name')"
     >
-      <FormInput v-model="$v.values.name.$model" size="large" />
+      <FormInput
+        v-model="v$.values.name.$model"
+        :error="v$.values.name.$error"
+        size="large"
+      />
     </FormGroup>
 
     <input type="submit" hidden />
@@ -53,9 +59,10 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 
 export default {
@@ -67,6 +74,9 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -84,11 +94,10 @@ export default {
       return Object.values(this.$registry.getOrderedList('userSource'))
     },
     currentUserSourceType() {
-      if (!this.values.type) {
-        return null
-      } else {
+      if (this.values.type)
         return this.$registry.get('userSource', this.values.type)
-      }
+
+      return null
     },
     userSourceNames() {
       return this.userSources.map(({ name }) => name)
@@ -96,44 +105,44 @@ export default {
   },
   watch: {
     currentUserSourceType(newValue) {
-      this.values.name = getNextAvailableNameInSequence(
+      this.v$.values.name.$model = getNextAvailableNameInSequence(
         newValue.name,
         this.userSourceNames
       )
     },
   },
   methods: {
-    getError(fieldName) {
-      if (!this.$v.values[fieldName].$dirty) {
-        return ''
-      }
-      const fieldState = this.$v.values[fieldName]
-      if (!fieldState.required) {
-        return this.$t('error.requiredField')
-      }
-      if (fieldName === 'name' && !fieldState.maxLength) {
-        return this.$t('error.maxLength', { max: 255 })
-      }
-      return ''
-    },
-
     handleServerError() {
       return false
     },
   },
-  validations: {
-    values: {
-      type: {
-        required,
+  validations() {
+    return {
+      values: {
+        integration_id: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(255)
+          ),
+        },
+        type: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
       },
-      integration_id: {
-        required,
-      },
-      name: {
-        required,
-        maxLength: maxLength(255),
-      },
-    },
+    }
   },
 }
 </script>

@@ -5,11 +5,11 @@
       <FormGroup
         :label="$t('emailNotifications.label')"
         :help-text="$t('emailNotifications.description')"
-        :error="fieldHasErrors('email_notification_frequency')"
+        :error="v$.values.email_notification_frequency.$error"
         required
       >
         <RadioGroup
-          v-model="values.email_notification_frequency"
+          v-model="v$.values.email_notification_frequency.$model"
           :options="emailNotificationOptions"
           vertical-layout
         >
@@ -32,8 +32,9 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import { mapGetters } from 'vuex'
-import { required } from 'vuelidate/lib/validators'
+import { required, helpers } from '@vuelidate/validators'
 import { EMAIL_NOTIFICATIONS_FREQUENCY_OPTIONS } from '@baserow/modules/core/enums'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
@@ -42,6 +43,9 @@ import form from '@baserow/modules/core/mixins/form'
 export default {
   name: 'EmailNotifications',
   mixins: [form],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       loading: false,
@@ -111,12 +115,17 @@ export default {
       this.loading = false
     },
   },
-  validations: {
-    values: {
-      email_notification_frequency: {
-        required,
+  validations() {
+    return {
+      values: {
+        email_notification_frequency: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
       },
-    },
+    }
   },
 }
 </script>

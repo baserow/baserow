@@ -5,6 +5,7 @@
 
     <FormGroup
       :label="$t('databaseImportStep.tableNameLabel')"
+      :error="v$.tableName.$error"
       small-label
       required
       class="margin-bottom-3"
@@ -13,14 +14,14 @@
         v-model="tableName"
         :placeholder="$t('databaseImportStep.tableNameLabel') + '...'"
         size="large"
-        :error="
-          $v.tableName.$dirty && !$v.tableName.required
-            ? $t('error.requiredField')
-            : false
-        "
+        :error="v$.tableName.$error"
         @input="updateValue"
-        @blur="$v.tableName.$touch()"
+        @blur="v$.tableName.$touch"
       />
+
+      <template #error>
+        {{ $t('error.requiredField') }}
+      </template>
     </FormGroup>
 
     <FormGroup class="margin-bottom-3">
@@ -58,13 +59,17 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 import { uuid } from '@baserow/modules/core/utils/string'
 import SimpleGrid from '@baserow/modules/database/components/view/grid/SimpleGrid'
 
 export default {
   name: 'DatabaseImportStep',
   components: { SimpleGrid },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     const importers = Object.values(this.$registry.getAll('importer'))
     return {
@@ -111,7 +116,12 @@ export default {
   },
   methods: {
     isValid() {
-      return !this.$v.$invalid && this.getData !== null && this.dataLoaded
+      return (
+        !this.v$.$invalid &&
+        this.v$.$dirty &&
+        this.getData !== null &&
+        this.dataLoaded
+      )
     },
     updateValue() {
       const tableName = this.tableName

@@ -17,7 +17,7 @@
           :show-search="true"
           fixed-items
           :error="fieldHasErrors('table_id')"
-          @change="$v.values.table_id.$touch()"
+          @change="v$.values.table_id.$touch"
         >
           <DropdownSection
             v-for="database in databases"
@@ -50,7 +50,7 @@
           :show-search="false"
           fixed-items
           :error="fieldHasErrors('view_id')"
-          @change="$v.values.view_id.$touch()"
+          @change="v$.values.view_id.$touch"
         >
           <DropdownItem
             :name="$t('aggregateRowsDataSourceForm.notSelected')"
@@ -80,7 +80,7 @@
           v-model="values.field_id"
           :disabled="tableFields.length === 0"
           :error="fieldHasErrors('field_id')"
-          @change="$v.values.field_id.$touch()"
+          @change="v$.values.field_id.$touch"
         >
           <DropdownItem
             v-for="field in tableFields"
@@ -103,7 +103,7 @@
         <Dropdown
           v-model="values.aggregation_type"
           :error="fieldHasErrors('aggregation_type')"
-          @change="$v.values.aggregation_type.$touch()"
+          @change="v$.values.aggregation_type.$touch"
         >
           <DropdownItem
             v-for="viewAggregation in viewAggregationTypes"
@@ -119,8 +119,9 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 const includes = (array) => (value) => {
   return array.includes(value)
@@ -154,6 +155,9 @@ export default {
       required: false,
       default: '',
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -223,15 +227,14 @@ export default {
   },
   watch: {
     dataSource: {
-      handler() {
+      handler(values) {
         // Reset the form to set default values
         // again after a different widget is selected
         this.reset(true)
         // Run form validation so that
         // problems are highlighted immediately
-        this.$v.$touch()
+        this.v$.$validate()
       },
-      immediate: true,
       deep: true,
     },
     'values.table_id': {
@@ -287,14 +290,37 @@ export default {
     },
   },
   validations() {
+    const self = this
     return {
       values: {
-        table_id: { required, isValidTableId: includesIfSet(this.tableIds) },
-        view_id: { isValidViewId: includesIfSet(this.tableViewIds) },
-        field_id: { required, isValidFieldId: includes(this.tableFieldIds) },
+        table_id: {
+          required,
+          isValidTableId: (value) => {
+            const ids = self.tableIds
+            return includes(ids)(value)
+          },
+        },
+        view_id: {
+          required,
+          isValidViewId: (value) => {
+            const ids = self.tableViewIds
+
+            return includesIfSet(ids)(value)
+          },
+        },
+        field_id: {
+          required,
+          isValidFieldId: (value) => {
+            const ids = self.tableFieldIds
+            return includes(ids)(value)
+          },
+        },
         aggregation_type: {
           required,
-          isValidAggregationType: includes(this.aggregationTypeNames),
+          isValidAggregationType: (value) => {
+            const types = self.aggregationTypeNames
+            return includes(types)(value)
+          },
         },
       },
     }

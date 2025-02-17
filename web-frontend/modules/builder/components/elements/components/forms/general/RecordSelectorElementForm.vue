@@ -27,24 +27,14 @@
       class="margin-bottom-2"
       small-label
       :label="$t('recordSelectorElementForm.itemsPerPage')"
-      :error-message="
-        $v.values.items_per_page.$dirty && !$v.values.items_per_page.required
-          ? $t('error.requiredField')
-          : !$v.values.items_per_page.integer
-          ? $t('error.integerField')
-          : !$v.values.items_per_page.minValue
-          ? $t('error.minValueField', { min: 5 })
-          : !$v.values.items_per_page.maxValue
-          ? $t('error.maxValueField', { max: maxItemPerPage })
-          : ''
-      "
+      :error-message="getFirstErrorMessage('items_per_page')"
     >
       <FormInput
-        v-model="values.items_per_page"
+        v-model="v$.values.items_per_page.$model"
         type="number"
         :to-value="(value) => parseInt(value)"
         :placeholder="$t('recordSelectorElementForm.itemsPerPagePlaceholder')"
-        @blur="$v.values.items_per_page.$touch()"
+        @blur="v$.values.items_per_page.$touch()"
       />
     </FormGroup>
     <!--
@@ -141,11 +131,18 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle.vue'
-import { integer, maxValue, minValue, required } from 'vuelidate/lib/validators'
+import {
+  integer,
+  maxValue,
+  minValue,
+  required,
+  helpers,
+} from '@vuelidate/validators'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 
@@ -158,6 +155,9 @@ export default {
     InjectedFormulaInput,
   },
   mixins: [formElementForm, collectionElementForm],
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
       allowedValues: [
@@ -219,12 +219,21 @@ export default {
     return {
       values: {
         items_per_page: {
-          required,
-          integer,
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
           // We need at least 5 items to trigger the
           // infinite scroll
-          minValue: minValue(5),
-          maxValue: maxValue(this.maxItemPerPage),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', { min: 5 }),
+            minValue(5)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', { max: this.maxItemPerPage }),
+            maxValue(this.maxItemPerPage)
+          ),
         },
       },
     }

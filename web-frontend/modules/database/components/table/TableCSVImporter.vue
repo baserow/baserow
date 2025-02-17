@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="control margin-bottom-3">
-      <template v-if="filename === ''">
+      <template v-if="values.filename === ''">
         <label class="control__label control__label--small">{{
           $t('tableCSVImporter.chooseFileLabel')
         }}</label>
@@ -30,7 +30,7 @@
             {{ $t('tableCSVImporter.chooseFile') }}
           </Button>
           <div v-if="state === null" class="file-upload__file">
-            {{ filename }}
+            {{ values.filename }}
           </div>
           <template v-else>
             <ProgressBar
@@ -42,12 +42,12 @@
             />
           </template>
         </div>
-        <div v-if="$v.filename.$error" class="error">
-          {{ $t('error.requiredField') }}
+        <div v-if="v$.values.filename.$error" class="error">
+          {{ v$.values.filename.$errors[0]?.$message }}
         </div>
       </div>
     </div>
-    <div v-if="filename !== ''" class="row">
+    <div v-if="values.filename !== ''" class="row">
       <div class="col col-4">
         <div class="control">
           <label class="control__label control__label--small">{{
@@ -114,7 +114,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { required, helpers } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
 
 import form from '@baserow/modules/core/mixins/form'
 import CharsetDropdown from '@baserow/modules/core/components/helpers/CharsetDropdown'
@@ -126,18 +127,32 @@ export default {
     CharsetDropdown,
   },
   mixins: [form, importer],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
-      filename: '',
       columnSeparator: 'auto',
       firstRowHeader: true,
       encoding: 'utf-8',
       rawData: null,
       parsedData: null,
+      values: {
+        filename: '',
+      },
     }
   },
-  validations: {
-    filename: { required },
+  validations() {
+    return {
+      values: {
+        filename: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
   computed: {
     isDisabled() {
@@ -162,7 +177,7 @@ export default {
         parseInt(this.$config.BASEROW_MAX_IMPORT_FILE_SIZE_MB, 10) * 1024 * 1024
 
       if (file.size > maxSize) {
-        this.filename = ''
+        this.values.filename = ''
         this.handleImporterError(
           this.$t('tableCSVImporter.limitFileSize', {
             limit: this.$config.BASEROW_MAX_IMPORT_FILE_SIZE_MB,
@@ -174,7 +189,7 @@ export default {
         this.parsedData = null
 
         this.$emit('changed')
-        this.filename = file.name
+        this.values.filename = file.name
         this.state = 'loading'
         const reader = new FileReader()
         reader.addEventListener('progress', (event) => {

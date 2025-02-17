@@ -9,11 +9,13 @@
           :label="$t('imageThemeConfigBlock.alignment')"
           class="margin-bottom-2"
         >
-          <HorizontalAlignmentsSelector v-model="values.image_alignment" />
+          <HorizontalAlignmentsSelector
+            v-model="v$.values.image_alignment.$model"
+          />
 
           <template #after-input>
             <ResetButton
-              v-model="values.image_alignment"
+              v-model="v$.values.image_alignment.$model"
               :default-value="theme?.image_alignment"
             />
           </template>
@@ -24,21 +26,11 @@
           small-label
           required
           class="margin-bottom-2"
-          :error-message="
-            $v.values.image_max_width.$dirty &&
-            !$v.values.image_max_width.integer
-              ? $t('error.integerField')
-              : !$v.values.image_max_width.minValue
-              ? $t('error.minValueField', { min: 0 })
-              : !$v.values.image_max_width.maxValue
-              ? $t('error.maxValueField', { max: 100 })
-              : !$v.values.image_max_width.required
-              ? $t('error.requiredField')
-              : ''
-          "
+          :error="fieldHasErrors('image_max_width')"
         >
           <FormInput
-            v-model="values.image_max_width"
+            v-model="v$.values.image_max_width.$model"
+            :error="fieldHasErrors('image_max_width')"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`image_min_width`]
             "
@@ -56,9 +48,12 @@
 
           <template #after-input>
             <ResetButton
-              v-model="values.image_max_width"
+              v-model="v$.values.image_max_width.$model"
               :default-value="theme?.image_max_width"
             />
+          </template>
+          <template #error>
+            {{ v$.values.image_max_width.$errors[0].$message }}
           </template>
         </FormGroup>
         <FormGroup
@@ -67,24 +62,13 @@
           required
           :label="$t('imageThemeConfigBlock.maxHeightLabel')"
           class="margin-bottom-2"
-          :error-message="
-            $v.values.image_max_height.$dirty &&
-            !$v.values.image_max_height.integer
-              ? $t('error.integerField')
-              : !$v.values.image_max_height.minValue
-              ? $t('error.minValueField', { min: 5 })
-              : !$v.values.image_max_height.maxValue
-              ? $t('error.maxValueField', { max: 3000 })
-              : ''
-          "
+          :error="fieldHasErrors('image_max_height')"
         >
           <FormInput
             v-model="imageMaxHeight"
-            :default-value-when-empty="
-              defaultValuesWhenEmpty[`image_min_height`]
-            "
             type="number"
             remove-number-input-controls
+            :error="fieldHasErrors('image_max_height')"
             :placeholder="$t('imageThemeConfigBlock.maxHeightPlaceholder')"
             :to-value="(value) => (value ? parseInt(value) : null)"
           >
@@ -97,6 +81,9 @@
               :default-value="theme?.image_max_height"
             />
           </template>
+          <template #error>
+            {{ v$.values.image_max_height.$errors[0].$message }}
+          </template>
         </FormGroup>
         <FormGroup
           horizontal-narrow
@@ -106,7 +93,7 @@
           :label="$t('imageThemeConfigBlock.imageConstraintsLabel')"
         >
           <Dropdown
-            v-model="values.image_constraint"
+            v-model="v$.values.image_constraint.$model"
             fixed-items
             :show-search="true"
             class="flex-grow-1"
@@ -139,22 +126,14 @@
           required
           class="margin-bottom-2"
           :label="$t('imageThemeConfigBlock.imageBorderRadiusLabel')"
-          :error-message="
-            $v.values.image_border_radius.$dirty &&
-            !$v.values.image_border_radius.integer
-              ? $t('error.integerField')
-              : !$v.values.image_border_radius.minValue
-              ? $t('error.minValueField', { min: 0 })
-              : !$v.values.image_border_radius.maxValue
-              ? $t('error.maxValueField', { max: 100 })
-              : ''
-          "
+          :error="fieldHasErrors('image_border_radius')"
         >
           <FormInput
             v-model="values.image_border_radius"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`image_border_radius`]
             "
+            :error="fieldHasErrors('image_border_radius')"
             type="number"
             :min="0"
             :max="100"
@@ -173,6 +152,10 @@
               :default-value="theme?.image_border_radius"
             />
           </template>
+
+          <template #error>
+            {{ v$.values.image_border_radius.$errors[0].$message }}
+          </template>
         </FormGroup>
       </template>
       <template #preview>
@@ -183,12 +166,19 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 import { IMAGE_SOURCE_TYPES } from '@baserow/modules/builder/enums'
-import { integer, maxValue, minValue, required } from 'vuelidate/lib/validators'
+import {
+  integer,
+  maxValue,
+  minValue,
+  required,
+  helpers,
+} from '@vuelidate/validators'
 
 const minMax = {
   image_width: {
@@ -213,9 +203,18 @@ export default {
     HorizontalAlignmentsSelector,
   },
   mixins: [themeConfigBlock],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
-      values: {},
+      values: {
+        image_alignment: this.theme?.image_alignment,
+        image_max_width: this.theme?.image_max_width,
+        image_max_height: this.theme?.image_max_height,
+        image_constraint: this.theme?.image_constraint,
+        image_border_radius: this.theme?.image_border_radius,
+      },
       allowedValues: [
         'image_alignment',
         'image_max_width',
@@ -238,15 +237,15 @@ export default {
       set(newValue) {
         // If the `image_max_height` is emptied, and the
         // constraint is 'cover', then reset back to 'contain'.
-        if (!newValue && this.values.image_constraint === 'cover') {
-          this.values.image_constraint = 'contain'
+        if (!newValue && this.v$.values.image_constraint.$model === 'cover') {
+          this.v$.values.image_constraint.$model = 'contain'
         }
         // If the `image_max_height` is set, and the
         // constraint is 'contain', then reset back to 'cover'.
-        if (newValue && this.values.image_constraint === 'contain') {
-          this.values.image_constraint = 'cover'
+        if (newValue && this.v$.values.image_constraint.$model === 'contain') {
+          this.v$.values.image_constraint.$model = 'cover'
         }
-        this.values.image_max_height = newValue
+        this.v$.values.image_max_height.$model = newValue
       },
     },
     imageMaxHeightForReset: {
@@ -264,13 +263,13 @@ export default {
       set(value) {
         if (value === 'contain') {
           // Reset the height as we can't have a max height with contain
-          this.values.image_max_height = null
+          this.v$.values.image_max_height.$model = null
         }
         if (value === 'cover') {
           // Set the height to what is defined in theme
-          this.values.image_max_height = this.theme.image_max_height
+          this.v$.values.image_max_height.$model = this.theme.image_max_height
         }
-        this.values.image_constraint = value
+        this.v$.values.image_constraint.$model = value
       },
     },
     IMAGE_SOURCE_TYPES() {
@@ -296,10 +295,11 @@ export default {
   methods: {
     constraintDisabled(name) {
       if (name === 'cover') {
-        return !this.values.image_max_height
+        return !this.v$.values.image_max_height.$model
       } else if (name === 'contain') {
         return !!(
-          this.values.image_max_height && this.values.image_max_height > 0
+          this.v$.values.image_max_height.$model &&
+          this.v$.values.image_max_height.$model > 0
         )
       }
     },
@@ -307,25 +307,54 @@ export default {
       return key.startsWith('image_')
     },
   },
-  validations: {
-    values: {
-      image_max_width: {
-        required,
-        integer,
-        minValue: minValue(minMax.image_width.min),
-        maxValue: maxValue(minMax.image_width.max),
+  validations() {
+    return {
+      values: {
+        image_max_width: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', { min: minMax.image_width.min }),
+            minValue(minMax.image_width.min)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', { max: minMax.image_width.max }),
+            maxValue(minMax.image_width.max)
+          ),
+        },
+        image_max_height: {
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', { min: minMax.image_height.min }),
+            minValue(minMax.image_height.min)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', { max: minMax.image_height.max }),
+            maxValue(minMax.image_height.max)
+          ),
+        },
+        image_constraint: {},
+        image_alignment: {},
+        image_border_radius: {
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', {
+              min: minMax.image_border_radius.min,
+            }),
+            minValue(minMax.image_border_radius.min)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.minValueField', {
+              min: minMax.image_border_radius.max,
+            }),
+            minValue(minMax.image_border_radius.min)
+          ),
+        },
       },
-      image_max_height: {
-        integer,
-        minValue: minValue(minMax.image_height.min),
-        maxValue: maxValue(minMax.image_height.max),
-      },
-      image_border_radius: {
-        integer,
-        minValue: minValue(minMax.image_border_radius.min),
-        maxValue: maxValue(minMax.image_border_radius.max),
-      },
-    },
+    }
   },
 }
 </script>

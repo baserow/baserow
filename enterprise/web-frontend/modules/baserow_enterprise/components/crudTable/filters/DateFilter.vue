@@ -3,7 +3,7 @@
     <div ref="date">
       <FormInput
         v-model="dateString"
-        :error="$v.copy.$error"
+        :error="v$.copy?.$error"
         :disabled="disabled"
         :placeholder="placeholder"
         @focus="$refs.dateContext.toggle($refs.date, 'bottom', 'left', 0)"
@@ -46,6 +46,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import moment from '@baserow/modules/core/moment'
 import {
   getDateMomentFormat,
@@ -73,6 +74,9 @@ export default {
       default: () => ({}),
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       copy: '',
@@ -84,12 +88,11 @@ export default {
       },
     }
   },
-
   created() {
     this.setCopy(this.value)
   },
   mounted() {
-    this.$v.$touch()
+    this.v$.$touch()
   },
   methods: {
     clear() {
@@ -140,12 +143,14 @@ export default {
       this.$refs.date.focus()
     },
   },
-  validations: {
-    copy: {
-      date(value) {
-        return value === '' || moment(value).isValid()
+  validations() {
+    return {
+      copy: {
+        date(value) {
+          return value === '' || moment(value).isValid()
+        },
       },
-    },
+    }
   },
 }
 </script>

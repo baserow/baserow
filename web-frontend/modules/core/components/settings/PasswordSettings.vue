@@ -11,47 +11,47 @@
         :label="$t('passwordSettings.oldPasswordLabel')"
         small-label
         required
-        :error="$v.account.oldPassword.$error"
+        :error="v$.account.oldPassword.$error"
         class="margin-bottom-2"
       >
         <FormInput
-          v-model="account.oldPassword"
-          :error="$v.account.oldPassword.$error"
+          v-model="v$.account.oldPassword.$model"
+          :error="v$.account.oldPassword.$error"
           type="password"
           size="large"
-          @blur="$v.account.oldPassword.$touch()"
+          @blur="v$.account.oldPassword.$touch"
         ></FormInput>
         <template #error>
-          {{ $t('passwordSettings.oldPasswordRequiredError') }}</template
-        >
+          {{ v$.account.oldPassword.$errors[0]?.$message }}
+        </template>
       </FormGroup>
 
       <PasswordInput
-        v-model="account.newPassword"
-        :validation-state="$v.account.newPassword"
+        v-model="v$.account.newPassword.$model"
+        :validation-state="v$.account.newPassword"
         :label="$t('passwordSettings.newPasswordLabel')"
         class="margin-bottom-2"
       ></PasswordInput>
 
       <FormGroup
-        :error="$v.account.passwordConfirm.$error"
+        :error="v$.account.passwordConfirm.$error"
         :label="$t('passwordSettings.repeatNewPasswordLabel')"
         required
         small-label
         class="margin-bottom-2"
       >
         <FormInput
-          v-model="account.passwordConfirm"
-          :error="$v.account.passwordConfirm.$error"
+          v-model="v$.account.passwordConfirm.$model"
+          :error="v$.account.passwordConfirm.$error"
           type="password"
           size="large"
-          @blur="$v.account.passwordConfirm.$touch()"
+          @blur="v$.account.passwordConfirm.$touch"
         >
         </FormInput>
 
         <template #error>
-          {{ $t('passwordSettings.repeatNewPasswordMatchError') }}</template
-        >
+          {{ v$.account.passwordConfirm.$errors[0]?.$message }}
+        </template>
       </FormGroup>
 
       <div class="actions actions--right">
@@ -70,7 +70,8 @@
 </template>
 
 <script>
-import { sameAs, required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { sameAs, required, helpers } from '@vuelidate/validators'
 
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
@@ -81,22 +82,25 @@ import { passwordValidation } from '@baserow/modules/core/validators'
 export default {
   components: { PasswordInput },
   mixins: [error],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
-      loading: false,
-      success: false,
       account: {
         oldPassword: '',
         newPassword: '',
         passwordConfirm: '',
       },
+      loading: false,
+      success: false,
     }
   },
   methods: {
     async changePassword() {
-      this.$v.$touch()
+      this.v$.$touch()
 
-      if (this.$v.$invalid) {
+      if (this.v$.$invalid) {
         return
       }
 
@@ -128,14 +132,24 @@ export default {
       }
     },
   },
-  validations: {
-    account: {
-      passwordConfirm: {
-        sameAsPassword: sameAs('newPassword'),
+  validations() {
+    return {
+      account: {
+        passwordConfirm: {
+          sameAsPassword: helpers.withMessage(
+            this.$t('passwordSettings.repeatNewPasswordMatchError'),
+            sameAs(this.account.newPassword)
+          ),
+        },
+        newPassword: passwordValidation,
+        oldPassword: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
       },
-      newPassword: passwordValidation,
-      oldPassword: { required },
-    },
+    }
   },
 }
 </script>

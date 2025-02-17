@@ -7,7 +7,7 @@
       class="margin-bottom-2"
     >
       <RadioGroup
-        v-model="values.source_type"
+        v-model="v$.values.source_type.$model"
         :options="iframeSourceTypeOptions"
         type="button"
       >
@@ -15,7 +15,7 @@
     </FormGroup>
 
     <FormGroup
-      v-if="values.source_type === IFRAME_SOURCE_TYPES.URL"
+      v-if="v$.values.source_type.$model === IFRAME_SOURCE_TYPES.URL"
       key="url"
       small-label
       :label="$t('iframeElementForm.urlLabel')"
@@ -23,14 +23,14 @@
       required
     >
       <InjectedFormulaInput
-        v-model="values.url"
+        v-model="v$.values.url.$model"
         :placeholder="$t('iframeElementForm.urlPlaceholder')"
       />
       <template #helper>{{ $t('iframeElementForm.urlHelp') }}</template>
     </FormGroup>
 
     <FormGroup
-      v-if="values.source_type === IFRAME_SOURCE_TYPES.EMBED"
+      v-if="v$.values.source_type.$model === IFRAME_SOURCE_TYPES.EMBED"
       key="embed"
       :label="$t('iframeElementForm.embedLabel')"
       small-label
@@ -38,7 +38,7 @@
       required
     >
       <InjectedFormulaInput
-        v-model="values.embed"
+        v-model="v$.values.embed.$model"
         :placeholder="$t('iframeElementForm.embedPlaceholder')"
       />
     </FormGroup>
@@ -46,38 +46,38 @@
       :label="$t('iframeElementForm.heightLabel')"
       small-label
       required
-      :error-message="
-        $v.values.height.$dirty && !$v.values.height.required
-          ? $t('error.requiredField')
-          : !$v.values.height.integer
-          ? $t('error.integerField')
-          : !$v.values.height.minValue
-          ? $t('error.minValueField', { min: 1 })
-          : !$v.values.height.maxValue
-          ? $t('error.maxValueField', { max: 2000 })
-          : ''
-      "
+      :error-message="getFirstErrorMessage('height')"
     >
       <FormInput
-        v-model="values.height"
+        v-model="v$.values.height.$model"
         type="number"
         :placeholder="$t('iframeElementForm.heightPlaceholder')"
         :to-value="(value) => parseInt(value)"
-      ></FormInput>
+      />
     </FormGroup>
   </form>
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import { IFRAME_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import {
+  required,
+  integer,
+  minValue,
+  maxValue,
+  helpers,
+} from '@vuelidate/validators'
 
 export default {
   name: 'IFrameElementForm',
   components: { InjectedFormulaInput },
   mixins: [elementForm],
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
       values: {
@@ -109,11 +109,23 @@ export default {
     return {
       values: {
         height: {
-          required,
-          integer,
-          minValue: minValue(1),
-          maxValue: maxValue(2000),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', { min: 1 }),
+            minValue(1)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', { max: 2000 }),
+            maxValue(2000)
+          ),
         },
+        source_type: {},
+        url: {},
+        embed: {},
       },
     }
   },

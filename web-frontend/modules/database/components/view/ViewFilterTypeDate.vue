@@ -4,7 +4,7 @@
       <FormInput
         v-model="dateString"
         :disabled="disabled"
-        :error="$v.dateString.$error"
+        :error="v$.dateString.$error"
         :placeholder="getDatePlaceholder(field)"
         @focus="$refs.dateContext.toggle($refs.date, 'bottom', 'left', 0)"
         @blur="$refs.dateContext.hide()"
@@ -35,6 +35,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import moment from '@baserow/modules/core/moment'
 import {
   getDateMomentFormat,
@@ -46,6 +47,9 @@ import { en, fr } from 'vuejs-datepicker/dist/locale'
 export default {
   name: 'ViewFilterTypeDate',
   mixins: [filterTypeDateInput],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       dateString: '',
@@ -57,11 +61,13 @@ export default {
     }
   },
   mounted() {
-    this.$v.$touch()
+    this.nextTick(() => {
+      this.v$.$touch()
+    })
   },
   methods: {
     isInputValid() {
-      return !this.$v.dateString.$error
+      return !this.v$.dateString.$error
     },
     chooseDate(value) {
       const timezone = this.getTimezone()
@@ -129,14 +135,16 @@ export default {
       this.$refs.date.focus()
     },
   },
-  validations: {
-    copy: {},
-    dateString: {
-      isValidDate(value) {
-        const dateFormat = getDateMomentFormat(this.field.date_format)
-        return value === '' || moment.utc(value, dateFormat).isValid()
+  validations() {
+    return {
+      copy: {},
+      dateString: {
+        isValidDate(value) {
+          const dateFormat = getDateMomentFormat(this.field.date_format)
+          return value === '' || moment.utc(value, dateFormat).isValid()
+        },
       },
-    },
+    }
   },
 }
 </script>

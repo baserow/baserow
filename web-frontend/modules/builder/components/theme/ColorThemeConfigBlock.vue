@@ -8,7 +8,7 @@
           class="margin-bottom-2"
           :label="$t('colorThemeConfigBlock.primaryColor')"
         >
-          <ColorInput v-model="values.primary_color" small />
+          <ColorInput v-model="v$.values.primary_color.$model" small />
         </FormGroup>
         <FormGroup
           horizontal-narrow
@@ -16,7 +16,7 @@
           class="margin-bottom-2"
           :label="$t('colorThemeConfigBlock.secondaryColor')"
         >
-          <ColorInput v-model="values.secondary_color" small />
+          <ColorInput v-model="v$.values.secondary_color.$model" small />
         </FormGroup>
         <FormGroup
           horizontal-narrow
@@ -24,7 +24,7 @@
           class="margin-bottom-2"
           :label="$t('colorThemeConfigBlock.borderColor')"
         >
-          <ColorInput v-model="values.border_color" small />
+          <ColorInput v-model="v$.values.border_color.$model" small />
         </FormGroup>
         <FormGroup
           horizontal-narrow
@@ -32,7 +32,7 @@
           class="margin-bottom-2"
           :label="$t('colorThemeConfigBlock.successColor')"
         >
-          <ColorInput v-model="values.main_success_color" small />
+          <ColorInput v-model="v$.values.main_success_color.$model" small />
         </FormGroup>
         <FormGroup
           horizontal-narrow
@@ -40,7 +40,7 @@
           class="margin-bottom-2"
           :label="$t('colorThemeConfigBlock.warningColor')"
         >
-          <ColorInput v-model="values.main_warning_color" small />
+          <ColorInput v-model="v$.values.main_warning_color.$model" small />
         </FormGroup>
         <FormGroup
           horizontal-narrow
@@ -48,7 +48,7 @@
           class="margin-bottom-2"
           :label="$t('colorThemeConfigBlock.errorColor')"
         >
-          <ColorInput v-model="values.main_error_color" small />
+          <ColorInput v-model="v$.values.main_error_color.$model" small />
         </FormGroup>
       </template>
     </ThemeConfigBlockSection>
@@ -79,6 +79,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import CustomColorInput from '@baserow/modules/builder/components/theme/CustomColorInput'
@@ -91,12 +92,22 @@ const COLOR_ID_LENGTH = 5
 
 export default {
   name: 'ColorThemeConfigBlock',
-
   components: { ThemeConfigBlockSection, CustomColorInput },
   mixins: [themeConfigBlock],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
-      values: {},
+      values: {
+        primary_color: this.theme?.primary_color,
+        secondary_color: this.theme?.secondary_color,
+        border_color: this.theme?.border_color,
+        main_success_color: this.theme?.main_success_color,
+        main_warning_color: this.theme?.main_warning_color,
+        main_error_color: this.theme?.main_error_color,
+        custom_colors: this.theme?.custom_colors,
+      },
     }
   },
   methods: {
@@ -125,6 +136,7 @@ export default {
      * doesn't duplicate the name of an existing custom color.
      */
     addCustomColor() {
+      console.log('addCustomColor')
       // To avoid duplicating names, newColorId is incremented until an unused
       // value is found.
       const existingNames = this.values.custom_colors.map((color) => color.name)
@@ -165,6 +177,18 @@ export default {
       updatedCustomColors[index].color = newValue
       this.values.custom_colors = updatedCustomColors
     },
+  },
+  validations() {
+    return {
+      values: {
+        primary_color: {},
+        secondary_color: {},
+        border_color: {},
+        main_success_color: {},
+        main_warning_color: {},
+        main_error_color: {},
+      },
+    }
   },
 }
 </script>

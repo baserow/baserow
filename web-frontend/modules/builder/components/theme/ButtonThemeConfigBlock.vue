@@ -12,11 +12,12 @@
           <WidthSelector v-model="buttonWidth" />
           <template #after-input>
             <ResetButton
-              v-model="values.button_width"
+              v-model="v$.values.button_width.$model"
               :default-value="theme?.button_width"
             />
           </template>
         </FormGroup>
+
         <FormGroup
           v-if="values.button_width === 'auto' && !extraArgs?.noAlignment"
           horizontal-narrow
@@ -25,16 +26,18 @@
           class="margin-bottom-2"
           :label="$t('buttonThemeConfigBlock.alignment')"
         >
-          <HorizontalAlignmentsSelector v-model="values.button_alignment" />
+          <HorizontalAlignmentsSelector
+            v-model="v$.values.button_alignment.$model"
+          />
           <template #after-input>
             <ResetButton
-              v-model="values.button_alignment"
+              v-model="v$.values.button_alignment.$model"
               :default-value="theme?.button_alignment"
             />
           </template>
         </FormGroup>
         <FormGroup
-          v-if="values.button_width === 'full'"
+          v-if="v$.values.button_width.$model === 'full'"
           horizontal-narrow
           small-label
           required
@@ -42,11 +45,11 @@
           :label="$t('buttonThemeConfigBlock.textAlignment')"
         >
           <HorizontalAlignmentsSelector
-            v-model="values.button_text_alignment"
+            v-model="v$.values.button_text_alignment.$model"
           />
           <template #after-input>
             <ResetButton
-              v-model="values.button_text_alignment"
+              v-model="v$.values.button_text_alignment.$model"
               :default-value="theme?.button_text_alignment"
             />
           </template>
@@ -57,10 +60,10 @@
           :label="$t('buttonThemeConfigBlock.fontFamily')"
           class="margin-bottom-2"
         >
-          <FontFamilySelector v-model="values.button_font_family" />
+          <FontFamilySelector v-model="v$.values.button_font_family.$model" />
           <template #after-input>
             <ResetButton
-              v-model="values.button_font_family"
+              v-model="v$.values.button_font_family.$model"
               :default-value="theme?.button_font_family"
             />
           </template>
@@ -91,14 +94,14 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.button_font_size"
+            v-model="v$.values.button_font_size.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`button_font_size`]
             "
           />
           <template #after-input>
             <ResetButton
-              v-model="values.button_font_size"
+              v-model="v$.values.button_font_size.$model"
               :default-value="theme?.button_font_size"
             />
           </template>
@@ -111,14 +114,14 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.button_border_size"
+            v-model="v$.values.button_border_size.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`button_border_size`]
             "
           />
           <template #after-input>
             <ResetButton
-              v-model="values.button_border_size"
+              v-model="v$.values.button_border_size.$model"
               :default-value="theme?.button_border_size"
             />
           </template>
@@ -131,14 +134,14 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.button_border_radius"
+            v-model="v$.values.button_border_radius.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`button_border_radius`]
             "
           />
           <template #after-input>
             <ResetButton
-              v-model="values.button_border_radius"
+              v-model="v$.values.button_border_radius.$model"
               :default-value="theme?.button_border_radius"
             />
           </template>
@@ -156,7 +159,7 @@
           />
           <template #after-input>
             <ResetButton
-              v-model="padding"
+              v-model="v$.values.padding.$model"
               :default-value="
                 theme
                   ? {
@@ -183,14 +186,14 @@
           :label="$t('buttonThemeConfigBlock.backgroundColor')"
         >
           <ColorInput
-            v-model="values.button_background_color"
+            v-model="v$.values.button_background_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.button_background_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.button_background_color"
+              v-model="v$.values.button_background_color.$model"
               :default-value="theme?.button_background_color"
             />
           </template>
@@ -203,14 +206,14 @@
           :label="$t('buttonThemeConfigBlock.textColor')"
         >
           <ColorInput
-            v-model="values.button_text_color"
+            v-model="v$.values.button_text_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.button_text_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.button_text_color"
+              v-model="v$.values.button_text_color.$model"
               :default-value="theme?.button_text_color"
             />
           </template>
@@ -250,14 +253,14 @@
           :label="$t('buttonThemeConfigBlock.backgroundColor')"
         >
           <ColorInput
-            v-model="values.button_hover_background_color"
+            v-model="v$.values.button_hover_background_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.button_hover_background_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.button_hover_background_color"
+              v-model="v$.values.button_hover_background_color.$model"
               :default-value="theme?.button_hover_background_color"
             />
           </template>
@@ -269,14 +272,14 @@
           :label="$t('buttonThemeConfigBlock.textColor')"
         >
           <ColorInput
-            v-model="values.button_hover_text_color"
+            v-model="v$.values.button_hover_text_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.button_hover_text_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.button_hover_text_color"
+              v-model="v$.values.button_hover_text_color.$model"
               :default-value="theme?.button_hover_text_color"
             />
           </template>
@@ -288,14 +291,14 @@
           :label="$t('buttonThemeConfigBlock.borderColor')"
         >
           <ColorInput
-            v-model="values.button_hover_border_color"
+            v-model="v$.values.button_hover_border_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.button_hover_border_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.button_hover_border_color"
+              v-model="v$.values.button_hover_border_color.$model"
               :default-value="theme?.button_hover_border_color"
             />
           </template>
@@ -311,6 +314,7 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
@@ -320,8 +324,14 @@ import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySe
 import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
 import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
+import {
+  required,
+  integer,
+  minValue,
+  maxValue,
+  helpers,
+} from '@vuelidate/validators'
 
 const pixelSizeMin = 1
 const pixelSizeMax = 100
@@ -362,13 +372,32 @@ export default {
     PaddingSelector,
   },
   mixins: [themeConfigBlock],
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
-      values: {},
       defaultValuesWhenEmpty: {
         button_font_size: DEFAULT_FONT_SIZE_PX,
         button_border_size: minMax.button_border_size.min,
         button_border_radius: minMax.button_border_size.min,
+      },
+      values: {
+        button_font_size: this.theme?.button_font_size,
+        button_border_size: this.theme?.button_border_size,
+        button_border_radius: this.theme?.button_border_radius,
+        button_horizontal_padding: this.theme?.button_horizontal_padding,
+        button_vertical_padding: this.theme?.button_vertical_padding,
+        button_font_family: this.theme?.button_font_family,
+        button_text_alignment: this.theme?.button_text_alignment,
+        button_alignment: this.theme?.button_alignment,
+        button_text_color: this.theme?.button_text_color,
+        button_width: this.theme?.button_width,
+        button_background_color: this.theme?.button_background_color,
+        button_hover_background_color:
+          this.theme?.button_hover_background_color,
+        button_hover_text_color: this.theme?.button_hover_text_color,
+        button_hover_border_color: this.theme?.button_hover_border_color,
       },
     }
   },
@@ -380,11 +409,13 @@ export default {
       set(value) {
         // When we change the button width we want to keep the same alignment,
         // it's less confusing to the user.
-        this.values.button_width = value
+        this.v$.values.button_width.$model = value
         if (value === 'auto') {
-          this.values.button_alignment = this.values.button_text_alignment
+          this.v$.values.button_alignment.$model =
+            this.values.button_text_alignment
         } else {
-          this.values.button_text_alignment = this.values.button_alignment
+          this.v$.values.button_text_alignment.$model =
+            this.values.button_alignment
         }
       },
     },
@@ -396,8 +427,8 @@ export default {
         }
       },
       set(newValue) {
-        this.values.button_vertical_padding = newValue.vertical
-        this.values.button_horizontal_padding = newValue.horizontal
+        this.v$.values.button_vertical_padding.$model = newValue.vertical
+        this.v$.values.button_horizontal_padding.$model = newValue.horizontal
       },
     },
     paddingDefaults() {
@@ -418,10 +449,7 @@ export default {
       return key.startsWith('button_')
     },
     getError(property) {
-      if (this.$v.values[property].$invalid) {
-        return this.$t('error.minMaxValueField', minMax[property])
-      }
-      return null
+      return this.v$.values[property].$errors[0]?.$message
     },
     getPaddingError() {
       return (
@@ -430,37 +458,108 @@ export default {
       )
     },
   },
-  validations: {
-    values: {
-      button_font_size: {
-        required,
-        integer,
-        minValue: minValue(minMax.button_font_size.min),
-        maxValue: maxValue(minMax.button_font_size.max),
+  validations() {
+    return {
+      values: {
+        button_font_size: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', {
+              min: minMax.button_font_size.min,
+            }),
+            minValue(minMax.button_font_size.min)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', {
+              max: minMax.button_font_size.max,
+            }),
+            maxValue(minMax.button_font_size.max)
+          ),
+        },
+        button_border_size: {
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', {
+              min: minMax.button_border_size.min,
+            }),
+            minValue(minMax.button_border_size.min)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', {
+              max: minMax.button_border_size.max,
+            }),
+            maxValue(minMax.button_border_size.max)
+          ),
+        },
+        button_border_radius: {
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', {
+              min: minMax.button_border_radius.min,
+            }),
+            minValue(minMax.button_border_radius.min)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', {
+              max: minMax.button_border_radius.max,
+            }),
+            maxValue(minMax.button_border_radius.max)
+          ),
+        },
+        button_horizontal_padding: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', {
+              min: minMax.button_horizontal_padding.min,
+            }),
+            minValue(minMax.button_horizontal_padding.min)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', {
+              max: minMax.button_horizontal_padding.max,
+            }),
+            maxValue(minMax.button_horizontal_padding.max)
+          ),
+        },
+        button_vertical_padding: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', {
+              min: minMax.button_vertical_padding.min,
+            }),
+            minValue(minMax.button_vertical_padding.min)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', {
+              max: minMax.button_vertical_padding.max,
+            }),
+            maxValue(minMax.button_vertical_padding.max)
+          ),
+        },
+        button_background_color: {},
+        button_hover_background_color: {},
+        button_hover_text_color: {},
+        button_hover_border_color: {},
+        button_font_family: {},
+        button_text_color: {},
+        button_text_alignment: {},
+        button_alignment: {},
+        button_width: {},
+        padding: {},
       },
-      button_border_size: {
-        integer,
-        minValue: minValue(minMax.button_border_size.min),
-        maxValue: maxValue(minMax.button_border_size.max),
-      },
-      button_border_radius: {
-        integer,
-        minValue: minValue(minMax.button_border_radius.min),
-        maxValue: maxValue(minMax.button_border_radius.max),
-      },
-      button_horizontal_padding: {
-        required,
-        integer,
-        minValue: minValue(minMax.button_horizontal_padding.min),
-        maxValue: maxValue(minMax.button_horizontal_padding.max),
-      },
-      button_vertical_padding: {
-        required,
-        integer,
-        minValue: minValue(minMax.button_vertical_padding.min),
-        maxValue: maxValue(minMax.button_vertical_padding.max),
-      },
-    },
+    }
   },
 }
 </script>

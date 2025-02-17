@@ -16,12 +16,12 @@
       </template>
 
       <Dropdown
-        v-model="values.ai_file_field_id"
+        v-model="v$.values.ai_file_field_id.$model"
         class="dropdown--floating"
-        :error="$v.values.ai_file_field_id.$error"
+        :error="fieldHasErrors('ai_file_field_id')"
         :fixed-items="true"
         :show-search="false"
-        @hide="$v.values.ai_file_field_id.$touch()"
+        @hide="v$.values.ai_file_field_id.$touch"
       >
         <DropdownItem
           :name="$t('fieldAISubForm.emptyFileField')"
@@ -43,7 +43,7 @@
       :help-icon-tooltip="$t('fieldAISubForm.outputTypeTooltip')"
     >
       <Dropdown
-        v-model="values.ai_output_type"
+        v-model="v$.values.ai_output_type.$model"
         class="dropdown--floating"
         :fixed-items="true"
       >
@@ -63,16 +63,16 @@
     <FormGroup
       small-label
       :label="$t('fieldAISubForm.prompt')"
-      :error="$v.values.ai_prompt.$dirty && $v.values.ai_prompt.$error"
+      :error="fieldHasErrors('ai_prompt')"
       required
     >
       <div style="max-width: 366px">
         <FormulaInputField
-          v-model="values.ai_prompt"
+          v-model="v$.values.ai_prompt.$model"
           :data-providers="dataProviders"
           :application-context="applicationContext"
           :placeholder="$t('fieldAISubForm.promptPlaceholder')"
-          @input="$v.values.ai_prompt.$touch()"
+          @input="v$.values.ai_prompt.$touch()"
         ></FormulaInputField>
       </div>
       <template #error> {{ $t('error.requiredField') }}</template>
@@ -92,8 +92,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
@@ -104,6 +104,9 @@ export default {
   name: 'FieldAISubForm',
   components: { SelectAIModelForm, FormulaInputField },
   mixins: [form, fieldSubForm],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: ['ai_prompt', 'ai_file_field_id', 'ai_output_type'],
@@ -177,11 +180,14 @@ export default {
       }
     },
   },
-  validations: {
-    values: {
-      ai_prompt: { required },
-      ai_file_field_id: {},
-    },
+  validations() {
+    return {
+      values: {
+        ai_prompt: { required },
+        ai_file_field_id: {},
+        ai_output_type: {},
+      },
+    }
   },
 }
 </script>

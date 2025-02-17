@@ -6,7 +6,7 @@
       small-label
       :label="$t('columnElementForm.columnAmountTitle')"
     >
-      <Dropdown v-model="values.column_amount" :show-search="false">
+      <Dropdown v-model="v$.values.column_amount.$model" :show-search="false">
         <DropdownItem
           v-for="columnAmount in columnAmounts"
           :key="columnAmount.value"
@@ -23,14 +23,13 @@
       small-label
       required
       :label="$t('columnElementForm.columnGapTitle')"
-      :error-message="errorMessage"
+      :error-message="getFirstErrorMessage('column_gap')"
     >
       <FormInput
-        v-model="values.column_gap"
+        v-model="v$.values.column_gap.$model"
         :label="$t('columnElementForm.columnGapTitle')"
         :placeholder="$t('columnElementForm.columnGapPlaceholder')"
         type="number"
-        @blur="$v.values.column_gap.$touch()"
       />
     </FormGroup>
 
@@ -45,9 +44,16 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { VERTICAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
+import {
+  required,
+  integer,
+  minValue,
+  maxValue,
+  helpers,
+} from '@vuelidate/validators'
 import VerticalAlignmentSelector from '@baserow/modules/builder/components/VerticalAlignmentSelector'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 
@@ -57,6 +63,9 @@ export default {
     VerticalAlignmentSelector,
   },
   mixins: [elementForm],
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
       values: {
@@ -64,6 +73,7 @@ export default {
         column_gap: 30,
         alignment: VERTICAL_ALIGNMENTS.TOP,
       },
+      allowedValues: ['column_amount', 'column_gap', 'alignment'],
     }
   },
   computed: {
@@ -76,18 +86,6 @@ export default {
         value: columnAmount + 1,
       }))
     },
-    errorMessage() {
-      return this.$v.values.column_gap.$dirty &&
-        !this.$v.values.column_gap.required
-        ? this.$t('error.requiredField')
-        : !this.$v.values.column_gap.integer
-        ? this.$t('error.integerField')
-        : !this.$v.values.column_gap.minValue
-        ? this.$t('error.minValueField', { min: 0 })
-        : !this.$v.values.column_gap.maxValue
-        ? this.$t('error.maxValueField', { max: 2000 })
-        : ''
-    },
   },
   methods: {
     emitChange(newValues) {
@@ -96,15 +94,29 @@ export default {
       }
     },
   },
-  validations: {
-    values: {
-      column_gap: {
-        required,
-        integer,
-        minValue: minValue(0),
-        maxValue: maxValue(2000),
+  validations() {
+    return {
+      values: {
+        column_gap: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          minValue: helpers.withMessage(
+            this.$t('error.minValueField', { min: 0 }),
+            minValue(1)
+          ),
+          maxValue: helpers.withMessage(
+            this.$t('error.maxValueField', { max: 2000 }),
+            maxValue(2000)
+          ),
+        },
+        column_amount: {
+          integer,
+        },
       },
-    },
+    }
   },
 }
 </script>

@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <FormGroup
-      :error="fieldHasErrors('name')"
+      :error="v$.values.name.$error"
       small-label
       :label="$t('snapshotsModal.createLabel')"
       required
@@ -9,13 +9,16 @@
       <slot name="input">
         <FormInput
           ref="name"
-          v-model="values.name"
+          v-model="v$.values.name.$model"
           size="large"
           :error="fieldHasErrors('name')"
           class="snapshots-modal__name-input"
-          @blur="$v.values.name.$touch()"
         />
       </slot>
+
+      <template #error>
+        {{ v$.values.name.$errors[0]?.$message }}
+      </template>
 
       <template #after-input>
         <slot></slot>
@@ -26,7 +29,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import moment from '@baserow/modules/core/moment'
 
@@ -43,6 +47,9 @@ export default {
       required: true,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {
@@ -50,6 +57,7 @@ export default {
       },
     }
   },
+
   methods: {
     getDefaultName() {
       const datetime = moment().format('YYYY-MM-DD HH:mm:ss')
@@ -67,8 +75,14 @@ export default {
     return {
       values: {
         name: {
-          required,
-          mustHaveUniqueName: this.mustHaveUniqueName,
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          mustHaveUniqueName: helpers.withMessage(
+            this.$t('snapshotsModal.nameAlreadyExists'),
+            this.mustHaveUniqueName
+          ),
         },
       },
     }
