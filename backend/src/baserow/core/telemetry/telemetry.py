@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 
+from celery import signals
 from opentelemetry import metrics, trace
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
@@ -102,6 +103,7 @@ def setup_telemetry(add_django_instrumentation: bool):
             )
             metrics.set_meter_provider(provider)
 
+            _setup_celery_metrics()
             _setup_standard_backend_instrumentation()
 
             print("Configured default backend instrumentation")
@@ -127,6 +129,21 @@ def _setup_log_exporting(logger):
     logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
     logger.add(handler, format="{message}", level=settings.BASEROW_BACKEND_LOG_LEVEL)
     logger.info("Logger open telemetry exporting setup.")
+
+
+meter = metrics.get_meter("celery_tasks")
+task_counter = meter.create_counter(
+    name="baserow.celery_task_scheduled",
+    description="Number of times each Celery task has been scheduled",
+    unit="1",
+)
+
+
+def _setup_celery_metrics():
+    def count_task(sender, **kwargs):
+        task_counter.add(1, {"task_name": sender})
+
+    signals.after_task_publish.connect(count_task, weak=False)
 
 
 def _setup_standard_backend_instrumentation():
