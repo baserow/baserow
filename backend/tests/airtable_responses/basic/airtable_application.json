@@ -54,12 +54,14 @@
           {
             "id":"fldG9y88Zw7q7u4Z7i4",
             "name":"Name",
-            "type":"text"
+            "type":"text",
+            "description": ""
           },
           {
             "id":"fldB7wkyR0buF1sRF9O",
             "name":"Email",
             "type":"text",
+            "description": "This is an email",
             "typeOptions":{
               "validatorName":"email"
             }
