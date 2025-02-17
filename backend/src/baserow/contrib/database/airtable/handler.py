@@ -247,7 +247,6 @@ class AirtableHandler:
         baserow_field.pk = 0
         baserow_field.name = column["name"]
         baserow_field.order = order
-        print(column.get("description"))
         baserow_field.description = column.get("description", None) or None
         baserow_field.primary = (
             baserow_field_type.can_be_primary_field(baserow_field)
