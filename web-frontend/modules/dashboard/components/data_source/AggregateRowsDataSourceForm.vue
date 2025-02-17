@@ -290,20 +290,20 @@ export default {
     },
   },
   validations() {
-    const self = this // Capture the current context
+    const self = this
     return {
       values: {
         table_id: {
           required,
           isValidTableId: (value) => {
-            const ids = self.tableIds // Access the latest state
+            const ids = self.tableIds
             return includes(ids)(value)
           },
         },
         view_id: {
           required,
           isValidViewId: (value) => {
-            const ids = self.tableViewIds // Access the latest state
+            const ids = self.tableViewIds
 
             return includesIfSet(ids)(value)
           },
@@ -311,14 +311,14 @@ export default {
         field_id: {
           required,
           isValidFieldId: (value) => {
-            const ids = self.tableFieldIds // Access the latest state
+            const ids = self.tableFieldIds
             return includes(ids)(value)
           },
         },
         aggregation_type: {
           required,
           isValidAggregationType: (value) => {
-            const types = self.aggregationTypeNames // Access the latest state
+            const types = self.aggregationTypeNames
             return includes(types)(value)
           },
         },

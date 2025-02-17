@@ -12,7 +12,7 @@
         <Dropdown
           v-model="values.aggregation_type"
           :error="fieldHasErrors('aggregation_type')"
-          @change="$v.values.aggregation_type.$touch()"
+          @change="v$.values.aggregation_type.$touch()"
         >
           <DropdownItem
             v-for="viewAggregation in viewAggregationTypes"
@@ -34,7 +34,7 @@
           v-model="values.field_id"
           :error="fieldHasErrors('field_id')"
           :disabled="compatibleFields.length === 0"
-          @change="$v.values.field_id.$touch()"
+          @change="v$.values.field_id.$touch()"
         >
           <DropdownItem
             v-for="field in compatibleFields"
@@ -59,8 +59,9 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 
 const includes = (array) => (value) => {
   return array.includes(value)
@@ -69,6 +70,9 @@ const includes = (array) => (value) => {
 export default {
   name: 'AggregationSeriesForm',
   mixins: [form],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   props: {
     tableFields: {
       type: Array,
@@ -116,7 +120,7 @@ export default {
     defaultValues: {
       handler() {
         this.reset(true)
-        this.$v.$touch(true)
+        this.v$.$touch(true)
       },
       immediate: true,
       deep: true,

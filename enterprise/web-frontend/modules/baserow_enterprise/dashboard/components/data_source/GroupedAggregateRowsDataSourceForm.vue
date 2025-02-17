@@ -17,7 +17,7 @@
           :show-search="true"
           fixed-items
           :error="fieldHasErrors('table_id')"
-          @change="$v.values.table_id.$touch()"
+          @change="v$.values.table_id.$touch()"
         >
           <DropdownSection
             v-for="database in databases"
@@ -50,7 +50,7 @@
           :show-search="false"
           fixed-items
           :error="fieldHasErrors('view_id')"
-          @change="$v.values.view_id.$touch()"
+          @change="v$.values.view_id.$touch()"
         >
           <DropdownItem
             :name="$t('groupedAggregateRowsDataSourceForm.notSelected')"
@@ -103,8 +103,9 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
-import { required } from 'vuelidate/lib/validators'
+import { required } from '@vuelidate/validators'
 import AggregationSeriesForm from '@baserow_enterprise/dashboard/components/data_source/AggregationSeriesForm'
 import AggregationGroupByForm from '@baserow_enterprise/dashboard/components/data_source/AggregationGroupByForm'
 
@@ -137,6 +138,9 @@ export default {
       required: false,
       default: '',
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -205,7 +209,7 @@ export default {
         this.reset(true)
         // Run form validation so that
         // problems are highlighted immediately
-        this.$v.$touch(true)
+        this.v$.$touch(true)
       },
       immediate: true,
       deep: true,
