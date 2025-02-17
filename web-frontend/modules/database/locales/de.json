@@ -72,7 +72,8 @@
         "webhooks": "Webhooks",
         "lastSynced": "Zuletzt synchronisiert",
         "notSynced": "nicht sychnronisiert",
-        "sync": "Tabelle synchronisieren"
+        "sync": "Tabelle synchronisieren",
+        "updateSyncConfig": "Sync-Konfiguration aktualisieren"
     },
     "apiToken": {
         "create": "erstellen",
@@ -243,7 +244,10 @@
         "integer": "Integer",
         "decimal": "Dezimal",
         "decimalPlacesLabel": "Dezimalstellen",
-        "allowNegative": "Negativ zulassen"
+        "allowNegative": "Negativ zulassen",
+        "separatorLabel": "Tausender- und Dezimaltrennzeichen",
+        "prefixPlaceholder": "Präfix",
+        "suffixPlaceholder": "Suffix"
     },
     "fieldContext": {
         "editField": "Feld bearbeiten",
