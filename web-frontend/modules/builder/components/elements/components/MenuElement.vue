@@ -6,11 +6,11 @@
       element.orientation === 'horizontal' ? 'horizontal' : 'vertical',
     ]"
   >
-    <div v-for="item in element.menu_items" :key="item.id">
+    <div class="menu-element__menu-item" v-for="item in element.menu_items" :key="item.id">
       <template v-if="item.type === 'separator'">
         <div class="menu-element__menu-separator"></div>
       </template>
-      <template v-else-if="item.menu_item_variant === 'link' && !item.parent_menu_item" >
+      <template v-else-if="item.menu_item_variant === 'link' && !item.parent_menu_item">
         <div class="menu-element__menu-link-container">
           <div v-if="!item.children?.length">
             <LinkElement
@@ -18,15 +18,22 @@
               class="menu-element__menu-item-link"
             />
           </div>
-          <div v-else class="menu-element__menu-item-link" @click="toggleExpanded(item.id)">
-            <a>{{ getResolvedValue(item.name) }}</a>
-            <i
-              class="menu-element__menu-link-expanded-icon"
-              :class="
-                isExpanded(item.id) ? 'iconoir-nav-arrow-up' : 'iconoir-nav-arrow-down'
-              "
-            />
-            <div v-if="isExpanded(item.id)" class="menu-element__sub-link-menu-container">
+          <div class="menu-element__sub-link-menu-container" v-else @click="toggleExpanded(item.id)">
+            <div class="menu-element__sub-link-menu-container-item">
+              <div class="menu-element__menu-item-link">
+                <a>{{ getResolvedValue(item.name) }}</a>
+              </div>
+              <div v-if="element.orientation === 'vertical'" class="menu-element__spacer"></div>
+              <div>
+                <i
+                  class="menu-element__menu-link-expanded-icon"
+                  :class="
+                    isExpanded(item.id) ? 'iconoir-nav-arrow-up' : 'iconoir-nav-arrow-down'
+                  "
+                />
+              </div>
+            </div>
+            <div v-if="isExpanded(item.id)">
               <div class="menu-element__sub-link-menu">
                 <LinkElement
                   v-for="child in item.children" :key="child.id"

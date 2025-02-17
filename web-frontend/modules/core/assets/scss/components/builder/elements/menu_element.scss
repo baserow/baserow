@@ -6,16 +6,26 @@
 
 .menu-element__menu-items-container {
   display: flex;
-  align-items: center;
 }
 
 .menu-element__menu-items-container.vertical {
   flex-direction: column;
+  gap: 20px;
 }
 
 .menu-element__menu-items-container.horizontal {
   flex-direction: row;
+  align-items: center;
   gap: 20px;
+}
+
+.vertical .menu-element__menu-item {
+  width: 100%;
+}
+
+.menu-element__menu-link-container {
+  display: flex;
+  position: relative;
 }
 
 .menu-element__menu-item-link a {
@@ -34,20 +44,28 @@
   justify-content: flex-end;
 }
 
-.menu-element__menu-link-container {
-  display: flex;
-  position: relative;
-}
+
 
 .menu-element__menu-link-expanded-icon {
   margin-left: 5px;
 }
 
 .menu-element__sub-link-menu-container {
-  position: absolute;
+  display: flex;
   width: 100%;
-  left: 0;
 }
+
+.menu-element__sub-link-menu-container-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+// .menu-element__sub-link-menu-container {
+//   position: absolute;
+//   width: 100%;
+//   left: 0;
+// }
 
 .menu-element__sub-link-menu {
   position: absolute;
@@ -63,13 +81,13 @@
   padding: 10px;
 
   .menu-element__menu-item-link {
-    width: 100%; // Make the link element take full width
-    display: block; // Ensure block-level display
+    width: 100%;
+    display: block;
   }
 
   a {
     display: block;
-    width: 100%; // Ensure the anchor takes full width
+    width: 100%;
     padding: 10px;
     text-decoration: none;
     color: black;
@@ -77,7 +95,7 @@
 
   a:hover {
     background: #f0f0f0;
-    width: 100%; // Ensure hover effect spans full width
+    width: 100%;
   }
 }
 
@@ -87,4 +105,12 @@
   background-color: lightgray;
   // small gap at top/bottom
   margin: 5px 0;
+}
+
+.menu-element__spacer {
+  flex: 1;
+}
+
+.vertical .menu-element__sub-link-menu {
+  width: 100%;
 }
