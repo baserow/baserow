@@ -87,13 +87,8 @@ class LicenseType(abc.ABC, Instance):
 
         from baserow.contrib.builder.handler import BuilderHandler
 
-        application_users_taken = (
-            license_object.application_users_taken
-            if hasattr(license_object, "application_users_taken")
-            else BuilderHandler().aggregate_user_source_counts()
-        )
         return BuilderUsageSummary(
-            application_users_taken=application_users_taken,
+            application_users_taken=BuilderHandler().aggregate_user_source_counts(),
         )
 
     def get_builder_usage_summary_for_workspace(
