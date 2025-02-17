@@ -8,7 +8,12 @@
         "comingSoon": "In Kürze verfügbar...",
         "billable": "Abrechenbar",
         "all": "Alle",
-        "beta": "Beta"
+        "beta": "Beta",
+        "enabled": "Aktiviert",
+        "summarize": "Zusammenfassen",
+        "disabled": "Deaktiviert",
+        "or": "oder",
+        "and": "und"
     },
     "action": {
         "upload": "Hochladen",
@@ -40,7 +45,10 @@
         "reset": "Zurücksetzen",
         "set": "Festlegen",
         "logout": "Abmelden",
-        "backToHome": "Zurück zur Startseite"
+        "backToHome": "Zurück zur Startseite",
+        "hide": "Verstecken",
+        "close": "Schließen",
+        "getStarted": "Erste Schritte"
     },
     "adminType": {
         "settings": "Einstellungen",
@@ -58,7 +66,11 @@
         "databases": "Datenbanken",
         "databaseDesc": "Erstellen Sie eine geordnete Sammlung strukturierter Daten.",
         "builders": "Anwendungen",
-        "builderDesc": "Erstellen Sie Websites, Webanwendungen und Portale ganz einfach ohne Code."
+        "builderDesc": "Erstellen Sie Websites, Webanwendungen und Portale ganz einfach ohne Code.",
+        "dashboard": "Dashboard",
+        "dashboardDesc": "Visualisieren Sie Ihre Daten und Metriken mit Diagrammen, Tabellen oder Graphen.",
+        "dashboards": "Dashboards",
+        "dashboardDefaultName": "Unbenanntes Dashboard"
     },
     "settingType": {
         "account": "Konto",
@@ -88,7 +100,9 @@
         "invalidNumber": "Das Feld muss eine Zahl sein.",
         "email": "Das Feld muss eine E-Mailadresse sein.",
         "invalidURL": "Bitte geben Sie eine gültige URL ein.",
-        "alreadyInUse": "Dieser Feldname wird bereits verwendet."
+        "alreadyInUse": "Dieser Feldname wird bereits verwendet.",
+        "invalidCharacters": "Das Feld beinhaltet ungültige Zeichen.",
+        "decimalField": "Das Feld muss eine Dezimalzahl sein."
     },
     "permission": {
         "admin": "Administration",
@@ -255,7 +269,9 @@
         "hasNotValueEqual": "hat nicht den gleichen Wert",
         "hasValueContains": "enthält einen Wert",
         "hasNotValueContains": "enthält keinen Wert",
-        "hasValueContainsWord": "enthält ein Wort als Wert"
+        "hasValueContainsWord": "enthält ein Wort als Wert",
+        "hasAnySelectOptionEqual": "hat eine beliebige Select-Option gleich",
+        "hasNoneSelectOptionEqual": "hat keine Select-Option gleich"
     },
     "viewType": {
         "grid": "Gitternetz",
