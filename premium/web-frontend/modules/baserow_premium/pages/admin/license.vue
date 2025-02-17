@@ -95,7 +95,7 @@
             </div>
           </div>
 
-          <div class="license-detail__item">
+          <div v-if="license.application_users" class="license-detail__item">
             <div class="license-detail__item-label">
               <div class="license-detail__item-name">
                 {{ $t('license.applicationUsers') }}

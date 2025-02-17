@@ -131,7 +131,8 @@
               {{ license.application_users_taken }} / {{ license.application_users }}
               {{ $t('licenses.applicationUsers') }}
             </li>
-
+          </ul>
+          <ul class="licenses__item-details">
             <li
               class="licenses__item-detail-item"
               v-for="(feature, index) in licenseFeatureDescription(license)"
@@ -147,6 +148,7 @@
               ></i>
             </li>
           </ul>
+
         </nuxt-link>
       </div>
     </div>
