@@ -384,7 +384,7 @@ class DataSourceService:
         Dispatch the service related to the data_source if the user has the permission.
 
         :param user: The current user.
-        :param data_sources: The data source to be dispatched.
+        :param data_source: The data source to be dispatched.
         :param dispatch_context: The context used for the dispatch.
         :return: return the dispatch result.
         """

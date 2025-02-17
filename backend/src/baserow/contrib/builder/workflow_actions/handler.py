@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -25,6 +25,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.handler import WorkflowActionHandler
 from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.workflow_actions.registries import WorkflowActionType
@@ -174,7 +175,7 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
         self,
         workflow_action: BuilderWorkflowServiceAction,
         dispatch_context: BuilderDispatchContext,
-    ) -> Any:
+    ) -> DispatchResult:
         """
         Dispatch the service related to the workflow_action.
 
@@ -185,11 +186,13 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
         :return: The result of dispatching the workflow action.
         """
 
-        result = ServiceHandler().dispatch_service(
+        dispatch_result = ServiceHandler().dispatch_service(
             workflow_action.service.specific, dispatch_context
         )
 
         for data_provider in builder_data_provider_type_registry.get_all():
-            data_provider.post_dispatch(dispatch_context, workflow_action, result)
+            data_provider.post_dispatch(
+                dispatch_context, workflow_action, dispatch_result
+            )
 
-        return result
+        return dispatch_result

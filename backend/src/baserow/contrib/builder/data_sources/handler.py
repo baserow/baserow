@@ -448,7 +448,7 @@ class DataSourceHandler:
             # it later
             dispatch_context.cache["data_source_contents"][
                 data_source.id
-            ] = service_dispatch
+            ] = service_dispatch.data
 
         return dispatch_context.cache["data_source_contents"][data_source.id]
 

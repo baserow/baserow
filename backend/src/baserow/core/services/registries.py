@@ -19,6 +19,7 @@ from baserow.core.registry import (
     Registry,
 )
 from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.services.types import DispatchResult
 
 from .exceptions import ServiceTypeDoesNotExist
 from .models import Service
@@ -195,13 +196,13 @@ class ServiceType(
     def dispatch_transform(
         self,
         data: Any,
-    ) -> Any:
+    ) -> DispatchResult:
         """
         Responsible for taking the `dispatch_data` result and transforming its value
         for API consumer's consumption.
 
         :param data: The `dispatch_data` result.
-        :return: The transformed `dispatch_transform` result if any.
+        :return: The transformed `dispatch_transform` result.
         """
 
     def dispatch_data(
@@ -224,7 +225,7 @@ class ServiceType(
         self,
         service: ServiceSubClass,
         dispatch_context: DispatchContext,
-    ) -> Any:
+    ) -> DispatchResult:
         """
         Responsible for calling `dispatch_data` and `dispatch_transform` to execute
         the service's task, and generating the dispatch's response, respectively.

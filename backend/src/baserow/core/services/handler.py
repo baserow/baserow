@@ -18,7 +18,7 @@ from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
 
 from .dispatch_context import DispatchContext
-from .types import ServiceForUpdate, UpdatedService
+from .types import DispatchResult, ServiceForUpdate, UpdatedService
 
 
 class ServiceHandler:
@@ -202,7 +202,7 @@ class ServiceHandler:
         self,
         service: Service,
         dispatch_context: DispatchContext,
-    ) -> Any:
+    ) -> DispatchResult:
         """
         Dispatch the given service.
 

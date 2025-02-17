@@ -7,7 +7,6 @@ from django.http import HttpRequest
 from django.shortcuts import reverse
 
 import pytest
-from rest_framework.response import Response
 
 from baserow.contrib.builder.data_providers.data_provider_types import (
     CurrentRecordDataProviderType,
@@ -39,6 +38,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.core.formula.exceptions import InvalidBaserowFormula
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.types import DispatchResult
 from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import MirrorDict
@@ -984,7 +984,7 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
     workflow_action.id = 100
 
     mock_cache_key = "mock-cache-key"
-    mock_result = {"mock-key": "mock-value"}
+    mock_result = DispatchResult(data={"mock-key": "mock-value"})
     previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
         return_value=mock_cache_key
     )
@@ -1001,12 +1001,12 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
     )
     mock_cache.set.assert_called_once_with(
         mock_cache_key,
-        mock_result,
+        mock_result.data,
         timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS,
     )
 
 
-def test_previous_action_data_provider_post_dispatch_with_response_doesnt_cache_result():
+def test_previous_action_data_provider_post_dispatch_with_empty_response_cache_result():
     """
     Ensure that when a current_dispatch_id is present in the request, the
     provided result is cached.
@@ -1026,7 +1026,7 @@ def test_previous_action_data_provider_post_dispatch_with_response_doesnt_cache_
     workflow_action.id = 100
 
     mock_cache_key = "mock-cache-key"
-    mock_result = Response(status=204)
+    mock_result = DispatchResult(status=204)
     previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
         return_value=mock_cache_key
     )

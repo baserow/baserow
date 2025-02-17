@@ -5,8 +5,6 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext as _
 
-from rest_framework.response import Response
-
 from baserow.contrib.builder.data_providers.exceptions import (
     DataProviderChunkInvalidException,
     FormDataProviderChunkInvalidException,
@@ -31,6 +29,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
 from baserow.core.formula.exceptions import FormulaRecursion, InvalidBaserowFormula
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.services.types import DispatchResult
 from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import get_value_at_path
@@ -449,7 +448,7 @@ class PreviousActionProviderType(DataProviderType):
         self,
         dispatch_context: DispatchContext,
         workflow_action: WorkflowAction,
-        result: Any,
+        dispatch_result: DispatchResult,
     ) -> None:
         """
         If the current_dispatch_id exists in the request data, create a unique
@@ -470,7 +469,7 @@ class PreviousActionProviderType(DataProviderType):
             )
             cache.set(
                 cache_key,
-                {} if isinstance(result, Response) else result,
+                dispatch_result.data,
                 timeout=settings.BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS,
             )
 
