@@ -193,7 +193,8 @@
     "textFormatTypeMarkdown": "Markdown"
   },
   "menuElement": {
-    "missingValue": "Missing menu item"
+    "missingValue": "Missing menu item",
+    "separator": "Separator"
   },
   "menuElementForm": {
     "orientationLabel": "Orientation",

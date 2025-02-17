@@ -67,7 +67,12 @@
                 v-if="!expanded && menuItemInError(item)"
                 class="table-element-form__field-error iconoir-warning-circle"
               ></i>
-              {{ getResolvedName(item.name) }}
+              <template v-if="item.type === 'separator'">
+                {{ $t('menuElement.separator') }}
+              </template>
+              <template v-else>
+                {{ getResolvedName(item.name) }}
+              </template>
             </div>
             <i
               :class="
