@@ -615,6 +615,7 @@ class DatabaseConfig(AppConfig):
         webhook_event_type_registry.register(ViewDeletedEventType())
 
         from .airtable.airtable_column_types import (
+            AutoNumberAirtableColumnType,
             CheckboxAirtableColumnType,
             CountAirtableColumnType,
             DateAirtableColumnType,
@@ -645,6 +646,7 @@ class DatabaseConfig(AppConfig):
         airtable_column_type_registry.register(MultipleAttachmentAirtableColumnType())
         airtable_column_type_registry.register(RichTextTextAirtableColumnType())
         airtable_column_type_registry.register(CountAirtableColumnType())
+        airtable_column_type_registry.register(AutoNumberAirtableColumnType())
 
         from .data_sync.data_sync_types import (
             ICalCalendarDataSyncType,

@@ -25,6 +25,7 @@ from baserow.contrib.database.airtable.import_report import (
 )
 from baserow.contrib.database.airtable.registry import airtable_column_type_registry
 from baserow.contrib.database.fields.models import (
+    AutonumberField,
     BooleanField,
     CountField,
     CreatedOnField,
@@ -2096,3 +2097,44 @@ def test_airtable_import_count_column(data_fixture, api_client):
         )
         is None
     )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_autonumber_column(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldG9y88Zw7q7u4Z7i4",
+        "name": "ID",
+        "type": "autoNumber",
+        "typeOptions": {
+            "maxUsedAutoNumber": 8,
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+    assert len(import_report.items) == 0
+    assert isinstance(baserow_field, AutonumberField)
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            1,
+            {},
+            AirtableImportConfig(),
+            import_report,
+        )
+        == 1
+    )
+    assert len(import_report.items) == 0

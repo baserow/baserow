@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
 from baserow.contrib.database.fields.models import (
     NUMBER_MAX_DECIMAL_PLACES,
+    AutonumberField,
     BooleanField,
     CountField,
     CreatedOnField,
@@ -634,3 +635,12 @@ class CountAirtableColumnType(AirtableColumnType):
         import_report,
     ):
         return None
+
+
+class AutoNumberAirtableColumnType(AirtableColumnType):
+    type = "autoNumber"
+
+    def to_baserow_field(
+        self, raw_airtable_table, raw_airtable_column, config, import_report
+    ):
+        return AutonumberField()
