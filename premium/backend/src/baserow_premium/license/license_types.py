@@ -11,7 +11,7 @@ class PremiumLicenseType(LicenseType):
     features = [PREMIUM]
 
     def get_seat_usage_summary(self, license_object: License) -> SeatUsageSummary:
-        # The attributes will exist on `obj` if this method is
+        # The attributes will exist on `license_object` if this method is
         # called at least once by `LicenseSerializer`.
         seats_taken = (
             license_object.seats_taken
