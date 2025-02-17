@@ -129,7 +129,9 @@
         "leaveWorkspace": "Arbeitsbereich verlassen",
         "deleteWorkspace": "Arbeitsbereich löschen",
         "auditLog": "Audit-Log",
-        "settings": "Einstellungen"
+        "settings": "Einstellungen",
+        "importWorkspace": "Daten importieren",
+        "exportWorkspace": "Daten exportieren"
     },
     "createWorkspaceModal": {
         "createNew": "Neuen Arbeitsbereich erstellen",
@@ -728,7 +730,17 @@
         "ollamaHostDescription": "Geben Sie den Hostnamen Ihres [Ollama](https://ollama.com/)-Servers an. Dieser läuft normalerweise lokal auf Ihrem eigenen Gerät.",
         "ollamaModelsLabel": "Aktivierte Modelle",
         "ollama": "Ollama",
-        "ollamaHostLabel": "Host"
+        "ollamaHostLabel": "Host",
+        "anthropic": "Anthropic",
+        "anthropicApiKeyLabel": "API-Schlüssel",
+        "anthropicModelsLabel": "Aktivierte Modelle",
+        "mistral": "Mistral",
+        "mistralApiKeyLabel": "API-Schlüssel",
+        "anthropicApiKeyDescription": "Geben Sie einen Anthropic-API-Schlüssel an, wenn Sie die Integration aktivieren möchten. [Anweisungen zum Erhalt eines API-Schlüssels](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicModelsDescription": "Geben Sie eine durch Kommata getrennte Liste von [Anthropic-Modellen](https://docs.anthropic.com/en/docs/about-claude/models) an, die in Baserow verwendet werden können. (z.B. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "mistralApiKeyDescription": "Geben Sie einen Mistral-API-Schlüssel an, wenn Sie die Integration aktivieren möchten. [Anleitung zum Erhalt eines API-Schlüssels](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralModelsLabel": "Aktivierte Modelle",
+        "mistralModelsDescription": "Geben Sie eine durch Kommata getrennte Liste von [Mistral-Modellen](https://docs.mistral.ai/getting-started/models/models_overview/) an, die in Baserow verwendet werden können. (z.B. `mistral-large-latest, mistral-small-latest`)"
     },
     "emailNotVerified": {
         "title": "Bestätigung der E-Mailadresse notwendig",
@@ -918,5 +930,49 @@
         "activeUsers7days": "Aktive Benutzer in den letzten 7 Tagen",
         "activeUsers30days": "Aktive Benutzer in den letzten 30 Tagen",
         "viewAll": "Alle anzeigen"
+    },
+    "exportWorkspaceModal": {
+        "title": "Exportieren",
+        "description": "Ihre Daten werden als ZIP-Datei exportiert, die in andere Baserow-Instanzen importiert werden kann.",
+        "exportSettings": "Einstellungen exportieren",
+        "export": "Daten exportieren",
+        "reset": "Von vorne beginnen",
+        "cancel": "Abbrechen",
+        "download": "Herunterladen",
+        "noExports": "Für diesen Arbeitsbereich gibt es noch keine Exporte.",
+        "created": "erstellt",
+        "exportingState": "Exportiere",
+        "exportingTableState": "Exportiere Tabelle: {table}",
+        "exportingCreateArchiveState": "Erstelle Archiv"
+    },
+    "exportWorkspaceForm": {
+        "onlyStructureLabel": "Nur die Struktur exportieren",
+        "onlyStructureDescription": "Wenn diese Option aktiviert ist, wird nur die Struktur der Anwendungen exportiert. Die Daten werden nicht enthalten sein.",
+        "exportSettingsLabel": "Einstellungen exportieren"
+    },
+    "importWorkspaceModal": {
+        "databases": "Datenbanken",
+        "untrustedPublicKeyMessage": "Die bereitgestellte Datei wurde mit einem nicht vertrauenswürdigen öffentlichen Schlüssel signiert. Bitten Sie Ihren Administrator, den öffentlichen Schlüssel zur Liste der vertrauenswürdigen Schlüssel hinzuzufügen oder die Signaturprüfung zu deaktivieren, um diese Datei importieren zu können.",
+        "retry": "Wiederholen",
+        "description": "Sie können bestehende Baserow-Daten importieren, indem Sie die .zip-Datei einer anderen Baserow-Instanz hochladen.",
+        "import": "Daten importieren",
+        "upload": "Hochladen",
+        "cancel": "Abbrechen",
+        "done": "Abgeschlossen",
+        "close": "Schließen",
+        "uploading": "Hochladen...",
+        "chooseFile": "Datei auswählen",
+        "selectApplications": "Zu importierende Daten auswählen",
+        "deselectAll": "Alle abwählen",
+        "selectAll": "Alle auswählen",
+        "applications": "Anwendungen",
+        "successTitle": "Baserow-Daten erfolgreich importiert",
+        "successMessage": "{count} Anwendungen importiert",
+        "signatureVerificationNote": "Es ist nicht möglich, eine ZIP-Datei aus einer nicht vertrauenswürdigen Quelle zu importieren.",
+        "invalidResourceTitle": "Ungültige Ressource",
+        "invalidResourceMessage": "Die bereitgestellte Datei ist kein gültiger Baserow-Export.",
+        "untrustedPublicKeyTitle": "Nicht vertrauenswürdige Signatur",
+        "importingState": "Importiere",
+        "title": "Baserow-Daten importieren"
     }
 }
