@@ -46,7 +46,7 @@
 
 
 
-.menu-element__menu-link-expanded-icon {
+.horizontal .menu-element__menu-link-expanded-icon {
   margin-left: 5px;
 }
 
@@ -61,11 +61,6 @@
   width: 100%;
   min-width: 0;
 }
-// .menu-element__sub-link-menu-container {
-//   position: absolute;
-//   width: 100%;
-//   left: 0;
-// }
 
 .menu-element__sub-link-menu {
   position: absolute;
@@ -99,12 +94,17 @@
   }
 }
 
-.menu-element__menu-separator {
+.horizontal .menu-element__menu-separator {
   width: 1px;
   height: 20px;
   background-color: lightgray;
-  // small gap at top/bottom
-  margin: 5px 0;
+}
+
+.vertical .menu-element__menu-separator {
+  width: 100%;
+  height: 1px;
+  background-color: lightgray;
+  margin: 0 5px;
 }
 
 .menu-element__spacer {
