@@ -2002,7 +2002,7 @@ export class MenuElementType extends ElementType {
               namePrefix: uid,
               labelSuffix: `- ${resolvedName}`,
               applicationContextAdditions: { allowSameElement: true },
-            })
+            }),
           ]
         }
         return []

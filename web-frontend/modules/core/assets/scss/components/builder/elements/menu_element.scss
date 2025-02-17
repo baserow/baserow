@@ -33,3 +33,50 @@
   display: flex;
   justify-content: flex-end;
 }
+
+.menu-element__menu-link-container {
+  display: flex;
+  position: relative;
+}
+
+.menu-element__menu-link-expanded-icon {
+  margin-left: 5px;
+}
+
+.menu-element__sub-link-menu-container {
+  position: absolute;
+  width: 100%;
+  left: 0;
+}
+
+.menu-element__sub-link-menu {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150px;
+  max-height: 200px;
+  height: auto;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+
+  .menu-element__menu-item-link {
+    width: 100%; // Make the link element take full width
+    display: block; // Ensure block-level display
+  }
+
+  a {
+    display: block;
+    width: 100%; // Ensure the anchor takes full width
+    padding: 10px;
+    text-decoration: none;
+    color: black;
+  }
+
+  a:hover {
+    background: #f0f0f0;
+    width: 100%; // Ensure hover effect spans full width
+  }
+}

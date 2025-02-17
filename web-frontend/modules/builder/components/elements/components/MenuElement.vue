@@ -7,8 +7,33 @@
     ]"
   >
     <div v-for="item in element.menu_items" :key="item.id">
-      <template v-if="item.menu_item_variant === 'link'">
-        <LinkElement :element="getElement(item)" class="menu-element__menu-item-link"/>
+      <template v-if="item.menu_item_variant === 'link' && !item.parent_menu_item" >
+        <div class="menu-element__menu-link-container">
+          <div v-if="!item.children.length">
+            <LinkElement
+              :element="getElement(item)"
+              class="menu-element__menu-item-link"
+            />
+          </div>
+          <div v-else class="menu-element__menu-item-link" @click="toggleExpanded(item.id)">
+            <a>{{ getResolvedValue(item.name) }}</a>
+            <i
+              class="menu-element__menu-link-expanded-icon"
+              :class="
+                isExpanded(item.id) ? 'iconoir-nav-arrow-up' : 'iconoir-nav-arrow-down'
+              "
+            />
+            <div v-if="isExpanded(item.id)" class="menu-element__sub-link-menu-container">
+              <div class="menu-element__sub-link-menu">
+                <LinkElement
+                  v-for="child in item.children" :key="child.id"
+                  :element="getElement(child)"
+                  class="menu-element__menu-item-link"
+                />
+              </div>
+            </div>
+          </div>
+        </div>        
       </template>
       <template v-else-if="item.menu_item_variant === 'button'">
         <MenuItemButtonElement :element="getElement(item)" />
@@ -46,6 +71,11 @@ export default {
       required: true,
     },
   },
+  data() {
+    return {
+      expandedItems: {},
+    }
+  },
   computed: {},
   methods: {
     getElement(item) {
@@ -69,6 +99,12 @@ export default {
     },
     getResolvedValue(name) {
       return ensureString(this.resolveFormula(name))
+    },
+    toggleExpanded(itemId) {
+      this.$set(this.expandedItems, itemId, !this.expandedItems[itemId])
+    },
+    isExpanded(itemId) {
+      return !!this.expandedItems[itemId]
     },
   },
 }

@@ -37,7 +37,12 @@
       </div>
     </div>
 
-    <div v-for="(item, index) in values.menu_items.filter(item => item.parent_menu_item === null)" :key="item.uid">
+    <div
+      v-for="(item, index) in values.menu_items.filter(
+        (item) => item.parent_menu_item === null
+      )"
+      :key="item.uid"
+    >
       <Expandable
         v-sortable="{
           id: item.uid,
@@ -146,7 +151,10 @@
             <div v-for="(child, childIndex) in item.children" :key="child.uid">
               <Expandable class="table-element-form__field">
                 <template #header="{ toggle, expanded }">
-                  <div class="table-element-form__field-header" @click.stop="toggle">
+                  <div
+                    class="table-element-form__field-header"
+                    @click.stop="toggle"
+                  >
                     <div
                       class="table-element-form__field-handle"
                       data-sortable-handle
@@ -160,7 +168,9 @@
                     </div>
                     <i
                       :class="
-                        expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
+                        expanded
+                          ? 'iconoir-nav-arrow-down'
+                          : 'iconoir-nav-arrow-right'
                       "
                     />
                   </div>
@@ -174,12 +184,18 @@
                     class="margin-bottom-2"
                     :label="$t('menuElementForm.menuItemLabelLabel')"
                     :error-message="
-                      $v.values?.menu_items?.$each[index]?.children?.$each[childIndex]?.name
-                        ? (!$v.values.menu_items.$each[index].children.$each[childIndex].name.required
-                            ? $t('error.requiredField')
-                            : !$v.values.menu_items.$each[index].children.$each[childIndex].name.maxLength
-                              ? $t('error.maxLength', { max: 255 })
-                              : '')
+                      $v.values?.menu_items?.$each[index]?.children?.$each[
+                        childIndex
+                      ]?.name
+                        ? !$v.values.menu_items.$each[index].children.$each[
+                            childIndex
+                          ].name.required
+                          ? $t('error.requiredField')
+                          : !$v.values.menu_items.$each[index].children.$each[
+                              childIndex
+                            ].name.maxLength
+                          ? $t('error.maxLength', { max: 255 })
+                          : ''
                         : ''
                     "
                   >
@@ -188,7 +204,10 @@
                       :placeholder="$t('menuElementForm.namePlaceholder')"
                     />
                     <template #after-input>
-                      <ButtonIcon icon="iconoir-bin" @click="removeChildItem(item, child)" />
+                      <ButtonIcon
+                        icon="iconoir-bin"
+                        @click="removeChildItem(item, child)"
+                      />
                     </template>
                   </FormGroup>
 
@@ -200,9 +219,9 @@
               </Expandable>
             </div>
           </div>
-          
+
           <div class="menu-element__menu-item-footer" />
-          
+
           <div class="menu-element__add-sub-link-container">
             <ButtonText
               type="primary"
@@ -377,9 +396,9 @@ export default {
         if (item.children) {
           return {
             ...item,
-            children: item.children.map((subItem) => 
+            children: item.children.map((subItem) =>
               subItem.uid === child.uid ? { ...subItem, ...values } : subItem
-            )
+            ),
           }
         }
         return item
