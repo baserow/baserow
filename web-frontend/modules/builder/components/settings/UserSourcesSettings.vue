@@ -49,7 +49,6 @@
       style="flex: 1; margin-bottom: 18px"
       icon-size="medium"
     />
-
     <UpdateUserSourceForm
       ref="userSourceForm"
       :builder="builder"
@@ -58,6 +57,7 @@
       @submitted="updateUserSource"
       @values-changed="onValueChange"
     />
+
     <div class="actions">
       <ButtonText
         type="secondary"
@@ -172,7 +172,11 @@ export default {
       return this.$registry.get('userSource', userSource.type)
     },
     onValueChange() {
-      this.invalidForm = !this.$refs.userSourceForm.isValid()
+      console.log('onValueChange')
+      this.$nextTick(() => {
+        this.invalidForm = !this.$refs.userSourceForm.isFormValid()
+        console.log(this.invalidForm)
+      })
     },
     async showForm(userSourceToEdit) {
       if (userSourceToEdit) {

@@ -43,7 +43,6 @@ export default {
       clearTimeout(delayTimeout)
     },
   },
-
   mounted() {
     this.copy = this.prepareCopy(this.filter.value)
     if (this.copy) {
@@ -71,9 +70,11 @@ export default {
       }
 
       if (immediately) {
+        console.log('immediately', value)
         this.$emit('input', value)
       } else {
         delayTimeout = setTimeout(() => {
+          console.log('delayed', value)
           this.$emit('input', value)
         }, 400)
       }

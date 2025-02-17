@@ -20,6 +20,7 @@
           :disable-filter="disableFilter"
           @updateFilterType="$emit('updateFilterType', { value: $event })"
         />
+
         <ViewFieldConditionItem
           :ref="`condition-${filter.id}`"
           :filter="filter"

@@ -106,6 +106,7 @@ export default {
         main_success_color: this.theme?.main_success_color,
         main_warning_color: this.theme?.main_warning_color,
         main_error_color: this.theme?.main_error_color,
+        custom_colors: this.theme?.custom_colors,
       },
     }
   },
@@ -135,6 +136,7 @@ export default {
      * doesn't duplicate the name of an existing custom color.
      */
     addCustomColor() {
+      console.log('addCustomColor')
       // To avoid duplicating names, newColorId is incremented until an unused
       // value is found.
       const existingNames = this.values.custom_colors.map((color) => color.name)

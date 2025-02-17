@@ -227,6 +227,7 @@ export default {
     },
     emitChange() {
       this.fullValues = this.getFormValues()
+      this.$emit('values-changed', this.fullValues)
     },
     handleServerError(error) {
       if (
@@ -237,9 +238,6 @@ export default {
         return true
       }
       return false
-    },
-    isValid() {
-      return !this.v$.$invalid && this.v$.$dirty
     },
   },
   validations() {

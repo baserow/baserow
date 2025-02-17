@@ -62,6 +62,7 @@ export default {
             required
           ),
         },
+        color: {},
       },
     }
   },

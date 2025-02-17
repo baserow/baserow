@@ -52,7 +52,6 @@
       </div>
       <div class="col col-6">
         <PageSettingsPathParamsFormElement
-          v-if="values.path_params.length"
           :disabled="!hasPermission"
           :path-params="values.path_params"
           @update="onPathParamUpdate"

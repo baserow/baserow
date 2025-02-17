@@ -194,6 +194,8 @@ export default {
         link_text_alignment: this.theme?.link_text_alignment,
         link_hover_text_color: this.theme?.link_hover_text_color,
         link_font_family: this.theme?.link_font_family,
+        link_font_weight: this.theme?.link_font_weight,
+        link_font_size: this.theme?.link_font_size,
       },
     }
   },
@@ -233,6 +235,7 @@ export default {
         link_text_alignment: {},
         link_hover_text_color: {},
         link_font_family: {},
+        link_font_weight: {},
       },
     }
   },
