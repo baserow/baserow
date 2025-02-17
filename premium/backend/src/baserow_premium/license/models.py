@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils.functional import cached_property
 
+from baserow_premium.license.exceptions import InvalidLicenseError
 from dateutil import parser
 
 User = get_user_model()
@@ -64,6 +65,19 @@ class License(models.Model):
             self.valid_from <= datetime.now(tz=timezone.utc) <= self.valid_through
             and self.valid_cached_properties
         )
+
+    @property
+    def valid_payload(self) -> bool:
+        """
+        Responsible for checking if the license payload is valid. If the payload is
+        invalid then it should raise an InvalidLicenseError.
+        """
+
+        try:
+            _ = self.payload
+            return True
+        except InvalidLicenseError:
+            return False
 
     @property
     def valid_cached_properties(self):
