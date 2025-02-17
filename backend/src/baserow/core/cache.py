@@ -1,9 +1,11 @@
 from contextlib import contextmanager
-from typing import Any, Callable
+from typing import Callable, TypeVar
 
 from django.conf import settings
 
 from asgiref.local import Local
+
+T = TypeVar("T")
 
 
 class LocalCache:
@@ -19,7 +21,7 @@ class LocalCache:
     def __init__(self):
         self._local = Local()
 
-    def get(self, key: str, default: Any | Callable = None):
+    def get(self, key: str, default: T | Callable[[], T] = None) -> T:
         """
         Get a value from the cache. If the key is not present:
         - If the default is callable, call it to get the value.
