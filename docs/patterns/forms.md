@@ -286,7 +286,7 @@ export default {
             v$: null,
         };
     },
-    eated() {
+    created() {
         const values = reactive({
             name: "",
         });
