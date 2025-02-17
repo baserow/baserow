@@ -68,7 +68,20 @@
         "recordSelector": "Datensatz-Auswahl",
         "recordSelectorDescription": "Eine Bezugs-Datensatz-Auswahl",
         "choice": "Auswahl",
-        "choiceDescription": "Für die Auswahl einzelner/mehrerer Werte"
+        "choiceDescription": "Für die Auswahl einzelner/mehrerer Werte",
+        "dateTimePicker": "Datums- und Zeitauswahl",
+        "footerDescription": "Ein seitenübergreifend geteilter Container",
+        "headerDescription": "Ein seitenübergreifend geteilter Container",
+        "notAllowedUnlessTop": "Dieses Element ist nur im oberen Bereich der Seite erlaubt",
+        "notAllowedUnlessBottom": "Dieses Element ist nur im unteren Bereich der Seite erlaubt",
+        "footer": "Mehrseitiger Fussbereich",
+        "notAllowedUnlessFooter": "Dieses Element ist nur im Fussbereich der Seite erlaubt",
+        "notAllowedLocation": "Dieses Element ist an dieser Stelle nicht erlaubt",
+        "notAllowedInsideContainer": "Dieses Element ist nur außerhalb eines Containers erlaubt",
+        "notAllowedInsideSameType": "Dieses Element ist nicht in einem Container der gleichen Art erlaubt",
+        "dateTimePickerDescription": "Ein Eingabefeld für Datum und Zeit",
+        "header": "Mehrseitiger Kopfbereich",
+        "notAllowedUnlessHeader": "Dieses Element ist nur im Kopfbereich der Seite erlaubt"
     },
     "addElementButton": {
         "label": "Element"
@@ -85,12 +98,14 @@
     },
     "elementsContext": {
         "searchPlaceholder": "Elemente suchen",
-        "noElements": "Keine Elemente gefunden"
+        "noElements": "Keine Elemente gefunden",
+        "noPageElements": "Für diese Seite wurden keine Elemente gefunden"
     },
     "addElementModal": {
         "title": "Neues Element hinzufügen",
         "searchPlaceholder": "Elemente suchen",
-        "disabledElementTooltip": "Innerhalb dieses Elements nicht verfügbar"
+        "disabledElementTooltip": "Innerhalb dieses Elements nicht verfügbar",
+        "elementInProgress": "Element wird hinzugefügt..."
     },
     "elementMenu": {
         "moveUp": "Nach oben verschieben",
@@ -104,13 +119,16 @@
         "style": "Style",
         "visibility": "Sichtbarkeit",
         "events": "Ereignisse",
-        "eventsTabDeactivatedNoEvents": "Dieses Element unterstützt keinerlei Ereignisse"
+        "eventsTabDeactivatedNoEvents": "Dieses Element unterstützt keinerlei Ereignisse",
+        "eventsTabInError": "Eine oder mehrere Aktionen sind falsch konfiguriert."
     },
     "emptySidePanelState": {
         "message": "Klicken Sie auf eines der Elemente, um weitere Details zu sehen"
     },
     "headingElement": {
-        "noValue": "Kein Titel..."
+        "noValue": "Kein Titel...",
+        "missingValue": "Titel fehlt...",
+        "emptyValue": "Leerer Titel..."
     },
     "headingElementForm": {
         "levelTitle": "Ebene",
@@ -120,7 +138,9 @@
         "textPlaceholder": "Text eingeben..."
     },
     "textElement": {
-        "noValue": "Leerer Absatz..."
+        "noValue": "Leerer Absatz...",
+        "missingValue": "Fehlender Text...",
+        "emptyValue": "Leerer Text..."
     },
     "textElementForm": {
         "textTitle": "Text",
@@ -144,7 +164,8 @@
         "errorUniquePathParams": "Pfad-Parameter müssen eindeutig sein.",
         "errorPathNotUnique": "Es existiert bereits ein Pfad mit diesem Namen",
         "errorValidPathCharacters": "Der Pfad enthält ungültige Zeichen",
-        "errorNameNotUnique": "Es existiert bereits eine Seite mit diesem Namen"
+        "errorNameNotUnique": "Es existiert bereits eine Seite mit diesem Namen",
+        "errorUniqueValidQueryParams": "Die Namen der Abfrageparameter müssen eindeutig und gültig sein."
     },
     "publishActionModal": {
         "title": "Veröffentlichen",
@@ -252,7 +273,9 @@
         "noDataSourceMessage": "Datenquellen können verwendet werden, um Daten aus internen oder externen Quellen abzurufen und auf der Seite anzuzeigen."
     },
     "imageElement": {
-        "emptyState": "Kein alternativer Text festgelegt..."
+        "emptyState": "Kein alternativer Text festgelegt...",
+        "emptyValue": "Leerer Alternativ-Text...",
+        "missingValue": "Fehlender Alternativ-Text..."
     },
     "imageElementForm": {
         "fileSourceTypeURL": "URL",
@@ -455,7 +478,9 @@
         "embedPlaceholder": "Reiner HTML-Inhalt, der eingebettet werden soll",
         "heightLabel": "Höhe (px)",
         "heightPlaceholder": "Höhe in Pixeln",
-        "urlLabel": "URL"
+        "urlLabel": "URL",
+        "missingValue": "Fehlende IFrame-Quelle...",
+        "emptyValue": "Leere IFrame-Quelle..."
     },
     "linkNavigationSelection": {
         "navigateToCustom": "Benutzerdefinierte URL",
@@ -475,7 +500,9 @@
         "integrationMessage": "Sie können neue Integrationen erstellen, indem Sie Datenquellen, Aktionen oder Benutzerauthentifizierungen hinzufügen."
     },
     "pagePreview": {
-        "emptyMessage": "Anklicken, um das erste Element zu erstellen"
+        "emptyMessage": "Anklicken, um ein Element zu erstellen",
+        "footer": "FUSSBEREICH",
+        "header": "KOPFBEREICH"
     },
     "inputTextElementForm": {
         "multilineTitle": "Mehrzeilig",
@@ -641,5 +668,18 @@
         "headingLabel": "Überschrift {i} (h{i})",
         "color": "Farbe",
         "textAlignment": "Ausrichtung"
+    },
+    "common": {
+        "timeFormatTitle": "Zeitformat",
+        "dateFormatTitle": "Datumsformat",
+        "dateFormatEU": "Europäisch",
+        "dateFormatUS": "US-amerikanisch",
+        "dateFormatISO": "ISO-Format",
+        "timeFormat24Hour": "24-Stunden",
+        "timeFormat12Hour": "12 Stunden"
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "Zeit einbeziehen",
+        "invalidDateError": "Ungültiges Datum. Bitte stellen Sie sicher, dass das eingegebene Datum dem angegebenen Format entspricht."
     }
 }
