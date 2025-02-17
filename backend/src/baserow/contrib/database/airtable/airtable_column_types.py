@@ -12,6 +12,7 @@ from baserow.contrib.database.fields.models import (
     CountField,
     CreatedOnField,
     DateField,
+    DurationField,
     EmailField,
     Field,
     FileField,
@@ -27,9 +28,13 @@ from baserow.contrib.database.fields.models import (
     URLField,
 )
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.utils.duration import D_H, H_M_S_SSS
 
 from .config import AirtableImportConfig
-from .constants import AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING
+from .constants import (
+    AIRTABLE_DURATION_FIELD_DURATION_FORMAT_MAPPING,
+    AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING,
+)
 from .helpers import import_airtable_date_type_options, set_select_options_on_field
 from .import_report import (
     ERROR_TYPE_DATA_TYPE_MISMATCH,
@@ -162,7 +167,44 @@ class NumberAirtableColumnType(AirtableColumnType):
 
         type_options = raw_airtable_column.get("typeOptions", {})
         options_format = type_options.get("format", "")
+
+        if options_format in ["duration", "durationInDays"]:
+            return self.to_duration_field(
+                raw_airtable_table, raw_airtable_column, config, import_report
+            )
+        else:
+            return self.to_number_field(
+                raw_airtable_table, raw_airtable_column, config, import_report
+            )
+
+    def to_duration_field(
+        self, raw_airtable_table, raw_airtable_column, config, import_report
+    ):
+        type_options = raw_airtable_column.get("typeOptions", {})
+        options_format = type_options.get("format", "")
+        duration_format = type_options.get("durationFormat", "")
+
+        if options_format == "durationInDays":
+            # It looks like this option is broken in Airtable. When this is selected,
+            # the exact value seems to be in seconds, but it should be in days. We
+            # will therefore convert it to days when calculating the value.
+            duration_format = D_H
+        else:
+            # Fallback to the most specific format because that leaves most of the
+            # value intact.
+            duration_format = AIRTABLE_DURATION_FIELD_DURATION_FORMAT_MAPPING.get(
+                duration_format, H_M_S_SSS
+            )
+
+        return DurationField(duration_format=duration_format)
+
+    def to_number_field(
+        self, raw_airtable_table, raw_airtable_column, config, import_report
+    ):
         suffix = ""
+
+        type_options = raw_airtable_column.get("typeOptions", {})
+        options_format = type_options.get("format", "")
 
         if "percent" in options_format:
             suffix = "%"
@@ -209,6 +251,18 @@ class NumberAirtableColumnType(AirtableColumnType):
         if value is None:
             return None
 
+        type_options = raw_airtable_column.get("typeOptions", {})
+        options_format = type_options.get("format", "")
+
+        if options_format == "durationInDays":
+            # If the formatting is in days, we must multiply the raw value in seconds
+            # by the number of seconds in a day.
+            return value * 60 * 60 * 24
+        elif "duration" in options_format:
+            # If the value is a duration, then we can use the same value because both
+            # store it as seconds.
+            return value
+
         try:
             value = Decimal(value)
         except InvalidOperation:
@@ -229,8 +283,6 @@ class NumberAirtableColumnType(AirtableColumnType):
 
         # Airtable stores 10% as 0.1, so we would need to multiply it by 100 so get the
         # correct value in Baserow.
-        type_options = raw_airtable_column.get("typeOptions", {})
-        options_format = type_options.get("format", "")
         if "percent" in options_format:
             value = value * 100
 

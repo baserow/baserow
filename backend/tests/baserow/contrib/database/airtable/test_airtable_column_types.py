@@ -30,6 +30,7 @@ from baserow.contrib.database.fields.models import (
     CountField,
     CreatedOnField,
     DateField,
+    DurationField,
     EmailField,
     FileField,
     LastModifiedField,
@@ -43,6 +44,7 @@ from baserow.contrib.database.fields.models import (
     TextField,
     URLField,
 )
+from baserow.contrib.database.fields.utils.duration import D_H, H_M, H_M_S
 
 
 @pytest.mark.django_db
@@ -1811,6 +1813,119 @@ def test_airtable_import_number_column_default_value(data_fixture, api_client):
     assert import_report.items[0].object_name == "Number"
     assert import_report.items[0].scope == SCOPE_FIELD
     assert import_report.items[0].table == ""
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_days_duration_column(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Duration",
+        "type": "number",
+        "typeOptions": {
+            "format": "durationInDays",
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {}, airtable_field, AirtableImportConfig(), import_report
+    )
+    assert len(import_report.items) == 0
+    assert isinstance(baserow_field, DurationField)
+    assert isinstance(airtable_column_type, NumberAirtableColumnType)
+    assert baserow_field.duration_format == D_H
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            None,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        is None
+    )
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            1,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == 86400  # 1 * 60 * 60 * 24
+    )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_duration_column(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Duration",
+        "type": "number",
+        "typeOptions": {"format": "duration", "durationFormat": "h:mm"},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {}, airtable_field, AirtableImportConfig(), import_report
+    )
+    assert len(import_report.items) == 0
+    assert isinstance(baserow_field, DurationField)
+    assert isinstance(airtable_column_type, NumberAirtableColumnType)
+    assert baserow_field.duration_format == H_M
+
+    airtable_field["typeOptions"]["durationFormat"] = "h:mm:ss"
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {}, airtable_field, AirtableImportConfig(), import_report
+    )
+    assert baserow_field.duration_format == H_M_S
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            None,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        is None
+    )
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            1,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == 1
+    )
 
 
 @pytest.mark.django_db
