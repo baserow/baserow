@@ -80,3 +80,11 @@
     width: 100%; // Ensure hover effect spans full width
   }
 }
+
+.menu-element__menu-separator {
+  width: 1px;
+  height: 20px;
+  background-color: lightgray;
+  // small gap at top/bottom
+  margin: 5px 0;
+}

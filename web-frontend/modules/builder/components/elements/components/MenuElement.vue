@@ -7,9 +7,12 @@
     ]"
   >
     <div v-for="item in element.menu_items" :key="item.id">
-      <template v-if="item.menu_item_variant === 'link' && !item.parent_menu_item" >
+      <template v-if="item.type === 'separator'">
+        <div class="menu-element__menu-separator"></div>
+      </template>
+      <template v-else-if="item.menu_item_variant === 'link' && !item.parent_menu_item" >
         <div class="menu-element__menu-link-container">
-          <div v-if="!item.children.length">
+          <div v-if="!item.children?.length">
             <LinkElement
               :element="getElement(item)"
               class="menu-element__menu-item-link"
@@ -38,6 +41,10 @@
       <template v-else-if="item.menu_item_variant === 'button'">
         <MenuItemButtonElement :element="getElement(item)" />
       </template>
+    </div>
+
+    <div v-if="!element.menu_items.length" class="element--no-value">
+      {{ $t('menuElement.missingValue') }}
     </div>
   </div>
 </template>

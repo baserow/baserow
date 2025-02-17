@@ -347,7 +347,7 @@ export default {
         if (item.uid === itemToUpdate.uid) {
           return {
             uid: uuid(),
-            name: this.getResolvedName(item.name),
+            name: item.name,
             menu_item_variant: item.menu_item_variant,
             value: item.value,
             parent_menu_item: item.parent_menu_item,
