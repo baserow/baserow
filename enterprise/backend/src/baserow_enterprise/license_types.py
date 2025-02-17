@@ -7,9 +7,6 @@ from baserow_premium.license.registries import LicenseType, SeatUsageSummary
 from baserow.core.models import Workspace
 from baserow_enterprise.features import (
     AUDIT_LOG,
-    BUILDER_CUSTOM_CSS_JS,
-    BUILDER_PAYMENT_ELEMENT,
-    BUILDER_PRODUCT_SPECIALIST,
     BUILDER_SSO,
     CHART_WIDGET,
     DATA_SYNC,
@@ -39,9 +36,6 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
         DATA_SYNC,
         CHART_WIDGET,
         BUILDER_SSO,
-        BUILDER_CUSTOM_CSS_JS,
-        BUILDER_PAYMENT_ELEMENT,
-        BUILDER_PRODUCT_SPECIALIST,
     ]
     instance_wide = True
     seats_manually_assigned = False
