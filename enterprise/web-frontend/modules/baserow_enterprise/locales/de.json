@@ -94,11 +94,20 @@
         "invalidMetadata": "Ungültige XML-Metadaten für den Identity Provider",
         "relayStateUrl": "Standard-Relaystatus-URL",
         "acsUrl": "Single Sign On-URL",
-        "domain": "Domain",
+        "domain": "SAML-Domain",
         "metadataPlaceholder": "Fügen Sie die Metadaten des Identitätsanbieters ein...",
         "invalidDomain": "Ungültiger Domainname",
         "metadata": "Metadaten",
-        "providerIsVerified": "Der Anbieter wurde verifiziert"
+        "providerIsVerified": "Der Anbieter wurde verifiziert",
+        "emailAttrKey": "E-Mail",
+        "firstNameAttrKeyHelper": "Der Vorname des Benutzers oder der vollständige Name, wenn 'Nachname' nicht angegeben ist.",
+        "samlResponseSettings": "SAML-Antwortattribute",
+        "emailAttrKeyHelper": "Die E-Mail-Adresse, die als Benutzername für den Benutzer verwendet werden soll.",
+        "lastNameAttrKeyHelper": "Nachname des Benutzers (optional). Löschen Sie diesen Wert, um den vollständigen Namen über 'Vorname' anzugeben.",
+        "defaultAttrs": "Standard",
+        "customAttrs": "Benutzerdefiniert",
+        "firstNameAttrKey": "Vorname",
+        "lastNameAttrKey": "Nachname"
     },
     "deleteAuthProviderModal": {
         "comment": "Möchten Sie diesen {type} wirklich löschen?",
@@ -177,7 +186,11 @@
         "remove": "Team löschen"
     },
     "authProviderTypes": {
-        "password": "E-Mail und Passwort-Authentifizierung"
+        "password": "E-Mail und Passwort-Authentifizierung",
+        "ssoSamlProviderNameUnconfigured": "Nicht konfigurierter SSO SAML",
+        "saml": "SSO-SAML-Provider",
+        "ssoOIDCProviderNameUnconfigured": "Nicht konfigurierter OpenID-Connect",
+        "ssoSamlProviderName": "SSO SAML: {domain}"
     },
     "createSettingsAuthProviderModal": {
         "title": "Neuen {type} hinzufügen"
@@ -256,7 +269,8 @@
         "secret": "Geheimnis",
         "clientId": "Client-ID",
         "clientIdPlaceholder": "Client-ID des Anbieters",
-        "providerNamePlaceholder": "Benutzerdefinierter Anbietername"
+        "providerNamePlaceholder": "Benutzerdefinierter Anbietername",
+        "duplicateBaseUrl": "Die eingegebene URL existiert bereits in einem anderen Anbieter"
     },
     "loginButton": {
         "continueWith": "Weitermachen mit"
