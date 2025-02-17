@@ -89,7 +89,6 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.job_types import DuplicateFieldJobType
-from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import (
     CreateFieldOperationType,
     ListFieldsOperationType,
@@ -191,10 +190,9 @@ class FieldsView(APIView):
             request, ["read", "create", "update"], table, False
         )
 
+        base_field_queryset = FieldHandler().get_base_fields_queryset()
         fields = specific_iterator(
-            Field.objects.filter(table=table)
-            .select_related("content_type")
-            .prefetch_related("select_options"),
+            base_field_queryset.filter(table=table),
             per_content_type_queryset_hook=(
                 lambda field, queryset: field_type_registry.get_by_model(
                     field

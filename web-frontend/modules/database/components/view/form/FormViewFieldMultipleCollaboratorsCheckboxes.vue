@@ -4,7 +4,7 @@
       v-if="field.available_collaborators.length === 0"
       class="control--messages"
     >
-      <p>{{ $t('formViewField.noSelectOptions') }}</p>
+      <p>{{ $t('formViewField.noCollaboratorsAvailable') }}</p>
     </div>
     <div v-for="option in field.available_collaborators" :key="option.id">
       <Checkbox

@@ -801,7 +801,8 @@
     "addCondition": "Add condition",
     "addConditionGroup": "Add condition group",
     "showFieldAs": "Show field as",
-    "noSelectOptions": "There are no select options available."
+    "noSelectOptions": "There are no select options available.",
+    "noCollaboratorsAvailable": "There are no collaborators available."
   },
   "duplicateFieldContext": {
     "duplicate": "Duplicate field",

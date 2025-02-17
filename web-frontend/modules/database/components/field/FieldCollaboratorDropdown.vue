@@ -95,6 +95,11 @@ export default {
       required: false,
       default: true,
     },
+    pageSize: {
+      type: Number,
+      required: false,
+      default: 100, // override default pageSize of 20
+    },
   },
   computed: {
     isNotFound() {

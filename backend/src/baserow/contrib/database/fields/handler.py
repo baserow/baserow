@@ -17,7 +17,7 @@ from typing import (
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import connection
-from django.db.models import QuerySet
+from django.db.models import Prefetch, QuerySet
 from django.db.utils import DatabaseError, DataError, ProgrammingError
 
 from loguru import logger
@@ -53,7 +53,7 @@ from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
-from baserow.core.models import TrashEntry
+from baserow.core.models import TrashEntry, User
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
@@ -238,6 +238,26 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             )
         else:
             return filtered_qs
+
+    def get_base_fields_queryset(self) -> QuerySet[Field]:
+        """
+        Returns a base queryset with proper select and prefetch related fields to use in
+        queries that need to fetch fields.
+
+        :return: A queryset with select and prefetch related fields set.
+        """
+
+        return Field.objects.select_related(
+            "content_type", "table__database__workspace"
+        ).prefetch_related(
+            Prefetch(
+                "table__database__workspace__users",
+                queryset=User.objects.filter(profile__to_be_deleted=False).order_by(
+                    "first_name"
+                ),
+            ),
+            "select_options",
+        )
 
     def get_fields(
         self,

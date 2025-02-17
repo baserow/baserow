@@ -119,18 +119,18 @@ export default {
         const { data } = await this.fetchPage(page, search)
         results = data.results
         count = data.count
-        // the search might return less results than expected, let's update
-        // the right page in that case
-        if (data.page !== page) {
-          this.page = data.page
-        }
       } catch (e) {
         notifyIf(e)
       } finally {
         if (replace) {
           this.results = results
         } else {
-          this.results.push(...results)
+          const resultIds = new Set(this.results.map((res) => res.id))
+          this.results.push(
+            ...results.filter((res) => {
+              return !resultIds.has(res.id)
+            })
+          )
         }
 
         this.count = count

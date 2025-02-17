@@ -6,7 +6,6 @@ from baserow.contrib.database.fields.dependencies.circular_reference_checker imp
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.fields.registries import field_type_registry
-from baserow.core.models import User
 
 
 class TypeFormulaRequestSerializer(serializers.ModelSerializer):
@@ -52,9 +51,7 @@ class BaserowFormulaCollaboratorsSerializer(serializers.ListField):
         # Available collaborators are needed for view filters in the frontend,
         # but let's avoid the potentially slow query if not required.
         if field_type.can_represent_collaborators(field):
-            available_collaborators = User.objects.filter(
-                workspace=field.table.database.workspace
-            )
+            available_collaborators = field.table.database.workspace.users.all()
             return [
                 self.child.to_representation(item) for item in available_collaborators
             ]

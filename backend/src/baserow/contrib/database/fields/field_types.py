@@ -2394,14 +2394,11 @@ class LinkRowFieldType(
     def enhance_field_queryset(
         self, queryset: QuerySet[Field], field: Field
     ) -> QuerySet[Field]:
+        base_field_queryset = FieldHandler().get_base_fields_queryset()
         return queryset.prefetch_related(
             models.Prefetch(
                 "link_row_table__field_set",
-                queryset=specific_queryset(
-                    Field.objects.filter(primary=True)
-                    .select_related("content_type")
-                    .prefetch_related("select_options")
-                ),
+                queryset=specific_queryset(base_field_queryset.filter(primary=True)),
                 to_attr=LinkRowField.RELATED_PPRIMARY_FIELD_ATTR,
             )
         )
@@ -5521,6 +5518,11 @@ class CountFieldType(FormulaFieldType):
         target_field_name = target_field["name"]
         return {(target_field_name, through_field_name)}
 
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.select_related("through_field")
+
 
 class RollupFieldType(FormulaFieldType):
     type = "rollup"
@@ -5724,6 +5726,11 @@ class RollupFieldType(FormulaFieldType):
         target_field = serialized_fields_map[target_field_id]
         target_field_name = target_field["name"]
         return {(target_field_name, via_field_name)}
+
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.select_related("through_field", "target_field")
 
 
 class LookupFieldType(FormulaFieldType):
@@ -6023,6 +6030,11 @@ class LookupFieldType(FormulaFieldType):
 
         return {(target_field_name, via_field_name)}
 
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.select_related("through_field", "target_field")
+
 
 class MultipleCollaboratorsFieldType(
     CollationSortMixin, ManyToManyFieldTypeSerializeToInputValueMixin, FieldType
@@ -6041,16 +6053,6 @@ class MultipleCollaboratorsFieldType(
         "notify_user_when_added": serializers.BooleanField(required=False),
     }
     is_many_to_many_field = True
-
-    def enhance_field_queryset(
-        self, queryset: QuerySet[Field], field: Field
-    ) -> QuerySet[Field]:
-        return queryset.prefetch_related(
-            models.Prefetch(
-                "table__database__workspace__users",
-                queryset=User.objects.filter(profile__to_be_deleted=False),
-            )
-        )
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)

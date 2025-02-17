@@ -74,6 +74,7 @@
       <mj-class
               name="notification-description"
               font-size="12px"
+              line-height="18px"
               color="#838387"
               font-family="Inter,sans-serif"
       />
