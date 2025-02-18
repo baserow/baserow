@@ -151,11 +151,12 @@
 
             <div v-if="item.menu_item_variant === 'link'">
               <LinkNavigationSelectionForm
+                v-if="!item.children?.length"
                 :default-values="item"
                 @values-changed="updateItem(item, $event)"
               />
 
-              <div v-if="item.children && item.children.length > 0">
+              <div v-if="item.children?.length">
                 <div v-for="(child, childIndex) in item.children" :key="child.uid">
                   <Expandable class="menu-element__sub-link-form">
                     <template #header="{ toggle, expanded }">
