@@ -16,7 +16,6 @@
             :title="$t('localBaserowListRowsForm.filterTabTitle')"
             class="data-source-form__condition-form-tab"
           >
-            sdfasdfa
             <LocalBaserowTableServiceConditionalForm
               v-if="values.table_id"
               v-model="values.filters"
