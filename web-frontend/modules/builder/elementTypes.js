@@ -2011,7 +2011,41 @@ export class MenuElementType extends ElementType {
   }
 
   isInError({ page, element, builder }) {
-    return super.isInError({ page, element, builder })
+    // There must be at least one menu item
+    if (!element.menu_items.length) {
+      return true
+    }
+
+    const workflowActions = this.app.store.getters[
+      'workflowAction/getElementWorkflowActions'
+    ](page, element.id)
+
+    // Check if any menu items are invalid
+    const hasInvalidMenuItem = element.menu_items.some(menuItem => {
+      if (menuItem.menu_item_variant === 'button') {
+        // For button variants, there must be at least one workflow action
+        return !workflowActions.length
+      } else if (menuItem.menu_item_variant === 'link') {
+        // Link must have a name
+        if (!menuItem.name) {
+          return true
+        }
+        if (menuItem.navigation_type === 'page') {
+          if (!menuItem.navigate_to_page_id) {
+            return true
+          }
+          return pathParametersInError(
+            menuItem,
+            this.app.store.getters['page/getVisiblePages'](builder)
+          )
+        } else if (menuItem.navigation_type === 'custom') {
+          return !menuItem.navigate_to_url
+        }
+      }
+      return false
+    })
+
+    return hasInvalidMenuItem || super.isInError({ page, element, builder })
   }
 
   getDisplayName(element, applicationContext) {
