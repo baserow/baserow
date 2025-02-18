@@ -34,3 +34,20 @@ AIRTABLE_DURATION_FIELD_DURATION_FORMAT_MAPPING = {
     "h:mm:ss.ss": H_M_S_SS,
     "h:mm:ss.sss": H_M_S_SSS,
 }
+# All colors from the rating field in Airtable: yellow, orange, red, pink, purple,
+# blue, cyan, teal, green, gray. We're only mapping the ones that we have an
+# alternative for.
+AIRTABLE_RATING_COLOR_MAPPING = {
+    "blue": "dark-blue",
+    "green": "dark-green",
+    "orange": "dark-orange",
+    "red": "dark-red",
+}
+# All icons from Airtable: star, heart, thumbsUp, flag, dot. We're only mapping the
+# ones that we have an alternative for.
+AIRTABLE_RATING_ICON_MAPPING = {
+    "star": "star",
+    "heart": "heart",
+    "thumbsUp": "thumbs-up",
+    "flag": "flag",
+}

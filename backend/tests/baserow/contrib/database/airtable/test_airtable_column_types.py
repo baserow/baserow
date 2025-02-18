@@ -1987,8 +1987,9 @@ def test_airtable_import_rating_column(data_fixture, api_client):
         "id": "fldp1IFu0zdgRy70RoX",
         "name": "Rating",
         "type": "rating",
-        "typeOptions": {"color": "yellow", "icon": "star", "max": 5},
+        "typeOptions": {"color": "blue", "icon": "heart", "max": 5},
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
@@ -1996,11 +1997,14 @@ def test_airtable_import_rating_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportReport(),
+        import_report,
     )
+    assert len(import_report.items) == 0
     assert isinstance(baserow_field, RatingField)
     assert isinstance(airtable_column_type, RatingAirtableColumnType)
     assert baserow_field.max_value == 5
+    assert baserow_field.color == "dark-blue"
+    assert baserow_field.style == "heart"
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
@@ -2011,10 +2015,66 @@ def test_airtable_import_rating_column(data_fixture, api_client):
             5,
             {},
             AirtableImportConfig(),
-            AirtableImportReport(),
+            import_report,
         )
         == 5
     )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_rating_column_invalid_icon(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldp1IFu0zdgRy70RoX",
+        "name": "Rating",
+        "type": "rating",
+        "typeOptions": {"color": "blue", "icon": "TEST", "max": 5},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Rating"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+    assert baserow_field.max_value == 5
+    assert baserow_field.color == "dark-blue"
+    assert baserow_field.style == "star"
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_rating_column_invalid_color(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldp1IFu0zdgRy70RoX",
+        "name": "Rating",
+        "type": "rating",
+        "typeOptions": {"color": "TEST", "icon": "heart", "max": 5},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Rating"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+    assert baserow_field.max_value == 5
+    assert baserow_field.color == "dark-blue"
+    assert baserow_field.style == "heart"
 
 
 @pytest.mark.django_db

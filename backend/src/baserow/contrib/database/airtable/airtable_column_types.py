@@ -34,6 +34,8 @@ from .config import AirtableImportConfig
 from .constants import (
     AIRTABLE_DURATION_FIELD_DURATION_FORMAT_MAPPING,
     AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING,
+    AIRTABLE_RATING_COLOR_MAPPING,
+    AIRTABLE_RATING_ICON_MAPPING,
 )
 from .helpers import import_airtable_date_type_options, set_select_options_on_field
 from .import_report import (
@@ -268,8 +270,39 @@ class RatingAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        type_options = raw_airtable_column.get("typeOptions", {})
+        airtable_icon = type_options.get("icon", "")
+        airtable_max = type_options.get("max", 5)
+        airtable_color = type_options.get("color", "")
+
+        style = AIRTABLE_RATING_ICON_MAPPING.get(airtable_icon, "")
+        if style == "":
+            style = list(AIRTABLE_RATING_ICON_MAPPING.values())[0]
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the icon {airtable_icon} does not "
+                f"exist, so it defaulted to {style}.",
+            )
+
+        color = AIRTABLE_RATING_COLOR_MAPPING.get(airtable_color, "")
+        if color == "":
+            color = list(AIRTABLE_RATING_COLOR_MAPPING.values())[0]
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the color {airtable_color} does not "
+                f"exist, so it defaulted to {color}.",
+            )
+
         return RatingField(
-            max_value=raw_airtable_column.get("typeOptions", {}).get("max", 5)
+            max_value=airtable_max,
+            style=style,
+            color=color,
         )
 
 
