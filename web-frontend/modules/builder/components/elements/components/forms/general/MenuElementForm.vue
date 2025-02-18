@@ -1,12 +1,5 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
-      v-model="values.styles"
-      style-key="button"
-      :config-block-types="['button']"
-      :theme="builder.theme"
-    />
-
     <FormGroup
       :label="$t('repeatElementForm.orientationLabel')"
       small-label
