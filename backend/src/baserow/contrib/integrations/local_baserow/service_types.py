@@ -1082,7 +1082,7 @@ class LocalBaserowListRowsUserServiceType(
             # Ensure that only used fields are fetched from the database.
             queryset = queryset.only(*available_fields.intersection(only_field_names))
 
-        if dispatch_context.only_record_id:
+        if dispatch_context.only_record_id is not None:
             queryset = queryset.filter(id=dispatch_context.only_record_id)
 
         offset, count = dispatch_context.range(service)
