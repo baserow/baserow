@@ -107,136 +107,140 @@
             </template>
           </FormGroup>
 
-          <FormGroup
-            small-label
-            horizontal
-            required
-            :label="$t('menuElementForm.menuItemVariantLabel')"
-            class="margin-bottom-2"
-          >
-            <Dropdown
-              :value="item.menu_item_variant"
-              :show-search="false"
-              @input="changeItemVariant(item, $event)"
+          <div v-if="item.type !== 'separator'">
+            <FormGroup
+              small-label
+              horizontal
+              required
+              :label="$t('menuElementForm.menuItemVariantLabel')"
+              class="margin-bottom-2"
             >
-              <DropdownItem
-                v-for="itemVariant in menuItemVariants"
-                :key="itemVariant.value"
-                :name="itemVariant.label"
-                :value="itemVariant.value"
+              <Dropdown
+                :value="item.menu_item_variant"
+                :show-search="false"
+                @input="changeItemVariant(item, $event)"
+              >
+                <DropdownItem
+                  v-for="itemVariant in menuItemVariants"
+                  :key="itemVariant.value"
+                  :name="itemVariant.label"
+                  :value="itemVariant.value"
+                />
+              </Dropdown>
+            </FormGroup>
+
+            <FormGroup
+              small-label
+              horizontal
+              required
+              class="margin-bottom-2"
+              :label="$t('menuElementForm.menuItemLabelLabel')"
+              :error-message="
+                !$v.values.menu_items.$each[index].name.required
+                  ? $t('error.requiredField')
+                  : !$v.values.menu_items.$each[index].name.maxLength
+                  ? $t('error.maxLength', { max: 255 })
+                  : ''
+              "
+            >
+              <InjectedFormulaInput
+                v-model="item.name"
+                :placeholder="$t('menuElementForm.namePlaceholder')"
               />
-            </Dropdown>
-          </FormGroup>
+            </FormGroup>
 
-          <FormGroup
-            small-label
-            horizontal
-            required
-            class="margin-bottom-2"
-            :label="$t('menuElementForm.menuItemLabelLabel')"
-            :error-message="
-              !$v.values.menu_items.$each[index].name.required
-                ? $t('error.requiredField')
-                : !$v.values.menu_items.$each[index].name.maxLength
-                ? $t('error.maxLength', { max: 255 })
-                : ''
-            "
-          >
-            <InjectedFormulaInput
-              v-model="item.name"
-              :placeholder="$t('menuElementForm.namePlaceholder')"
-            />
-          </FormGroup>
+            <div v-if="item.menu_item_variant === 'link'">
+              <LinkNavigationSelectionForm
+                :default-values="item"
+                @values-changed="updateItem(item, $event)"
+              />
 
-          <LinkNavigationSelectionForm
-            :default-values="item"
-            @values-changed="updateItem(item, $event)"
-          />
+              <div v-if="item.children && item.children.length > 0">
+                <div v-for="(child, childIndex) in item.children" :key="child.uid">
+                  <Expandable class="table-element-form__field">
+                    <template #header="{ toggle, expanded }">
+                      <div
+                        class="table-element-form__field-header"
+                        @click.stop="toggle"
+                      >
+                        <div
+                          class="table-element-form__field-handle"
+                          data-sortable-handle
+                        />
+                        <div class="table-element-form__field-name">
+                          <i
+                            v-if="!expanded && menuItemInError(child)"
+                            class="table-element-form__field-error iconoir-warning-circle"
+                          ></i>
+                          {{ getResolvedName(child.name) }}
+                        </div>
+                        <i
+                          :class="
+                            expanded
+                              ? 'iconoir-nav-arrow-down'
+                              : 'iconoir-nav-arrow-right'
+                          "
+                        />
+                      </div>
+                    </template>
 
-          <div v-if="item.children && item.children.length > 0">
-            <div v-for="(child, childIndex) in item.children" :key="child.uid">
-              <Expandable class="table-element-form__field">
-                <template #header="{ toggle, expanded }">
-                  <div
-                    class="table-element-form__field-header"
-                    @click.stop="toggle"
-                  >
-                    <div
-                      class="table-element-form__field-handle"
-                      data-sortable-handle
-                    />
-                    <div class="table-element-form__field-name">
-                      <i
-                        v-if="!expanded && menuItemInError(child)"
-                        class="table-element-form__field-error iconoir-warning-circle"
-                      ></i>
-                      {{ getResolvedName(child.name) }}
-                    </div>
-                    <i
-                      :class="
-                        expanded
-                          ? 'iconoir-nav-arrow-down'
-                          : 'iconoir-nav-arrow-right'
-                      "
-                    />
-                  </div>
-                </template>
-
-                <template #default>
-                  <FormGroup
-                    small-label
-                    horizontal
-                    required
-                    class="margin-bottom-2"
-                    :label="$t('menuElementForm.menuItemLabelLabel')"
-                    :error-message="
-                      $v.values?.menu_items?.$each[index]?.children?.$each[
-                        childIndex
-                      ]?.name
-                        ? !$v.values.menu_items.$each[index].children.$each[
+                    <template #default>
+                      <FormGroup
+                        small-label
+                        horizontal
+                        required
+                        class="margin-bottom-2"
+                        :label="$t('menuElementForm.menuItemLabelLabel')"
+                        :error-message="
+                          $v.values?.menu_items?.$each[index]?.children?.$each[
                             childIndex
-                          ].name.required
-                          ? $t('error.requiredField')
-                          : !$v.values.menu_items.$each[index].children.$each[
-                              childIndex
-                            ].name.maxLength
-                          ? $t('error.maxLength', { max: 255 })
-                          : ''
-                        : ''
-                    "
-                  >
-                    <InjectedFormulaInput
-                      v-model="child.name"
-                      :placeholder="$t('menuElementForm.namePlaceholder')"
-                    />
-                    <template #after-input>
-                      <ButtonIcon
-                        icon="iconoir-bin"
-                        @click="removeChildItem(item, child)"
+                          ]?.name
+                            ? !$v.values.menu_items.$each[index].children.$each[
+                                childIndex
+                              ].name.required
+                              ? $t('error.requiredField')
+                              : !$v.values.menu_items.$each[index].children.$each[
+                                  childIndex
+                                ].name.maxLength
+                              ? $t('error.maxLength', { max: 255 })
+                              : ''
+                            : ''
+                        "
+                      >
+                        <InjectedFormulaInput
+                          v-model="child.name"
+                          :placeholder="$t('menuElementForm.namePlaceholder')"
+                        />
+                        <template #after-input>
+                          <ButtonIcon
+                            icon="iconoir-bin"
+                            @click="removeChildItem(item, child)"
+                          />
+                        </template>
+                      </FormGroup>
+
+                      <LinkNavigationSelectionForm
+                        :default-values="child"
+                        @values-changed="updateSubLink(child, $event)"
                       />
                     </template>
-                  </FormGroup>
+                  </Expandable>
+                </div>
+              </div>
 
-                  <LinkNavigationSelectionForm
-                    :default-values="child"
-                    @values-changed="updateSubLink(child, $event)"
-                  />
-                </template>
-              </Expandable>
+              <div class="menu-element__menu-item-footer" />
+
+              <div class="menu-element__add-sub-link-container">
+                <ButtonText
+                  type="primary"
+                  icon="iconoir-plus"
+                  size="small"
+                  @click="addSubLink(item)"
+                >
+                  {{ $t('menuElementForm.addSubLink') }}
+                </ButtonText>
+              </div>
             </div>
-          </div>
-
-          <div class="menu-element__menu-item-footer" />
-
-          <div class="menu-element__add-sub-link-container">
-            <ButtonText
-              type="primary"
-              icon="iconoir-plus"
-              size="small"
-              @click="addSubLink(item)"
-            >
-              {{ $t('menuElementForm.addSubLink') }}
-            </ButtonText>
           </div>
         </template>
       </Expandable>
