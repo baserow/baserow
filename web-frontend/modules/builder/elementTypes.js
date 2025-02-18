@@ -2012,7 +2012,7 @@ export class MenuElementType extends ElementType {
 
   isInError({ page, element, builder }) {
     // There must be at least one menu item
-    if (!element.menu_items.length) {
+    if (!element.menu_items?.length) {
       return true
     }
 
@@ -2020,29 +2020,16 @@ export class MenuElementType extends ElementType {
       'workflowAction/getElementWorkflowActions'
     ](page, element.id)
 
-    // Check if any menu items are invalid
+    const menuItemType = this.app.$registry.get('element', 'menu_item')
+
     const hasInvalidMenuItem = element.menu_items.some(menuItem => {
-      if (menuItem.menu_item_variant === 'button') {
-        // For button variants, there must be at least one workflow action
-        return !workflowActions.length
-      } else if (menuItem.menu_item_variant === 'link') {
-        // Link must have a name
-        if (!menuItem.name) {
-          return true
-        }
-        if (menuItem.navigation_type === 'page') {
-          if (!menuItem.navigate_to_page_id) {
-            return true
-          }
-          return pathParametersInError(
-            menuItem,
-            this.app.store.getters['page/getVisiblePages'](builder)
-          )
-        } else if (menuItem.navigation_type === 'custom') {
-          return !menuItem.navigate_to_url
-        }
+      if (menuItem.children?.length) {
+        return menuItem.children.some(child => {
+          return menuItemType.isInError({page, element: child, builder, workflowActions})    
+        })
+      } else {
+        return menuItemType.isInError({page, element: menuItem, builder, workflowActions})
       }
-      return false
     })
 
     return hasInvalidMenuItem || super.isInError({ page, element, builder })
@@ -2098,7 +2085,31 @@ export class MenuItemElementType extends ElementType {
     return []
   }
 
-  isInError({ page, element, builder }) {
+  isInError({ page, element, builder, workflowActions }) {
+    if (element.menu_item_variant === 'button') {
+      // For button variants, there must be at least one workflow action
+      return !workflowActions.length
+    } else if (element.menu_item_variant === 'link') {
+      // Link must have a name
+      if (!element.name) {
+          return true
+      }
+
+      if (!element.children?.length) {
+        if (element.navigation_type === 'page') {
+          if (!element.navigate_to_page_id ) {
+            return true
+          }
+          return pathParametersInError(
+            element,
+            this.app.store.getters['page/getVisiblePages'](builder)
+          )
+        } else if (element.navigation_type === 'custom') {
+          return !element.navigate_to_url
+        }
+      }
+    }
+
     return super.isInError({ page, element, builder })
   }
 
