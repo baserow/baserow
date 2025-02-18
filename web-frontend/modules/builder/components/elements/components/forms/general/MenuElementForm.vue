@@ -101,6 +101,10 @@
                 :value="itemType.value"
               />
             </Dropdown>
+
+            <template #after-input>
+              <ButtonIcon icon="iconoir-bin" @click="removeMenuItem(item)" />
+            </template>
           </FormGroup>
 
           <FormGroup
@@ -142,9 +146,6 @@
               v-model="item.name"
               :placeholder="$t('menuElementForm.namePlaceholder')"
             />
-            <template v-if="values.menu_items.length > 1" #after-input>
-              <ButtonIcon icon="iconoir-bin" @click="removeMenuItem(item)" />
-            </template>
           </FormGroup>
 
           <LinkNavigationSelectionForm
