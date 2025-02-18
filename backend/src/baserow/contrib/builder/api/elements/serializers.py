@@ -382,11 +382,7 @@ class CollectionElementPropertyOptionsSerializer(
 
 
 class MenuItemSerializer(serializers.ModelSerializer):
-    """
-    This serializer transform the flat properties object from/to a config dict property.
-    This allows us to see the field on the frontend side as a simple polymorphic
-    object.
-    """
+    """Serializes the MenuItemElement."""
 
     navigate_to_page_id = serializers.IntegerField(
         allow_null=True,
@@ -421,17 +417,23 @@ class MenuItemSerializer(serializers.ModelSerializer):
 
     def get_children(self, obj):
         """
-        Fetch related menu items where this item is the parent.
+        Return related MenuItemElements where obj is the parent MenuItemElement.
         """
+
         children = obj.menu_item_children.filter(parent_menu_item=obj)
         return MenuItemSerializer(children, many=True).data
 
     def to_internal_value(self, data):
         """
-        "children" is a read-only field and not a real writeable field.
-
-        We need to extract it so that the serializer doesn't discard it.        
+        The "children" field is declared as a SerializerMethodField, which means
+        it is a read-only field. This works well for GET requests but causes the
+        field to be automatically discarded during PATCH requests.
+         
+        During PATCH requests, the `MenuElementType.after_update` needs access
+        to this field. The field is therefore extracted and saved to the
+        `validated_data` dict for that purpose.
         """
+
         children = data.pop('children', None)
         validated_data = super().to_internal_value(data)
         
