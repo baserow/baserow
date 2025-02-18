@@ -1972,7 +1972,7 @@ class FooterElementType(MultiPageContainerElementType):
 
 class MenuElementType(ElementType):
     """
-    A menu element that helps with navigating the application.
+    A menu element that provides navigation capabilities to the application.
     """
 
     type = "menu"
@@ -1983,8 +1983,6 @@ class MenuElementType(ElementType):
     class SerializedDict(ElementDict):
         orientation: str
         menu_items: List[Dict]
-
-    
 
     @property
     def serializer_field_overrides(self):
@@ -2012,8 +2010,6 @@ class MenuElementType(ElementType):
         return overrides
     
     def after_create(self, instance: MenuItemElement, values):
-        # TODO: refactor this to ensure children are also created (when duplicating)
-
         menu_items = values.get("menu_items", [])
 
         created_menu_items = MenuItemElement.objects.bulk_create(
@@ -2083,8 +2079,9 @@ class MenuElementType(ElementType):
         super().after_update(instance, values, changes)
     
     def before_delete(self, instance: MenuElement):
-        # TODO: Call the before_delete hook of all fields
-        instance.menu_items.all().delete()
+        # TODO: Make sure related workflow actions are deleted
+        # BuilderWorkflowAction.objects.filter(event__startswith=instance.uid).delete()
+        pass
 
     def get_pytest_params(self, pytest_data_fixture):
         return {"orientation": RepeatElement.ORIENTATIONS.VERTICAL}
@@ -2099,13 +2096,11 @@ class MenuElementType(ElementType):
         **kwargs,
     ):
         if prop_name == "menu_items":
-            # TODO
-            # serializer = MenuItemSerializer(
-            #     element.menu_items.filter(parent_menu_item__isnull=True), 
-            #     many=True
-            # )
-            # return serializer.data
-            return []
+            serializer = MenuItemSerializer(
+                element.menu_items.filter(parent_menu_item__isnull=True), 
+                many=True
+            )
+            return serializer.data
 
         return super().serialize_property(
             element,
@@ -2115,3 +2110,64 @@ class MenuElementType(ElementType):
             cache=cache,
             **kwargs,
         )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values: Dict[str, Any],
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """Handle the menu_items."""
+
+        menu_items = serialized_values.pop("menu_items", [])
+
+        instance = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        import_context = ElementHandler().get_import_context_addition(
+            instance.id, cache.get("imported_element_map")
+        )
+
+        menu_items_to_create = []
+        child_uids_parent_uids = {}
+
+        for index, item in enumerate(menu_items):
+            # Ignore any top-level items that are actually sub-links
+            # TODO: this shouldn't even be returned by the serializer.
+            if item.get("parent_menu_item", None):
+                continue
+
+            item.pop("menu_item_order", None)
+
+            # Keep track of child-parent relationship via the uid
+            for child_index, child in enumerate(item.pop("children", [])):
+                child.pop("menu_item_order", None)
+                child.pop("parent_menu_item", None)
+                child.pop("children", None)
+                child.pop("id")
+        
+                menu_items_to_create.append(
+                    MenuItemElement(**child, menu_item_order=child_index)
+                )
+                child_uids_parent_uids[child["uid"]] = item["uid"]
+                
+        created_menu_items = MenuItemElement.objects.bulk_create(menu_items_to_create)
+
+        # Re-associate the child-parent
+        for item in created_menu_items:
+            if parent_uid := child_uids_parent_uids.get(item.uid):
+                item.parent_menu_item = MenuItemElement.objects.get(uid=parent_uid)
+                item.save()
+
+        instance.menu_items.add(*created_menu_items)
+
+        return instance
