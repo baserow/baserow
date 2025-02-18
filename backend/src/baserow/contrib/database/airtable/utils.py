@@ -1,4 +1,9 @@
+import json
 import re
+
+from requests import Response
+
+from baserow.core.utils import remove_invalid_surrogate_characters
 
 
 def extract_share_id_from_url(public_base_url: str) -> str:
@@ -39,6 +44,29 @@ def get_airtable_row_primary_value(table, row):
         primary_value = row["id"]
 
     return primary_value
+
+
+def parse_json_and_remove_invalid_surrogate_characters(response: Response) -> dict:
+    """
+    @TODO docs
+
+    :param response:
+    :return:
+    """
+
+    try:
+        decoded_content = remove_invalid_surrogate_characters(
+            response.content, response.encoding
+        )
+        json_decoded_content = json.loads(decoded_content)
+    except json.decoder.JSONDecodeError:
+        # In some cases, the `remove_invalid_surrogate_characters` results in
+        # invalid JSON. It's not completely clear why that is, but this
+        # fallback can still produce valid JSON to import in most cases if
+        # the original json didn't contain invalid surrogate characters.
+        json_decoded_content = response.json()
+
+    return json_decoded_content
 
 
 def quill_parse_inline(insert, attributes):

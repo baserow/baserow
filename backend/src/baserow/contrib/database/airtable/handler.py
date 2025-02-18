@@ -49,6 +49,7 @@ from .import_report import (
     SCOPE_VIEW,
     AirtableImportReport,
 )
+from .utils import parse_json_and_remove_invalid_surrogate_characters
 
 User = get_user_model()
 
@@ -104,6 +105,44 @@ class AirtableHandler:
         return request_id, init_data, cookies
 
     @staticmethod
+    def make_airtable_request(init_data: dict, request_id: str, **kwargs) -> Response:
+        """
+        Helper method to make a valid request to to Airtable with the correct headers
+        and params.
+
+        :param init_data: The init_data returned by the initially requested shared base.
+        :param request_id: The request_id returned by the initially requested shared
+            base.
+        :param kwargs: THe kwargs that must be passed into the `requests.get` method.
+        :return: The requests Response object related to the request.
+        """
+
+        application_id = list(init_data["rawApplications"].keys())[0]
+        client_code_version = init_data["codeVersion"]
+        page_load_id = init_data["pageLoadId"]
+        access_policy = json.loads(init_data["accessPolicy"])
+
+        params = kwargs.get("params", {})
+        params["accessPolicy"] = json.dumps(access_policy)
+        params["request_id"] = request_id
+
+        return requests.get(
+            headers={
+                "x-airtable-application-id": application_id,
+                "x-airtable-client-queue-time": "45",
+                "x-airtable-inter-service-client": "webClient",
+                "x-airtable-inter-service-client-code-version": client_code_version,
+                "x-airtable-page-load-id": page_load_id,
+                "X-Requested-With": "XMLHttpRequest",
+                "x-time-zone": "Europe/Amsterdam",
+                "x-user-locale": "en",
+                **BASE_HEADERS,
+            },
+            timeout=3 * 60,  # it can take quite a while for Airtable to respond.
+            **kwargs,
+        )  # nosec
+
+    @staticmethod
     def fetch_table_data(
         table_id: str,
         init_data: dict,
@@ -136,15 +175,11 @@ class AirtableHandler:
         """
 
         application_id = list(init_data["rawApplications"].keys())[0]
-        client_code_version = init_data["codeVersion"]
-        page_load_id = init_data["pageLoadId"]
-
         stringified_object_params = {
             "includeDataForViewIds": None,
             "shouldIncludeSchemaChecksum": True,
             "mayOnlyIncludeRowAndCellDataForIncludedViews": False,
         }
-        access_policy = json.loads(init_data["accessPolicy"])
 
         if fetch_application_structure:
             stringified_object_params["includeDataForTableIds"] = [table_id]
@@ -152,27 +187,51 @@ class AirtableHandler:
         else:
             url = f"https://airtable.com/v0.3/table/{table_id}/readData"
 
-        response = requests.get(
+        response = AirtableHandler.make_airtable_request(
+            init_data,
+            request_id,
             url=url,
             stream=stream,
             params={
                 "stringifiedObjectParams": json.dumps(stringified_object_params),
-                "requestId": request_id,
-                "accessPolicy": json.dumps(access_policy),
-            },
-            headers={
-                "x-airtable-application-id": application_id,
-                "x-airtable-client-queue-time": "45",
-                "x-airtable-inter-service-client": "webClient",
-                "x-airtable-inter-service-client-code-version": client_code_version,
-                "x-airtable-page-load-id": page_load_id,
-                "X-Requested-With": "XMLHttpRequest",
-                "x-time-zone": "Europe/Amsterdam",
-                "x-user-locale": "en",
-                **BASE_HEADERS,
             },
             cookies=cookies,
-        )  # nosec B113
+        )
+        return response
+
+    @staticmethod
+    def fetch_view_data(
+        view_id: str,
+        init_data: dict,
+        request_id: str,
+        cookies: dict,
+        stream=True,
+    ) -> Response:
+        """
+        :param view_id: The Airtable view id that must be fetched. The id starts with
+            `viw`.
+        :param init_data: The init_data returned by the initially requested shared base.
+        :param request_id: The request_id returned by the initially requested shared
+            base.
+        :param cookies: The cookies dict returned by the initially requested shared
+            base.
+        :param stream: Indicates whether the request should be streamed. This could be
+            useful if we want to show a progress bar. It will directly be passed into
+            the `requests` request.
+        :return: The `requests` response containing the result.
+        """
+
+        stringified_object_params = {}
+        url = f"https://airtable.com/v0.3/view/{view_id}/readData"
+
+        response = AirtableHandler.make_airtable_request(
+            init_data,
+            request_id,
+            url=url,
+            stream=stream,
+            params={"stringifiedObjectParams": json.dumps(stringified_object_params)},
+            cookies=cookies,
+        )
         return response
 
     @staticmethod
@@ -255,6 +314,28 @@ class AirtableHandler:
         )
 
         return baserow_field, baserow_field_type, airtable_column_type
+
+    @staticmethod
+    def to_baserow_view(
+        table: dict,
+        view: dict,
+        config: AirtableImportConfig,
+        import_report: AirtableImportReport,
+    ):
+        """
+        Converts the provided Airtable view dict to the right Baserow view object.
+
+        :param table: The Airtable table dict. This is needed to figure out whether the
+            field is the primary field.
+        :param view: The Airtable view dict. These values will be converted to
+            Baserow format.
+        :param config: Additional configuration related to the import.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
+        :return: The converted Baserow view
+        """
+
+        return None
 
     @staticmethod
     def to_baserow_row_export(
@@ -600,14 +681,18 @@ class AirtableHandler:
             # Loop over all views to add them to them as failed to the import report
             # because the views are not yet supported.
             for view in table["views"]:
-                import_report.add_failed(
-                    view["name"],
-                    SCOPE_VIEW,
-                    table["name"],
-                    ERROR_TYPE_UNSUPPORTED_FEATURE,
-                    f"View \"{view['name']}\" was not imported because views are not "
-                    f"yet supported during import.",
-                )
+                baserow_view = cls.to_baserow_view(table, view, config, import_report)
+
+                if baserow_view is None:
+                    import_report.add_failed(
+                        view["name"],
+                        SCOPE_VIEW,
+                        table["name"],
+                        ERROR_TYPE_UNSUPPORTED_FEATURE,
+                        f"View \"{view['name']}\" was not imported because "
+                        f"{view['type']} is not supported.",
+                    )
+                    continue
 
             exported_table = DatabaseExportSerializedStructure.table(
                 id=table["id"],
@@ -720,7 +805,7 @@ class AirtableHandler:
         )
         for index, table_id in enumerate(
             progress.track(
-                represents_progress=99,
+                represents_progress=49,
                 state=AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE,
                 iterable=raw_tables,
             )
@@ -736,23 +821,48 @@ class AirtableHandler:
                 fetch_application_structure=index == 0,
                 stream=False,
             )
-            try:
-                decoded_content = remove_invalid_surrogate_characters(
-                    response.content, response.encoding
-                )
-                json_decoded_content = json.loads(decoded_content)
-            except json.decoder.JSONDecodeError:
-                # In some cases, the `remove_invalid_surrogate_characters` results in
-                # invalid JSON. It's not completely clear why that is, but this
-                # fallback can still produce valid JSON to import in most cases if
-                # the original json didn't contain invalid surrogate characters.
-                json_decoded_content = response.json()
+            json_decoded_content = parse_json_and_remove_invalid_surrogate_characters(
+                response
+            )
 
             tables.append(json_decoded_content)
 
         # Split database schema from the tables because we need this to be separated
         # later on.
         schema, tables = cls.extract_schema(tables)
+
+        # Collect which for which view the data is missing, so that they can be
+        # fetched while respecting the progress afterward.
+        view_data_to_fetch = []
+        for table in schema["tableSchemas"]:
+            existing_view_data = [
+                view_data["id"] for view_data in tables[table["id"]]["viewDatas"]
+            ]
+            for view in table["views"]:
+                # Skip the view data that has already been loaded.
+                if view["id"] in existing_view_data:
+                    continue
+
+                view_data_to_fetch.append((table["id"], view["id"]))
+
+        # Fetch the missing view data, and add them to the table object so that we have
+        # a complete object.
+        for table_id, view_id in progress.track(
+            represents_progress=50,
+            state=AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE,
+            iterable=view_data_to_fetch,
+        ):
+            response = cls.fetch_view_data(
+                view_id=view_id,
+                init_data=init_data,
+                request_id=request_id,
+                cookies=cookies,
+                stream=False,
+            )
+            json_decoded_content = parse_json_and_remove_invalid_surrogate_characters(
+                response
+            )
+            tables[table_id]["viewDatas"].append(json_decoded_content["data"])
 
         # Convert the raw Airtable data to Baserow export format so we can import that
         # later.

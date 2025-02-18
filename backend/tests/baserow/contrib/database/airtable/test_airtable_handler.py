@@ -324,7 +324,7 @@ def test_to_baserow_database_export():
         "field_scope": "scope_view",
         "field_table": "table_Users",
         "field_error_type": "error_type_unsupported_feature",
-        "field_message": 'View "All" was not imported because views are not yet supported during import.',
+        "field_message": 'View "All" was not imported because grid is not supported.',
     }
     assert baserow_database_export["tables"][2]["rows"][1] == {
         "id": 2,
@@ -539,6 +539,26 @@ def test_import_from_airtable_to_workspace(
             body=file.read(),
         )
 
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
+            status=200,
+            body=file.read(),
+        )
+
     progress = Progress(1000)
 
     database = AirtableHandler.import_from_airtable_to_workspace(
@@ -637,6 +657,26 @@ def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdi
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
             status=200,
             body=file.read(),
         )
