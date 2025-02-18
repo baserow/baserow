@@ -1,7 +1,7 @@
 .menu-element__add-item-container {
   display: flex;
   align-items: center;
-  justify-content: space-between; 
+  justify-content: space-between;
 }
 
 .menu-element__menu-items-container {
@@ -66,7 +66,7 @@
   height: auto;
   background: white;
   border-radius: 10px;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   padding: 10px;
 
   .menu-element__menu-item-link {
@@ -128,7 +128,7 @@
   }
 }
 
-.menu-element__sub-link-form__header {
+.menu-element__sub-link-form--header {
   display: flex;
   background-color: $palette-neutral-100;
   margin-bottom: 4px;
@@ -138,21 +138,21 @@
   cursor: pointer;
 }
 
-.menu-element__sub-link-form__error {
+.menu-element__sub-link-form--error {
   font-size: 20px;
   color: #ffbdb4;
   pointer-events: none;
   padding-right: 3px;
 }
 
-.menu-element__sub-link-form__name {
+.menu-element__sub-link-form--name {
   flex: 1;
   padding-right: 5px;
 
   @extend %ellipsis;
 }
 
-.menu-element__sub-link-form__handle {
+.menu-element__sub-link-form--handle {
   width: 8px;
   height: 36px;
   background-image: radial-gradient($color-neutral-200 40%, transparent 40%);
@@ -163,7 +163,7 @@
   cursor: grab;
   visibility: hidden;
 
-  .menu-element__sub-link-form__header:hover & {
+  .menu-element__sub-link-form--header:hover & {
     visibility: visible;
   }
 }

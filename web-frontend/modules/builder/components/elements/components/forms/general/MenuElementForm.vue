@@ -150,21 +150,24 @@
               />
 
               <div v-if="item.children?.length">
-                <div v-for="(child, childIndex) in item.children" :key="child.uid">
+                <div
+                  v-for="(child, childIndex) in item.children"
+                  :key="child.uid"
+                >
                   <Expandable class="menu-element__sub-link-form">
                     <template #header="{ toggle, expanded }">
                       <div
-                        class="menu-element__sub-link-form__header"
+                        class="menu-element__sub-link-form--header"
                         @click.stop="toggle"
                       >
                         <div
-                          class="menu-element__sub-link-form__handle"
+                          class="menu-element__sub-link-form--handle"
                           data-sortable-handle
                         />
-                        <div class="menu-element__sub-link-form__name">
+                        <div class="menu-element__sub-link-form--name">
                           <i
                             v-if="!expanded && menuItemInError(child)"
-                            class="menu-element__sub-link-form__error iconoir-warning-circle"
+                            class="menu-element__sub-link-form--error iconoir-warning-circle"
                           ></i>
                           {{ getResolvedName(child.name) }}
                         </div>
@@ -193,9 +196,8 @@
                                 childIndex
                               ].name.required
                               ? $t('error.requiredField')
-                              : !$v.values.menu_items.$each[index].children.$each[
-                                  childIndex
-                                ].name.maxLength
+                              : !$v.values.menu_items.$each[index].children
+                                  .$each[childIndex].name.maxLength
                               ? $t('error.maxLength', { max: 255 })
                               : ''
                             : ''
@@ -243,7 +245,6 @@
 <script>
 import { required, maxLength } from 'vuelidate/lib/validators'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import { MENU_ORIENTATION } from '@baserow/modules/builder/enums'
 import {
@@ -259,7 +260,6 @@ export default {
   name: 'MenuElementForm',
   components: {
     InjectedFormulaInput,
-    CustomStyle,
     LinkNavigationSelectionForm,
   },
   mixins: [elementForm],
@@ -324,7 +324,7 @@ export default {
     },
   },
   methods: {
-    async addMenuItem() {
+    addMenuItem() {
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemDefaultName'),
         this.values.menu_items
@@ -409,8 +409,7 @@ export default {
     addSubLink(item) {
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemSubLinkDefaultName'),
-        item.children
-          .map(({ name }) => this.getResolvedName(name))
+        item.children.map(({ name }) => this.getResolvedName(name))
       )
       const subItem = {
         name: `'${name}'`,

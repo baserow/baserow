@@ -1993,8 +1993,8 @@ export class MenuElementType extends ElementType {
     // Needed to ensure Events tab in page side panel is not disabled
     return (element.menu_items || [])
       .map((item) => {
-        const { menu_item_variant, name, uid } = item
-        if (menu_item_variant === 'button') {
+        const { menu_item_variant: menuItemVariant, name, uid } = item
+        if (menuItemVariant === 'button') {
           const resolvedName = this.resolveFormula(name, {})
           return [
             new ClickEvent({
@@ -2022,13 +2022,23 @@ export class MenuElementType extends ElementType {
 
     const menuItemType = this.app.$registry.get('element', 'menu_item')
 
-    const hasInvalidMenuItem = element.menu_items.some(menuItem => {
+    const hasInvalidMenuItem = element.menu_items.some((menuItem) => {
       if (menuItem.children?.length) {
-        return menuItem.children.some(child => {
-          return menuItemType.isInError({page, element: child, builder, workflowActions})    
+        return menuItem.children.some((child) => {
+          return menuItemType.isInError({
+            page,
+            element: child,
+            builder,
+            workflowActions,
+          })
         })
       } else {
-        return menuItemType.isInError({page, element: menuItem, builder, workflowActions})
+        return menuItemType.isInError({
+          page,
+          element: menuItem,
+          builder,
+          workflowActions,
+        })
       }
     })
 
@@ -2092,12 +2102,12 @@ export class MenuItemElementType extends ElementType {
     } else if (element.menu_item_variant === 'link') {
       // Link must have a name
       if (!element.name) {
-          return true
+        return true
       }
 
       if (!element.children?.length) {
         if (element.navigation_type === 'page') {
-          if (!element.navigate_to_page_id ) {
+          if (!element.navigate_to_page_id) {
             return true
           }
           return pathParametersInError(
