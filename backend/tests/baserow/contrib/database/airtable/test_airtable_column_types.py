@@ -1007,15 +1007,14 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
             "symmetricColumnId": "fldFh5wIL430N62LN6t",
         },
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {"id": "tblxxx"},
-        airtable_field,
-        AirtableImportConfig(),
-        AirtableImportReport(),
+        {"id": "tblxxx"}, airtable_field, AirtableImportConfig(), import_report
     )
+    assert len(import_report.items) == 0
     assert isinstance(baserow_field, LinkRowField)
     assert isinstance(airtable_column_type, ForeignKeyAirtableColumnType)
     assert baserow_field.link_row_table_id == "tblRpq315qnnIcg5IjI"
@@ -1103,6 +1102,49 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
     assert isinstance(airtable_column_type, ForeignKeyAirtableColumnType)
     assert baserow_field.link_row_table_id == "tblRpq315qnnIcg5IjI"
     assert baserow_field.link_row_related_field_id == "fldQcEaGEe7xuhUEuPL"
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_foreign_key_column_failed_import(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldQcEaGEe7xuhUEuPL",
+        "name": "Link to Users",
+        "type": "foreignKey",
+        "typeOptions": {
+            "foreignTableId": "tblRpq315qnnIcg5IjI",
+            "relationship": "one",
+            "unreversed": True,
+            "symmetricColumnId": "fldFh5wIL430N62LN6t",
+            "viewIdForRecordSelection": "vw1234",
+            "filtersForRecordSelection": [None],
+            "aiMatchingOptions": {"isAutoFillEnabled": False},
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {"id": "tblxxx"}, airtable_field, AirtableImportConfig(), import_report
+    )
+    assert len(import_report.items) == 4
+    assert import_report.items[0].object_name == "Link to Users"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+    assert import_report.items[1].object_name == "Link to Users"
+    assert import_report.items[1].scope == SCOPE_FIELD
+    assert import_report.items[1].table == ""
+    assert import_report.items[2].object_name == "Link to Users"
+    assert import_report.items[2].scope == SCOPE_FIELD
+    assert import_report.items[2].table == ""
+    assert import_report.items[3].object_name == "Link to Users"
+    assert import_report.items[3].scope == SCOPE_FIELD
+    assert import_report.items[3].table == ""
+    assert isinstance(baserow_field, LinkRowField)
+    assert isinstance(airtable_column_type, ForeignKeyAirtableColumnType)
+    assert baserow_field.link_row_table_id == "tblRpq315qnnIcg5IjI"
+    assert baserow_field.link_row_related_field_id == "fldFh5wIL430N62LN6t"
 
 
 @pytest.mark.django_db

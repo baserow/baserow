@@ -488,6 +488,54 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
     ):
         type_options = raw_airtable_column.get("typeOptions", {})
         foreign_table_id = type_options.get("foreignTableId")
+        relationship = type_options.get("relationship", "many")  # can be: one
+        view_id_for_record_selection = type_options.get(
+            "viewIdForRecordSelection", None
+        )
+        filters_for_record_selection = type_options.get(
+            "filtersForRecordSelection", None
+        )
+        ai_matching_options = type_options.get("aiMatchingOptions", None)
+
+        if relationship != "many":
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but support for a one to many "
+                f"relationship was dropped because it's not supported by Baserow.",
+            )
+
+        if view_id_for_record_selection is not None:
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but limiting record selection to a view "
+                f"was dropped because the views have not been imported.",
+            )
+
+        if filters_for_record_selection is not None:
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but filtering record by a condition "
+                f"was dropped because it's not supported by Baserow.",
+            )
+
+        if ai_matching_options is not None:
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but using AI to show top matches was "
+                f"dropped because it's not supported by Baserow.",
+            )
 
         return LinkRowField(
             link_row_table_id=foreign_table_id,
