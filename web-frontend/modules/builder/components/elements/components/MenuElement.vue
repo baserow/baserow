@@ -18,7 +18,7 @@
               class="menu-element__menu-item-link"
             />
           </div>
-          <div class="menu-element__sub-link-menu-container" v-else @click="toggleExpanded(item.id)">
+          <div ref="menuSubLinkContainer" class="menu-element__sub-link-menu-container" v-else @click="toggleExpanded(item.id)">
             <div class="menu-element__sub-link-menu-container-item">
               <div class="menu-element__menu-item-link">
                 <a>{{ getResolvedValue(item.name) }}</a>
@@ -90,6 +90,12 @@ export default {
       expandedItems: {},
     }
   },
+  mounted() {
+    document.addEventListener('click', this.handleClickOutsideSubLinkMenu)
+  },
+  beforeDestroy() {
+    document.removeEventListener('click', this.handleClickOutsideSubLinkMenu)
+  },
   computed: {
     visibleMenuItems() {
       return this.element.menu_items.filter((item) => {
@@ -125,6 +131,25 @@ export default {
     },
     isExpanded(itemId) {
       return !!this.expandedItems[itemId]
+    },
+    handleClickOutsideSubLinkMenu(event) {
+      const subMenuContainers = this.$refs.menuSubLinkContainer
+      if (!subMenuContainers) return
+
+      // subMenuContainers could be a single element (if there is only
+      // one sub menu), or an array or a DOM element (if there are multiple
+      // sub menus)
+      const isClickOutside = Array.isArray(subMenuContainers) 
+        // If it is an array, check if at least one sub menu received the click
+        ? !subMenuContainers.some(container => container.contains(event.target))
+        // If it is a DOM element, check if it received the click
+        : !subMenuContainers.contains(event.target)
+
+      // If a click is received anywhere outside of a sub menu, close all
+      // sub menus.
+      if (isClickOutside) {
+        this.expandedItems = {}
+      }
     },
   },
 }
