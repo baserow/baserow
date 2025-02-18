@@ -183,11 +183,11 @@ class BuilderConfig(AppConfig):
             ImageElementType,
             InputTextElementType,
             LinkElementType,
+            MenuElementType,
             RecordSelectorElementType,
             RepeatElementType,
             TableElementType,
             TextElementType,
-            MenuElementType,
         )
         from .elements.registries import element_type_registry
 

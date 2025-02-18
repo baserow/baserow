@@ -428,16 +428,16 @@ class MenuItemSerializer(serializers.ModelSerializer):
         The "children" field is declared as a SerializerMethodField, which means
         it is a read-only field. This works well for GET requests but causes the
         field to be automatically discarded during PATCH requests.
-         
+
         During PATCH requests, the `MenuElementType.after_update` needs access
         to this field. The field is therefore extracted and saved to the
         `validated_data` dict for that purpose.
         """
 
-        children = data.pop('children', None)
+        children = data.pop("children", None)
         validated_data = super().to_internal_value(data)
-        
+
         if children is not None:
-            validated_data['children'] = children
-            
+            validated_data["children"] = children
+
         return validated_data

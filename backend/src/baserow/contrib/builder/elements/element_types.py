@@ -21,11 +21,13 @@ from django.db.models.functions import Cast
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.contrib.builder.api.elements.serializers import ChoiceOptionSerializer
+from baserow.contrib.builder.api.elements.serializers import (
+    ChoiceOptionSerializer,
+    MenuItemSerializer,
+)
 from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
 )
-from baserow.contrib.builder.api.elements.serializers import MenuItemSerializer
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
@@ -2008,7 +2010,7 @@ class MenuElementType(ElementType):
         }
 
         return overrides
-    
+
     def after_create(self, instance: MenuItemElement, values):
         menu_items = values.get("menu_items", [])
 
@@ -2047,26 +2049,21 @@ class MenuElementType(ElementType):
                     continue
 
                 item.pop("menu_item_order", None)
-                
+
                 # Keep track of child-parent relationship via the uid
                 for child_index, child in enumerate(item.pop("children", [])):
                     child.pop("menu_item_order", None)
                     child.pop("parent_menu_item", None)
                     child.pop("children", None)
-            
+
                     items_to_create.append(
                         MenuItemElement(**child, menu_item_order=child_index)
                     )
                     child_uids_parent_uids[child["uid"]] = item["uid"]
 
-            
-                items_to_create.append(
-                    MenuItemElement(**item, menu_item_order=index)
-                )
+                items_to_create.append(MenuItemElement(**item, menu_item_order=index))
 
-            created_items = MenuItemElement.objects.bulk_create(
-                items_to_create
-            )
+            created_items = MenuItemElement.objects.bulk_create(items_to_create)
 
             # Re-associate the child-parent
             for item in created_items:
@@ -2077,7 +2074,7 @@ class MenuElementType(ElementType):
             instance.menu_items.add(*created_items)
 
         super().after_update(instance, values, changes)
-    
+
     def before_delete(self, instance: MenuElement):
         # TODO: Make sure related workflow actions are deleted
         # BuilderWorkflowAction.objects.filter(event__startswith=instance.uid).delete()
@@ -2085,7 +2082,7 @@ class MenuElementType(ElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return {"orientation": RepeatElement.ORIENTATIONS.VERTICAL}
-    
+
     def serialize_property(
         self,
         element: MenuElement,
@@ -2097,8 +2094,7 @@ class MenuElementType(ElementType):
     ):
         if prop_name == "menu_items":
             serializer = MenuItemSerializer(
-                element.menu_items.filter(parent_menu_item__isnull=True), 
-                many=True
+                element.menu_items.filter(parent_menu_item__isnull=True), many=True
             )
             return serializer.data
 
@@ -2133,9 +2129,9 @@ class MenuElementType(ElementType):
             **kwargs,
         )
 
-        import_context = ElementHandler().get_import_context_addition(
-            instance.id, cache.get("imported_element_map")
-        )
+        # import_context = ElementHandler().get_import_context_addition(
+        #     instance.id, cache.get("imported_element_map")
+        # )
 
         menu_items_to_create = []
         child_uids_parent_uids = {}
@@ -2154,12 +2150,12 @@ class MenuElementType(ElementType):
                 child.pop("parent_menu_item", None)
                 child.pop("children", None)
                 child.pop("id")
-        
+
                 menu_items_to_create.append(
                     MenuItemElement(**child, menu_item_order=child_index)
                 )
                 child_uids_parent_uids[child["uid"]] = item["uid"]
-                
+
         created_menu_items = MenuItemElement.objects.bulk_create(menu_items_to_create)
 
         # Re-associate the child-parent
