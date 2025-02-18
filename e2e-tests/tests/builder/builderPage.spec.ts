@@ -110,6 +110,7 @@ test.describe("Builder page test suite", () => {
     await expect(page.locator(".box__title").getByText("Page")).toBeHidden();
     await page.getByText('Click to create an element').click();
     await page.getByText('Link A link to page/URL').click();
+    await page.getByLabel('my_param=').fill("foo")
     await page.getByRole('complementary').getByRole('textbox').click();
     await page.getByRole('complementary').getByRole('textbox').locator('div').first().fill('linkim');
     await page.locator('a').filter({hasText: 'Make a choice'}).click();
@@ -120,7 +121,7 @@ test.describe("Builder page test suite", () => {
     await page.getByText('my_param', { exact: true }).first().click();
     await page.click('body')
     await expect(page.getByRole('link', {name: 'linkim'})).toHaveAttribute(
-      'href', /\?my_param=null/);
+      'href', /\?my_param=foo/);
 
   });
 });
