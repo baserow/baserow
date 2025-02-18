@@ -98,14 +98,25 @@ def quill_split_with_newlines(value):
 def quill_to_markdown(ops: list) -> str:
     """
     Airtable uses the QuillJS editor for their rich text field. There is no library
-    to convert it in Baserow compatible markdown. This is a simple, custom writter
+    to convert it in Baserow compatible markdown. This is a simple, custom written
+    function to convert it to Baserow compatible markdown.
+
+    The format is a bit odd because a newline entry can define how it should have been
+    formatted as on block level, making it a bit tricky because it's not sequential.
+
+    See the `test_quill_to_markdown_airtable_example` test for an example.
 
     :param ops: The QuillJS delta object that must be converted to markdown.
-    :return: The converted markdown data.
+    :return: The converted markdown string.
     """
 
     md_output = []
+    # Holds everything that must be written as a line. Each entry in the ops can add to
+    # it until a "\n" character is detected.
     current_object = ""
+    # Temporarily holds markdown code that has start and ending block, like with
+    # code "```", for example. Need to temporarily store the prepend and append values,
+    # so that we can add to it if it consists of multiple lines.
     current_multi_line = None
 
     def flush_line():
@@ -137,6 +148,8 @@ def quill_to_markdown(ops: list) -> str:
         else:
             insert_lines = [raw_insert]
 
+        # Break the insert by "\n" because the block formatting options should only
+        # refer to the previous line.
         for insert_line in insert_lines:
             is_new_line = insert_line == "\n"
 
