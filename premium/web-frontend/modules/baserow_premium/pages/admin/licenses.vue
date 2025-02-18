@@ -203,6 +203,7 @@ export default {
         .sort((a, b) =>
           a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1
         )
+        .sort((a, b) => a.application_users - b.application_users)
     },
     licenseTypesWithFeatureComponent() {
       return Object.values(this.$registry.getAll('license')).filter(

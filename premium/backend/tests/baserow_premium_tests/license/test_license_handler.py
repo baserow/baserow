@@ -111,6 +111,18 @@ VALID_PREMIUM_TEN_SEAT_TEN_APP_USER_LICENSE = (
     b"KfMTkE34y8SsmTsvlDmLlt2fpkrFwM2Vpi4mE7GiY4nf5f4_8UHckpG8tqA-OK6KV4kPL_aTTLwdcZDL-"
     b"aULpNydqXUfGMMgKzjq1L1cULsoZQc9ueFZBh8KmA2PEjw4i1o70-xePIA=="
 )
+VALID_PREMIUM_5_SEAT_15_APP_USER_LICENSE = (
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImY4YjRlOTk1LTJhMmEtNDg0NS04ZWI1LWM2MjBiYzA5YTdiMiIsI"
+    b"CJ2YWxpZF9mcm9tIjogIjIwMjUtMDItMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI2LT"
+    b"AxLTAxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogNSwgImFwcGx"
+    b"pY2F0aW9uX3VzZXJzIjogMTUsICJpc3N1ZWRfb24iOiAiMjAyNS0wMi0xN1QxMTo0NToyNC44NjM3NjQi"
+    b"LCAiaXNzdWVkX3RvX2VtYWlsIjogInBldGVyQGJhc2Vyb3cuaW8iLCAiaXNzdWVkX3RvX25hbWUiOiAiU"
+    b"GV0ZXIiLCAiaW5zdGFuY2VfaWQiOiAiMSJ9.GsYLPV63FG5FAncOp6dyLysDqVSMR37C1zwTT-otZgGuu"
+    b"TpYg4aa9x-2ODonL9IAUmosyy6FZ1LcI4i8YdDyQ_rt-X_KhwR2S7Eotl6ZEepOYTbC7qKuG30szAKM6d"
+    b"4eL0unPB48pLJhSS_j745WgMn-4vUMmm6FTWaIPJaWFzwUjOp5zLgNpvvgkayzQ608XdYVjilVBcTlszj"
+    b"hxi00g0la2nMdCqDytZdJCn7XwAMA8itvSjYrWL1gMqTtPL6U92bJz97n8wQRBFW8kNKb2JTPfcbwozeg"
+    b"Vd44sPwBqWaA0wwpKyNs-Sa43FHcbQKIGG8A68hKQy2MG3EWHgLWTA=="
+)
 VALID_ENTERPRISE_FIFTEEN_SEAT_FIFTEEN_APP_USER_LICENSE = (
     # id: "06b9bec3-d5d9-4286-be5a-c25b94188303"
     # instance_id: "1"
@@ -148,6 +160,18 @@ INVALID_VERSION_LICENSE = (
     b"CLll95OFoBUJhtOQqNC6JLA1LZdiSPG6zFhvi5V27sRGBz3E8jhFLWY-Y2WIq5_9q2d_hVFM0KHwRcxb"
     b"CVof8RBUq1DgMcDKEGE7WRHYDVP1QugBjf4GZlvIE4ZVr3tKr0aKPX8nuNVhbQeudCW8tnturmxevpRN"
     b"vLS5ETSQzJoP46cGuw0HUV20P4SnvQP_NRd5zifgllJqsUw=="
+)
+INVALID_PREMIUM_FIVE_SEAT_10_APP_USER_EXPIRED_LICENSE = (
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogIjkzZDExODYwLTU1Y2UtNDJhYy05NGI5LTY0YTlhMTBiNzI3MiIsI"
+    b"CJ2YWxpZF9mcm9tIjogIjIwMjUtMDItMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI1LT"
+    b"AyLTA4VDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogNSwgImFwcGx"
+    b"pY2F0aW9uX3VzZXJzIjogMTAsICJpc3N1ZWRfb24iOiAiMjAyNS0wMi0xOFQxMToxMDowNS40NjE3NzAi"
+    b"LCAiaXNzdWVkX3RvX2VtYWlsIjogInBldGVyQGJhc2Vyb3cuaW8iLCAiaXNzdWVkX3RvX25hbWUiOiAiU"
+    b"GV0ZXIiLCAiaW5zdGFuY2VfaWQiOiAiMSJ9.DJXyKA1MEMcR7hLFiITLteBQbgZhLpOVqLT1GoWqiC60B"
+    b"WiEz223qTnYE06ibqMF_YF__Cr1ejS7brplUa1_56G0MDtTobVzH5-IJIiVt1KXGkUoYZdCuD6ouk9maH"
+    b"2ycOWEqZZsWROaLJ_ipzyxbYeiVrBuYEv5P5IhsmeEbAH9Gj5e4vjkwHmZjZGlW-4Ejo8NXC6uhdcxx7b"
+    b"t89MaAKEk-cYmtKL0eJEUrKvU2drHuo0ft6QusXHyzROPD82h1pgBNQNDSkHwmY9hxaHdbCjsojPVLARU"
+    b"tsAx2YIDwpQ5QDyPA1s6OqG4e72l1sUUE4fxjHF7-FKEHQwAsvOZzg=="
 )
 NOT_JSON_PAYLOAD_LICENSE = (
     b"dGVzdA==.I37aSmuKN0WSrw6IDTg2xBOlQ3UOE5cjaWfc4MF5pgIadMUjkOh0D32R7RqRhmsxhdsqK6a"
@@ -1085,3 +1109,74 @@ def test_add_active_licenses_to_settings(api_client, data_fixture):
         response_json = response.json()
         assert len(response_json.keys()) > 1
         assert response_json["instance_wide_licenses"] == {"enterprise": True}
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_premium.license.registries.BuilderHandler.aggregate_user_source_counts")
+def test_premium_license_builder_usage_license_extra_info(
+    mock_aggregate_user_source_counts, premium_data_fixture
+):
+    # We have a single premium license, with 5 application users taken.
+    mock_aggregate_user_source_counts.return_value = 5
+    first_license = premium_data_fixture.create_premium_license(
+        license=VALID_PREMIUM_TEN_SEAT_TEN_APP_USER_LICENSE.decode()
+    )
+    with local_cache.context():
+        assert LicenseHandler.collect_extra_license_info(first_license) == {
+            "id": first_license.license_id,
+            "seats_taken": 0,
+            "free_users_count": 0,
+            "highest_role_per_user_id": {},
+            "application_users_taken": 5,
+        }
+
+    # Introduce a second premium license, so we now have 25 application
+    # users available, but now our application users taken is 30.
+    mock_aggregate_user_source_counts.return_value = 30
+    second_license = premium_data_fixture.create_premium_license(
+        license=VALID_PREMIUM_5_SEAT_15_APP_USER_LICENSE.decode()
+    )
+
+    with local_cache.context():
+        # Re-check the first license, its `application_users_taken`
+        # count is the `application_users` count.
+        assert LicenseHandler.collect_extra_license_info(first_license) == {
+            "id": first_license.license_id,
+            "seats_taken": 0,
+            "free_users_count": 0,
+            "highest_role_per_user_id": {},
+            "application_users_taken": 10,
+        }
+        # The second license `application_users_taken` count overflows.
+        assert LicenseHandler.collect_extra_license_info(second_license) == {
+            "id": second_license.license_id,
+            "seats_taken": 0,
+            "free_users_count": 0,
+            "highest_role_per_user_id": {},
+            "application_users_taken": 20,
+        }
+
+    first_license.delete()
+
+    with local_cache.context():
+        # An expired license reports an application user usage of 0.
+        expired_license = premium_data_fixture.create_premium_license(
+            license=INVALID_PREMIUM_FIVE_SEAT_10_APP_USER_EXPIRED_LICENSE.decode()
+        )
+        assert LicenseHandler.collect_extra_license_info(expired_license) == {
+            "id": expired_license.license_id,
+            "seats_taken": 0,
+            "free_users_count": 0,
+            "highest_role_per_user_id": {},
+            "application_users_taken": 0,
+        }
+        # The second license is now the only active license, so it reports the
+        # full application user usage, which overflows.
+        assert LicenseHandler.collect_extra_license_info(second_license) == {
+            "id": second_license.license_id,
+            "seats_taken": 0,
+            "free_users_count": 0,
+            "highest_role_per_user_id": {},
+            "application_users_taken": 30,
+        }
