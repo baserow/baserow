@@ -229,8 +229,6 @@
                 </div>
               </div>
 
-              <div class="menu-element__menu-item-footer" />
-
               <div class="menu-element__add-sub-link-container">
                 <ButtonText
                   type="primary"
