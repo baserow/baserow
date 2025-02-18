@@ -33,8 +33,9 @@ class IntegrationHandler:
 
         :param integration_id: The ID of the integration.
         :param base_queryset: The base queryset use to build the query if provided.
+        :param specific: Whether we want the specific instance or not.
         :raises IntegrationDoesNotExist: If the integration can't be found.
-        :return: The specific integration instance.
+        :return: The integration instance.
         """
 
         queryset = (

@@ -331,7 +331,6 @@ class LocalBaserowTableServiceSortableMixin:
         if (
             service.service_sorts(manager="objects_and_trash")
             .filter(field__trashed=True)
-            .exclude(field_id=0)
             .exists()
         ):
             raise ServiceSortPropertyDoesNotExist(

@@ -507,7 +507,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             ):
                 continue
             field_type = field_object["type"]
-            field = field_object["field"]
             # Only `TextField` has a default value at the moment.
             field = field_object["field"]
             default_value = getattr(field, "text_default", None)
