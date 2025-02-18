@@ -178,6 +178,9 @@ const alphanumericDotDashUnderscore = helpers.regex(/^[a-zA-Z0-9._-]*$/)
 export default {
   name: 'SamlSettingsForm',
   mixins: [authProviderForm],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: [
@@ -196,9 +199,6 @@ export default {
         last_name_attr_key: 'user.last_name',
       },
     }
-  },
-  setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
   },
   computed: {
     allSamlProviders() {

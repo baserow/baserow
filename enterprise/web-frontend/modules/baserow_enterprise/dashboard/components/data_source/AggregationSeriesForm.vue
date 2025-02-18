@@ -70,9 +70,6 @@ const includes = (array) => (value) => {
 export default {
   name: 'AggregationSeriesForm',
   mixins: [form],
-  setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
-  },
   props: {
     tableFields: {
       type: Array,
@@ -82,6 +79,9 @@ export default {
       type: Number,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
