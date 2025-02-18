@@ -27,3 +27,9 @@
     display: none;
   }
 }
+
+.theme-config-block-section__preview-background {
+  background-color: var(--page-background-color);
+  padding: 2px;
+  border-radius: $rounded;
+}
