@@ -1,0 +1,7 @@
+{
+  "type": "refactor",
+  "message": "Lowered grid view minimum field with from 100 to 78.",
+  "issue_number": 3428,
+  "bullet_points": [],
+  "created_at": "2025-02-13"
+}

@@ -1,5 +1,6 @@
 import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { GRID_VIEW_MIN_FIELD_WIDTH } from '@baserow/modules/database/constants'
 
 export default {
   props: {
@@ -31,6 +32,9 @@ export default {
         (width, groupBy) => width + groupBy.width,
         0
       )
+    },
+    GRID_VIEW_MIN_FIELD_WIDTH() {
+      return GRID_VIEW_MIN_FIELD_WIDTH
     },
   },
   methods: {

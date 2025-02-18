@@ -264,7 +264,7 @@
         v-if="includeFieldWidthHandles"
         class="grid-view__description-width"
         :width="width"
-        :min="100"
+        :min="GRID_VIEW_MIN_FIELD_WIDTH"
         @move="moveFieldWidth(field, $event)"
         @update="updateFieldWidth(field, view, database, readOnly, $event)"
       ></HorizontalResize>

@@ -74,7 +74,7 @@
       class="grid-view__divider-width"
       :style="{ left: leftWidth + 'px' }"
       :width="leftFieldsWidth"
-      :min="100"
+      :min="GRID_VIEW_MIN_FIELD_WIDTH"
       @move="moveFieldWidth(leftFields[0], $event)"
       @update="
         updateFieldWidth(leftFields[0], view, database, readOnly, $event)
@@ -85,7 +85,7 @@
       class="grid-view__divider-width"
       :style="{ left: leftWidth + 'px' }"
       :width="activeGroupBys[activeGroupBys.length - 1].width"
-      :min="100"
+      :min="GRID_VIEW_MIN_FIELD_WIDTH"
       @move="
         moveGroupWidth(activeGroupBys[activeGroupBys.length - 1], view, $event)
       "

@@ -6,3 +6,5 @@ export const GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING = {
   medium: 55,
   large: 99,
 }
+
+export const GRID_VIEW_MIN_FIELD_WIDTH = 78
