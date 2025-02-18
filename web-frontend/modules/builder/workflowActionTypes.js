@@ -180,10 +180,8 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
 
 export class WorkflowActionServiceType extends WorkflowActionType {
   execute({ workflowAction: { id }, applicationContext, resolveFormula }) {
-    const { workflowActionContext } = applicationContext
     return this.app.store.dispatch('workflowAction/dispatchAction', {
       workflowActionId: id,
-      workflowActionContext,
       data: DataProviderType.getAllActionDispatchContext(
         this.app.$registry.getAll('builderDataProvider'),
         applicationContext

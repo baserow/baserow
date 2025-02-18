@@ -857,10 +857,12 @@ def test_public_dispatch_data_source_view_returns_all_fields(
         "has_next_page": False,
         "results": [
             {
+                "id": rows[0].id,
                 f"field_{fields[0].id}": "Paneer Tikka",
                 f"field_{fields[1].id}": "5",
             },
             {
+                "id": rows[1].id,
                 f"field_{fields[0].id}": "Gobi Manchurian",
                 f"field_{fields[1].id}": "8",
             },
@@ -1134,7 +1136,7 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
 
     expected_results = []
     for row in data_source_element_roles_fixture["rows"]:
-        result = {}
+        result = {"id": row.id}
         if expect_fields:
             # Field should only be visible if the user's role allows them
             # to see the data source fields.
@@ -1318,15 +1320,17 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
 
     assert response.status_code == HTTP_200_OK
 
+    rows = data_source_element_roles_fixture["rows"]
+
     if expect_fields:
         field_name = f"field_{field_id}"
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
                 "results": [
-                    {field_name: "Apple"},
-                    {field_name: "Banana"},
-                    {field_name: "Cherry"},
+                    {field_name: "Apple", "id": rows[0].id},
+                    {field_name: "Banana", "id": rows[1].id},
+                    {field_name: "Cherry", "id": rows[2].id},
                 ],
             },
         }
@@ -1632,15 +1636,17 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_logged_in(
 
     assert response.status_code == HTTP_200_OK
 
+    rows = data_source_element_roles_fixture["rows"]
+
     if expect_fields:
         field_name = f"field_{field_id}"
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
                 "results": [
-                    {field_name: "Apple"},
-                    {field_name: "Banana"},
-                    {field_name: "Cherry"},
+                    {field_name: "Apple", "id": rows[0].id},
+                    {field_name: "Banana", "id": rows[1].id},
+                    {field_name: "Cherry", "id": rows[2].id},
                 ],
             },
         }

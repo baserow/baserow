@@ -176,5 +176,22 @@ export default {
         this.contentFetchEnabled = false
       }
     },
+    getPerRecordApplicationContextAddition({
+      applicationContext,
+      row,
+      rowIndex,
+      field = null,
+    }) {
+      const newApplicationContext = {
+        recordIndexPath: [...applicationContext.recordIndexPath, rowIndex],
+      }
+      if (field) {
+        newApplicationContext.field = field
+      }
+      if (this.element.data_source_id) {
+        newApplicationContext.recordId = row.__recordId__
+      }
+      return newApplicationContext
+    },
   },
 }

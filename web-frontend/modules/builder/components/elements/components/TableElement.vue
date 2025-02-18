@@ -13,7 +13,7 @@
       :style="getStyleOverride('table')"
       :orientation="orientation"
     >
-      <template #cell-content="{ rowIndex, field, value }">
+      <template #cell-content="{ rowIndex, field, value, row }">
         <!--
         -- We force-self-alignment to `auto` here to prevent some self-positioning
         -- like in buttons or links. we want to position the content through the table
@@ -34,14 +34,14 @@
               :is="collectionFieldTypes[field.type].component"
               :element="element"
               :field="field"
-              :application-context-additions="{
-                recordIndexPath: [
-                  ...applicationContext.recordIndexPath,
+              :application-context-additions="
+                getPerRecordApplicationContextAddition({
+                  applicationContext,
+                  row,
                   rowIndex,
-                ],
-                field,
-                dispatchRefinements: adhocRefinements,
-              }"
+                  field,
+                })
+              "
               v-bind="value"
             />
           </div>
@@ -117,6 +117,7 @@ export default {
           })
         )
         newRow.__id__ = uuid()
+        newRow.__recordId__ = row.__recordId__
         return newRow
       })
     },

@@ -1961,6 +1961,7 @@ def test_dispatch_data_sources_list_rows_with_elements(
                 # Although this Data Source has 2 Fields/Columns, only one is
                 # returned since only one field_id is used by the Table.
                 f"field_{field_id}": getattr(row, f"field_{field_id}"),
+                "id": row.id,
             }
         )
 
@@ -2043,6 +2044,7 @@ def test_dispatch_data_sources_get_row_with_elements(
     assert response.json() == {
         str(data_source.id): {
             f"field_{field_id}": getattr(rows[db_row_id], f"field_{field_id}"),
+            "id": rows[db_row_id].id,
         }
     }
 
@@ -2148,6 +2150,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
     assert response.json() == {
         str(data_source_1.id): {
             f"field_{fields_1[0].id}": getattr(rows_1[0], f"field_{fields_1[0].id}"),
+            "id": rows_1[0].id,
         },
         # Although this Data Source has 2 Fields/Columns, only one is returned
         # since only one field_id is used by the Table.
@@ -2158,6 +2161,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
                     f"field_{fields_2[0].id}": getattr(
                         rows_2[0], f"field_{fields_2[0].id}"
                     ),
+                    "id": rows_2[0].id,
                 },
             ],
         },

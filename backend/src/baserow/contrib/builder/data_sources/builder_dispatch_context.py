@@ -33,6 +33,7 @@ class BuilderDispatchContext(DispatchContext):
         "element",
         "offset",
         "count",
+        "only_record_id",
         "only_expose_public_allowed_properties",
     ]
 
@@ -44,12 +45,29 @@ class BuilderDispatchContext(DispatchContext):
         element: Optional["Element"] = None,
         offset: Optional[int] = None,
         count: Optional[int] = None,
+        only_record_id: Optional[int | str] = None,
         only_expose_public_allowed_properties: Optional[bool] = True,
     ):
+        """
+        Dispatch context used in the builder.
+
+        :param request: The HTTP request from the view.
+        :param page: The page related to the dispatch.
+        :param workflow_action: The workflow action being executed, if any.
+        :param element: An optional element that triggered the dispatch.
+        :param offset: When we dispatch a list service, starts by that offset.
+        :param count: When we dispatch a list service returns that max amount of record.
+        :param record_id: If we want to narrow down the results of a list service to
+          only the record with this Id.
+        :param only_expose_public_allowed_properties: Determines whether only public
+            allowed properties should be exposed. Defaults to True.
+        """
+
         self.request = request
         self.page = page
         self.workflow_action = workflow_action
         self.element = element
+        self.only_record_id = only_record_id
 
         # Overrides the `request` GET offset/count values.
         self.offset = offset

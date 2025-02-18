@@ -1,5 +1,3 @@
-import { prepareDispatchParams } from '@baserow/modules/builder/utils/params'
-
 export default (client) => {
   return {
     create(pageId, workflowActionType, eventType, configuration = null) {
@@ -35,12 +33,10 @@ export default (client) => {
         payload
       )
     },
-    dispatch(workflowActionId, data, dispatchRefinements) {
-      const params = prepareDispatchParams(dispatchRefinements)
+    dispatch(workflowActionId, data) {
       return client.post(
         `builder/workflow_action/${workflowActionId}/dispatch/`,
-        data,
-        { params }
+        data
       )
     },
   }

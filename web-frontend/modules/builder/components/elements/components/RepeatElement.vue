@@ -28,12 +28,13 @@
                   v-if="index === 0 && isEditMode"
                   :key="`${child.id}-${index}`"
                   :element="child"
-                  :application-context-additions="{
-                    recordIndexPath: [
-                      ...applicationContext.recordIndexPath,
-                      index,
-                    ],
-                  }"
+                  :application-context-additions="
+                    getPerRecordApplicationContextAddition({
+                      applicationContext,
+                      row: content,
+                      rowIndex: index,
+                    })
+                  "
                   @move="$emit('move', $event)"
                 />
                 <!-- Other iterations are not editable -->
@@ -44,12 +45,13 @@
                   :key="`${child.id}_${index}`"
                   :element="child"
                   :force-mode="isEditMode ? 'public' : mode"
-                  :application-context-additions="{
-                    recordIndexPath: [
-                      ...applicationContext.recordIndexPath,
-                      index,
-                    ],
-                  }"
+                  :application-context-additions="
+                    getPerRecordApplicationContextAddition({
+                      applicationContext,
+                      row: content,
+                      rowIndex: index,
+                    })
+                  "
                   :class="{
                     'repeat-element__preview': index > 0 && isEditMode,
                   }"

@@ -517,8 +517,16 @@ class CollectionElementTypeMixin:
             .items()
             if any(options.values())
         ]
+
         if data_source and property_options:
             properties.setdefault(data_source.service_id, []).extend(property_options)
+
+        # We need the id for the element
+        if data_source and data_source.service_id:
+            service = data_source.service.specific
+            id_property = service.get_type().get_id_property(service)
+            if id_property not in properties.setdefault(service.id, []):
+                properties[service.id].append(id_property)
 
         return properties
 
