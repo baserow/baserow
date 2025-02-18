@@ -425,6 +425,22 @@ class FormulaAirtableColumnType(AirtableColumnType):
         # The formula conversion isn't support yet, but because the Created on and
         # Last modified fields work as a formula, we can convert those.
         if is_last_modified:
+            dependencies = type_options.get("dependencies", {})
+            all_column_modifications = dependencies.get(
+                "dependsOnAllColumnModifications", False
+            )
+
+            if not all_column_modifications:
+                import_report.add_failed(
+                    raw_airtable_column["name"],
+                    SCOPE_FIELD,
+                    raw_airtable_table.get("name", ""),
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f"The field was imported, but the support to depend on "
+                    f"specific fields was dropped because that's not supported by "
+                    f"Baserow.",
+                )
+
             return LastModifiedField(
                 date_show_tzinfo=date_show_tzinfo,
                 date_force_timezone=airtable_timezone,

@@ -949,6 +949,52 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
 
 @pytest.mark.django_db
 @responses.activate
+def test_airtable_import_last_modified_column_depending_fields(
+    data_fixture, api_client
+):
+    airtable_field = {
+        "id": "fldws6n8xdrEJrMxJFJ",
+        "name": "Last",
+        "type": "formula",
+        "typeOptions": {
+            "isDateTime": False,
+            "dateFormat": "Local",
+            "displayType": "lastModifiedTime",
+            "timeZone": "client",
+            "formulaTextParsed": "LAST_MODIFIED_TIME()",
+            "dependencies": {
+                "referencedColumnIdsForValue": [],
+                "referencedColumnIdsForModification": ["fld123445678"],
+                "dependsOnAllColumnModifications": False,
+            },
+            "resultType": "date",
+            "resultIsArray": False,
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert isinstance(baserow_field, LastModifiedField)
+    assert isinstance(airtable_column_type, FormulaAirtableColumnType)
+    assert baserow_field.date_format == "ISO"
+    assert baserow_field.date_include_time is False
+    assert baserow_field.date_time_format == "24"
+    assert baserow_field.date_force_timezone is None
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Last"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_airtable_import_foreign_key_column(data_fixture, api_client):
     airtable_field = {
         "id": "fldQcEaGEe7xuhUEuPL",
