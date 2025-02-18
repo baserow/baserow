@@ -418,8 +418,7 @@ export default {
     addSubLink(item) {
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemSubLinkDefaultName'),
-        this.values.menu_items
-          .filter((item) => item.parent_menu_item !== null)
+        item.children
           .map(({ name }) => this.getResolvedName(name))
       )
       const subItem = {
