@@ -132,11 +132,19 @@
       <Checkbox :checked="isCollapsed" @input="emitToggleRepetitions($event)">
       </Checkbox>
     </FormGroup>
+    <CustomStyle
+      v-model="values.styles"
+      style-key="header_button"
+      :config-block-types="['button']"
+      :theme="builder.theme"
+      :extra-args="{ noAlignment: true, noWidth: true }"
+    />
     <FormGroup
       v-if="propertyOptionsAvailable"
       small-label
       class="margin-bottom-2"
       :label="$t('collectionElementForm.propertyOptionLabel')"
+      required
     >
       <PropertyOptionForm
         :default-values="element"

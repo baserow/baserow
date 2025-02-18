@@ -1,10 +1,40 @@
-.local-baserow-adhoc-header__container {
-  .header__filter-item {
-    margin-left: 0;
+.local-baserow-adhoc-header {
+  gap: 5px;
+  display: flex;
+}
 
-    &.header__filter-item--right {
-      margin-left: auto;
-      margin-right: 0;
+.local-baserow-adhoc-header__item {
+  .header__search {
+    .header__search-icon {
+      font-size: inherit;
+      color: inherit;
     }
+  }
+
+  .header__filter-link {
+    // We use the button style for these links
+    color: var(--button-text-color, $white);
+    background-color: var(--button-background-color, $black);
+    font-size: var(--button-font-size, 12px);
+    font-weight: var(--button-font-weight, 400);
+    border: var(--button-border-size, 0) solid var(--button-border-color, black);
+    border-radius: var(--button-border-radius, 4px);
+    font-family: var(--button-font-family, Inter);
+    padding: var(--button-vertical-padding, 4px)
+      var(--button-horizontal-padding, 12px);
+    height: auto;
+    line-height: 1em;
+
+    &:hover {
+      background-color: var(--button-hover-background-color, $black);
+      border-color: var(--button-hover-border-color, $white);
+      color: var(--button-hover-text-color, $white);
+      text-decoration: none;
+    }
+  }
+
+  .header__filter-icon {
+    font-size: inherit;
+    color: inherit;
   }
 }

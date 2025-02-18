@@ -303,10 +303,11 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name=["button", "table"],
+                property_name=["button", "table", "header_button"],
                 theme_config_block_type_name=[
                     ButtonThemeConfigBlockType.type,
                     TableThemeConfigBlockType.type,
+                    ButtonThemeConfigBlockType.type,
                 ],
                 serializer_kwargs={"required": False},
             ),
@@ -366,8 +367,11 @@ class RepeatElementType(
             **super().serializer_field_overrides,
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="button",
-                theme_config_block_type_name=ButtonThemeConfigBlockType.type,
+                property_name=["button", "header_button"],
+                theme_config_block_type_name=[
+                    ButtonThemeConfigBlockType.type,
+                    ButtonThemeConfigBlockType.type,
+                ],
                 serializer_kwargs={"required": False},
             ),
         }

@@ -2,6 +2,7 @@
   <div class="repeat-element--container">
     <CollectionElementHeader
       :element="element"
+      :style="getStyleOverride('header_button')"
       @filters-changed="adhocFilters = $event"
       @sortings-changed="adhocSortings = $event"
       @search-changed="adhocSearch = $event"
