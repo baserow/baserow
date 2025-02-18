@@ -678,7 +678,7 @@ class ImportExportResource(CreatedAndUpdatedOnMixin, models.Model):
             "This is only used in the frontend for uploaded files.",
         ),
     )
-    size = models.PositiveIntegerField(
+    size = models.PositiveBigIntegerField(
         default=0, help_text="The size of the resource in bytes."
     )
     created_by = models.ForeignKey(
