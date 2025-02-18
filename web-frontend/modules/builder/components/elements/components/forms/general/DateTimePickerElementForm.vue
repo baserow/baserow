@@ -101,6 +101,7 @@ export default {
         'date_format',
         'include_time',
         'time_format',
+        'styles',
       ],
       values: {
         label: '',
@@ -109,6 +110,7 @@ export default {
         date_format: '',
         include_time: false,
         time_format: '',
+        styles: {},
       },
     }
   },

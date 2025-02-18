@@ -51,11 +51,12 @@ export default {
   mixins: [formElementForm],
   data() {
     return {
-      allowedValues: ['label', 'default_value', 'required'],
+      allowedValues: ['label', 'default_value', 'required', 'styles'],
       values: {
         label: '',
         default_value: '',
         required: false,
+        styles: {},
       },
     }
   },

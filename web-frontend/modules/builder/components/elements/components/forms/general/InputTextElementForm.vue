@@ -149,6 +149,7 @@ export default {
         'is_multiline',
         'rows',
         'type',
+        'styles',
       ],
       values: {
         label: '',
