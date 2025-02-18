@@ -42,9 +42,8 @@
 .menu-element__add-sub-link-container {
   display: flex;
   justify-content: flex-end;
+  margin-left: 15px;
 }
-
-
 
 .horizontal .menu-element__menu-link-expanded-icon {
   margin-left: 5px;
@@ -113,4 +112,63 @@
 
 .vertical .menu-element__sub-link-menu {
   width: 100%;
+}
+
+.menu-element__sub-link-form {
+  width: 100%;
+  margin-left: 5px;
+
+  .expandable__content {
+    padding: 15px 20px 5px 25px;
+    border-bottom: 1px solid $palette-neutral-300;
+    margin-bottom: 4px;
+  }
+
+  .control__elements--small {
+    margin-bottom: 0;
+  }
+
+  .control--horizontal.control--after-input .control__wrapper {
+    flex-basis: 100%;
+  }
+}
+
+.menu-element__sub-link-form__header {
+  display: flex;
+  background-color: $palette-neutral-100;
+  margin-bottom: 4px;
+  align-items: center;
+  padding-right: 15px;
+  user-select: none;
+  cursor: pointer;
+}
+
+.menu-element__sub-link-form__error {
+  font-size: 20px;
+  color: #ffbdb4;
+  pointer-events: none;
+  padding-right: 3px;
+}
+
+.menu-element__sub-link-form__name {
+  flex: 1;
+  padding-right: 5px;
+
+  @extend %ellipsis;
+}
+
+.menu-element__sub-link-form__handle {
+  width: 8px;
+  height: 36px;
+  background-image: radial-gradient($color-neutral-200 40%, transparent 40%);
+  background-size: 4px 4px;
+  background-repeat: repeat;
+  margin: 2px;
+  margin-right: 12px;
+  cursor: grab;
+  visibility: hidden;
+
+  .menu-element__sub-link-form__header:hover & {
+    visibility: visible;
+  }
 }

@@ -157,20 +157,20 @@
 
               <div v-if="item.children && item.children.length > 0">
                 <div v-for="(child, childIndex) in item.children" :key="child.uid">
-                  <Expandable class="table-element-form__field">
+                  <Expandable class="menu-element__sub-link-form">
                     <template #header="{ toggle, expanded }">
                       <div
-                        class="table-element-form__field-header"
+                        class="menu-element__sub-link-form__header"
                         @click.stop="toggle"
                       >
                         <div
-                          class="table-element-form__field-handle"
+                          class="menu-element__sub-link-form__handle"
                           data-sortable-handle
                         />
-                        <div class="table-element-form__field-name">
+                        <div class="menu-element__sub-link-form__name">
                           <i
                             v-if="!expanded && menuItemInError(child)"
-                            class="table-element-form__field-error iconoir-warning-circle"
+                            class="menu-element__sub-link-form__error iconoir-warning-circle"
                           ></i>
                           {{ getResolvedName(child.name) }}
                         </div>
