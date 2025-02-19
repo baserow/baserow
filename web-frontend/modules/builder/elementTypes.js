@@ -1974,7 +1974,7 @@ export class MenuElementType extends ElementType {
   }
 
   get iconClass() {
-    return 'iconoir-square-cursor'
+    return 'iconoir-menu'
   }
 
   get component() {
@@ -2064,7 +2064,7 @@ export class MenuItemElementType extends ElementType {
   }
 
   get iconClass() {
-    return 'iconoir-square-cursor'
+    return 'iconoir-menu'
   }
 
   // TODO: define actual component and form

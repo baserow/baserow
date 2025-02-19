@@ -2059,19 +2059,21 @@ class MenuElementType(ElementType):
                     items_to_create.append(
                         MenuItemElement(**child, menu_item_order=child_index)
                     )
-                    child_uids_parent_uids[child["uid"]] = item["uid"]
+                    child_uids_parent_uids[child["uid"]] = str(item["uid"])
 
                 items_to_create.append(MenuItemElement(**item, menu_item_order=index))
 
             created_items = MenuItemElement.objects.bulk_create(items_to_create)
+            instance.menu_items.add(*created_items)
 
             # Re-associate the child-parent
-            for item in created_items:
-                if parent_uid := child_uids_parent_uids.get(item.uid):
-                    item.parent_menu_item = MenuItemElement.objects.get(uid=parent_uid)
+            for item in instance.menu_items.all():
+                if parent_uid := child_uids_parent_uids.get(str(item.uid)):
+                    parent_item = instance.menu_items.filter(uid=parent_uid).first()
+                    item.parent_menu_item = parent_item
                     item.save()
 
-            instance.menu_items.add(*created_items)
+            
 
         super().after_update(instance, values, changes)
 
@@ -2129,41 +2131,46 @@ class MenuElementType(ElementType):
             **kwargs,
         )
 
-        # import_context = ElementHandler().get_import_context_addition(
-        #     instance.id, cache.get("imported_element_map")
-        # )
-
         menu_items_to_create = []
         child_uids_parent_uids = {}
-
+        
         for index, item in enumerate(menu_items):
             # Ignore any top-level items that are actually sub-links
             # TODO: this shouldn't even be returned by the serializer.
             if item.get("parent_menu_item", None):
                 continue
 
+            item.pop("id")
             item.pop("menu_item_order", None)
+            children = item.pop("children", [])
+            
+            menu_items_to_create.append(
+                MenuItemElement(**item, menu_item_order=index)
+            )
 
-            # Keep track of child-parent relationship via the uid
-            for child_index, child in enumerate(item.pop("children", [])):
-                child.pop("menu_item_order", None)
-                child.pop("parent_menu_item", None)
-                child.pop("children", None)
-                child.pop("id")
+            for child_index, child_item in enumerate(children):
+                child_item.pop("id")
+                child_item.pop("menu_item_order", None)
+                child_item.pop("parent_menu_item", None)
+                # Since there is only one level of nesting, the nested children
+                # will be empty and can be discarded.
+                child_item.pop("children", None)
 
                 menu_items_to_create.append(
-                    MenuItemElement(**child, menu_item_order=child_index)
+                    MenuItemElement(**child_item, menu_item_order=child_index)
                 )
-                child_uids_parent_uids[child["uid"]] = item["uid"]
+
+                # Keep track of child-parent relationship via the uid
+                child_uids_parent_uids[child_item["uid"]] = item["uid"]
 
         created_menu_items = MenuItemElement.objects.bulk_create(menu_items_to_create)
+        instance.menu_items.add(*created_menu_items)
 
         # Re-associate the child-parent
-        for item in created_menu_items:
-            if parent_uid := child_uids_parent_uids.get(item.uid):
-                item.parent_menu_item = MenuItemElement.objects.get(uid=parent_uid)
+        for item in instance.menu_items.all():
+            if parent_uid := child_uids_parent_uids.get(str(item.uid)):
+                parent_item = instance.menu_items.filter(uid=parent_uid).first()
+                item.parent_menu_item = parent_item
                 item.save()
-
-        instance.menu_items.add(*created_menu_items)
 
         return instance
