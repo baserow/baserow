@@ -110,8 +110,8 @@
 }
 
 .menu-element__sub-link-form {
-  width: 100%;
-  margin-left: 5px;
+  width: calc(100% + 30px);
+  margin-left: -15px;
 
   .expandable__content {
     padding: 15px 20px 5px 25px;

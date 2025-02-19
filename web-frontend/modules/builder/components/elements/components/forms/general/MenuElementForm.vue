@@ -47,18 +47,18 @@
           ),
           handle: '[data-sortable-handle]',
         }"
-        class="table-element-form__field"
+        class="menu-element__sub-link-form"
       >
         <template #header="{ toggle, expanded }">
-          <div class="table-element-form__field-header" @click.stop="toggle">
+          <div class="menu-element__sub-link-form--header" @click.stop="toggle">
             <div
-              class="table-element-form__field-handle"
+              class="menu-element__sub-link-form--handle"
               data-sortable-handle
             />
-            <div class="table-element-form__field-name">
+            <div class="menu-element__sub-link-form--name">
               <i
                 v-if="!expanded && menuItemInError(item)"
-                class="table-element-form__field-error iconoir-warning-circle"
+                class="menu-element__sub-link-form--error iconoir-warning-circle"
               ></i>
               <template v-if="item.type === 'separator'">
                 {{ $t('menuElement.separator') }}
@@ -334,7 +334,8 @@ export default {
           .map(({ name }) => name)
       )
       this.values.menu_items.push({
-        name: `'${name}'`,
+        // name: `'${name}'`,
+        name,
         menu_item_variant: 'link',
         value: '',
         type: 'item',
