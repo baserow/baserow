@@ -129,10 +129,8 @@
               class="margin-bottom-2"
               :label="$t('menuElementForm.menuItemLabelLabel')"
               :error-message="
-                !$v.values.menu_items.$each[index].name.required
-                  ? $t('error.requiredField')
-                  : !$v.values.menu_items.$each[index].name.maxLength
-                  ? $t('error.maxLength', { max: 255 })
+                v$?.values?.menu_items?.$each?.[index]?.name?.$errors?.length 
+                  ? v$.values.menu_items.$each[index].name.$errors[0].$message
                   : ''
               "
             >
@@ -189,17 +187,8 @@
                         class="margin-bottom-2"
                         :label="$t('menuElementForm.menuItemLabelLabel')"
                         :error-message="
-                          $v.values?.menu_items?.$each[index]?.children?.$each[
-                            childIndex
-                          ]?.name
-                            ? !$v.values.menu_items.$each[index].children.$each[
-                                childIndex
-                              ].name.required
-                              ? $t('error.requiredField')
-                              : !$v.values.menu_items.$each[index].children
-                                  .$each[childIndex].name.maxLength
-                              ? $t('error.maxLength', { max: 255 })
-                              : ''
+                          v$?.values?.menu_items?.$each?.[index]?.children?.$each?.[childIndex]?.name?.$errors?.length
+                            ? v$.values.menu_items.$each[index].children.$each[childIndex].name.$errors[0].$message
                             : ''
                         "
                       >
@@ -243,7 +232,8 @@
 </template>
 
 <script>
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers, maxLength } from '@vuelidate/validators'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import { MENU_ORIENTATION } from '@baserow/modules/builder/enums'
@@ -258,6 +248,9 @@ import { mapGetters } from 'vuex'
 
 export default {
   name: 'MenuElementForm',
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   components: {
     InjectedFormulaInput,
     LinkNavigationSelectionForm,
@@ -431,15 +424,27 @@ export default {
         menu_items: {
           $each: {
             name: {
-              required,
-              maxLength: maxLength(225),
+              required: helpers.withMessage(
+                this.$t('error.requiredField'),
+                required
+              ),
+              maxLength: helpers.withMessage(
+                this.$t('error.maxLength', { max: 255 }),
+                maxLength(255)
+              ),
             },
             children: {
               required: false,
               $each: {
                 name: {
-                  required,
-                  maxLength: maxLength(225),
+                  required: helpers.withMessage(
+                    this.$t('error.requiredField'),
+                    required
+                  ),
+                  maxLength: helpers.withMessage(
+                    this.$t('error.maxLength', { max: 255 }),
+                    maxLength(255)
+                  ),
                 },
               },
             },
