@@ -20,14 +20,13 @@ from baserow.contrib.database.airtable.constants import (
 from baserow.contrib.database.airtable.registry import (
     AirtableColumnType,
     airtable_column_type_registry,
+    airtable_view_type_registry,
 )
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
 from baserow.contrib.database.fields.field_types import FieldType, field_type_registry
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.models import Database
-from baserow.contrib.database.views.models import GridView
-from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.export_serialized import CoreExportSerializedStructure
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
@@ -316,28 +315,6 @@ class AirtableHandler:
         return baserow_field, baserow_field_type, airtable_column_type
 
     @staticmethod
-    def to_baserow_view(
-        table: dict,
-        view: dict,
-        config: AirtableImportConfig,
-        import_report: AirtableImportReport,
-    ):
-        """
-        Converts the provided Airtable view dict to the right Baserow view object.
-
-        :param table: The Airtable table dict. This is needed to figure out whether the
-            field is the primary field.
-        :param view: The Airtable view dict. These values will be converted to
-            Baserow format.
-        :param config: Additional configuration related to the import.
-        :param import_report: Used to collect what wasn't imported to report to the
-            user.
-        :return: The converted Baserow view
-        """
-
-        return None
-
-    @staticmethod
     def to_baserow_row_export(
         table: dict,
         row_id_mapping: Dict[str, Dict[str, int]],
@@ -551,7 +528,6 @@ class AirtableHandler:
                 row["id"] = new_id
                 converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
 
-        view_id = 0
         for table_index, table in enumerate(schema["tableSchemas"]):
             field_mapping = {}
             files_to_download_for_table = {}
@@ -666,24 +642,25 @@ class AirtableHandler:
                 )
                 converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
 
-            # Create an empty grid view because the importing of views doesn't work
-            # yet. It's a bit quick and dirty, but it will be replaced soon.
-            grid_view = GridView(pk=0, id=None, name="Grid", order=1)
-            grid_view.get_field_options = lambda *args, **kwargs: []
-            grid_view_type = view_type_registry.get_by_model(grid_view)
-            empty_serialized_grid_view = grid_view_type.export_serialized(
-                grid_view, None, None, None
-            )
-            view_id += 1
-            empty_serialized_grid_view["id"] = view_id
-            exported_views = [empty_serialized_grid_view]
-
             # Loop over all views to add them to them as failed to the import report
             # because the views are not yet supported.
+            exported_views = []
             for view in table["views"]:
-                baserow_view = cls.to_baserow_view(table, view, config, import_report)
+                table_data = tables[table["id"]]
+                view_data = next(
+                    (
+                        view_data
+                        for view_data in table_data["viewDatas"]
+                        if view_data["id"] == view["id"]
+                    )
+                )
+                serialized_view = (
+                    airtable_view_type_registry.from_airtable_view_to_serialized(
+                        table, view, view_data, config, import_report
+                    )
+                )
 
-                if baserow_view is None:
+                if serialized_view is None:
                     import_report.add_failed(
                         view["name"],
                         SCOPE_VIEW,
@@ -693,6 +670,8 @@ class AirtableHandler:
                         f"{view['type']} is not supported.",
                     )
                     continue
+
+                exported_views.append(serialized_view)
 
             exported_table = DatabaseExportSerializedStructure.table(
                 id=table["id"],

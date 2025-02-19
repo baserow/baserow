@@ -1,5 +1,4 @@
-from datetime import tzinfo
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.exceptions import AirtableSkipCellValue
@@ -9,6 +8,13 @@ from baserow.contrib.database.airtable.import_report import (
     AirtableImportReport,
 )
 from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.views.models import (
+    SORT_ORDER_ASC,
+    SORT_ORDER_DESC,
+    View,
+    ViewSort,
+)
+from baserow.contrib.database.views.registries import ViewType, view_type_registry
 from baserow.core.registry import Instance, Registry
 
 
@@ -17,7 +23,6 @@ class AirtableColumnType(Instance):
         self,
         raw_airtable_table: dict,
         raw_airtable_column: dict,
-        timezone: tzinfo,
         config: AirtableImportConfig,
         import_report: AirtableImportReport,
     ) -> Union[Field, None]:
@@ -148,6 +153,148 @@ class AirtableColumnTypeRegistry(Registry):
             return None, None
 
 
+class AirtableViewType(Instance):
+    baserow_view_type: Optional[str] = None
+
+    def get_sorts(self, view_type: ViewType, raw_airtable_view_data: dict):
+        last_sorts_applied = raw_airtable_view_data.get("lastSortsApplied", None)
+
+        if not view_type.can_sort or last_sorts_applied is None:
+            return []
+
+        sort_set = last_sorts_applied.get("sortSet", None) or []
+
+        # @TODO check if matching field supports sorting. Else add import report
+        #  entry that it was dropped.
+        return [
+            ViewSort(
+                id=sort["id"],
+                field_id=sort["columnId"],
+                order=SORT_ORDER_ASC if sort["ascending"] else SORT_ORDER_DESC,
+            )
+            for sort in sort_set
+        ]
+
+    def to_serialized_baserow_view(
+        self,
+        raw_airtable_table,
+        raw_airtable_view,
+        raw_airtable_view_data,
+        config,
+        import_report,
+    ):
+        if self.baserow_view_type is None:
+            raise NotImplementedError(
+                "The `baserow_view_type` must be implemented for the AirtableViewType."
+            )
+
+        view_type = view_type_registry.get(self.baserow_view_type)
+        view = view_type.model_class(
+            id=raw_airtable_view["id"],
+            pk=raw_airtable_view["id"],
+            name=raw_airtable_view["name"],
+            order=raw_airtable_table["viewOrder"].index(raw_airtable_view["id"]) + 1,
+        )
+
+        sorts = self.get_sorts(view_type, raw_airtable_view_data)
+
+        view.get_field_options = lambda *args, **kwargs: []
+        view._prefetched_objects_cache = {
+            "viewfilter_set": [],
+            "filter_groups": [],
+            "viewsort_set": sorts,
+            "viewgroupby_set": [],
+            "viewdecoration_set": [],
+        }
+        view = self.prepare_view_object(
+            view,
+            raw_airtable_table,
+            raw_airtable_view,
+            raw_airtable_view_data,
+            config,
+            import_report,
+        )
+        serialized = view_type.export_serialized(view)
+
+        return serialized
+
+    def prepare_view_object(
+        self,
+        view: View,
+        raw_airtable_table: dict,
+        raw_airtable_view: dict,
+        raw_airtable_view_data: dict,
+        config: AirtableImportConfig,
+        import_report: AirtableImportReport,
+    ) -> Union[dict, None]:
+        """
+        Prepares the given view object before it's passed into the view type specific
+        `export_serialized` method. This should be used to set any properties that
+        are needed for the view specific export operations.
+
+        Note that the common properties like name, filters, sorts, etc are added by
+        default depending on the Baserow view support for it.
+
+        :param view: The view object that must be prepared.
+        :param raw_airtable_table: The raw Airtable table data related to the column.
+        :param raw_airtable_view: The raw Airtable view values that must be
+            converted, this contains the name, for example.
+        :param raw_airtable_view_data: The Airtable view data. This contains the
+            filters, sorts, etc.
+        :param timezone: The main timezone used for date conversions if needed.
+        :param config: Additional configuration related to the import.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
+        :return: The Baserow view type related to the Airtable column. If None is
+            provided, then the view is ignored in the conversion.
+        """
+
+        raise NotImplementedError(
+            "The `to_serialized_baserow_view` must be implemented."
+        )
+
+
+class AirtableViewTypeRegistry(Registry):
+    name = "airtable_view"
+
+    def from_airtable_view_to_serialized(
+        self,
+        raw_airtable_table: dict,
+        raw_airtable_view: dict,
+        raw_aritable_view_data: dict,
+        config: AirtableImportConfig,
+        import_report: AirtableImportReport,
+    ) -> dict:
+        """
+        Tries to find a Baserow view that matches that raw Airtable view data. If
+        None is returned, the view is not compatible with Baserow and must be ignored.
+
+        :param raw_airtable_table: The raw Airtable table data related to the column.
+        :param raw_airtable_view: The raw Airtable column data that must be imported.
+        :param config: Additional configuration related to the import.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
+        :return: The related Baserow view and AirtableViewType that should be used
+            for the conversion.
+        """
+
+        try:
+            type_name = raw_airtable_view.get("type", "")
+            airtable_view_type = self.get(type_name)
+            serialized_view = airtable_view_type.to_serialized_baserow_view(
+                raw_airtable_table,
+                raw_airtable_view,
+                raw_aritable_view_data,
+                config,
+                import_report,
+            )
+
+            return serialized_view
+        except self.does_not_exist_exception_class:
+            return None
+
+
 # A default airtable column type registry is created here, this is the one that is used
 # throughout the whole Baserow application to add a new airtable column type.
 airtable_column_type_registry = AirtableColumnTypeRegistry()
+airtable_view_type_registry = AirtableViewTypeRegistry()
