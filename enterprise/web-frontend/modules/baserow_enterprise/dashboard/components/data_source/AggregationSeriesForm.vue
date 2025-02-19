@@ -12,7 +12,7 @@
         <Dropdown
           v-model="values.aggregation_type"
           :error="fieldHasErrors('aggregation_type')"
-          @change="v$.values.aggregation_type.$touch()"
+          @change="v$.values.aggregation_type.$touch"
         >
           <DropdownItem
             v-for="viewAggregation in viewAggregationTypes"
@@ -34,7 +34,7 @@
           v-model="values.field_id"
           :error="fieldHasErrors('field_id')"
           :disabled="compatibleFields.length === 0"
-          @change="v$.values.field_id.$touch()"
+          @change="v$.values.field_id.$touch"
         >
           <DropdownItem
             v-for="field in compatibleFields"
@@ -117,14 +117,6 @@ export default {
     },
   },
   watch: {
-    defaultValues: {
-      handler() {
-        this.reset(true)
-        this.v$.$touch(true)
-      },
-      immediate: true,
-      deep: true,
-    },
     'values.aggregation_type': {
       handler(aggregationType) {
         if (
@@ -147,16 +139,26 @@ export default {
       immediate: true,
     },
   },
+  mounted() {
+    this.v$.$validate()
+  },
   validations() {
+    const self = this
     return {
       values: {
         aggregation_type: {
           required,
-          isValidAggregationType: includes(this.aggregationTypeNames),
+          isValidAggregationType: (value) => {
+            const aggregationTypeNames = self.aggregationTypeNames
+            return includes(aggregationTypeNames)(value)
+          },
         },
         field_id: {
           required,
-          isValidFieldId: includes(this.compatibleTableFieldIds),
+          isValidFieldId: (value) => {
+            const compatibleTableFieldIds = self.compatibleTableFieldIds
+            return includes(compatibleTableFieldIds)(value)
+          },
         },
       },
     }

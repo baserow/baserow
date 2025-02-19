@@ -17,7 +17,7 @@
           :show-search="true"
           fixed-items
           :error="fieldHasErrors('table_id')"
-          @change="v$.values.table_id.$touch()"
+          @change="v$.values.table_id.$touch"
         >
           <DropdownSection
             v-for="database in databases"
@@ -50,7 +50,7 @@
           :show-search="false"
           fixed-items
           :error="fieldHasErrors('view_id')"
-          @change="v$.values.view_id.$touch()"
+          @change="v$.values.view_id.$touch"
         >
           <DropdownItem
             :name="$t('groupedAggregateRowsDataSourceForm.notSelected')"
@@ -203,15 +203,14 @@ export default {
   },
   watch: {
     dataSource: {
-      handler() {
+      handler(values) {
         // Reset the form to set default values
         // again after a different widget is selected
         this.reset(true)
         // Run form validation so that
         // problems are highlighted immediately
-        this.v$.$touch(true)
+        this.v$.$validate(true)
       },
-      immediate: true,
       deep: true,
     },
     'values.table_id': {
@@ -241,11 +240,26 @@ export default {
       immediate: true,
     },
   },
+  mounted() {
+    this.v$.$validate(true)
+  },
   validations() {
+    const self = this
     return {
       values: {
-        table_id: { required, isValidTableId: includesIfSet(this.tableIds) },
-        view_id: { isValidViewId: includesIfSet(this.tableViewIds) },
+        table_id: {
+          required,
+          isValidTableId: (value) => {
+            const ids = self.tableIds
+            return includesIfSet(ids)(value)
+          },
+        },
+        view_id: {
+          isValidViewId: (value) => {
+            const ids = self.tableViewIds
+            return includesIfSet(ids)(value)
+          },
+        },
       },
     }
   },

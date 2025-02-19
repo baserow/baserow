@@ -289,6 +289,9 @@ export default {
       immediate: false,
     },
   },
+  mounted() {
+    this.v$.$validate()
+  },
   validations() {
     const self = this
     return {
@@ -301,10 +304,8 @@ export default {
           },
         },
         view_id: {
-          required,
           isValidViewId: (value) => {
             const ids = self.tableViewIds
-
             return includesIfSet(ids)(value)
           },
         },

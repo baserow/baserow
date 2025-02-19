@@ -23,6 +23,11 @@ export default {
     return {
       // A list of values that the form allows. If null all values are allowed.
       allowedValues: null,
+      // By setting emitValuesOnReset to false in the form's component
+      // the values changed event won't be sent right after resetting the
+      // form
+      emitValuesOnReset: true,
+      isAfterReset: true,
     }
   },
   mounted() {
@@ -202,6 +207,8 @@ export default {
      * first level of children.
      */
     async reset(deep = false) {
+      this.isAfterReset = true
+
       for (const [key, value] of Object.entries(this.getDefaultValues())) {
         this.values[key] = value
       }
@@ -235,7 +242,13 @@ export default {
       return childHandledIt
     },
     emitChange(newValues) {
-      this.$emit('values-changed', newValues)
+      if (this.emitValuesOnReset === true || this.isAfterReset === false) {
+        this.$emit('values-changed', newValues)
+      }
+
+      if (this.isAfterReset) {
+        this.isAfterReset = false
+      }
     },
   },
 }

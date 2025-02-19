@@ -17,7 +17,7 @@
           v-model="values.title"
           :placeholder="$t('widgetSettings.title')"
           :error="fieldHasErrors('title')"
-          @blur="v$.values.title.$touch"
+          @input="v$.values.title.$touch"
         ></FormInput>
         <template #error>
           {{ v$.values.title.$errors[0].$message }}
@@ -37,7 +37,7 @@
           size="small"
           :placeholder="$t('widgetSettings.description') + '...'"
           :error="fieldHasErrors('description')"
-          @blur="v$.values.description.$touch"
+          @input="v$.values.description.$touch"
         ></FormTextarea>
         <template #error>
           {{ v$.values.description.$errors[0].$message }}
