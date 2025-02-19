@@ -129,7 +129,7 @@
               class="margin-bottom-2"
               :label="$t('menuElementForm.menuItemLabelLabel')"
               :error-message="
-                v$?.values?.menu_items?.$each?.[index]?.name?.$errors?.length 
+                v$?.values?.menu_items?.$each?.[index]?.name?.$errors?.length
                   ? v$.values.menu_items.$each[index].name.$errors[0].$message
                   : ''
               "
@@ -187,8 +187,11 @@
                         class="margin-bottom-2"
                         :label="$t('menuElementForm.menuItemLabelLabel')"
                         :error-message="
-                          v$?.values?.menu_items?.$each?.[index]?.children?.$each?.[childIndex]?.name?.$errors?.length
-                            ? v$.values.menu_items.$each[index].children.$each[childIndex].name.$errors[0].$message
+                          v$?.values?.menu_items?.$each?.[index]?.children
+                            ?.$each?.[childIndex]?.name?.$errors?.length
+                            ? v$.values.menu_items.$each[index].children.$each[
+                                childIndex
+                              ].name.$errors[0].$message
                             : ''
                         "
                       >
@@ -248,14 +251,14 @@ import { mapGetters } from 'vuex'
 
 export default {
   name: 'MenuElementForm',
-  setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
-  },
   components: {
     InjectedFormulaInput,
     LinkNavigationSelectionForm,
   },
   mixins: [elementForm],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {
