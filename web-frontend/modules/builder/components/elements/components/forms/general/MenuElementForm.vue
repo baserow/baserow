@@ -128,13 +128,20 @@
               required
               class="margin-bottom-2"
               :label="$t('menuElementForm.menuItemLabelLabel')"
+              :error-message="getErrorMessage(index)"
             >
-              {{ console.log('v$.values.menu_items.$each:', v$.values.menu_items.$each) }}
+              <!--
+                For some reason, vuelidate doesn't seem to detect that the model value
+                has changed.
+                
+                I'm using @input to manually trigger vuelidate (@blur doesn't work here).                
+              -->
               <InjectedFormulaInput
-                v-if="v$.values?.menu_items?.$each"
-                v-model="v$.values.menu_items.$each[index].name.$model"
+                v-model="values.menu_items[index].name"
+                @input="touchField(index)"
                 :placeholder="$t('menuElementForm.namePlaceholder')"
               />
+              What's in vuelidate object: <pre>{{ v$ }}</pre>
             </FormGroup>
 
             <div v-if="item.menu_item_variant === 'link'">
@@ -246,10 +253,9 @@ export default {
   },
   mixins: [elementForm],
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
-    // const v$ = useVuelidate({ $lazy: true })
-    // console.log('Initial v$:', v$)
-    // return { v$ }
+    // return { v$: useVuelidate({ $lazy: true }) }
+    const v$ = useVuelidate({ $lazy: true })
+    return { v$ }
   },
   data() {
     return {
@@ -333,6 +339,17 @@ export default {
     getResolvedName(value) {
       return ensureString(resolveFormula(value))
     },
+    touchField(index) {
+      this.v$.$touch()
+    },
+    getErrorMessage(index) {
+      const validation = this.v$.values.menu_items
+      if (!validation.$dirty || !validation.$errors) {
+        return null
+      }
+      console.log('validation errors:', validation.$errors)
+      return validation.$errors[0]?.$message
+    },
     changeItemType(itemToUpdate, newType) {
       this.values.menu_items = this.values.menu_items.map((item) => {
         if (item.uid === itemToUpdate.uid) {
@@ -415,7 +432,6 @@ export default {
     },
   },
   validations() {
-    console.log('Validations method called')
     return {
       values: {
         menu_items: {
@@ -423,28 +439,28 @@ export default {
             name: {
               required: helpers.withMessage(
                 this.$t('error.requiredField'),
-                required
+                (value) => !!value && value.trim().length > 0
               ),
               maxLength: helpers.withMessage(
                 this.$t('error.maxLength', { max: 255 }),
                 maxLength(255)
               ),
             },
-            children: {
-              required: false,
-              $each: {
-                name: {
-                  required: helpers.withMessage(
-                    this.$t('error.requiredField'),
-                    required
-                  ),
-                  maxLength: helpers.withMessage(
-                    this.$t('error.maxLength', { max: 255 }),
-                    maxLength(255)
-                  ),
-                },
-              },
-            },
+            // children: {
+            //   required: false,
+            //   $each: {
+            //     name: {
+            //       required: helpers.withMessage(
+            //         this.$t('error.requiredField'),
+            //         required
+            //       ),
+            //       maxLength: helpers.withMessage(
+            //         this.$t('error.maxLength', { max: 255 }),
+            //         maxLength(255)
+            //       ),
+            //     },
+            //   },
+            // },
           },
         },
       },
