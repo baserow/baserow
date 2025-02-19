@@ -2073,8 +2073,6 @@ class MenuElementType(ElementType):
                     item.parent_menu_item = parent_item
                     item.save()
 
-            
-
         super().after_update(instance, values, changes)
 
     def before_delete(self, instance: MenuElement):
@@ -2133,7 +2131,7 @@ class MenuElementType(ElementType):
 
         menu_items_to_create = []
         child_uids_parent_uids = {}
-        
+
         for index, item in enumerate(menu_items):
             # Ignore any top-level items that are actually sub-links
             # TODO: this shouldn't even be returned by the serializer.
@@ -2143,10 +2141,8 @@ class MenuElementType(ElementType):
             item.pop("id")
             item.pop("menu_item_order", None)
             children = item.pop("children", [])
-            
-            menu_items_to_create.append(
-                MenuItemElement(**item, menu_item_order=index)
-            )
+
+            menu_items_to_create.append(MenuItemElement(**item, menu_item_order=index))
 
             for child_index, child_item in enumerate(children):
                 child_item.pop("id")
