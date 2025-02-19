@@ -148,6 +148,7 @@
                   class="table-element-form__field-label"
                 >
                 </FormInput>
+                What's in vuelidate object: <pre>{{ v$ }}</pre>
                 <template
                   v-if="v$.values.fields.$model.length > 1"
                   #after-input

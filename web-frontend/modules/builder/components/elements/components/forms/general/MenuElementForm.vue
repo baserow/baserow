@@ -63,8 +63,11 @@
               <template v-if="item.type === 'separator'">
                 {{ $t('menuElement.separator') }}
               </template>
-              <template v-else>
+              <!-- <template v-else>
                 {{ getResolvedName(item.name) }}
+              </template> -->
+              <template v-else>
+                {{ item.name }}
               </template>
             </div>
             <i
@@ -128,7 +131,7 @@
               required
               class="margin-bottom-2"
               :label="$t('menuElementForm.menuItemLabelLabel')"
-              :error-message="getErrorMessage(index)"
+              :error-message="v$.values.menu_items.$each.$message[index]?.[0]"
             >
               <!--
                 For some reason, vuelidate doesn't seem to detect that the model value
@@ -136,9 +139,9 @@
                 
                 I'm using @input to manually trigger vuelidate (@blur doesn't work here).                
               -->
-              <InjectedFormulaInput
-                v-model="values.menu_items[index].name"
-                @input="touchField(index)"
+
+              <FormInput
+                v-model="v$.values.menu_items.$model[index].name"
                 :placeholder="$t('menuElementForm.namePlaceholder')"
               />
               What's in vuelidate object: <pre>{{ v$ }}</pre>
@@ -253,9 +256,7 @@ export default {
   },
   mixins: [elementForm],
   setup() {
-    // return { v$: useVuelidate({ $lazy: true }) }
-    const v$ = useVuelidate({ $lazy: true })
-    return { v$ }
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -320,11 +321,17 @@ export default {
   },
   methods: {
     addMenuItem() {
+      // const name = getNextAvailableNameInSequence(
+      //   this.$t('menuElementForm.menuItemDefaultName'),
+      //   this.values.menu_items
+      //     .filter((item) => item.parent_menu_item === null)
+      //     .map(({ name }) => this.getResolvedName(name))
+      // )
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemDefaultName'),
         this.values.menu_items
           .filter((item) => item.parent_menu_item === null)
-          .map(({ name }) => this.getResolvedName(name))
+          .map(({ name }) => name)
       )
       this.values.menu_items.push({
         name: `'${name}'`,
@@ -338,17 +345,6 @@ export default {
     },
     getResolvedName(value) {
       return ensureString(resolveFormula(value))
-    },
-    touchField(index) {
-      this.v$.$touch()
-    },
-    getErrorMessage(index) {
-      const validation = this.v$.values.menu_items
-      if (!validation.$dirty || !validation.$errors) {
-        return null
-      }
-      console.log('validation errors:', validation.$errors)
-      return validation.$errors[0]?.$message
     },
     changeItemType(itemToUpdate, newType) {
       this.values.menu_items = this.values.menu_items.map((item) => {
@@ -435,11 +431,11 @@ export default {
     return {
       values: {
         menu_items: {
-          $each: {
+          $each: helpers.forEach({
             name: {
               required: helpers.withMessage(
                 this.$t('error.requiredField'),
-                (value) => !!value && value.trim().length > 0
+                required
               ),
               maxLength: helpers.withMessage(
                 this.$t('error.maxLength', { max: 255 }),
@@ -461,7 +457,7 @@ export default {
             //     },
             //   },
             // },
-          },
+          }),
         },
       },
     }
