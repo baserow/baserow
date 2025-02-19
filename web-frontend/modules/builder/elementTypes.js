@@ -2096,7 +2096,9 @@ export class MenuItemElementType extends ElementType {
   }
 
   isInError({ page, element, builder, workflowActions }) {
-    if (element.menu_item_variant === 'button') {
+    if (element.type === 'separator') {
+      return false
+    } else if (element.menu_item_variant === 'button') {
       // For button variants, there must be at least one workflow action
       return !workflowActions.length
     } else if (element.menu_item_variant === 'link') {
