@@ -1,5 +1,5 @@
 from collections import defaultdict
-from functools import cached_property
+from functools import cached_property, partial
 from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict
 
 from django.contrib.auth import get_user_model
@@ -7,6 +7,7 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow_premium.license.handler import LicenseHandler
 
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
 from baserow.core.registries import (
@@ -43,7 +44,10 @@ class RolePermissionManagerType(PermissionManagerType):
         :param workspace: The workspace in which we want to use this permission manager.
         """
 
-        return LicenseHandler.workspace_has_feature(RBAC, workspace)
+        return local_cache.get(
+            f"has_rbac_permission_{workspace.id}",
+            partial(LicenseHandler.workspace_has_feature, RBAC, workspace),
+        )
 
     def get_role_operations(self, role: Role) -> List[str]:
         """

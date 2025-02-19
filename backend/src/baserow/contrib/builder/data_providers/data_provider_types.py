@@ -201,7 +201,9 @@ class DataSourceDataProviderType(DataProviderType):
             return {}
 
         try:
-            data_source = DataSourceHandler().get_data_source(data_source_id)
+            data_source = DataSourceHandler().get_data_source(
+                data_source_id, with_cache=True
+            )
         except DataSourceDoesNotExist as exc:
             # The data source has probably been deleted
             raise InvalidBaserowFormula() from exc
@@ -272,7 +274,9 @@ class DataSourceContextDataProviderType(DataProviderType):
             return {}
 
         try:
-            data_source = DataSourceHandler().get_data_source(data_source_id)
+            data_source = DataSourceHandler().get_data_source(
+                data_source_id, with_cache=True
+            )
         except DataSourceDoesNotExist as exc:
             # The data source has probably been deleted
             raise InvalidBaserowFormula() from exc
@@ -376,7 +380,9 @@ class CurrentRecordDataProviderType(DataProviderType):
             return {}
 
         try:
-            data_source = DataSourceHandler().get_data_source(data_source_id)
+            data_source = DataSourceHandler().get_data_source(
+                data_source_id, with_cache=True
+            )
         except DataSourceDoesNotExist as exc:
             # The data source is probably not accessible so we raise an invalid formula
             raise InvalidBaserowFormula() from exc

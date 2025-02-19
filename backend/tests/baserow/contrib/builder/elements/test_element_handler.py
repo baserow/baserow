@@ -557,11 +557,12 @@ def test_duplicate_element_with_workflow_action(data_fixture):
 def test_get_element_workflow_actions(data_fixture):
     page = data_fixture.create_builder_page()
     element = data_fixture.create_builder_button_element()
-    workflow_action_one = data_fixture.create_notification_workflow_action(
-        page=page, element=element
-    )
+    # Order is intentionally switched to check that the result is ordered correctly
     workflow_action_two = data_fixture.create_notification_workflow_action(
-        page=page, element=element
+        page=page, element=element, order=2
+    )
+    workflow_action_one = data_fixture.create_notification_workflow_action(
+        page=page, element=element, order=1
     )
 
     [

@@ -17,6 +17,9 @@ CACHE_KEY_PREFIX = "used_properties_for_page"
 BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS = 60
 
 
+SENTINEL = "__no_results__"
+
+
 class BuilderHandler:
     def get_builder(self, builder_id: int) -> Builder:
         """
@@ -87,11 +90,17 @@ class BuilderHandler:
         (required only by the backend).
         """
 
-        return safe_get_or_set_cache(
+        def compute_properties():
+            properties = get_builder_used_property_names(user, builder)
+            return SENTINEL if properties is None else properties
+
+        result = safe_get_or_set_cache(
             self.get_builder_used_properties_cache_key(user, builder),
             self._get_builder_version_cache(builder),
-            default=lambda: get_builder_used_property_names(user, builder),
+            default=compute_properties,
             timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS
             if builder.workspace_id
             else BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS,
         )
+
+        return result if result != SENTINEL else None

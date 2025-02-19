@@ -81,7 +81,7 @@ def specific_iterator(
     objects with the least amount of queries. If a queryset is provided respects the
     annotations, select related and prefetch related of the provided query. This
     function is only compatible with models having the `PolymorphicContentTypeMixin`
-    and `content_type property.`
+    and `content_type` property.
 
     Can be used like:
 
@@ -153,8 +153,8 @@ def specific_iterator(
         if per_content_type_queryset_hook is not None:
             objects = per_content_type_queryset_hook(model, objects)
 
-        for object in objects:
-            specific_objects[object.id] = object
+        for obj in objects:
+            specific_objects[obj.id] = obj
 
     # Create an array with specific objects in the right order.
     ordered_specific_objects = []

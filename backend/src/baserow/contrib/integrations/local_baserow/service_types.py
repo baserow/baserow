@@ -90,6 +90,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
+from baserow.core.cache import local_cache
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.handler import CoreHandler
@@ -203,11 +204,10 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if not model:
             model = self.get_table_model(service)
 
-        queryset = self.get_queryset(service, table, dispatch_context, model)
-
+        queryset = self.get_table_queryset(service, table, dispatch_context, model)
         return queryset
 
-    def get_queryset(
+    def get_table_queryset(
         self,
         service: ServiceSubClass,
         table: "Table",
@@ -225,7 +225,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
     def enhance_queryset(self, queryset):
         return queryset.select_related(
             "table__database__workspace",
-        ).prefetch_related("table__field_set")
+        )
 
     def resolve_service_formulas(
         self,
@@ -482,8 +482,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         :return: A schema dictionary, or None if no `Table` has been applied.
         """
 
-        table = service.table
-        if not table:
+        field_objects = self.get_table_field_objects(service)
+
+        if field_objects is None:
             return None
 
         properties = {
@@ -495,8 +496,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 "searchable": False,
             }
         }
-
-        for field_object in self.get_table_field_objects(service):
+        for field_object in field_objects:
             # When a schema is being generated, we will exclude properties that the
             # Application creator did not actively configure. A configured property
             # is one that the Application is using in a formula, configuration
@@ -506,10 +506,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 and field_object["name"] not in allowed_fields
             ):
                 continue
-
             field_type = field_object["type"]
-            field = field_object["field"]
             # Only `TextField` has a default value at the moment.
+            field = field_object["field"]
             default_value = getattr(field, "text_default", None)
             field_serializer = field_type.get_serializer(field, FieldSerializer)
             properties[field.db_column] = {
@@ -566,37 +565,41 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         Returns the model for the table associated with the given service.
         """
 
-        if getattr(service, "_table_model", None) is None:
-            table = service.table
+        if not service.table_id:
+            return None
 
-            if not table:
-                return None
+        return local_cache.get(
+            f"integration_service_{service.table_id}_table_model",
+            service.table.get_model,
+        )
 
-            setattr(service, "_table_model", table.get_model())
-
-        return getattr(service, "_table_model")
-
-    def get_table_field_objects(self, service: LocalBaserowTableService) -> List[Dict]:
+    def get_table_field_objects(
+        self, service: LocalBaserowTableService
+    ) -> List[Dict] | None:
         """
-        Returns the fields of the table associated with the given service.
+        Returns the fields objects of the table of the given service.
+
+        :param service: The service we want the fields for.
+        :returns: The field objects from the table model.
         """
 
         model = self.get_table_model(service)
 
         if model is None:
-            return []
+            return None
 
         return model.get_field_objects()
 
     def get_context_data(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ) -> Dict[str, Any]:
-        table = service.table
-        if not table:
+        field_objects = self.get_table_field_objects(service)
+
+        if field_objects is None:
             return None
 
         ret = {}
-        for field_object in self.get_table_field_objects(service):
+        for field_object in field_objects:
             # When a context_data is being generated, we will exclude properties that
             # the Application creator did not actively configure. A configured property
             # is one that the Application is using in a formula, configuration
@@ -619,22 +622,22 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
     def get_context_data_schema(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ) -> Optional[Dict[str, Any]]:
-        table = service.table
-        if not table:
+        field_objects = self.get_table_field_objects(service)
+
+        if field_objects is None:
             return None
 
         properties = {}
-        fields = FieldHandler().get_fields(table, specific=True)
-
-        for field in fields:
-            if allowed_fields is not None and (field.db_column not in allowed_fields):
+        for field_object in field_objects:
+            if allowed_fields is not None and (
+                field_object["name"] not in allowed_fields
+            ):
                 continue
 
-            field_type = field_type_registry.get_by_model(field)
-            if field_type.can_have_select_options:
-                properties[field.db_column] = {
+            if field_object["type"].can_have_select_options:
+                properties[field_object["name"]] = {
                     "type": "array",
-                    "title": field.name,
+                    "title": field_object["field"].name,
                     "default": None,
                     "items": {
                         "type": "object",
@@ -703,7 +706,7 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
         return (
             super()
             .enhance_queryset(queryset)
-            .select_related("view")
+            .select_related("view__content_type")
             .prefetch_related(
                 "view__viewfilter_set",
                 "view__filter_groups",
@@ -1076,7 +1079,8 @@ class LocalBaserowListRowsUserServiceType(
             # Maybe some fields were deleted in the meantime
             # Let's check we still have them
             available_fields = set(
-                [fo["name"] for fo in self.get_table_field_objects(service)] + ["id"]
+                [fo["name"] for fo in (self.get_table_field_objects(service) or [])]
+                + ["id"]
             )
 
             # Ensure that only used fields are fetched from the database.

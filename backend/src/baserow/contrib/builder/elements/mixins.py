@@ -502,7 +502,7 @@ class CollectionElementTypeMixin:
         # current instance
         data_source_id = instance.data_source_id or kwargs.get("data_source_id", None)
         data_source = (
-            DataSourceHandler().get_data_source(data_source_id)
+            DataSourceHandler().get_data_source(data_source_id, with_cache=True)
             if data_source_id
             else None
         )

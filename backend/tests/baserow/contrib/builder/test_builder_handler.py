@@ -7,9 +7,6 @@ import pytest
 from baserow.contrib.builder.handler import CACHE_KEY_PREFIX, BuilderHandler
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.user_sources.user_source_user import UserSourceUser
-from tests.baserow.contrib.builder.api.user_sources.helpers import (
-    create_user_table_and_role,
-)
 
 User = get_user_model()
 
@@ -111,8 +108,7 @@ def test_public_allowed_properties_is_cached(data_fixture, django_assert_num_que
     )
     builder = data_fixture.create_builder_application(user=user)
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         user,
         builder,
         "foo_user_role",
@@ -146,7 +142,7 @@ def test_public_allowed_properties_is_cached(data_fixture, django_assert_num_que
     }
 
     # Initially calling the property should cause a bunch of DB queries.
-    with django_assert_num_queries(12):
+    with django_assert_num_queries(9):
         result = handler.get_builder_public_properties(user_source_user, builder)
         assert result == expected_results
 

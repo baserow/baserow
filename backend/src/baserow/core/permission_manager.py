@@ -1,7 +1,9 @@
-from typing import List
+from typing import Iterable, List
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 
+from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
@@ -192,22 +194,48 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
 
         return getattr(actor, self.actor_cache_key, {}).get(workspace.id, False)
 
+    def get_user_ids_map_actually_in_workspace(
+        self,
+        workspace: Workspace,
+        users_to_query: Iterable[AbstractUser],
+        include_trash: bool = False,
+    ):
+        """
+        Return a `user_id -> is in the workspace` map. This version is cached for
+        a few seconds to prevent queries.
+        """
+
+        cached = local_cache.get(f"workspace_user_{workspace.id}", dict)
+
+        missing = []
+        for user in users_to_query:
+            if user.id not in cached:
+                missing.append(user)
+
+        if missing:
+            user_ids_in_workspace = set(
+                CoreHandler()
+                .get_workspace_users(workspace, missing, include_trash=include_trash)
+                .values_list("user_id", flat=True)
+            )
+
+            for missing_user in missing:
+                cached[missing_user.id] = missing_user.id in user_ids_in_workspace
+
+        return cached
+
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
         if workspace is None:
             return {}
 
-        users_to_query = {c.actor for c in checks}
-
-        user_ids_in_workspace = set(
-            CoreHandler()
-            .get_workspace_users(workspace, users_to_query, include_trash=include_trash)
-            .values_list("user_id", flat=True)
+        user_id_map_in_workspace = self.get_user_ids_map_actually_in_workspace(
+            workspace, {c.actor for c in checks}, include_trash=include_trash
         )
 
         permission_by_check = {}
 
         def check_workspace(actor):
-            return lambda: actor.id in user_ids_in_workspace
+            return lambda: user_id_map_in_workspace[actor.id]
 
         for check in checks:
             if self.is_actor_in_workspace(
@@ -361,10 +389,9 @@ class StaffOnlySettingOperationPermissionManagerType(PermissionManagerType):
         return always_allowed_operations, staff_only_operations
 
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
-        (
-            always_allowed_ops,
-            staff_only_ops,
-        ) = self.get_permitted_operations_for_settings()
+        (always_allowed_ops, staff_only_ops) = local_cache.get(
+            "settings", self.get_permitted_operations_for_settings
+        )
 
         result = {}
         for check in checks:

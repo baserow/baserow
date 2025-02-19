@@ -186,7 +186,11 @@ class DataSourcesView(APIView):
 
         page = PageHandler().get_page(page_id)
 
-        before = DataSourceHandler().get_data_source(before_id) if before_id else None
+        before = (
+            DataSourceHandler().get_data_source(before_id, specific=False)
+            if before_id
+            else None
+        )
 
         service_type = service_type_registry.get(type_name) if type_name else None
 
@@ -423,7 +427,7 @@ class MoveDataSourceView(APIView):
 
         before = None
         if before_id:
-            before = DataSourceHandler().get_data_source(before_id)
+            before = DataSourceHandler().get_data_source(before_id, specific=False)
 
         moved_data_source = DataSourceService().move_data_source(
             request.user, data_source, before

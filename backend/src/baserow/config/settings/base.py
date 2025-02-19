@@ -110,6 +110,7 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "baserow.core.cache.LocalCacheMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "baserow.api.user_sources.middleware.AddUserSourceUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -1344,3 +1345,5 @@ BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL = 5
 BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
     os.getenv("BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE", "") or 10
 )
+
+BASEROW_USE_LOCAL_CACHE = str_to_bool(os.getenv("BASEROW_USE_LOCAL_CACHE", "true"))

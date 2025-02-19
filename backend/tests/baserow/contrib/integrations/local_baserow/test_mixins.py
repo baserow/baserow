@@ -34,7 +34,7 @@ def get_test_service_type(mixin_class):
 
 
 @pytest.mark.django_db
-def test_local_baserow_table_service_filterable_mixin_get_queryset(
+def test_local_baserow_table_service_filterable_mixin_get_table_queryset(
     data_fixture,
 ):
     service_type = get_test_service_type(LocalBaserowTableServiceFilterableMixin)
@@ -60,7 +60,7 @@ def test_local_baserow_table_service_filterable_mixin_get_queryset(
     # No filters of any kind.
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alessia.id, alex.id, alastair.id, alexandra.id]
@@ -77,7 +77,7 @@ def test_local_baserow_table_service_filterable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alessia.id, alex.id, alexandra.id]
@@ -100,7 +100,7 @@ def test_local_baserow_table_service_filterable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alexandra.id]
@@ -244,7 +244,7 @@ def test_local_baserow_table_service_filterable_mixin_get_dispatch_filters_raise
 
 
 @pytest.mark.django_db
-def test_local_baserow_table_service_sortable_mixin_get_queryset(
+def test_local_baserow_table_service_sortable_mixin_get_table_queryset(
     data_fixture,
 ):
     service_type = get_test_service_type(LocalBaserowTableServiceSortableMixin)
@@ -270,7 +270,7 @@ def test_local_baserow_table_service_sortable_mixin_get_queryset(
     # No sorts of any kind.
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [aardvark.id, badger.id, crow.id, dragonfly.id]
@@ -282,7 +282,7 @@ def test_local_baserow_table_service_sortable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [dragonfly.id, crow.id, badger.id, aardvark.id]
@@ -294,7 +294,7 @@ def test_local_baserow_table_service_sortable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [aardvark.id, badger.id, crow.id, dragonfly.id]
@@ -347,7 +347,7 @@ def test_local_baserow_table_service_sortable_mixin_get_dispatch_sorts_raises_ex
 
 
 @pytest.mark.django_db(transaction=True)
-def test_local_baserow_table_service_searchable_mixin_get_queryset(
+def test_local_baserow_table_service_searchable_mixin_get_table_queryset(
     data_fixture,
 ):
     service_type = get_test_service_type(LocalBaserowTableServiceSearchableMixin)
@@ -374,7 +374,7 @@ def test_local_baserow_table_service_searchable_mixin_get_queryset(
     # No search query of any kind.
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alessia.id, alex.id, alastair.id, alexandra.id]
@@ -384,7 +384,7 @@ def test_local_baserow_table_service_searchable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alessia.id, alex.id, alexandra.id]
@@ -396,7 +396,7 @@ def test_local_baserow_table_service_searchable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alexandra.id]

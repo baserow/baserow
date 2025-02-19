@@ -214,7 +214,7 @@ class LocalBaserowTableServiceFilterableMixin:
                     service_filter.value = new_formula
                     yield service_filter
 
-    def get_queryset(
+    def get_table_queryset(
         self,
         service: ServiceSubClass,
         table: "Table",
@@ -233,7 +233,7 @@ class LocalBaserowTableServiceFilterableMixin:
         :return: the queryset with filters applied.
         """
 
-        queryset = super().get_queryset(service, table, dispatch_context, model)
+        queryset = super().get_table_queryset(service, table, dispatch_context, model)
         queryset = self.get_dispatch_filters(service, queryset, model, dispatch_context)
         dispatch_filters = dispatch_context.filters()
         if dispatch_filters is not None and dispatch_context.is_publicly_filterable:
@@ -253,15 +253,6 @@ class LocalBaserowTableServiceFilterableMixin:
             adhoc_filters = AdHocFilters.from_dict(deserialized_filters)
             queryset = adhoc_filters.apply_to_queryset(model, queryset)
         return queryset
-
-    def enhance_queryset(self, queryset):
-        return (
-            super()
-            .enhance_queryset(queryset)
-            .prefetch_related(
-                "service_filters",
-            )
-        )
 
 
 class LocalBaserowTableServiceSortableMixin:
@@ -356,7 +347,7 @@ class LocalBaserowTableServiceSortableMixin:
 
         return sort_ordering, queryset
 
-    def get_queryset(
+    def get_table_queryset(
         self,
         service: ServiceSubClass,
         table: "Table",
@@ -375,7 +366,7 @@ class LocalBaserowTableServiceSortableMixin:
         :return: the queryset with sortings applied.
         """
 
-        queryset = super().get_queryset(service, table, dispatch_context, model)
+        queryset = super().get_table_queryset(service, table, dispatch_context, model)
 
         adhoc_sort = dispatch_context.sortings()
         if adhoc_sort and dispatch_context.is_publicly_sortable:
@@ -426,7 +417,7 @@ class LocalBaserowTableServiceSearchableMixin:
         )
 
         if isinstance(used_fields_from_parent, list) and service.search_query:
-            fields = [fo["field"] for fo in self.get_table_field_objects(service)]
+            fields = [fo["field"] for fo in self.get_table_field_objects(service) or []]
             return used_fields_from_parent + [
                 f.tsv_db_column if SearchHandler.full_text_enabled() else f.db_column
                 for f in fields
@@ -459,7 +450,7 @@ class LocalBaserowTableServiceSearchableMixin:
                 f"The `search_query` formula can't be resolved: {exc}"
             ) from exc
 
-    def get_queryset(
+    def get_table_queryset(
         self,
         service: ServiceSubClass,
         table: "Table",
@@ -478,7 +469,7 @@ class LocalBaserowTableServiceSearchableMixin:
         :return: the queryset with the search query applied.
         """
 
-        queryset = super().get_queryset(service, table, dispatch_context, model)
+        queryset = super().get_table_queryset(service, table, dispatch_context, model)
         search_mode = SearchHandler.get_default_search_mode_for_table(table)
         service_search_query = self.get_dispatch_search(service, dispatch_context)
         if service_search_query:
