@@ -7,6 +7,10 @@
   @include rounded($rounded-md);
 }
 
+.segment-control--rounded {
+  border-radius: 80px;
+}
+
 .segment-control--small:not(.segment-control--icons-only) {
   padding: 0;
 }
@@ -42,6 +46,10 @@
   @include flex-align-items(5px);
   @include rounded($rounded);
 
+  .segment-control--rounded & {
+    border-radius: 80px;
+  }
+
   &:hover {
     background: $palette-neutral-200;
     color: $palette-neutral-1200;
@@ -49,6 +57,11 @@
 
   .segment-control--small & {
     height: 36px;
+  }
+
+  .segment-control--large & {
+    height: 52px;
+    font-size: 14px;
   }
 
   .segment-control--icons-only & {

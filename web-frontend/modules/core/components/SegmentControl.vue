@@ -5,6 +5,8 @@
       'segment-control--transparent': transparent,
       'segment-control--icons-only': iconsOnly,
       'segment-control--small': size === 'small',
+      'segment-control--large': size === 'large',
+      'segment-control--rounded': type === 'rounded',
     }"
   >
     <button
@@ -69,6 +71,14 @@ export default {
       default: 'regular',
       validator: function (value) {
         return ['regular', 'small'].includes(value)
+      },
+    },
+    type: {
+      type: String,
+      required: false,
+      default: 'regular',
+      validator: function (value) {
+        return ['regular', 'rounded'].includes(value)
       },
     },
   },
