@@ -128,14 +128,11 @@
               required
               class="margin-bottom-2"
               :label="$t('menuElementForm.menuItemLabelLabel')"
-              :error-message="
-                v$?.values?.menu_items?.$each?.[index]?.name?.$errors?.length
-                  ? v$.values.menu_items.$each[index].name.$errors[0].$message
-                  : ''
-              "
             >
+              {{ console.log('v$.values.menu_items.$each:', v$.values.menu_items.$each) }}
               <InjectedFormulaInput
-                v-model="item.name"
+                v-if="v$.values?.menu_items?.$each"
+                v-model="v$.values.menu_items.$each[index].name.$model"
                 :placeholder="$t('menuElementForm.namePlaceholder')"
               />
             </FormGroup>
@@ -186,14 +183,6 @@
                         required
                         class="margin-bottom-2"
                         :label="$t('menuElementForm.menuItemLabelLabel')"
-                        :error-message="
-                          v$?.values?.menu_items?.$each?.[index]?.children
-                            ?.$each?.[childIndex]?.name?.$errors?.length
-                            ? v$.values.menu_items.$each[index].children.$each[
-                                childIndex
-                              ].name.$errors[0].$message
-                            : ''
-                        "
                       >
                         <InjectedFormulaInput
                           v-model="child.name"
@@ -258,6 +247,9 @@ export default {
   mixins: [elementForm],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
+    // const v$ = useVuelidate({ $lazy: true })
+    // console.log('Initial v$:', v$)
+    // return { v$ }
   },
   data() {
     return {
@@ -268,6 +260,7 @@ export default {
         menu_items: [],
       },
       allowedValues: ['value', 'styles', 'menu_items', 'orientation'],
+      console: console 
     }
   },
   computed: {
@@ -422,6 +415,7 @@ export default {
     },
   },
   validations() {
+    console.log('Validations method called')
     return {
       values: {
         menu_items: {
