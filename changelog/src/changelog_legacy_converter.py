@@ -67,7 +67,7 @@ def sanitise_release_name(release_name: str):
 
 
 def main():
-    changelog_file = open("../../changelog.md", "r")
+    changelog_file = open("../changelog.md", "r")
 
     lines = changelog_file.readlines()
 

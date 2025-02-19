@@ -2,11 +2,36 @@ import json
 
 from src.changelog_entry import BugChangelogEntry
 from src.handler import MAXIMUM_FILE_NAME_MESSAGE_LENGTH, ChangelogHandler
+from src.modules import ApplicationBuilderModule, DatabaseBuilderModule
 
 
 def test_add_entry(fs):
     file_path = ChangelogHandler().add_entry(BugChangelogEntry.type, "message")
     assert fs.isfile(file_path)
+
+
+def test_add_entry_with_module(fs):
+    file_path = ChangelogHandler().add_entry(
+        BugChangelogEntry.type,
+        "This is a new feature.",
+        module_type_name=ApplicationBuilderModule.type,
+    )
+    assert fs.isfile(file_path)
+    with open(file_path, "r") as entry_file:
+        entry = json.load(entry_file)
+        assert entry["message"] == "[Builder] This is a new feature."
+
+
+def test_add_entry_with_database_module_has_no_prefix(fs):
+    file_path = ChangelogHandler().add_entry(
+        BugChangelogEntry.type,
+        "This is a new feature.",
+        module_type_name=DatabaseBuilderModule.type,
+    )
+    assert fs.isfile(file_path)
+    with open(file_path, "r") as entry_file:
+        entry = json.load(entry_file)
+        assert entry["message"] == "This is a new feature."
 
 
 def test_get_changelog_entries(fs):

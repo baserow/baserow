@@ -5,6 +5,7 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from modules import module_types
 from changelog_entry import changelog_entry_types
 from pygit2 import Repository
 
@@ -38,8 +39,14 @@ class ChangelogHandler:
         issue_number: Optional[int] = None,
         release: str = UNRELEASED_FOLDER_NAME,
         bullet_points: List[str] = None,
+        module_type_name: Optional[str] = None,
     ) -> str:
         changelog_entry_type = changelog_entry_types[changelog_entry_type_name]
+
+        # If we've been given a module, prefix it in-front of the message.
+        if module_type_name is not None:
+            module = module_types[module_type_name]()
+            message = f"{module.message_prefix}{message}"
 
         path = Path(f"{self.entries_file_path}/{release}/{changelog_entry_type.type}")
         path.mkdir(parents=True, exist_ok=True)
@@ -208,18 +215,6 @@ class ChangelogHandler:
             return int(potential_issue_number)
         except ValueError:
             return None
-
-    @staticmethod
-    def get_message() -> str:
-        branch_name = Repository(".").head.shorthand
-        branch_has_issue_number = ChangelogHandler.get_issue_number() is not None
-
-        if branch_has_issue_number:
-            message = " ".join(branch_name.split("-")[1:])
-        else:
-            message = branch_name
-
-        return message.replace("-", " ")
 
     def write_release_meta_data(self, name: str):
         # Make sure the parent dirs exist
