@@ -48,7 +48,7 @@ class IntegrationHandler:
             if specific:
                 integration = queryset.get(id=integration_id)
                 # We use the enhanced version of the queryset to get the related
-                # fields.
+                # fields. This is also responsible for returning the specific instance.
                 integration = (
                     integration.get_type().get_queryset().get(id=integration_id)
                 )
