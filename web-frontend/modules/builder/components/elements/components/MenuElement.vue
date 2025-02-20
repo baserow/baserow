@@ -19,10 +19,19 @@
       >
         <div class="menu-element__menu-link-container">
           <div v-if="!item.children?.length">
-            <LinkElement
-              :element="getElement(item)"
+            <ABLink
+              :variant="item.menu_item_variant"
+              :url="getItemUrl(item)"
+              :target="getElement(item).target"
               class="menu-element__menu-item-link"
-            />
+            >
+              {{
+                item.name
+                  ? getResolvedValue(item.name) ||
+                    (mode === 'editing' ? $t('menuElement.emptyLinkValue') : '&nbsp;')
+                  : $t('menuElement.missingLinkValue')
+              }}
+            </ABLink>
           </div>
           <div
             v-else
@@ -51,12 +60,21 @@
             </div>
             <div v-if="isExpanded(item.id)">
               <div class="menu-element__sub-link-menu">
-                <LinkElement
+                <ABLink
                   v-for="child in item.children"
                   :key="child.id"
-                  :element="getElement(child)"
+                  :variant="child?.menu_item_variant || 'link'"
+                  :url="getItemUrl(child)"
+                  :target="getElement(child).target"
                   class="menu-element__menu-item-link"
-                />
+                >
+                  {{
+                    child.name
+                      ? getResolvedValue(child.name) ||
+                        (mode === 'editing' ? $t('menuElement.emptyLinkValue') : '&nbsp;')
+                      : $t('menuElement.missingLinkValue')
+                  }}
+                </ABLink>
               </div>
             </div>
           </div>
@@ -76,8 +94,9 @@
 <script>
 import element from '@baserow/modules/builder/mixins/element'
 import { ensureString } from '@baserow/modules/core/utils/validator'
-import LinkElement from '@baserow/modules/builder/components/elements/components/LinkElement.vue'
 import MenuItemButtonElement from '@baserow/modules/builder/components/elements/components/MenuItemButtonElement.vue'
+import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
+
 /**
  * @typedef MenuElement
  */
@@ -85,7 +104,6 @@ import MenuItemButtonElement from '@baserow/modules/builder/components/elements/
 export default {
   name: 'MenuElement',
   components: {
-    LinkElement,
     MenuItemButtonElement,
   },
   mixins: [element],
@@ -109,6 +127,9 @@ export default {
         return !item.parent_menu_item
       })
     },
+    pages() {
+      return this.$store.getters['page/getVisiblePages'](this.builder)
+    },
   },
   mounted() {
     document.addEventListener('click', this.handleClickOutsideSubLinkMenu)
@@ -117,16 +138,29 @@ export default {
     document.removeEventListener('click', this.handleClickOutsideSubLinkMenu)
   },
   methods: {
+    getItemUrl(item) {
+      try {
+        return resolveElementUrl(
+          this.getElement(item),
+          this.builder,
+          this.pages,
+          this.resolveFormula,
+          this.mode
+        )
+      } catch (e) {
+        return '#error'
+      }
+    },
     getElement(item) {
       return {
         // TODO: this is probably not needed
         id: this.element.id,
         // Needed for the MenuItemElementType.getEvents()
         element_id: this.element.id,
-        menu_item_id: item.id,
-        uid: item.uid,
+        menu_item_id: item?.id,
+        uid: item?.uid,
         target: item.target || 'self',
-        variant: item.menu_item_variant,
+        variant: item?.menu_item_variant || 'link',
         value: item.name,
         navigation_type: item.navigation_type,
         navigate_to_page_id: item.navigate_to_page_id || null,

@@ -194,7 +194,9 @@
   },
   "menuElement": {
     "missingValue": "Missing menu item",
-    "separator": "Separator"
+    "separator": "Separator",
+    "missingLinkValue": "Missing link name...",
+    "emptyLinkValue": "Empty link name..."
   },
   "menuElementForm": {
     "orientationLabel": "Orientation",
