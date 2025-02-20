@@ -2,7 +2,7 @@
   <div
     :style="getStyleOverride(element.variant)"
     :class="[
-      'menu-element__menu-items-container',
+      'menu-element menu-element__menu-items-container',
       element.orientation === 'horizontal' ? 'horizontal' : 'vertical',
     ]"
   >
