@@ -30,10 +30,7 @@
       </div>
     </div>
 
-    <div
-      v-for="(item, index) in values.menu_items"
-      :key="item.uid"
-    >
+    <div v-for="item in values.menu_items" :key="item.uid">
       <Expandable
         v-if="item.parent_menu_item === null"
         v-sortable="{
@@ -142,10 +139,7 @@
               />
 
               <div v-if="item.children?.length">
-                <div
-                  v-for="(child, childIndex) in item.children"
-                  :key="child.uid"
-                >
+                <div v-for="child in item.children" :key="child.uid">
                   <Expandable class="menu-element__sub-link-form">
                     <template #header="{ toggle, expanded }">
                       <div

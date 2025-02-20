@@ -6,7 +6,9 @@
     :style="elementStyles"
   >
     <div class="element__inner-wrapper">
-      <span v-if="showElementId" class="element--element-id">{{ element.id }}</span>
+      <span v-if="showElementId" class="element--element-id">{{
+        element.id
+      }}</span>
       <component
         :is="component"
         :key="element._.uid"

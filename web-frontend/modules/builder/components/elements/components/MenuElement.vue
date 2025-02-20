@@ -28,7 +28,9 @@
               {{
                 item.name
                   ? getResolvedValue(item.name) ||
-                    (mode === 'editing' ? $t('menuElement.emptyLinkValue') : '&nbsp;')
+                    (mode === 'editing'
+                      ? $t('menuElement.emptyLinkValue')
+                      : '&nbsp;')
                   : $t('menuElement.missingLinkValue')
               }}
             </ABLink>
@@ -71,7 +73,9 @@
                   {{
                     child.name
                       ? getResolvedValue(child.name) ||
-                        (mode === 'editing' ? $t('menuElement.emptyLinkValue') : '&nbsp;')
+                        (mode === 'editing'
+                          ? $t('menuElement.emptyLinkValue')
+                          : '&nbsp;')
                       : $t('menuElement.missingLinkValue')
                   }}
                 </ABLink>
@@ -85,7 +89,9 @@
           {{
             item.name
               ? getResolvedValue(item.name) ||
-                (mode === 'editing' ? $t('menuElement.emptyButtonValue') : '&nbsp;')
+                (mode === 'editing'
+                  ? $t('menuElement.emptyButtonValue')
+                  : '&nbsp;')
               : $t('menuElement.missingButtonValue')
           }}
         </ABButton>
@@ -101,7 +107,6 @@
 <script>
 import element from '@baserow/modules/builder/mixins/element'
 import { ensureString } from '@baserow/modules/core/utils/validator'
-import MenuItemButtonElement from '@baserow/modules/builder/components/elements/components/MenuItemButtonElement.vue'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 
 /**
@@ -110,9 +115,6 @@ import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 
 export default {
   name: 'MenuElement',
-  components: {
-    MenuItemButtonElement,
-  },
   mixins: [element],
   props: {
     /**
@@ -212,7 +214,9 @@ export default {
     },
     onButtonClick(item) {
       const eventName = `${item.uid}_click`
-      this.fireEvent(this.menuElementType.getEventByName(this.element, eventName))
+      this.fireEvent(
+        this.menuElementType.getEventByName(this.element, eventName)
+      )
     },
   },
 }
