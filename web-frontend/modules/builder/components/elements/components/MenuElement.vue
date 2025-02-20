@@ -38,10 +38,12 @@
           <div
             v-else
             ref="menuSubLinkContainer"
-            class="menu-element__sub-link-menu-container"
-            @click="toggleExpanded(item.id)"
+            class="menu-element__sub-link-menu-container menu-element__sublink__wrapper"
           >
-            <div class="menu-element__sub-link-menu-container-item">
+            <div 
+              @click="showSubMenu($event, item.id)"
+              class="menu-element__sub-link-menu-container-item"
+            >
               <div class="menu-element__menu-item-link">
                 <a>{{ getResolvedValue(item.name) }}</a>
               </div>
@@ -60,7 +62,13 @@
                 />
               </div>
             </div>
-            <div v-if="isExpanded(item.id)">
+
+            <Context
+              :ref="`subLinkContext_${item.id}`"
+              :hide-on-click-outside="true"
+              @shown="toggleExpanded(item.id)"
+              @hidden="toggleExpanded(item.id)"
+            >
               <div class="menu-element__sub-link-menu">
                 <ABLink
                   v-for="child in item.children"
@@ -80,7 +88,7 @@
                   }}
                 </ABLink>
               </div>
-            </div>
+            </Context>
           </div>
         </div>
       </template>
@@ -143,13 +151,16 @@ export default {
       return this.$registry.get('element', 'menu')
     },
   },
-  mounted() {
-    document.addEventListener('click', this.handleClickOutsideSubLinkMenu)
-  },
-  beforeDestroy() {
-    document.removeEventListener('click', this.handleClickOutsideSubLinkMenu)
-  },
   methods: {
+    showSubMenu(event, itemId) {
+      const contextRef = this.$refs[`subLinkContext_${itemId}`][0]
+      if (contextRef?.isOpen()) {
+        contextRef.hide()
+      } else {
+        const containerRef = event.currentTarget
+        contextRef.show(containerRef, 'bottom', 'left', 0)
+      }
+    },
     getItemUrl(item) {
       try {
         return resolveElementUrl(
@@ -162,6 +173,9 @@ export default {
       } catch (e) {
         return '#error'
       }
+    },
+    toggleExpanded(itemId) {
+      this.$set(this.expandedItems, itemId, !this.expandedItems[itemId])
     },
     getElement(item) {
       return {
@@ -185,32 +199,8 @@ export default {
     getResolvedValue(name) {
       return ensureString(this.resolveFormula(name))
     },
-    toggleExpanded(itemId) {
-      this.$set(this.expandedItems, itemId, !this.expandedItems[itemId])
-    },
     isExpanded(itemId) {
       return !!this.expandedItems[itemId]
-    },
-    handleClickOutsideSubLinkMenu(event) {
-      const subMenuContainers = this.$refs.menuSubLinkContainer
-      if (!subMenuContainers) return
-
-      // subMenuContainers could be a single element (if there is only
-      // one sub menu), or an array or a DOM element (if there are multiple
-      // sub menus)
-      const isClickOutside = Array.isArray(subMenuContainers)
-        ? // If it is an array, check if at least one sub menu received the click
-          !subMenuContainers.some((container) =>
-            container.contains(event.target)
-          )
-        : // If it is a DOM element, check if it received the click
-          !subMenuContainers.contains(event.target)
-
-      // If a click is received anywhere outside of a sub menu, close all
-      // sub menus.
-      if (isClickOutside) {
-        this.expandedItems = {}
-      }
     },
     onButtonClick(item) {
       const eventName = `${item.uid}_click`

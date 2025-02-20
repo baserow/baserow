@@ -172,3 +172,11 @@
     visibility: visible;
   }
 }
+
+.menu-element__sublink__wrapper {
+  display: flex;
+  align-items: center;
+  background-color: var(--input-background-color, $white);
+  padding: var(--input-vertical-padding, 8px)
+    var(--input-horizontal-padding, 12px);
+}
