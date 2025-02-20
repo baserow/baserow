@@ -81,7 +81,14 @@
         </div>
       </template>
       <template v-else-if="item.menu_item_variant === 'button'">
-        <MenuItemButtonElement :element="getElement(item)" />
+        <ABButton @click="onButtonClick(item)">
+          {{
+            item.name
+              ? getResolvedValue(item.name) ||
+                (mode === 'editing' ? $t('menuElement.emptyButtonValue') : '&nbsp;')
+              : $t('menuElement.missingButtonValue')
+          }}
+        </ABButton>
       </template>
     </div>
 
@@ -129,6 +136,9 @@ export default {
     },
     pages() {
       return this.$store.getters['page/getVisiblePages'](this.builder)
+    },
+    menuElementType() {
+      return this.$registry.get('element', 'menu')
     },
   },
   mounted() {
@@ -199,6 +209,10 @@ export default {
       if (isClickOutside) {
         this.expandedItems = {}
       }
+    },
+    onButtonClick(item) {
+      const eventName = `${item.uid}_click`
+      this.fireEvent(this.menuElementType.getEventByName(this.element, eventName))
     },
   },
 }

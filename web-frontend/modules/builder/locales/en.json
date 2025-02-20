@@ -196,7 +196,9 @@
     "missingValue": "Missing menu item",
     "separator": "Separator",
     "missingLinkValue": "Missing link name...",
-    "emptyLinkValue": "Empty link name..."
+    "emptyLinkValue": "Empty link name...",
+    "missingButtonValue": "Missing button name...",
+    "emptyButtonValue": "Empty button name..."
   },
   "menuElementForm": {
     "orientationLabel": "Orientation",
