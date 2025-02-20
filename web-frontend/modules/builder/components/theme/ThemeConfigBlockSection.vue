@@ -18,9 +18,7 @@
           <slot></slot>
         </div>
         <div v-if="hasSlotPreview" class="theme-config-block-section__preview">
-          <div class="theme-config-block-section__preview-background">
-            <slot name="preview"></slot>
-          </div>
+          <slot name="preview"></slot>
         </div>
       </div>
     </template>
