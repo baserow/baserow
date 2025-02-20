@@ -3729,6 +3729,7 @@ class FileFieldType(FieldType):
         cache: Dict[str, Any],
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
+        name_prefix: str = "",
     ) -> List[Dict[str, Any]]:
         file_names = []
         user_file_handler = UserFileHandler()
@@ -3736,9 +3737,10 @@ class FileFieldType(FieldType):
         for file in self.get_internal_value_from_db(row, field_name):
             # Check if the user file object is already in the cache and if not,
             # it must be fetched and added to it.
-            cache_entry = f"user_file_{file['name']}"
+            file_name = f"{name_prefix}{file['name']}"
+            cache_entry = f"user_file_{file_name}"
             if cache_entry not in cache:
-                if files_zip is not None and file["name"] not in [
+                if files_zip is not None and file_name not in [
                     item["name"] for item in files_zip.info_list()
                 ]:
                     file_path = user_file_handler.user_file_path(file["name"])
@@ -3746,7 +3748,7 @@ class FileFieldType(FieldType):
                     # stream. That file will be read when zip stream is being
                     # written to final zip file
                     chunk_generator = file_chunk_generator(storage, file_path)
-                    files_zip.add(chunk_generator, file["name"])
+                    files_zip.add(chunk_generator, file_name)
 
                 # This is just used to avoid writing the same file twice.
                 cache[cache_entry] = True
@@ -3759,7 +3761,7 @@ class FileFieldType(FieldType):
             else:
                 file_names.append(
                     DatabaseExportSerializedStructure.file_field_value(
-                        name=file["name"],
+                        name=file_name,
                         visible_name=file["visible_name"],
                         original_name=file["name"],
                     )

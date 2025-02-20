@@ -11,3 +11,10 @@ class ExcelExporterOptionsSerializer(BaseExporterOptionsSerializer):
         help_text="Whether or not to generate the field names as header row at the top "
         "of the Excel file.",
     )
+
+
+class MediaExporterOptionsSerializer(BaseExporterOptionsSerializer):
+    organize_media_files = fields.BooleanField(
+        default=True,
+        help_text="Whether or not to group media files by row in the resulting export.",
+    )

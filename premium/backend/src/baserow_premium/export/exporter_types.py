@@ -2,19 +2,23 @@ import json
 from collections import OrderedDict
 from typing import List, Optional, Type
 
+import zipstream
 from baserow_premium.license.handler import LicenseHandler
 from openpyxl import Workbook
 
+from baserow.config.settings.base import BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL
 from baserow.contrib.database.api.export.serializers import (
     BaseExporterOptionsSerializer,
 )
 from baserow.contrib.database.export.file_writer import FileWriter, QuerysetSerializer
 from baserow.contrib.database.export.registries import TableExporter
 from baserow.contrib.database.export.utils import view_is_publicly_exportable
+from baserow.contrib.database.fields.field_types import FileFieldType
 from baserow.contrib.database.views.view_types import GridViewType
+from baserow.core.storage import ExportZipFile, get_default_storage
 
 from ..license.features import PREMIUM
-from .serializers import ExcelExporterOptionsSerializer
+from .serializers import ExcelExporterOptionsSerializer, MediaExporterOptionsSerializer
 from .utils import get_unique_name, safe_xml_tag_name, to_xml
 
 
@@ -225,3 +229,79 @@ class ExcelTableExporter(PremiumTableExporter):
     @property
     def queryset_serializer_class(self):
         return ExcelQuerysetSerializer
+
+
+class MediaQuerysetSerializer(QuerysetSerializer):
+    can_handle_rich_value = True
+
+    def write_to_file(
+        self,
+        file_writer: FileWriter,
+        export_charset: str = "utf-8",
+        organize_media_files: bool = True,
+    ):
+        """
+        Writes media files from the queryset to a zip archive. Will create a directory
+        structure based on field names and include all media files found in the rows.
+
+        :param file_writer: The FileWriter instance to write to.
+        :param export_charset: The charset to use for writing metadata.
+        """
+
+        storage = get_default_storage()
+        field_serializers = []
+
+        zip_file = ExportZipFile(
+            compress_level=BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+            compress_type=zipstream.ZIP_DEFLATED,
+        )
+
+        file_fields = []
+
+        # Get list of file-type fields
+        for field_object in self.ordered_field_objects:
+            if isinstance(field_object["type"], FileFieldType):
+                file_fields.append(field_object)
+                field_serializers.append(self._get_field_serializer(field_object))
+
+        def write_row(row, is_last):
+            row_folder = f"row_{row.id}/" if organize_media_files else ""
+            for file_field_data in file_fields:
+                file_field = file_field_data["type"]
+                file_field.get_export_serialized_value(
+                    row,
+                    file_field_data["name"],
+                    {},
+                    zip_file,
+                    storage,
+                    row_folder,
+                )
+
+        file_writer.write_rows(self.queryset, write_row)
+
+        for chunk in zip_file:
+            file_writer._file.write(chunk)
+
+
+class MediaTableExporter(PremiumTableExporter):
+    type = "media"
+
+    @property
+    def option_serializer_class(self) -> Type[BaseExporterOptionsSerializer]:
+        return MediaExporterOptionsSerializer
+
+    @property
+    def can_export_table(self) -> bool:
+        return True
+
+    @property
+    def supported_views(self) -> List[str]:
+        return [GridViewType.type]
+
+    @property
+    def file_extension(self) -> str:
+        return ".zip"
+
+    @property
+    def queryset_serializer_class(self):
+        return MediaQuerysetSerializer

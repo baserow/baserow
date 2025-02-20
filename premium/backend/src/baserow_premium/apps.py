@@ -54,6 +54,7 @@ class BaserowPremiumConfig(AppConfig):
         from .export.exporter_types import (
             ExcelTableExporter,
             JSONTableExporter,
+            MediaTableExporter,
             XMLTableExporter,
         )
         from .plugins import PremiumPlugin
@@ -74,6 +75,7 @@ class BaserowPremiumConfig(AppConfig):
         table_exporter_registry.register(JSONTableExporter())
         table_exporter_registry.register(XMLTableExporter())
         table_exporter_registry.register(ExcelTableExporter())
+        table_exporter_registry.register(MediaTableExporter())
 
         row_metadata_registry.register(RowCommentCountMetadataType())
         row_metadata_registry.register(RowCommentsNotificationModeMetadataType())

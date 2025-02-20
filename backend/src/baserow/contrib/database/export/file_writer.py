@@ -144,6 +144,7 @@ class QuerysetSerializer(abc.ABC):
     def __init__(self, queryset, ordered_field_objects):
         self.queryset = queryset
         self.field_serializers = [lambda row: ("id", "id", row.id)]
+        self.ordered_field_objects = ordered_field_objects
 
         for field_object in ordered_field_objects:
             self.field_serializers.append(self._get_field_serializer(field_object))
