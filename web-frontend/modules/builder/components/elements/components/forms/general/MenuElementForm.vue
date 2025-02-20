@@ -31,12 +31,11 @@
     </div>
 
     <div
-      v-for="(item, index) in values.menu_items.filter(
-        (item) => item.parent_menu_item === null
-      )"
+      v-for="(item, index) in values.menu_items"
       :key="item.uid"
     >
       <Expandable
+        v-if="item.parent_menu_item === null"
         v-sortable="{
           id: item.uid,
           update: orderMenuItems,
@@ -63,11 +62,8 @@
               <template v-if="item.type === 'separator'">
                 {{ $t('menuElement.separator') }}
               </template>
-              <!-- <template v-else>
-                {{ getResolvedName(item.name) }}
-              </template> -->
               <template v-else>
-                {{ item.name }}
+                {{ getResolvedName(item.name) }}
               </template>
             </div>
             <i
@@ -131,20 +127,11 @@
               required
               class="margin-bottom-2"
               :label="$t('menuElementForm.menuItemLabelLabel')"
-              :error-message="v$.values.menu_items.$each.$message[index]?.[0]"
             >
-              <!--
-                For some reason, vuelidate doesn't seem to detect that the model value
-                has changed.
-                
-                I'm using @input to manually trigger vuelidate (@blur doesn't work here).                
-              -->
-
-              <FormInput
-                v-model="v$.values.menu_items.$model[index].name"
+              <InjectedFormulaInput
+                v-model="item.name"
                 :placeholder="$t('menuElementForm.namePlaceholder')"
               />
-              What's in vuelidate object: <pre>{{ v$ }}</pre>
             </FormGroup>
 
             <div v-if="item.menu_item_variant === 'link'">
@@ -234,8 +221,6 @@
 </template>
 
 <script>
-import { useVuelidate } from '@vuelidate/core'
-import { required, helpers, maxLength } from '@vuelidate/validators'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import { MENU_ORIENTATION } from '@baserow/modules/builder/enums'
@@ -255,9 +240,6 @@ export default {
     LinkNavigationSelectionForm,
   },
   mixins: [elementForm],
-  setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
-  },
   data() {
     return {
       values: {
@@ -267,7 +249,6 @@ export default {
         menu_items: [],
       },
       allowedValues: ['value', 'styles', 'menu_items', 'orientation'],
-      console: console 
     }
   },
   computed: {
@@ -321,21 +302,15 @@ export default {
   },
   methods: {
     addMenuItem() {
-      // const name = getNextAvailableNameInSequence(
-      //   this.$t('menuElementForm.menuItemDefaultName'),
-      //   this.values.menu_items
-      //     .filter((item) => item.parent_menu_item === null)
-      //     .map(({ name }) => this.getResolvedName(name))
-      // )
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemDefaultName'),
         this.values.menu_items
           .filter((item) => item.parent_menu_item === null)
-          .map(({ name }) => name)
+          .map(({ name }) => this.getResolvedName(name))
       )
+
       this.values.menu_items.push({
-        // name: `'${name}'`,
-        name,
+        name: `'${name}'`,
         menu_item_variant: 'link',
         value: '',
         type: 'item',
@@ -427,41 +402,6 @@ export default {
         this.$set(item.children, item.children.length, subItem)
       }
     },
-  },
-  validations() {
-    return {
-      values: {
-        menu_items: {
-          $each: helpers.forEach({
-            name: {
-              required: helpers.withMessage(
-                this.$t('error.requiredField'),
-                required
-              ),
-              maxLength: helpers.withMessage(
-                this.$t('error.maxLength', { max: 255 }),
-                maxLength(255)
-              ),
-            },
-            // children: {
-            //   required: false,
-            //   $each: {
-            //     name: {
-            //       required: helpers.withMessage(
-            //         this.$t('error.requiredField'),
-            //         required
-            //       ),
-            //       maxLength: helpers.withMessage(
-            //         this.$t('error.maxLength', { max: 255 }),
-            //         maxLength(255)
-            //       ),
-            //     },
-            //   },
-            // },
-          }),
-        },
-      },
-    }
   },
 }
 </script>
