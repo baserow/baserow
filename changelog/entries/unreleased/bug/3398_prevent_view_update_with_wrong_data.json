@@ -1,0 +1,7 @@
+{
+  "type": "bug",
+  "message": "Prevent view from updated state with data from wrong view when pending request completes.",
+  "issue_number": 3398,
+  "bullet_points": [],
+  "created_at": "2025-02-18"
+}

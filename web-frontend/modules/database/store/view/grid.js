@@ -777,6 +777,13 @@ export const actions = {
           filters: getFilters(view, getters.getAdhocFiltering),
         })
         .then(({ data }) => {
+          // Don't do anything if the gridId does not match the current view gridId
+          // because that probably means the user switched to another view or table, and
+          // the data that is returned here shouldn't do anything.
+          if (gridId !== getters.getLastGridId) {
+            return
+          }
+
           data.results.forEach((row) => {
             const metadata = extractRowMetadata(data, row.id)
             populateRow(row, metadata)
@@ -943,6 +950,12 @@ export const actions = {
       orderBy: getOrderBy(view, adhocSorting),
       filters: getFilters(view, adhocFiltering),
     })
+    // Don't do anything if the gridId does not match the current view gridId
+    // because that probably means the user switched to another view or table, and
+    // the data that is returned here shouldn't do anything.
+    if (gridId !== getters.getLastGridId) {
+      return
+    }
     data.results.forEach((row) => {
       const metadata = extractRowMetadata(data, row.id)
       populateRow(row, metadata)
@@ -1028,6 +1041,12 @@ export const actions = {
           }))
       )
       .then(({ data, offset }) => {
+        // Don't do anything if the gridId does not match the current view gridId
+        // because that probably means the user switched to another view or table, and
+        // the data that is returned here shouldn't do anything.
+        if (gridId !== getters.getLastGridId) {
+          return
+        }
         // If there are results we can replace the existing rows so that the user stays
         // at the same scroll offset.
         data.results.forEach((row) => {
@@ -1190,6 +1209,7 @@ export const actions = {
     const isPublic = rootGetters['page/view/public/getIsPublic']
     const search = getters.getActiveSearchTerm
     const fieldOptions = getters.getAllFieldOptions
+    const gridId = getters.getLastGridId
     let atLeastOneAggregation = false
 
     Object.entries(fieldOptions).forEach(([fieldId, options]) => {
@@ -1238,6 +1258,13 @@ export const actions = {
 
       const { data } = await lastAggregationRequest.request
       lastAggregationRequest.request = null
+
+      // Don't do anything if the gridId does not match the current view gridId
+      // because that probably means the user switched to another view or table, and
+      // the data that is returned here shouldn't do anything.
+      if (gridId !== getters.getLastGridId) {
+        return
+      }
 
       Object.entries(fieldOptions).forEach(([fieldId, options]) => {
         if (options.aggregation_raw_type) {
