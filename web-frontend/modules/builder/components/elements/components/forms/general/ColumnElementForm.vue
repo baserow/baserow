@@ -72,8 +72,9 @@ export default {
         column_amount: 1,
         column_gap: 30,
         alignment: VERTICAL_ALIGNMENTS.TOP,
+        styles: {},
       },
-      allowedValues: ['column_amount', 'column_gap', 'alignment'],
+      allowedValues: ['column_amount', 'column_gap', 'alignment', 'styles'],
     }
   },
   computed: {

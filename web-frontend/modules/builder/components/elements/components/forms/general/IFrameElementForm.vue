@@ -80,11 +80,13 @@ export default {
   },
   data() {
     return {
+      allowedValues: ['source_type', 'url', 'embed', 'height', 'styles'],
       values: {
         source_type: IFRAME_SOURCE_TYPES.URL,
         url: '',
         embed: '',
         height: 300,
+        styles: {},
       },
     }
   },

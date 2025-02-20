@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Fixed element position resets on editing of it's properties",
+    "issue_number": 2342,
+    "bullet_points": [],
+    "created_at": "2025-02-05"
+}

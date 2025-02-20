@@ -140,6 +140,17 @@ export default {
   },
   data() {
     return {
+      allowedValues: [
+        'label',
+        'default_value',
+        'required',
+        'validation_type',
+        'placeholder',
+        'is_multiline',
+        'rows',
+        'type',
+        'styles',
+      ],
       values: {
         label: '',
         default_value: '',
