@@ -7,7 +7,7 @@ from typing import Optional
 
 import typer
 
-from modules import module_types, DatabaseBuilderModule
+from domains import domain_types, DatabaseDomain
 from changelog_entry import changelog_entry_types, BugChangelogEntry
 from click import Choice
 from handler import ChangelogHandler
@@ -20,10 +20,10 @@ default_path = str(Path(os.path.dirname(__file__)).parent)
 
 @app.command()
 def add(working_dir: Optional[str] = typer.Option(default=default_path)):
-    module_type = typer.prompt(
-        "Module",
-        type=Choice(list(module_types.keys())),
-        default=DatabaseBuilderModule.type,
+    domain_type = typer.prompt(
+        "Domain",
+        type=Choice(list(domain_types.keys())),
+        default=DatabaseDomain.type,
     )
     changelog_type = typer.prompt(
         "Type of changelog",
@@ -43,7 +43,7 @@ def add(working_dir: Optional[str] = typer.Option(default=default_path)):
         issue_number = None
 
     ChangelogHandler(working_dir).add_entry(
-        changelog_type, message, issue_number=issue_number, module_type_name=module_type
+        domain_type, changelog_type, message, issue_number=issue_number
     )
 
 

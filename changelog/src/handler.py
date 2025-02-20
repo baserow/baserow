@@ -5,7 +5,6 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from modules import module_types
 from changelog_entry import changelog_entry_types
 from pygit2 import Repository
 
@@ -34,19 +33,14 @@ class ChangelogHandler:
 
     def add_entry(
         self,
+        domain_type_name: str,
         changelog_entry_type_name: str,
         message: str,
         issue_number: Optional[int] = None,
         release: str = UNRELEASED_FOLDER_NAME,
         bullet_points: List[str] = None,
-        module_type_name: Optional[str] = None,
     ) -> str:
         changelog_entry_type = changelog_entry_types[changelog_entry_type_name]
-
-        # If we've been given a module, prefix it in-front of the message.
-        if module_type_name is not None:
-            module = module_types[module_type_name]()
-            message = f"{module.message_prefix}{message}"
 
         path = Path(f"{self.entries_file_path}/{release}/{changelog_entry_type.type}")
         path.mkdir(parents=True, exist_ok=True)
@@ -60,7 +54,7 @@ class ChangelogHandler:
 
         with open(full_path, "w+") as entry_file:
             entry = changelog_entry_type().generate_entry_dict(
-                message, issue_number, bullet_points=bullet_points
+                domain_type_name, message, issue_number, bullet_points=bullet_points
             )
             json.dump(entry, entry_file, indent=4)
 
