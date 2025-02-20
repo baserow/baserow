@@ -38,6 +38,7 @@
       :mode="mode"
       class="element--read-only"
       :application-context-additions="applicationContextAdditions"
+      :show-element-id="showElementId"
       @move="$emit('move', $event)"
     />
 
@@ -99,6 +100,11 @@ export default {
       type: Object,
       required: false,
       default: null,
+    },
+    showElementId: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   data() {
