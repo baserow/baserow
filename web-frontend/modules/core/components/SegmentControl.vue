@@ -70,7 +70,7 @@ export default {
       required: false,
       default: 'regular',
       validator: function (value) {
-        return ['regular', 'small'].includes(value)
+        return ['regular', 'small', 'large'].includes(value)
       },
     },
     type: {
