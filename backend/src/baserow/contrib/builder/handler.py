@@ -3,8 +3,8 @@ from typing import Dict, List, Optional
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.db.models.query import QuerySet
 
-from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.formula_property_extractor import (
     get_builder_used_property_names,
 )
@@ -109,6 +109,24 @@ class BuilderHandler:
 
         return result if result != SENTINEL else None
 
+    def get_published_applications(
+        self, workspace: Optional[Workspace] = None
+    ) -> QuerySet[Builder]:
+        """
+        Returns all published applications in a workspace or all published applications
+        in the instance if no workspace is provided.
+
+        A published application is a builder application which points to one more
+        published domains. The application is the one that the page designer is
+        creating their application in.
+
+        :param workspace: Only return published applications in this workspace.
+        :return: A queryset of published applications.
+        """
+
+        applications = Builder.objects.exclude(domains__published_to=None)
+        return applications.filter(workspace=workspace) if workspace else applications
+
     def aggregate_user_source_counts(
         self,
         workspace: Optional[Workspace] = None,
@@ -122,8 +140,9 @@ class BuilderHandler:
         :return: The total number of user sources in published applications.
         """
 
-        applications = DomainHandler().get_published_applications(workspace)
         queryset = UserSourceHandler().get_user_sources(
-            base_queryset=UserSource.objects.filter(application__in=applications)
+            base_queryset=UserSource.objects.filter(
+                application__in=self.get_published_applications(workspace)
+            )
         )
         return UserSourceHandler().aggregate_user_counts(workspace, queryset)

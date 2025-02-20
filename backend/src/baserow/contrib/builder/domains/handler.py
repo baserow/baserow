@@ -194,15 +194,19 @@ class DomainHandler:
 
         return full_order
 
-    def get_published_applications(
+    def get_published_domain_applications(
         self, workspace: Optional[Workspace] = None
     ) -> QuerySet[Builder]:
         """
-        Returns all published applications in a workspace or all published applications
-        in the instance if no workspace is provided.
+        Returns all published domain applications in a workspace or all published
+        domain applications in the instance if no workspace is provided.
 
-        :param workspace: Only return published applications in this workspace.
-        :return: A queryset of published applications.
+        A domain application is the builder application which is associated with
+        the domain it was published to. It is not the application which the page
+        designer created their application with.
+
+        :param workspace: Only return published domain applications in this workspace.
+        :return: A queryset of published domain applications.
         """
 
         applications = Builder.objects.exclude(published_from=None)

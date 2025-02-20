@@ -230,7 +230,7 @@ def test_get_domain_public_url(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_published_applications(data_fixture):
+def test_get_published_domain_applications(data_fixture):
     user = data_fixture.create_user()
 
     workspace1 = data_fixture.create_workspace(user=user)
@@ -241,8 +241,10 @@ def test_get_published_applications(data_fixture):
         builder=builder1, published_to=published_builder1
     )
 
-    # Get only published applications in workspace1
-    published_applications = DomainHandler().get_published_applications(workspace1)
+    # Get only published domain applications in workspace1
+    published_applications = DomainHandler().get_published_domain_applications(
+        workspace1
+    )
     assert published_applications.count() == 1
     assert published_applications.contains(published_builder1)
 
@@ -254,13 +256,15 @@ def test_get_published_applications(data_fixture):
         builder=builder2, published_to=published_builder2
     )
 
-    # Get only published applications in workspace2
-    published_applications = DomainHandler().get_published_applications(workspace2)
+    # Get only published domain applications in workspace2
+    published_applications = DomainHandler().get_published_domain_applications(
+        workspace2
+    )
     assert published_applications.count() == 1
     assert published_applications.contains(published_builder2)
 
-    # Get published applications across the instance.
-    published_applications = DomainHandler().get_published_applications()
+    # Get published domain applications across the instance.
+    published_applications = DomainHandler().get_published_domain_applications()
     assert published_applications.count() == 2
     assert published_applications.contains(published_builder1)
     assert published_applications.contains(published_builder2)
