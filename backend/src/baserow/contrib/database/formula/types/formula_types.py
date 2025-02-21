@@ -1339,12 +1339,17 @@ class BaserowFormulaArrayType(
     def can_represent_select_options(self, field) -> bool:
         return self.sub_type.can_represent_select_options(field)
 
+    def can_represent_collaborators(self, field):
+        return self.sub_type.can_represent_collaborators(field)
+
     @classmethod
     def get_serializer_field_overrides(cls):
         from baserow.contrib.database.api.fields.serializers import (
+            CollaboratorSerializer,
             SelectOptionSerializer,
         )
         from baserow.contrib.database.api.formula.serializers import (
+            BaserowFormulaCollaboratorsSerializer,
             BaserowFormulaSelectOptionsSerializer,
         )
 
@@ -1354,7 +1359,13 @@ class BaserowFormulaArrayType(
                 required=False,
                 allow_null=True,
                 read_only=True,
-            )
+            ),
+            "available_collaborators": BaserowFormulaCollaboratorsSerializer(
+                child=CollaboratorSerializer(),
+                required=False,
+                allow_null=True,
+                read_only=True,
+            ),
         }
 
     def parse_filter_value(self, field, model_field, value):
@@ -1656,7 +1667,7 @@ class BaserowFormulaMultipleCollaboratorsType(BaserowJSONBObjectBaseType):
         return "p_in = '';"
 
     @property
-    def can_represent_select_options(self) -> bool:
+    def can_represent_collaborators(self) -> bool:
         return True
 
     @property
@@ -1683,12 +1694,13 @@ class BaserowFormulaMultipleCollaboratorsType(BaserowJSONBObjectBaseType):
             setattr(
                 field,
                 cache_key,
-                list(field.table.database.workspace.users.order_by("id").all()),
+                {usr.id: usr for usr in field.table.database.workspace.users.all()},
             )
 
-        user_ids = set((item["id"] for item in value))
-        workspace_users = getattr(field, cache_key)
-        value = [user for user in workspace_users if user.id in user_ids]
+        # Replace the JSON object with the actual user object, so we have
+        # access to the user's email.
+        users = getattr(field, cache_key)
+        value = [users[item["id"]] for item in value]
 
         return field_type.get_export_value(value, field_object, rich_value=rich_value)
 
@@ -1763,6 +1775,28 @@ class BaserowFormulaMultipleCollaboratorsType(BaserowJSONBObjectBaseType):
         """
 
         return "first_name"
+
+    @classmethod
+    def get_serializer_field_overrides(cls):
+        from baserow.contrib.database.api.fields.serializers import (
+            CollaboratorSerializer,
+        )
+        from baserow.contrib.database.api.formula.serializers import (
+            BaserowFormulaCollaboratorsSerializer,
+        )
+
+        return {
+            "available_collaborators": BaserowFormulaCollaboratorsSerializer(
+                child=CollaboratorSerializer(),
+                allow_null=True,
+                required=False,
+                read_only=True,
+            )
+        }
+
+    @classmethod
+    def get_serializer_field_names(cls) -> List[str]:
+        return super().all_fields() + ["available_collaborators"]
 
 
 BASEROW_FORMULA_TYPES = [

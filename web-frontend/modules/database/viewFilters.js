@@ -2445,10 +2445,6 @@ export class MultipleCollaboratorsHasFilterType extends ViewFilterType {
     ]
   }
 
-  isAllowedInPublicViews() {
-    return false
-  }
-
   matches(rowValue, filterValue, field, fieldType) {
     if (!isNumeric(filterValue)) {
       return true
@@ -2482,10 +2478,6 @@ export class MultipleCollaboratorsHasNotFilterType extends ViewFilterType {
       'multiple_collaborators',
       FormulaFieldType.compatibleWithFormulaTypes('multiple_collaborators'),
     ]
-  }
-
-  isAllowedInPublicViews() {
-    return false
   }
 
   matches(rowValue, filterValue, field, fieldType) {

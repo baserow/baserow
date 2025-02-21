@@ -2394,14 +2394,11 @@ class LinkRowFieldType(
     def enhance_field_queryset(
         self, queryset: QuerySet[Field], field: Field
     ) -> QuerySet[Field]:
+        base_field_queryset = FieldHandler().get_base_fields_queryset()
         return queryset.prefetch_related(
             models.Prefetch(
                 "link_row_table__field_set",
-                queryset=specific_queryset(
-                    Field.objects.filter(primary=True)
-                    .select_related("content_type")
-                    .prefetch_related("select_options")
-                ),
+                queryset=specific_queryset(base_field_queryset.filter(primary=True)),
                 to_attr=LinkRowField.RELATED_PPRIMARY_FIELD_ATTR,
             )
         )
@@ -5317,6 +5314,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
     def can_represent_select_options(self, field):
         return self.to_baserow_formula_type(field.specific).can_represent_select_options
 
+    def can_represent_collaborators(self, field):
+        return self.to_baserow_formula_type(field.specific).can_represent_collaborators
+
     def get_permission_error_when_user_changes_field_to_depend_on_forbidden_field(
         self, user: AbstractUser, changed_field: Field, forbidden_field: Field
     ) -> Exception:
@@ -5517,6 +5517,11 @@ class CountFieldType(FormulaFieldType):
         target_field = serialized_fields_map[target_field_id]
         target_field_name = target_field["name"]
         return {(target_field_name, through_field_name)}
+
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.select_related("through_field")
 
 
 class RollupFieldType(FormulaFieldType):
@@ -5721,6 +5726,11 @@ class RollupFieldType(FormulaFieldType):
         target_field = serialized_fields_map[target_field_id]
         target_field_name = target_field["name"]
         return {(target_field_name, via_field_name)}
+
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.select_related("through_field", "target_field")
 
 
 class LookupFieldType(FormulaFieldType):
@@ -6020,6 +6030,11 @@ class LookupFieldType(FormulaFieldType):
 
         return {(target_field_name, via_field_name)}
 
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.select_related("through_field", "target_field")
+
 
 class MultipleCollaboratorsFieldType(
     CollationSortMixin, ManyToManyFieldTypeSerializeToInputValueMixin, FieldType
@@ -6027,11 +6042,15 @@ class MultipleCollaboratorsFieldType(
     type = "multiple_collaborators"
     model_class = MultipleCollaboratorsField
     can_get_unique_values = False
-    can_be_in_form_view = False
     allowed_fields = ["notify_user_when_added"]
-    serializer_field_names = ["notify_user_when_added"]
+    serializer_field_names = ["available_collaborators", "notify_user_when_added"]
     serializer_field_overrides = {
-        "notify_user_when_added": serializers.BooleanField(required=False)
+        "available_collaborators": serializers.ListField(
+            child=CollaboratorSerializer(),
+            read_only=True,
+            source="table.database.workspace.users.all",
+        ),
+        "notify_user_when_added": serializers.BooleanField(required=False),
     }
     is_many_to_many_field = True
 
@@ -6077,6 +6096,9 @@ class MultipleCollaboratorsFieldType(
                 **kwargs,
             }
         )
+
+    def serialize_to_input_value(self, field: Field, value: any) -> any:
+        return [{"id": u.id, "name": u.first_name} for u in value.all()]
 
     def prepare_value_for_db(self, instance, value):
         if not isinstance(

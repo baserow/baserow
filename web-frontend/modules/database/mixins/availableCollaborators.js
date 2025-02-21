@@ -1,8 +1,7 @@
 export default {
   computed: {
     workspaceCollaborators() {
-      const workspace = this.$store.getters['workspace/getSelected']
-      return workspace.users.filter((user) => user.to_be_deleted === false)
+      return this.field.available_collaborators
     },
     availableCollaborators() {
       // When converting from a CollaboratorField to another field it can happen
@@ -15,7 +14,7 @@ export default {
 
       const ids = new Set(this.value.map((item) => item.id))
       const result = this.workspaceCollaborators.filter(
-        (item) => !ids.has(item.user_id)
+        (item) => !ids.has(item.id)
       )
       return result
     },

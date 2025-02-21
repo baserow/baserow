@@ -25,13 +25,13 @@ export default {
 
       const workspaceUser =
         this.workspaceCollaborators.find(
-          (workspaceUser) => workspaceUser.user_id === newId
+          (workspaceUser) => workspaceUser.id === newId
         ) || null
 
       let newOption = null
       if (workspaceUser) {
         newOption = {
-          id: workspaceUser.user_id,
+          id: workspaceUser.id,
           name: workspaceUser.name,
         }
       }

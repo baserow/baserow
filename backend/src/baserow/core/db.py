@@ -20,7 +20,7 @@ from typing import (
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import DEFAULT_DB_ALIAS, connection, transaction
-from django.db.models import ForeignKey, ManyToManyField, Max, Model, QuerySet
+from django.db.models import ForeignKey, ManyToManyField, Max, Model, Prefetch, QuerySet
 from django.db.models.functions import Collate
 from django.db.models.sql.query import LOOKUP_SEP
 from django.db.transaction import Atomic, get_connection
@@ -110,12 +110,14 @@ def specific_iterator(
         if isinstance(select_related, bool):
             select_related_keys = []
         else:
-            select_related_keys = select_related.keys()
+            select_related_keys = list(select_related.keys())
 
         # Nested prefetch result in cached objects to avoid additional queries. If
         # they're present, they must be added to the `select_related_keys` to make sure
         # they're correctly set on the specific objects.
         for lookup in queryset_or_list._prefetch_related_lookups:
+            if isinstance(lookup, Prefetch):
+                lookup = lookup.prefetch_through
             split_lookup = lookup.split(LOOKUP_SEP)[:-1]
             if split_lookup and split_lookup[0] not in select_related_keys:
                 select_related_keys.append(split_lookup[0])

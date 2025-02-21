@@ -31,6 +31,10 @@ def test_multiple_collaborators_field_type_create(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response_json["name"] == "Collaborator 1"
     assert response_json["type"] == "multiple_collaborators"
+    assert response_json["notify_user_when_added"] is False
+    assert response_json["available_collaborators"] == [
+        {"id": user.id, "name": user.first_name}
+    ]
 
 
 @pytest.mark.field_multiple_collaborators
@@ -43,6 +47,7 @@ def test_multiple_collaborators_field_type_update(api_client, data_fixture):
         first_name="Test1",
         workspace=workspace,
     )
+    user_2 = data_fixture.create_user(workspace=workspace, first_name="Test2")
     database = data_fixture.create_database_application(
         user=user, name="Placeholder", workspace=workspace
     )
@@ -62,6 +67,10 @@ def test_multiple_collaborators_field_type_update(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response_json["name"] == "New collaborator 1"
     assert response_json["type"] == "multiple_collaborators"
+    assert response_json["available_collaborators"] == [
+        {"id": user.id, "name": user.first_name},
+        {"id": user_2.id, "name": user_2.first_name},
+    ]
 
 
 @pytest.mark.field_multiple_collaborators

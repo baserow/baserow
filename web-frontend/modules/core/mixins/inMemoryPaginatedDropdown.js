@@ -16,7 +16,7 @@ export default {
       }
     },
     search() {
-      this.fetch(this.page, this.query)
+      this.fetch(1, this.query)
     },
     hide() {
       // Call the dropdown `hide` method because it resets the search. We're

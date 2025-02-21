@@ -144,7 +144,9 @@
     "singleSelectRadios": "Radios",
     "autonumber": "Autonumber",
     "password": "Password",
-    "ai": "AI prompt"
+    "ai": "AI prompt",
+    "multipleCollaboratorsDropdown": "Dropdown",
+    "multipleCollaboratorsCheckboxes": "Checkboxes"
   },
   "fieldErrors": {
     "invalidNumber": "Invalid number",
