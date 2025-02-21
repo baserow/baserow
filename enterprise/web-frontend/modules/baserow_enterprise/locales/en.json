@@ -460,5 +460,11 @@
     "groupByFieldLabel": "Group by",
     "groupByNone": "None",
     "groupByRowId": "Row Id"
+  },
+  "aggregationSortByForm": {
+    "sortByFieldLabel": "Sort by",
+    "none": "None",
+    "ascending": "Ascending",
+    "descending": "Descending"
   }
 }

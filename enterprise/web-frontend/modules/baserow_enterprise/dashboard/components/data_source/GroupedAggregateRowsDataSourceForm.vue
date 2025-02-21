@@ -99,6 +99,13 @@
       @value-changed="onGroupByUpdated($event)"
     >
     </AggregationGroupByForm>
+    <AggregationSortByForm
+      v-if="values.table_id && !fieldHasErrors('table_id')"
+      :aggregation-sorts="values.sortings"
+      :allowed-sort-fields="allowedSortFields"
+      @value-changed="onSortByUpdated($event)"
+    >
+    </AggregationSortByForm>
   </form>
 </template>
 
@@ -108,6 +115,7 @@ import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
 import AggregationSeriesForm from '@baserow_enterprise/dashboard/components/data_source/AggregationSeriesForm'
 import AggregationGroupByForm from '@baserow_enterprise/dashboard/components/data_source/AggregationGroupByForm'
+import AggregationSortByForm from '@baserow_enterprise/dashboard/components/data_source/AggregationSortByForm'
 
 const includesIfSet = (array) => (value) => {
   if (value === null || value === undefined) {
@@ -118,7 +126,11 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'GroupedAggregateRowsDataSourceForm',
-  components: { AggregationSeriesForm, AggregationGroupByForm },
+  components: {
+    AggregationSeriesForm,
+    AggregationGroupByForm,
+    AggregationSortByForm,
+  },
   mixins: [form],
   props: {
     dashboard: {
@@ -149,12 +161,14 @@ export default {
         'view_id',
         'aggregation_series',
         'aggregation_group_bys',
+        'sortings',
       ],
       values: {
         table_id: null,
         view_id: null,
         aggregation_series: [],
         aggregation_group_bys: [],
+        sortings: [],
       },
       tableLoading: false,
       databaseSelectedId: null,
@@ -199,6 +213,19 @@ export default {
     },
     tableViewIds() {
       return this.tableViews.map((view) => view.id)
+    },
+    allowedSortFields() {
+      console.log('updating allowed sort fields')
+      const seriesFieldIds = this.values.aggregation_series.map(
+        (item) => item.field_id
+      )
+      const groupByFieldIds = this.values.aggregation_group_bys.map(
+        (item) => item.field_id
+      )
+      const allowedFieldIds = seriesFieldIds.concat(groupByFieldIds)
+      return this.tableFields.filter((item) => {
+        return allowedFieldIds.includes(item.id)
+      })
     },
   },
   watch: {
@@ -289,6 +316,12 @@ export default {
       }
       this.$emit('values-changed', {
         aggregation_group_bys: aggregationGroupBys,
+      })
+    },
+    onSortByUpdated(sortBy) {
+      const aggregationSorts = sortBy.field !== null ? [sortBy] : []
+      this.$emit('values-changed', {
+        sortings: aggregationSorts,
       })
     },
   },
