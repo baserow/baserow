@@ -1,8 +1,12 @@
 from copy import deepcopy
+from unittest.mock import patch
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
-from baserow.contrib.database.airtable.import_report import AirtableImportReport
+from baserow.contrib.database.airtable.import_report import AirtableImportReport, \
+    SCOPE_VIEW
 from baserow.contrib.database.airtable.registry import airtable_view_type_registry
+from baserow.contrib.database.fields.field_types import TextFieldType
+from baserow.contrib.database.fields.registries import field_type_registry
 
 RAW_AIRTABLE_VIEW = {
     "id": "viwcpYeEpAs6kZspktV",
@@ -215,6 +219,29 @@ def test_import_grid_view_sorts():
     assert serialized_view["sortings"] == [
         {"id": "srtglUy98ghs5ou8D", "field_id": "fldwSc9PqedIhTSqhi1", "order": "DESC"}
     ]
+
+
+def test_import_grid_view_sort_field_unsupported():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    view_data["lastSortsApplied"] = RAW_VIEW_DATA_SORTS
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    text_field_type = field_type_registry.get(TextFieldType.type)
+    with patch.object(
+        text_field_type, "_can_order_by", return_value=False
+    ):
+        serialized_view = airtable_view_type.to_serialized_baserow_view(
+            RAW_AIRTABLE_TABLE,
+            RAW_AIRTABLE_VIEW,
+            view_data,
+            AirtableImportConfig(),
+            import_report,
+        )
+    assert serialized_view["sortings"] == []
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "@TODO"
+    assert import_report.items[0].scope == SCOPE_VIEW
+    assert import_report.items[0].table == ""
 
 
 def test_import_grid_view_group_bys():
