@@ -1990,11 +1990,10 @@ export class MenuElementType extends ElementType {
   }
 
   getEvents(element) {
-    // Needed to ensure Events tab in page side panel is not disabled
     return (element.menu_items || [])
       .map((item) => {
-        const { menu_item_variant: menuItemVariant, name, uid } = item
-        if (menuItemVariant === 'button') {
+        const { type: menuItemType, name, uid } = item
+        if (menuItemType === 'button') {
           const resolvedName = this.resolveFormula(name, {})
           return [
             new ClickEvent({
@@ -2042,13 +2041,12 @@ export class MenuElementType extends ElementType {
   }
 
   menuItemIsInError(element, builder, workflowActions) {
-    if (element.type === 'separator') {
+    if (['separator', 'spacer'].includes(element.type)) {
       return false
-    } else if (element.menu_item_variant === 'button') {
+    } else if (element.type === 'button') {
       // For button variants, there must be at least one workflow action
-      return !workflowActions.length
-    } else if (element.menu_item_variant === 'link') {
-      // Link must have a name
+      return !element.name || !workflowActions.length
+    } else if (element.type === 'link') {
       if (!element.name) {
         return true
       }

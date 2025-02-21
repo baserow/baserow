@@ -15,7 +15,7 @@
         <div class="menu-element__menu-separator"></div>
       </template>
       <template
-        v-else-if="item.menu_item_variant === 'link' && !item.parent_menu_item"
+        v-else-if="item.type === 'link' && !item.parent_menu_item"
       >
         <div class="menu-element__menu-link-container">
           <div v-if="!item.children?.length">
@@ -92,7 +92,7 @@
           </div>
         </div>
       </template>
-      <template v-else-if="item.menu_item_variant === 'button'">
+      <template v-else-if="item.type === 'button'">
         <ABButton @click="onButtonClick(item)">
           {{
             item.name

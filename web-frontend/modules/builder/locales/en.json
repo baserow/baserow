@@ -195,6 +195,7 @@
   "menuElement": {
     "missingValue": "Missing menu item",
     "separator": "Separator",
+    "spacer": "Spacer",
     "missingLinkValue": "Missing link name...",
     "emptyLinkValue": "Empty link name...",
     "missingButtonValue": "Missing button name...",
@@ -216,7 +217,12 @@
     "menuItemVariantButton": "Button",
     "namePlaceholder": "Page",
     "addSubLink": "Add sublink",
-    "menuItemSubLinkDefaultName": "Sublink"
+    "menuItemSubLinkDefaultName": "Sublink",
+    "menuItemAddLink": "Link",
+    "menuItemAddButton": "Button",
+    "menuItemAddSeparator": "Separator",
+    "menuItemAddSpacer": "Spacer",
+    "eventDescription": "To configure actions for this button, open the Events tab of this element."
   },
   "imageElement": {
     "missingValue": "Missing alt text...",

@@ -14,7 +14,7 @@
       </RadioGroup>
     </FormGroup>
 
-    <div class="menu-element__add-item-container">
+    <div class="menu-element__add-item-container" ref="menuItemAddContainer">
       <div>
         {{ $t('menuElementForm.menuItemsLabel') }}
       </div>
@@ -23,12 +23,30 @@
           type="primary"
           icon="iconoir-plus"
           size="small"
-          @click="addMenuItem"
+          @click="$refs.menuItemAddContext.show($refs.menuItemAddContainer, 'bottom', 'right')"
         >
           {{ $t('menuElementForm.addMenuItemLink') }}
         </ButtonText>
       </div>
     </div>
+
+    <Context
+      ref="menuItemAddContext"
+      :hide-on-click-outside="true"
+    >
+      <div class="menu-element__add-menu-item-context--container">
+        <div class="menu-element__add-menu-item-context--item" v-for="(menuItemType, index) in addMenuItemTypes" :key="index">
+          <ButtonText
+            type="primary"
+            :icon="menuItemType.icon"
+            size="small"
+            @click="addMenuItem(menuItemType.type)"
+          >
+          {{ menuItemType.label }}
+          </ButtonText>
+        </div>
+      </div>
+    </Context>
 
     <div v-for="item in values.menu_items" :key="item.uid">
       <Expandable
@@ -46,7 +64,10 @@
         class="menu-element__sub-link-form"
       >
         <template #header="{ toggle, expanded }">
-          <div class="menu-element__sub-link-form--header" @click.stop="toggle">
+          <div
+            :class="menuItemTypeIsStyle(item.type) ? 'menu-element__sub-link-form--header-outline' : 'menu-element__sub-link-form--header'"
+            @click.stop="!menuItemTypeIsStyle(item.type) ? toggle() : null"
+          >
             <div
               class="menu-element__sub-link-form--handle"
               data-sortable-handle
@@ -59,152 +80,160 @@
               <template v-if="item.type === 'separator'">
                 {{ $t('menuElement.separator') }}
               </template>
+              <template v-else-if="item.type === 'spacer'">
+                {{ $t('menuElement.spacer') }}
+              </template>
               <template v-else>
                 {{ getResolvedName(item.name) }}
               </template>
             </div>
-            <i
-              :class="
-                expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
-              "
-            />
+
+            <template v-if="menuItemTypeIsStyle(item.type)">
+              <ButtonIcon size="small" icon="iconoir-bin" @click="removeMenuItem(item)" />
+            </template>
+            <template v-else>
+              <i
+                :class="
+                  expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
+                "
+              />
+            </template>
           </div>
         </template>
-        <template #default>
-          <FormGroup
-            small-label
-            horizontal
-            required
-            :label="$t('menuElementForm.menuItemTypeLabel')"
-            class="margin-bottom-2"
-          >
-            <Dropdown
-              :value="item.type"
-              :show-search="false"
-              @input="changeItemType(item, $event)"
-            >
-              <DropdownItem
-                v-for="itemType in menuItemTypes"
-                :key="itemType.value"
-                :name="itemType.label"
-                :value="itemType.value"
-              />
-            </Dropdown>
-
-            <template #after-input>
-              <ButtonIcon icon="iconoir-bin" @click="removeMenuItem(item)" />
-            </template>
-          </FormGroup>
-
-          <div v-if="item.type !== 'separator'">
-            <FormGroup
-              small-label
-              horizontal
-              required
-              :label="$t('menuElementForm.menuItemVariantLabel')"
-              class="margin-bottom-2"
-            >
-              <Dropdown
-                :value="item.menu_item_variant"
-                :show-search="false"
-                @input="changeItemVariant(item, $event)"
+        <template #default v-if="!menuItemTypeIsStyle(item.type)">
+          <div>
+            <div v-if="item.type === 'button'">
+              <FormGroup
+                small-label
+                horizontal
+                required
+                class="margin-bottom-2"
+                :label="$t('menuElementForm.menuItemLabelLabel')"
               >
-                <DropdownItem
-                  v-for="itemVariant in menuItemVariants"
-                  :key="itemVariant.value"
-                  :name="itemVariant.label"
-                  :value="itemVariant.value"
+                <InjectedFormulaInput
+                  v-model="item.name"
+                  :placeholder="$t('menuElementForm.namePlaceholder')"
                 />
-              </Dropdown>
-            </FormGroup>
-
-            <FormGroup
-              small-label
-              horizontal
-              required
-              class="margin-bottom-2"
-              :label="$t('menuElementForm.menuItemLabelLabel')"
-            >
-              <InjectedFormulaInput
-                v-model="item.name"
-                :placeholder="$t('menuElementForm.namePlaceholder')"
-              />
-            </FormGroup>
-
-            <div v-if="item.menu_item_variant === 'link'">
-              <LinkNavigationSelectionForm
-                v-if="!item.children?.length"
-                :default-values="item"
-                @values-changed="updateItem(item, $event)"
-              />
-
-              <div v-if="item.children?.length">
-                <div v-for="child in item.children" :key="child.uid">
-                  <Expandable class="menu-element__sub-link-form">
-                    <template #header="{ toggle, expanded }">
-                      <div
-                        class="menu-element__sub-link-form--header"
-                        @click.stop="toggle"
-                      >
-                        <div
-                          class="menu-element__sub-link-form--handle"
-                          data-sortable-handle
-                        />
-                        <div class="menu-element__sub-link-form--name">
-                          <i
-                            v-if="!expanded && menuItemInError(child)"
-                            class="menu-element__sub-link-form--error iconoir-warning-circle"
-                          ></i>
-                          {{ getResolvedName(child.name) }}
-                        </div>
-                        <i
-                          :class="
-                            expanded
-                              ? 'iconoir-nav-arrow-down'
-                              : 'iconoir-nav-arrow-right'
-                          "
-                        />
-                      </div>
-                    </template>
-
-                    <template #default>
-                      <FormGroup
-                        small-label
-                        horizontal
-                        required
-                        class="margin-bottom-2"
-                        :label="$t('menuElementForm.menuItemLabelLabel')"
-                      >
-                        <InjectedFormulaInput
-                          v-model="child.name"
-                          :placeholder="$t('menuElementForm.namePlaceholder')"
-                        />
-                        <template #after-input>
-                          <ButtonIcon
-                            icon="iconoir-bin"
-                            @click="removeChildItem(item, child)"
-                          />
-                        </template>
-                      </FormGroup>
-
-                      <LinkNavigationSelectionForm
-                        :default-values="child"
-                        @values-changed="updateSubLink(child, $event)"
-                      />
-                    </template>
-                  </Expandable>
-                </div>
-              </div>
-
-              <div class="menu-element__add-sub-link-container">
-                <ButtonText
-                  type="primary"
-                  icon="iconoir-plus"
-                  size="small"
-                  @click="addSubLink(item)"
+                <template #after-input>
+                  <ButtonIcon icon="iconoir-bin" @click="removeMenuItem(item)" />
+                </template>
+              </FormGroup>
+              <Alert type="info-neutral">
+                <p>{{ $t('menuElementForm.eventDescription') }}</p>
+              </Alert>
+            </div>
+            <div v-else>
+              <FormGroup
+                small-label
+                horizontal
+                required
+                class="margin-bottom-2"
+                :label="$t('menuElementForm.menuItemLabelLabel')"
+              >
+                <InjectedFormulaInput
+                  v-model="item.name"
+                  :placeholder="$t('menuElementForm.namePlaceholder')"
+                />
+                <template #after-input>
+                  <ButtonIcon icon="iconoir-bin" @click="removeMenuItem(item)" />
+                </template>
+              </FormGroup>
+              <FormGroup
+                small-label
+                horizontal
+                required
+                :label="$t('menuElementForm.menuItemVariantLabel')"
+                class="margin-bottom-2"
+              >
+                <Dropdown
+                  :value="item.menu_item_variant"
+                  :show-search="false"
+                  @input="changeItemVariant(item, $event)"
                 >
-                  {{ $t('menuElementForm.addSubLink') }}
-                </ButtonText>
+                  <DropdownItem
+                    v-for="itemVariant in menuItemVariants"
+                    :key="itemVariant.value"
+                    :name="itemVariant.label"
+                    :value="itemVariant.value"
+                  />
+                </Dropdown>
+              </FormGroup>
+
+              <div v-if="item.menu_item_variant === 'link'">
+                <LinkNavigationSelectionForm
+                  v-if="!item.children?.length"
+                  :default-values="item"
+                  @values-changed="updateItem(item, $event)"
+                />
+
+                <div v-if="item.children?.length">
+                  <div v-for="child in item.children" :key="child.uid">
+                    <Expandable class="menu-element__sub-link-form">
+                      <template #header="{ toggle, expanded }">
+                        <div
+                          class="menu-element__sub-link-form--header"
+                          @click.stop="toggle"
+                        >
+                          <div
+                            class="menu-element__sub-link-form--handle"
+                            data-sortable-handle
+                          />
+                          <div class="menu-element__sub-link-form--name">
+                            <i
+                              v-if="!expanded && menuItemInError(child)"
+                              class="menu-element__sub-link-form--error iconoir-warning-circle"
+                            ></i>
+                            {{ getResolvedName(child.name) }}
+                          </div>
+                          <i
+                            :class="
+                              expanded
+                                ? 'iconoir-nav-arrow-down'
+                                : 'iconoir-nav-arrow-right'
+                            "
+                          />
+                        </div>
+                      </template>
+
+                      <template #default>
+                        <FormGroup
+                          small-label
+                          horizontal
+                          required
+                          class="margin-bottom-2"
+                          :label="$t('menuElementForm.menuItemLabelLabel')"
+                        >
+                          <InjectedFormulaInput
+                            v-model="child.name"
+                            :placeholder="$t('menuElementForm.namePlaceholder')"
+                          />
+                          <template #after-input>
+                            <ButtonIcon
+                              icon="iconoir-bin"
+                              @click="removeChildItem(item, child)"
+                            />
+                          </template>
+                        </FormGroup>
+
+                        <LinkNavigationSelectionForm
+                          :default-values="child"
+                          @values-changed="updateSubLink(child, $event)"
+                        />
+                      </template>
+                    </Expandable>
+                  </div>
+                </div>
+
+                <div class="menu-element__add-sub-link-container">
+                  <ButtonText
+                    type="primary"
+                    icon="iconoir-plus"
+                    size="small"
+                    @click="addSubLink(item)"
+                  >
+                    {{ $t('menuElementForm.addSubLink') }}
+                  </ButtonText>
+                </div>
               </div>
             </div>
           </div>
@@ -243,6 +272,28 @@ export default {
         menu_items: [],
       },
       allowedValues: ['value', 'styles', 'menu_items', 'orientation'],
+      addMenuItemTypes: [
+        {
+          icon: 'iconoir-link',
+          label: this.$t('menuElementForm.menuItemAddLink'),
+          type: 'link',
+        },
+        {
+          icon: 'iconoir-cursor-pointer',
+          label: this.$t('menuElementForm.menuItemAddButton'),
+          type: 'button',
+        },
+        {
+          icon: 'iconoir-horizontal-split',
+          label: this.$t('menuElementForm.menuItemAddSeparator'),
+          type: 'separator',
+        },
+        // {
+        //   icon: 'iconoir-square-dashed',
+        //   label: this.$t('menuElementForm.menuItemAddSpacer'),
+        //   type: 'spacer',
+        // },
+      ],
     }
   },
   computed: {
@@ -295,7 +346,7 @@ export default {
     },
   },
   methods: {
-    addMenuItem() {
+    addMenuItem(type) {
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemDefaultName'),
         this.values.menu_items
@@ -307,7 +358,7 @@ export default {
         name: `'${name}'`,
         menu_item_variant: 'link',
         value: '',
-        type: 'item',
+        type,
         parent_menu_item: null,
         uid: uuid(),
         children: [],
@@ -315,6 +366,9 @@ export default {
     },
     getResolvedName(value) {
       return ensureString(resolveFormula(value))
+    },
+    menuItemTypeIsStyle(itemType) {
+      return ['separator', 'spacer'].includes(itemType)
     },
     changeItemType(itemToUpdate, newType) {
       this.values.menu_items = this.values.menu_items.map((item) => {
