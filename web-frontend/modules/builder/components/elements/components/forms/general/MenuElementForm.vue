@@ -14,7 +14,10 @@
       </RadioGroup>
     </FormGroup>
 
-    <div class="menu-element__form--add-item-container" ref="menuItemAddContainer">
+    <div
+      ref="menuItemAddContainer"
+      class="menu-element__form--add-item-container"
+    >
       <div>
         {{ $t('menuElementForm.menuItemsLabel') }}
       </div>
@@ -23,26 +26,30 @@
           type="primary"
           icon="iconoir-plus"
           size="small"
-          @click="$refs.menuItemAddContext.show($refs.menuItemAddContainer, 'bottom', 'right')"
+          @click="
+            $refs.menuItemAddContext.show(
+              $refs.menuItemAddContainer,
+              'bottom',
+              'right'
+            )
+          "
         >
           {{ $t('menuElementForm.addMenuItemLink') }}
         </ButtonText>
       </div>
     </div>
 
-    <Context
-      ref="menuItemAddContext"
-      :hide-on-click-outside="true"
-    >
+    <Context ref="menuItemAddContext" :hide-on-click-outside="true">
       <div class="menu-element__form--add-item-context">
         <ButtonText
-          v-for="(menuItemType, index) in addMenuItemTypes" :key="index"
+          v-for="(menuItemType, index) in addMenuItemTypes"
+          :key="index"
           type="primary"
           :icon="menuItemType.icon"
           size="small"
           @click="addMenuItem(menuItemType.type)"
         >
-        {{ menuItemType.label }}
+          {{ menuItemType.label }}
         </ButtonText>
       </div>
     </Context>
@@ -63,17 +70,21 @@
       >
         <template #header="{ toggle, expanded }">
           <div
-            :class="menuItemTypeIsStyle(item.type) ? 'menu-element__form--expandable-item--header-outline' : 'menu-element__form--expandable-item--header'"
+            :class="
+              menuItemTypeIsStyle(item.type)
+                ? 'menu-element__form--expandable-item-header-outline'
+                : 'menu-element__form--expandable-item-header'
+            "
             @click.stop="!menuItemTypeIsStyle(item.type) ? toggle() : null"
           >
             <div
-              class="menu-element__form--expandable-item--handle"
+              class="menu-element__form--expandable-item-handle"
               data-sortable-handle
             />
-            <div class="menu-element__form--expandable-item--name">
+            <div class="menu-element__form--expandable-item-name">
               <i
                 v-if="!expanded && menuItemInError(item)"
-                class="menu-element__form--expandable-item--error iconoir-warning-circle"
+                class="menu-element__form--expandable-item-error iconoir-warning-circle"
               ></i>
               <template v-if="item.type === 'separator'">
                 {{ $t('menuElement.separator') }}
@@ -87,18 +98,24 @@
             </div>
 
             <template v-if="menuItemTypeIsStyle(item.type)">
-              <ButtonIcon size="small" icon="iconoir-bin" @click="removeMenuItem(item)" />
+              <ButtonIcon
+                size="small"
+                icon="iconoir-bin"
+                @click="removeMenuItem(item)"
+              />
             </template>
             <template v-else>
               <i
                 :class="
-                  expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
+                  expanded
+                    ? 'iconoir-nav-arrow-down'
+                    : 'iconoir-nav-arrow-right'
                 "
               />
             </template>
           </div>
         </template>
-        <template #default v-if="!menuItemTypeIsStyle(item.type)">
+        <template v-if="!menuItemTypeIsStyle(item.type)" #default>
           <div class="menu-element__form--expanded-item">
             <div v-if="item.type === 'button'">
               <FormGroup
@@ -113,7 +130,10 @@
                   :placeholder="$t('menuElementForm.namePlaceholder')"
                 />
                 <template #after-input>
-                  <ButtonIcon icon="iconoir-bin" @click="removeMenuItem(item)" />
+                  <ButtonIcon
+                    icon="iconoir-bin"
+                    @click="removeMenuItem(item)"
+                  />
                 </template>
               </FormGroup>
               <Alert type="info-neutral">
@@ -133,7 +153,10 @@
                   :placeholder="$t('menuElementForm.namePlaceholder')"
                 />
                 <template #after-input>
-                  <ButtonIcon icon="iconoir-bin" @click="removeMenuItem(item)" />
+                  <ButtonIcon
+                    icon="iconoir-bin"
+                    @click="removeMenuItem(item)"
+                  />
                 </template>
               </FormGroup>
               <FormGroup
@@ -156,7 +179,7 @@
                   />
                 </Dropdown>
               </FormGroup>
-              
+
               <LinkNavigationSelectionForm
                 v-if="!item.children?.length"
                 :default-values="item"
@@ -168,17 +191,17 @@
                   <Expandable>
                     <template #header="{ toggle, expanded }">
                       <div
-                        class="menu-element__form--expandable-item--header"
+                        class="menu-element__form--expandable-item-header"
                         @click.stop="toggle"
                       >
                         <div
-                          class="menu-element__form--expandable-item--handle"
+                          class="menu-element__form--expandable-item-handle"
                           data-sortable-handle
                         />
-                        <div class="menu-element__form--expandable-item--name">
+                        <div class="menu-element__form--expandable-item-name">
                           <i
                             v-if="!expanded && menuItemInError(child)"
-                            class="menu-element__form--expandable-item--error iconoir-warning-circle"
+                            class="menu-element__form--expandable-item-error iconoir-warning-circle"
                           ></i>
                           {{ getResolvedName(child.name) }}
                         </div>

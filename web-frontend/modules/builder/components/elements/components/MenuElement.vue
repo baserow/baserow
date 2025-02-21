@@ -6,16 +6,11 @@
       element.orientation === 'horizontal' ? 'horizontal' : 'vertical',
     ]"
   >
-    <div
-      v-for="item in visibleMenuItems"
-      :key="item.id"
-    >
+    <div v-for="item in visibleMenuItems" :key="item.id">
       <template v-if="item.type === 'separator'">
         <div class="menu-element__menu-item-separator"></div>
       </template>
-      <template
-        v-else-if="item.type === 'link' && !item.parent_menu_item"
-      >
+      <template v-else-if="item.type === 'link' && !item.parent_menu_item">
         <div v-if="!item.children?.length">
           <ABLink
             :variant="item.variant"
@@ -33,7 +28,11 @@
             }}
           </ABLink>
         </div>
-        <div v-else ref="menuSubLinkContainer" @click="showSubMenu($event, item.id)">
+        <div
+          v-else
+          ref="menuSubLinkContainer"
+          @click="showSubMenu($event, item.id)"
+        >
           <div class="menu-element__sub-link-menu--container">
             <a>{{ getResolvedValue(item.name) }}</a>
 

@@ -87,40 +87,42 @@
   padding: 10px;
 }
 
-%menu-element__form--expandable-item {
+%menu-element-form-expandable-item {
   display: flex;
   align-items: center;
-  margin: 5px 0px;
+  margin: 5px 0;
   user-select: none;
   cursor: pointer;
 }
 
-.menu-element__form--expandable-item--header {
-  @extend %menu-element__form--expandable-item;
+.menu-element__form--expandable-item-header {
+  @extend %menu-element-form-expandable-item;
+
   background-color: $palette-neutral-100;
 }
 
-.menu-element__form--expandable-item--header-outline {
-  @extend %menu-element__form--expandable-item;
+.menu-element__form--expandable-item-header-outline {
+  @extend %menu-element-form-expandable-item;
+
   background-color: $color-neutral-10;
   border: 1px dashed $color-neutral-200;
 }
 
-.menu-element__form--expandable-item--error {
+.menu-element__form--expandable-item-error {
   font-size: 20px;
   color: #ffbdb4;
   pointer-events: none;
   padding-right: 3px;
 }
 
-.menu-element__form--expandable-item--name {
+.menu-element__form--expandable-item-name {
   flex: 1;
   padding-right: 5px;
 
   @extend %ellipsis;
 }
 
-.menu-element__form--expandable-item--handle {
+.menu-element__form--expandable-item-handle {
   width: 8px;
   height: 36px;
   background-image: radial-gradient($color-neutral-200 40%, transparent 40%);
@@ -131,7 +133,7 @@
   cursor: grab;
   visibility: hidden;
 
-  .menu-element__form--expandable-item--header:hover & {
+  .menu-element__form--expandable-item-header:hover & {
     visibility: visible;
   }
 }

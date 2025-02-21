@@ -2022,18 +2022,10 @@ export class MenuElementType extends ElementType {
     const hasInvalidMenuItem = element.menu_items.some((menuItem) => {
       if (menuItem.children?.length) {
         return menuItem.children.some((child) => {
-          return this.menuItemIsInError(
-            child,
-            builder,
-            workflowActions,
-          )
+          return this.menuItemIsInError(child, builder, workflowActions)
         })
       } else {
-        return this.menuItemIsInError(
-          menuItem,
-          builder,
-          workflowActions,
-        )
+        return this.menuItemIsInError(menuItem, builder, workflowActions)
       }
     })
 
