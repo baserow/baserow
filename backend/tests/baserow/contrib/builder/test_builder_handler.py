@@ -185,7 +185,7 @@ def test_aggregate_user_source_counts(data_fixture):
     data_fixture.create_local_baserow_table_user_source(
         application=builder_with_published_domains
     )
-    assert BuilderHandler().aggregate_user_source_counts() == 4
+    assert BuilderHandler().aggregate_user_source_counts() == 5
 
 
 @pytest.mark.django_db

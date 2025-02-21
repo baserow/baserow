@@ -693,15 +693,15 @@ def test_aggregate_user_counts(data_fixture):
         application=builder1b, table=user_source1a.table
     )
 
-    # The table contains 4 rows, and is used twice, so the usage for both is 8.
-    assert UserSourceHandler().aggregate_user_counts(workspace1) == 8
+    # The table contains 5 rows, and is used twice, so the usage for both is 10.
+    assert UserSourceHandler().aggregate_user_counts(workspace1) == 10
 
     workspace2 = data_fixture.create_workspace(user=user)
     builder2 = data_fixture.create_builder_application(workspace=workspace2)
     data_fixture.create_local_baserow_table_user_source(application=builder2)
 
-    # The table contains 4 rows, and is used once, so the usage is 4.
-    assert UserSourceHandler().aggregate_user_counts(workspace2) == 4
+    # The table contains 5 rows, and is used once, so the usage is 5.
+    assert UserSourceHandler().aggregate_user_counts(workspace2) == 5
 
-    # Globally, on this instance, we have a usage of 12.
-    assert UserSourceHandler().aggregate_user_counts() == 12
+    # Globally, on this instance, we have a usage of 15.
+    assert UserSourceHandler().aggregate_user_counts() == 15
