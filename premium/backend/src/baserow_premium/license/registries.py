@@ -76,38 +76,33 @@ class LicenseType(abc.ABC, Instance):
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
         pass
 
-    def _calculate_premium_license_builder_usage(
-        self, license_object: License, total_application_users_taken: int
+    def _calculate_stacked_license_builder_usage(
+        self, total_application_users_taken: int
     ) -> dict[str, BuilderUsageSummary]:
         """
-        Given a premium license, and the total count of application users used in
-        this instance, this method is responsible for returning a `BuilderUsageSummary`
-        for each premium license in this instance.
+        Given the total count of application users used in this instance, this method
+        is responsible for returning a `BuilderUsageSummary` for each license in this
+        instance.
 
         The `BuilderUsageSummary.application_users_taken` is the key here. If there are
-        multiple stacked premium licenses, then we will spread the usage of the
-        application users across these licenses, filling the `application_users_taken`
-        up, starting with the earliest license first.
+        multiple stacked licenses, then we will spread the usage of the application
+        users across these licenses, filling the `application_users_taken` up, starting
+        with the earliest license first.
 
-        :param license_object: The premium License instance.
         :param total_application_users_taken: the total number of application users
             taken in the instance.
         :return: A dictionary of `license_id` to `BuilderUsageSummary`.
         """
 
-        from baserow_premium.license.license_types import PremiumLicenseType
-
-        # How many premium licenses do we have with application users?
-        premium_licenses = [
+        # How many licenses do we have with application users?
+        builder_enabled_licenses = [
             license
             for license in License.objects.all()
             if license.valid_payload  # Ensure the license can be decoded
             and license.application_users is not None  # Restrict to only builder usage
-            and license.product_code
-            == PremiumLicenseType.type  # Ensure it's a premium license
         ]
 
-        # 1) If there are multiple stacked premium licenses, and we know that they have
+        # 1) If there are multiple stacked licenses, and we know that they have
         #    application users assigned to them, then the usage of those application
         #    users will be spread across these licenses. For example:
         #       - LicenseA: application_users=10
@@ -115,38 +110,38 @@ class LicenseType(abc.ABC, Instance):
         #       - `total_application_users_taken` = 26
         #   LicenseA will have 10 `application_users_taken`, and LicenseB will have 16
         #   `application_users_taken` (one over limit).
-        # 2) If the instance just has a single premium license, then the usage of the
+        # 2) If the instance just has a single license, then the usage of the
         #    application users will be the total count.
-        # 3) Any expired premium licenses will report an application user usage of 0.
+        # 3) Any expired licenses will report an application user usage of 0.
         usage_per_license: dict[str, BuilderUsageSummary] = {}
 
-        # Fill the premium licenses with the smallest application user quotas first.
-        premium_licenses.sort(
+        # Fill the licenses with the smallest application user quotas first.
+        builder_enabled_licenses.sort(
             key=lambda license: (license.application_users, license.id)
         )
-        for index, premium_license in enumerate(premium_licenses):
-            if premium_license.is_active:
+        for index, builder_license in enumerate(builder_enabled_licenses):
+            if builder_license.is_active:
                 next_license = (
-                    premium_licenses[index + 1]
-                    if index + 1 < len(premium_licenses)
+                    builder_enabled_licenses[index + 1]
+                    if index + 1 < len(builder_enabled_licenses)
                     else None
                 )
                 # The usage for this license is:
                 # - the `application_users` count if we are exceeding the limit *and*
-                #   we have another stacked premium license.
+                #   we have another stacked license.
                 # - the `total_application_users_taken` count if we are not exceeding
-                #   the limit *or* we are the last stacked premium license.
+                #   the limit *or* we are the last stacked license.
                 usage_this_license = (
-                    premium_license.application_users
-                    if total_application_users_taken > premium_license.application_users
+                    builder_license.application_users
+                    if total_application_users_taken > builder_license.application_users
                     and (next_license and next_license.is_active)
                     else total_application_users_taken
                 )
-                total_application_users_taken -= premium_license.application_users
+                total_application_users_taken -= builder_license.application_users
             else:
                 # Expired licenses will report a usage of 0.
                 usage_this_license = 0
-            usage_per_license[premium_license.license_id] = BuilderUsageSummary(
+            usage_per_license[builder_license.license_id] = BuilderUsageSummary(
                 application_users_taken=usage_this_license
             )
 
@@ -163,29 +158,20 @@ class LicenseType(abc.ABC, Instance):
         :return: A summary of the builder usage.
         """
 
-        from baserow_premium.license.license_types import PremiumLicenseType
-
         # Count the total number of application users in this instance
         total_application_users_taken = BuilderHandler().aggregate_user_source_counts()
 
-        # If the license is not a premium license, then the usage is just the total.
-        # If it is premium, and there's no application user, just exit early here.
-        is_premium_license = (
-            license_object.valid_payload
-            and license_object.product_code == PremiumLicenseType.type
-        )
-        if not is_premium_license or (
-            is_premium_license and not total_application_users_taken
-        ):
+        # If there are no user source users, just exit early here.
+        if not total_application_users_taken:
             return BuilderUsageSummary(
                 application_users_taken=total_application_users_taken
             )
 
-        # Do we have a short-lived cache of the stacked premium license builder usage?
+        # Do we have a short-lived cache of the stacked license builder usage?
         cached_stacked_summary = local_cache.get(
-            "stacked_instance_premium_license_usage",
-            lambda: self._calculate_premium_license_builder_usage(
-                license_object, total_application_users_taken
+            "stacked_instance_builder_license_usage",
+            lambda: self._calculate_stacked_license_builder_usage(
+                total_application_users_taken
             ),
         )
 
