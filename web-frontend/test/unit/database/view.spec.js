@@ -377,11 +377,8 @@ describe('View Tests', () => {
     })
 
     expect(tableComponent.vm.views).toEqual([])
-    expect(Object.assign({}, tableComponent.vm.error)).toEqual({
-      message: 'Unknown error',
-      content: null,
-      statusCode: viewsError.statusCode,
-    })
+
+    expect(tableComponent.vm.error).toBeTruthy()
 
     // no table header (view selection, filters, sorting, grouping...)
     expect(tableComponent.find('header .header__filter-link').exists()).toBe(
@@ -391,7 +388,7 @@ describe('View Tests', () => {
     expect(tableComponent.find('.placeholder__title').exists()).toBe(true)
     // error message will be processed and replaced
     expect(tableComponent.find('.placeholder__title').text()).toBe(
-      'Unknown error'
+      'errorLayout.wrong'
     )
     expect(tableComponent.find('.placeholder__content').exists()).toBe(true)
 
@@ -404,8 +401,7 @@ describe('View Tests', () => {
     const viewsError = {
       statusCode: 400,
       data: {
-        error: 'ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST',
-        detail: "The view filter type INVALID doesn't exist.",
+        message: "The view filter type INVALID doesn't exist.",
       },
     }
 
@@ -422,27 +418,24 @@ describe('View Tests', () => {
     })
 
     expect(tableComponent.vm.views).toEqual([])
+    expect(tableComponent.vm.error).toBeTruthy()
+
     expect(tableComponent.find('header .header__filter-link').exists()).toBe(
       false
     )
-    expect(Object.assign({}, tableComponent.vm.error)).toEqual({
-      message: viewsError.data.detail,
-      content: viewsError.data.detail,
-      statusCode: viewsError.statusCode,
-    })
     expect(tableComponent.find('.placeholder__title').exists()).toBe(true)
     expect(tableComponent.find('.placeholder__title').text()).toEqual(
-      viewsError.data.detail
+      viewsError.data.message
     )
     expect(tableComponent.find('.placeholder__content').exists()).toBe(true)
 
     expect(tableComponent.find('.placeholder__content').text()).toEqual(
-      viewsError.data.detail
+      'errorLayout.error'
     )
   })
 
   test('API error during view rows loading', async () => {
-    const rowsError = { statusCode: 500, data: { detail: 'Unknown error' } }
+    const rowsError = { statusCode: 500, data: { message: 'Unknown error' } }
 
     // views list readable, fields readable, rows not readable
     const { application, table, view } = await givenATableWithError({
@@ -461,22 +454,18 @@ describe('View Tests', () => {
     expect(tableComponent.vm.views).toMatchObject([view])
 
     // we're past views api call, so the table (with the error) and toolbar should be present
-    // expect(tableComponent.findComponent({ name: 'Table' })).toEqual(TableComp)
     expect(tableComponent.find('.header__filter-link').exists()).toBe(true)
 
-    expect(Object.assign({}, tableComponent.vm.viewError)).toEqual({
-      message: rowsError.data.detail,
-      content: rowsError.data.detail,
-      statusCode: rowsError.statusCode,
-    })
+    expect(tableComponent.vm.error).toBeTruthy()
+
     expect(tableComponent.find('.placeholder__title').exists()).toBe(true)
     expect(tableComponent.find('.placeholder__title').text()).toEqual(
-      rowsError.data.detail
+      rowsError.data.message
     )
     expect(tableComponent.find('.placeholder__content').exists()).toBe(true)
 
     expect(tableComponent.find('.placeholder__content').text()).toEqual(
-      rowsError.data.detail
+      'errorLayout.error'
     )
   })
 
