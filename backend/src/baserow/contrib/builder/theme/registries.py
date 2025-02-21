@@ -3,6 +3,7 @@ from typing import Type, TypeVar
 
 from django.db.models import QuerySet
 
+from baserow.contrib.builder.models import Builder
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -89,6 +90,21 @@ class ThemeConfigBlockType(
 
         return instance
 
+    def enhance_queryset(self, queryset: QuerySet[Builder]) -> QuerySet[Builder]:
+        """
+        Enhance the queryset to select the related theme config block model. This method
+        is used by enhance_list_builder_queryset to select all related theme config
+        block models in a single query. By default, this method selects the related
+        theme config but it can be customized by subclasses to add additional
+        select_related or prefetch_related calls.
+
+        :param queryset: The queryset that lists the builder applications.
+        :return: The same queryset with proper select_related and/or prefetch_related to
+            reduce the number of queries necessary to fetch the data.
+        """
+
+        return queryset.select_related(self.related_name_in_builder_model)
+
 
 ThemeConfigBlockTypeSubClass = TypeVar(
     "ThemeConfigBlockTypeSubClass", bound=ThemeConfigBlockType
@@ -115,9 +131,8 @@ class ThemeConfigBlockRegistry(
         :return: The enhanced queryset.
         """
 
-        for theme_config_block in self.get_all():
-            related_name = theme_config_block.related_name_in_builder_model
-            queryset = queryset.select_related(related_name)
+        for theme_config_block_type in self.get_all():
+            queryset = theme_config_block_type.enhance_queryset(queryset)
         return queryset
 
 

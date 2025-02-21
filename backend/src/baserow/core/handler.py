@@ -24,6 +24,7 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
+from baserow.core.db import specific_iterator
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 
@@ -1339,10 +1340,17 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             base_queryset = Application.objects
 
         try:
-            application = base_queryset.select_related("workspace", "content_type").get(
-                id=application_id
-            )
-        except Application.DoesNotExist as e:
+            application = specific_iterator(
+                base_queryset.select_related("workspace", "content_type").filter(
+                    id=application_id
+                ),
+                per_content_type_queryset_hook=(
+                    lambda model, queryset: application_type_registry.get_by_model(
+                        model
+                    ).enhance_queryset(queryset)
+                ),
+            )[0]
+        except IndexError as e:
             raise ApplicationDoesNotExist(
                 f"The application with id {application_id} does not exist."
             ) from e
