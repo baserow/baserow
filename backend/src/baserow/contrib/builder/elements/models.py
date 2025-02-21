@@ -1001,8 +1001,7 @@ class MenuItemElement(NavigationElementMixin):
         LINK = "link"
         BUTTON = "button"
 
-    # TODO: Rename this to just variant
-    menu_item_variant = models.CharField(
+    variant = models.CharField(
         choices=VARIANTS.choices,
         help_text="The variant of the link.",
         max_length=10,

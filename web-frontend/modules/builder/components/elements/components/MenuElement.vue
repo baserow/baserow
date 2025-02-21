@@ -2,94 +2,80 @@
   <div
     :style="getStyleOverride(element.variant)"
     :class="[
-      'menu-element menu-element__menu-items-container',
+      'menu-element__container',
       element.orientation === 'horizontal' ? 'horizontal' : 'vertical',
     ]"
   >
     <div
       v-for="item in visibleMenuItems"
       :key="item.id"
-      class="menu-element__menu-item"
     >
       <template v-if="item.type === 'separator'">
-        <div class="menu-element__menu-separator"></div>
+        <div class="menu-element__menu-item-separator"></div>
       </template>
       <template
         v-else-if="item.type === 'link' && !item.parent_menu_item"
       >
-        <div class="menu-element__menu-link-container">
-          <div v-if="!item.children?.length">
-            <ABLink
-              :variant="item.menu_item_variant"
-              :url="getItemUrl(item)"
-              :target="getElement(item).target"
-              class="menu-element__menu-item-link"
-            >
-              {{
-                item.name
-                  ? getResolvedValue(item.name) ||
-                    (mode === 'editing'
-                      ? $t('menuElement.emptyLinkValue')
-                      : '&nbsp;')
-                  : $t('menuElement.missingLinkValue')
-              }}
-            </ABLink>
-          </div>
-          <div
-            v-else
-            ref="menuSubLinkContainer"
-            class="menu-element__sub-link-menu-container menu-element__sublink__wrapper"
+        <div v-if="!item.children?.length">
+          <ABLink
+            :variant="item.variant"
+            :url="getItemUrl(item)"
+            :target="getElement(item).target"
+            class="menu-element__menu-item-link"
           >
-            <div 
-              @click="showSubMenu($event, item.id)"
-              class="menu-element__sub-link-menu-container-item"
-            >
-              <div class="menu-element__menu-item-link">
-                <a>{{ getResolvedValue(item.name) }}</a>
-              </div>
-              <div
-                v-if="element.orientation === 'vertical'"
-                class="menu-element__spacer"
-              ></div>
-              <div>
-                <i
-                  class="menu-element__menu-link-expanded-icon"
-                  :class="
-                    isExpanded(item.id)
-                      ? 'iconoir-nav-arrow-up'
-                      : 'iconoir-nav-arrow-down'
-                  "
-                />
-              </div>
-            </div>
+            {{
+              item.name
+                ? getResolvedValue(item.name) ||
+                  (mode === 'editing'
+                    ? $t('menuElement.emptyLinkValue')
+                    : '&nbsp;')
+                : $t('menuElement.missingLinkValue')
+            }}
+          </ABLink>
+        </div>
+        <div v-else ref="menuSubLinkContainer" @click="showSubMenu($event, item.id)">
+          <div class="menu-element__sub-link-menu--container">
+            <a>{{ getResolvedValue(item.name) }}</a>
 
-            <Context
-              :ref="`subLinkContext_${item.id}`"
-              :hide-on-click-outside="true"
-              @shown="toggleExpanded(item.id)"
-              @hidden="toggleExpanded(item.id)"
-            >
-              <div class="menu-element__sub-link-menu">
-                <ABLink
-                  v-for="child in item.children"
-                  :key="child.id"
-                  :variant="child?.menu_item_variant || 'link'"
-                  :url="getItemUrl(child)"
-                  :target="getElement(child).target"
-                  class="menu-element__menu-item-link"
-                >
-                  {{
-                    child.name
-                      ? getResolvedValue(child.name) ||
-                        (mode === 'editing'
-                          ? $t('menuElement.emptyLinkValue')
-                          : '&nbsp;')
-                      : $t('menuElement.missingLinkValue')
-                  }}
-                </ABLink>
-              </div>
-            </Context>
+            <div class="menu-element__sub-link-menu--spacer"></div>
+
+            <div>
+              <i
+                class="menu-element__sub-link--expanded-icon"
+                :class="
+                  isExpanded(item.id)
+                    ? 'iconoir-nav-arrow-up'
+                    : 'iconoir-nav-arrow-down'
+                "
+              ></i>
+            </div>
           </div>
+
+          <Context
+            :ref="`subLinkContext_${item.id}`"
+            :hide-on-click-outside="true"
+            @shown="toggleExpanded(item.id)"
+            @hidden="toggleExpanded(item.id)"
+          >
+            <div class="menu-element__sub-link-children-container">
+              <ABLink
+                v-for="child in item.children"
+                :key="child.id"
+                :variant="child.variant"
+                :url="getItemUrl(child)"
+                :target="getElement(child).target"
+              >
+                {{
+                  child.name
+                    ? getResolvedValue(child.name) ||
+                      (mode === 'editing'
+                        ? $t('menuElement.emptyLinkValue')
+                        : '&nbsp;')
+                    : $t('menuElement.missingLinkValue')
+                }}
+              </ABLink>
+            </div>
+          </Context>
         </div>
       </template>
       <template v-else-if="item.type === 'button'">
@@ -186,7 +172,7 @@ export default {
         menu_item_id: item?.id,
         uid: item?.uid,
         target: item.target || 'self',
-        variant: item?.menu_item_variant || 'link',
+        variant: item?.variant || 'link',
         value: item.name,
         navigation_type: item.navigation_type,
         navigate_to_page_id: item.navigate_to_page_id || null,

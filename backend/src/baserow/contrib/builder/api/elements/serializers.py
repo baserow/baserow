@@ -400,7 +400,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
         model = MenuItemElement
         fields = [
             "id",
-            "menu_item_variant",
+            "variant",
             "type",
             "menu_item_order",
             "uid",
