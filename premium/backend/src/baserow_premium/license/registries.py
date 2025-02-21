@@ -102,6 +102,12 @@ class LicenseType(abc.ABC, Instance):
             and license.application_users is not None  # Restrict to only builder usage
         ]
 
+        # Pluck out all the active licenses. We'll only iterate over these when we
+        # spread the builder usage. Any expired licenses will have a usage of 0.
+        active_builder_licenses = [
+            license for license in builder_enabled_licenses if license.is_active
+        ]
+
         # 1) If there are multiple stacked licenses, and we know that they have
         #    application users assigned to them, then the usage of those application
         #    users will be spread across these licenses. For example:
@@ -113,43 +119,33 @@ class LicenseType(abc.ABC, Instance):
         # 2) If the instance just has a single license, then the usage of the
         #    application users will be the total count.
         # 3) Any expired licenses will report an application user usage of 0.
-        usage_per_license: dict[str, BuilderUsageSummary] = {}
+
+        usage_per_license = {
+            license.license_id: BuilderUsageSummary(application_users_taken=0)
+            for license in builder_enabled_licenses
+        }
 
         # Fill the licenses with the smallest application user quotas first.
-        builder_enabled_licenses.sort(
+        active_builder_licenses.sort(
             key=lambda license: (license.application_users, license.id)
         )
-        for index, builder_license in enumerate(builder_enabled_licenses):
-            if builder_license.is_active:
-                next_license = (
-                    builder_enabled_licenses[index + 1]
-                    if index + 1 < len(builder_enabled_licenses)
-                    else None
+        for index, builder_license in enumerate(active_builder_licenses):
+            if index < len(active_builder_licenses) - 1:
+                assignable = min(
+                    builder_license.application_users, total_application_users_taken
                 )
-                # The usage for this license is:
-                # - the `application_users` count if we are exceeding the limit *and*
-                #   we have another stacked license.
-                # - the `total_application_users_taken` count if we are not exceeding
-                #   the limit *or* we are the last stacked license.
-                usage_this_license = (
-                    builder_license.application_users
-                    if total_application_users_taken > builder_license.application_users
-                    and (next_license and next_license.is_active)
-                    else total_application_users_taken
+                usage_per_license[builder_license.license_id] = BuilderUsageSummary(
+                    application_users_taken=assignable
                 )
-                total_application_users_taken -= builder_license.application_users
+                total_application_users_taken -= assignable
             else:
-                # Expired licenses will report a usage of 0.
-                usage_this_license = 0
-            usage_per_license[builder_license.license_id] = BuilderUsageSummary(
-                application_users_taken=usage_this_license
-            )
+                usage_per_license[builder_license.license_id] = BuilderUsageSummary(
+                    application_users_taken=total_application_users_taken
+                )
 
         return usage_per_license
 
-    def get_builder_usage_summary(
-        self, license_object: License
-    ) -> Optional[BuilderUsageSummary]:
+    def get_builder_usage_summary(self, license_object: License) -> BuilderUsageSummary:
         """
         This method is used to calculate the number of application users that are
         being used and how many are remaining.
