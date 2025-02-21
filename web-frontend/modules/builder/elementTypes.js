@@ -2020,82 +2020,28 @@ export class MenuElementType extends ElementType {
       'workflowAction/getElementWorkflowActions'
     ](page, element.id)
 
-    const menuItemType = this.app.$registry.get('element', 'menu_item')
-
     const hasInvalidMenuItem = element.menu_items.some((menuItem) => {
       if (menuItem.children?.length) {
         return menuItem.children.some((child) => {
-          return menuItemType.isInError({
-            page,
-            element: child,
+          return this.menuItemIsInError(
+            child,
             builder,
             workflowActions,
-          })
+          )
         })
       } else {
-        return menuItemType.isInError({
-          page,
-          element: menuItem,
+        return this.menuItemIsInError(
+          menuItem,
           builder,
           workflowActions,
-        })
+        )
       }
     })
 
     return hasInvalidMenuItem || super.isInError({ page, element, builder })
   }
 
-  getDisplayName(element, applicationContext) {
-    return this.name
-  }
-}
-
-export class MenuItemElementType extends ElementType {
-  static getType() {
-    return 'menu_item'
-  }
-
-  get name() {
-    return this.app.i18n.t('elementType.menuItem')
-  }
-
-  get description() {
-    return this.app.i18n.t('elementType.menuItemDescription')
-  }
-
-  get iconClass() {
-    return 'iconoir-menu'
-  }
-
-  // TODO: define actual component and form
-  get component() {
-    return MenuElement
-  }
-
-  get generalFormComponent() {
-    return MenuElementForm
-  }
-
-  getEventByName(element, name) {
-    return this.getEvents(element).find((event) => event.name === name)
-  }
-
-  getEvents(element) {
-    if (element.variant === 'button') {
-      const resolvedName = this.resolveFormula(element.name, {})
-      return [
-        new ClickEvent({
-          ...this.app,
-          namePrefix: element.uid,
-          labelSuffix: `- ${resolvedName}`,
-          applicationContextAdditions: { allowSameElement: true },
-        }),
-      ]
-    }
-    return []
-  }
-
-  isInError({ page, element, builder, workflowActions }) {
+  menuItemIsInError(element, builder, workflowActions) {
     if (element.type === 'separator') {
       return false
     } else if (element.menu_item_variant === 'button') {
@@ -2122,7 +2068,7 @@ export class MenuItemElementType extends ElementType {
       }
     }
 
-    return super.isInError({ page, element, builder })
+    return false
   }
 
   getDisplayName(element, applicationContext) {

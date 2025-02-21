@@ -181,8 +181,8 @@ export default {
       return {
         // TODO: this is probably not needed
         id: this.element.id,
-        // Needed for the MenuItemElementType.getEvents()
-        element_id: this.element.id,
+        // was needed for the MenuItemElementType.getEvents()
+        // element_id: this.element.id,
         menu_item_id: item?.id,
         uid: item?.uid,
         target: item.target || 'self',
