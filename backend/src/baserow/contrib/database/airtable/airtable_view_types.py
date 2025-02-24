@@ -10,6 +10,7 @@ class GridAirtableViewType(AirtableViewType):
 
     def prepare_view_object(
         self,
+        field_mapping,
         view: GridView,
         raw_airtable_table,
         raw_airtable_view,

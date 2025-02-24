@@ -2,11 +2,13 @@ from copy import deepcopy
 from unittest.mock import patch
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
-from baserow.contrib.database.airtable.import_report import AirtableImportReport, \
-    SCOPE_VIEW
+from baserow.contrib.database.airtable.import_report import (
+    SCOPE_VIEW_SORT,
+    AirtableImportReport,
+)
 from baserow.contrib.database.airtable.registry import airtable_view_type_registry
 from baserow.contrib.database.fields.field_types import TextFieldType
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.models import TextField
 
 RAW_AIRTABLE_VIEW = {
     "id": "viwcpYeEpAs6kZspktV",
@@ -16,7 +18,7 @@ RAW_AIRTABLE_VIEW = {
     "description": None,
     "createdByUserId": "usrdGm7k7NIVWhK7W7L",
 }
-RAW_AIRTABLE_TABLE = raw_airtable_table = {
+RAW_AIRTABLE_TABLE = {
     "id": "tbl7glLIGtH8C8zGCzb",
     "name": "Data",
     "primaryColumnId": "fldwSc9PqedIhTSqhi1",
@@ -35,6 +37,24 @@ RAW_AIRTABLE_TABLE = raw_airtable_table = {
     },
     "viewSectionsById": {},
     "schemaChecksum": "46f523a43433afe37d63e00d1a0f36c64310f06e4e0af2c32b6e99f26ab0e51a",
+}
+FIELD_MAPPING = {
+    "fldwSc9PqedIhTSqhi1": {
+        "baserow_field": TextField(
+            id="fldwSc9PqedIhTSqhi1", pk="fldwSc9PqedIhTSqhi1", name="Single line text"
+        ),
+        "baserow_field_type": TextFieldType(),
+        "raw_airtable_column": RAW_AIRTABLE_TABLE["columns"][0],
+        "airtable_column_type": None,
+    },
+    "fldwSc9PqedIhTSqhi2": {
+        "baserow_field": TextField(
+            id="fldwSc9PqedIhTSqhi2", pk="fldwSc9PqedIhTSqhi2", name="Single line text"
+        ),
+        "baserow_field_type": TextFieldType(),
+        "raw_airtable_column": RAW_AIRTABLE_TABLE["columns"][1],
+        "airtable_column_type": None,
+    },
 }
 RAW_AIRTABLE_VIEW_DATA = {
     "id": "viwcpYeEpAs6kZspktV",
@@ -113,6 +133,7 @@ RAW_VIEW_DATA_GROUPS = [
 def test_import_grid_view():
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         RAW_AIRTABLE_VIEW_DATA,
@@ -147,6 +168,7 @@ def test_import_grid_view_xlarge_row_height():
 
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -163,6 +185,7 @@ def test_import_grid_view_unknown_row_height():
 
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -197,6 +220,7 @@ def test_import_grid_view_sorts():
     view_data["lastSortsApplied"] = RAW_VIEW_DATA_SORTS
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -210,6 +234,7 @@ def test_import_grid_view_sorts():
     view_data["lastSortsApplied"]["sortSet"][0]["ascending"] = False
     airtable_view_type = airtable_view_type_registry.get("grid")
     serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
         RAW_AIRTABLE_TABLE,
         RAW_AIRTABLE_VIEW,
         view_data,
@@ -221,16 +246,44 @@ def test_import_grid_view_sorts():
     ]
 
 
-def test_import_grid_view_sort_field_unsupported():
+def test_import_grid_view_sort_field_not_found():
     view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
     view_data["lastSortsApplied"] = RAW_VIEW_DATA_SORTS
     airtable_view_type = airtable_view_type_registry.get("grid")
     import_report = AirtableImportReport()
-    text_field_type = field_type_registry.get(TextFieldType.type)
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        {},
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert serialized_view["sortings"] == []
+    assert len(import_report.items) == 1
+    assert (
+        import_report.items[0].object_name
+        == 'View "Grid view", Field ID "fldwSc9PqedIhTSqhi1"'
+    )
+    assert import_report.items[0].scope == SCOPE_VIEW_SORT
+    assert import_report.items[0].table == "Data"
+
+
+def test_import_grid_view_sort_field_unsupported():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    field_mapping = deepcopy(FIELD_MAPPING)
+    field_mapping["fldwSc9PqedIhTSqhi1"]["baserow_field_type"]._can_order_by = False
+
+    view_data["lastSortsApplied"] = RAW_VIEW_DATA_SORTS
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
     with patch.object(
-        text_field_type, "_can_order_by", return_value=False
+        field_mapping["fldwSc9PqedIhTSqhi1"]["baserow_field_type"],
+        "_can_order_by",
+        False,
     ):
         serialized_view = airtable_view_type.to_serialized_baserow_view(
+            field_mapping,
             RAW_AIRTABLE_TABLE,
             RAW_AIRTABLE_VIEW,
             view_data,
@@ -239,9 +292,12 @@ def test_import_grid_view_sort_field_unsupported():
         )
     assert serialized_view["sortings"] == []
     assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "@TODO"
-    assert import_report.items[0].scope == SCOPE_VIEW
-    assert import_report.items[0].table == ""
+    assert (
+        import_report.items[0].object_name
+        == 'View "Grid view", Field "Single line text"'
+    )
+    assert import_report.items[0].scope == SCOPE_VIEW_SORT
+    assert import_report.items[0].table == "Data"
 
 
 def test_import_grid_view_group_bys():

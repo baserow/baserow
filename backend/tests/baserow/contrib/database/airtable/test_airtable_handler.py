@@ -162,11 +162,6 @@ def test_to_baserow_database_export():
     base_path = os.path.join(
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
     )
-    path = os.path.join(base_path, "airtable_base.html")
-    user_table_path = os.path.join(base_path, "airtable_application.json")
-    data_table_path = os.path.join(base_path, "airtable_table.json")
-    user_table_json = json.loads(Path(user_table_path).read_text())
-    data_table_json = json.loads(Path(data_table_path).read_text())
 
     with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
         responses.add(
@@ -192,7 +187,7 @@ def test_to_baserow_database_export():
             body=file.read(),
         )
 
-    with open(path, "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
@@ -200,11 +195,46 @@ def test_to_baserow_database_export():
             body=file.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
-        request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
-            "appZkaH3aWX3ZjT3b"
+
+    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
+            status=200,
+            body=file.read(),
         )
 
-    schema, tables = AirtableHandler.extract_schema([user_table_json, data_table_json])
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
+            status=200,
+            body=file.read(),
+        )
+
+    init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+        "appZkaH3aWX3ZjT3b"
+    )
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
         init_data, schema, tables, AirtableImportConfig()
     )
@@ -295,11 +325,11 @@ def test_to_baserow_database_export():
     )
     assert baserow_database_export["tables"][0]["views"] == [
         {
-            "id": 1,
+            "id": "viwFSKLuVm97DnNVD91",
             "type": "grid",
-            "name": "Grid",
+            "name": "All",
             "order": 1,
-            "row_identifier_type": "id",
+            "row_identifier_type": "count",
             "row_height_size": "small",
             "filter_type": "AND",
             "filters_disabled": False,
@@ -320,17 +350,6 @@ def test_to_baserow_database_export():
         "order": "1.00000000000000000000",
         "created_on": None,
         "updated_on": None,
-        "field_object_name": "All",
-        "field_scope": "scope_view",
-        "field_table": "table_Users",
-        "field_error_type": "error_type_unsupported_feature",
-        "field_message": 'View "All" was not imported because grid is not supported.',
-    }
-    assert baserow_database_export["tables"][2]["rows"][1] == {
-        "id": 2,
-        "order": "2.00000000000000000000",
-        "created_on": None,
-        "updated_on": None,
         "field_object_name": "Name lookup (from Users)",
         "field_scope": "scope_field",
         "field_table": "table_Data",
@@ -341,15 +360,10 @@ def test_to_baserow_database_export():
 
 @pytest.mark.django_db
 @responses.activate
-def test_config_skip_files():
+def test_config_skip_files(tmpdir, data_fixture):
     base_path = os.path.join(
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
     )
-    path = os.path.join(base_path, "airtable_base.html")
-    user_table_path = os.path.join(base_path, "airtable_application.json")
-    data_table_path = os.path.join(base_path, "airtable_table.json")
-    user_table_json = json.loads(Path(user_table_path).read_text())
-    data_table_json = json.loads(Path(data_table_path).read_text())
 
     with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
         responses.add(
@@ -375,7 +389,7 @@ def test_config_skip_files():
             body=file.read(),
         )
 
-    with open(path, "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
@@ -383,11 +397,46 @@ def test_config_skip_files():
             body=file.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
-        request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
-            "appZkaH3aWX3ZjT3b"
+
+    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
+            status=200,
+            body=file.read(),
         )
 
-    schema, tables = AirtableHandler.extract_schema([user_table_json, data_table_json])
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
+            status=200,
+            body=file.read(),
+        )
+
+    init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+        "appZkaH3aWX3ZjT3b"
+    )
     baserow_database_export, files_buffer = AirtableHandler.to_baserow_database_export(
         init_data, schema, tables, AirtableImportConfig(skip_files=True)
     )

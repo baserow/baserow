@@ -1,10 +1,11 @@
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.exceptions import AirtableSkipCellValue
 from baserow.contrib.database.airtable.import_report import (
     ERROR_TYPE_UNSUPPORTED_FEATURE,
     SCOPE_FIELD,
+    SCOPE_VIEW_SORT,
     AirtableImportReport,
 )
 from baserow.contrib.database.fields.models import Field
@@ -156,7 +157,20 @@ class AirtableColumnTypeRegistry(Registry):
 class AirtableViewType(Instance):
     baserow_view_type: Optional[str] = None
 
-    def get_sorts(self, view_type: ViewType, raw_airtable_view_data: dict):
+    def get_sorts(
+        self,
+        field_mapping: dict,
+        view_type: ViewType,
+        raw_airtable_table: dict,
+        raw_airtable_view: dict,
+        raw_airtable_view_data: dict,
+        import_report: AirtableImportReport,
+    ) -> List[ViewSort]:
+        """
+        Maps the sorts from the raw Airtable view data to a list of Baserow
+        compatible ViewSort objects.
+        """
+
         last_sorts_applied = raw_airtable_view_data.get("lastSortsApplied", None)
 
         if not view_type.can_sort or last_sorts_applied is None:
@@ -164,19 +178,48 @@ class AirtableViewType(Instance):
 
         sort_set = last_sorts_applied.get("sortSet", None) or []
 
-        # @TODO check if matching field supports sorting. Else add import report
-        #  entry that it was dropped.
-        return [
-            ViewSort(
+        view_sorts = []
+        for sort in sort_set:
+            if sort["columnId"] not in field_mapping:
+                import_report.add_failed(
+                    f'View "{raw_airtable_view["name"]}", Field ID "{sort["columnId"]}"',
+                    SCOPE_VIEW_SORT,
+                    raw_airtable_table["name"],
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f'The sort on field "{sort["columnId"]}" was ignored in view'
+                    f' {raw_airtable_view["name"]} field was not found.',
+                )
+                continue
+
+            mapping_entry = field_mapping[sort["columnId"]]
+            baserow_field_type = mapping_entry["baserow_field_type"]
+            baserow_field = mapping_entry["baserow_field"]
+            can_order_by = baserow_field_type.check_can_order_by(baserow_field)
+
+            if not can_order_by:
+                import_report.add_failed(
+                    f'View "{raw_airtable_view["name"]}", Field "{baserow_field.name}"',
+                    SCOPE_VIEW_SORT,
+                    raw_airtable_table["name"],
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f'The sort on field "{baserow_field.name}" was ignored in view'
+                    f' {raw_airtable_view["name"]} because it\'s not possible to '
+                    f"order by that field type.",
+                )
+                continue
+
+            view_sort = ViewSort(
                 id=sort["id"],
                 field_id=sort["columnId"],
                 order=SORT_ORDER_ASC if sort["ascending"] else SORT_ORDER_DESC,
             )
-            for sort in sort_set
-        ]
+            view_sorts.append(view_sort)
+
+        return view_sorts
 
     def to_serialized_baserow_view(
         self,
+        field_mapping,
         raw_airtable_table,
         raw_airtable_view,
         raw_airtable_view_data,
@@ -196,7 +239,14 @@ class AirtableViewType(Instance):
             order=raw_airtable_table["viewOrder"].index(raw_airtable_view["id"]) + 1,
         )
 
-        sorts = self.get_sorts(view_type, raw_airtable_view_data)
+        sorts = self.get_sorts(
+            field_mapping,
+            view_type,
+            raw_airtable_table,
+            raw_airtable_view,
+            raw_airtable_view_data,
+            import_report,
+        )
 
         view.get_field_options = lambda *args, **kwargs: []
         view._prefetched_objects_cache = {
@@ -207,6 +257,7 @@ class AirtableViewType(Instance):
             "viewdecoration_set": [],
         }
         view = self.prepare_view_object(
+            field_mapping,
             view,
             raw_airtable_table,
             raw_airtable_view,
@@ -220,6 +271,7 @@ class AirtableViewType(Instance):
 
     def prepare_view_object(
         self,
+        field_mapping: dict,
         view: View,
         raw_airtable_table: dict,
         raw_airtable_view: dict,
@@ -235,13 +287,13 @@ class AirtableViewType(Instance):
         Note that the common properties like name, filters, sorts, etc are added by
         default depending on the Baserow view support for it.
 
+        :param field_mapping: @TODO
         :param view: The view object that must be prepared.
         :param raw_airtable_table: The raw Airtable table data related to the column.
         :param raw_airtable_view: The raw Airtable view values that must be
             converted, this contains the name, for example.
         :param raw_airtable_view_data: The Airtable view data. This contains the
             filters, sorts, etc.
-        :param timezone: The main timezone used for date conversions if needed.
         :param config: Additional configuration related to the import.
         :param import_report: Used to collect what wasn't imported to report to the
             user.
@@ -259,9 +311,10 @@ class AirtableViewTypeRegistry(Registry):
 
     def from_airtable_view_to_serialized(
         self,
+        field_mapping: dict,
         raw_airtable_table: dict,
         raw_airtable_view: dict,
-        raw_aritable_view_data: dict,
+        raw_airtable_view_data: dict,
         config: AirtableImportConfig,
         import_report: AirtableImportReport,
     ) -> dict:
@@ -269,8 +322,10 @@ class AirtableViewTypeRegistry(Registry):
         Tries to find a Baserow view that matches that raw Airtable view data. If
         None is returned, the view is not compatible with Baserow and must be ignored.
 
+        :param field_mapping: @TODO
         :param raw_airtable_table: The raw Airtable table data related to the column.
         :param raw_airtable_view: The raw Airtable column data that must be imported.
+        :param raw_airtable_view_data: @TODO
         :param config: Additional configuration related to the import.
         :param import_report: Used to collect what wasn't imported to report to the
             user.
@@ -282,9 +337,10 @@ class AirtableViewTypeRegistry(Registry):
             type_name = raw_airtable_view.get("type", "")
             airtable_view_type = self.get(type_name)
             serialized_view = airtable_view_type.to_serialized_baserow_view(
+                field_mapping,
                 raw_airtable_table,
                 raw_airtable_view,
-                raw_aritable_view_data,
+                raw_airtable_view_data,
                 config,
                 import_report,
             )

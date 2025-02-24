@@ -16,6 +16,9 @@ from baserow.core.constants import BASEROW_COLORS
 SCOPE_FIELD = SelectOption(id="scope_field", value="Field", color="light-blue", order=1)
 SCOPE_CELL = SelectOption(id="scope_cell", value="Cell", color="light-green", order=2)
 SCOPE_VIEW = SelectOption(id="scope_view", value="View", color="light-cyan", order=3)
+SCOPE_VIEW_SORT = SelectOption(
+    id="scope_view_sort", value="View sort", color="cyan", order=3
+)
 SCOPE_AUTOMATIONS = SelectOption(
     id="scope_automations", value="Automations", color="light-orange", order=4
 )

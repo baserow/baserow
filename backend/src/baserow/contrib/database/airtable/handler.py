@@ -656,7 +656,7 @@ class AirtableHandler:
                 )
                 serialized_view = (
                     airtable_view_type_registry.from_airtable_view_to_serialized(
-                        table, view, view_data, config, import_report
+                        field_mapping, table, view, view_data, config, import_report
                     )
                 )
 
@@ -741,35 +741,22 @@ class AirtableHandler:
         return exported_database, user_files_zip
 
     @classmethod
-    def import_from_airtable_to_workspace(
+    def fetch_and_combine_airtable_data(
         cls,
-        workspace: Workspace,
         share_id: str,
-        storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
-        download_files_buffer: Union[None, IOBase] = None,
-        config: Optional[AirtableImportConfig] = None,
-    ) -> Database:
+    ) -> Union[dict, dict, list]:
         """
-        Downloads all the data of the provided publicly shared Airtable base, converts
-        it into Baserow export format, downloads the related files and imports that
-        converted base into the provided workspace.
+        @TODO docs
 
-        :param workspace: The workspace where the copy of the Airtable must be added to.
-        :param share_id: The shared Airtable ID that must be imported.
-        :param storage: The storage where the user files must be saved to.
+        :param share_id: The shared Airtable ID of which the data must be fetched.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
-        :param download_files_buffer: Optionally a file buffer can be provided to store
-            the downloaded files in. They will be stored in memory if not provided.
-        :param config: Additional configuration related to the import.
-        :return: The imported database application representing the Airtable base.
+        :return: The fetched init_data, schema, and list of tables enrichted with all
+            the row and view data.
         """
 
-        if config is None:
-            config = AirtableImportConfig()
-
-        progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
+        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
 
         # Execute the initial request to obtain the initial data that's needed to
         # make the request.
@@ -842,6 +829,44 @@ class AirtableHandler:
                 response
             )
             tables[table_id]["viewDatas"].append(json_decoded_content["data"])
+
+        return init_data, schema, tables
+
+    @classmethod
+    def import_from_airtable_to_workspace(
+        cls,
+        workspace: Workspace,
+        share_id: str,
+        storage: Optional[Storage] = None,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+        download_files_buffer: Union[None, IOBase] = None,
+        config: Optional[AirtableImportConfig] = None,
+    ) -> Database:
+        """
+        Downloads all the data of the provided publicly shared Airtable base, converts
+        it into Baserow export format, downloads the related files and imports that
+        converted base into the provided workspace.
+
+        :param workspace: The workspace where the copy of the Airtable must be added to.
+        :param share_id: The shared Airtable ID that must be imported.
+        :param storage: The storage where the user files must be saved to.
+        :param progress_builder: If provided will be used to build a child progress bar
+            and report on this methods progress to the parent of the progress_builder.
+        :param download_files_buffer: Optionally a file buffer can be provided to store
+            the downloaded files in. They will be stored in memory if not provided.
+        :param config: Additional configuration related to the import.
+        :return: The imported database application representing the Airtable base.
+        """
+
+        if config is None:
+            config = AirtableImportConfig()
+
+        progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
+
+        init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
+            share_id,
+            progress.create_child_builder(represents_progress=100),
+        )
 
         # Convert the raw Airtable data to Baserow export format so we can import that
         # later.
