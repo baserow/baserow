@@ -18,7 +18,6 @@ from baserow.contrib.builder.elements.models import (
     CollectionElementPropertyOptions,
     CollectionField,
     Element,
-    MenuElement,
     MenuItemElement,
 )
 from baserow.contrib.builder.elements.registries import (
@@ -456,5 +455,5 @@ class MenuItemSerializer(serializers.ModelSerializer):
         #
         # if instance.parent_menu_item:
         #     return None
-        
+
         return super().to_representation(instance)

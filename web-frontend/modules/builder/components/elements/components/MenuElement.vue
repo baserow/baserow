@@ -81,7 +81,7 @@
         <ABButton @click="onButtonClick(item)">
           {{
             item.name
-            ? item.name ||
+              ? item.name ||
                 (mode === 'editing'
                   ? $t('menuElement.emptyButtonValue')
                   : '&nbsp;')
