@@ -82,7 +82,7 @@ export default {
       const datasets = []
       for (const [index, series] of this.seriesConfig.entries()) {
         const seriesData = this.result.map((item) => {
-          return item[series.fieldName]
+          return item[`${series.fieldName}_${series.aggregationType}`]
         })
         const label = this.getLabel(series.fieldName, series.aggregationType)
         datasets.push({
@@ -100,7 +100,9 @@ export default {
       const labels = ['']
       const datasets = []
       for (const [index, series] of this.seriesConfig.entries()) {
-        const seriesData = [this.result[series.fieldName]]
+        const seriesData = [
+          this.result[`${series.fieldName}_${series.aggregationType}`],
+        ]
         const label = this.getLabel(series.fieldName, series.aggregationType)
         datasets.push({
           data: seriesData,

@@ -295,24 +295,28 @@ def test_grouped_aggregate_rows_dispatch_dashboard_data_source(
     assert response_json == {
         "result": [
             {
-                f"field_{field.id}": 90.0,
-                f"field_{field_2.id}": 9.0,
-                f"field_{field_3.id}": 3.0,
-            },
-            {
-                f"field_{field.id}": 60.0,
-                f"field_{field_2.id}": 6.0,
-                f"field_{field_3.id}": 6.0,
-            },
-            {
                 f"field_{field.id}": 30.0,
-                f"field_{field_2.id}": 3.0,
-                f"field_{field_3.id}": 6.0,
+                f"field_{field.id}_sum": 90.0,
+                f"field_{field_2.id}_sum": 9.0,
+                f"field_{field_3.id}_sum": 3.0,
+            },
+            {
+                f"field_{field.id}": 20.0,
+                f"field_{field.id}_sum": 60.0,
+                f"field_{field_2.id}_sum": 6.0,
+                f"field_{field_3.id}_sum": 6.0,
+            },
+            {
+                f"field_{field.id}": 10.0,
+                f"field_{field.id}_sum": 30.0,
+                f"field_{field_2.id}_sum": 3.0,
+                f"field_{field_3.id}_sum": 6.0,
             },
             {
                 f"field_{field.id}": None,
-                f"field_{field_2.id}": 100.0,
-                f"field_{field_3.id}": 100.0,
+                f"field_{field.id}_sum": None,
+                f"field_{field_2.id}_sum": 100.0,
+                f"field_{field_3.id}_sum": 100.0,
             },
         ],
     }

@@ -2264,7 +2264,11 @@ class FieldAggregationType(Instance):
         return self.raw_type().get_aggregation(field.db_column, model_field, field)
 
     def _get_aggregation_dict(
-        self, queryset: QuerySet, model_field: DjangoField, field: Field
+        self,
+        queryset: QuerySet,
+        model_field: DjangoField,
+        field: Field,
+        include_agg_type=False,
     ) -> dict:
         """
         Returns a dictinary defining the aggregation for the queryset.aggregate
@@ -2278,14 +2282,15 @@ class FieldAggregationType(Instance):
         """
 
         aggregation = self._get_raw_aggregation(model_field, field.specific)
-        aggregation_dict = {f"{field.db_column}_raw": aggregation}
+        key = f"{field.db_column}_{self.type}" if include_agg_type else field.db_column
+        aggregation_dict = {f"{key}_raw": aggregation}
         # Check if the returned aggregations contain a `AnnotatedAggregation`,
         # and if so, apply the annotations and only keep the actual aggregation in
         # the dict. This is needed because some aggregations require annotated values
         # before they work.
         if isinstance(aggregation, AnnotatedAggregation):
             queryset = queryset.annotate(**aggregation.annotations)
-            aggregation_dict[field.db_column] = aggregation.aggregation
+            aggregation_dict[key] = aggregation.aggregation
 
         if self.with_total:
             aggregation_dict["total"] = Count("id", distinct=True)
