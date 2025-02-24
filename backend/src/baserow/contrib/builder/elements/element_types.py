@@ -2089,6 +2089,46 @@ class MenuElementType(ElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return {"orientation": RepeatElement.ORIENTATIONS.VERTICAL}
+    
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Any],
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> Any:
+        if prop_name == "menu_items":
+            updated_menu_items = []
+            for item in value:
+                updated = {}
+                for item_key, item_value in item.items():
+                    new_value = super().deserialize_property(
+                        item_key,
+                        NavigationElementManager().deserialize_property(
+                            item_key, item_value, id_mapping, **kwargs
+                        ),
+                        id_mapping,
+                        files_zip=files_zip,
+                        storage=storage,
+                        cache=cache,
+                        **kwargs,
+                    )
+                    updated[item_key] = new_value
+                updated_menu_items.append(updated)
+            return updated_menu_items
+    
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
 
     def serialize_property(
         self,
