@@ -40,7 +40,7 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.trash.trash_types import WorkspaceTrashableItemType
 from baserow.core.user_sources.registries import UserSourceCount
 from baserow.core.utils import get_value_at_path
-from baserow.test_utils.setup_formulas import iter_formula_pgpsql_functions
+from baserow.test_utils.setup_formulas import iter_formula_pgsql_functions
 
 SKIP_FLAGS = ["disabled-in-ci", "once-per-day-in-ci"]
 COMMAND_LINE_FLAG_PREFIX = "--run-"
@@ -905,7 +905,17 @@ def test_thread():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def run_sql_script_before_first_test(django_db_setup, django_db_blocker):
+def baserow_db_setup(django_db_setup, django_db_blocker):
+    """
+    Setup baserow database before running tests by installing all the custom pgPSQL
+    functions and init sequences. You can disable this fixture by setting the
+    TEST_BASEROW_DB_SETUP_FIXTURE=off in your environment if you run a subset of the
+    testsuite and you don't need the pgSQL functions installed.
+    """
+
+    if django_settings.TEST_BASEROW_DB_SETUP_FIXTURE is False:
+        return
+
     def init_link_row_sequence():
         db_table = LinkRowField._meta.db_table
         db_column = "link_row_relation_id"
@@ -914,7 +924,7 @@ def run_sql_script_before_first_test(django_db_setup, django_db_blocker):
         with connection.cursor() as cursor:
             cursor.execute(f"CREATE SEQUENCE IF NOT EXISTS {sequence_name};")
 
-    all_formula_functions = "\n".join(iter_formula_pgpsql_functions())
+    all_formula_functions = "\n".join(iter_formula_pgsql_functions())
     with django_db_blocker.unblock():
         with connection.cursor() as cursor:
             cursor.execute(all_formula_functions)

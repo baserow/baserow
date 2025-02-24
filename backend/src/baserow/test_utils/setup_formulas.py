@@ -16,12 +16,12 @@ FORMULA_PATTERN = re.compile(
 )
 
 
-def iter_formula_pgpsql_functions() -> Iterable[str]:
+def iter_formula_pgsql_functions() -> Iterable[str]:
     """
-    Iterates over all SQL functions in the migration files and yields the content of the
-    functions.
+    Iterates over all custom pgSQL functions in the migration files and yields the
+    content of the functions so they can be installed without running the migrations.
 
-    :return: The content of the SQL functions.
+    :return: An iterable with the content of the pgSQL functions.
     """
 
     for migrations_dir in MIGRATION_DIRS:

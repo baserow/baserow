@@ -5,6 +5,8 @@ from unittest.mock import patch
 
 from dotenv import dotenv_values
 
+from baserow.config.settings.utils import str_to_bool
+
 # Create a .env.testing file in the backend directory to store different test settings and
 # override the default ones. For different test settings, provide the TEST_ENV_FILE
 # environment variable with the name of the file to use. Everything that starts with
@@ -39,6 +41,7 @@ CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
 DATABASES["default"]["TEST"] = {
     "MIGRATE": False,
 }
+
 # Open a second database connection that can be used to test transactions.
 DATABASES["default-copy"] = deepcopy(DATABASES["default"])
 
