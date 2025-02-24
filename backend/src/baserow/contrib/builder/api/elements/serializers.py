@@ -18,6 +18,7 @@ from baserow.contrib.builder.elements.models import (
     CollectionElementPropertyOptions,
     CollectionField,
     Element,
+    MenuElement,
     MenuItemElement,
 )
 from baserow.contrib.builder.elements.registries import (
@@ -421,7 +422,10 @@ class MenuItemSerializer(serializers.ModelSerializer):
         """
 
         children = obj.menu_item_children.filter(parent_menu_item=obj)
-        return MenuItemSerializer(children, many=True).data
+        serializer = MenuItemSerializer(children, many=True)
+        # Remove None values from children
+        # return [item for item in serializer.data if item is not None]
+        return serializer.data
 
     def to_internal_value(self, data):
         """
@@ -441,3 +445,16 @@ class MenuItemSerializer(serializers.ModelSerializer):
             validated_data["children"] = children
 
         return validated_data
+
+    def to_representation(self, instance):
+        """
+        Override to_representation to filter the data before serializing
+        """
+
+        # Returning None here causes a `null` to be included in the `menu_items`
+        # as a top-level item.
+        #
+        # if instance.parent_menu_item:
+        #     return None
+        
+        return super().to_representation(instance)
