@@ -351,12 +351,18 @@ export default {
         Promise.all(
           this.currentPage.query_params.map(({ name, type }) => {
             if (!newQuery[name]) return null
+            let value
+            try {
+              value = QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS[type](
+                newQuery[name]
+              )
+            } catch {
+              return null
+            }
             return this.$store.dispatch('pageParameter/setParameter', {
               page: this.currentPage,
               name,
-              value: QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS[type](
-                newQuery[name]
-              ),
+              value,
             })
           })
         )
