@@ -213,11 +213,9 @@ export default {
         this.values[key] = value
       }
 
-      if ('v$' in this) {
-        this.v$.$reset()
-      }
-
       await this.$nextTick()
+
+      if ('v$' in this) this.v$.$reset()
 
       // Also reset the child forms after a tick to allow default values to be updated.
       this.getChildForms((child) => 'reset' in child, deep).forEach((child) =>

@@ -4,7 +4,7 @@
       <FormGroup :error="fieldHasErrors('name')">
         <FormInput
           ref="name"
-          v-model="v$.values.name.$model"
+          v-model="values.name"
           :error="fieldHasErrors('name')"
           :placeholder="$t('fieldForm.name')"
           @input="isPrefilledWithSuggestedFieldName = false"
@@ -18,7 +18,7 @@
       <FormGroup v-if="forcedType === null" :error="fieldHasErrors('type')">
         <Dropdown
           ref="fieldTypesDropdown"
-          v-model="v$.values.type.$model"
+          v-model="values.type"
           :error="fieldHasErrors('type')"
           :fixed-items="true"
           :disabled="
@@ -157,9 +157,9 @@ export default {
     return {
       allowedValues: ['name', 'type', 'description'],
       values: {
-        name: '',
-        type: this.forcedType || '',
-        description: null,
+        name: this.defaultValues.name,
+        type: this.defaultValues.forcedType,
+        description: this.defaultValues.description,
       },
       isPrefilledWithSuggestedFieldName: false,
       oldValueType: null,
