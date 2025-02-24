@@ -1,8 +1,8 @@
 from copy import deepcopy
-from unittest.mock import patch
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.import_report import (
+    SCOPE_VIEW_GROUP_BY,
     SCOPE_VIEW_SORT,
     AirtableImportReport,
 )
@@ -277,19 +277,14 @@ def test_import_grid_view_sort_field_unsupported():
     view_data["lastSortsApplied"] = RAW_VIEW_DATA_SORTS
     airtable_view_type = airtable_view_type_registry.get("grid")
     import_report = AirtableImportReport()
-    with patch.object(
-        field_mapping["fldwSc9PqedIhTSqhi1"]["baserow_field_type"],
-        "_can_order_by",
-        False,
-    ):
-        serialized_view = airtable_view_type.to_serialized_baserow_view(
-            field_mapping,
-            RAW_AIRTABLE_TABLE,
-            RAW_AIRTABLE_VIEW,
-            view_data,
-            AirtableImportConfig(),
-            import_report,
-        )
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        field_mapping,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
     assert serialized_view["sortings"] == []
     assert len(import_report.items) == 1
     assert (
@@ -301,8 +296,110 @@ def test_import_grid_view_sort_field_unsupported():
 
 
 def test_import_grid_view_group_bys():
-    assert False
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    view_data["groupLevels"] = RAW_VIEW_DATA_GROUPS
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+    assert serialized_view["group_bys"] == [
+        {"id": "glvvqP2okySUA2345", "field_id": "fldwSc9PqedIhTSqhi1", "order": "ASC"}
+    ]
+
+    view_data["groupLevels"][0]["order"] = "descending"
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        FIELD_MAPPING,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+    assert serialized_view["group_bys"] == [
+        {"id": "glvvqP2okySUA2345", "field_id": "fldwSc9PqedIhTSqhi1", "order": "DESC"}
+    ]
 
 
-def test_import_grid_view_decorations():
+def test_import_grid_view_group_by_field_not_found():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    view_data["groupLevels"] = RAW_VIEW_DATA_GROUPS
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        {},
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert serialized_view["group_bys"] == []
+    assert len(import_report.items) == 1
+    assert (
+        import_report.items[0].object_name
+        == 'View "Grid view", Field ID "fldwSc9PqedIhTSqhi1"'
+    )
+    assert import_report.items[0].scope == SCOPE_VIEW_GROUP_BY
+    assert import_report.items[0].table == "Data"
+
+
+def test_import_grid_view_group_by_field_unsupported():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    field_mapping = deepcopy(FIELD_MAPPING)
+    field_mapping["fldwSc9PqedIhTSqhi1"]["baserow_field_type"]._can_group_by = False
+
+    view_data["groupLevels"] = RAW_VIEW_DATA_GROUPS
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        field_mapping,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert serialized_view["group_bys"] == []
+    assert len(import_report.items) == 1
+    assert (
+        import_report.items[0].object_name
+        == 'View "Grid view", Field "Single line text"'
+    )
+    assert import_report.items[0].scope == SCOPE_VIEW_GROUP_BY
+    assert import_report.items[0].table == "Data"
+
+
+def test_import_grid_view_group_by_order_unsupported():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    field_mapping = deepcopy(FIELD_MAPPING)
+    view_data["groupLevels"] = RAW_VIEW_DATA_GROUPS
+    airtable_view_type = airtable_view_type_registry.get("grid")
+
+    view_data["groupLevels"][0]["order"] = "UNKNOWN"
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        field_mapping,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert serialized_view["group_bys"] == []
+    assert len(import_report.items) == 1
+    assert (
+        import_report.items[0].object_name
+        == 'View "Grid view", Field "Single line text"'
+    )
+    assert import_report.items[0].scope == SCOPE_VIEW_GROUP_BY
+    assert import_report.items[0].table == "Data"
+
+
+def test_import_grid_view_field_order_and_visibility():
     assert False

@@ -25,10 +25,7 @@ from baserow.contrib.database.airtable.registry import (
 )
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
-from baserow.contrib.database.fields.field_types import (
-    FieldType,
-    field_type_registry,
-)
+from baserow.contrib.database.fields.field_types import FieldType, field_type_registry
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.models import Database
 from baserow.core.export_serialized import CoreExportSerializedStructure

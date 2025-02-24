@@ -5,6 +5,7 @@ from baserow.contrib.database.airtable.exceptions import AirtableSkipCellValue
 from baserow.contrib.database.airtable.import_report import (
     ERROR_TYPE_UNSUPPORTED_FEATURE,
     SCOPE_FIELD,
+    SCOPE_VIEW_GROUP_BY,
     SCOPE_VIEW_SORT,
     AirtableImportReport,
 )
@@ -13,6 +14,7 @@ from baserow.contrib.database.views.models import (
     SORT_ORDER_ASC,
     SORT_ORDER_DESC,
     View,
+    ViewGroupBy,
     ViewSort,
 )
 from baserow.contrib.database.views.registries import ViewType, view_type_registry
@@ -229,6 +231,78 @@ class AirtableViewType(Instance):
 
         return view_sorts
 
+    def get_group_bys(
+        self,
+        field_mapping: dict,
+        view_type: ViewType,
+        raw_airtable_table: dict,
+        raw_airtable_view: dict,
+        raw_airtable_view_data: dict,
+        import_report: AirtableImportReport,
+    ) -> List[ViewGroupBy]:
+        """
+        Maps the group bys from the raw Airtable view data to a list of Baserow
+        compatible ViewGroupBy objects.
+        """
+
+        group_levels = raw_airtable_view_data.get("groupLevels", None)
+
+        if not view_type.can_sort or group_levels is None:
+            return []
+
+        view_group_by = []
+        for group in group_levels:
+            if group["columnId"] not in field_mapping:
+                import_report.add_failed(
+                    f'View "{raw_airtable_view["name"]}", Field ID "{group["columnId"]}"',
+                    SCOPE_VIEW_GROUP_BY,
+                    raw_airtable_table["name"],
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f'The group by on field "{group["columnId"]}" was ignored in view'
+                    f' {raw_airtable_view["name"]} field was not found.',
+                )
+                continue
+
+            mapping_entry = field_mapping[group["columnId"]]
+            baserow_field_type = mapping_entry["baserow_field_type"]
+            baserow_field = mapping_entry["baserow_field"]
+            can_order_by = baserow_field_type.check_can_group_by(baserow_field)
+
+            if not can_order_by:
+                import_report.add_failed(
+                    f'View "{raw_airtable_view["name"]}", Field "{baserow_field.name}"',
+                    SCOPE_VIEW_GROUP_BY,
+                    raw_airtable_table["name"],
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f'The group by on field "{baserow_field.name}" was ignored in view {raw_airtable_view["name"]} because it\'s not possible to group by that field type.',
+                )
+                continue
+
+            ascending_map = {
+                "ascending": True,
+                "descending": False,
+            }
+            ascending = ascending_map.get(group["order"], None)
+
+            if ascending is None:
+                import_report.add_failed(
+                    f'View "{raw_airtable_view["name"]}", Field "{baserow_field.name}"',
+                    SCOPE_VIEW_GROUP_BY,
+                    raw_airtable_table["name"],
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f'The group by on field "{baserow_field.name}" was ignored in view {raw_airtable_view["name"]} because the order {group["order"]} is incompatible.',
+                )
+                continue
+
+            view_group = ViewGroupBy(
+                id=group["id"],
+                field_id=group["columnId"],
+                order=SORT_ORDER_ASC if ascending else SORT_ORDER_DESC,
+            )
+            view_group_by.append(view_group)
+
+        return view_group_by
+
     def to_serialized_baserow_view(
         self,
         field_mapping,
@@ -259,13 +333,21 @@ class AirtableViewType(Instance):
             raw_airtable_view_data,
             import_report,
         )
+        group_bys = self.get_group_bys(
+            field_mapping,
+            view_type,
+            raw_airtable_table,
+            raw_airtable_view,
+            raw_airtable_view_data,
+            import_report,
+        )
 
         view.get_field_options = lambda *args, **kwargs: []
         view._prefetched_objects_cache = {
             "viewfilter_set": [],
             "filter_groups": [],
             "viewsort_set": sorts,
-            "viewgroupby_set": [],
+            "viewgroupby_set": group_bys,
             "viewdecoration_set": [],
         }
         view = self.prepare_view_object(
