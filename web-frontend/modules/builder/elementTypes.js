@@ -1994,12 +1994,11 @@ export class MenuElementType extends ElementType {
       .map((item) => {
         const { type: menuItemType, name, uid } = item
         if (menuItemType === 'button') {
-          const resolvedName = this.resolveFormula(name, {})
           return [
             new ClickEvent({
               ...this.app,
               namePrefix: uid,
-              labelSuffix: `- ${resolvedName}`,
+              labelSuffix: `- ${name}`,
               applicationContextAdditions: { allowSameElement: true },
             }),
           ]

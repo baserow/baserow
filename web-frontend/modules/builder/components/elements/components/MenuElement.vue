@@ -20,7 +20,7 @@
           >
             {{
               item.name
-                ? getResolvedValue(item.name) ||
+                ? item.name ||
                   (mode === 'editing'
                     ? $t('menuElement.emptyLinkValue')
                     : '&nbsp;')
@@ -34,7 +34,7 @@
           @click="showSubMenu($event, item.id)"
         >
           <div class="menu-element__sub-link-menu--container">
-            <a>{{ getResolvedValue(item.name) }}</a>
+            <a>{{ item.name }}</a>
 
             <div class="menu-element__sub-link-menu--spacer"></div>
 
@@ -66,7 +66,7 @@
               >
                 {{
                   child.name
-                    ? getResolvedValue(child.name) ||
+                    ? child.name ||
                       (mode === 'editing'
                         ? $t('menuElement.emptyLinkValue')
                         : '&nbsp;')
@@ -81,7 +81,7 @@
         <ABButton @click="onButtonClick(item)">
           {{
             item.name
-              ? getResolvedValue(item.name) ||
+            ? item.name ||
                 (mode === 'editing'
                   ? $t('menuElement.emptyButtonValue')
                   : '&nbsp;')
