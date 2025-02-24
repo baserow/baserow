@@ -177,6 +177,11 @@
           "id":"srtglUy98ghs5ou8D",
           "columnId":"fldwSc9PqedIhTSqhi5",
           "ascending":true
+        },
+        {
+          "id":"srtglUy98ghs5ou8D",
+          "columnId":"fldQcEaGEe7xuhUEuPL",
+          "ascending":true
         }
       ],
       "shouldAutoSort":true,

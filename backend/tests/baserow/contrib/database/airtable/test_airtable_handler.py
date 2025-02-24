@@ -636,6 +636,8 @@ def test_import_from_airtable_to_workspace(
     table_1_views = all_tables[1].view_set.all()
     assert table_1_views[0].name == "Grid view"
     assert table_1_views[1].name == "With filters and sorts"
+    table_1_view_1_sorts = table_1_views[1].viewsort_set.all()
+    assert len(table_1_view_1_sorts) == 2
 
     user_fields = all_tables[0].field_set.all()
     assert len(user_fields) == 4

@@ -45,6 +45,18 @@ class AirtableColumnType(Instance):
 
         raise NotImplementedError("The `to_baserow_field` must be implemented.")
 
+    def after_field_objects_prepared(
+        self,
+        field_mapping_per_table: Dict[str, Dict[str, Any]],
+        baserow_field: Field,
+        raw_airtable_column: dict,
+    ):
+        """
+        Hook that is called after all field objects of all tables are prepared. This
+        allows to do some post-processing on the fields in case they depend on each
+        other.
+        """
+
     def to_baserow_export_serialized_value(
         self,
         row_id_mapping: Dict[str, Dict[str, int]],

@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import Storage
 
 import requests
@@ -24,7 +25,10 @@ from baserow.contrib.database.airtable.registry import (
 )
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
-from baserow.contrib.database.fields.field_types import FieldType, field_type_registry
+from baserow.contrib.database.fields.field_types import (
+    FieldType,
+    field_type_registry,
+)
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.models import Database
 from baserow.core.export_serialized import CoreExportSerializedStructure
@@ -528,6 +532,7 @@ class AirtableHandler:
                 row["id"] = new_id
                 converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
 
+        field_mapping_per_table = {}
         for table_index, table in enumerate(schema["tableSchemas"]):
             field_mapping = {}
             files_to_download_for_table = {}
@@ -555,6 +560,13 @@ class AirtableHandler:
                     )
                     continue
 
+                # The `baserow_field` is returning it it's specific form, but it doesn't
+                # have the `content_type` property yet. This breaks all the `.specific`
+                # behavior because an `id` is also not set.
+                baserow_field.content_type = ContentType.objects.get_for_model(
+                    baserow_field
+                )
+
                 # Construct a mapping where the Airtable column id is the key and the
                 # value contains the raw Airtable column values, Baserow field and
                 # the Baserow field type object for later use.
@@ -567,6 +579,9 @@ class AirtableHandler:
                 if baserow_field.primary:
                     primary = baserow_field
 
+            # There is always a primary field, but it could be that it's not compatible
+            # with Baserow. In that case, we need to find an alternative field, or
+            # create a new one.
             if primary is None:
                 # First check if another field can act as the primary field type.
                 found_existing_field = False
@@ -614,6 +629,27 @@ class AirtableHandler:
                         ERROR_TYPE_UNSUPPORTED_FEATURE,
                         f"""Created new primary field "{baserow_field.name}" because none of the provided fields are compatible.""",
                     )
+
+            field_mapping_per_table[table["id"]] = field_mapping
+
+        # Loop over all created fields, and post process them if needed. This is for
+        # example needed for the link row field where the object must be enhanced with
+        # the primary field of the related tables.
+        for table_index, table in enumerate(schema["tableSchemas"]):
+            field_mapping = field_mapping_per_table[table["id"]]
+
+            for field_object in field_mapping.values():
+                field_object["airtable_column_type"].after_field_objects_prepared(
+                    field_mapping_per_table,
+                    field_object["baserow_field"],
+                    field_object["raw_airtable_column"],
+                )
+
+        # Loop over the table one more time to export the fields, rows, and views to
+        # the serialized format. This must be done last after all the data is prepared
+        # correctly.
+        for table_index, table in enumerate(schema["tableSchemas"]):
+            field_mapping = field_mapping_per_table[table["id"]]
 
             # Loop over all the fields and convert them to Baserow serialized format.
             exported_fields = [
