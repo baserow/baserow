@@ -13,6 +13,7 @@ from typing import (
     Union,
 )
 
+from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db.models import IntegerField, QuerySet
@@ -28,6 +29,7 @@ from baserow.contrib.builder.api.elements.serializers import (
 from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
 )
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
@@ -2036,6 +2038,16 @@ class MenuElementType(ElementType):
         """
 
         if "menu_items" in values:
+            # Remove all related workflow actions
+            menu_item_uids = [
+                str(uid) for uid
+                in instance.menu_items.values_list('uid', flat=True)
+            ]
+            workflow_actions_query = Q()
+            for uid in menu_item_uids:
+                workflow_actions_query |= Q(event__startswith=uid)
+            BuilderWorkflowAction.objects.filter(workflow_actions_query).delete()
+
             # Remove previous fields
             instance.menu_items.all().delete()
 
@@ -2074,11 +2086,6 @@ class MenuElementType(ElementType):
                     item.save()
 
         super().after_update(instance, values, changes)
-
-    def before_delete(self, instance: MenuElement):
-        # TODO: Make sure related workflow actions are deleted
-        # BuilderWorkflowAction.objects.filter(event__startswith=instance.uid).delete()
-        pass
 
     def get_pytest_params(self, pytest_data_fixture):
         return {"orientation": RepeatElement.ORIENTATIONS.VERTICAL}
