@@ -143,7 +143,26 @@ def test_import_grid_view():
 
     assert serialized_view == {
         "decorations": [],
-        "field_options": [],
+        "field_options": [
+            {
+                "id": "viwcpYeEpAs6kZspktV_columnOrder_0",
+                "field_id": "fldwSc9PqedIhTSqhi1",
+                "width": 172,
+                "hidden": False,
+                "order": 1,
+                "aggregation_type": "",
+                "aggregation_raw_type": "",
+            },
+            {
+                "id": "viwcpYeEpAs6kZspktV_columnOrder_1",
+                "field_id": "fldwSc9PqedIhTSqhi2",
+                "width": 200,
+                "hidden": False,
+                "order": 2,
+                "aggregation_type": "",
+                "aggregation_raw_type": "",
+            },
+        ],
         "filter_groups": [],
         "filter_type": "AND",
         "filters": [],
@@ -402,4 +421,37 @@ def test_import_grid_view_group_by_order_unsupported():
 
 
 def test_import_grid_view_field_order_and_visibility():
-    assert False
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    field_mapping = deepcopy(FIELD_MAPPING)
+    airtable_view_type = airtable_view_type_registry.get("grid")
+
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        field_mapping,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+
+    assert serialized_view["field_options"] == [
+        {
+            "id": "viwcpYeEpAs6kZspktV_columnOrder_0",
+            "field_id": "fldwSc9PqedIhTSqhi1",
+            "width": 172,
+            "hidden": False,
+            "order": 1,
+            "aggregation_type": "",
+            "aggregation_raw_type": "",
+        },
+        {
+            "id": "viwcpYeEpAs6kZspktV_columnOrder_1",
+            "field_id": "fldwSc9PqedIhTSqhi2",
+            "width": 200,
+            "hidden": False,
+            "order": 2,
+            "aggregation_type": "",
+            "aggregation_raw_type": "",
+        },
+    ]

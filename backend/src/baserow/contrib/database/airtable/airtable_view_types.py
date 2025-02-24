@@ -1,5 +1,5 @@
 from baserow.contrib.database.airtable.registry import AirtableViewType
-from baserow.contrib.database.views.models import GridView
+from baserow.contrib.database.views.models import GridView, GridViewFieldOptions
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.utils import get_value_at_path
 
@@ -29,5 +29,26 @@ class GridAirtableViewType(AirtableViewType):
             raw_airtable_view_data, "metadata.grid.rowHeight"
         )
         view.row_height_size = row_height_mapping.get(row_height, "small")
+
+        # Map the columnOrder entries to the matching `GridViewFieldOptions`,
+        # and set that as `get_field_options`, so that it's correctly serialized
+        # exported.
+        field_options = []
+        column_orders = raw_airtable_view_data.get("columnOrder", None) or []
+        for index, column_order in enumerate(column_orders):
+            if column_order["columnId"] not in field_mapping:
+                continue
+
+            field_options.append(
+                GridViewFieldOptions(
+                    id=f"{raw_airtable_view['id']}_columnOrder_{index}",
+                    grid_view_id=view.id,
+                    field_id=column_order["columnId"],
+                    width=column_order.get("width", 200),
+                    hidden=not column_order.get("visibility", True),
+                    order=index + 1,
+                )
+            )
+        view.get_field_options = lambda *args, **kwargs: field_options
 
         return view
