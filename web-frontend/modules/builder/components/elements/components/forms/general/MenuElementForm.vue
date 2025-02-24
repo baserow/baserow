@@ -93,7 +93,7 @@
                 {{ $t('menuElement.spacer') }}
               </template>
               <template v-else>
-                {{ getResolvedName(item.name) }}
+                {{ item.name }}
               </template>
             </div>
 
@@ -125,7 +125,7 @@
                 class="margin-bottom-2"
                 :label="$t('menuElementForm.menuItemLabelLabel')"
               >
-                <InjectedFormulaInput
+                <FormInput
                   v-model="item.name"
                   :placeholder="$t('menuElementForm.namePlaceholder')"
                 />
@@ -148,7 +148,7 @@
                 class="margin-bottom-2"
                 :label="$t('menuElementForm.menuItemLabelLabel')"
               >
-                <InjectedFormulaInput
+                <FormInput
                   v-model="item.name"
                   :placeholder="$t('menuElementForm.namePlaceholder')"
                 />
@@ -203,7 +203,7 @@
                             v-if="!expanded && menuItemInError(child)"
                             class="menu-element__form--expandable-item-error iconoir-warning-circle"
                           ></i>
-                          {{ getResolvedName(child.name) }}
+                          {{ child.name }}
                         </div>
                         <i
                           :class="
@@ -224,7 +224,7 @@
                           class="margin-bottom-2"
                           :label="$t('menuElementForm.menuItemLabelLabel')"
                         >
-                          <InjectedFormulaInput
+                          <FormInput
                             v-model="child.name"
                             :placeholder="$t('menuElementForm.namePlaceholder')"
                           />
@@ -286,22 +286,18 @@
 </template>
 
 <script>
-import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import { MENU_ORIENTATION } from '@baserow/modules/builder/enums'
 import {
   getNextAvailableNameInSequence,
   uuid,
 } from '@baserow/modules/core/utils/string'
-import { resolveFormula } from '@baserow/modules/core/formula'
-import { ensureString } from '@baserow/modules/core/utils/validator'
 import LinkNavigationSelectionForm from '@baserow/modules/builder/components/elements/components/forms/general/LinkNavigationSelectionForm'
 import { mapGetters } from 'vuex'
 
 export default {
   name: 'MenuElementForm',
   components: {
-    InjectedFormulaInput,
     LinkNavigationSelectionForm,
   },
   mixins: [elementForm],
@@ -393,11 +389,11 @@ export default {
         this.$t('menuElementForm.menuItemDefaultName'),
         this.values.menu_items
           .filter((item) => item.parent_menu_item === null)
-          .map(({ name }) => this.getResolvedName(name))
+          .map(({ name }) => name)
       )
 
       this.values.menu_items.push({
-        name: `'${name}'`,
+        name,
         variant: 'link',
         value: '',
         type,
@@ -405,9 +401,6 @@ export default {
         uid: uuid(),
         children: [],
       })
-    },
-    getResolvedName(value) {
-      return ensureString(resolveFormula(value))
     },
     menuItemTypeIsStyle(itemType) {
       return ['separator', 'spacer'].includes(itemType)
@@ -465,10 +458,10 @@ export default {
     addSubLink(item) {
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemSubLinkDefaultName'),
-        item.children.map(({ name }) => this.getResolvedName(name))
+        item.children.map(({ name }) => name)
       )
       const subItem = {
-        name: `'${name}'`,
+        name,
         variant: 'link',
         type: 'link',
         uid: uuid(),
