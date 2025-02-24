@@ -1153,6 +1153,9 @@ def test_allow_if_template_permission_manager_query_count(data_fixture):
     integration_1 = data_fixture.create_integration_with_first_type(
         application=application_1
     )
+    # Make sure settings exists, otherwise the first time they will be created and
+    # the query count will be off.
+    CoreHandler().get_settings()
 
     with CaptureQueriesContext(connection) as query_for_template:
         CoreHandler().check_permissions(
