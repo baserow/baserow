@@ -4,7 +4,7 @@
       <FormGroup :error="fieldHasErrors('name')">
         <FormInput
           ref="name"
-          v-model="values.name"
+          v-model="v$.values.name.$model"
           :error="fieldHasErrors('name')"
           :placeholder="$t('fieldForm.name')"
           @input="isPrefilledWithSuggestedFieldName = false"
