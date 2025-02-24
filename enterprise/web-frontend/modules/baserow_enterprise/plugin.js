@@ -52,7 +52,25 @@ import {
 } from '@baserow_enterprise/dataSyncTypes'
 import { ChartWidgetType } from '@baserow_enterprise/dashboard/widgetTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
-
+import {
+  CountViewAggregationType,
+  EmptyCountViewAggregationType,
+  NotEmptyCountViewAggregationType,
+  CheckedCountViewAggregationType,
+  NotCheckedCountViewAggregationType,
+  EmptyPercentageViewAggregationType,
+  NotEmptyPercentageViewAggregationType,
+  CheckedPercentageViewAggregationType,
+  NotCheckedPercentageViewAggregationType,
+  UniqueCountViewAggregationType,
+  MinViewAggregationType,
+  MaxViewAggregationType,
+  SumViewAggregationType,
+  AverageViewAggregationType,
+  StdDevViewAggregationType,
+  VarianceViewAggregationType,
+  MedianViewAggregationType,
+} from '@baserow/modules/database/viewAggregationTypes'
 import {
   FF_AB_SSO,
   FF_DASHBOARDS,
@@ -154,6 +172,75 @@ export default (context) => {
   app.$registry.register('dataSync', new GitHubIssuesDataSyncType(context))
   app.$registry.register('dataSync', new GitLabIssuesDataSyncType(context))
   app.$registry.register('dataSync', new HubspotContactsDataSyncType(context))
+
+  app.$registry.register(
+    'groupedAggregation',
+    new MinViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new MaxViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new SumViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new AverageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new MedianViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new StdDevViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new VarianceViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new EmptyCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotEmptyCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CheckedCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotCheckedCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new EmptyPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotEmptyPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CheckedPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotCheckedPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new UniqueCountViewAggregationType(context)
+  )
 
   app.$registry.register(
     'configureDataSync',

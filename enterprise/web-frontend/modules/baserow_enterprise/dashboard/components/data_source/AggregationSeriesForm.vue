@@ -15,10 +15,10 @@
           @change="v$.values.aggregation_type.$touch"
         >
           <DropdownItem
-            v-for="viewAggregation in viewAggregationTypes"
-            :key="viewAggregation.getType()"
-            :name="viewAggregation.getName()"
-            :value="viewAggregation.getType()"
+            v-for="aggregation in groupedAggregationTypes"
+            :key="aggregation.getType()"
+            :name="aggregation.getName()"
+            :value="aggregation.getType()"
           >
           </DropdownItem>
         </Dropdown>
@@ -94,18 +94,18 @@ export default {
     }
   },
   computed: {
-    viewAggregationTypes() {
-      return this.$registry.getOrderedList('viewAggregation')
+    groupedAggregationTypes() {
+      return this.$registry.getOrderedList('groupedAggregation')
     },
     aggregationTypeNames() {
-      return this.viewAggregationTypes.map((aggType) => aggType.getType())
+      return this.groupedAggregationTypes.map((aggType) => aggType.getType())
     },
     compatibleFields() {
       if (!this.values.aggregation_type) {
         return []
       }
       const aggType = this.$registry.get(
-        'viewAggregation',
+        'groupedAggregation',
         this.values.aggregation_type
       )
       return this.tableFields.filter((tableField) =>
@@ -127,7 +127,10 @@ export default {
           // If both the field and aggregation type
           // are selected, check if they are still
           // compatible.
-          const aggType = this.$registry.get('viewAggregation', aggregationType)
+          const aggType = this.$registry.get(
+            'groupedAggregation',
+            aggregationType
+          )
           const field = this.tableFields.filter(
             (field) => field.id === this.values.field_id
           )

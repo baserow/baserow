@@ -113,6 +113,49 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(UpdateRoleTableOperationType())
         operation_type_registry.register(ListWorkspaceAuditLogEntriesOperationType())
 
+        from baserow.contrib.database.fields.field_aggregations import (
+            AverageFieldAggregationType,
+            CheckedFieldAggregationType,
+            CheckedPercentageFieldAggregationType,
+            CountFieldAggregationType,
+            EmptyCountFieldAggregationType,
+            EmptyPercentageFieldAggregationType,
+            MaxFieldAggregationType,
+            MedianFieldAggregationType,
+            MinFieldAggregationType,
+            NotCheckedFieldAggregationType,
+            NotCheckedPercentageFieldAggregationType,
+            NotEmptyCountFieldAggregationType,
+            NotEmptyPercentageFieldAggregationType,
+            StdDevFieldAggregationType,
+            SumFieldAggregationType,
+            UniqueCountFieldAggregationType,
+            VarianceFieldAggregationType,
+        )
+        from baserow_enterprise.integrations.registries import (
+            grouped_aggregation_registry,
+        )
+
+        grouped_aggregation_registry.register(CountFieldAggregationType())
+        grouped_aggregation_registry.register(EmptyCountFieldAggregationType())
+        grouped_aggregation_registry.register(NotEmptyCountFieldAggregationType())
+        grouped_aggregation_registry.register(CheckedFieldAggregationType())
+        grouped_aggregation_registry.register(NotCheckedFieldAggregationType())
+        grouped_aggregation_registry.register(EmptyPercentageFieldAggregationType())
+        grouped_aggregation_registry.register(NotEmptyPercentageFieldAggregationType())
+        grouped_aggregation_registry.register(CheckedPercentageFieldAggregationType())
+        grouped_aggregation_registry.register(
+            NotCheckedPercentageFieldAggregationType()
+        )
+        grouped_aggregation_registry.register(UniqueCountFieldAggregationType())
+        grouped_aggregation_registry.register(MinFieldAggregationType())
+        grouped_aggregation_registry.register(MaxFieldAggregationType())
+        grouped_aggregation_registry.register(SumFieldAggregationType())
+        grouped_aggregation_registry.register(AverageFieldAggregationType())
+        grouped_aggregation_registry.register(StdDevFieldAggregationType())
+        grouped_aggregation_registry.register(VarianceFieldAggregationType())
+        grouped_aggregation_registry.register(MedianFieldAggregationType())
+
         from baserow.core.registries import subject_type_registry
 
         subject_type_registry.register(TeamSubjectType())
