@@ -384,6 +384,12 @@ class CollectionElementPropertyOptionsSerializer(
 class MenuItemSerializer(serializers.ModelSerializer):
     """Serializes the MenuItemElement."""
 
+    children = serializers.ListSerializer(
+        child=serializers.DictField(),
+        required=False,
+        help_text="Sub menu of this item. Same schema.",
+    )
+
     navigate_to_page_id = serializers.IntegerField(
         allow_null=True,
         default=None,
@@ -394,17 +400,14 @@ class MenuItemSerializer(serializers.ModelSerializer):
         allow_blank=True,
         required=False,
     )
-    children = serializers.SerializerMethodField()
 
     class Meta:
         model = MenuItemElement
         fields = [
-            "id",
             "variant",
             "type",
             "menu_item_order",
             "uid",
-            "parent_menu_item",
             "name",
             "navigation_type",
             "navigate_to_page_id",
@@ -415,45 +418,38 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "children",
         ]
 
-    def get_children(self, obj):
-        """
-        Return related MenuItemElements where obj is the parent MenuItemElement.
-        """
-
-        children = obj.menu_item_children.filter(parent_menu_item=obj)
-        serializer = MenuItemSerializer(children, many=True)
-        # Remove None values from children
-        # return [item for item in serializer.data if item is not None]
-        return serializer.data
-
-    def to_internal_value(self, data):
-        """
-        The "children" field is declared as a SerializerMethodField, which means
-        it is a read-only field. This works well for GET requests but causes the
-        field to be automatically discarded during PATCH requests.
-
-        During PATCH requests, the `MenuElementType.after_update` needs access
-        to this field. The field is therefore extracted and saved to the
-        `validated_data` dict for that purpose.
-        """
-
-        children = data.pop("children", None)
-        validated_data = super().to_internal_value(data)
-
-        if children is not None:
-            validated_data["children"] = children
-
-        return validated_data
-
     def to_representation(self, instance):
-        """
-        Override to_representation to filter the data before serializing
-        """
+        """Ensures children are serialized recursively"""
 
-        # Returning None here causes a `null` to be included in the `menu_items`
-        # as a top-level item.
-        #
-        # if instance.parent_menu_item:
-        #     return None
+        data = super().to_representation(instance)
+        all_items = self.context.get("all_items", [])
 
-        return super().to_representation(instance)
+        # Get children from all_items to save queries
+        children = [i for i in all_items if instance.id == i.parent_menu_item_id]
+
+        data["children"] = MenuItemSerializer(
+            children, many=True, context=self.context
+        ).data
+
+        return data
+
+
+class NestedMenuItemsMixin(serializers.Serializer):
+    menu_items = serializers.SerializerMethodField(
+        help_text="Menu items of the menu element"
+    )
+
+    @extend_schema_field(MenuItemSerializer)
+    def get_menu_items(self, obj):
+        """Return the serialized version of the menu items"""
+
+        # Use prefetched items
+        menu_items = obj.menu_items.all()
+
+        root_items = [
+            child for child in menu_items if child.parent_menu_item_id is None
+        ]
+
+        return MenuItemSerializer(
+            root_items, many=True, context={"all_items": menu_items}
+        ).data

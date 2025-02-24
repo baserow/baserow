@@ -1038,6 +1038,9 @@ class MenuItemElement(NavigationElementMixin):
         related_name="menu_item_children",
     )
 
+    class Meta:
+        ordering = ("menu_item_order",)
+
 
 class MenuElement(Element):
     """
@@ -1055,3 +1058,6 @@ class MenuElement(Element):
         db_default=ORIENTATIONS.HORIZONTAL,
     )
     menu_items = models.ManyToManyField(MenuItemElement)
+
+    def enhance_queryset(self, queryset):
+        return queryset.prefect_related("menu_items")

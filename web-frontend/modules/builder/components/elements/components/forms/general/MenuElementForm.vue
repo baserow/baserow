@@ -56,7 +56,6 @@
 
     <div v-for="item in values.menu_items" :key="item.uid">
       <Expandable
-        v-if="item.parent_menu_item === null"
         v-sortable="{
           id: item.uid,
           update: orderMenuItems,
@@ -392,15 +391,18 @@ export default {
           .map(({ name }) => name)
       )
 
-      this.values.menu_items.push({
-        name,
-        variant: 'link',
-        value: '',
-        type,
-        parent_menu_item: null,
-        uid: uuid(),
-        children: [],
-      })
+      this.values.menu_items = [
+        ...this.values.menu_items,
+        {
+          name,
+          variant: 'link',
+          value: '',
+          type,
+          // parent_menu_item: null,
+          uid: uuid(),
+          children: [],
+        },
+      ]
 
       this.$refs.menuItemAddContext.hide()
     },

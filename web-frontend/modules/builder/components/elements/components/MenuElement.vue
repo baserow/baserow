@@ -6,7 +6,7 @@
       element.orientation === 'horizontal' ? 'horizontal' : 'vertical',
     ]"
   >
-    <div v-for="item in visibleMenuItems" :key="item.id">
+    <div v-for="item in element.menu_items" :key="item.id">
       <template v-if="item.type === 'separator'">
         <div class="menu-element__menu-item-separator"></div>
       </template>
@@ -124,11 +124,6 @@ export default {
     }
   },
   computed: {
-    visibleMenuItems() {
-      return this.element.menu_items.filter((item) => {
-        return !item.parent_menu_item
-      })
-    },
     pages() {
       return this.$store.getters['page/getVisiblePages'](this.builder)
     },

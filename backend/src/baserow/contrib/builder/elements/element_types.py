@@ -24,6 +24,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from baserow.contrib.builder.api.elements.serializers import (
     ChoiceOptionSerializer,
     MenuItemSerializer,
+    NestedMenuItemsMixin,
 )
 from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
@@ -1983,6 +1984,9 @@ class MenuElementType(ElementType):
     serializer_field_names = ["orientation", "menu_items"]
     allowed_fields = ["orientation"]
 
+    serializer_mixins = [NestedMenuItemsMixin]
+    request_serializer_mixins = []
+
     class SerializedDict(ElementDict):
         orientation: str
         menu_items: List[Dict]
@@ -1993,23 +1997,19 @@ class MenuElementType(ElementType):
             DynamicConfigBlockSerializer,
         )
         from baserow.contrib.builder.theme.theme_config_block_types import (
-            TypographyThemeConfigBlockType,
+            ButtonThemeConfigBlockType,
         )
 
         overrides = {
             **super().serializer_field_overrides,
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="typography",
-                theme_config_block_type_name=TypographyThemeConfigBlockType.type,
+                property_name="button",
+                theme_config_block_type_name=ButtonThemeConfigBlockType.type,
                 serializer_kwargs={"required": False},
             ),
-            "menu_items": MenuItemSerializer(
-                many=True,
-                required=False,
-            ),
+            "menu_items": MenuItemSerializer(many=True, required=False),
         }
-
         return overrides
 
     def after_create(self, instance: MenuItemElement, values):
