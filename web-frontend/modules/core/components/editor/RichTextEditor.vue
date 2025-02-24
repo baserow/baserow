@@ -378,12 +378,6 @@ export default {
         elem.removeEventListener('scroll', handler)
       })
     },
-    registerOnPasteHandler() {
-      document.addEventListener('paste', this.onPaste)
-      this.$once('hook:unmounted', () => {
-        document.removeEventListener('paste', this.onPaste)
-      })
-    },
     renderHTMLMention() {
       const loggedUserId = this.loggedUserId
       const isUserInWorkspace = (userId) =>
