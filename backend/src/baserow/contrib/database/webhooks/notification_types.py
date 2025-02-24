@@ -4,7 +4,7 @@ from typing import List, Optional
 from django.conf import settings
 from django.utils.translation import gettext as _
 
-from baserow.core.models import WorkspaceUser
+from baserow.core.models import WorkspaceUser, WORKSPACE_USER_PERMISSION_ADMIN
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.notifications.registries import (
@@ -51,7 +51,7 @@ class WebhookDeactivatedNotificationType(EmailNotificationTypeMixin, Notificatio
         workspace = webhook.table.database.workspace
         admins_workspace_users = WorkspaceUser.objects.filter(
             workspace=workspace,
-            permissions="ADMIN",
+            permissions=WORKSPACE_USER_PERMISSION_ADMIN,
             user__profile__to_be_deleted=False,
             user__is_active=True,
         ).select_related("user")
