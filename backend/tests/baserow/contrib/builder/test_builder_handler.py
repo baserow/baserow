@@ -4,7 +4,10 @@ from django.contrib.auth import get_user_model
 
 import pytest
 
-from baserow.contrib.builder.handler import CACHE_KEY_PREFIX, BuilderHandler
+from baserow.contrib.builder.handler import (
+    USED_PROPERTIES_CACHE_KEY_PREFIX,
+    BuilderHandler,
+)
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
@@ -46,17 +49,17 @@ def test_get_builder_select_related_theme_config(
         (
             True,
             "",
-            f"{CACHE_KEY_PREFIX}_100",
+            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100",
         ),
         (
             True,
             "foo_role",
-            f"{CACHE_KEY_PREFIX}_100",
+            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100",
         ),
         (
             False,
             "foo_role",
-            f"{CACHE_KEY_PREFIX}_100_foo_role",
+            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100_foo_role",
         ),
     ],
 )

@@ -12,6 +12,7 @@ from baserow.contrib.builder.domains.exceptions import (
 from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.domains.registries import DomainType
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
+from baserow.contrib.builder.handler import BuilderHandler
 from baserow.contrib.builder.models import Builder
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
@@ -274,5 +275,8 @@ class DomainHandler:
         domain.published_to = duplicate_builder
         domain.last_published = datetime.now(tz=timezone.utc)
         domain.save()
+
+        # Invalidate the public builder cache after a new publication.
+        BuilderHandler.invalidate_public_builder_by_domain_cache(domain.domain_name)
 
         return domain

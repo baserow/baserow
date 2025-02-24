@@ -215,14 +215,14 @@ def test_get_builder_missing_domain_name(api_client, data_fixture):
 def test_get_non_public_builder(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    page2 = data_fixture.create_builder_page(builder=page.builder, user=user)
-    domain = data_fixture.create_builder_custom_domain(
-        domain_name="test.getbaserow.io", builder=page.builder
+    data_fixture.create_builder_page(builder=page.builder, user=user)
+    data_fixture.create_builder_custom_domain(
+        domain_name="notpublic.getbaserow.io", builder=page.builder
     )
 
     url = reverse(
         "api:builder:domains:get_builder_by_domain_name",
-        kwargs={"domain_name": "test.getbaserow.io"},
+        kwargs={"domain_name": "notpublic.getbaserow.io"},
     )
     response = api_client.get(
         url,

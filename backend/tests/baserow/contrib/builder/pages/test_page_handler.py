@@ -1,5 +1,6 @@
 import pytest
 
+from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.elements.models import ColumnElement, TextElement
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.constants import ILLEGAL_PATH_SAMPLE_CHARACTER
@@ -517,3 +518,20 @@ def test_validate_query_params_edge_cases():
         invalid_params = [{"name": f"filter{char}", "type": "text"}]
         with pytest.raises(InvalidQueryParamName):
             handler.validate_query_params(path, path_params, invalid_params)
+
+
+@pytest.mark.django_db
+def test_is_published_application_page(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    domain = data_fixture.create_builder_custom_domain(builder=builder)
+
+    domain = DomainHandler().publish(domain)
+    published_builder = domain.published_to
+    published_page = published_builder.page_set.get()
+
+    assert not PageHandler()._is_published_application_page(page.id)
+    assert PageHandler()._is_published_application_page(published_page.id)
