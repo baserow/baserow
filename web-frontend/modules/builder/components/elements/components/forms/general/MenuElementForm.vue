@@ -326,12 +326,12 @@ export default {
           type: 'button',
         },
         {
-          icon: 'iconoir-horizontal-split',
+          icon: 'baserow-icon-separator',
           label: this.$t('menuElementForm.menuItemAddSeparator'),
           type: 'separator',
         },
         // {
-        //   icon: 'iconoir-square-dashed',
+        //   icon: 'baserow-icon-spacer',
         //   label: this.$t('menuElementForm.menuItemAddSpacer'),
         //   type: 'spacer',
         // },
@@ -411,21 +411,6 @@ export default {
     },
     menuItemTypeIsStyle(itemType) {
       return ['separator', 'spacer'].includes(itemType)
-    },
-    changeItemType(itemToUpdate, newType) {
-      this.values.menu_items = this.values.menu_items.map((item) => {
-        if (item.uid === itemToUpdate.uid) {
-          return {
-            uid: uuid(),
-            name: item.name,
-            variant: item.variant,
-            value: item.value,
-            parent_menu_item: item.parent_menu_item,
-            type: newType,
-          }
-        }
-        return item
-      })
     },
     changeItemVariant(itemToUpdate, newVariant) {
       this.updateItem(itemToUpdate, { variant: newVariant })
