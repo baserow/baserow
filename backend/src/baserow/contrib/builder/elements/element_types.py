@@ -13,10 +13,9 @@ from typing import (
     Union,
 )
 
-from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db.models import IntegerField, QuerySet
+from django.db.models import IntegerField, Q, QuerySet
 from django.db.models.functions import Cast
 
 from rest_framework import serializers
@@ -29,7 +28,6 @@ from baserow.contrib.builder.api.elements.serializers import (
 from baserow.contrib.builder.data_providers.exceptions import (
     FormDataProviderChunkInvalidException,
 )
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
@@ -77,6 +75,7 @@ from baserow.contrib.builder.theme.theme_config_block_types import (
     TableThemeConfigBlockType,
 )
 from baserow.contrib.builder.types import ElementDict
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.constants import (
     DATE_FORMAT,
     DATE_FORMAT_CHOICES,
@@ -2040,8 +2039,7 @@ class MenuElementType(ElementType):
         if "menu_items" in values:
             # Remove all related workflow actions
             menu_item_uids = [
-                str(uid) for uid
-                in instance.menu_items.values_list('uid', flat=True)
+                str(uid) for uid in instance.menu_items.values_list("uid", flat=True)
             ]
             workflow_actions_query = Q()
             for uid in menu_item_uids:
@@ -2089,7 +2087,7 @@ class MenuElementType(ElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return {"orientation": RepeatElement.ORIENTATIONS.VERTICAL}
-    
+
     def deserialize_property(
         self,
         prop_name: str,
@@ -2119,7 +2117,7 @@ class MenuElementType(ElementType):
                     updated[item_key] = new_value
                 updated_menu_items.append(updated)
             return updated_menu_items
-    
+
         return super().deserialize_property(
             prop_name,
             value,
