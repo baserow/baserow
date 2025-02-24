@@ -613,6 +613,9 @@ class AirtableHandler:
                         table, airtable_column, config, import_report
                     )
                     baserow_field.primary = True
+                    baserow_field.content_type = ContentType.objects.get_for_model(
+                        baserow_field
+                    )
                     field_mapping["primary_id"] = {
                         "baserow_field": baserow_field,
                         "baserow_field_type": baserow_field_type,
