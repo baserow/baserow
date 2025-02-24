@@ -13,11 +13,11 @@
         horizontal-narrow
       >
         <Dropdown
-          v-model="values.table_id"
+          :value="values.table_id"
           :show-search="true"
           fixed-items
           :error="fieldHasErrors('table_id')"
-          @change="v$.values.table_id.$touch"
+          @change="changeTableId($event)"
         >
           <DropdownSection
             v-for="database in databases"
@@ -152,7 +152,7 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    return { v$: useVuelidate() }
   },
   data() {
     return {
@@ -215,7 +215,6 @@ export default {
       return this.tableViews.map((view) => view.id)
     },
     allowedSortFields() {
-      console.log('updating allowed sort fields')
       const seriesFieldIds = this.values.aggregation_series.map(
         (item) => item.field_id
       )
@@ -230,13 +229,13 @@ export default {
   },
   watch: {
     dataSource: {
-      handler(values) {
+      async handler(values) {
         // Reset the form to set default values
         // again after a different widget is selected
-        this.reset(true)
+        await this.reset(true)
         // Run form validation so that
         // problems are highlighted immediately
-        this.v$.$validate(true)
+        this.v$.$touch()
       },
       deep: true,
     },
@@ -249,26 +248,13 @@ export default {
           if (databaseOfTableId) {
             this.databaseSelectedId = databaseOfTableId.id
           }
-
-          // If the values are not changed by the user
-          // we don't want to continue with preselecting
-          // default values
-          if (tableId === this.defaultValues.table_id) {
-            return
-          }
-
-          if (
-            !this.tableViews.some((view) => view.id === this.values.view_id)
-          ) {
-            this.values.view_id = null
-          }
         }
       },
       immediate: true,
     },
   },
   mounted() {
-    this.v$.$validate(true)
+    this.v$.$touch()
   },
   validations() {
     const self = this
@@ -291,6 +277,14 @@ export default {
     }
   },
   methods: {
+    changeTableId(tableId) {
+      this.values.table_id = tableId
+      this.values.view_id = null
+      this.values.aggregation_series = []
+      this.values.aggregation_group_bys = []
+      this.values.sortings = []
+      this.v$.values.table_id.$touch()
+    },
     addSeries() {
       this.values.aggregation_series.push({
         field_id: null,

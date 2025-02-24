@@ -44,7 +44,7 @@ const includesIfSet = (array) => (value) => {
 }
 
 export default {
-  name: 'AggregationGroupByForm',
+  name: 'AggregationSortByForm',
   props: {
     allowedSortFields: {
       type: Array,
@@ -56,7 +56,7 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    return { v$: useVuelidate() }
   },
   data() {
     return {
@@ -80,13 +80,16 @@ export default {
           this.orderByIndex = this.orderByOptions.findIndex(
             (item) => item.value === aggregationSorts[0].order_by
           )
+        } else {
+          this.sortByField = null
+          this.orderByIndex = 0
         }
       },
       immediate: true,
     },
   },
   mounted() {
-    this.v$.$validate(true)
+    this.v$.$touch()
   },
   validations() {
     const self = this

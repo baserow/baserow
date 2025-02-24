@@ -81,7 +81,7 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    return { v$: useVuelidate() }
   },
   data() {
     return {
@@ -140,7 +140,7 @@ export default {
     },
   },
   mounted() {
-    this.v$.$validate()
+    this.v$.$touch()
   },
   validations() {
     const self = this

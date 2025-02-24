@@ -54,20 +54,18 @@ export default {
   },
   methods: {
     async onDataSourceValuesChanged(changedDataSourceValues) {
-      if (this.$refs.dataSourceForm.isFormValid()) {
-        try {
-          await this.$store.dispatch(
-            `${this.storePrefix}dashboardApplication/updateDataSource`,
-            {
-              dataSourceId: this.dataSource.id,
-              values: changedDataSourceValues,
-            }
-          )
-        } catch (error) {
-          this.$refs.dataSourceForm.reset()
-          this.$refs.dataSourceForm.touch()
-          notifyIf(error, 'dashboard')
-        }
+      try {
+        await this.$store.dispatch(
+          `${this.storePrefix}dashboardApplication/updateDataSource`,
+          {
+            dataSourceId: this.dataSource.id,
+            values: changedDataSourceValues,
+          }
+        )
+      } catch (error) {
+        this.$refs.dataSourceForm.reset()
+        this.$refs.dataSourceForm.touch()
+        notifyIf(error, 'dashboard')
       }
     },
   },

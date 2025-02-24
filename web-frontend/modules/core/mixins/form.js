@@ -224,7 +224,6 @@ export default {
         child.reset()
       )
     },
-
     /**
      * Returns if a child form has indicated it handled the error, false otherwise.
      */
