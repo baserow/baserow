@@ -277,10 +277,7 @@ def test_sync_data_sync_table_authorized_user_is_set(enterprise_data_fixture):
     user = enterprise_data_fixture.create_user()
     user_2 = enterprise_data_fixture.create_user()
 
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    enterprise_data_fixture.create_user_workspace(
-        workspace=workspace, user=user_2, order=0
-    )
+    workspace = enterprise_data_fixture.create_workspace(users=[user_2, user])
 
     database = enterprise_data_fixture.create_database_application(workspace=workspace)
     source_table = enterprise_data_fixture.create_database_table(
@@ -669,7 +666,7 @@ def test_sync_data_sync_table_without_license(enterprise_data_fixture):
         source_table_id=source_table.id,
     )
 
-    License.objects.all().delete()
+    enterprise_data_fixture.delete_all_licenses()
 
     with pytest.raises(FeaturesNotAvailableError):
         handler.sync_data_sync_table(user=user, data_sync=data_sync)

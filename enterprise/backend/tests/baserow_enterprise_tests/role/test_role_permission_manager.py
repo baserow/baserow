@@ -27,6 +27,7 @@ from baserow.contrib.database.table.operations import (
     ReadDatabaseTableOperationType,
     UpdateDatabaseTableOperationType,
 )
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Application
@@ -1808,7 +1809,7 @@ def test_fetching_permissions_does_not_extra_queries_per_snapshot(
     # The first time it also fetches the settings and the content types
     CoreHandler().get_permissions(viewer, workspace=workspace)
 
-    with CaptureQueriesContext(connection) as captured_1:
+    with CaptureQueriesContext(connection) as captured_1, local_cache.context():
         CoreHandler().get_permissions(viewer, workspace=workspace)
 
     # Let's create a snapshot of the database
@@ -1816,7 +1817,7 @@ def test_fetching_permissions_does_not_extra_queries_per_snapshot(
     snapshot = handler.create(database.id, admin, "Test snapshot")
     handler.perform_create(snapshot, Progress(100))
 
-    with CaptureQueriesContext(connection) as captured_2:
+    with CaptureQueriesContext(connection) as captured_2, local_cache.context():
         CoreHandler().get_permissions(viewer, workspace=workspace)
 
     assert len(captured_2.captured_queries) == len(captured_1.captured_queries)
@@ -1825,7 +1826,7 @@ def test_fetching_permissions_does_not_extra_queries_per_snapshot(
     snapshot = handler.create(database.id, admin, "Test snapshot 2")
     handler.perform_create(snapshot, Progress(100))
 
-    with CaptureQueriesContext(connection) as captured_3:
+    with CaptureQueriesContext(connection) as captured_3, local_cache.context():
         CoreHandler().get_permissions(viewer, workspace=workspace)
 
     assert len(captured_3.captured_queries) == len(captured_2.captured_queries)
@@ -1835,7 +1836,7 @@ def test_fetching_permissions_does_not_extra_queries_per_snapshot(
     builder = data_fixture.create_builder_application(user=admin, workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
 
-    with CaptureQueriesContext(connection) as captured_1:
+    with CaptureQueriesContext(connection) as captured_1, local_cache.context():
         CoreHandler().get_permissions(viewer, workspace=workspace)
 
     # Let's create a snapshot of the builder app
@@ -1843,7 +1844,7 @@ def test_fetching_permissions_does_not_extra_queries_per_snapshot(
     snapshot = handler.create(builder.id, admin, "Test snapshot")
     handler.perform_create(snapshot, Progress(100))
 
-    with CaptureQueriesContext(connection) as captured_2:
+    with CaptureQueriesContext(connection) as captured_2, local_cache.context():
         CoreHandler().get_permissions(viewer, workspace=workspace)
 
     assert len(captured_1.captured_queries) == len(captured_2.captured_queries)

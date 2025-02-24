@@ -279,7 +279,7 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
 
     @lru_cache
     def has_template(self):
-        return self.template_set.all().exists()
+        return len(self.template_set.all()) > 0
 
     def get_workspace_user(
         self, user: User, include_trash: bool = False

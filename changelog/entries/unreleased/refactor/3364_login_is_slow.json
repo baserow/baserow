@@ -1,0 +1,7 @@
+{
+    "type": "refactor",
+    "message": "Reduce the number of queries when logging in or load Baserow.",
+    "issue_number": 3364,
+    "bullet_points": [],
+    "created_at": "2025-02-20"
+}

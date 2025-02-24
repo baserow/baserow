@@ -44,6 +44,25 @@ class LocalCache:
 
         return cache[key]
 
+    def delete(self, key: str):
+        """
+        Delete a value from the cache. If the key does not exist, no action is taken.
+        If the key ends with "*", all keys starting with the prefix are deleted.
+
+        :param key: The key to delete from the cache.
+        """
+
+        if not hasattr(self._local, "cache"):
+            return
+
+        if key.endswith("*"):
+            for k in list(
+                filter(lambda k: k.startswith(key[:-1]), self._local.cache.keys())
+            ):
+                del self._local.cache[k]
+        else:
+            del self._local.cache[key]
+
     def clear(self):
         """
         Clear all data from the cache.

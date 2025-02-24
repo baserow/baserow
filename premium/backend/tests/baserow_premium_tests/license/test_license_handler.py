@@ -27,6 +27,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from freezegun import freeze_time
 from rest_framework.status import HTTP_200_OK
 
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import IsNotAdminError
 
 VALID_ONE_SEAT_LICENSE = (
@@ -144,23 +145,23 @@ def test_has_active_premium_license(data_fixture):
         license=license, user=second_user_in_license
     )
 
-    with freeze_time("2021-08-01 12:00"):
+    with freeze_time("2021-08-01 12:00"), local_cache.context():
         assert not has_active_premium_license_features(user_in_license)
         assert not has_active_premium_license_features(second_user_in_license)
         assert not has_active_premium_license_features(user_not_in_license)
 
-    with freeze_time("2021-09-01 12:00"):
+    with freeze_time("2021-09-01 12:00"), local_cache.context():
         assert has_active_premium_license_features(user_in_license)
         assert has_active_premium_license_features(second_user_in_license)
         assert not has_active_premium_license_features(user_not_in_license)
 
-    with freeze_time("2021-10-01 12:00"):
+    with freeze_time("2021-10-01 12:00"), local_cache.context():
         assert not has_active_premium_license_features(user_in_license)
         assert not has_active_premium_license_features(second_user_in_license)
         assert not has_active_premium_license_features(user_not_in_license)
 
     license_user_2.delete()
-    with freeze_time("2021-09-01 12:00"):
+    with freeze_time("2021-09-01 12:00"), local_cache.context():
         assert has_active_premium_license_features(user_in_license)
         assert not has_active_premium_license_features(second_user_in_license)
         assert not has_active_premium_license_features(user_not_in_license)

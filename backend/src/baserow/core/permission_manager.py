@@ -186,9 +186,18 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
             if callback is not None:
                 in_workspace = callback()
             else:
-                in_workspace = WorkspaceUser.objects.filter(
-                    user_id=actor.id, workspace_id=workspace.id
-                ).exists()
+
+                def _in_workspace():
+                    user_iterator = (
+                        wu.user_id
+                        for wu in workspace.workspaceuser_set.all()
+                        if wu.user_id == actor.id
+                    )
+                    return next(user_iterator, None) is not None
+
+                in_workspace = local_cache.get(
+                    f"user_{actor.id}_in_workspace_{workspace.id}", _in_workspace
+                )
 
             getattr(actor, self.actor_cache_key)[workspace.id] = in_workspace
 
