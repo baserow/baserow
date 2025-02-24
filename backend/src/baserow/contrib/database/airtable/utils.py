@@ -48,10 +48,11 @@ def get_airtable_row_primary_value(table, row):
 
 def parse_json_and_remove_invalid_surrogate_characters(response: Response) -> dict:
     """
-    @TODO docs
+    The response from Airtable can sometimes contain invalid surrogate characters. This
+    helper method removed them, and parses it to JSON.
 
-    :param response:
-    :return:
+    :param response: The response from the request to Airtable.
+    :return: Parsed JSON from the response.
     """
 
     try:
