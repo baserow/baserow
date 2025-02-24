@@ -401,6 +401,8 @@ export default {
         uid: uuid(),
         children: [],
       })
+
+      this.$refs.menuItemAddContext.hide()
     },
     menuItemTypeIsStyle(itemType) {
       return ['separator', 'spacer'].includes(itemType)
