@@ -4,7 +4,7 @@ from typing import List, Optional
 from django.conf import settings
 from django.utils.translation import gettext as _
 
-from baserow.core.models import WorkspaceUser, WORKSPACE_USER_PERMISSION_ADMIN
+from baserow.core.models import WORKSPACE_USER_PERMISSION_ADMIN, WorkspaceUser
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.notifications.registries import (
