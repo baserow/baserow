@@ -398,7 +398,6 @@ export default {
           variant: 'link',
           value: '',
           type,
-          // parent_menu_item: null,
           uid: uuid(),
           children: [],
         },

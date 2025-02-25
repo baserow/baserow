@@ -404,6 +404,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = MenuItemElement
         fields = [
+            "id",
             "variant",
             "type",
             "menu_item_order",
@@ -414,6 +415,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "navigate_to_url",
             "page_parameters",
             "query_parameters",
+            "parent_menu_item",
             "target",
             "children",
         ]
