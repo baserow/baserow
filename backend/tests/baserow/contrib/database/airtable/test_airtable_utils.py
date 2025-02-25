@@ -210,3 +210,40 @@ line
 }
 ```"""
     )
+
+
+def test_quill_to_markdown_airtable_example_two_lists():
+    markdown_value = quill_to_markdown(
+        [
+            {"insert": "This is great"},
+            {"insert": "\n", "attributes": {"header": 2}},
+            {"insert": "option 1"},
+            {"attributes": {"list": "unchecked"}, "insert": "\n"},
+            {"insert": "option 2"},
+            {"attributes": {"list": "unchecked"}, "insert": "\n"},
+            {"insert": "option that is "},
+            {"attributes": {"bold": True}, "insert": "bold"},
+            {"attributes": {"list": "unchecked"}, "insert": "\n"},
+            {"insert": "\n"},
+            {"attributes": {"bold": True}, "insert": "item"},
+            {"attributes": {"list": "bullet"}, "insert": "\n"},
+            {"attributes": {"italic": True}, "insert": "item"},
+            {"attributes": {"list": "bullet"}, "insert": "\n"},
+            {"attributes": {"strike": True}, "insert": "Item"},
+            {"attributes": {"list": "bullet"}, "insert": "\n"},
+            {"attributes": {"link": "https://airtable.com"}, "insert": "link"},
+            {"insert": "\n", "attributes": {"list": "bullet"}},
+        ]
+    )
+    assert (
+        markdown_value
+        == """## This is great
+- [ ] option 1
+- [ ] option 2
+- [ ] option that is **bold**
+
+- **item**
+- _item_
+- ~Item~
+- [link](https://airtable.com)"""
+    )
