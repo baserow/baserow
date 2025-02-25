@@ -519,6 +519,13 @@ class AirtableHandler:
                     ).can_be_primary_field(value["baserow_field"]):
                         value["baserow_field"].primary = True
                         found_existing_field = True
+                        import_report.add_failed(
+                            value["baserow_field"].name,
+                            SCOPE_FIELD,
+                            table["name"],
+                            ERROR_TYPE_UNSUPPORTED_FEATURE,
+                            f"""Changed primary field to "{value["baserow_field"].name}" because the original primary field is incompatible.""",
+                        )
                         break
 
                 # If none of the existing fields can be primary, we will add a new
@@ -543,6 +550,13 @@ class AirtableHandler:
                         "raw_airtable_column": airtable_column,
                         "airtable_column_type": airtable_column_type,
                     }
+                    import_report.add_failed(
+                        baserow_field.name,
+                        SCOPE_FIELD,
+                        table["name"],
+                        ERROR_TYPE_UNSUPPORTED_FEATURE,
+                        f"""Created new primary field "{baserow_field.name}" because none of the provided fields are compatible.""",
+                    )
 
             # Loop over all the fields and convert them to Baserow serialized format.
             exported_fields = [

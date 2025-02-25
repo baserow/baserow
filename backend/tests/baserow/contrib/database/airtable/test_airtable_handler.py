@@ -435,6 +435,17 @@ def test_to_baserow_database_export_without_primary_value():
         AirtableImportConfig(),
     )
     assert baserow_database_export["tables"][0]["fields"][0]["primary"] is True
+    assert baserow_database_export["tables"][1]["rows"][0] == {
+        "id": 1,
+        "order": "1.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object_name": "Name",
+        "field_scope": "scope_field",
+        "field_table": "table_Users",
+        "field_error_type": "error_type_unsupported_feature",
+        "field_message": 'Changed primary field to "Name" because the original primary field is incompatible.',
+    }
 
     user_table_json["data"]["tableSchemas"][0]["columns"] = []
     schema, tables = AirtableHandler.extract_schema(deepcopy([user_table_json]))
@@ -455,6 +466,17 @@ def test_to_baserow_database_export_without_primary_value():
             "immutable_properties": False,
         }
     ]
+    assert baserow_database_export["tables"][1]["rows"][0] == {
+        "id": 1,
+        "order": "1.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object_name": "Primary field (auto created)",
+        "field_scope": "scope_field",
+        "field_table": "table_Users",
+        "field_error_type": "error_type_unsupported_feature",
+        "field_message": 'Created new primary field "Primary field (auto created)" because none of the provided fields are compatible.',
+    }
 
 
 @pytest.mark.django_db
