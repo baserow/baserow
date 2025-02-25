@@ -221,6 +221,17 @@ def test_list_applications_with_permissions(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_list_applications_without_workspace(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token()
+
+    response = api_client.get(
+        reverse("api:applications:list"), **{"HTTP_AUTHORIZATION": f"JWT {token}"}
+    )
+    response_json = response.json()
+    assert response_json == []
+
+
+@pytest.mark.django_db
 def test_create_application(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)

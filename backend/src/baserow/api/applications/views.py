@@ -90,7 +90,7 @@ class AllApplicationsView(APIView):
         )
 
         # Compute list of readable application ids
-        all_applications_qs = None
+        all_applications_qs = Application.objects.none()
         for workspace in workspaces:
             applications = Application.objects.filter(
                 workspace=workspace, workspace__trashed=False
@@ -101,10 +101,7 @@ class AllApplicationsView(APIView):
                 applications,
                 workspace=workspace,
             )
-            if all_applications_qs is None:
-                all_applications_qs = applications_qs
-            else:
-                all_applications_qs = all_applications_qs.union(applications_qs)
+            all_applications_qs = all_applications_qs.union(applications_qs)
 
         # Then filter with these ids
         applications = specific_iterator(
