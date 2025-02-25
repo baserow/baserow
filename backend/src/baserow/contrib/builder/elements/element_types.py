@@ -2029,9 +2029,35 @@ class MenuElementType(ElementType):
         )
         instance.menu_items.add(*created_menu_items)
 
-    def after_update(
-        self, instance: MenuItemElement, values, changes: Dict[str, Tuple]
-    ):
+    def delete_workflow_actions(
+        self, instance: MenuElement, menu_item_uids: List[str]
+    ) -> None:
+        # Get all workflow actions associated with this menu element.
+        all_workflow_actions = BuilderWorkflowAction.objects.filter(element=instance)
+
+        # If there are menu items, only keep workflow actions that match
+        # existing menu items.
+        if menu_item_uids:
+            workflow_actions_to_keep_query = Q()
+            for uid in menu_item_uids:
+                workflow_actions_to_keep_query |= Q(event__startswith=uid)
+
+            # Find Workflow actions to delete (those not matching any
+            # current Menu Item).
+            workflow_actions_to_delete = all_workflow_actions.exclude(
+                workflow_actions_to_keep_query
+            )
+        else:
+            # Since there are no Menu Items, delete all Workflow actions
+            # for this element.
+            workflow_actions_to_delete = all_workflow_actions
+
+        # Delete the workflow actions that are no longer associated with
+        # any menu item.
+        if workflow_actions_to_delete.exists():
+            workflow_actions_to_delete.delete()
+
+    def after_update(self, instance: MenuElement, values, changes: Dict[str, Tuple]):
         """
         After the element has been updated we need to update the fields.
 
@@ -2043,17 +2069,11 @@ class MenuElementType(ElementType):
         """
 
         if "menu_items" in values:
-            # Remove all related workflow actions
-            menu_item_uids = [
-                str(uid) for uid in instance.menu_items.values_list("uid", flat=True)
-            ]
-            workflow_actions_query = Q()
-            for uid in menu_item_uids:
-                workflow_actions_query |= Q(event__startswith=uid)
-            BuilderWorkflowAction.objects.filter(workflow_actions_query).delete()
-
             # Remove previous fields
             instance.menu_items.all().delete()
+
+            menu_item_uids = [item["uid"] for item in values["menu_items"]]
+            self.delete_workflow_actions(instance, menu_item_uids)
 
             items_to_create = []
             child_uids_parent_uids = {}
