@@ -23,6 +23,11 @@ export const routes = [
         path: 'row/:rowId',
         name: 'database-table-row',
       },
+      {
+        path: 'webhooks',
+        name: 'database-table-open-webhooks',
+        component: path.resolve(__dirname, 'pages/table/webhooks.vue'),
+      },
     ],
   },
   // These redirect exist because the original api docs path was `/api/docs`, but

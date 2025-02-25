@@ -39,6 +39,7 @@ export const bootstrapVueContext = (configureContext) => {
   jest.isolateModules(() => {
     context.vueTestUtils = require('@vue/test-utils')
     context.vueTestUtils.config.stubs.nuxt = { template: '<div />' }
+    context.vueTestUtils.config.stubs.NuxtChild = { template: '<div />' }
     context.vueTestUtils.config.stubs['nuxt-link'] = {
       template: '<a><slot /></a>',
     }

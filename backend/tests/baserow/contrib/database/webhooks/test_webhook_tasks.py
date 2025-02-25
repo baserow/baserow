@@ -10,7 +10,12 @@ import responses
 from celery.exceptions import Retry
 
 from baserow.contrib.database.webhooks.models import TableWebhook, TableWebhookCall
+from baserow.contrib.database.webhooks.notification_types import (
+    WebhookDeactivatedNotificationType,
+)
 from baserow.contrib.database.webhooks.tasks import call_webhook
+from baserow.core.models import WorkspaceUser
+from baserow.core.notifications.models import Notification
 from baserow.core.redis import RedisQueue
 from baserow.test_utils.helpers import stub_getaddrinfo
 
@@ -361,3 +366,67 @@ def test_can_call_webhook_to_localhost_when_private_addresses_allowed(
     assert not call.error
     assert call.response_status == 201
     assert webhook.active
+
+
+@pytest.mark.django_db(transaction=True)
+@responses.activate
+@override_settings(
+    BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=1,
+    BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=1,
+)
+@patch("baserow.contrib.database.webhooks.tasks.RedisQueue", MemoryQueue)
+@patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
+@patch("baserow.ws.tasks.broadcast_to_users.apply")
+def test_call_webhook_failed_reached_notification_send(
+    mocked_broadcast_to_users, data_fixture
+):
+    user_1 = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    admin_1 = data_fixture.create_user()
+    admin_2 = data_fixture.create_user()
+    workspace = data_fixture.create_workspace()
+
+    WorkspaceUser.objects.create(
+        user=user_1, workspace=workspace, order=1, permissions="MEMBER"
+    )
+    WorkspaceUser.objects.create(
+        user=user_2, workspace=workspace, order=2, permissions="MEMBER"
+    )
+    WorkspaceUser.objects.create(
+        user=admin_1, workspace=workspace, order=3, permissions="ADMIN"
+    )
+    WorkspaceUser.objects.create(
+        user=admin_2, workspace=workspace, order=4, permissions="ADMIN"
+    )
+
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    webhook = data_fixture.create_table_webhook(
+        table=table, active=True, failed_triggers=1
+    )
+
+    call_webhook.push_request(retries=1)
+    call_webhook.run(
+        webhook_id=webhook.id,
+        event_id="00000000-0000-0000-0000-000000000000",
+        event_type="rows.created",
+        method="POST",
+        url="http://localhost/",
+        headers={"Baserow-header-1": "Value 1"},
+        payload={"type": "rows.created"},
+    )
+
+    all_notifications = list(Notification.objects.all())
+    assert len(all_notifications) == 1
+    recipient_ids = [r.id for r in all_notifications[0].recipients.all()]
+    assert recipient_ids == [admin_1.id, admin_2.id]
+    assert all_notifications[0].type == WebhookDeactivatedNotificationType.type
+    assert all_notifications[0].broadcast is False
+    assert all_notifications[0].workspace_id == workspace.id
+    assert all_notifications[0].sender is None
+    assert all_notifications[0].data == {
+        "database_id": database.id,
+        "table_id": table.id,
+        "webhook_id": webhook.id,
+        "webhook_name": webhook.name,
+    }
