@@ -14,8 +14,12 @@ from freezegun.api import freeze_time
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import DataSync
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.notifications.models import Notification
 from baserow_enterprise.data_sync.handler import EnterpriseDataSyncHandler
 from baserow_enterprise.data_sync.models import PeriodicDataSyncInterval
+from baserow_enterprise.data_sync.notification_types import (
+    PeriodicDataSyncDeactivatedNotificationType,
+)
 
 
 @pytest.mark.django_db
@@ -609,6 +613,53 @@ def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture
     periodic_data_sync.refresh_from_db()
     assert periodic_data_sync.consecutive_failed_count == 4
     assert periodic_data_sync.automatically_deactivated is True
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+@responses.activate
+def test_sync_periodic_data_sync_deactivated_max_failure_notification_send(
+    enterprise_data_fixture,
+):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=404,
+        body="",
+    )
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+    periodic_data_sync.consecutive_failed_count = 3
+    periodic_data_sync.save()
+
+    with transaction.atomic():
+        EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id)
+
+    all_notifications = list(Notification.objects.all())
+    assert len(all_notifications) == 1
+    recipient_ids = [r.id for r in all_notifications[0].recipients.all()]
+    assert recipient_ids == [user.id]
+    assert all_notifications[0].type == PeriodicDataSyncDeactivatedNotificationType.type
+    assert all_notifications[0].broadcast is False
+    assert (
+        all_notifications[0].workspace_id
+        == periodic_data_sync.data_sync.table.database.workspace_id
+    )
+    assert all_notifications[0].sender is None
+    assert all_notifications[0].data == {
+        "data_sync_id": periodic_data_sync.data_sync_id,
+        "table_name": periodic_data_sync.data_sync.table.name,
+        "table_id": periodic_data_sync.data_sync.table.id,
+        "database_id": periodic_data_sync.data_sync.table.database_id,
+    }
 
 
 @pytest.mark.django_db

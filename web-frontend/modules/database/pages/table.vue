@@ -116,7 +116,7 @@ export default {
    * Prepares all the table, field and view data for the provided database, table and
    * view id.
    */
-  async asyncData({ store, params, error, app, redirect, route }) {
+  async asyncData({ store, params, query, error, app, redirect, route }) {
     // @TODO figure out why the id's aren't converted to an int in the route.
     const databaseId = parseInt(params.databaseId)
     const tableId = parseInt(params.tableId)
@@ -155,14 +155,11 @@ export default {
       const viewToUse = getDefaultView(app, store, workspaceId, rowId !== null)
 
       if (viewToUse !== undefined) {
+        params.viewId = viewToUse.id
         return redirect({
           name: route.name,
-          params: {
-            databaseId,
-            tableId,
-            viewId: viewToUse.id,
-            rowId: params.rowId,
-          },
+          params,
+          query,
         })
       }
     }

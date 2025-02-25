@@ -287,6 +287,15 @@ class BaserowEnterpriseConfig(AppConfig):
 
         connect_to_post_delete_signals_to_cascade_deletion_to_role_assignments()
 
+        from baserow.core.notifications.registries import notification_type_registry
+        from baserow_enterprise.data_sync.notification_types import (
+            PeriodicDataSyncDeactivatedNotificationType,
+        )
+
+        notification_type_registry.register(
+            PeriodicDataSyncDeactivatedNotificationType()
+        )
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow_enterprise.audit_log.signals  # noqa: F

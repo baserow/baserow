@@ -466,5 +466,8 @@
     "none": "None",
     "ascending": "Ascending",
     "descending": "Descending"
+  },
+  "periodicDataSyncDeactivatedNotification": {
+    "body": "{name} periodic data sync has been deactivated because it failed too many times consecutively."
   }
 }

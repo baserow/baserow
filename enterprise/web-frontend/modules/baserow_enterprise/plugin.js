@@ -71,6 +71,8 @@ import {
   VarianceViewAggregationType,
   MedianViewAggregationType,
 } from '@baserow/modules/database/viewAggregationTypes'
+import { PeriodicDataSyncDeactivatedNotificationType } from '@baserow_enterprise/notificationTypes'
+
 import {
   FF_AB_SSO,
   FF_DASHBOARDS,
@@ -240,6 +242,11 @@ export default (context) => {
   app.$registry.register(
     'groupedAggregation',
     new UniqueCountViewAggregationType(context)
+  )
+
+  app.$registry.register(
+    'notification',
+    new PeriodicDataSyncDeactivatedNotificationType(context)
   )
 
   app.$registry.register(

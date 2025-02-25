@@ -28,6 +28,11 @@ export const routes = [
         name: 'database-table-open-webhooks',
         component: path.resolve(__dirname, 'pages/table/webhooks.vue'),
       },
+      {
+        path: 'configure-data-sync/:selectedPage?',
+        name: 'database-table-open-configure-data-sync',
+        component: path.resolve(__dirname, 'pages/table/configureDataSync.vue'),
+      },
     ],
   },
   // These redirect exist because the original api docs path was `/api/docs`, but
