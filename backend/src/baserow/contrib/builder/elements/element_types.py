@@ -2071,7 +2071,7 @@ class MenuElementType(ElementType):
                     items_to_create.append(
                         MenuItemElement(**child, menu_item_order=child_index)
                     )
-                    child_uids_parent_uids[child["uid"]] = str(item["uid"])
+                    child_uids_parent_uids[str(child["uid"])] = str(item["uid"])
 
                 items_to_create.append(MenuItemElement(**item, menu_item_order=index))
 
