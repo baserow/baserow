@@ -4,9 +4,9 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db import ProgrammingError
 from django.db.models.signals import post_migrate, pre_migrate
 
-from baserow.contrib.database.fields.utils.pg_datetime import pg_init  # noqa: F401
 from baserow.contrib.database.table.cache import clear_generated_model_cache
 from baserow.contrib.database.table.operations import RestoreDatabaseTableOperationType
+from baserow.core.psycopg import is_psycopg3
 from baserow.core.registries import (
     application_type_registry,
     object_scope_type_registry,
@@ -972,7 +972,13 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.table.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
 
-        pg_init()
+        # date/datetime min/max year handling - we need that for psycopg 3.x only
+        if is_psycopg3:
+            from baserow.contrib.database.fields.utils.pg_datetime import (  # noqa: F401
+                pg_init,
+            )
+
+            pg_init()
 
 
 # noinspection PyPep8Naming
