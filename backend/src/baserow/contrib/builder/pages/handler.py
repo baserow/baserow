@@ -249,13 +249,13 @@ class PageHandler:
 
         :param page_id: the ID of the public page being requested.
         :param user: the `UserSourceUser` performing the HTTP request.
-        :param record_name: one of: "elements", "data_sources" or "workflow_actions".
+        :param record_name: one of "elements", "data_sources" or "workflow_actions".
             Used to differentiate between public view endpoints.
         :return: the cache key.
         """
 
         role = f"_{user.role}" if not user.is_anonymous and user.role else ""
-        return f"page_{page_id}{role}_public_{record_name}_records_{BASEROW_VERSION}"
+        return f"ab_public_page_{page_id}{role}_{record_name}_records_{BASEROW_VERSION}"
 
     def is_published_page(self, public_page_id: int) -> bool:
         """

@@ -30,7 +30,14 @@ from baserow.contrib.builder.api.data_sources.errors import (
 from baserow.contrib.builder.api.data_sources.serializers import (
     DispatchDataSourceRequestSerializer,
 )
-from baserow.contrib.builder.api.domains.serializers import PublicBuilderSerializer
+from baserow.contrib.builder.api.domains.decorators import (
+    requires_published_application,
+)
+from baserow.contrib.builder.api.domains.serializers import (
+    PublicBuilderSerializer,
+    PublicDataSourceSerializer,
+    PublicElementSerializer,
+)
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
 from baserow.contrib.builder.api.workflow_actions.serializers import (
     BuilderWorkflowActionSerializer,
@@ -45,6 +52,7 @@ from baserow.contrib.builder.data_sources.exceptions import (
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.service import DataSourceService
+from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.service import DomainService
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
@@ -73,9 +81,6 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import safe_get_or_set_cache
-
-from .decorators import requires_published_application
-from .serializers import PublicDataSourceSerializer, PublicElementSerializer
 
 
 class PublicBuilderByDomainNameView(APIView):
@@ -110,7 +115,8 @@ class PublicBuilderByDomainNameView(APIView):
         """
 
         data = safe_get_or_set_cache(
-            cache_key=BuilderHandler.get_public_builder_by_domain_version_cache(
+            cache_key=DomainHandler.get_public_builder_by_domain_cache_key(domain_name),
+            version_cache_key=DomainHandler.get_public_builder_by_domain_cache_key(
                 domain_name
             ),
             default=lambda: self._get_public_builder_by_domain(request, domain_name),
@@ -122,7 +128,8 @@ class PublicBuilderByDomainNameView(APIView):
         """
         Returns a serialized builder which has a domain matching `domain_name`.
 
-        Only requested if the public get-by-domain cache is stale.
+        Only requested if the public get-by-domain cache is stale, or if the
+        application has been re-published.
 
         :param request: the HTTP request.
         :param domain_name: the domain name to match.

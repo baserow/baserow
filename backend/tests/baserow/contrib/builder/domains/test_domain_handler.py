@@ -1,3 +1,7 @@
+from unittest.mock import patch
+
+from django.core.cache import cache
+
 import pytest
 
 from baserow.contrib.builder.domains.domain_types import CustomDomainType
@@ -171,15 +175,25 @@ def test_domain_publishing(data_fixture):
     page1 = data_fixture.create_builder_page(builder=builder)
     page2 = data_fixture.create_builder_page(builder=builder)
 
-    element1 = data_fixture.create_builder_heading_element(
-        page=page1, level=2, value="'foo'"
-    )
-    element2 = data_fixture.create_builder_text_element(page=page1)
-    element3 = data_fixture.create_builder_heading_element(page=page2)
+    data_fixture.create_builder_heading_element(page=page1, level=2, value="'foo'")
+    data_fixture.create_builder_text_element(page=page1)
+    data_fixture.create_builder_heading_element(page=page2)
 
     progress = Progress(100)
 
-    DomainHandler().publish(domain1, progress)
+    domain1 = DomainHandler().publish(domain1, progress)
+    first_publish_builder_id = domain1.published_to.id
+
+    # Pretend that someone visited the public builder-by-domain endpoint.
+    builder_by_domain_cache_key = (
+        DomainHandler.get_public_builder_by_domain_version_cache_key(
+            domain1.domain_name
+        )
+    )
+    cache.set(
+        builder_by_domain_cache_key,
+        first_publish_builder_id,
+    )
 
     domain1.refresh_from_db()
 
@@ -192,8 +206,12 @@ def test_domain_publishing(data_fixture):
 
     assert progress.progress == progress.total
 
-    # Lets publish it a second time.
+    # Let's publish it a second time.
     DomainHandler().publish(domain1, progress)
+
+    # Following a re-publish, the builder-by-domain cache is invalidated
+    # by incrementing its value, so the next cache get will miss.
+    assert cache.get(builder_by_domain_cache_key) != first_publish_builder_id
 
     assert Builder.objects.count() == 2
 
@@ -268,3 +286,11 @@ def test_get_published_domain_applications(data_fixture):
     assert published_applications.count() == 2
     assert published_applications.contains(published_builder1)
     assert published_applications.contains(published_builder2)
+
+
+@patch("baserow.version.VERSION", "1.31.1")
+def test_get_public_builder_by_domain_cache_key():
+    assert (
+        DomainHandler.get_public_builder_by_domain_cache_key("baserow.io")
+        == "ab_public_builder_by_domain_baserow.io_1.31.1"
+    )

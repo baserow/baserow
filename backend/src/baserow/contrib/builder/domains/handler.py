@@ -12,7 +12,6 @@ from baserow.contrib.builder.domains.exceptions import (
 from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.domains.registries import DomainType
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
-from baserow.contrib.builder.handler import BuilderHandler
 from baserow.contrib.builder.models import Builder
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
@@ -20,7 +19,8 @@ from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.utils import Progress, extract_allowed
+from baserow.core.utils import Progress, extract_allowed, invalidate_versioned_cache
+from baserow.version import VERSION as BASEROW_VERSION
 
 
 class DomainHandler:
@@ -276,7 +276,21 @@ class DomainHandler:
         domain.last_published = datetime.now(tz=timezone.utc)
         domain.save()
 
-        # Invalidate the public builder cache after a new publication.
-        BuilderHandler.invalidate_public_builder_by_domain_cache(domain.domain_name)
+        # Invalidate the public builder-by-domain cache after a new publication.
+        DomainHandler.invalidate_public_builder_by_domain_cache(domain.domain_name)
 
         return domain
+
+    @classmethod
+    def get_public_builder_by_domain_cache_key(cls, domain_name: str) -> str:
+        return f"ab_public_builder_by_domain_{domain_name}_{BASEROW_VERSION}"
+
+    @classmethod
+    def get_public_builder_by_domain_version_cache_key(cls, domain_name: str) -> str:
+        return f"ab_public_builder_by_domain_{domain_name}_version"
+
+    @classmethod
+    def invalidate_public_builder_by_domain_cache(cls, domain_name: str):
+        invalidate_versioned_cache(
+            cls.get_public_builder_by_domain_version_cache_key(domain_name)
+        )

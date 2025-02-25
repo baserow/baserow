@@ -14,7 +14,6 @@ from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import invalidate_versioned_cache, safe_get_or_set_cache
-from baserow.version import VERSION as BASEROW_VERSION
 
 USED_PROPERTIES_CACHE_KEY_PREFIX = "used_properties_for_page"
 
