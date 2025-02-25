@@ -4,7 +4,7 @@
     <ABFormGroup
       :label="$t('authFormElement.email')"
       :error-message="getFirstErrorMessage('email')"
-      :autocomplete="isEditMode ? 'off' : ''"
+      :autocomplete="readOnly ? 'off' : ''"
       required
     >
       <ABInput
@@ -129,7 +129,6 @@ export default {
           if (response && response.status === 401) {
             this.values.password = ''
             this.v$.$reset()
-            this.v$.$touch()
             this.$refs.passwordRef.focus()
 
             if (response.data?.error === 'ERROR_INVALID_CREDENTIALS') {

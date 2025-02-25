@@ -53,9 +53,7 @@ export default {
   },
   computed: {
     isAuthenticated() {
-      return this.$store.getters['userSourceUser/isAuthenticated'](
-        this.application
-      )
+      return this.$store.getters['userSourceUser/isAuthenticated'](this.builder)
     },
     isEditMode() {
       return this.mode === 'editing'
