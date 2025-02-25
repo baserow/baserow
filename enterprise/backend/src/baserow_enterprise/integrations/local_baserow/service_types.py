@@ -5,7 +5,6 @@ from django.db.models import OrderBy, QuerySet
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.contrib.database.fields.registries import field_aggregation_registry
 from baserow.contrib.database.views.exceptions import AggregationTypeDoesNotExist
 from baserow.contrib.database.views.utils import AnnotatedAggregation
 from baserow.contrib.integrations.local_baserow.integration_types import (
@@ -34,6 +33,7 @@ from baserow_enterprise.api.integrations.local_baserow.serializers import (
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
 )
+from baserow_enterprise.integrations.registries import grouped_aggregation_registry
 from baserow_enterprise.services.types import (
     ServiceAggregationGroupByDict,
     ServiceAggregationSeriesDict,
@@ -132,7 +132,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             def validate_agg_series(agg_series):
                 if agg_series["aggregation_type"]:
                     try:
-                        agg_type = field_aggregation_registry.get(
+                        agg_type = grouped_aggregation_registry.get(
                             agg_series["aggregation_type"]
                         )
                     except AggregationTypeDoesNotExist:
@@ -462,7 +462,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 )
             model_field = model._meta.get_field(agg_series.field.db_column)
             try:
-                agg_type = field_aggregation_registry.get(agg_series.aggregation_type)
+                agg_type = grouped_aggregation_registry.get(agg_series.aggregation_type)
             except AggregationTypeDoesNotExist as ex:
                 raise ServiceImproperlyConfigured(
                     f"The the aggregation type {agg_series.aggregation_type} doesn't exist."
@@ -485,7 +485,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         def process_individual_result(result: dict):
             for agg_series in defined_agg_series:
                 raw_value = result.pop(f"{agg_series.field.db_column}_raw")
-                agg_type = field_aggregation_registry.get(agg_series.aggregation_type)
+                agg_type = grouped_aggregation_registry.get(agg_series.aggregation_type)
                 result[
                     f"{agg_series.field.db_column}"
                 ] = agg_type._compute_final_aggregation(
