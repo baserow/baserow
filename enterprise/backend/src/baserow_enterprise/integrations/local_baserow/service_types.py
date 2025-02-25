@@ -474,7 +474,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 )
 
             combined_agg_dict |= agg_type._get_aggregation_dict(
-                queryset, model_field, agg_series.field
+                queryset, model_field, agg_series.field, include_agg_type=True
             )
 
         for key, value in combined_agg_dict.items():
@@ -484,11 +484,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
         def process_individual_result(result: dict):
             for agg_series in defined_agg_series:
-                raw_value = result.pop(f"{agg_series.field.db_column}_raw")
+                key = f"{agg_series.field.db_column}_{agg_series.aggregation_type}"
+                raw_value = result.pop(f"{key}_raw")
                 agg_type = grouped_aggregation_registry.get(agg_series.aggregation_type)
-                result[
-                    f"{agg_series.field.db_column}"
-                ] = agg_type._compute_final_aggregation(
+                result[key] = agg_type._compute_final_aggregation(
                     raw_value, result.get("total", None)
                 )
             if "total" in result:

@@ -955,9 +955,71 @@ def test_grouped_aggregate_rows_service_dispatch(data_fixture):
 
     assert result.data == {
         "result": {
-            f"field_{field.id}": Decimal("20"),
-            f"field_{field_2.id}": Decimal("8"),
+            f"field_{field.id}_sum": Decimal("20"),
+            f"field_{field_2.id}_sum": Decimal("8"),
         },
+    }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_service_dispatch_same_agg_fields(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="min", order=1
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="max", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field_2, order=1
+    )
+
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {f"field_{field.id}": 2, f"field_{field_2.id}": 1},
+            {f"field_{field.id}": 4, f"field_{field_2.id}": 1},
+            {f"field_{field.id}": 6, f"field_{field_2.id}": 1},
+            {f"field_{field.id}": 8, f"field_{field_2.id}": 1},
+            {f"field_{field.id}": 1, f"field_{field_2.id}": 2},
+            {f"field_{field.id}": 3, f"field_{field_2.id}": 2},
+            {f"field_{field.id}": 9, f"field_{field_2.id}": 2},
+            {f"field_{field.id}": 10, f"field_{field_2.id}": 2},
+        ],
+    )
+
+    dispatch_context = FakeDispatchContext()
+
+    result = ServiceHandler().dispatch_service(service, dispatch_context)
+
+    assert result.data == {
+        "result": [
+            {
+                f"field_{field.id}_max": Decimal("8"),
+                f"field_{field.id}_min": Decimal("2"),
+                f"field_{field_2.id}": Decimal("1"),
+            },
+            {
+                f"field_{field.id}_max": Decimal("10"),
+                f"field_{field.id}_min": Decimal("1"),
+                f"field_{field_2.id}": Decimal("2"),
+            },
+        ],
     }
 
 
@@ -1005,8 +1067,8 @@ def test_grouped_aggregate_rows_service_dispatch_with_view(data_fixture):
 
     assert result.data == {
         "result": {
-            f"field_{field.id}": Decimal("6"),
-            f"field_{field_2.id}": Decimal("4"),
+            f"field_{field.id}_sum": Decimal("6"),
+            f"field_{field_2.id}_sum": Decimal("4"),
         },
     }
 
@@ -1055,8 +1117,8 @@ def test_grouped_aggregate_rows_service_dispatch_with_service_filters(data_fixtu
 
     assert result.data == {
         "result": {
-            f"field_{field.id}": Decimal("6"),
-            f"field_{field_2.id}": Decimal("4"),
+            f"field_{field.id}_sum": Decimal("6"),
+            f"field_{field_2.id}_sum": Decimal("4"),
         },
     }
 
@@ -1280,8 +1342,8 @@ def test_grouped_aggregate_rows_service_dispatch_with_total_aggregation(data_fix
 
     assert result.data == {
         "result": {
-            f"field_{field.id}": 75.0,
-            f"field_{field_2.id}": 25.0,
+            f"field_{field.id}_checked_percentage": 75.0,
+            f"field_{field_2.id}_not_checked_percentage": 25.0,
         },
     }
 
@@ -1361,23 +1423,23 @@ def test_grouped_aggregate_rows_service_dispatch_group_by(data_fixture):
     assert result.data == {
         "result": [
             {
-                f"field_{field.id}": Decimal("1"),
-                f"field_{field_2.id}": Decimal("1"),
+                f"field_{field.id}_sum": Decimal("1"),
+                f"field_{field_2.id}_sum": Decimal("1"),
                 f"field_{field_3.id}": None,
             },
             {
-                f"field_{field.id}": Decimal("1"),
-                f"field_{field_2.id}": Decimal("1"),
+                f"field_{field.id}_sum": Decimal("1"),
+                f"field_{field_2.id}_sum": Decimal("1"),
                 f"field_{field_3.id}": "Third group",
             },
             {
-                f"field_{field.id}": Decimal("8"),
-                f"field_{field_2.id}": Decimal("6"),
+                f"field_{field.id}_sum": Decimal("8"),
+                f"field_{field_2.id}_sum": Decimal("6"),
                 f"field_{field_3.id}": "First group",
             },
             {
-                f"field_{field.id}": Decimal("22"),
-                f"field_{field_2.id}": Decimal("7"),
+                f"field_{field.id}_sum": Decimal("22"),
+                f"field_{field_2.id}_sum": Decimal("7"),
                 f"field_{field_3.id}": "Second group",
             },
         ]
@@ -1428,22 +1490,26 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_id(data_fixture):
         "result": [
             {
                 f"field_{field.id}": Decimal("2"),
-                f"field_{field_2.id}": Decimal("2"),
+                f"field_{field.id}_sum": Decimal("2"),
+                f"field_{field_2.id}_sum": Decimal("2"),
                 "id": 1,
             },
             {
                 f"field_{field.id}": Decimal("4"),
-                f"field_{field_2.id}": Decimal("2"),
+                f"field_{field.id}_sum": Decimal("4"),
+                f"field_{field_2.id}_sum": Decimal("2"),
                 "id": 2,
             },
             {
                 f"field_{field.id}": Decimal("6"),
-                f"field_{field_2.id}": Decimal("2"),
+                f"field_{field.id}_sum": Decimal("6"),
+                f"field_{field_2.id}_sum": Decimal("2"),
                 "id": 3,
             },
             {
                 f"field_{field.id}": Decimal("8"),
-                f"field_{field_2.id}": Decimal("2"),
+                f"field_{field.id}_sum": Decimal("8"),
+                f"field_{field_2.id}_sum": Decimal("2"),
                 "id": 4,
             },
         ]
@@ -1557,24 +1623,28 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by(
     assert result.data == {
         "result": [
             {
-                f"field_{field.id}": Decimal("90"),
-                f"field_{field_2.id}": Decimal("9"),
-                f"field_{field_3.id}": Decimal("3"),
-            },
-            {
-                f"field_{field.id}": Decimal("60"),
-                f"field_{field_2.id}": Decimal("6"),
-                f"field_{field_3.id}": Decimal("6"),
-            },
-            {
                 f"field_{field.id}": Decimal("30"),
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("6"),
+                f"field_{field.id}_sum": Decimal("90"),
+                f"field_{field_2.id}_sum": Decimal("9"),
+                f"field_{field_3.id}_sum": Decimal("3"),
+            },
+            {
+                f"field_{field.id}": Decimal("20"),
+                f"field_{field.id}_sum": Decimal("60"),
+                f"field_{field_2.id}_sum": Decimal("6"),
+                f"field_{field_3.id}_sum": Decimal("6"),
+            },
+            {
+                f"field_{field.id}": Decimal("10"),
+                f"field_{field.id}_sum": Decimal("30"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("6"),
             },
             {
                 f"field_{field.id}": None,
-                f"field_{field_2.id}": Decimal("100"),
-                f"field_{field_3.id}": Decimal("100"),
+                f"field_{field.id}_sum": None,
+                f"field_{field_2.id}_sum": Decimal("100"),
+                f"field_{field_3.id}_sum": Decimal("100"),
             },
         ],
     }
@@ -1659,32 +1729,37 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ro
         "result": [
             {
                 f"field_{field.id}": None,
-                f"field_{field_2.id}": Decimal("5"),
-                f"field_{field_3.id}": Decimal("1"),
+                f"field_{field.id}_sum": None,
+                f"field_{field_2.id}_sum": Decimal("5"),
+                f"field_{field_3.id}_sum": Decimal("1"),
                 "id": 5,
             },
             {
                 f"field_{field.id}": Decimal("3"),
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("2"),
+                f"field_{field.id}_sum": Decimal("3"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("2"),
                 "id": 4,
             },
             {
                 f"field_{field.id}": Decimal("3"),
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("3"),
+                f"field_{field.id}_sum": Decimal("3"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("3"),
                 "id": 3,
             },
             {
                 f"field_{field.id}": Decimal("2"),
-                f"field_{field_2.id}": Decimal("2"),
-                f"field_{field_3.id}": Decimal("3"),
+                f"field_{field.id}_sum": Decimal("2"),
+                f"field_{field_2.id}_sum": Decimal("2"),
+                f"field_{field_3.id}_sum": Decimal("3"),
                 "id": 2,
             },
             {
                 f"field_{field.id}": Decimal("1"),
-                f"field_{field_2.id}": Decimal("1"),
-                f"field_{field_3.id}": Decimal("4"),
+                f"field_{field.id}_sum": Decimal("1"),
+                f"field_{field_2.id}_sum": Decimal("1"),
+                f"field_{field_3.id}_sum": Decimal("4"),
                 "id": 1,
             },
         ],
@@ -1766,9 +1841,9 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_without_group_by
     # the results are still a dictionary, not sorted on the backend
     assert result.data == {
         "result": {
-            f"field_{field.id}": Decimal("9"),
-            f"field_{field_2.id}": Decimal("14"),
-            f"field_{field_3.id}": Decimal("13"),
+            f"field_{field.id}_sum": Decimal("9"),
+            f"field_{field_2.id}_sum": Decimal("14"),
+            f"field_{field_3.id}_sum": Decimal("13"),
         }
     }
 
@@ -1873,23 +1948,23 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_field(data_fix
         "result": [
             {
                 f"field_{field.id}": None,
-                f"field_{field_2.id}": Decimal("100"),
-                f"field_{field_3.id}": Decimal("100"),
+                f"field_{field_2.id}_sum": Decimal("100"),
+                f"field_{field_3.id}_sum": Decimal("100"),
             },
             {
                 f"field_{field.id}": Decimal("10"),
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("6"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("6"),
             },
             {
                 f"field_{field.id}": Decimal("20"),
-                f"field_{field_2.id}": Decimal("6"),
-                f"field_{field_3.id}": Decimal("6"),
+                f"field_{field_2.id}_sum": Decimal("6"),
+                f"field_{field_3.id}_sum": Decimal("6"),
             },
             {
                 f"field_{field.id}": Decimal("30"),
-                f"field_{field_2.id}": Decimal("9"),
-                f"field_{field_3.id}": Decimal("3"),
+                f"field_{field_2.id}_sum": Decimal("9"),
+                f"field_{field_3.id}_sum": Decimal("3"),
             },
         ],
     }
@@ -1966,32 +2041,32 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_row_id(data_fi
         "result": [
             {
                 f"field_{field.id}": "",
-                f"field_{field_2.id}": Decimal("5"),
-                f"field_{field_3.id}": Decimal("1"),
+                f"field_{field_2.id}_sum": Decimal("5"),
+                f"field_{field_3.id}_sum": Decimal("1"),
                 "id": 5,
             },
             {
                 f"field_{field.id}": "A",
-                f"field_{field_2.id}": Decimal("1"),
-                f"field_{field_3.id}": Decimal("4"),
+                f"field_{field_2.id}_sum": Decimal("1"),
+                f"field_{field_3.id}_sum": Decimal("4"),
                 "id": 1,
             },
             {
                 f"field_{field.id}": "B",
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("2"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("2"),
                 "id": 4,
             },
             {
                 f"field_{field.id}": "H",
-                f"field_{field_2.id}": Decimal("2"),
-                f"field_{field_3.id}": Decimal("3"),
+                f"field_{field_2.id}_sum": Decimal("2"),
+                f"field_{field_3.id}_sum": Decimal("3"),
                 "id": 2,
             },
             {
                 f"field_{field.id}": "I",
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("3"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("3"),
                 "id": 3,
             },
         ],
@@ -2211,23 +2286,27 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ig
         "result": [
             {
                 f"field_{field.id}": None,
-                f"field_{field_2.id}": Decimal("100"),
-                f"field_{field_3.id}": Decimal("100"),
+                f"field_{field.id}_sum": None,
+                f"field_{field_2.id}_sum": Decimal("100"),
+                f"field_{field_3.id}_sum": Decimal("100"),
+            },
+            {
+                f"field_{field.id}": Decimal("10"),
+                f"field_{field.id}_sum": Decimal("30"),
+                f"field_{field_2.id}_sum": Decimal("3"),
+                f"field_{field_3.id}_sum": Decimal("6"),
             },
             {
                 f"field_{field.id}": Decimal("30"),
-                f"field_{field_2.id}": Decimal("3"),
-                f"field_{field_3.id}": Decimal("6"),
+                f"field_{field.id}_sum": Decimal("90"),
+                f"field_{field_2.id}_sum": Decimal("9"),
+                f"field_{field_3.id}_sum": Decimal("3"),
             },
             {
-                f"field_{field.id}": Decimal("90"),
-                f"field_{field_2.id}": Decimal("9"),
-                f"field_{field_3.id}": Decimal("3"),
-            },
-            {
-                f"field_{field.id}": Decimal("60"),
-                f"field_{field_2.id}": Decimal("6"),
-                f"field_{field_3.id}": Decimal("6"),
+                f"field_{field.id}": Decimal("20"),
+                f"field_{field.id}_sum": Decimal("60"),
+                f"field_{field_2.id}_sum": Decimal("6"),
+                f"field_{field_3.id}_sum": Decimal("6"),
             },
         ],
     }
@@ -2301,19 +2380,19 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_group_by_fi
     assert result.data == {
         "result": [
             {
-                f"field_{field.id}": Decimal("10"),
+                f"field_{field.id}_sum": Decimal("10"),
                 f"field_{field_2.id}": "A",
             },
             {
-                f"field_{field.id}": Decimal("60"),
+                f"field_{field.id}_sum": Decimal("60"),
                 f"field_{field_2.id}": "H",
             },
             {
-                f"field_{field.id}": Decimal("20"),
+                f"field_{field.id}_sum": Decimal("20"),
                 f"field_{field_2.id}": "K",
             },
             {
-                f"field_{field.id}": Decimal("30"),
+                f"field_{field.id}_sum": Decimal("30"),
                 f"field_{field_2.id}": "L",
             },
         ],
@@ -2388,19 +2467,19 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_series(
     assert result.data == {
         "result": [
             {
-                f"field_{field.id}": Decimal("10"),
+                f"field_{field.id}_sum": Decimal("10"),
                 f"field_{field_2.id}": "A",
             },
             {
-                f"field_{field.id}": Decimal("20"),
+                f"field_{field.id}_sum": Decimal("20"),
                 f"field_{field_2.id}": "K",
             },
             {
-                f"field_{field.id}": Decimal("30"),
+                f"field_{field.id}_sum": Decimal("30"),
                 f"field_{field_2.id}": "L",
             },
             {
-                f"field_{field.id}": Decimal("40"),
+                f"field_{field.id}_sum": Decimal("40"),
                 f"field_{field_2.id}": "Z",
             },
         ],
@@ -2475,22 +2554,22 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_primary_fie
     assert result.data == {
         "result": [
             {
-                f"field_{field.id}": Decimal("10"),
+                f"field_{field.id}_sum": Decimal("10"),
                 f"field_{field_2.id}": "A",
                 "id": rows[3].id,
             },
             {
-                f"field_{field.id}": Decimal("60"),
+                f"field_{field.id}_sum": Decimal("60"),
                 f"field_{field_2.id}": "H",
                 "id": rows[4].id,
             },
             {
-                f"field_{field.id}": Decimal("20"),
+                f"field_{field.id}_sum": Decimal("20"),
                 f"field_{field_2.id}": "K",
                 "id": rows[1].id,
             },
             {
-                f"field_{field.id}": Decimal("30"),
+                f"field_{field.id}_sum": Decimal("30"),
                 f"field_{field_2.id}": "L",
                 "id": rows[2].id,
             },
