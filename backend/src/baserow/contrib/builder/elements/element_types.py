@@ -2008,12 +2008,15 @@ class MenuElementType(ElementType):
                 theme_config_block_type_name=ButtonThemeConfigBlockType.type,
                 serializer_kwargs={"required": False},
             ),
-            # TODO:
-            #   - Comment out to create a new MenuItem
-            #   - Uncomment to return correct nested structure
-            # "menu_items": MenuItemSerializer(many=True, required=False),
         }
         return overrides
+    
+    @property
+    def request_serializer_field_overrides(self):
+        return {
+            **self.serializer_field_overrides,
+            "menu_items": MenuItemSerializer(many=True, required=False),
+        }
 
     def after_create(self, instance: MenuItemElement, values):
         menu_items = values.get("menu_items", [])
@@ -2180,7 +2183,7 @@ class MenuElementType(ElementType):
         menu_items_to_create = []
         child_uids_parent_uids = {}
 
-        ids_uids = {i['id']: i['uid'] for i in menu_items}
+        ids_uids = {i["id"]: i["uid"] for i in menu_items}
         keys_to_remove = ["id", "menu_item_order", "children"]
         for index, item in enumerate(menu_items):
             for key in keys_to_remove:
