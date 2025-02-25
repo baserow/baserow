@@ -18,7 +18,7 @@
       <FormGroup v-if="forcedType === null" :error="fieldHasErrors('type')">
         <Dropdown
           ref="fieldTypesDropdown"
-          v-model="values.type"
+          v-model="v$.values.type.$model"
           :error="fieldHasErrors('type')"
           :fixed-items="true"
           :disabled="
@@ -158,7 +158,7 @@ export default {
       allowedValues: ['name', 'type', 'description'],
       values: {
         name: this.defaultValues.name,
-        type: this.defaultValues.forcedType,
+        type: this.forcedType || this.defaultValues.type,
         description: this.defaultValues.description,
       },
       isPrefilledWithSuggestedFieldName: false,
