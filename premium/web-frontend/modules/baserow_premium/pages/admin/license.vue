@@ -35,11 +35,13 @@
             </div>
             <div class="license-detail__item-value">
               <Badge :color="licenseType.getLicenseBadgeColor()" bold>
-                {{ licenseType.getName() }}</Badge
+                {{ licenseType.getName() }}
+              </Badge
               >
               <Badge v-if="!license.is_active" color="red">{{
-                $t('licenses.expired')
-              }}</Badge>
+                  $t('licenses.expired')
+                }}
+              </Badge>
             </div>
           </div>
           <div class="license-detail__item">
@@ -90,6 +92,20 @@
             </div>
             <div class="license-detail__item-value">
               {{ license.seats_taken }} / {{ license.seats }}
+            </div>
+          </div>
+
+          <div v-if="license.application_users" class="license-detail__item">
+            <div class="license-detail__item-label">
+              <div class="license-detail__item-name">
+                {{ $t('license.applicationUsers') }}
+              </div>
+              <div class="license-detail__item-description">
+                {{ $t('license.applicationUsersDescription') }}
+              </div>
+            </div>
+            <div class="license-detail__item-value">
+              {{ license.application_users_taken }} / {{ license.application_users }}
             </div>
           </div>
           <div class="license-detail__item">
@@ -164,13 +180,14 @@
             <i18n path="license.disconnectDescription" tag="p">
               <template #contact>
                 <a href="https://baserow.io/contact" target="_blank"
-                  >baserow.io/contact</a
+                >baserow.io/contact</a
                 >
               </template>
             </i18n>
 
             <Button type="danger" @click="$refs.disconnectModal.show()">
-              {{ $t('license.disconnectLicense') }}</Button
+              {{ $t('license.disconnectLicense') }}
+            </Button
             >
             <DisconnectLicenseModal
               ref="disconnectModal"
@@ -187,15 +204,18 @@
 import moment from '@baserow/modules/core/moment'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import LicenseService from '@baserow_premium/services/license'
-import DisconnectLicenseModal from '@baserow_premium/components/license/DisconnectLicenseModal'
-import ManualLicenseSeatsForm from '@baserow_premium/components/license/ManualLicenseSeatForm'
-import AutomaticLicenseSeats from '@baserow_premium/components/license/AutomaticLicenseSeats'
+import DisconnectLicenseModal
+  from '@baserow_premium/components/license/DisconnectLicenseModal'
+import ManualLicenseSeatsForm
+  from '@baserow_premium/components/license/ManualLicenseSeatForm'
+import AutomaticLicenseSeats
+  from '@baserow_premium/components/license/AutomaticLicenseSeats'
 
 export default {
   components: {
     DisconnectLicenseModal,
     ManualLicenseSeatsForm,
-    AutomaticLicenseSeats,
+    AutomaticLicenseSeats
   },
   layout: 'app',
   middleware: 'staff',
@@ -206,14 +226,14 @@ export default {
     } catch {
       return error({
         statusCode: 404,
-        message: 'The license was not found.',
+        message: 'The license was not found.'
       })
     }
   },
   data() {
     return {
       user: null,
-      checkLoading: false,
+      checkLoading: false
     }
   },
   computed: {
@@ -249,7 +269,7 @@ export default {
       }
 
       this.checkLoading = false
-    },
-  },
+    }
+  }
 }
 </script>

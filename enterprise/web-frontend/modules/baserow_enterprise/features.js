@@ -7,6 +7,7 @@ const EnterpriseFeatures = {
   ENTERPRISE_SETTINGS: 'ENTERPRISE_SETTINGS',
   DATA_SYNC: 'DATA_SYNC',
   CHART_WIDGET: 'CHART_WIDGET',
+  BUILDER_SSO: 'BUILDER_SSO',
 }
 
 export default EnterpriseFeatures

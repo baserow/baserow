@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.db.models.query import QuerySet
 
 from baserow.contrib.builder.formula_property_extractor import (
     get_builder_used_property_names,
@@ -10,6 +11,9 @@ from baserow.contrib.builder.formula_property_extractor import (
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Workspace
+from baserow.core.user_sources.handler import UserSourceHandler
+from baserow.core.user_sources.models import UserSource
 from baserow.core.utils import invalidate_versioned_cache, safe_get_or_set_cache
 
 User = get_user_model()
@@ -104,3 +108,41 @@ class BuilderHandler:
         )
 
         return result if result != SENTINEL else None
+
+    def get_published_applications(
+        self, workspace: Optional[Workspace] = None
+    ) -> QuerySet[Builder]:
+        """
+        Returns all published applications in a workspace or all published applications
+        in the instance if no workspace is provided.
+
+        A published application is a builder application which points to one more
+        published domains. The application is the one that the page designer is
+        creating their application in.
+
+        :param workspace: Only return published applications in this workspace.
+        :return: A queryset of published applications.
+        """
+
+        applications = Builder.objects.exclude(domains__published_to=None)
+        return applications.filter(workspace=workspace) if workspace else applications
+
+    def aggregate_user_source_counts(
+        self,
+        workspace: Optional[Workspace] = None,
+    ) -> int:
+        """
+        The builder implementation of the `UserSourceHandler.aggregate_user_counts`
+        method, we need it to only count user sources in published applications.
+
+        :param workspace: If provided, only count user sources in published
+            applications within this workspace.
+        :return: The total number of user sources in published applications.
+        """
+
+        queryset = UserSourceHandler().get_user_sources(
+            base_queryset=UserSource.objects.filter(
+                application__in=self.get_published_applications(workspace)
+            )
+        )
+        return UserSourceHandler().aggregate_user_counts(workspace, queryset)

@@ -32,6 +32,12 @@ class LicenseSerializer(serializers.ModelSerializer):
     seats = serializers.IntegerField(
         help_text="The maximum amount of users that can use the license."
     )
+    application_users = serializers.IntegerField(
+        help_text="The amount of application builder users permitted in this license."
+    )
+    application_users_taken = serializers.SerializerMethodField(
+        help_text="The amount of application builder users used so far in this license."
+    )
     product_code = serializers.CharField(
         help_text="The product code that indicates what the license unlocks."
     )
@@ -59,6 +65,8 @@ class LicenseSerializer(serializers.ModelSerializer):
             "free_users_count",
             "seats_taken",
             "seats",
+            "application_users_taken",
+            "application_users",
             "product_code",
             "issued_on",
             "issued_to_email",
@@ -79,6 +87,11 @@ class LicenseSerializer(serializers.ModelSerializer):
             self.get_cached_seat_usage_summary(obj), "free_users_count", None
         )
 
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_application_users_taken(self, obj) -> Optional[int]:
+        usage = obj.license_type.get_builder_usage_summary(obj)
+        return usage.application_users_taken if usage else None
+
 
 class RegisterLicenseSerializer(serializers.Serializer):
     license = serializers.CharField(help_text="The license that you want to register.")
@@ -97,14 +110,14 @@ class LicenseWithUsersSerializer(LicenseSerializer):
         fields = LicenseSerializer.Meta.fields + ("users",)
 
     @extend_schema_field(LicenseUserSerializer(many=True))
-    def get_users(self, object):
-        users = [user.user for user in object.users.all()]
+    def get_users(self, instance):
+        users = [user.user for user in instance.users.all()]
         return LicenseUserSerializer(users, many=True).data
 
 
 class LicenseUserLookupSerializer(serializers.ModelSerializer):
     value = serializers.SerializerMethodField(
-        help_text="The name and the email " "address of the user."
+        help_text="The name and the email address of the user."
     )
 
     class Meta:
@@ -112,5 +125,5 @@ class LicenseUserLookupSerializer(serializers.ModelSerializer):
         fields = ("id", "value")
 
     @extend_schema_field(OpenApiTypes.STR)
-    def get_value(self, object):
-        return f"{object.first_name} ({object.email})"
+    def get_value(self, instance):
+        return f"{instance.first_name} ({instance.email})"

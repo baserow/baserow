@@ -259,6 +259,42 @@ class LicenseHandler:
         return payload
 
     @classmethod
+    def collect_extra_license_info(cls, license_object: License) -> dict[str, any]:
+        """
+        Collects extra information about the license that can be sent to the authority
+        to check the state of the license.
+
+        :param license_object: The license object to collect the extra information from.
+        :return: A dictionary containing the extra information.
+        """
+
+        extra_info = {}
+        try:
+            license_type = license_object.license_type
+            seat_usage = license_type.get_seat_usage_summary(license_object)
+            builder_usage = license_type.get_builder_usage_summary(license_object)
+            if seat_usage or builder_usage:
+                extra_info["id"] = license_object.license_id
+                if seat_usage:
+                    extra_info.update(
+                        {
+                            "seats_taken": seat_usage.seats_taken,
+                            "free_users_count": seat_usage.free_users_count,
+                            "highest_role_per_user_id": seat_usage.highest_role_per_user_id,
+                        }
+                    )
+                if builder_usage:
+                    extra_info.update(
+                        {
+                            "application_users_taken": builder_usage.application_users_taken,
+                        }
+                    )
+        except (InvalidLicenseError, UnsupportedLicenseError, DatabaseError):
+            pass
+
+        return extra_info
+
+    @classmethod
     def send_license_info_and_fetch_license_status_with_authority(
         cls, license_objects: List[License]
     ):
@@ -267,20 +303,7 @@ class LicenseHandler:
 
         for license_object in license_objects:
             license_payloads.append(license_object.license)
-
-            try:
-                license_type = license_object.license_type
-                usage = license_type.get_seat_usage_summary(license_object)
-                if usage is not None:
-                    extra_info = {
-                        "id": license_object.license_id,
-                        "seats_taken": usage.seats_taken,
-                        "free_users_count": usage.free_users_count,
-                        "highest_role_per_user_id": usage.highest_role_per_user_id,
-                    }
-                    extra_license_info.append(extra_info)
-            except (InvalidLicenseError, UnsupportedLicenseError, DatabaseError):
-                pass
+            extra_license_info.append(cls.collect_extra_license_info(license_object))
 
         return cls.fetch_license_status_with_authority(
             license_payloads, extra_license_info
@@ -328,7 +351,13 @@ class LicenseHandler:
                     "The license authority can't be reached because it didn't returned "
                     "with an ok response."
                 )
-        except RequestException:
+        except RequestException as exc:
+            # If we're running tests with the `responses` mocking library, and we are
+            # matching responses with the `json_params_matcher` matcher, we don't want
+            # to raise `LicenseAuthorityUnavailable`, we want the error to propagate
+            # and fail our tests.
+            if settings.TESTS and "request.body doesn't match" in str(exc.args[0]):
+                raise exc
             raise LicenseAuthorityUnavailable(
                 "The license authority can't be reached because of a network error."
             )
@@ -401,10 +430,28 @@ class LicenseHandler:
                 license_object.delete()
                 continue
 
-            summary = license_object.license_type.get_seat_usage_summary(license_object)
-            if summary is not None and summary.seats_taken > license_object.seats:
+            seat_summary = license_object.license_type.get_seat_usage_summary(
+                license_object
+            )
+            if (
+                seat_summary is not None
+                and seat_summary.seats_taken > license_object.seats
+            ):
                 license_object.license_type.handle_seat_overflow(
-                    summary.seats_taken, license_object
+                    seat_summary.seats_taken, license_object
+                )
+
+            builder_summary = license_object.license_type.get_builder_usage_summary(
+                license_object
+            )
+            if (
+                builder_summary is not None
+                and license_object.application_users is not None
+                and builder_summary.application_users_taken
+                > license_object.application_users
+            ):
+                license_object.license_type.handle_application_user_overflow(
+                    builder_summary.application_users_taken, license_object
                 )
 
             license_object.last_check = datetime.now(tz=timezone.utc)

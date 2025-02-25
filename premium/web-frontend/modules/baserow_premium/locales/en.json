@@ -191,7 +191,8 @@
     "premium": "Premium",
     "expired": "Expired",
     "validity": "Valid from {start} through {end}",
-    "seats": "seats"
+    "seats": "seats",
+    "applicationUsers": "Application users"
   },
   "license": {
     "title": "{name} plan",
@@ -212,6 +213,8 @@
     "lastCheckDescription": "The license is periodically checked for changes. If you for example renewed or upgraded your license, the changes become active after the check.",
     "checkNow": "check now",
     "seats": "Seats (amount of users)",
+    "applicationUsers": "Application users",
+    "applicationUsersDescription": "The total number of application users in published application builder user sources.",
     "licensedTo": "Licensed to",
     "applications": "Applications / databases",
     "unlimited": "Unlimited",

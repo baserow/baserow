@@ -227,3 +227,44 @@ def test_get_domain_public_url(data_fixture):
     )
 
     assert domain1.get_public_url() == "http://mytest.com:3000"
+
+
+@pytest.mark.django_db
+def test_get_published_domain_applications(data_fixture):
+    user = data_fixture.create_user()
+
+    workspace1 = data_fixture.create_workspace(user=user)
+    data_fixture.create_builder_application(workspace=workspace1)
+    builder1 = data_fixture.create_builder_application(workspace=workspace1)
+    published_builder1 = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder1, published_to=published_builder1
+    )
+
+    # Get only published domain applications in workspace1
+    published_applications = DomainHandler().get_published_domain_applications(
+        workspace1
+    )
+    assert published_applications.count() == 1
+    assert published_applications.contains(published_builder1)
+
+    workspace2 = data_fixture.create_workspace(user=user)
+    data_fixture.create_builder_application(workspace=workspace2)
+    builder2 = data_fixture.create_builder_application(workspace=workspace2)
+    published_builder2 = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder2, published_to=published_builder2
+    )
+
+    # Get only published domain applications in workspace2
+    published_applications = DomainHandler().get_published_domain_applications(
+        workspace2
+    )
+    assert published_applications.count() == 1
+    assert published_applications.contains(published_builder2)
+
+    # Get published domain applications across the instance.
+    published_applications = DomainHandler().get_published_domain_applications()
+    assert published_applications.count() == 2
+    assert published_applications.contains(published_builder1)
+    assert published_applications.contains(published_builder2)

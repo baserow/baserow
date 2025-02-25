@@ -7,6 +7,7 @@ from baserow_premium.license.registries import LicenseType, SeatUsageSummary
 from baserow.core.models import Workspace
 from baserow_enterprise.features import (
     AUDIT_LOG,
+    BUILDER_SSO,
     CHART_WIDGET,
     DATA_SYNC,
     ENTERPRISE_SETTINGS,
@@ -34,6 +35,7 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
         ENTERPRISE_SETTINGS,
         DATA_SYNC,
         CHART_WIDGET,
+        BUILDER_SSO,
     ]
     instance_wide = True
     seats_manually_assigned = False
@@ -52,6 +54,13 @@ class EnterpriseWithoutSupportLicenseType(LicenseType):
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
         # We don't have to do anything because the seat limit is a soft limit.
+        pass
+
+    def handle_application_user_overflow(
+        self, application_users_taken: int, license_object: License
+    ):
+        # We don't have to do anything because the application user limit
+        # is a soft limit?
         pass
 
 

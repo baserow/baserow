@@ -10,12 +10,18 @@ class PremiumLicenseType(LicenseType):
     order = 10
     features = [PREMIUM]
 
-    def get_seat_usage_summary(self, obj: License) -> SeatUsageSummary:
+    def get_seat_usage_summary(self, license_object: License) -> SeatUsageSummary:
+        # The attributes will exist on `license_object` if this method is
+        # called at least once by `LicenseSerializer`.
         seats_taken = (
-            obj.seats_taken if hasattr(obj, "seats_taken") else obj.users.all().count()
+            license_object.seats_taken
+            if hasattr(license_object, "seats_taken")
+            else license_object.users.all().count()
         )
         total_users = (
-            obj.total_users if hasattr(obj, "total_users") else User.objects.count()
+            license_object.total_users
+            if hasattr(license_object, "total_users")
+            else User.objects.count()
         )
         free_users = total_users - seats_taken
         return SeatUsageSummary(

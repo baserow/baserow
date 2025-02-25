@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
+from typing import Optional
 
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils.functional import cached_property
 
+from baserow_premium.license.exceptions import InvalidLicenseError
 from dateutil import parser
 
 User = get_user_model()
@@ -65,6 +67,19 @@ class License(models.Model):
         )
 
     @property
+    def valid_payload(self) -> bool:
+        """
+        Responsible for checking if the license payload is valid. If the payload is
+        invalid then it should raise an InvalidLicenseError.
+        """
+
+        try:
+            _ = self.payload
+            return True
+        except InvalidLicenseError:
+            return False
+
+    @property
     def valid_cached_properties(self):
         """
         Returns True if the cached properties on the license database row match the
@@ -81,6 +96,11 @@ class License(models.Model):
     @property
     def seats(self):
         return self.payload["seats"]
+
+    @property
+    def application_users(self) -> Optional[int]:
+        # `application_users` is only present >=v1.32
+        return self.payload.get("application_users")
 
     @property
     def issued_on(self):

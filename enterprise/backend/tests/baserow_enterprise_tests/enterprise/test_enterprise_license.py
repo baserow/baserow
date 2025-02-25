@@ -17,7 +17,7 @@ from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.license.registries import SeatUsageSummary
 from freezegun import freeze_time
 from PIL import Image
-from responses import json_params_matcher
+from responses.matchers import json_params_matcher
 
 from baserow.api.user.registries import user_data_registry
 from baserow.contrib.database.models import Database
@@ -261,7 +261,7 @@ def test_user_data_no_enterprise_features_instance_wide_not_active(
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 @responses.activate
-def test_check_licenses_with_enterprise_license_sends_seat_data(
+def test_check_licenses_with_enterprise_license_sends_usage_data(
     enterprise_data_fixture,
 ):
     license_object = enterprise_data_fixture.enable_enterprise()
@@ -283,9 +283,11 @@ def test_check_licenses_with_enterprise_license_sends_seat_data(
                         "instance_id": Settings.objects.get().instance_id,
                         "extra_license_info": [
                             {
-                                "id": license_object.id,
+                                "id": license_object.license_id,
                                 "free_users_count": 0,
-                                "seats_taken": 1,
+                                "seats_taken": 0,
+                                "application_users_taken": 0,
+                                "highest_role_per_user_id": {},
                             }
                         ],
                     }

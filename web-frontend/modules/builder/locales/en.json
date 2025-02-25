@@ -677,7 +677,7 @@
     "searchHeading": "Search",
     "optionUnavailable": "Unavailable",
     "noPropertiesAvailable": "No fields available.",
-    "formDescription": "Choose which properties within this element's data source external users can filter, sort and search upon."
+    "formDescription": "Choose which properties within this element's data source page visitors can filter, sort and search upon."
   },
   "repeatElementForm": {
     "dataSource": "Data source",

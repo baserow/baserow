@@ -54,7 +54,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     @abstractmethod
     def is_publicly_searchable(self) -> bool:
         """
-        Responsible for returning whether external users can apply search or not.
+        Responsible for returning whether external service visitors
+        can apply search or not.
         """
 
     @abstractmethod
@@ -77,7 +78,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     @abstractmethod
     def is_publicly_filterable(self) -> bool:
         """
-        Responsible for returning whether external users can apply filters or not.
+        Responsible for returning whether external service visitors
+        can apply filters or not.
         """
 
     @abstractmethod
@@ -91,7 +93,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     @abstractmethod
     def is_publicly_sortable(self) -> bool:
         """
-        Responsible for returning whether external users can apply sortings or not.
+        Responsible for returning whether external service visitors
+        can apply sortings or not.
         """
 
     @abstractmethod

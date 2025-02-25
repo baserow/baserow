@@ -675,3 +675,33 @@ def test_update_all_user_source_counts_in_chunks(data_fixture):
         assert (
             _count_user_sources_with_cached_value(user_sources) == 10
         )  # [1,2,3,4,5,6,7,8,9,10]
+
+
+@pytest.mark.django_db
+def test_aggregate_user_counts(data_fixture):
+    user = data_fixture.create_user()
+    workspace1 = data_fixture.create_workspace(user=user)
+
+    # Workspace1 has two builder applications, with two user sources,
+    # pointing to the same table.
+    builder1a = data_fixture.create_builder_application(workspace=workspace1)
+    user_source1a = data_fixture.create_local_baserow_table_user_source(
+        application=builder1a
+    )
+    builder1b = data_fixture.create_builder_application(workspace=workspace1)
+    data_fixture.create_local_baserow_table_user_source(
+        application=builder1b, table=user_source1a.table
+    )
+
+    # The table contains 5 rows, and is used twice, so the usage for both is 10.
+    assert UserSourceHandler().aggregate_user_counts(workspace1) == 10
+
+    workspace2 = data_fixture.create_workspace(user=user)
+    builder2 = data_fixture.create_builder_application(workspace=workspace2)
+    data_fixture.create_local_baserow_table_user_source(application=builder2)
+
+    # The table contains 5 rows, and is used once, so the usage is 5.
+    assert UserSourceHandler().aggregate_user_counts(workspace2) == 5
+
+    # Globally, on this instance, we have a usage of 15.
+    assert UserSourceHandler().aggregate_user_counts() == 15
