@@ -2058,19 +2058,15 @@ class MenuElementType(ElementType):
             items_to_create = []
             child_uids_parent_uids = {}
 
+            keys_to_remove = ["parent_menu_item", "menu_item_order"]
             for index, item in enumerate(values["menu_items"]):
-                # Ignore any top-level items that are actually sub-links
-                # TODO: this shouldn't even be returned by the serializer.
-                if item.get("parent_menu_item", None):
-                    continue
-
-                item.pop("menu_item_order", None)
+                for key in keys_to_remove:
+                    item.pop(key, None)
 
                 # Keep track of child-parent relationship via the uid
                 for child_index, child in enumerate(item.pop("children", [])):
-                    child.pop("menu_item_order", None)
-                    child.pop("parent_menu_item", None)
-                    child.pop("children", None)
+                    for key in keys_to_remove + ["children"]:
+                        item.pop(key, None)
 
                     items_to_create.append(
                         MenuItemElement(**child, menu_item_order=child_index)
