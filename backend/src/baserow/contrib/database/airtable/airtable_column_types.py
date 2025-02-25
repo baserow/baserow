@@ -37,6 +37,7 @@ from .constants import (
     AIRTABLE_RATING_COLOR_MAPPING,
     AIRTABLE_RATING_ICON_MAPPING,
 )
+from .exceptions import AirtableSkipCellValue
 from .helpers import import_airtable_date_type_options, set_select_options_on_field
 from .import_report import (
     ERROR_TYPE_DATA_TYPE_MISMATCH,
@@ -93,6 +94,25 @@ class TextAirtableColumnType(AirtableColumnType):
                 return ""
 
         return value
+
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_row,
+        raw_airtable_column,
+        baserow_field,
+        files_to_download,
+        config,
+        import_report,
+    ):
+        # If the `text_default` is set, then we must return an empty string. If we
+        # don't, the value is omitted in the export, resulting in the default value
+        # automatically being set, while it's actually empty in Airtable.
+        if isinstance(baserow_field, TextField) and baserow_field.text_default != "":
+            return ""
+        else:
+            raise AirtableSkipCellValue
 
 
 class MultilineTextAirtableColumnType(AirtableColumnType):

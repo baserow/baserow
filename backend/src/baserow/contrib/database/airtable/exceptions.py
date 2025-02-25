@@ -8,3 +8,10 @@ class AirtableShareIsNotABase(Exception):
 
 class AirtableImportNotRespectingConfig(Exception):
     """Raised when the Airtable import is not respecting the `AirtableImportConfig`."""
+
+
+class AirtableSkipCellValue(Exception):
+    """
+    Raised when an Airtable cell value must be skipped, and be omitted from the
+    export.
+    """

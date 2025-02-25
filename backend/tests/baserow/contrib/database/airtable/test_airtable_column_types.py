@@ -18,6 +18,7 @@ from baserow.contrib.database.airtable.airtable_column_types import (
     TextAirtableColumnType,
 )
 from baserow.contrib.database.airtable.config import AirtableImportConfig
+from baserow.contrib.database.airtable.exceptions import AirtableSkipCellValue
 from baserow.contrib.database.airtable.import_report import (
     SCOPE_CELL,
     SCOPE_FIELD,
@@ -105,6 +106,21 @@ def test_airtable_import_text_column(data_fixture, api_client):
     assert isinstance(baserow_field, TextField)
     assert isinstance(airtable_column_type, TextAirtableColumnType)
 
+    with pytest.raises(AirtableSkipCellValue):
+        assert (
+            airtable_column_type.to_baserow_export_empty_value(
+                {},
+                {"name": "Test"},
+                {"id": "row1"},
+                airtable_field,
+                baserow_field,
+                {},
+                AirtableImportConfig(),
+                AirtableImportReport(),
+            )
+            == ""
+        )
+
 
 @pytest.mark.django_db
 @responses.activate
@@ -127,6 +143,20 @@ def test_airtable_import_text_column_preserve_default(data_fixture, api_client):
     )
     assert baserow_field.text_default == "test"
     assert len(import_report.items) == 0
+
+    assert (
+        airtable_column_type.to_baserow_export_empty_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == ""
+    )
 
 
 @pytest.mark.django_db

@@ -2,6 +2,7 @@ from datetime import tzinfo
 from typing import Any, Dict, Tuple, Union
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
+from baserow.contrib.database.airtable.exceptions import AirtableSkipCellValue
 from baserow.contrib.database.airtable.import_report import (
     ERROR_TYPE_UNSUPPORTED_FEATURE,
     SCOPE_FIELD,
@@ -73,6 +74,21 @@ class AirtableColumnType(Instance):
         """
 
         return value
+
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping: Dict[str, Dict[str, int]],
+        raw_airtable_table: dict,
+        raw_airtable_row: dict,
+        raw_airtable_column: dict,
+        baserow_field: Field,
+        files_to_download: Dict[str, str],
+        config: AirtableImportConfig,
+        import_report: AirtableImportReport,
+    ):
+        # By default, raise the `AirtableSkipCellValue` so that the value is not
+        # included in the export.
+        raise AirtableSkipCellValue
 
     def add_import_report_failed_if_default_is_provided(
         self,
