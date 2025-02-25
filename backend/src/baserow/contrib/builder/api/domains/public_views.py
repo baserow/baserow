@@ -113,7 +113,7 @@ class PublicBuilderByDomainNameView(APIView):
 
         data = safe_get_or_set_cache(
             cache_key=DomainHandler.get_public_builder_by_domain_cache_key(domain_name),
-            version_cache_key=DomainHandler.get_public_builder_by_domain_cache_key(
+            version_cache_key=DomainHandler.get_public_builder_by_domain_version_cache_key(
                 domain_name
             ),
             default=lambda: self._get_public_builder_by_domain(request, domain_name),
@@ -217,7 +217,7 @@ class PublicElementsView(APIView):
         Responds with a list of serialized elements that belongs to the given page id.
         """
 
-        if PageHandler().page_id_is_published(page_id):
+        if PageHandler().is_published_page(page_id):
             data = safe_get_or_set_cache(
                 cache_key=PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "elements"
@@ -288,7 +288,7 @@ class PublicDataSourcesView(APIView):
         user has access to it.
         """
 
-        if PageHandler().page_id_is_published(page_id):
+        if PageHandler().is_published_page(page_id):
             data = safe_get_or_set_cache(
                 cache_key=PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "data_sources"
@@ -375,7 +375,7 @@ class PublicBuilderWorkflowActionsView(APIView):
         page id.
         """
 
-        if PageHandler().page_id_is_published(page_id):
+        if PageHandler().is_published_page(page_id):
             data = safe_get_or_set_cache(
                 cache_key=PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "workflow_actions"

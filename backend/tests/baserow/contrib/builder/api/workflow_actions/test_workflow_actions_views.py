@@ -210,7 +210,9 @@ def test_public_workflow_actions_view(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.json() == []
+    response_json = response.json()
+    assert len(response_json) == 1
+    assert response_json[0]["type"] == NotificationWorkflowActionType.type
 
     url = reverse(
         "api:builder:domains:list_workflow_actions",

@@ -49,9 +49,8 @@ from baserow.core.utils import (
     find_unused_name,
     safe_get_or_set_cache,
 )
-from baserow.version import VERSION as BASEROW_VERSION
 
-BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS = 60
+BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS = 60 * 60
 
 
 class PageHandler:
@@ -93,17 +92,6 @@ class PageHandler:
 
         return base_queryset.filter(builder=builder).select_related(
             "builder__workspace"
-        )
-
-    def page_id_is_published(self, page_id) -> bool:
-        """
-        Returns True if the page is part a published builder.
-        """
-
-        return (
-            Page.objects.filter(id=page_id)
-            .exclude(builder__published_from=None)
-            .exists()
         )
 
     def create_shared_page(self, builder: Builder) -> Page:
@@ -266,7 +254,7 @@ class PageHandler:
         """
 
         role = f"_{user.role}" if not user.is_anonymous and user.role else ""
-        return f"ab_public_page_{page_id}{role}_{record_name}_records_{BASEROW_VERSION}"
+        return f"ab_public_page_{page_id}{role}_{record_name}_records"
 
     def is_published_page(self, public_page_id: int) -> bool:
         """

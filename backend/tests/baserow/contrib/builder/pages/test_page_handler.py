@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 from baserow.contrib.builder.domains.handler import DomainHandler
@@ -523,21 +521,20 @@ def test_validate_query_params_edge_cases():
             handler.validate_query_params(path, path_params, invalid_params)
 
 
-@patch("baserow.version.VERSION", "1.31.1")
 def test_get_page_public_records_cache_key():
     user_with_role = UserSourceUser(
         None, None, 1, "username", "foo@bar.com", role="admin"
     )
     assert (
         PageHandler.get_page_public_records_cache_key(123, user_with_role, "elements")
-        == "ab_public_page_123_admin_elements_records_1.31.1"
+        == "ab_public_page_123_admin_elements_records"
     )
     user_without_role = UserSourceUser(None, None, 1, "username", "foo@bar.com")
     assert (
         PageHandler.get_page_public_records_cache_key(
             123, user_without_role, "elements"
         )
-        == "ab_public_page_123_elements_records_1.31.1"
+        == "ab_public_page_123_elements_records"
     )
 
 

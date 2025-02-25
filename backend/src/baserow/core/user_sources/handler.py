@@ -91,7 +91,7 @@ class UserSourceHandler:
             base_queryset if base_queryset is not None else UserSource.objects.all()
         )
 
-        queryset = queryset.select_related("application", "application__workspace")
+        queryset = queryset.select_related("application__workspace")
 
         try:
             if specific:

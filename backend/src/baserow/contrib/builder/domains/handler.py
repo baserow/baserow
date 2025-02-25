@@ -20,7 +20,6 @@ from baserow.core.registries import ImportExportConfig, application_type_registr
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress, extract_allowed, invalidate_versioned_cache
-from baserow.version import VERSION as BASEROW_VERSION
 
 
 class DomainHandler:
@@ -283,7 +282,7 @@ class DomainHandler:
 
     @classmethod
     def get_public_builder_by_domain_cache_key(cls, domain_name: str) -> str:
-        return f"ab_public_builder_by_domain_{domain_name}_{BASEROW_VERSION}"
+        return f"ab_public_builder_by_domain_{domain_name}"
 
     @classmethod
     def get_public_builder_by_domain_version_cache_key(cls, domain_name: str) -> str:

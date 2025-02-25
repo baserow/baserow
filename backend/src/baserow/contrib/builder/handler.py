@@ -14,7 +14,6 @@ from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import invalidate_versioned_cache, safe_get_or_set_cache
-from baserow.version import VERSION as BASEROW_VERSION
 
 USED_PROPERTIES_CACHE_KEY_PREFIX = "used_properties_for_page"
 
@@ -152,7 +151,7 @@ class BuilderHandler:
 
     @classmethod
     def get_public_builder_by_domain_version_cache(cls, domain_name: str) -> str:
-        return f"get_public_builder_by_domain_{domain_name}_{BASEROW_VERSION}"
+        return f"get_public_builder_by_domain_{domain_name}"
 
     @classmethod
     def invalidate_public_builder_by_domain_cache(cls, domain_name: str):

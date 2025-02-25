@@ -38,6 +38,7 @@ from redis.exceptions import LockNotOwnedError
 from requests.utils import guess_json_utf
 
 from baserow.contrib.database.db.schema import optional_atomic
+from baserow.version import VERSION as BASEROW_VERSION
 
 from .exceptions import CannotCalculateIntermediateOrder
 
@@ -1235,7 +1236,7 @@ def safe_get_or_set_cache(
     :return: The cached value if it exists; otherwise, the newly set value.
     """
 
-    cache_key_to_use = cache_key
+    cache_key_to_use = f"{BASEROW_VERSION}_{cache_key}"
     if version_cache_key is not None:
         version = cache.get(version_cache_key, 0)
         cache_key_to_use = f"{cache_key}__version_{version}"

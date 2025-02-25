@@ -107,12 +107,12 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
     page2 = data_fixture.create_builder_page(user=user, builder=builder_to)
 
     domain = data_fixture.create_builder_custom_domain(
-        domain_name="test.getbaserow.io", published_to=builder_to
+        domain_name="xyztest.getbaserow.io", published_to=builder_to
     )
 
     url = reverse(
         "api:builder:domains:get_builder_by_domain_name",
-        kwargs={"domain_name": "test.getbaserow.io"},
+        kwargs={"domain_name": "xyztest.getbaserow.io"},
     )
 
     # Anonymous request
