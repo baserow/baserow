@@ -1,7 +1,8 @@
 import json
 import urllib
+from abc import abstractmethod
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, TypedDict
 
 from django.conf import settings
 from django.contrib.sessions.backends.base import SessionBase
@@ -40,7 +41,7 @@ class WellKnownUrls:
     user_info_url: str
 
 
-class OAuth2AuthProviderMixin:
+class BaseOAuth2AuthProviderMixin:
     """
     Mixin that can be used together with a subclass of AuthProviderType
     to reuse some common OAuth2 logic.
@@ -51,51 +52,6 @@ class OAuth2AuthProviderMixin:
     - self.AUTHORIZATION_URL
     - self.SCOPE
     """
-
-    def get_api_urls(self):
-        global _is_url_already_loaded
-
-        from baserow_enterprise.api.sso.oauth2 import urls
-
-        if not _is_url_already_loaded:
-            _is_url_already_loaded = True
-            # We need to register this only once
-            return [
-                path("sso/oauth2/", include(urls, namespace="enterprise_sso_oauth2"))
-            ]
-        else:
-            return []
-
-    def get_login_options(self, **kwargs) -> Optional[Dict[str, Any]]:
-        if not is_sso_feature_active():
-            return None
-
-        instances = self.model_class.objects.filter(enabled=True)
-        if not instances:
-            return None
-
-        items = []
-        for instance in instances:
-            items.append(
-                {
-                    "redirect_url": urllib.parse.urljoin(
-                        OAUTH_BACKEND_URL,
-                        reverse("api:enterprise_sso_oauth2:login", args=(instance.id,)),
-                    ),
-                    "name": instance.name,
-                    "type": self.type,
-                }
-            )
-
-        default_redirect_url = None
-        if len(items) == 1:
-            default_redirect_url = items[0]["redirect_url"]
-
-        return {
-            "type": self.type,
-            "items": items,
-            "default_redirect_url": default_redirect_url,
-        }
 
     def get_base_url(self, instance: AuthProviderModel) -> str:
         """
@@ -145,6 +101,10 @@ class OAuth2AuthProviderMixin:
         self.push_request_data_to_session(session, query_params)
         return authorization_url
 
+    @abstractmethod
+    def get_callback_url(self, instance: AuthProviderModel):
+        pass
+
     def get_oauth_session(
         self, instance: AuthProviderModel, session: SessionBase
     ) -> OAuth2Session:
@@ -158,10 +118,7 @@ class OAuth2AuthProviderMixin:
         :return: HTTP client with the correct session.
         """
 
-        redirect_uri = urllib.parse.urljoin(
-            OAUTH_BACKEND_URL,
-            reverse("api:enterprise_sso_oauth2:callback", args=(instance.id,)),
-        )
+        redirect_uri = self.get_callback_url(instance)
         if "oauth_state" in session:
             return OAuth2Session(
                 instance.client_id,
@@ -196,7 +153,7 @@ class OAuth2AuthProviderMixin:
             return token, oauth.get(self.get_user_info_url(instance)).json()
         except Exception as exc:
             logger.exception(exc)
-            raise AuthFlowError()
+            raise AuthFlowError() from exc
 
     def get_user_info_from_oauth_json_response(
         self, oauth_response_data: Dict[str, Any], session: SessionBase
@@ -249,6 +206,64 @@ class OAuth2AuthProviderMixin:
         return self.get_user_info_from_oauth_json_response(json_response, session)
 
 
+class OAuth2AuthProviderMixin(BaseOAuth2AuthProviderMixin):
+    """
+    OAuth 2 provider mixin for all baserow auth provider mixin based on OAuth 2
+    authentication protocol.
+    """
+
+    def get_api_urls(self):
+        global _is_url_already_loaded
+
+        from baserow_enterprise.api.sso.oauth2 import urls
+
+        if not _is_url_already_loaded:
+            _is_url_already_loaded = True
+            # We need to register this only once
+            return [
+                path("sso/oauth2/", include(urls, namespace="enterprise_sso_oauth2"))
+            ]
+        else:
+            return []
+
+    def get_callback_url(self, instance: AuthProviderModel):
+        return urllib.parse.urljoin(
+            OAUTH_BACKEND_URL,
+            reverse("api:enterprise_sso_oauth2:callback", args=(instance.id,)),
+        )
+
+    def get_login_options(self, **kwargs) -> Optional[Dict[str, Any]]:
+        if not is_sso_feature_active():
+            return None
+
+        instances = self.model_class.objects.filter(enabled=True)
+        if not instances:
+            return None
+
+        items = []
+        for instance in instances:
+            items.append(
+                {
+                    "redirect_url": urllib.parse.urljoin(
+                        OAUTH_BACKEND_URL,
+                        reverse("api:enterprise_sso_oauth2:login", args=(instance.id,)),
+                    ),
+                    "name": instance.name,
+                    "type": self.type,
+                }
+            )
+
+        default_redirect_url = None
+        if len(items) == 1:
+            default_redirect_url = items[0]["redirect_url"]
+
+        return {
+            "type": self.type,
+            "items": items,
+            "default_redirect_url": default_redirect_url,
+        }
+
+
 class GoogleAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
     """
     The Google authentication provider type allows users to
@@ -257,8 +272,8 @@ class GoogleAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
 
     type = "google"
     model_class = GoogleAuthProviderModel
-    allowed_fields = ["id", "enabled", "name", "client_id", "secret"]
-    serializer_field_names = ["enabled", "name", "client_id", "secret"]
+    allowed_fields = ["name", "client_id", "secret"]
+    serializer_field_names = ["name", "client_id", "secret"]
 
     AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
     SCOPE = [
@@ -279,8 +294,8 @@ class GitHubAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
 
     type = "github"
     model_class = GitHubAuthProviderModel
-    allowed_fields = ["id", "enabled", "name", "client_id", "secret"]
-    serializer_field_names = ["enabled", "name", "client_id", "secret"]
+    allowed_fields = ["name", "client_id", "secret"]
+    serializer_field_names = ["name", "client_id", "secret"]
 
     AUTHORIZATION_URL = "https://github.com/login/oauth/authorize"
     SCOPE = "read:user,user:email"
@@ -291,7 +306,7 @@ class GitHubAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
 
     def get_user_info(
         self, instance: GitHubAuthProviderModel, code: str, session: SessionBase
-    ) -> Tuple[UserInfo, str]:
+    ) -> Tuple[UserInfo, dict]:
         """
         Queries the provider to obtain user info data (name and email).
 
@@ -350,8 +365,8 @@ class GitLabAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
 
     type = "gitlab"
     model_class = GitLabAuthProviderModel
-    allowed_fields = ["id", "enabled", "name", "base_url", "client_id", "secret"]
-    serializer_field_names = ["enabled", "name", "base_url", "client_id", "secret"]
+    allowed_fields = ["name", "base_url", "client_id", "secret"]
+    serializer_field_names = ["name", "base_url", "client_id", "secret"]
 
     AUTHORIZATION_PATH = "/oauth/authorize"
     SCOPE = ["read_user"]
@@ -377,8 +392,8 @@ class FacebookAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
 
     type = "facebook"
     model_class = FacebookAuthProviderModel
-    allowed_fields = ["id", "enabled", "name", "client_id", "secret"]
-    serializer_field_names = ["enabled", "name", "client_id", "secret"]
+    allowed_fields = ["name", "client_id", "secret"]
+    serializer_field_names = ["name", "client_id", "secret"]
 
     AUTHORIZATION_URL = "https://www.facebook.com/dialog/oauth"
     SCOPE = ["email"]
@@ -403,17 +418,14 @@ class FacebookAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
         facebook_compliance_fix(oauth)
 
 
-class OpenIdConnectAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
+class OpenIdConnectAuthProviderTypeMixin:
     """
-    The OpenId authentication provider type allows users to
-    login using OAuth2 through OpenId Connect compatible provider.
+    The OpenId authentication provider mixin that contains shared methods and properties
+    for this kind of authentication. To be mixed with OAuth2 mixin as well.
     """
 
     type = "openid_connect"
-    model_class = OpenIdConnectAuthProviderModel
     allowed_fields = [
-        "id",
-        "enabled",
         "name",
         "base_url",
         "client_id",
@@ -422,10 +434,19 @@ class OpenIdConnectAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
         "access_token_url",
         "user_info_url",
     ]
-    serializer_field_names = ["enabled", "name", "base_url", "client_id", "secret"]
+    serializer_field_names = ["name", "base_url", "client_id", "secret"]
     api_exceptions_map: ExceptionMappingType = {
         InvalidProviderUrl: ERROR_INVALID_PROVIDER_URL
     }
+
+    class OpenIdConnectSerializedDict(TypedDict):
+        name: str
+        base_url: str
+        client_id: str
+        secret: str
+        authorization_url: str
+        access_token_url: str
+        user_info_url: str
 
     SCOPE = ["openid", "email", "profile"]
 
@@ -448,7 +469,8 @@ class OpenIdConnectAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
     def get_user_info_url(self, instance: AuthProviderModel) -> str:
         return instance.user_info_url
 
-    def get_wellknown_urls(self, base_url: str) -> WellKnownUrls:
+    @classmethod
+    def get_wellknown_urls(cls, base_url: str) -> WellKnownUrls:
         """
         Queries the provider "wellknown URL endpoint" to retrieve OpenId Connect
         wellknown URLS like authorization url, access token url or user info url.
@@ -460,12 +482,25 @@ class OpenIdConnectAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
 
         try:
             wellknown_url = f"{base_url}/.well-known/openid-configuration"
-            json_response = requests.get(wellknown_url).json()  # nosec B113
+            json_response = requests.get(
+                wellknown_url, timeout=120
+            ).json()  # nosec B113
             return WellKnownUrls(
                 authorization_url=json_response["authorization_endpoint"],
                 access_token_url=json_response["token_endpoint"],
                 user_info_url=json_response["userinfo_endpoint"],
             )
         except Exception as exc:
-            logger.exception(exc)
-            raise InvalidProviderUrl()
+            logger.exception("Provider 'Wellknown URL endpoint' invalid.")
+            raise InvalidProviderUrl() from exc
+
+
+class OpenIdConnectAuthProviderType(
+    OpenIdConnectAuthProviderTypeMixin, OAuth2AuthProviderMixin, AuthProviderType
+):
+    """
+    The OpenId authentication provider type allows users to
+    login using OAuth2 through OpenId Connect compatible provider.
+    """
+
+    model_class = OpenIdConnectAuthProviderModel

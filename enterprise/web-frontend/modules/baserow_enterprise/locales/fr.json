@@ -100,7 +100,8 @@
         "password": "Authentification par e-mail et mot de passe",
         "ssoSamlProviderName": "SAML SSO : {domain}",
         "saml": "Fournisseur SAML SSO",
-        "ssoSamlProviderNameUnconfigured": "SAML SSO non configuré"
+        "ssoSamlProviderNameUnconfigured": "SAML SSO non configuré",
+        "ssoOIDCProviderNameUnconfigured": "OpenId Connect non configurée"
     },
     "editAuthProviderMenuContext": {
         "delete": "Supprimer",
@@ -271,7 +272,8 @@
         "invalidBaseUrl": "L’URL saisie n’est pas une URL de fournisseur valide",
         "callbackUrl": "URL de callback",
         "secret": "Secret",
-        "baseUrlPlaceholder": "URL de base du fournisseur d'authentification"
+        "baseUrlPlaceholder": "URL de base du fournisseur d'authentification",
+        "duplicateBaseUrl": "L'URL saisie existe déjà dans un autre fournisseur"
     },
     "loginButton": {
         "continueWith": "Poursuivre avec"
@@ -316,7 +318,8 @@
     },
     "appAuthProviderType": {
         "localBaserowPassword": "Courriel/Mot de passe",
-        "commonSaml": "Saml SSO"
+        "commonSaml": "Saml SSO",
+        "openIdConnect": "OpenID Connect"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Sélectionner le champ du mot de passe",
@@ -362,7 +365,9 @@
         "authorizing": "Vous autorisez votre compte à sélectionner les données de la table source.",
         "workspace": "Projet",
         "table": "Table",
-        "database": "Base de données"
+        "database": "Base de données",
+        "viewHelper": "Seuls les champs visibles et les lignes correspondant aux filtres sont synchronisés.",
+        "view": "Vue"
     },
     "exportWorkspaceModalWarning": {
         "message": "Sachez qu'un export ne contiendra pas les autorisations définies pour l'application."
@@ -410,6 +415,40 @@
         "accessToken": "Jeton d'accès à l'application privée"
     },
     "commonSamlSettingForm": {
-        "authProviderInError": "Veuillez modifier ce fournisseur pour corriger l'erreur."
+        "authProviderInError": "Veuillez modifier ce fournisseur pour corriger l'erreur.",
+        "acsTitle": "URL d'authentification (Cliquez pour copier)",
+        "relayStateTitle": "URL par défaut « Relay State » (Cliquez pour copier)",
+        "addDomainNotice": "Disponible lorsqu'un ou plusieurs domaines ont été ajoutés"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "whenHelper": "Indiquez l'heure, la minute et la seconde exactes auxquelles la synchronisation des données doit avoir lieu.",
+        "intervalLabel": "Intervalle",
+        "manual": "Manuelle",
+        "daily": "Tous les jours",
+        "intervalHelper": "Périodicité à laquelle la synchronisation automatique des données doit s'effectuer.",
+        "hour": "Heure",
+        "minute": "Minute",
+        "second": "Seconde",
+        "hourly": "Toutes les heures"
+    },
+    "commonOidcSettingForm": {
+        "callbackTitle": "URL de Callback (Cliquez pour copier)",
+        "callbackHelperText": "Ajoutez ces URLs aux paramètres de redirection de votre fournisseur Openid Connect.",
+        "preview": "Aperçu"
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "Configuration de la périodicité"
+    },
+    "configureDataSyncPeriodicInterval": {
+        "title": "Configuration de la périodicité",
+        "saved": "Enregistré",
+        "deactivatedTitle": "Synchronisation périodique des données désactivée",
+        "deactivatedText": "La synchronisation périodique des données a été désactivée en raison d'un trop grand nombre d'échecs consécutifs. Veuillez essayer de synchroniser manuellement, et si cela fonctionne, cliquez sur le bouton d'activation.",
+        "activate": "Activer la synchronisation périodique",
+        "enterprise": "La synchronisation périodique des données est une fonctionnalité Avanced/Entreprise.",
+        "more": "Plus d'informations"
+    },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "{login} avec {provider}"
     }
 }

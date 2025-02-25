@@ -125,7 +125,12 @@ export default {
         if (replace) {
           this.results = results
         } else {
-          this.results.push(...results)
+          const resultIds = new Set(this.results.map((res) => res.id))
+          this.results.push(
+            ...results.filter((res) => {
+              return !resultIds.has(res.id)
+            })
+          )
         }
 
         this.count = count

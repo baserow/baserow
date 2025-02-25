@@ -17,6 +17,7 @@ from baserow.api.workspaces.serializers import (
 from baserow.core import signals
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
+from baserow.core.jobs import signals as jobs_signals
 from baserow.core.models import Application, WorkspaceUser
 from baserow.core.operations import (
     ListApplicationsWorkspaceOperationType,
@@ -360,4 +361,20 @@ def user_password_changed(sender, user, ignore_web_socket_id=None, **kwargs):
             [user.id],
             [ignore_web_socket_id],
         )
+    )
+
+
+@receiver(jobs_signals.job_started)
+def user_job_started(sender, job, user, **kwargs):
+    from baserow.api.jobs.serializers import JobSerializer
+    from baserow.core.jobs.registries import job_type_registry
+
+    serializer = job_type_registry.get_serializer(job, JobSerializer)
+    broadcast_to_users.delay(
+        [user.id],
+        {
+            "type": "job_started",
+            "job": serializer.data,
+        },
+        getattr(user, "web_socket_id", None),
     )

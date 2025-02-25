@@ -6,7 +6,7 @@ set -euo pipefail
 # ENVIRONMENT VARIABLES USED DIRECTLY BY THIS ENTRYPOINT
 # ======================================================
 
-export BASEROW_VERSION="1.30.1"
+export BASEROW_VERSION="1.31.1"
 
 # Used by docker-entrypoint.sh to start the dev server
 # If not configured you'll receive this: CommandError: "0.0.0.0:" is not a valid port number or address:port pair.
@@ -55,7 +55,10 @@ DATABASE_PASSWORD=$DATABASE_PASSWORD \
 DATABASE_OPTIONS=$DATABASE_OPTIONS \
 python3 << END
 import sys
-import psycopg
+try:
+    import psycopg
+except ImportError:
+    import psycopg2 as psycopg
 import json
 import os
 DATABASE_NAME=os.getenv('DATABASE_NAME')
@@ -99,7 +102,10 @@ else
 DATABASE_URL=$DATABASE_URL \
 python3 << END
 import sys
-import psycopg
+try:
+    import psycopg
+except ImportError:
+    import psycopg2 as psycopg
 import os
 DATABASE_URL=os.getenv('DATABASE_URL')
 try:

@@ -47,20 +47,15 @@
         $t(`postgreSQLDataSync.${field.translationPrefix}`)
       }}</template>
       <FormInput
-        v-model="values[field.name]"
+        v-model="v$.values[field.name].$model"
         size="large"
         :type="field.type"
         :error="fieldHasErrors(field.name)"
         :disabled="disabled"
-        @blur="$v.values[field.name].$touch()"
       >
       </FormInput>
       <template #error>
-        <div
-          v-if="$v.values[field.name].$dirty && !$v.values[field.name].required"
-        >
-          {{ $t('error.requiredField') }}
-        </div>
+        {{ v$.values[field.name].$errors[0]?.$message }}
       </template>
     </FormGroup>
     <div class="row">
@@ -73,30 +68,14 @@
         >
           <template #label>{{ $t('postgreSQLDataSync.port') }}</template>
           <FormInput
-            v-model="values.postgresql_port"
+            v-model="v$.values.postgresql_port.$model"
             size="large"
             :error="fieldHasErrors('postgresql_port')"
             :disabled="disabled"
-            @blur="$v.values.postgresql_port.$touch()"
           >
           </FormInput>
           <template #error>
-            <div
-              v-if="
-                $v.values.postgresql_port.$dirty &&
-                !$v.values.postgresql_port.required
-              "
-            >
-              {{ $t('error.requiredField') }}
-            </div>
-            <div
-              v-else-if="
-                $v.values.postgresql_port.$dirty &&
-                !$v.values.postgresql_port.numeric
-              "
-            >
-              {{ $t('error.invalidNumber') }}
-            </div>
+            {{ v$.values.postgresql_port.$errors[0]?.$message }}
           </template>
         </FormGroup>
       </div>
@@ -104,9 +83,9 @@
         <FormGroup required small-label class="margin-bottom-2">
           <template #label>{{ $t('postgreSQLDataSync.sslMode') }}</template>
           <Dropdown
-            v-model="values.postgresql_sslmode"
-            size="large"
+            v-model="v$.values.postgresql_sslmode.$model"
             :disabled="disabled"
+            size="large"
           >
             <DropdownItem
               v-for="option in sslModeOptions"
@@ -122,8 +101,8 @@
 </template>
 
 <script>
-import { required, numeric, requiredIf } from 'vuelidate/lib/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { required, requiredIf, numeric, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -140,6 +119,9 @@ export default {
       required: false,
       default: false,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     const allowedValues = [
@@ -178,18 +160,57 @@ export default {
   validations() {
     return {
       values: {
-        postgresql_host: { required },
-        postgresql_username: { required },
-        postgresql_password: {
-          required: requiredIf(() => {
-            return this.allowedValues.includes('postgresql_password')
-          }),
+        postgresql_host: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
         },
-        postgresql_database: { required },
-        postgresql_schema: { required },
-        postgresql_table: { required },
-        postgresql_sslmode: { required },
-        postgresql_port: { required, numeric },
+        postgresql_username: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        postgresql_password: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            requiredIf(() => {
+              return this.allowedValues.includes('postgresql_password')
+            })
+          ),
+        },
+        postgresql_database: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        postgresql_schema: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        postgresql_table: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        postgresql_sslmode: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        postgresql_port: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          numeric: helpers.withMessage(this.$t('error.invalidNumber'), numeric),
+        },
       },
     }
   },

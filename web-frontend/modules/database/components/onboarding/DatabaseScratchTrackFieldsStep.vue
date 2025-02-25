@@ -39,7 +39,7 @@
           <div class="onboarding__form-group-label">
             {{ $t('databaseScratchTrackFieldsStep.fieldType') }}
           </div>
-          <Dropdown v-model="ownField" :show-search="false">
+          <Dropdown v-model="ownField" size="large" :show-search="false">
             <DropdownItem
               v-for="field in ownFields"
               :key="field.props.type"
@@ -54,27 +54,19 @@
           <div class="onboarding__form-group-label">
             {{ $t('databaseScratchTrackFieldsStep.fieldName') }}
           </div>
+
           <FormInput
             v-model="ownField.props.name"
             :placeholder="$t('databaseScratchTrackFieldsStep.fieldName')"
             size="large"
-            :error="
-              $v.ownField.props.name.$dirty && $v.ownField.props.name.$invalid
-            "
-            @blur="$v.ownField.props.name.$touch()"
+            :error="v$.ownField.props.name.$error"
+            @blur="v$.ownField.props.name.$touch"
           />
           <p
-            v-if="
-              $v.ownField.props.name.$dirty && $v.ownField.props.name.$invalid
-            "
+            v-if="v$.ownField.props.name.$error"
             class="control__messages--error"
           >
-            <template v-if="!$v.ownField.props.name.required">
-              {{ $t('error.requiredField') }}
-            </template>
-            <template v-if="!$v.ownField.props.name.uniqueNameValidator">
-              {{ $t('error.alreadyInUse') }}
-            </template>
+            {{ v$.ownField.props.name.$errors[0].$message }}
           </p>
         </div>
       </div>
@@ -83,7 +75,8 @@
 </template>
 
 <script>
-import { requiredIf } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 import { DatabaseScratchTrackOnboardingType } from '@baserow/modules/database/onboardingTypes'
 
 export default {
@@ -93,6 +86,9 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -156,7 +152,8 @@ export default {
       return isActive
     },
     isValid() {
-      return !this.$v.$invalid
+      if (this.selectedFieldsCount && !this.isChipActive('own')) return true
+      else return !this.v$.$invalid && this.v$.$dirty
     },
     toggleSelection(value) {
       const isAlreadySelected = this.isChipActive(value)
@@ -178,6 +175,7 @@ export default {
             this.ownField = this.ownFields[0]
           }
           this.selectedFields.own = this.ownField
+          this.v$.ownField.props.name.$touch()
         } else {
           const selectedItem = this.whatItems[value]
           if (this.isNameUsed(selectedItem.props.name)) {
@@ -219,26 +217,34 @@ export default {
       // doesn't trigger validation if the value doesn't change.
       // We want only to trigger validation if own field is selected
       if (value !== 'own' && this.isChipActive('own')) {
-        const tmp = this.$v.ownField.props.name.$model
-        this.$v.ownField.props.name.$model = ''
-        this.$v.ownField.props.name.$model = tmp
-        this.$v.ownField.props.name.$touch()
+        const tmp = this.v$.ownField.props.name.$model
+        this.v$.ownField.props.name.$model = ''
+        this.v$.ownField.props.name.$model = tmp
+        this.v$.ownField.props.name.$touch()
       }
     },
   },
   validations() {
-    return {
-      ownField: {
-        props: {
-          name: {
-            required: requiredIf(() => this.isOwnFieldValidationEnabled),
-            uniqueNameValidator: (value) => {
+    const rules = {}
+
+    rules.ownField = {
+      props: {
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          uniqueNameValidator: helpers.withMessage(
+            this.$t('error.alreadyInUse'),
+            (value) => {
               return !this.isNameUsed(value, 'own')
-            },
-          },
+            }
+          ),
         },
       },
     }
+
+    return rules
   },
 }
 </script>

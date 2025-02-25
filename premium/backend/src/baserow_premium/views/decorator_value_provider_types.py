@@ -78,22 +78,31 @@ class SelectColorValueProviderType(PremiumDecoratorValueProviderType):
             new_conf["field_id"] = None
             view_handler.update_decoration(decoration, value_provider_conf=new_conf)
 
-    def after_field_type_change(self, field):
+    def after_fields_type_change(self, fields):
         """
         Unset the field if the type is not a select anymore.
         """
 
         from baserow.contrib.database.fields.registries import field_type_registry
 
-        field_type = field_type_registry.get_by_model(field.specific_class)
+        not_single_select_fields = [
+            field
+            for field in fields
+            if (
+                field_type_registry.get_by_model(field.specific_class).type
+                != SingleSelectFieldType.type
+            )
+        ]
 
-        view_handler = ViewHandler()
+        if len(not_single_select_fields) > 0:
+            view_handler = ViewHandler()
 
-        if field_type.type != SingleSelectFieldType.type:
             queryset = ViewDecoration.objects.filter(
-                view__table=field.table,
+                view__table_id__in=[f.table_id for f in not_single_select_fields],
                 value_provider_type=SelectColorValueProviderType.type,
-                value_provider_conf__field_id=field.id,
+                value_provider_conf__field_id__in=[
+                    f.id for f in not_single_select_fields
+                ],
             )
 
             for decoration in queryset.all():
@@ -242,20 +251,23 @@ class ConditionalColorValueProviderType(PremiumDecoratorValueProviderType):
             if modified:
                 view_handler.update_decoration(decoration, value_provider_conf=new_conf)
 
-    def after_field_type_change(self, field):
+    def after_fields_type_change(self, fields):
         """
         Remove filters type that are not compatible anymore from configuration
         """
 
+        field_per_id = {f.id: f for f in fields}
         queryset = ViewDecoration.objects.filter(
-            view__table=field.table,
+            view__table__in=[f.table_id for f in fields],
             value_provider_type=ConditionalColorValueProviderType.type,
         )
 
         view_handler = ViewHandler()
 
         def compatible_filter_only(filter):
-            if filter["field"] != field.id:
+            field = field_per_id.get(filter["field"], None)
+
+            if not field:
                 return filter
 
             filter_type = view_filter_type_registry.get(filter["type"])

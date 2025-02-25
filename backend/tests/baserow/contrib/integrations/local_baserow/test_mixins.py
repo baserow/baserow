@@ -19,6 +19,10 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.exceptions import (
+    ServiceFilterPropertyDoesNotExist,
+    ServiceSortPropertyDoesNotExist,
+)
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -30,7 +34,7 @@ def get_test_service_type(mixin_class):
 
 
 @pytest.mark.django_db
-def test_local_baserow_table_service_filterable_mixin_get_queryset(
+def test_local_baserow_table_service_filterable_mixin_get_table_queryset(
     data_fixture,
 ):
     service_type = get_test_service_type(LocalBaserowTableServiceFilterableMixin)
@@ -56,7 +60,7 @@ def test_local_baserow_table_service_filterable_mixin_get_queryset(
     # No filters of any kind.
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alessia.id, alex.id, alastair.id, alexandra.id]
@@ -73,7 +77,7 @@ def test_local_baserow_table_service_filterable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alessia.id, alex.id, alexandra.id]
@@ -96,7 +100,7 @@ def test_local_baserow_table_service_filterable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alexandra.id]
@@ -216,7 +220,31 @@ def test_local_baserow_table_service_filterable_mixin_get_used_field_names(
 
 
 @pytest.mark.django_db
-def test_local_baserow_table_service_sortable_mixin_get_queryset(
+def test_local_baserow_table_service_filterable_mixin_get_dispatch_filters_raises_exception_on_trashed_field(
+    data_fixture,
+):
+    service_type = get_test_service_type(LocalBaserowTableServiceFilterableMixin)
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    model = table.get_model(field_ids=[])
+    field = data_fixture.create_text_field(name="Surname", table=table, trashed=True)
+
+    service = data_fixture.create_local_baserow_list_rows_service(table=table)
+    data_fixture.create_local_baserow_table_service_filter(
+        service=service,
+        field=field,
+        value="'A'",
+        order=0,
+    )
+
+    with pytest.raises(ServiceFilterPropertyDoesNotExist) as exc:
+        service_type.get_dispatch_filters(service, [], model, FakeDispatchContext())
+
+    assert exc.value.args[0] == f"One or more filtered properties no longer exist."
+
+
+@pytest.mark.django_db
+def test_local_baserow_table_service_sortable_mixin_get_table_queryset(
     data_fixture,
 ):
     service_type = get_test_service_type(LocalBaserowTableServiceSortableMixin)
@@ -242,7 +270,7 @@ def test_local_baserow_table_service_sortable_mixin_get_queryset(
     # No sorts of any kind.
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [aardvark.id, badger.id, crow.id, dragonfly.id]
@@ -254,7 +282,7 @@ def test_local_baserow_table_service_sortable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [dragonfly.id, crow.id, badger.id, aardvark.id]
@@ -266,7 +294,7 @@ def test_local_baserow_table_service_sortable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [aardvark.id, badger.id, crow.id, dragonfly.id]
@@ -297,8 +325,29 @@ def test_local_baserow_table_service_sortable_mixin_get_used_field_names(
     assert result == [field.db_column]
 
 
+@pytest.mark.django_db
+def test_local_baserow_table_service_sortable_mixin_get_dispatch_sorts_raises_exception_on_trashed_field(
+    data_fixture,
+):
+    service_type = get_test_service_type(LocalBaserowTableServiceSortableMixin)
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    model = table.get_model(field_ids=[])
+    field = data_fixture.create_text_field(name="Surname", table=table, trashed=True)
+
+    service = data_fixture.create_local_baserow_list_rows_service(table=table)
+    data_fixture.create_local_baserow_table_service_sort(
+        service=service, field=field, order_by=SORT_ORDER_ASC, order=0
+    )
+
+    with pytest.raises(ServiceSortPropertyDoesNotExist) as exc:
+        service_type.get_dispatch_sorts(service, [], model)
+
+    assert exc.value.args[0] == f"One or more sorted properties no longer exist."
+
+
 @pytest.mark.django_db(transaction=True)
-def test_local_baserow_table_service_searchable_mixin_get_queryset(
+def test_local_baserow_table_service_searchable_mixin_get_table_queryset(
     data_fixture,
 ):
     service_type = get_test_service_type(LocalBaserowTableServiceSearchableMixin)
@@ -325,7 +374,7 @@ def test_local_baserow_table_service_searchable_mixin_get_queryset(
     # No search query of any kind.
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alessia.id, alex.id, alastair.id, alexandra.id]
@@ -335,7 +384,7 @@ def test_local_baserow_table_service_searchable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alessia.id, alex.id, alexandra.id]
@@ -347,7 +396,7 @@ def test_local_baserow_table_service_searchable_mixin_get_queryset(
 
     assert [
         row.id
-        for row in service_type.get_queryset(
+        for row in service_type.get_table_queryset(
             service, table, dispatch_context, table_model
         )
     ] == [alexandra.id]

@@ -360,6 +360,7 @@ opentelemetry-api==1.29.0
     #   opentelemetry-instrumentation-grpc
     #   opentelemetry-instrumentation-logging
     #   opentelemetry-instrumentation-psycopg
+    #   opentelemetry-instrumentation-psycopg2
     #   opentelemetry-instrumentation-redis
     #   opentelemetry-instrumentation-requests
     #   opentelemetry-instrumentation-wsgi
@@ -382,6 +383,7 @@ opentelemetry-instrumentation==0.50b0
     #   opentelemetry-instrumentation-grpc
     #   opentelemetry-instrumentation-logging
     #   opentelemetry-instrumentation-psycopg
+    #   opentelemetry-instrumentation-psycopg2
     #   opentelemetry-instrumentation-redis
     #   opentelemetry-instrumentation-requests
     #   opentelemetry-instrumentation-wsgi
@@ -397,6 +399,7 @@ opentelemetry-instrumentation-dbapi==0.50b0
     # via
     #   -r base.in
     #   opentelemetry-instrumentation-psycopg
+    #   opentelemetry-instrumentation-psycopg2
 opentelemetry-instrumentation-django==0.50b0
     # via -r base.in
 opentelemetry-instrumentation-grpc==0.50b0
@@ -404,6 +407,8 @@ opentelemetry-instrumentation-grpc==0.50b0
 opentelemetry-instrumentation-logging==0.50b0
     # via -r base.in
 opentelemetry-instrumentation-psycopg==0.50b0
+    # via -r base.in
+opentelemetry-instrumentation-psycopg2==0.50b0
     # via -r base.in
 opentelemetry-instrumentation-redis==0.50b0
     # via -r base.in
@@ -480,9 +485,7 @@ protobuf==5.29.2
     #   proto-plus
 psutil==5.9.8
     # via -r base.in
-psycopg==3.2.3
-    # via -r base.in
-psycopg-binary==3.2.3
+psycopg2==2.9.10
     # via -r base.in
 pyasn1==0.6.1
     # via

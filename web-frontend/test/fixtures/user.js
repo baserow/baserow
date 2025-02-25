@@ -51,7 +51,7 @@ export function expectUserDeleted(mock, userId) {
 
 export function expectUserUpdated(mock, user, changes) {
   mock
-    .onPatch(`/admin/users/${user.id}/`, changes)
+    .onPatch(new RegExp(`/admin/users/${user.id}/`))
     .reply(200, Object.assign({}, user, changes))
 }
 

@@ -207,6 +207,22 @@ def test_create_element_page_does_not_exist(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_element_parent_does_not_exist(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {"type": "heading", "parent_element_id": 99999999},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_ELEMENT_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
 def test_update_element(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)

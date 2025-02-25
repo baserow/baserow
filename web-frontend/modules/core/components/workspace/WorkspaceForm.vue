@@ -8,11 +8,10 @@
 
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.values.name.$model"
         :error="fieldHasErrors('name')"
         size="large"
         @focus.once="$event.target.select()"
-        @blur="$v.values.name.$touch()"
       ></FormInput>
 
       <template #error>{{ $t('error.requiredField') }}</template>
@@ -22,7 +21,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 
@@ -36,6 +36,9 @@ export default {
       default: '',
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {
@@ -43,11 +46,19 @@ export default {
       },
     }
   },
-  validations: {
-    values: {
-      name: { required },
-    },
+  validations() {
+    return {
+      values: {
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
+
   mounted() {
     this.$refs.name.focus()
   },

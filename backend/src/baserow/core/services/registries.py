@@ -19,6 +19,7 @@ from baserow.core.registry import (
     Registry,
 )
 from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.services.types import DispatchResult
 
 from .exceptions import ServiceTypeDoesNotExist
 from .models import Service
@@ -67,6 +68,29 @@ class ServiceType(
     # `DISPATCH_WORKFLOW_ACTION` should be chosen.
     dispatch_type = None
 
+    def get_id_property(self, service: Service) -> str:
+        """
+        Returns the property name that contains the unique `ID` of a row for this
+        service.
+
+        :param service: the instance of the service.
+        :return: a string identifying the ID property name.
+        """
+
+        # Sane default
+        return "id"
+
+    def get_name_property(self, service: Service) -> Optional[str]:
+        """
+        We need the name of the records for some elements (like the record selector).
+        This method returns it depending on the service.
+
+        :param service: the instance of the service.
+        :return: a string identifying the name property name.
+        """
+
+        return None
+
     def prepare_values(
         self,
         values: Dict[str, Any],
@@ -96,10 +120,36 @@ class ServiceType(
                     raise DRFValidationError(
                         f"The integration with ID {integration_id} does not exist."
                     )
+
+                if instance and instance.integration_id:
+                    # `integration` cannot belong to a different application
+                    # than the one that `instance.integration` points to.
+                    current_integration_id = instance.integration.application_id
+                    if integration.application_id != current_integration_id:
+                        raise DRFValidationError(
+                            detail=f"The integration with ID {integration_id} is not "
+                            f"related to the given application {current_integration_id}.",
+                            code="invalid_integration",
+                        )
+
                 values["integration"] = integration
             else:
                 values["integration"] = None
 
+        return values
+
+    def export_prepared_values(self, instance: Service):
+        """
+        Returns a serializable dict of prepared values for the service attributes.
+        This method is the counterpart of `prepare_values`. It is called
+        by undo/redo ActionHandler to store the values in a way that could be
+        restored later.
+
+        :param instance: The service instance to export values for.
+        :return: A dict of prepared values.
+        """
+
+        values = {key: getattr(instance, key) for key in self.allowed_fields}
         return values
 
     def after_create(self, instance: ServiceSubClass, values: Dict):
@@ -169,13 +219,13 @@ class ServiceType(
     def dispatch_transform(
         self,
         data: Any,
-    ) -> Any:
+    ) -> DispatchResult:
         """
         Responsible for taking the `dispatch_data` result and transforming its value
         for API consumer's consumption.
 
         :param data: The `dispatch_data` result.
-        :return: The transformed `dispatch_transform` result if any.
+        :return: The transformed `dispatch_transform` result.
         """
 
     def dispatch_data(
@@ -198,7 +248,7 @@ class ServiceType(
         self,
         service: ServiceSubClass,
         dispatch_context: DispatchContext,
-    ) -> Any:
+    ) -> DispatchResult:
         """
         Responsible for calling `dispatch_data` and `dispatch_transform` to execute
         the service's task, and generating the dispatch's response, respectively.
@@ -222,13 +272,17 @@ class ServiceType(
 
         return f"Service{service.id}Schema"
 
-    def generate_schema(self, service: Service) -> Optional[Dict[str, Any]]:
+    def generate_schema(
+        self, service: Service, allowed_fields: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Responsible for generating the full JSON Schema response. Must be
         overridden by child classes so that the can return their service's
         schema.
 
         :param service: The service we want to generate a schema for.
+        :param allowed_fields: A list of fields that are allowed to be included in the
+            schema.
         :return: None, or a dictionary representing the schema.
         """
 
@@ -311,29 +365,6 @@ class ListServiceTypeMixin:
     """A mixin for services that return lists."""
 
     returns_list = True
-
-    def get_id_property(self, service: Service) -> str:
-        """
-        Returns the property name that contains the unique `ID` of a row for this
-        service.
-
-        :param service: the instance of the service.
-        :return: a string identifying the ID property name.
-        """
-
-        # Sane default
-        return "id"
-
-    def get_name_property(self, service: Service) -> Optional[str]:
-        """
-        We need the name of the records for some elements (like the record selector).
-        This method returns it depending on the service.
-
-        :param service: the instance of the service.
-        :return: a string identifying the name property name.
-        """
-
-        return None
 
     @abstractmethod
     def get_record_names(

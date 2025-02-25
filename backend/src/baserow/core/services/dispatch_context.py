@@ -10,6 +10,13 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 class DispatchContext(RuntimeFormulaContext, ABC):
     own_properties = []
 
+    """
+    Should return the record id requested for the given service. Used by list
+    services to select only one record. For instance by the builder current record
+    data provider to narrow down the result of a list service.
+    """
+    only_record_id = None
+
     def __init__(self):
         self.cache = {}  # can be used by data providers to save queries
         super().__init__()

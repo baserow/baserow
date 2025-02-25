@@ -275,6 +275,23 @@ class CustomFieldsInstanceMixin:
 
         return None
 
+    def get_queryset(self):
+        """
+        Returns the base queryset potentially enhanced by the `.enhance_queryset` method
+        for the model of this class. Requires the `ModelInstance` mixin.
+        """
+
+        return self.enhance_queryset(self.model_class.objects.all())
+
+    def enhance_queryset(self, queryset):
+        """
+        A hook to enhance the queryset for this type like adding `select_related`,
+        `prefetch_related` or stuff like that. Called by `.get_queryset` to generate
+        the base queryset to use for this type.
+        """
+
+        return queryset
+
 
 class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
     """
@@ -798,7 +815,7 @@ class ModelRegistryMixin(Generic[DjangoModel, InstanceSubClass]):
         if isinstance(model_instance, type):
             clazz = model_instance
         else:
-            clazz = type(model_instance)
+            clazz = model_instance.__class__
 
         return self.get_for_class(clazz)
 

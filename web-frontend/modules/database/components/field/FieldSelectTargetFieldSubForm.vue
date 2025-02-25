@@ -13,13 +13,13 @@
       :label="label"
       small-label
       required
-      :error="$v.values.target_field_id.$error"
+      :error="fieldHasErrors('target_field_id')"
     >
       <Dropdown
-        v-model="values.target_field_id"
-        :error="$v.values.target_field_id.$error"
+        v-model="v$.values.target_field_id.$model"
+        :error="fieldHasErrors('target_field_id')"
         :fixed-items="true"
-        @hide="$v.values.target_field_id.$touch()"
+        @hide="v$.values.target_field_id.$touch"
         @input="targetFieldChanged($event)"
       >
         <DropdownItem
@@ -31,13 +31,16 @@
         ></DropdownItem>
       </Dropdown>
 
-      <template #error> {{ $t('error.requiredField') }}</template>
+      <template #error>
+        {{ v$.values.target_field_id.$errors[0]?.$message }}</template
+      >
     </FormGroup>
   </div>
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import FieldService from '@baserow/modules/database/services/field'
@@ -64,6 +67,9 @@ export default {
       type: String,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -156,10 +162,17 @@ export default {
       }
     },
   },
-  validations: {
-    values: {
-      target_field_id: { required },
-    },
+  validations() {
+    return {
+      values: {
+        target_field_id: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
 }
 </script>

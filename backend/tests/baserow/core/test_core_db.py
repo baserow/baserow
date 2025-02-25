@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
-from django.db.models import CharField, Value
+from django.db.models import CharField, Prefetch, Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Concat
 from django.test.utils import override_settings
@@ -17,7 +17,12 @@ from baserow.contrib.database.fields.models import (
     TextField,
 )
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.views.models import GalleryView, GridView, View
+from baserow.contrib.database.views.models import (
+    GalleryView,
+    GridView,
+    View,
+    ViewFilter,
+)
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
     LockedAtomicTransaction,
@@ -192,8 +197,12 @@ def test_specific_iterator_with_select_related(data_fixture, django_assert_num_q
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "prefetch_related",
+    ["viewfilter_set", Prefetch("viewfilter_set", queryset=ViewFilter.objects.all())],
+)
 def test_specific_iterator_with_prefetch_related(
-    data_fixture, django_assert_num_queries
+    prefetch_related, data_fixture, django_assert_num_queries
 ):
     grid_view = data_fixture.create_grid_view()
     gallery_view = data_fixture.create_gallery_view()
@@ -209,7 +218,7 @@ def test_specific_iterator_with_prefetch_related(
             ]
         )
         .order_by("id")
-        .prefetch_related("viewfilter_set")
+        .prefetch_related(prefetch_related)
     )
 
     with django_assert_num_queries(4):

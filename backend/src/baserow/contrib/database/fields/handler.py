@@ -17,12 +17,11 @@ from typing import (
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import connection
-from django.db.models import QuerySet
+from django.db.models import Prefetch, QuerySet
 from django.db.utils import DatabaseError, DataError, ProgrammingError
 
 from loguru import logger
 from opentelemetry import trace
-from psycopg import sql
 
 from baserow.contrib.database.db.schema import (
     lenient_schema_editor,
@@ -51,9 +50,9 @@ from baserow.contrib.database.fields.operations import (
 )
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.core.db import specific_iterator
+from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
-from baserow.core.models import TrashEntry
+from baserow.core.models import TrashEntry, User
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
@@ -228,9 +227,36 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         if specific:
-            return specific_iterator(filtered_qs.select_related("content_type"))
+            return specific_iterator(
+                filtered_qs.select_related("content_type"),
+                per_content_type_queryset_hook=(
+                    lambda field, queryset: field_type_registry.get_by_model(
+                        field
+                    ).enhance_field_queryset(queryset, field)
+                ),
+            )
         else:
             return filtered_qs
+
+    def get_base_fields_queryset(self) -> QuerySet[Field]:
+        """
+        Returns a base queryset with proper select and prefetch related fields to use in
+        queries that need to fetch fields.
+
+        :return: A queryset with select and prefetch related fields set.
+        """
+
+        return Field.objects.select_related(
+            "content_type", "table__database__workspace"
+        ).prefetch_related(
+            Prefetch(
+                "table__database__workspace__users",
+                queryset=User.objects.filter(profile__to_be_deleted=False).order_by(
+                    "first_name"
+                ),
+            ),
+            "select_options",
+        )
 
     def get_fields(
         self,
@@ -460,8 +486,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                     path_to_starting_table,
                 )
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
-                field_cache, skip_search_updates
+                field_cache,
+                skip_search_updates,
+                skip_fields_type_changed=True,
+                skip_rebuild_field_dependencies=True,
             )
+
+        update_collector.apply_fields_type_changed(field_cache)
+        update_collector.apply_rebuild_field_dependencies(field_cache)
 
         return updated_fields
 
@@ -578,6 +610,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         from_model_field = from_model._meta.get_field(field.db_column)
         to_model_field = to_model._meta.get_field(field.db_column)
 
+        update_collector = FieldUpdateCollector(field.table)
+
         # If the field type or the database representation changes it could be
         # that some view dependencies like filters or sortings need to be changed.
         if (
@@ -586,7 +620,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 from_model_field, to_model_field
             )
         ):
-            ViewHandler().field_type_changed(field)
+            update_collector.add_to_fields_type_changed(field)
         SearchHandler.entire_field_values_changed_or_created(
             field.table, updated_fields=[field]
         )
@@ -690,7 +724,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
 
         field_cache.cache_model_fields(to_model)
 
-        update_collector = FieldUpdateCollector(field.table)
         for (
             dependant_field,
             dependant_field_type,
@@ -758,8 +791,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                     path_to_starting_table,
                 )
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
-                field_cache
+                field_cache,
+                skip_fields_type_changed=True,
+                skip_rebuild_field_dependencies=True,
             )
+
+        update_collector.apply_fields_type_changed(field_cache)
+        update_collector.apply_rebuild_field_dependencies(field_cache)
+
         return updated_fields
 
     def duplicate_field(
@@ -983,8 +1022,14 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 )
 
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
-                field_cache
+                field_cache,
+                skip_fields_type_changed=True,
+                skip_rebuild_field_dependencies=True,
             )
+
+        update_collector.apply_fields_type_changed(field_cache)
+        update_collector.apply_rebuild_field_dependencies(field_cache)
+
         return updated_fields
 
     def update_field_select_options(self, user, field, select_options):
@@ -1194,7 +1239,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
     def _update_dependencies_of_field_restored(
         self, field, update_collector, field_cache
     ):
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
         field_type = field_type_registry.get_by_model(field)
         field_type.field_dependency_created(field, field, update_collector, field_cache)
@@ -1229,8 +1274,13 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 )
 
             updated_fields += update_collector.apply_updates_and_get_updated_fields(
-                field_cache
+                field_cache,
+                skip_fields_type_changed=True,
+                skip_rebuild_field_dependencies=True,
             )
+
+        update_collector.apply_fields_type_changed(field_cache)
+        update_collector.apply_rebuild_field_dependencies(field_cache)
 
         return updated_fields
 

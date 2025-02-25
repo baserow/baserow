@@ -115,6 +115,14 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display multiple components to the head of the table
+   * header. This will be positioned directly next to the name of the view.
+   */
+  getAdditionalTableHeaderComponents(view, isPublic) {
+    return []
+  }
+
+  /**
    * Every registered plugin can display multiple additional context items in the
    * application context displayed by the sidebar when opening the context menu of a
    * application.

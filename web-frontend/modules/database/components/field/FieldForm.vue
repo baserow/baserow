@@ -4,48 +4,27 @@
       <FormGroup :error="fieldHasErrors('name')">
         <FormInput
           ref="name"
-          v-model="values.name"
+          v-model="v$.values.name.$model"
           :error="fieldHasErrors('name')"
           :placeholder="$t('fieldForm.name')"
-          @blur="$v.values.name.$touch()"
           @input="isPrefilledWithSuggestedFieldName = false"
           @keydown.enter="handleKeydownEnter($event)"
         ></FormInput>
         <template #error>
-          <span v-if="$v.values.name.$dirty && !$v.values.name.required">
-            {{ $t('error.requiredField') }}
-          </span>
-          <span
-            v-else-if="
-              $v.values.name.$dirty && !$v.values.name.mustHaveUniqueFieldName
-            "
-          >
-            {{ $t('fieldForm.fieldAlreadyExists') }}
-          </span>
-          <span
-            v-else-if="
-              $v.values.name.$dirty &&
-              !$v.values.name.mustNotClashWithReservedName
-            "
-          >
-            {{ $t('error.nameNotAllowed') }}
-          </span>
-          <span v-else-if="$v.values.name.$dirty && !$v.values.name.maxLength">
-            {{ $t('error.nameTooLong') }}
-          </span>
+          {{ v$.values.name.$errors[0]?.$message }}
         </template>
       </FormGroup>
 
-      <FormGroup v-if="forcedType === null" :error="$v.values.type.$error">
+      <FormGroup v-if="forcedType === null" :error="fieldHasErrors('type')">
         <Dropdown
           ref="fieldTypesDropdown"
-          v-model="values.type"
-          :error="$v.values.type.$error"
+          v-model="v$.values.type.$model"
+          :error="fieldHasErrors('type')"
           :fixed-items="true"
           :disabled="
             defaultValues.immutable_type || defaultValues.immutable_properties
           "
-          @hide="$v.values.type.$touch()"
+          @hide="v$.values.type.$touch"
         >
           <DropdownItem
             v-for="(fieldType, type) in fieldTypes"
@@ -97,11 +76,10 @@
           :name="values.name"
           :default-values="defaultValues"
           :database="database"
-          @validate="$v.$touch"
+          @validate="v$.$touch"
           @suggested-field-name="handleSuggestedFieldName($event)"
         />
       </template>
-
       <FormGroup
         v-if="showDescription"
         :error="fieldHasErrors('description')"
@@ -127,8 +105,9 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 import FormTextarea from '@baserow/modules/core/components/FormTextarea'
+import { useVuelidate } from '@vuelidate/core'
 
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 import form from '@baserow/modules/core/mixins/form'
@@ -170,6 +149,9 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -235,10 +217,22 @@ export default {
     return {
       values: {
         name: {
-          required,
-          maxLength: maxLength(MAX_FIELD_NAME_LENGTH),
-          mustHaveUniqueFieldName: this.mustHaveUniqueFieldName,
-          mustNotClashWithReservedName: this.mustNotClashWithReservedName,
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.nameTooLong'),
+            maxLength(MAX_FIELD_NAME_LENGTH)
+          ),
+          mustHaveUniqueFieldName: helpers.withMessage(
+            this.$t('fieldForm.fieldAlreadyExists'),
+            this.mustHaveUniqueFieldName
+          ),
+          mustNotClashWithReservedName: helpers.withMessage(
+            this.$t('error.nameNotAllowed'),
+            this.mustNotClashWithReservedName
+          ),
         },
         type: { required },
       },

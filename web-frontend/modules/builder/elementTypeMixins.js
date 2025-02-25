@@ -13,7 +13,7 @@ export const ContainerElementTypeMixin = (Base) =>
      * @returns {Array}
      */
     get childStylesForbidden() {
-      return []
+      return ['style_width']
     }
 
     get defaultPlaceInContainer() {
@@ -257,6 +257,7 @@ export const CollectionElementTypeMixin = (Base) =>
         if (element.data_source_id === dataSourceId) {
           // Remove the data_source_id
           await this.app.store.dispatch('element/forceUpdate', {
+            builder,
             page,
             element,
             values: { data_source_id: null },
@@ -361,9 +362,5 @@ export const MultiPageElementTypeMixin = (Base) =>
         default:
           return false
       }
-    }
-
-    get childStylesForbidden() {
-      return ['style_width']
     }
   }

@@ -648,3 +648,44 @@ def test_row_comment_notification_type_can_be_rendered_as_email(
         )
         == "Test comment"
     )
+
+
+@override_settings(DEBUG=True)
+@pytest.mark.django_db
+def test_can_get_row_comment_notification_mode_from_row_metadata(
+    api_client, premium_data_fixture
+):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    row = table.get_model().objects.create()
+
+    def get_row_from_api_with_metadata():
+        return api_client.get(
+            reverse(
+                "api:database:rows:item",
+                kwargs={"table_id": table.id, "row_id": row.id},
+            )
+            + "?include=metadata",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    response = get_row_from_api_with_metadata()
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["metadata"] == {}
+
+    response = api_client.put(
+        reverse(
+            "api:premium:row_comments:notification_mode",
+            kwargs={"row_id": row.id, "table_id": table.id},
+        ),
+        {"mode": "all"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    response = get_row_from_api_with_metadata()
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["metadata"]["row_comments_notification_mode"] == "all"

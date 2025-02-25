@@ -7,9 +7,6 @@ import pytest
 from baserow.contrib.builder.handler import CACHE_KEY_PREFIX, BuilderHandler
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.user_sources.user_source_user import UserSourceUser
-from tests.baserow.contrib.builder.api.user_sources.helpers import (
-    create_user_table_and_role,
-)
 
 User = get_user_model()
 
@@ -44,43 +41,27 @@ def test_get_builder_select_related_theme_config(
 
 
 @pytest.mark.parametrize(
-    "is_anonymous,is_editor_user,user_role,expected_cache_key",
+    "is_anonymous,user_role,expected_cache_key",
     [
         (
             True,
-            False,
             "",
             f"{CACHE_KEY_PREFIX}_100",
         ),
         (
             True,
-            False,
             "foo_role",
             f"{CACHE_KEY_PREFIX}_100",
         ),
         (
-            False,
             False,
             "foo_role",
             f"{CACHE_KEY_PREFIX}_100_foo_role",
         ),
-        (
-            False,
-            False,
-            "bar_role",
-            f"{CACHE_KEY_PREFIX}_100_bar_role",
-        ),
-        # Test the "editor" role
-        (
-            False,
-            True,
-            "",
-            None,
-        ),
     ],
 )
 def test_get_builder_used_properties_cache_key_returned_expected_cache_key(
-    is_anonymous, is_editor_user, user_role, expected_cache_key
+    is_anonymous, user_role, expected_cache_key
 ):
     """
     Test the BuilderHandler::get_builder_used_properties_cache_key() method.
@@ -88,13 +69,9 @@ def test_get_builder_used_properties_cache_key_returned_expected_cache_key(
     Ensure the expected cache key is returned.
     """
 
-    mock_request = MagicMock()
-
-    if is_editor_user:
-        mock_request.user = MagicMock(spec=User)
-
-    mock_request.user.is_anonymous = is_anonymous
-    mock_request.user.role = user_role
+    user_source_user = MagicMock()
+    user_source_user.is_anonymous = is_anonymous
+    user_source_user.role = user_role
 
     mock_builder = MagicMock()
     mock_builder.id = 100
@@ -102,33 +79,10 @@ def test_get_builder_used_properties_cache_key_returned_expected_cache_key(
     handler = BuilderHandler()
 
     cache_key = handler.get_builder_used_properties_cache_key(
-        mock_request.user, mock_builder
+        user_source_user, mock_builder
     )
 
     assert cache_key == expected_cache_key
-
-
-def test_get_builder_used_properties_cache_key_returns_none():
-    """
-    Test the BuilderHandler::get_builder_used_properties_cache_key() method.
-
-    Ensure that None is returned when request or builder are not available,
-    or if the user is a builder user.
-    """
-
-    mock_request = MagicMock()
-    mock_request.user = MagicMock(spec=User)
-
-    mock_builder = MagicMock()
-    mock_builder.id = 100
-
-    handler = BuilderHandler()
-
-    cache_key = handler.get_builder_used_properties_cache_key(
-        mock_request.user, mock_builder
-    )
-
-    assert cache_key is None
 
 
 @pytest.mark.django_db
@@ -154,8 +108,7 @@ def test_public_allowed_properties_is_cached(data_fixture, django_assert_num_que
     )
     builder = data_fixture.create_builder_application(user=user)
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         user,
         builder,
         "foo_user_role",
@@ -189,7 +142,7 @@ def test_public_allowed_properties_is_cached(data_fixture, django_assert_num_que
     }
 
     # Initially calling the property should cause a bunch of DB queries.
-    with django_assert_num_queries(12):
+    with django_assert_num_queries(9):
         result = handler.get_builder_public_properties(user_source_user, builder)
         assert result == expected_results
 

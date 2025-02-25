@@ -89,13 +89,15 @@ class DataSourceService:
         return self.handler.get_data_sources(page, base_queryset=user_data_sources)
 
     def get_builder_data_sources(
-        self, user: AbstractUser, builder: "Builder"
+        self, user: AbstractUser, builder: "Builder", with_cache=False
     ) -> List[DataSource]:
         """
         Gets all the data_sources of a given builder visible to the given user.
 
         :param user: The user trying to get the data_sources.
         :param page: The builder that holds the data_sources.
+        :param with_cache: Whether this method should populate the short
+          cache for data_sources.
         :return: The data_sources of that builder.
         """
 
@@ -107,7 +109,9 @@ class DataSourceService:
         )
 
         return self.handler.get_builder_data_sources(
-            builder, base_queryset=user_data_sources
+            builder,
+            base_queryset=user_data_sources,
+            with_cache=with_cache,
         )
 
     def create_data_source(
@@ -384,7 +388,7 @@ class DataSourceService:
         Dispatch the service related to the data_source if the user has the permission.
 
         :param user: The current user.
-        :param data_sources: The data source to be dispatched.
+        :param data_source: The data source to be dispatched.
         :param dispatch_context: The context used for the dispatch.
         :return: return the dispatch result.
         """

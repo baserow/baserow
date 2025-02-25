@@ -478,6 +478,9 @@
     "addCondition": "Add condition",
     "addConditionGroup": "Add condition group"
   },
+  "viewFieldConditionItem": {
+    "filterMisconfigured": "The field this filter is associated with has been trashed."
+  },
   "viewFilterContext": {
     "addFilter": "Add filter",
     "addFilterGroup": "Add filter group",
@@ -725,6 +728,7 @@
     "back": "Back to dashboard"
   },
   "viewAggregationType": {
+    "count": "Count",
     "emptyCount": "Empty",
     "notEmptyCount": "Filled",
     "emptyPercentage": "Percent empty",
@@ -745,7 +749,10 @@
     "median": "Median",
     "stdDev": "Standard deviation",
     "stdDevShort": "Std dev",
-    "variance": "Variance"
+    "variance": "Variance",
+    "distribution": "Distribution",
+    "othersCount": "Others",
+    "emptyCount": "(Empty)"
   },
   "databaseForm": {
     "importLabel": "Would you like to import existing data?",
@@ -770,7 +777,9 @@
     "stateImportingTable": "Importing table {table}",
     "errorJobAlreadyRunningTitle": "Already running",
     "errorJobAlreadyRunningDescription": "Another import job is already running. You need to wait for that one to finish before starting another.",
-    "linkError": "The link should look like: https://airtable.com/shrxxxxxxxxxxxxxx"
+    "linkError": "The link should look like: https://airtable.com/shrxxxxxxxxxxxxxx",
+    "skipFiles": "Skip importing files",
+    "skipFilesHelper": "An Airtable base with many files can slow down the import. Enabling this skips the import of the files."
   },
   "chooseSingleSelectField": {
     "addSelectField": "Add single select field",
@@ -792,7 +801,8 @@
     "addCondition": "Add condition",
     "addConditionGroup": "Add condition group",
     "showFieldAs": "Show field as",
-    "noSelectOptions": "There are no select options available."
+    "noSelectOptions": "There are no select options available.",
+    "noCollaboratorsAvailable": "There are no collaborators available."
   },
   "duplicateFieldContext": {
     "duplicate": "Duplicate field",

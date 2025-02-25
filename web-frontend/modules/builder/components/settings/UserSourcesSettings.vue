@@ -49,7 +49,6 @@
       style="flex: 1; margin-bottom: 18px"
       icon-size="medium"
     />
-
     <UpdateUserSourceForm
       ref="userSourceForm"
       :builder="builder"
@@ -58,6 +57,7 @@
       @submitted="updateUserSource"
       @values-changed="onValueChange"
     />
+
     <div class="actions">
       <ButtonText
         type="secondary"
@@ -96,6 +96,7 @@
       >
         {{ $t('action.back') }}
       </ButtonText>
+
       <Button
         :disabled="actionInProgress || invalidForm"
         :loading="actionInProgress"
@@ -134,7 +135,7 @@ export default {
       showCreateForm: false,
       editedUserSource: null,
       actionInProgress: false,
-      invalidForm: false,
+      invalidForm: true,
     }
   },
   computed: {
@@ -150,11 +151,11 @@ export default {
   },
   async mounted() {
     try {
-      await Promise.all([
-        this.actionFetchIntegrations({
-          application: this.builder,
-        }),
-      ])
+      await this.actionFetchIntegrations({
+        application: this.builder,
+      })
+      // We load the domains here because some providers might use them
+      await this.actionFetchDomains({ builderId: this.builder.id })
     } catch (error) {
       notifyIf(error)
     }
@@ -165,12 +166,13 @@ export default {
       actionCreateUserSource: 'userSource/create',
       actionUpdateUserSource: 'userSource/update',
       actionDeleteUserSource: 'userSource/delete',
+      actionFetchDomains: 'domain/fetch',
     }),
     getUserSourceType(userSource) {
       return this.$registry.get('userSource', userSource.type)
     },
     onValueChange() {
-      this.invalidForm = !this.$refs.userSourceForm.isFormValid(true)
+      this.invalidForm = !this.$refs.userSourceForm.isFormValid()
     },
     async showForm(userSourceToEdit) {
       if (userSourceToEdit) {
@@ -185,7 +187,7 @@ export default {
       this.showCreateForm = false
       this.editedUserSource = null
       this.hideError()
-      this.invalidForm = false
+      this.invalidForm = true
     },
     async createUserSource(values) {
       this.actionInProgress = true

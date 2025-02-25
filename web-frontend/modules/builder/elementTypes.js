@@ -103,11 +103,14 @@ export class ElementType extends Registerable {
       'style_border_bottom',
       'style_border_left',
       'style_border_right',
+      'style_border_radius',
+      'style_background_radius',
       'style_background',
       'style_background_color',
       'style_background_file',
       'style_background_mode',
       'style_width',
+      'style_width_child',
     ]
   }
 
@@ -748,10 +751,6 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     })
   }
 
-  get childStylesForbidden() {
-    return ['style_width']
-  }
-
   getEvents(element) {
     return [new SubmitEvent({ ...this.app })]
   }
@@ -835,7 +834,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
   }
 
   get childStylesForbidden() {
-    return ['style_width']
+    return ['style_width', 'style_width_child']
   }
 
   get defaultPlaceInContainer() {

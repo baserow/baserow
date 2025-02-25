@@ -14,8 +14,8 @@ from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.contrib.integrations.local_baserow.api.serializers import (
-    LocalBaserowTableServiceFilterSerializer,
-    LocalBaserowTableServiceSortSerializer,
+    LocalBaserowTableServiceFilterSerializerMixin,
+    LocalBaserowTableServiceSortSerializerMixin,
 )
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowViewService
 from baserow.core.formula import BaserowFormula, resolve_formula
@@ -24,7 +24,11 @@ from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_integer, ensure_string
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceFilterPropertyDoesNotExist,
+    ServiceImproperlyConfigured,
+    ServiceSortPropertyDoesNotExist,
+)
 from baserow.core.services.types import ServiceDict, ServiceSubClass
 from baserow.core.services.utils import ServiceAdhocRefinements
 
@@ -43,12 +47,9 @@ class LocalBaserowTableServiceFilterableMixin:
     """
 
     mixin_allowed_fields = ["filter_type"]
-    mixin_serializer_field_names = ["filters", "filter_type"]
-    mixin_serializer_field_overrides = {
-        "filters": LocalBaserowTableServiceFilterSerializer(
-            many=True, source="service_filters", required=False
-        ),
-    }
+    mixin_serializer_field_names = ["filter_type"]
+    mixin_serializer_field_overrides = {}
+    mixin_serializer_mixins = [LocalBaserowTableServiceFilterSerializerMixin]
 
     class SerializedDict(ServiceDict):
         filter_type: str
@@ -151,6 +152,17 @@ class LocalBaserowTableServiceFilterableMixin:
             view_filter_builder = ViewHandler().get_filter_builder(service.view, model)
             queryset = view_filter_builder.apply_to_queryset(queryset)
 
+        # If there are filters pointing to trashed fields, throw an exception.
+        # We won't allow the service to be dispatched as it could leak data.
+        if (
+            service.service_filters(manager="objects_and_trash")
+            .filter(field__trashed=True)
+            .exists()
+        ):
+            raise ServiceFilterPropertyDoesNotExist(
+                f"One or more filtered properties no longer exist.",
+            )
+
         service_filter_builder = FilterBuilder(filter_type=service.filter_type)
         for service_filter in service.service_filters.all():
             field_object = model._field_objects[service_filter.field_id]
@@ -202,7 +214,7 @@ class LocalBaserowTableServiceFilterableMixin:
                     service_filter.value = new_formula
                     yield service_filter
 
-    def get_queryset(
+    def get_table_queryset(
         self,
         service: ServiceSubClass,
         table: "Table",
@@ -221,7 +233,7 @@ class LocalBaserowTableServiceFilterableMixin:
         :return: the queryset with filters applied.
         """
 
-        queryset = super().get_queryset(service, table, dispatch_context, model)
+        queryset = super().get_table_queryset(service, table, dispatch_context, model)
         queryset = self.get_dispatch_filters(service, queryset, model, dispatch_context)
         dispatch_filters = dispatch_context.filters()
         if dispatch_filters is not None and dispatch_context.is_publicly_filterable:
@@ -242,15 +254,6 @@ class LocalBaserowTableServiceFilterableMixin:
             queryset = adhoc_filters.apply_to_queryset(model, queryset)
         return queryset
 
-    def enhance_queryset(self, queryset):
-        return (
-            super()
-            .enhance_queryset(queryset)
-            .prefetch_related(
-                "service_filters",
-            )
-        )
-
 
 class LocalBaserowTableServiceSortableMixin:
     """
@@ -258,12 +261,9 @@ class LocalBaserowTableServiceSortableMixin:
     applied to their service's table or view are applied to the queryset.
     """
 
-    mixin_serializer_field_names = ["sortings"]
-    mixin_serializer_field_overrides = {
-        "sortings": LocalBaserowTableServiceSortSerializer(
-            many=True, source="service_sorts", required=False
-        ),
-    }
+    mixin_serializer_field_names = []
+    mixin_serializer_field_overrides = {}
+    mixin_serializer_mixins = [LocalBaserowTableServiceSortSerializerMixin]
 
     class SerializedDict(ServiceDict):
         sortings: List[Dict]
@@ -327,6 +327,16 @@ class LocalBaserowTableServiceSortableMixin:
         :return: A list of `OrderBy` expressions.
         """
 
+        # If there are sorts pointing to trashed fields, throw an exception.
+        if (
+            service.service_sorts(manager="objects_and_trash")
+            .filter(field__trashed=True)
+            .exists()
+        ):
+            raise ServiceSortPropertyDoesNotExist(
+                f"One or more sorted properties no longer exist.",
+            )
+
         service_sorts = service.service_sorts.all()
         sort_ordering = [service_sort.get_order_by() for service_sort in service_sorts]
 
@@ -337,7 +347,7 @@ class LocalBaserowTableServiceSortableMixin:
 
         return sort_ordering, queryset
 
-    def get_queryset(
+    def get_table_queryset(
         self,
         service: ServiceSubClass,
         table: "Table",
@@ -356,7 +366,7 @@ class LocalBaserowTableServiceSortableMixin:
         :return: the queryset with sortings applied.
         """
 
-        queryset = super().get_queryset(service, table, dispatch_context, model)
+        queryset = super().get_table_queryset(service, table, dispatch_context, model)
 
         adhoc_sort = dispatch_context.sortings()
         if adhoc_sort and dispatch_context.is_publicly_sortable:
@@ -407,7 +417,7 @@ class LocalBaserowTableServiceSearchableMixin:
         )
 
         if isinstance(used_fields_from_parent, list) and service.search_query:
-            fields = [fo["field"] for fo in self.get_table_field_objects(service)]
+            fields = [fo["field"] for fo in self.get_table_field_objects(service) or []]
             return used_fields_from_parent + [
                 f.tsv_db_column if SearchHandler.full_text_enabled() else f.db_column
                 for f in fields
@@ -440,7 +450,7 @@ class LocalBaserowTableServiceSearchableMixin:
                 f"The `search_query` formula can't be resolved: {exc}"
             ) from exc
 
-    def get_queryset(
+    def get_table_queryset(
         self,
         service: ServiceSubClass,
         table: "Table",
@@ -459,7 +469,7 @@ class LocalBaserowTableServiceSearchableMixin:
         :return: the queryset with the search query applied.
         """
 
-        queryset = super().get_queryset(service, table, dispatch_context, model)
+        queryset = super().get_table_queryset(service, table, dispatch_context, model)
         search_mode = SearchHandler.get_default_search_mode_for_table(table)
         service_search_query = self.get_dispatch_search(service, dispatch_context)
         if service_search_query:

@@ -12,25 +12,12 @@
             ref="name"
             v-model="values.name"
             :error="fieldHasErrors('name')"
-            @blur="$v.values.name.$touch()"
+            @blur="v$.values.name.$touch()"
           >
           </FormInput>
 
           <template #error>
-            <span
-              v-if="fieldHasErrors('name') && !$v.values.name.required"
-              class="error"
-            >
-              {{ $t('error.requiredField') }}
-            </span>
-            <span v-if="$v.values.name.$dirty && hasMinMaxError" class="error">
-              {{
-                $t('error.minMaxLength', {
-                  max: $v.values.name.$params.maxLength.max,
-                  min: $v.values.name.$params.minLength.min,
-                })
-              }}
-            </span>
+            {{ v$.values.name.$errors[0]?.$message }}
           </template>
         </FormGroup>
       </div>
@@ -45,7 +32,7 @@
           </template>
 
           <Dropdown
-            v-model="values.default_role"
+            v-model="v$.values.default_role.$model"
             :show-search="false"
             :fixed-items="true"
           >
@@ -140,7 +127,8 @@
 </template>
 
 <script>
-import { required, maxLength, minLength } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, maxLength, minLength, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
@@ -167,6 +155,9 @@ export default {
       default: false,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {
@@ -186,9 +177,6 @@ export default {
     defaultRole() {
       return this.roles.length > 0 ? this.roles[this.roles.length - 1] : null
     },
-    hasMinMaxError() {
-      return !this.$v.values.name.maxLength || !this.$v.values.name.minLength
-    },
     atLeastOneBillableRole() {
       return this.roles.some((role) => role.isBillable)
     },
@@ -204,14 +192,33 @@ export default {
       }
     },
   },
-  validations: {
-    values: {
-      name: {
-        required,
-        minLength: minLength(2),
-        maxLength: maxLength(160),
+
+  validations() {
+    return {
+      values: {
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          minLength: helpers.withMessage(
+            this.$t('error.minMaxLength', {
+              max: 160,
+              min: 2,
+            }),
+            minLength(2)
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.minMaxLength', {
+              max: 160,
+              min: 2,
+            }),
+            maxLength(160)
+          ),
+        },
+        default_role: {},
       },
-    },
+    }
   },
   mounted() {
     this.$refs.name.focus()

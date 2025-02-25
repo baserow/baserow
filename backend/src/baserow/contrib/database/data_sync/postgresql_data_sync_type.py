@@ -4,9 +4,6 @@ from typing import Any, Dict, List, Optional
 from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
 
-import psycopg
-from psycopg import sql
-
 from baserow.contrib.database.fields.models import (
     NUMBER_MAX_DECIMAL_PLACES,
     BooleanField,
@@ -15,6 +12,7 @@ from baserow.contrib.database.fields.models import (
     NumberField,
     TextField,
 )
+from baserow.core.psycopg import psycopg, sql
 from baserow.core.utils import ChildProgressBuilder, are_hostnames_same
 
 from .exceptions import SyncError

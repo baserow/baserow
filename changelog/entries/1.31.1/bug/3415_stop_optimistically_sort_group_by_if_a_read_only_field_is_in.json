@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Disable optimistic updates for rows with filters, sorts, or group by on backend-calculated read-only fields.",
+    "issue_number": 3415,
+    "bullet_points": [],
+    "created_at": "2025-02-04"
+}

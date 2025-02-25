@@ -54,6 +54,7 @@ class Page(
     name = models.CharField(max_length=255)
     path = models.CharField(max_length=255, validators=[path_validation])
     path_params = models.JSONField(default=dict)
+    query_params = models.JSONField(default=list, blank=True, db_default=[])
 
     # Shared page is invisible to the user but contains all shared data like
     # shared data sources or shared elements. That way we keep everything working as

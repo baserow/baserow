@@ -273,7 +273,19 @@
         "hasEmptyValue": "heeft lege waarde",
         "hasValueLengthIsLowerThan": "heeft waarde lengte is lager dan",
         "hasAnySelectOptionEqual": "heeft elke select-optie gelijk",
-        "hasNoneSelectOptionEqual": "heeft geen select-optie gelijk"
+        "hasNoneSelectOptionEqual": "heeft geen select-optie gelijk",
+        "hasDateEqual": "heeft datum gelijk",
+        "hasNotDateEqual": "heeft geen gelijke datum",
+        "hasDateBefore": "heeft datum voor",
+        "hasNotDateBefore": "heeft geen datum voor",
+        "hasDateOnOrBefore": "heeft datum op of voor",
+        "hasNotDateOnOrBefore": "heeft geen datum op of voor",
+        "hasDateAfter": "heeft datum na",
+        "hasNotDateAfter": "heeft geen datum na",
+        "hasDateOnOrAfter": "heeft datum op of na",
+        "hasNotDateOnOrAfter": "heeft geen datum op of na",
+        "hasDateWithin": "heeft datum binnen",
+        "hasNotDateWithin": "heeft geen datum binnen"
     },
     "viewType": {
         "grid": "Raster",

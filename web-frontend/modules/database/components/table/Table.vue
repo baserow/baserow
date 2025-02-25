@@ -33,7 +33,10 @@
               <span class="header__filter-name header__filter-name--forced">
                 <EditableViewName ref="rename" :view="view"></EditableViewName>
               </span>
-              <i class="header__sub-icon iconoir-nav-arrow-down"></i>
+              <i
+                v-if="views !== null"
+                class="header__sub-icon iconoir-nav-arrow-down"
+              ></i>
             </template>
             <template v-else-if="view !== null">
               {{ $t('table.chooseView') }}
@@ -77,6 +80,21 @@
           >
           </ViewContext>
         </li>
+        <component
+          :is="component"
+          v-for="(component, index) in getAdditionalTableHeaderComponents(
+            view,
+            isPublic
+          )"
+          :key="index"
+          :database="database"
+          :table="table"
+          :view="view"
+          :fields="fields"
+          :is-public-view="isPublic"
+          :store-prefix="storePrefix"
+        >
+        </component>
         <li
           v-if="
             hasSelectedView &&
@@ -445,6 +463,17 @@ export default {
     getViewHeaderComponent(view) {
       const type = this.$registry.get('view', view.type)
       return type.getHeaderComponent()
+    },
+    getAdditionalTableHeaderComponents(view, isPublic) {
+      const opts = Object.values(this.$registry.getAll('plugin'))
+        .reduce((components, plugin) => {
+          components = components.concat(
+            plugin.getAdditionalTableHeaderComponents(view, isPublic)
+          )
+          return components
+        }, [])
+        .filter((component) => component !== null)
+      return opts
     },
     /**
      * When the window resizes, we want to check if the content of the header is

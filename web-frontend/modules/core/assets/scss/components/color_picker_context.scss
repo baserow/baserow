@@ -40,13 +40,15 @@
 
 .color-picker-context__variables {
   margin-top: 12px;
+  max-width: 310px;
 }
 
 .color-picker-context__variable-color {
-  width: 40px;
+  width: 20px;
   height: 20px;
   border-radius: 3px;
   margin-right: 6px;
+  flex: 20px 0 0;
 
   @include elevation($elevation-low);
 }

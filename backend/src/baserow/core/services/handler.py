@@ -18,12 +18,12 @@ from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
 
 from .dispatch_context import DispatchContext
-from .types import ServiceForUpdate
+from .types import DispatchResult, ServiceForUpdate, UpdatedService
 
 
 class ServiceHandler:
     def get_service(
-        self, service_id: int, base_queryset: QuerySet[Service] = None
+        self, service_id: int, base_queryset: QuerySet[Service] = None, specific=True
     ) -> Service:
         """
         Returns an service instance from the database.
@@ -37,15 +37,23 @@ class ServiceHandler:
         queryset = base_queryset if base_queryset is not None else Service.objects.all()
 
         try:
-            service = (
-                queryset.select_related(
-                    "integration",
-                    "integration__application",
+            if specific:
+                service = queryset.get(id=service_id).specific
+                # We use the enhanced version of the queryset to get the related
+                # fields.
+                service = service.get_type().get_queryset().get(id=service_id)
+
+                if service.integration_id:
+                    specific_integration = IntegrationHandler().get_integration(
+                        service.integration_id, specific=True
+                    )
+                    service.__class__.integration.field.set_cached_value(
+                        service, specific_integration
+                    )
+            else:
+                service = queryset.select_related(
                     "integration__application__workspace",
-                )
-                .get(id=service_id)
-                .specific
-            )
+                ).get(id=service_id)
         except Service.DoesNotExist:
             raise ServiceDoesNotExist()
 
@@ -94,8 +102,6 @@ class ServiceHandler:
             queryset = queryset.filter(integration=integration)
 
         if specific:
-            queryset = queryset.select_related("content_type")
-
             # Apply the type specific queryset enhancement for performance.
             def per_content_type_queryset_hook(model, queryset):
                 service_type = service_type_registry.get_by_model(model)
@@ -125,8 +131,8 @@ class ServiceHandler:
                     ]
 
             return specific_services
-
         else:
+            queryset = queryset.select_related("integration__application")
             return queryset
 
     def create_service(self, service_type: ServiceType, **kwargs) -> Service:
@@ -154,7 +160,7 @@ class ServiceHandler:
 
     def update_service(
         self, service_type: ServiceType, service: ServiceForUpdate, **kwargs
-    ) -> Service:
+    ) -> UpdatedService:
         """
         Updates and service with values. Will also check if the values are allowed
         to be set on the service first.
@@ -168,6 +174,7 @@ class ServiceHandler:
         allowed_updates = extract_allowed(
             kwargs, shared_allowed_fields + service_type.allowed_fields
         )
+        original_service_values = service_type.export_prepared_values(service)
 
         # Responsible for tracking the fields which changed in this update.
         # This will be passed to `service_type.after_update` so that granular
@@ -181,10 +188,10 @@ class ServiceHandler:
             setattr(service, key, new_value)
 
         service.save()
-
         service_type.after_update(service, kwargs, service_changes)
+        new_service_values = service_type.export_prepared_values(service)
 
-        return service
+        return UpdatedService(service, original_service_values, new_service_values)
 
     def delete_service(self, service_type: ServiceType, service: Service):
         """
@@ -201,7 +208,7 @@ class ServiceHandler:
         self,
         service: Service,
         dispatch_context: DispatchContext,
-    ) -> Any:
+    ) -> DispatchResult:
         """
         Dispatch the given service.
 

@@ -1,5 +1,6 @@
+import csv
 from datetime import datetime, timedelta, timezone
-from io import BytesIO
+from io import BytesIO, StringIO
 from typing import List
 from unittest.mock import MagicMock, patch
 
@@ -38,6 +39,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.exceptions import ViewNotInTable
 from baserow.contrib.database.views.models import GridView, GridViewFieldOptions
+from baserow.core.exceptions import PermissionDenied
 from baserow.test_utils.helpers import setup_interesting_test_table
 
 
@@ -180,6 +182,65 @@ def test_exporting_table_ignores_view_filters_sorts_hides(
 
 @pytest.mark.django_db
 @patch("baserow.core.storage.get_default_storage")
+def test_exporting_public_view_without_user_fails_if_not_publicly_shared_and_allowed(
+    get_storage_mock, data_fixture
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    table = data_fixture.create_database_table()
+    text_field = data_fixture.create_text_field(table=table, name="text_field", order=1)
+    grid_view = data_fixture.create_grid_view(
+        table=table, public=False, allow_public_export=False
+    )
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "hello",
+        },
+    )
+
+    with pytest.raises(PermissionDenied):
+        run_export_job_with_mock_storage(table, grid_view, storage_mock, None)
+
+    grid_view.public = True
+    grid_view.allow_public_export = False
+    grid_view.save()
+
+    with pytest.raises(PermissionDenied):
+        run_export_job_with_mock_storage(table, grid_view, storage_mock, None)
+
+    grid_view.public = False
+    grid_view.allow_public_export = True
+    grid_view.save()
+
+    with pytest.raises(PermissionDenied):
+        run_export_job_with_mock_storage(table, grid_view, storage_mock, None)
+
+
+@pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_exporting_public_view_without_user(get_storage_mock, data_fixture):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    table = data_fixture.create_database_table()
+    text_field = data_fixture.create_text_field(table=table, name="text_field", order=1)
+    grid_view = data_fixture.create_grid_view(
+        table=table, public=True, allow_public_export=True
+    )
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "hello",
+        },
+    )
+    _, contents = run_export_job_with_mock_storage(table, grid_view, storage_mock, None)
+    bom = "\ufeff"
+    expected = bom + "id,text_field\r\n" "1,hello\r\n"
+    assert contents == expected
+
+
+@pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
 def test_columns_are_exported_by_order_then_field_id(get_storage_mock, data_fixture):
     storage_mock = MagicMock()
     get_storage_mock.return_value = storage_mock
@@ -233,44 +294,135 @@ def test_can_export_every_interesting_different_field_to_csv(
         data_fixture, storage_mock, {"exporter_type": "csv"}
     )
     # noinspection HttpUrlsUsage
-    expected = (
-        "\ufeffid,text,long_text,url,email,negative_int,positive_int,"
-        "negative_decimal,positive_decimal,rating,boolean,datetime_us,date_us,"
-        "datetime_eu,date_eu,datetime_eu_tzone_visible,datetime_eu_tzone_hidden,"
-        "last_modified_datetime_us,last_modified_date_us,last_modified_datetime_eu,"
-        "last_modified_date_eu,last_modified_datetime_eu_tzone,created_on_datetime_us,"
-        "created_on_date_us,created_on_datetime_eu,created_on_date_eu,created_on_datetime_eu_tzone,"
-        "last_modified_by,created_by,duration_hm,duration_hms,duration_hms_s,duration_hms_ss,"
-        "duration_hms_sss,duration_dh,duration_dhm,duration_dhms,"
-        "link_row,self_link_row,link_row_without_related,decimal_link_row,"
-        "file_link_row,file,single_select,multiple_select,multiple_collaborators,"
-        "phone_number,formula_text,formula_int,formula_bool,formula_decimal,formula_dateinterval,"
-        "formula_date,formula_singleselect,formula_email,formula_link_with_label,"
-        "formula_link_url_only,formula_multipleselect,count,rollup,duration_rollup_sum,"
-        "duration_rollup_avg,lookup,uuid,autonumber,password,ai,ai_choice\r\n"
-        "1,,,,,,,,,0,False,,,,,,,01/02/2021 12:00,01/02/2021,02/01/2021 12:00,02/01/2021,"
-        "02/01/2021 13:00,01/02/2021 12:00,01/02/2021,02/01/2021 12:00,02/01/2021,02/01/2021 13:00,"
-        "user@example.com,user@example.com,,,,,,,,,,,,,,,,,,,test FORMULA,1,True,33.3333333333,"
-        "1d 0:00,2020-01-01,,,label (https://google.com),https://google.com,,0,0.000,"
-        "0:00,0:00,,00000000-0000-4000-8000-000000000001,1,,,\r\n"
-        "2,text,long_text,https://www.google.com,test@example.com,-1,1,-1.2,1.2,3,True,"
-        "02/01/2020 01:23,02/01/2020,01/02/2020 01:23,01/02/2020,01/02/2020 02:23,"
-        "01/02/2020 02:23,01/02/2021 12:00,01/02/2021,02/01/2021 12:00,02/01/2021,"
-        "02/01/2021 13:00,01/02/2021 12:00,01/02/2021,02/01/2021 12:00,02/01/2021,"
-        "02/01/2021 13:00,user@example.com,user@example.com,"
-        "1:01,1:01:06,1:01:06.6,1:01:06.66,1:01:06.666,1d 1h,1d 1:01,1d 1:01:06,"
-        '"linked_row_1,linked_row_2,",unnamed row 1,'
-        '"linked_row_1,linked_row_2","1.234,-123.456,unnamed row 3",'
-        '"name.txt (http://localhost:8000/media/user_files/test_hash.txt),unnamed row 2",'
-        '"a.txt (http://localhost:8000/media/user_files/hashed_name.txt),'
-        'b.txt (http://localhost:8000/media/user_files/other_name.txt)",A,"D,C,E",'
-        '"user2@example.com,user3@example.com",\'+4412345678,test FORMULA,1,True,33.3333333333,'
-        "1d 0:00,2020-01-01,A,test@example.com,label (https://google.com),https://google.com,"
-        '"C,D,E",3,-122.222,0:04,0:02,"linked_row_1,linked_row_2,",'
-        "00000000-0000-4000-8000-000000000002,2,True,I'm an AI.,Object\r\n"
-    )
+    fields = {
+        "id": ["1", "2"],
+        "text": ["", "text"],
+        "long_text": ["", "long_text"],
+        "url": ["", "https://www.google.com"],
+        "email": ["", "test@example.com"],
+        "negative_int": ["", "-1"],
+        "positive_int": ["", "1"],
+        "negative_decimal": ["", "-1.2"],
+        "positive_decimal": ["", "1.2"],
+        "rating": ["0", "3"],
+        "boolean": ["False", "True"],
+        "datetime_us": ["", "02/01/2020 01:23"],
+        "date_us": ["", "02/01/2020"],
+        "datetime_eu": ["", "01/02/2020 01:23"],
+        "date_eu": ["", "01/02/2020"],
+        "datetime_eu_tzone_visible": ["", "01/02/2020 02:23"],
+        "datetime_eu_tzone_hidden": ["", "01/02/2020 02:23"],
+        "last_modified_datetime_us": ["01/02/2021 12:00", "01/02/2021 12:00"],
+        "last_modified_date_us": ["01/02/2021", "01/02/2021"],
+        "last_modified_datetime_eu": ["02/01/2021 12:00", "02/01/2021 12:00"],
+        "last_modified_date_eu": ["02/01/2021", "02/01/2021"],
+        "last_modified_datetime_eu_tzone": ["02/01/2021 13:00", "02/01/2021 13:00"],
+        "created_on_datetime_us": ["01/02/2021 12:00", "01/02/2021 12:00"],
+        "created_on_date_us": ["01/02/2021", "01/02/2021"],
+        "created_on_datetime_eu": ["02/01/2021 12:00", "02/01/2021 12:00"],
+        "created_on_date_eu": ["02/01/2021", "02/01/2021"],
+        "created_on_datetime_eu_tzone": ["02/01/2021 13:00", "02/01/2021 13:00"],
+        "last_modified_by": ["user@example.com", "user@example.com"],
+        "created_by": ["user@example.com", "user@example.com"],
+        "duration_hm": ["", "1:01"],
+        "duration_hms": ["", "1:01:06"],
+        "duration_hms_s": ["", "1:01:06.6"],
+        "duration_hms_ss": ["", "1:01:06.66"],
+        "duration_hms_sss": ["", "1:01:06.666"],
+        "duration_dh": ["", "1d 1h"],
+        "duration_dhm": ["", "1d 1:01"],
+        "duration_dhms": ["", "1d 1:01:06"],
+        "link_row": ["", '"linked_row_1,linked_row_2,"'],
+        "self_link_row": ["", "unnamed row 1"],
+        "link_row_without_related": ["", '"linked_row_1,linked_row_2"'],
+        "decimal_link_row": ["", '"1.234,-123.456,unnamed row 3"'],
+        "file_link_row": [
+            "",
+            '"name.txt (http://localhost:8000/media/user_files/test_hash.txt),unnamed row 2"',
+        ],
+        "multiple_collaborators_link_row": [
+            "",
+            '"""User2 <user2@example.com>,User3 <user3@example.com>"",User2 <user2@example.com>"',
+        ],
+        "file": [
+            "",
+            '"a.txt (http://localhost:8000/media/user_files/hashed_name.txt),b.txt (http://localhost:8000/media/user_files/other_name.txt)"',
+        ],
+        "single_select": ["", "A"],
+        "multiple_select": ["", '"D,C,E"'],
+        "multiple_collaborators": [
+            "",
+            '"User2 <user2@example.com>,User3 <user3@example.com>"',
+        ],
+        "phone_number": ["", "'+4412345678"],
+        "formula_text": ["test FORMULA", "test FORMULA"],
+        "formula_int": ["1", "1"],
+        "formula_bool": ["True", "True"],
+        "formula_decimal": ["33.3333333333", "33.3333333333"],
+        "formula_dateinterval": ["1d 0:00", "1d 0:00"],
+        "formula_date": ["2020-01-01", "2020-01-01"],
+        "formula_singleselect": ["", "A"],
+        "formula_email": ["", "test@example.com"],
+        "formula_link_with_label": [
+            "label (https://google.com)",
+            "label (https://google.com)",
+        ],
+        "formula_link_url_only": ["https://google.com", "https://google.com"],
+        "formula_multipleselect": ["", '"C,D,E"'],
+        "formula_multiple_collaborators": [
+            "",
+            '"User2 <user2@example.com>,User3 <user3@example.com>"',
+        ],
+        "count": ["0", "3"],
+        "rollup": ["0.000", "-122.222"],
+        "duration_rollup_sum": ["0:00", "0:04"],
+        "duration_rollup_avg": ["0:00", "0:02"],
+        "lookup": ["", '"linked_row_1,linked_row_2,"'],
+        "multiple_collaborators_lookup": [
+            "",
+            '"""User2 <user2@example.com>,User3 <user3@example.com>"",User2 <user2@example.com>"',
+        ],
+        "uuid": [
+            "00000000-0000-4000-8000-000000000001",
+            "00000000-0000-4000-8000-000000000002",
+        ],
+        "autonumber": ["1", "2"],
+        "password": ["", "True"],
+        "ai": ["", "I'm an AI."],
+        "ai_choice": ["", "Object"],
+    }
 
-    assert contents == expected
+    # Join headers
+    headers = ",".join(fields.keys())
+
+    # Join values for each row
+    row1 = ",".join(fields[field][0] for field in fields)
+    row2 = ",".join(fields[field][1] for field in fields)
+
+    expected = f"\ufeff{headers}\r\n{row1}\r\n{row2}\r\n"
+
+    def show_diff(actual, expected):
+        expected_values = list(csv.reader(StringIO(expected[1:])))
+        actual_values = list(csv.reader(StringIO(actual[1:])))
+        diff = []
+        for i, (actual_row, expected_row) in enumerate(
+            zip(actual_values[1:], expected_values[1:])
+        ):
+            for j, (actual_value, expected_value) in enumerate(
+                zip(actual_row, expected_row)
+            ):
+                if actual_value != expected_value:
+                    diff.append(
+                        (
+                            actual_values[0][j],
+                            f"Row {i+1}",
+                            actual_value,
+                            expected_value,
+                        )
+                    )
+        return diff
+
+    assert contents == expected, show_diff(contents, expected)
 
 
 def run_export_job_over_interesting_table(data_fixture, storage_mock, options):

@@ -16,7 +16,7 @@
           :value="props.value"
         />
       </div>
-      <div class="grid-view__group-count">
+      <div v-if="props.count > 0" class="grid-view__group-count">
         {{ props.count }}
       </div>
     </div>

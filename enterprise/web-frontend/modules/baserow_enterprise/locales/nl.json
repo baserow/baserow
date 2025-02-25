@@ -125,7 +125,8 @@
         "password": "E-mail- en wachtwoordverificatie",
         "saml": "SSO SAML-leverancier",
         "ssoSamlProviderName": "SSO SAML: {domain}",
-        "ssoSamlProviderNameUnconfigured": "Niet geconfigureerde SSO SAML"
+        "ssoSamlProviderNameUnconfigured": "Niet geconfigureerde SSO SAML",
+        "ssoOIDCProviderNameUnconfigured": "Niet geconfigureerde OpenId connect"
     },
     "createSettingsAuthProviderModal": {
         "title": "Een nieuw {type} toevoegen"
@@ -245,7 +246,8 @@
         "baseUrlPlaceholder": "De basis URL van de provider",
         "invalidBaseUrl": "De ingevoerde URL is geen geldige provider URL",
         "callbackUrl": "Callback URL",
-        "baseUrl": "URL"
+        "baseUrl": "URL",
+        "duplicateBaseUrl": "De ingevoerde URL bestaat al bij een andere provider"
     },
     "enterpriseFeatures": {
         "sso": "Single Sign On",
@@ -316,7 +318,8 @@
     },
     "appAuthProviderType": {
         "localBaserowPassword": "E-mail/wachtwoord",
-        "commonSaml": "Saml SSO"
+        "commonSaml": "Saml SSO",
+        "openIdConnect": "OpenID Connect"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Selecteer wachtwoordveld",
@@ -355,7 +358,9 @@
         "workspace": "Werkruimte",
         "database": "Database",
         "authorizing": "Je machtigt je account om de gegevens uit de brontabel op te halen.",
-        "table": "Tabel"
+        "table": "Tabel",
+        "view": "Weergave",
+        "viewHelper": "Alleen zichtbare velden en rijen die overeenkomen met de filters worden gesynchroniseerd."
     },
     "enterpriseDataSyncType": {
         "localBaserowTable": "Sync Baserow tabel",
@@ -400,7 +405,10 @@
         "preview": "Voorbeeld"
     },
     "commonSamlSettingForm": {
-        "authProviderInError": "Bewerk deze provider om de fout te herstellen."
+        "authProviderInError": "Bewerk deze provider om de fout te herstellen.",
+        "relayStateTitle": "Standaard URL Relaisstatus (Klik om te kopiëren)",
+        "acsTitle": "Single Sign On url (Klik om te kopiëren)",
+        "addDomainNotice": "Beschikbaar wanneer een of meer domeinen zijn toegevoegd"
     },
     "hubspotContactsDataSync": {
         "accessToken": "Privé app toegang stoken",
@@ -411,5 +419,36 @@
         "placeholderWithSaml": "{login} met SAML",
         "emailPlaceholder": "Voer uw e-mailadres in...",
         "provideEmail": "Geef het e-mailadres van je SAML-account op"
+    },
+    "commonOidcSettingForm": {
+        "callbackTitle": "Callback URL's (Klik om te kopiëren)",
+        "callbackHelperText": "Voeg deze URL's toe aan de omleidingsinstellingen van je Openid connect provider.",
+        "preview": "Voorbeeld"
+    },
+    "configureDataSyncPeriodicInterval": {
+        "deactivatedText": "De periodieke gegevenssynchronisatie is uitgeschakeld omdat deze te vaak is mislukt. Probeer handmatig te synchroniseren en als het werkt zoals verwacht, klik dan op de knop activeren.",
+        "activate": "Periodieke synchronisatie activeren",
+        "title": "Periodieke instellingen",
+        "saved": "Opgeslagen",
+        "deactivatedTitle": "Periodieke gegevenssynchronisatie gedeactiveerd",
+        "enterprise": "Periodieke gegevenssynchronisatie is een geavanceerde/enterprise functie.",
+        "more": "Meer informatie"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "whenHelper": "Geef het exacte uur, de exacte minuut en de exacte seconde waarop de gegevenssynchronisatie moet plaatsvinden.",
+        "intervalLabel": "Interval",
+        "intervalHelper": "Hoe vaak moeten de gegevens automatisch worden gesynchroniseerd.",
+        "manual": "Handmatig",
+        "daily": "Dagelijks",
+        "hourly": "Uurlijks",
+        "hour": "Uur",
+        "minute": "Minuut",
+        "second": "Seconde"
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "Periodieke instellingen"
+    },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "{login} met {provider}"
     }
 }

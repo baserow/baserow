@@ -22,7 +22,7 @@
       :builder="builder"
       :domain="selectedDomain.domain"
       @submitted="createDomain($event)"
-      @error="formHasError = $event"
+      @error="handleError"
     />
     <div class="actions">
       <ButtonText
@@ -66,7 +66,7 @@ export default {
     return {
       selectedDomain: { type: 'custom', domain: 'custom' },
       createLoading: false,
-      formHasError: false,
+      formHasError: true,
     }
   },
   computed: {
@@ -118,6 +118,9 @@ export default {
       ) {
         this.handleError(error)
       }
+    },
+    handleError(hasError) {
+      this.formHasError = hasError
     },
   },
 }

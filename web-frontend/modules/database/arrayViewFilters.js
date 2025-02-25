@@ -1,13 +1,35 @@
+import moment from '@baserow/modules/core/moment'
 import ViewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText'
 import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber'
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
-import { ViewFilterType } from '@baserow/modules/database/viewFilters'
+import {
+  ViewFilterType,
+  BaseDateMultiStepViewFilterType,
+} from '@baserow/modules/database/viewFilters'
 import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
 import { BaserowFormulaNumberType } from '@baserow/modules/database/formula/formulaTypes'
 import { ComparisonOperator } from '@baserow/modules/database//utils/fieldFilters'
+import { mix } from '@baserow/modules/core/mixins'
 
-export class HasEmptyValueViewFilterType extends ViewFilterType {
+const HasEmptyValueViewFilterTypeMixin = {
+  getCompatibleFieldTypes() {
+    return [
+      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(number)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(date)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
+      FormulaFieldType.compatibleWithFormulaTypes('array(multiple_select)'),
+    ]
+  },
+}
+
+export class HasEmptyValueViewFilterType extends mix(
+  HasEmptyValueViewFilterTypeMixin,
+  ViewFilterType
+) {
   static getType() {
     return 'has_empty_value'
   }
@@ -17,22 +39,15 @@ export class HasEmptyValueViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasEmptyValue')
   }
 
-  getCompatibleFieldTypes() {
-    return [
-      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(number)'),
-    ]
-  }
-
   matches(cellValue, filterValue, field, fieldType) {
     return fieldType.getHasEmptyValueFilterFunction(field)(cellValue)
   }
 }
 
-export class HasNotEmptyValueViewFilterType extends ViewFilterType {
+export class HasNotEmptyValueViewFilterType extends mix(
+  HasEmptyValueViewFilterTypeMixin,
+  ViewFilterType
+) {
   static getType() {
     return 'has_not_empty_value'
   }
@@ -42,22 +57,41 @@ export class HasNotEmptyValueViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasNotEmptyValue')
   }
 
-  getCompatibleFieldTypes() {
-    return [
-      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(number)'),
-    ]
-  }
-
   matches(cellValue, filterValue, field, fieldType) {
     return !fieldType.getHasEmptyValueFilterFunction(field)(cellValue)
   }
 }
 
-export class HasValueEqualViewFilterType extends ViewFilterType {
+const HasValueEqualViewFilterTypeMixin = {
+  prepareValue(value, field) {
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.formatFilterValue(field, value)
+  },
+
+  getInputComponent(field) {
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
+  },
+
+  getCompatibleFieldTypes() {
+    return [
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('multiple_select')
+      ),
+    ]
+  },
+}
+
+export class HasValueEqualViewFilterType extends mix(
+  HasValueEqualViewFilterTypeMixin,
+  ViewFilterType
+) {
   static getType() {
     return 'has_value_equal'
   }
@@ -68,30 +102,18 @@ export class HasValueEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasValueEqualFilter(cellValue, filterValue, field)
-  }
-
-  getInputComponent(field) {
-    const fieldType = this.app.$registry.get('field', field.type)
-    return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
-  }
-
-  getCompatibleFieldTypes() {
-    return [
-      FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf('text'),
-        FormulaFieldType.arrayOf('char'),
-        FormulaFieldType.arrayOf('url'),
-        FormulaFieldType.arrayOf('boolean'),
-        FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('number')
-      ),
-    ]
+    filterValue = fieldType.parseFilterValue(field, filterValue)
+    return (
+      filterValue === '' ||
+      fieldType.hasValueEqualFilter(cellValue, filterValue, field)
+    )
   }
 }
 
-export class HasNotValueEqualViewFilterType extends ViewFilterType {
+export class HasNotValueEqualViewFilterType extends mix(
+  HasValueEqualViewFilterTypeMixin,
+  ViewFilterType
+) {
   static getType() {
     return 'has_not_value_equal'
   }
@@ -102,14 +124,18 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
-    return fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
+    return (
+      filterValue === '' ||
+      fieldType.hasNotValueEqualFilter(cellValue, filterValue, field)
+    )
   }
+}
 
+const HasValueContainsViewFilterTypeMixin = {
   getInputComponent(field) {
-    const fieldType = this.app.$registry.get('field', field.type)
-    return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
-  }
+    return ViewFilterTypeText
+  },
 
   getCompatibleFieldTypes() {
     return [
@@ -117,15 +143,19 @@ export class HasNotValueEqualViewFilterType extends ViewFilterType {
         FormulaFieldType.arrayOf('text'),
         FormulaFieldType.arrayOf('char'),
         FormulaFieldType.arrayOf('url'),
-        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('date'),
         FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('number')
+        FormulaFieldType.arrayOf('multiple_select')
       ),
     ]
-  }
+  },
 }
 
-export class HasValueContainsViewFilterType extends ViewFilterType {
+export class HasValueContainsViewFilterType extends mix(
+  HasValueContainsViewFilterTypeMixin,
+  ViewFilterType
+) {
   static getType() {
     return 'has_value_contains'
   }
@@ -135,28 +165,18 @@ export class HasValueContainsViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasValueContains')
   }
 
-  getInputComponent(field) {
-    return ViewFilterTypeText
-  }
-
-  getCompatibleFieldTypes() {
-    return [
-      FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf('char'),
-        FormulaFieldType.arrayOf('text'),
-        FormulaFieldType.arrayOf('url'),
-        FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('number')
-      ),
-    ]
-  }
-
   matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasValueContainsFilter(cellValue, filterValue, field)
+    return (
+      filterValue.trim() === '' ||
+      fieldType.hasValueContainsFilter(cellValue, filterValue, field)
+    )
   }
 }
 
-export class HasNotValueContainsViewFilterType extends ViewFilterType {
+export class HasNotValueContainsViewFilterType extends mix(
+  HasValueContainsViewFilterTypeMixin,
+  ViewFilterType
+) {
   static getType() {
     return 'has_not_value_contains'
   }
@@ -166,28 +186,36 @@ export class HasNotValueContainsViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasNotValueContains')
   }
 
+  matches(cellValue, filterValue, field, fieldType) {
+    return (
+      filterValue.trim() === '' ||
+      fieldType.hasNotValueContainsFilter(cellValue, filterValue, field)
+    )
+  }
+}
+
+const HasValueContainsWordViewFilterTypeMixin = {
   getInputComponent(field) {
     return ViewFilterTypeText
-  }
+  },
 
   getCompatibleFieldTypes() {
     return [
       FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf('char'),
         FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
         FormulaFieldType.arrayOf('url'),
         FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('number')
+        FormulaFieldType.arrayOf('multiple_select')
       ),
     ]
-  }
-
-  matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasNotValueContainsFilter(cellValue, filterValue, field)
-  }
+  },
 }
 
-export class HasValueContainsWordViewFilterType extends ViewFilterType {
+export class HasValueContainsWordViewFilterType extends mix(
+  HasValueContainsWordViewFilterTypeMixin,
+  ViewFilterType
+) {
   static getType() {
     return 'has_value_contains_word'
   }
@@ -197,25 +225,18 @@ export class HasValueContainsWordViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasValueContainsWord')
   }
 
-  getInputComponent(field) {
-    return ViewFilterTypeText
-  }
-
-  getCompatibleFieldTypes() {
-    return [
-      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
-    ]
-  }
-
   matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasValueContainsWordFilter(cellValue, filterValue, field)
+    return (
+      filterValue.trim() === '' ||
+      fieldType.hasValueContainsWordFilter(cellValue, filterValue, field)
+    )
   }
 }
 
-export class HasNotValueContainsWordViewFilterType extends ViewFilterType {
+export class HasNotValueContainsWordViewFilterType extends mix(
+  HasValueContainsWordViewFilterTypeMixin,
+  ViewFilterType
+) {
   static getType() {
     return 'has_not_value_contains_word'
   }
@@ -225,24 +246,10 @@ export class HasNotValueContainsWordViewFilterType extends ViewFilterType {
     return i18n.t('viewFilter.hasNotValueContainsWord')
   }
 
-  getInputComponent(field) {
-    return ViewFilterTypeText
-  }
-
-  getCompatibleFieldTypes() {
-    return [
-      FormulaFieldType.compatibleWithFormulaTypes('array(text)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(char)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(url)'),
-      FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
-    ]
-  }
-
   matches(cellValue, filterValue, field, fieldType) {
-    return fieldType.hasNotValueContainsWordFilter(
-      cellValue,
-      filterValue,
-      field
+    return (
+      filterValue.trim() === '' ||
+      fieldType.hasNotValueContainsWordFilter(cellValue, filterValue, field)
     )
   }
 }
@@ -297,7 +304,7 @@ export class HasAllValuesEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return fieldType.hasAllValuesEqualFilter(cellValue, filterValue, field)
   }
 }
@@ -371,7 +378,7 @@ export class HasValueHigherThanViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       fieldType.hasValueComparableToFilter(
@@ -395,7 +402,7 @@ export class HasNotValueHigherThanViewFilterType extends HasValueHigherThanViewF
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       !fieldType.hasValueComparableToFilter(
@@ -431,7 +438,7 @@ export class HasValueHigherThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       fieldType.hasValueComparableToFilter(
@@ -455,7 +462,7 @@ export class HasNotValueHigherThanOrEqualViewFilterType extends HasValueHigherTh
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       !fieldType.hasValueComparableToFilter(
@@ -491,7 +498,7 @@ export class HasValueLowerThanViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       fieldType.hasValueComparableToFilter(
@@ -515,7 +522,7 @@ export class HasNotValueLowerThanViewFilterType extends HasValueLowerThanViewFil
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       !fieldType.hasValueComparableToFilter(
@@ -551,7 +558,7 @@ export class HasValueLowerThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       fieldType.hasValueComparableToFilter(
@@ -575,7 +582,7 @@ export class HasNotValueLowerThanOrEqualViewFilterType extends HasValueLowerThan
   }
 
   matches(cellValue, filterValue, field, fieldType) {
-    filterValue = fieldType.prepareFilterValue(field, filterValue)
+    filterValue = fieldType.parseFilterValue(field, filterValue)
     return (
       filterValue === '' ||
       !fieldType.hasValueComparableToFilter(
@@ -584,6 +591,225 @@ export class HasNotValueLowerThanOrEqualViewFilterType extends HasValueLowerThan
         field,
         ComparisonOperator.LOWER_THAN_OR_EQUAL
       )
+    )
+  }
+}
+
+class ArrayDateMultiStepViewFilterType extends BaseDateMultiStepViewFilterType {
+  getCompatibleFieldTypes() {
+    return [
+      FormulaFieldType.compatibleWithFormulaTypes(
+        FormulaFieldType.arrayOf('date')
+      ),
+    ]
+  }
+
+  localizeRowValue(rowValue, timezone) {
+    const localizedRowValue = rowValue.map((item) => {
+      const rowDate = moment.utc(item.value)
+      if (timezone !== null) {
+        rowDate.tz(timezone)
+      }
+      return rowDate
+    })
+    return localizedRowValue
+  }
+}
+
+export class HasDateEqualViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_equal'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateEqual')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return rowDates.some(
+      (value) => value.isSameOrAfter(lowerBound) && value.isBefore(upperBound)
+    )
+  }
+}
+
+export class HasNotDateEqualViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_equal'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateEqual')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return !rowDates.some(
+      (value) => value.isSameOrAfter(lowerBound) && value.isBefore(upperBound)
+    )
+  }
+}
+
+export class HasDateBeforeViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_before'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateBefore')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return rowDates.some((value) => value.isBefore(lowerBound))
+  }
+}
+
+export class HasNotDateBeforeViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_before'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateBefore')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return !rowDates.some((value) => value.isBefore(lowerBound))
+  }
+}
+
+export class HasDateOnOrBeforeViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_on_or_before'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateOnOrBefore')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return rowDates.some((value) => value.isBefore(upperBound))
+  }
+}
+
+export class HasNotDateOnOrBeforeViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_on_or_before'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateOnOrBefore')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return !rowDates.some((value) => value.isBefore(upperBound))
+  }
+}
+
+export class HasDateAfterViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_after'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateAfter')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return rowDates.some((value) => value.isSameOrAfter(upperBound))
+  }
+}
+
+export class HasNotDateAfterViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_after'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateAfter')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return !rowDates.some((value) => value.isSameOrAfter(upperBound))
+  }
+}
+
+export class HasDateOnOrAfterViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_on_or_after'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateOnOrAfter')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return rowDates.some((value) => value.isSameOrAfter(lowerBound))
+  }
+}
+
+export class HasNotDateOnOrAfterViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_on_or_after'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateOnOrAfter')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound) {
+    return !rowDates.some((value) => value.isSameOrAfter(lowerBound))
+  }
+}
+
+export class HasDateWithinViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_date_within'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasDateWithin')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound, timezone) {
+    const startOfToday = moment.utc()
+    if (timezone) {
+      startOfToday.tz(timezone)
+    }
+    startOfToday.startOf('day')
+    return rowDates.some(
+      (value) => value.isSameOrAfter(startOfToday) && value.isBefore(upperBound)
+    )
+  }
+}
+
+export class HasNotDateWithinViewFilterType extends ArrayDateMultiStepViewFilterType {
+  static getType() {
+    return 'has_not_date_within'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.hasNotDateWithin')
+  }
+
+  rowMatches(rowDates, lowerBound, upperBound, timezone) {
+    const startOfToday = moment.utc()
+    if (timezone) {
+      startOfToday.tz(timezone)
+    }
+    startOfToday.startOf('day')
+    return !rowDates.some(
+      (value) => value.isSameOrAfter(startOfToday) && value.isBefore(upperBound)
     )
   }
 }

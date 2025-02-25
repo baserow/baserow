@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import form from '@baserow/modules/core/mixins/form'
-import { themeToColorVariables } from '@baserow/modules/builder/utils/theme'
+import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 const borderNames = ['top', 'bottom', 'left', 'right']
 
@@ -28,11 +28,21 @@ export default {
       boxStyles: Object.fromEntries(
         borderNames.map((pos) => [pos, this.getBoxStyleValue(pos)])
       ),
+      radiusStyles: {
+        background_radius: this.defaultValues.style_background_radius,
+        border_radius: this.defaultValues.style_border_radius,
+      },
     }
   },
   computed: {
+    themeConfigBlocks() {
+      return this.$registry.getOrderedList('themeConfigBlock')
+    },
     colorVariables() {
-      return themeToColorVariables(this.builder.theme)
+      return ThemeConfigBlockType.getAllColorVariables(
+        this.themeConfigBlocks,
+        this.builder.theme
+      )
     },
     allowedStyles() {
       return this.getAllowedStyles()
@@ -52,6 +62,14 @@ export default {
       handler(newValue) {
         Object.entries(newValue).forEach(([prop, value]) => {
           this.setBoxStyleValue(prop, value)
+        })
+      },
+    },
+    radiusStyles: {
+      deep: true,
+      handler(newValue) {
+        Object.entries(newValue).forEach(([prop, value]) => {
+          this.setRadiusStyleValue(prop, value)
         })
       },
     },
@@ -76,19 +94,24 @@ export default {
         this.values[`style_border_${pos}_size`] = newValue.border_size
       }
     },
+    setRadiusStyleValue(key, newValue) {
+      this.values[`style_${key}`] = newValue
+    },
     getAllowedStyles() {
       const elementType = this.$registry.get('element', this.element.type)
       const parentElementType = this.parentElement
         ? this.$registry.get('element', this.parentElement?.type)
-        : []
+        : null
 
       let styles = elementType.styles
 
       if (parentElementType) {
-        styles = _.difference(
-          elementType.styles,
-          parentElementType.childStylesForbidden
-        )
+        styles = _.difference(elementType.styles, [
+          ...parentElementType.childStylesForbidden,
+        ])
+      } else {
+        // If the element is a root element, style_width_child is not allowed.
+        styles = _.difference(elementType.styles, ['style_width_child'])
       }
 
       return styles

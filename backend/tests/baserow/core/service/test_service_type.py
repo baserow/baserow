@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock, Mock, PropertyMock
 
 import pytest
+from rest_framework.exceptions import ValidationError
 
+from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
 
 
@@ -17,6 +19,54 @@ def test_service_type_generate_schema():
     service_type_cls = ServiceType
     service_type_cls.model_class = Mock()
     assert service_type_cls().generate_schema(mock_service) is None
+
+
+@pytest.mark.django_db
+def test_service_type_prepare_values(data_fixture):
+    user = data_fixture.create_user()
+    service_type_cls = ServiceType
+    service_type_cls.model_class = Mock()
+
+    application_a = data_fixture.create_builder_application(user=user)
+    integration_a = data_fixture.create_local_baserow_integration(
+        application=application_a
+    )
+    instance = Service.objects.create(integration=integration_a)
+    application_b = data_fixture.create_builder_application(user=user)
+    integration_b = data_fixture.create_local_baserow_integration(
+        application=application_b
+    )
+    integration_c = data_fixture.create_local_baserow_integration(
+        application=application_a
+    )
+
+    # Unknown integrations throw a validation error.
+    with pytest.raises(ValidationError) as exc:
+        service_type_cls().prepare_values({"integration_id": 9999999999999999}, user)
+    assert (
+        exc.value.args[0] == f"The integration with ID 9999999999999999 does not exist."
+    )
+
+    # The PATCHed integration cannot belong to a different
+    # application to the current one.
+    with pytest.raises(ValidationError) as exc:
+        service_type_cls().prepare_values(
+            {"integration_id": integration_b.id}, user, instance
+        )
+    assert (
+        str(exc.value.detail[0]) == f"The integration with ID {integration_b.id} is "
+        f"not related to the given application {application_a.id}."
+    )
+
+    # The PATCHed integration does belong to the same application as the current one.
+    assert service_type_cls().prepare_values(
+        {"integration_id": integration_c.id}, user, instance
+    ) == {"integration": integration_c}
+
+    # We are creating a new service with an integration
+    assert service_type_cls().prepare_values(
+        {"integration_id": integration_c.id}, user
+    ) == {"integration": integration_c}
 
 
 @pytest.mark.parametrize(

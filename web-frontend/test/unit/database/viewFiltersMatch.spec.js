@@ -50,9 +50,10 @@ import {
   FormulaFieldType,
   NumberFieldType,
   SingleSelectFieldType,
+  MultipleSelectFieldType,
 } from '@baserow/modules/database/fieldTypes'
 
-const dateBeforeCases = [
+export const dateBeforeCases = [
   {
     rowValue: '2021-08-10T21:59:37.940086Z',
     filterValue: 'Europe/Berlin?2021-08-11',
@@ -105,7 +106,7 @@ const dateBeforeCases = [
   },
 ]
 
-const dateAfterCases = [
+export const dateAfterCases = [
   {
     rowValue: '2021-08-11T22:01:37.940086Z',
     filterValue: 'Europe/Berlin?2021-08-11',
@@ -158,7 +159,7 @@ const dateAfterCases = [
   },
 ]
 
-const dateBeforeOrEqualCases = [
+export const dateBeforeOrEqualCases = [
   {
     rowValue: '2021-08-10T21:59:37.940086Z',
     filterValue: 'Europe/Berlin?2021-08-11',
@@ -211,7 +212,7 @@ const dateBeforeOrEqualCases = [
   },
 ]
 
-const dateAfterOrEqualCases = [
+export const dateAfterOrEqualCases = [
   {
     rowValue: '2021-08-11T22:01:37.940086Z',
     filterValue: 'Europe/Berlin?2021-08-11',
@@ -264,7 +265,7 @@ const dateAfterOrEqualCases = [
   },
 ]
 
-const dateEqualCases = [
+export const dateEqualCases = [
   {
     rowValue: '2021-08-11T21:59:37.940086Z',
     filterValue: 'Europe/Berlin?2021-08-11',
@@ -327,7 +328,7 @@ const dateEqualCases = [
   },
 ]
 
-const dateNotEqualCases = [
+export const dateNotEqualCases = [
   {
     rowValue: '2021-08-11T22:30:37.940086Z',
     filterValue: 'Europe/Berlin?2021-08-11',
@@ -395,7 +396,7 @@ const dateNotEqualCases = [
   },
 ]
 
-const dateToday = [
+export const dateToday = [
   {
     rowValue: moment().utc().format(),
     filterValue: 'Europe/Berlin',
@@ -408,7 +409,7 @@ const dateToday = [
   },
 ]
 
-const dateBeforeToday = [
+export const dateBeforeToday = [
   {
     rowValue: moment().utc().format(),
     filterValue: 'Europe/Berlin',
@@ -426,7 +427,7 @@ const dateBeforeToday = [
   },
 ]
 
-const dateAfterToday = [
+export const dateAfterToday = [
   {
     rowValue: moment().utc().format(),
     filterValue: 'Europe/Berlin',
@@ -444,7 +445,7 @@ const dateAfterToday = [
   },
 ]
 
-const dateInThisWeek = [
+export const dateInThisWeek = [
   {
     rowValue: '2022-05-29',
     filterValue: 'Europe/Berlin',
@@ -477,7 +478,7 @@ const dateInThisWeek = [
   },
 ]
 
-const dateInThisMonth = [
+export const dateInThisMonth = [
   {
     rowValue: '2022-05-01T12:00:00.000000Z',
     filterValue: 'Europe/Berlin?',
@@ -510,7 +511,7 @@ const dateInThisMonth = [
   },
 ]
 
-const dateInThisYear = [
+export const dateInThisYear = [
   {
     rowValue: '2021-06-01T12:00:00.000000Z',
     filterValue: 'Europe/Berlin?',
@@ -523,7 +524,7 @@ const dateInThisYear = [
   },
 ]
 
-const dateWithinDays = [
+export const dateWithinDays = [
   {
     rowValue: moment().tz('Europe/Berlin').add(1, 'days').format(),
     filterValue: 'Europe/Berlin?1',
@@ -566,7 +567,7 @@ const dateWithinDays = [
   },
 ]
 
-const dateWithinWeeks = [
+export const dateWithinWeeks = [
   {
     rowValue: moment().tz('Europe/Berlin').add(5, 'days').format(),
     filterValue: 'Europe/Berlin?1',
@@ -609,7 +610,7 @@ const dateWithinWeeks = [
   },
 ]
 
-const dateWithinMonths = [
+export const dateWithinMonths = [
   {
     rowValue: moment().tz('Europe/Berlin').add(20, 'days').format(),
     filterValue: 'Europe/Berlin?1',
@@ -652,7 +653,7 @@ const dateWithinMonths = [
   },
 ]
 
-const dateDaysAgo = [
+export const dateDaysAgo = [
   {
     rowValue: moment().utc().tz('Europe/Berlin').subtract(1, 'days').format(),
     filterValue: 'Europe/Berlin?1',
@@ -695,7 +696,7 @@ const dateDaysAgo = [
   },
 ]
 
-const dateMonthsAgo = [
+export const dateMonthsAgo = [
   {
     rowValue: moment().tz('Europe/Berlin').subtract(1, 'months').format(),
     filterValue: 'Europe/Berlin?1',
@@ -738,7 +739,7 @@ const dateMonthsAgo = [
   },
 ]
 
-const dateYearsAgo = [
+export const dateYearsAgo = [
   {
     rowValue: moment().tz('Europe/Berlin').subtract(1, 'years').format(),
     filterValue: 'Europe/Berlin?1',
@@ -787,7 +788,7 @@ const multipleSelectValuesHas = [
       { id: 155, value: 'A', color: 'green' },
       { id: 154, value: 'B', color: 'green' },
     ],
-    filterValue: 154,
+    filterValue: '154',
     expected: true,
   },
   {
@@ -795,7 +796,7 @@ const multipleSelectValuesHas = [
       { id: 155, value: 'A', color: 'green' },
       { id: 154, value: 'B', color: 'green' },
     ],
-    filterValue: 200,
+    filterValue: '200,201',
     expected: false,
   },
   {
@@ -814,7 +815,7 @@ const multipleSelectValuesHasNot = [
       { id: 155, value: 'A', color: 'green' },
       { id: 154, value: 'B', color: 'green' },
     ],
-    filterValue: 154,
+    filterValue: '154,155',
     expected: false,
   },
   {
@@ -822,7 +823,7 @@ const multipleSelectValuesHasNot = [
       { id: 155, value: 'A', color: 'green' },
       { id: 154, value: 'B', color: 'green' },
     ],
-    filterValue: 200,
+    filterValue: '200',
     expected: true,
   },
   {
@@ -1088,7 +1089,7 @@ const linkRowNotContainsCases = [
   },
 ]
 
-const dateDaysAfterValidCases = [
+export const dateDaysAfterValidCases = [
   {
     rowValue: moment.utc().subtract(5, 'days').format(),
     filterValue: 'UTC?10',
@@ -1111,7 +1112,7 @@ const dateDaysAfterValidCases = [
   },
 ]
 
-const dateDaysAfterInvalidCases = [
+export const dateDaysAfterInvalidCases = [
   {
     rowValue: moment.utc().subtract(15, 'days').format(),
     filterValue: 'UTC?10',
@@ -2163,9 +2164,10 @@ describe('All Tests', () => {
   })
 
   test.each(multipleSelectValuesHas)('MultipleSelect Has', (values) => {
+    const fieldType = new MultipleSelectFieldType()
     const result = new MultipleSelectHasFilterType({
       app: testApp._app,
-    }).matches(values.rowValue, values.filterValue, {})
+    }).matches(values.rowValue, values.filterValue, {}, fieldType)
     expect(result).toBe(values.expected)
   })
 

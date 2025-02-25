@@ -68,11 +68,13 @@ export default {
     el.updatePositionEvent = (event) => {
       const rect = el.getBoundingClientRect()
       const position = el.getAttribute('tooltip-position') || 'bottom'
+      const topValue = parseInt(el.getAttribute('tooltip-top-value') || '2')
       const rectTooltip = el.tooltipElement.getBoundingClientRect()
 
       switch (position) {
         case 'top':
-          el.tooltipElement.style.top = rect.top - 2 - rectTooltip.height + 'px'
+          el.tooltipElement.style.top =
+            rect.top - topValue - rectTooltip.height + 'px'
           el.tooltipElement.style.left = rect.left + rect.width / 2 + 'px'
           break
         case 'bottom-left':

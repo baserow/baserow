@@ -3,7 +3,9 @@ from unittest.mock import Mock
 import pytest
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.database.api.fields.serializers import FieldSerializer
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowGetRowUserServiceType,
@@ -495,6 +497,24 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 },
             },
         },
+        field_db_column_by_name["multiple_collaborators_link_row"]: {
+            "title": "multiple_collaborators_link_row",
+            "default": None,
+            "searchable": True,
+            "sortable": True,
+            "filterable": False,
+            "original_type": "link_row",
+            "metadata": {},
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"title": "id", "type": "number"},
+                    "value": {"title": "value", "type": "string"},
+                    "order": {"title": "order", "type": "string"},
+                },
+            },
+        },
         field_db_column_by_name["file"]: {
             "title": "file",
             "default": None,
@@ -715,6 +735,23 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 },
             },
         },
+        field_db_column_by_name["formula_multiple_collaborators"]: {
+            "title": "formula_multiple_collaborators",
+            "default": None,
+            "searchable": True,
+            "sortable": False,
+            "filterable": False,
+            "original_type": "formula",
+            "metadata": {},
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"title": "id", "type": "number"},
+                    "name": {"title": "name", "type": "string"},
+                },
+            },
+        },
         field_db_column_by_name["count"]: {
             "title": "count",
             "default": None,
@@ -769,6 +806,33 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
                 "properties": {
                     "id": {"title": "id", "type": "number"},
                     "value": {"title": "value", "type": "string"},
+                },
+            },
+        },
+        field_db_column_by_name["multiple_collaborators_lookup"]: {
+            "title": "multiple_collaborators_lookup",
+            "default": None,
+            "searchable": True,
+            "sortable": False,
+            "filterable": False,
+            "original_type": "lookup",
+            "metadata": {},
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"title": "id", "type": "number"},
+                    "value": {
+                        "title": "value",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {"title": "id", "type": "number"},
+                                "name": {"title": "name", "type": "string"},
+                            },
+                        },
+                    },
                 },
             },
         },
@@ -994,12 +1058,12 @@ def test_local_baserow_table_service_type_after_update_table_change_deletes_filt
     assert not mock_instance.service_sorts.all.return_value.delete.called
 
     service_type.after_update(mock_instance, {}, change_table_from_None_to_Table)
-    assert not mock_instance.service_filters.all.return_value.delete.called
-    assert not mock_instance.service_sorts.all.return_value.delete.called
+    assert not mock_instance.service_filters.return_value.all.return_value.delete.called
+    assert not mock_instance.service_sorts.return_value.all.return_value.delete.called
 
     service_type.after_update(mock_instance, {}, change_table_from_Table_to_Table)
-    assert mock_instance.service_filters.all.return_value.delete.called
-    assert mock_instance.service_sorts.all.return_value.delete.called
+    assert mock_instance.service_filters.return_value.all.return_value.delete.called
+    assert mock_instance.service_sorts.return_value.all.return_value.delete.called
 
 
 @pytest.mark.django_db
@@ -1399,6 +1463,30 @@ def test_local_baserow_table_service_type_get_context_data_excludes_fields(
 
 
 @pytest.mark.django_db
+def test_local_baserow_table_agg_service_type_get_context_data_excludes_fields(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    serialized_field = field_type_registry.get_serializer(field, FieldSerializer).data
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        table=table, field=field, aggregation_type="sum"
+    )
+    service_type = service.get_type()
+
+    assert service_type.get_context_data(service, allowed_fields=[]) == {}
+    expected_context = {"field": serialized_field}
+    assert (
+        service_type.get_context_data(service, allowed_fields=None) == expected_context
+    )
+    assert (
+        service_type.get_context_data(service, allowed_fields=["result"])
+        == expected_context
+    )
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "allowed_fields_id_indexes,expect_empty_dict",
     [
@@ -1480,3 +1568,26 @@ def test_local_baserow_table_service_type_generate_schema_excludes_fields(
             schema["properties"][field.db_column]["properties"]
             == expected_field_properties
         )
+
+
+@pytest.mark.django_db
+def test_local_baserow_agg_service_type_generate_schema_excludes_fields(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        table=table, field=field, aggregation_type="sum"
+    )
+    service_type = service.get_type()
+
+    assert service_type.generate_schema(service, allowed_fields=[]) == {}
+    expected_schema = {
+        "title": f"Aggregation{service.id}Schema",
+        "type": "object",
+        "properties": {"result": {"title": f"{field.name} result", "type": "string"}},
+    }
+    assert service_type.generate_schema(service, allowed_fields=None) == expected_schema
+    assert (
+        service_type.generate_schema(service, allowed_fields=["result"])
+        == expected_schema
+    )

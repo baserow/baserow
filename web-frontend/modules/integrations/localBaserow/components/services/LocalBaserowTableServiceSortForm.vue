@@ -23,82 +23,92 @@
           <i class="iconoir-cancel"></i>
         </a>
 
-        <div class="sortings__description">
-          <template v-if="index === 0">{{
-            $t('localBaserowTableServiceSortForm.sortBy')
-          }}</template>
-          <template v-if="index > 0">{{
-            $t('localBaserowTableServiceSortForm.thenBy')
-          }}</template>
+        <div v-if="sortMisconfigured(sort)">
+          <div class="flex-grow-1">
+            <p class="sortings__misconfigured-text">
+              {{ $t('localBaserowTableServiceSortForm.sortMisconfigured') }}
+            </p>
+          </div>
         </div>
-        <div class="sortings__field">
-          <Dropdown
-            :value="sort.field"
-            :disabled="disableSort"
-            :fixed-items="true"
-            class="dropdown--floating"
-            @input="updateSort(sort, { field: $event })"
+
+        <template v-else>
+          <div class="sortings__description">
+            <template v-if="index === 0">{{
+              $t('localBaserowTableServiceSortForm.sortBy')
+            }}</template>
+            <template v-if="index > 0">{{
+              $t('localBaserowTableServiceSortForm.thenBy')
+            }}</template>
+          </div>
+          <div class="sortings__field">
+            <Dropdown
+              :value="sort.field"
+              :disabled="disableSort"
+              :fixed-items="true"
+              class="dropdown--floating"
+              @input="updateSort(sort, { field: $event })"
+            >
+              <DropdownItem
+                v-for="field in fields"
+                :key="'sort-field-' + sort.id + '-' + field.id"
+                :name="field.name"
+                :value="field.id"
+                :disabled="sort.field !== field.id && !isFieldAvailable(field)"
+              ></DropdownItem>
+            </Dropdown>
+          </div>
+          <div
+            class="sortings__order"
+            :class="{ 'sortings__order--disabled': disableSort }"
           >
-            <DropdownItem
-              v-for="field in fields"
-              :key="'sort-field-' + sort.id + '-' + field.id"
-              :name="field.name"
-              :value="field.id"
-              :disabled="sort.field !== field.id && !isFieldAvailable(field)"
-            ></DropdownItem>
-          </Dropdown>
-        </div>
-        <div
-          class="sortings__order"
-          :class="{ 'sortings__order--disabled': disableSort }"
-        >
-          <a
-            class="sortings__order-item"
-            :class="{ active: sort.order_by === 'ASC' }"
-            @click="updateSort(sort, { order_by: 'ASC' })"
-          >
-            <template v-if="getSortIndicator(field, 0) === 'text'">{{
-              getSortIndicator(field, 1)
-            }}</template>
-            <i
-              v-if="getSortIndicator(field, 0) === 'icon'"
-              :class="getSortIndicator(field, 1)"
-            ></i>
+            <a
+              class="sortings__order-item"
+              :class="{ active: sort.order_by === 'ASC' }"
+              @click="updateSort(sort, { order_by: 'ASC' })"
+            >
+              <template v-if="getSortIndicator(field, 0) === 'text'">{{
+                getSortIndicator(field, 1)
+              }}</template>
+              <i
+                v-if="getSortIndicator(field, 0) === 'icon'"
+                :class="getSortIndicator(field, 1)"
+              ></i>
 
-            <i class="iconoir-arrow-right"></i>
+              <i class="iconoir-arrow-right"></i>
 
-            <template v-if="getSortIndicator(field, 0) === 'text'">{{
-              getSortIndicator(field, 2)
-            }}</template>
-            <i
-              v-if="getSortIndicator(field, 0) === 'icon'"
-              :class="getSortIndicator(field, 2)"
-            ></i>
-          </a>
-          <a
-            class="sortings__order-item"
-            :class="{ active: sort.order_by === 'DESC' }"
-            @click="updateSort(sort, { order_by: 'DESC' })"
-          >
-            <template v-if="getSortIndicator(field, 0) === 'text'">{{
-              getSortIndicator(field, 2)
-            }}</template>
-            <i
-              v-if="getSortIndicator(field, 0) === 'icon'"
-              :class="getSortIndicator(field, 2)"
-            ></i>
+              <template v-if="getSortIndicator(field, 0) === 'text'">{{
+                getSortIndicator(field, 2)
+              }}</template>
+              <i
+                v-if="getSortIndicator(field, 0) === 'icon'"
+                :class="getSortIndicator(field, 2)"
+              ></i>
+            </a>
+            <a
+              class="sortings__order-item"
+              :class="{ active: sort.order_by === 'DESC' }"
+              @click="updateSort(sort, { order_by: 'DESC' })"
+            >
+              <template v-if="getSortIndicator(field, 0) === 'text'">{{
+                getSortIndicator(field, 2)
+              }}</template>
+              <i
+                v-if="getSortIndicator(field, 0) === 'icon'"
+                :class="getSortIndicator(field, 2)"
+              ></i>
 
-            <i class="iconoir-arrow-right"></i>
+              <i class="iconoir-arrow-right"></i>
 
-            <template v-if="getSortIndicator(field, 0) === 'text'">{{
-              getSortIndicator(field, 1)
-            }}</template>
-            <i
-              v-if="getSortIndicator(field, 0) === 'icon'"
-              :class="getSortIndicator(field, 1)"
-            ></i>
-          </a>
-        </div>
+              <template v-if="getSortIndicator(field, 0) === 'text'">{{
+                getSortIndicator(field, 1)
+              }}</template>
+              <i
+                v-if="getSortIndicator(field, 0) === 'icon'"
+                :class="getSortIndicator(field, 1)"
+              ></i>
+            </a>
+          </div>
+        </template>
       </div>
     </div>
     <template v-if="value.length < availableFieldsLength && !disableSort">
@@ -171,6 +181,19 @@ export default {
     },
   },
   methods: {
+    /**
+     * If a sort points to a `field` which is not present in `this.fields`,
+     * or the field object is found, and the field is trashed, flag this sort
+     * as being misconfigured. This is very unlikely to happen in the database,
+     * but when this component is used in the builder, it is possible. In that
+     * implementation, the builder needs the ability to display a misconfigured
+     * sort so that the page designer can delete it.
+     * @returns {Boolean} True if the filter is misconfigured, false otherwise.
+     */
+    sortMisconfigured(sort) {
+      const field = this.getField(sort.field)
+      return field === undefined || field.trashed
+    },
     getFieldType(field) {
       return this.$registry.get('field', field.type)
     },

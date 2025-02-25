@@ -1,3 +1,4 @@
+from functools import partial
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from django.contrib.auth import get_user_model
@@ -9,6 +10,7 @@ from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.operations import (
+    CanReceiveNotificationOnSubmitFormViewOperationType,
     CreateAndUsePersonalViewOperationType,
     CreateViewDecorationOperationType,
     CreateViewFilterGroupOperationType,
@@ -47,6 +49,7 @@ from baserow.contrib.database.views.operations import (
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
 )
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied, PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import PermissionManagerType, object_scope_type_registry
@@ -91,6 +94,7 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             DeleteViewSortOperationType.type,
             ReadViewOperationType.type,
             UpdateViewOperationType.type,
+            CanReceiveNotificationOnSubmitFormViewOperationType.type,
             DeleteViewOperationType.type,
             DuplicateViewOperationType.type,
             CreateViewFilterOperationType.type,
@@ -170,7 +174,10 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             ):
                 continue
 
-            premium = LicenseHandler.user_has_feature(PREMIUM, actor, workspace)
+            premium = local_cache.get(
+                f"has_premium_permission_{actor.id}_{workspace.id}",
+                partial(LicenseHandler.user_has_feature, PREMIUM, actor, workspace),
+            )
 
             view_scope_type = object_scope_type_registry.get("database_view")
             view = object_scope_type_registry.get_parent(
@@ -257,7 +264,10 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
         if not workspace:
             return queryset
 
-        premium = LicenseHandler.user_has_feature(PREMIUM, actor, workspace)
+        premium = local_cache.get(
+            f"has_premium_permission_{actor.id}_{workspace.id}",
+            lambda: LicenseHandler.user_has_feature(PREMIUM, actor, workspace),
+        )
 
         if premium:
             allowed_tables = CoreHandler().filter_queryset(

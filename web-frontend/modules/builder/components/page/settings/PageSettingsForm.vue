@@ -2,27 +2,54 @@
   <form @submit.prevent="submit">
     <div class="row margin-bottom-2">
       <div class="col col-6">
-        <PageSettingsNameFormElement
-          ref="name"
-          v-model="values.name"
-          :disabled="!hasPermission"
-          :has-errors="fieldHasErrors('name')"
-          :validation-state="$v.values.name"
-          :is-creation="isCreation"
-          @blur="$v.values.name.$touch()"
-        />
+        <FormGroup
+          required
+          small-label
+          :label="$t('pageForm.nameTitle')"
+          :error-message="getFirstErrorMessage('name')"
+          :helper-text="$t('pageForm.nameSubtitle')"
+        >
+          <FormInput
+            ref="name"
+            v-model="v$.values.name.$model"
+            size="large"
+            :placeholder="$t('pageForm.namePlaceholder')"
+            :disabled="!hasPermission"
+            @blur="v$.values.name.$touch"
+            @focus.once="isCreation && $event.target.select()"
+          />
+        </FormGroup>
       </div>
       <div class="col col-6">
-        <PageSettingsPathFormElement
-          v-model="values.path"
-          :disabled="!hasPermission"
-          :has-errors="fieldHasErrors('path')"
-          :validation-state="$v.values.path"
-          @blur="onPathBlur"
-        />
+        <FormGroup
+          required
+          small-label
+          :label="$t('pageForm.pathTitle')"
+          :error="fieldHasErrors('path')"
+          :error-message="getFirstErrorMessage('path')"
+          :helper-text="$t('pageForm.pathSubtitle')"
+        >
+          <FormInput
+            v-model="v$.values.path.$model"
+            size="large"
+            :placeholder="$t('pageForm.pathPlaceholder')"
+            :disabled="!hasPermission"
+            @blur="onPathBlur"
+          />
+        </FormGroup>
       </div>
     </div>
     <div class="row">
+      <div class="col col-6">
+        <PageSettingsQueryParamsFormElement
+          :disabled="!hasPermission"
+          :query-params="localQueryParams"
+          :has-errors="fieldHasErrors('query_params')"
+          :validation-state="v$.values.query_params"
+          @update="onQueryParamUpdate"
+          @add="addQueryParam"
+        />
+      </div>
       <div class="col col-6">
         <PageSettingsPathParamsFormElement
           :disabled="!hasPermission"
@@ -30,25 +57,24 @@
           @update="onPathParamUpdate"
         />
       </div>
-      <div class="col col-6"></div>
     </div>
     <slot></slot>
   </form>
 </template>
 
 <script>
-import { maxLength, required } from 'vuelidate/lib/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { maxLength, required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
-import PageSettingsNameFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsNameFormElement'
-import PageSettingsPathFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsPathFormElement'
 import PageSettingsPathParamsFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsPathParamsFormElement'
+import PageSettingsQueryParamsFormElement from '@baserow/modules/builder/components/page/settings/PageSettingsQueryParamsFormElement'
 import {
   getPathParams,
   PATH_PARAM_REGEX,
   ILLEGAL_PATH_SAMPLE_CHARACTER,
   VALID_PATH_CHARACTERS,
 } from '@baserow/modules/builder/utils/path'
+import { QUERY_PARAM_REGEX } from '@baserow/modules/builder/utils/params'
 import {
   getNextAvailableNameInSequence,
   slugify,
@@ -58,8 +84,7 @@ export default {
   name: 'PageSettingsForm',
   components: {
     PageSettingsPathParamsFormElement,
-    PageSettingsPathFormElement,
-    PageSettingsNameFormElement,
+    PageSettingsQueryParamsFormElement,
   },
   mixins: [form],
   inject: ['workspace', 'builder'],
@@ -75,13 +100,18 @@ export default {
       default: false,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       values: {
         name: '',
         path: '',
         path_params: [],
+        query_params: [],
       },
+      localQueryParams: [],
       hasPathBeenEdited: false,
     }
   },
@@ -120,7 +150,8 @@ export default {
         .map((page) => page.path)
     },
     currentPathParams() {
-      return getPathParams(this.values.path)
+      if (this.values.path) return getPathParams(this.values.path)
+      return []
     },
   },
   watch: {
@@ -200,6 +231,16 @@ export default {
       },
       immediate: true,
     },
+    'values.query_params': {
+      handler(newQueryParams) {
+        this.localQueryParams = [...newQueryParams]
+        // Touch the validation when params change
+        if (this.v$.values && this.v$.values.query_params) {
+          this.v$.values.query_params.$touch()
+        }
+      },
+      immediate: true,
+    },
   },
   created() {
     if (this.isCreation) {
@@ -216,7 +257,7 @@ export default {
       return path.replace(PATH_PARAM_REGEX, ILLEGAL_PATH_SAMPLE_CHARACTER)
     },
     onPathBlur() {
-      this.$v.values.path.$touch()
+      this.v$.values.path.$touch()
       this.hasPathBeenEdited = true
     },
     onPathParamUpdate(paramTypeName, paramType) {
@@ -225,6 +266,21 @@ export default {
           pathParam.type = paramType
         }
       })
+    },
+    onQueryParamUpdate(updatedQueryParams) {
+      this.localQueryParams = updatedQueryParams
+      this.values.query_params = updatedQueryParams
+      if (this.v$.values.query_params) {
+        this.v$.values.query_params.$touch()
+      }
+    },
+    getFormValues() {
+      return Object.assign({}, this.values, this.getChildFormsValues(), {
+        query_params: this.localQueryParams,
+      })
+    },
+    addQueryParam(newParam) {
+      this.localQueryParams.push(newParam)
     },
     isNameUnique(name) {
       return !this.pageNames.includes(name) || name === this.page?.name
@@ -249,22 +305,78 @@ export default {
       const pathParams = getPathParams(path)
       return new Set(pathParams).size === pathParams.length
     },
+    areQueryParamsUnique(queryParams) {
+      const uniqueParams = new Set()
+
+      // First check if all query param names match the regex pattern
+      for (const param of queryParams) {
+        // Create a regex with ^ and $ to ensure full string match
+        const fullMatchRegex = new RegExp(`^${QUERY_PARAM_REGEX.source}$`)
+        if (!fullMatchRegex.test(param.name)) {
+          return false
+        }
+      }
+
+      // Then check for uniqueness against path params and other query params
+      for (const pathParam of this.values.path_params) {
+        uniqueParams.add(pathParam.name)
+      }
+
+      for (const param of queryParams) {
+        if (uniqueParams.has(param.name)) {
+          return false
+        }
+        uniqueParams.add(param.name)
+      }
+
+      return true
+    },
   },
   validations() {
     return {
       values: {
         name: {
-          required,
-          isUnique: this.isNameUnique,
-          maxLength: maxLength(255),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          isUnique: helpers.withMessage(
+            this.$t('pageErrors.errorNameNotUnique'),
+            this.isNameUnique
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(225)
+          ),
+        },
+        query_params: {
+          uniqueQueryParams: this.areQueryParamsUnique,
         },
         path: {
-          required,
-          isUnique: this.isPathUnique,
-          maxLength: maxLength(255),
-          startingSlash: this.pathStartsWithSlash,
-          validPathCharacters: this.pathHasValidCharacters,
-          uniquePathParams: this.arePathParamsUnique,
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          isUnique: helpers.withMessage(
+            this.$t('pageErrors.errorPathNotUnique'),
+            this.isPathUnique
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(225)
+          ),
+          startingSlash: helpers.withMessage(
+            this.$t('pageErrors.errorStartingSlash'),
+            this.pathStartsWithSlash
+          ),
+          validPathCharacters: helpers.withMessage(
+            this.$t('pageErrors.errorValidPathCharacters'),
+            this.pathHasValidCharacters
+          ),
+          uniquePathParams: helpers.withMessage(
+            this.$t('pageErrors.errorUniquePathParams'),
+            this.arePathParamsUnique
+          ),
         },
       },
     }

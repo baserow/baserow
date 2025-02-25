@@ -1,0 +1,14 @@
+<svg width="72" height="48" viewBox="0 0 72 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="1.25" y="1.25" width="69.5" height="45.5" rx="4.75" fill="white"/>
+  <rect x="1.25" y="1.25" width="69.5" height="45.5" rx="4.75" stroke="#E6E6E7" stroke-width="1.5"/>
+  <rect opacity="0.48" x="8" y="15.5" width="6" height="4" rx="2" fill="#E6E6E7"/>
+  <rect opacity="0.48" x="8" y="37" width="6" height="4" rx="2" fill="#E6E6E7"/>
+  <rect opacity="0.48" x="8" y="26.5" width="8" height="4" rx="2" fill="#E6E6E7"/>
+  <rect x="24" y="8" width="1" height="32" fill="#EDEDED"/>
+  <rect x="20" y="39" width="44" height="1" fill="#EDEDED"/>
+  <rect x="20" y="28" width="44" height="1" fill="#EDEDED"/>
+  <rect x="20" y="17" width="44" height="1" fill="#EDEDED"/>
+  <path d="M30 37C30 35.8954 30.8954 35 32 35H34C35.1046 35 36 35.8954 36 37V40H30V37Z" fill="#4E5CFE"/>
+  <path d="M42 25C42 23.8954 42.8954 23 44 23H46C47.1046 23 48 23.8954 48 25V40H42V25Z" fill="#4E5CFE"/>
+  <path d="M54 13C54 11.8954 54.8954 11 56 11H58C59.1046 11 60 11.8954 60 13V40H54V13Z" fill="#4E5CFE"/>
+</svg>

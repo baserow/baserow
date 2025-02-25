@@ -24,8 +24,7 @@ from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
-from django.contrib.postgres.aggregates import ArrayAgg, StringAgg
-from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.aggregates import ArrayAgg, JSONBAgg, StringAgg
 from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
 from django.db import OperationalError, connection, models
@@ -35,8 +34,10 @@ from django.db.models import (
     DateTimeField,
     Exists,
     Expression,
+    ExpressionWrapper,
     F,
     Func,
+    JSONField,
     OuterRef,
     Q,
     QuerySet,
@@ -46,7 +47,7 @@ from django.db.models import (
     Window,
 )
 from django.db.models.fields.related import ManyToManyField
-from django.db.models.functions import Coalesce, RowNumber
+from django.db.models.functions import Cast, Coalesce, RowNumber
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -96,6 +97,11 @@ from baserow.contrib.database.export_serialized import DatabaseExportSerializedS
 from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
 )
+from baserow.contrib.database.fields.utils.expression import (
+    get_collaborator_extractor,
+    get_select_option_extractor,
+    wrap_in_subquery,
+)
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
     BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES,
@@ -105,6 +111,7 @@ from baserow.contrib.database.formula import (
     BaserowFormulaCharType,
     BaserowFormulaDateType,
     BaserowFormulaInvalidType,
+    BaserowFormulaMultipleCollaboratorsType,
     BaserowFormulaNumberType,
     BaserowFormulaSingleSelectType,
     BaserowFormulaTextType,
@@ -124,6 +131,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.types import SerializedRowHistoryFieldMetadata
 from baserow.contrib.database.validators import UnicodeRegexValidator
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist, ViewNotInTable
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE, View
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
@@ -180,6 +188,7 @@ from .field_filters import (
     contains_filter,
     contains_word_filter,
     filename_contains_filter,
+    parse_ids_from_csv_string,
 )
 from .field_sortings import OptionallyAnnotatedOrderBy
 from .fields import BaserowExpressionField, BaserowLastModifiedField
@@ -772,12 +781,15 @@ class NumberFieldType(FieldType):
             "number_separator": field.number_separator,
         }
 
-    def prepare_filter_value(self, field, model_field, value):
+    def parse_filter_value(self, field, model_field, value):
         """
         Verify if it's a valid and finite decimal value, but the filter value doesn't
         need to respect the number_decimal_places, because they can change while the
         filter_value remains the same.
         """
+
+        if value == "":
+            return None
 
         try:
             value = Decimal(value)
@@ -963,8 +975,10 @@ class BooleanFieldType(FieldType):
     ) -> BooleanField:
         return BooleanField()
 
-    def prepare_filter_value(self, field, model_field, value):
-        if value in BASEROW_BOOLEAN_FIELD_TRUE_VALUES:
+    def parse_filter_value(self, field, model_field, value):
+        if value == "":
+            return None
+        elif value in BASEROW_BOOLEAN_FIELD_TRUE_VALUES:
             return True
         elif value in BASEROW_BOOLEAN_FIELD_FALSE_VALUES:
             return False
@@ -1684,6 +1698,9 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
 
+    def get_distribution_group_by_value(self, field_name: str):
+        return f"{field_name}__first_name"
+
 
 class CreatedByFieldType(ReadOnlyFieldType):
     type = "created_by"
@@ -1894,6 +1911,9 @@ class CreatedByFieldType(ReadOnlyFieldType):
         self, field: Field, field_name: str
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
+
+    def get_distribution_group_by_value(self, field_name: str):
+        return f"{field_name}__first_name"
 
 
 class DurationFieldType(FieldType):
@@ -2376,14 +2396,11 @@ class LinkRowFieldType(
     def enhance_field_queryset(
         self, queryset: QuerySet[Field], field: Field
     ) -> QuerySet[Field]:
+        base_field_queryset = FieldHandler().get_base_fields_queryset()
         return queryset.prefetch_related(
             models.Prefetch(
                 "link_row_table__field_set",
-                queryset=specific_queryset(
-                    Field.objects.filter(primary=True)
-                    .select_related("content_type")
-                    .prefetch_related("select_options")
-                ),
+                queryset=specific_queryset(base_field_queryset.filter(primary=True)),
                 to_attr=LinkRowField.RELATED_PPRIMARY_FIELD_ATTR,
             )
         )
@@ -2462,27 +2479,24 @@ class LinkRowFieldType(
 
             search_values = []
             for name, row_ids in name_map.items():
-                if primary_field["type"].read_only or primary_field["field"].read_only:
-                    search_values.append(name)
-                else:
-                    try:
-                        search_values.append(
-                            primary_field_type.prepare_value_for_db(
-                                primary_field["field"], name
-                            )
+                try:
+                    search_values.append(
+                        primary_field_type.parse_field_value_for_db(
+                            primary_field["field"], name
                         )
-                    except ValidationError as e:
-                        error = ValidationError(
-                            f"The value '{name}' is an invalid value for the primary field "
-                            "of the linked table.",
-                            code="invalid_value",
-                        )
-                        if continue_on_error:
-                            # Replace values by error for failing rows
-                            for row_index in row_ids:
-                                values_by_row[row_index] = error
-                        else:
-                            raise e
+                    )
+                except ValidationError as e:
+                    error = ValidationError(
+                        f"The value '{name}' is an invalid value for the primary field "
+                        "of the linked table.",
+                        code="invalid_value",
+                    )
+                    if continue_on_error:
+                        # Replace values by error for failing rows
+                        for row_index in row_ids:
+                            values_by_row[row_index] = error
+                    else:
+                        raise e
 
             # Get all matching rows
             rows = related_model.objects.filter(
@@ -2818,7 +2832,6 @@ class LinkRowFieldType(
             isinstance(link_row_limit_selection_view_id, int)
             and link_row_limit_selection_view_id > -1
         ):
-            from baserow.contrib.database.views.handler import ViewHandler
             from baserow.contrib.database.views.registries import view_type_registry
 
             view = ViewHandler().get_view(
@@ -3248,9 +3261,9 @@ class LinkRowFieldType(
     ):
         if field.link_row_related_field:
             FieldDependencyHandler.rebuild_dependencies(
-                field.link_row_related_field, field_cache
+                [field.link_row_related_field], field_cache
             )
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
     def get_export_serialized_value(self, row, field_name, cache, files_zip, storage):
         cache_entry = f"{field_name}_relations"
@@ -3868,6 +3881,20 @@ class SelectOptionBaseFieldType(FieldType):
     ) -> Expression | F:
         return F(f"{field_name}__value")
 
+    def parse_filter_value(self, field, model_field, value) -> List[int]:
+        """
+        Parses the provided comma separated string value to extract option ids from it.
+        If the result does not contain any valid option id, a ValueError is raised.
+        """
+
+        if value == "":
+            return None
+
+        option_ids = parse_ids_from_csv_string(value)
+        if not option_ids:
+            raise ValueError("The provided value does not contain a valid option id.")
+        return option_ids
+
 
 class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     type = "single_select"
@@ -4202,6 +4229,33 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                 **kwargs,
             }
         )
+
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        single_select_extractor = get_select_option_extractor(db_column, model_field)
+        if already_in_subquery:
+            return Case(
+                When(**{f"{db_column}__isnull": True}, then=Value(None)),
+                default=single_select_extractor,
+                output_field=model_field,
+            )
+        else:
+            return wrap_in_subquery(
+                single_select_extractor, db_column, model_field.model
+            )
+
+    def before_field_options_update(
+        self, field, to_create=None, to_update=None, to_delete=None
+    ):
+        if to_delete:
+            model = field.table.get_model()
+            model.objects.filter(**{f"{field.db_column}_id__in": to_delete}).update(
+                **{field.db_column: None}
+            )
+
+    def get_distribution_group_by_value(self, field_name: str):
+        return f"{field_name}__value"
 
 
 class MultipleSelectFieldType(
@@ -4639,6 +4693,27 @@ class MultipleSelectFieldType(
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
         return set(value1) == set(value2)
 
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        if already_in_subquery:
+            return Coalesce(
+                JSONBAgg(
+                    get_select_option_extractor(db_column, model_field),
+                    filter=Q(**{f"{db_column}__isnull": False}),
+                ),
+                Value([], output_field=JSONField()),
+            )
+        else:
+            return Coalesce(
+                wrap_in_subquery(
+                    JSONBAgg(get_select_option_extractor(db_column, model_field)),
+                    db_column,
+                    model_field.model,
+                ),
+                Value([], output_field=JSONField()),
+            )
+
 
 class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
     """
@@ -4860,9 +4935,16 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
+        # Add the formula_field instance to provide a reference to the source table,
+        # which might be needed for the export value (i.e. multiple collaborators field)
         return field_type.get_export_value(
             value,
-            {"field": field_instance, "type": field_type, "name": field_object["name"]},
+            {
+                "field": field_instance,
+                "type": field_type,
+                "name": field_object["name"],
+                "formula_field": instance,
+            },
             rich_value=rich_value,
         )
 
@@ -4908,16 +4990,20 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         return FormulaHandler.get_field_dependencies(field_instance, field_cache)
 
     def get_human_readable_value(self, value: Any, field_object) -> str:
+        formula_field = field_object["field"]
         (
             field_instance,
             field_type,
-        ) = self.get_field_instance_and_type_from_formula_field(field_object["field"])
+        ) = self.get_field_instance_and_type_from_formula_field(formula_field)
+        # Add the formula_field instance to provide a reference to the source table,
+        # which might be needed for the export value (i.e. multiple collaborators field)
         return field_type.get_human_readable_value(
             value,
             {
                 "field": field_instance,
                 "type": field_type,
                 "name": field_object["name"],
+                "formula_field": formula_field,
             },
         )
 
@@ -4993,6 +5079,10 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
             for table_id, dependant_field in dependant_fields_group:
+                if not isinstance(dependant_field, FormulaField):
+                    # LinkRowFields might depends on FormulaFields, but we can't update
+                    # them here because this is only valid for FormulaFields.
+                    continue
                 self._update_field_values(
                     dependant_field,
                     update_collectors[table_id],
@@ -5104,7 +5194,12 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         expr = FormulaHandler.recalculate_formula_and_get_update_expression(
             field, old_field, field_cache
         )
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        # Check if the formula field type has changed. This can for example change into
+        # an invalid type. If so, then we need to call the `add_to_fields_type_changed`
+        # so that eventually the view filters, sorts, etc are removed if needed.
+        if not self.has_compatible_model_fields(field, old_field):
+            update_collector.add_to_fields_type_changed(field)
+        update_collector.add_to_rebuild_field_dependencies(field)
         update_collector.add_field_with_pending_update_statement(
             field, expr, via_path_to_starting_table=via_path_to_starting_table
         )
@@ -5163,7 +5258,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
 
     def after_import_serialized(self, field, field_cache, id_mapping):
         field.save(recalculate=True, field_cache=field_cache)
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
     def after_rows_imported(
         self,
@@ -5221,6 +5316,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
     def can_represent_select_options(self, field):
         return self.to_baserow_formula_type(field.specific).can_represent_select_options
 
+    def can_represent_collaborators(self, field):
+        return self.to_baserow_formula_type(field.specific).can_represent_collaborators
+
     def get_permission_error_when_user_changes_field_to_depend_on_forbidden_field(
         self, user: AbstractUser, changed_field: Field, forbidden_field: Field
     ) -> Exception:
@@ -5252,12 +5350,12 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
 
         return FormulaHandler.get_dependencies_field_names(serialized_field["formula"])
 
-    def prepare_filter_value(self, field, model_field, value):
+    def parse_filter_value(self, field, model_field, value):
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(field)
-        return field_type.prepare_filter_value(field_instance, model_field, value)
+        return field_type.parse_filter_value(field_instance, model_field, value)
 
 
 class CountFieldType(FormulaFieldType):
@@ -5421,6 +5519,11 @@ class CountFieldType(FormulaFieldType):
         target_field = serialized_fields_map[target_field_id]
         target_field_name = target_field["name"]
         return {(target_field_name, through_field_name)}
+
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.select_related("through_field")
 
 
 class RollupFieldType(FormulaFieldType):
@@ -5626,6 +5729,11 @@ class RollupFieldType(FormulaFieldType):
         target_field_name = target_field["name"]
         return {(target_field_name, via_field_name)}
 
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.select_related("through_field", "target_field")
+
 
 class LookupFieldType(FormulaFieldType):
     type = "lookup"
@@ -5742,37 +5850,37 @@ class LookupFieldType(FormulaFieldType):
         through_field_name = values.get("through_field_name", None)
         target_field_name = values.get("target_field_name", None)
 
-        if through_field_id is None:
-            try:
-                through_field_id = table.field_set.get(name=through_field_name).id
-            except Field.DoesNotExist:
-                raise InvalidLookupThroughField()
-        try:
-            through_field = FieldHandler().get_field(through_field_id, LinkRowField)
-        except FieldDoesNotExist:
-            # Occurs when the through_field_id points at a non LinkRowField
-            raise InvalidLookupThroughField()
+        through_queryset = LinkRowField.objects.filter(table_id=table.id)
+        if through_field_id is not None:
+            through_queryset = through_queryset.filter(id=through_field_id)
+        elif through_field_name is not None:
+            through_queryset = through_queryset.filter(name=through_field_name)
+        else:
+            raise InvalidLookupThroughField(
+                f"Either a through_field_id or through_field_name must be provided."
+            )
 
-        if through_field.table != table:
+        try:
+            through_field = through_queryset.get()
+        except LinkRowField.DoesNotExist:
             raise InvalidLookupThroughField()
 
         values["through_field_id"] = through_field.id
         values["through_field_name"] = through_field.name
 
-        if target_field_id is None:
-            try:
-                target_field_id = through_field.link_row_table.field_set.get(
-                    name=target_field_name
-                ).id
-            except Field.DoesNotExist:
-                raise InvalidLookupTargetField()
+        target_queryset = Field.objects.filter(table_id=through_field.link_row_table_id)
+        if target_field_id is not None:
+            target_queryset = target_queryset.filter(id=target_field_id)
+        elif target_field_name is not None:
+            target_queryset = target_queryset.filter(name=target_field_name)
+        else:
+            raise InvalidLookupTargetField(
+                f"Either a target_field_id or target_field_name must be provided."
+            )
 
         try:
-            target_field = FieldHandler().get_field(target_field_id)
-        except FieldDoesNotExist:
-            raise InvalidLookupTargetField()
-
-        if target_field.table != through_field.link_row_table:
+            target_field = target_queryset.get()
+        except Field.DoesNotExist:
             raise InvalidLookupTargetField()
 
         values["target_field_id"] = target_field.id
@@ -5787,7 +5895,16 @@ class LookupFieldType(FormulaFieldType):
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
-        self._rebuild_field_from_names(field)
+        # The updated field can be the through field or the target field, and we're only
+        # interested if the name or the field type changed.
+        if updated_field.id == field.through_field_id:
+            if updated_field.name != field.through_field_name:
+                field.through_field_name = updated_field.name
+                field.save(recalculate=False)
+        elif updated_field.id == field.target_field_id:
+            if updated_field.name != field.target_field_name:
+                field.target_field_name = updated_field.name
+                field.save(recalculate=False)
 
         super().field_dependency_updated(
             field,
@@ -5806,7 +5923,14 @@ class LookupFieldType(FormulaFieldType):
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
-        self._rebuild_field_from_names(field)
+        # Either the through field or the target field has been deleted
+        if deleted_field.id == field.through_field_id:
+            field.through_field_id = None
+            field.target_field_id = None
+            field.save(recalculate=False)
+        elif deleted_field.id == field.target_field_id:
+            field.target_field_id = None
+            field.save(recalculate=False)
 
         super().field_dependency_deleted(
             field,
@@ -5824,7 +5948,27 @@ class LookupFieldType(FormulaFieldType):
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]] = None,
     ):
-        self._rebuild_field_from_names(field)
+        # If the created field can fix this broken field because it was pointing to
+        # the same name, then we can do so.
+        if (
+            field.error
+            and field.through_field_id is None
+            and isinstance(created_field, LinkRowField)
+            and created_field.name == field.through_field_name
+        ):
+            field.through_field_id = created_field.id
+            field.target_field = Field.objects.filter(
+                table_id=created_field.link_row_table_id, name=field.target_field_name
+            ).first()
+            field.save(recalculate=False)
+        elif (
+            field.error
+            and field.target_field_id is None
+            and created_field.name == field.target_field_name
+            and created_field.table_id == field.through_field.specific.link_row_table_id
+        ):
+            field.target_field_id = created_field.id
+            field.save(recalculate=False)
 
         super().field_dependency_created(
             field,
@@ -5833,21 +5977,6 @@ class LookupFieldType(FormulaFieldType):
             field_cache,
             via_path_to_starting_table,
         )
-
-    def _rebuild_field_from_names(self, field):
-        values = {
-            "through_field_name": field.through_field_name,
-            "through_field_id": None,
-            "target_field_name": field.target_field_name,
-            "target_field_id": None,
-        }
-        try:
-            self._validate_through_and_target_field_values(field.table, values)
-        except (InvalidLookupTargetField, InvalidLookupThroughField):
-            pass
-        for key, value in values.items():
-            setattr(field, key, value)
-        field.save(recalculate=False)
 
     def import_serialized(
         self,
@@ -5903,6 +6032,11 @@ class LookupFieldType(FormulaFieldType):
 
         return {(target_field_name, via_field_name)}
 
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.select_related("through_field", "target_field")
+
 
 class MultipleCollaboratorsFieldType(
     CollationSortMixin, ManyToManyFieldTypeSerializeToInputValueMixin, FieldType
@@ -5910,11 +6044,15 @@ class MultipleCollaboratorsFieldType(
     type = "multiple_collaborators"
     model_class = MultipleCollaboratorsField
     can_get_unique_values = False
-    can_be_in_form_view = False
     allowed_fields = ["notify_user_when_added"]
-    serializer_field_names = ["notify_user_when_added"]
+    serializer_field_names = ["available_collaborators", "notify_user_when_added"]
     serializer_field_overrides = {
-        "notify_user_when_added": serializers.BooleanField(required=False)
+        "available_collaborators": serializers.ListField(
+            child=CollaboratorSerializer(),
+            read_only=True,
+            source="table.database.workspace.users.all",
+        ),
+        "notify_user_when_added": serializers.BooleanField(required=False),
     }
     is_many_to_many_field = True
 
@@ -5960,6 +6098,9 @@ class MultipleCollaboratorsFieldType(
                 **kwargs,
             }
         )
+
+    def serialize_to_input_value(self, field: Field, value: any) -> any:
+        return [{"id": u.id, "name": u.first_name} for u in value.all()]
 
     def prepare_value_for_db(self, instance, value):
         if not isinstance(
@@ -6034,9 +6175,13 @@ class MultipleCollaboratorsFieldType(
         )
 
     def get_export_value(self, value, field_object, rich_value=False):
-        if value is None:
+        if hasattr(value, "all"):
+            value = value.all()
+
+        if not value:
             return [] if rich_value else ""
-        result = [item.email for item in value.all()]
+
+        result = [f"{user.first_name} <{user.email}>" for user in value]
         if rich_value:
             return result
         else:
@@ -6263,6 +6408,33 @@ class MultipleCollaboratorsFieldType(
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
 
+    def to_baserow_formula_type(self, field: Field):
+        return BaserowFormulaMultipleCollaboratorsType(nullable=True)
+
+    def from_baserow_formula_type(self, formula_type) -> Field:
+        return self.model_class()
+
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        if already_in_subquery:
+            return Coalesce(
+                JSONBAgg(
+                    get_collaborator_extractor(db_column, model_field),
+                    filter=Q(**{f"{db_column}__isnull": False}),
+                ),
+                Value([], output_field=JSONField()),
+            )
+        else:
+            return Coalesce(
+                wrap_in_subquery(
+                    JSONBAgg(get_collaborator_extractor(db_column, model_field)),
+                    db_column,
+                    model_field.model,
+                ),
+                Value([], output_field=JSONField()),
+            )
+
 
 class UUIDFieldType(ReadOnlyFieldType):
     """
@@ -6272,7 +6444,6 @@ class UUIDFieldType(ReadOnlyFieldType):
 
     type = "uuid"
     model_class = UUIDField
-    can_get_unique_values = False
     can_be_in_form_view = False
     keep_data_on_duplication = True
 
@@ -6346,6 +6517,19 @@ class UUIDFieldType(ReadOnlyFieldType):
     ) -> UUIDField:
         return UUIDField()
 
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        """
+        Casts the uuid to text to make it compatible with all the text related
+        functions.
+        """
+
+        return ExpressionWrapper(
+            Cast(F(db_column), output_field=models.TextField()),
+            output_field=models.TextField(),
+        )
+
 
 class AutonumberFieldType(ReadOnlyFieldType):
     """
@@ -6391,8 +6575,6 @@ class AutonumberFieldType(ReadOnlyFieldType):
     def _extract_view_from_field_kwargs(self, user, field_kwargs):
         view_id = field_kwargs.get("view_id", None)
         if view_id is not None:
-            from baserow.contrib.database.views.handler import ViewHandler
-
             field_kwargs["view"] = ViewHandler().get_view_as_user(user, view_id)
 
     def before_create(
@@ -6467,8 +6649,6 @@ class AutonumberFieldType(ReadOnlyFieldType):
         :param field: The field to initialize the values for.
         :param view: The view to initialize the values according to.
         """
-
-        from baserow.contrib.database.views.handler import ViewHandler
 
         not_trashed_first = Case(When(Q(trashed=False), then=Value(0)), default=1).asc()
         order_bys = (not_trashed_first, "order", "id")

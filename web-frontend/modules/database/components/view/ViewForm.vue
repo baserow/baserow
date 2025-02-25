@@ -4,21 +4,22 @@
       small-label
       :label="$t('viewForm.name')"
       required
-      :error="fieldHasErrors('name')"
+      :error="v$.values.name.$error"
       class="margin-bottom-2"
     >
       <FormInput
         ref="name"
-        v-model="values.name"
+        v-model="v$.values.name.$model"
         size="large"
         :error="fieldHasErrors('name')"
         @focus.once="$event.target.select()"
-        @blur="$v.values.name.$touch()"
       >
       </FormInput>
 
       <template #error>
-        {{ $t('error.requiredField') }}
+        <span v-if="v$.values.name.required.$invalid">
+          {{ $t('error.requiredField') }}
+        </span>
       </template>
     </FormGroup>
 
@@ -41,7 +42,9 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { reactive } from 'vue'
+import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import Radio from '@baserow/modules/core/components/Radio'
 
@@ -64,14 +67,28 @@ export default {
       required: true,
     },
   },
-  data() {
-    return {
+
+  setup() {
+    const values = reactive({
       values: {
-        name: this.defaultName,
+        name: '',
         ownershipType: 'collaborative',
       },
+    })
+
+    const rules = {
+      values: {
+        name: { required },
+        ownershipType: {},
+      },
+    }
+
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
     }
   },
+
   computed: {
     viewOwnershipTypes() {
       return Object.values(this.$registry.getAll('viewOwnershipType'))
@@ -85,6 +102,9 @@ export default {
       return this.sortOwnershipTypes(this.viewOwnershipTypes)
     },
   },
+  created() {
+    this.values.name = this.defaultName
+  },
   mounted() {
     this.$refs.name.focus()
     const firstAndHenceDefaultOwnershipType =
@@ -97,11 +117,6 @@ export default {
       return ownershipTypes
         .slice()
         .sort((a, b) => b.getListViewTypeSort() - a.getListViewTypeSort())
-    },
-  },
-  validations: {
-    values: {
-      name: { required },
     },
   },
 }

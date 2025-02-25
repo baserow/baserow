@@ -15,6 +15,8 @@ from baserow.core.trash.handler import TrashHandler
 
 from .handler import WidgetHandler
 from .models import Widget
+from .signals import widget_created, widget_deleted, widget_updated
+from .types import UpdatedWidget
 
 
 class WidgetService:
@@ -113,6 +115,8 @@ class WidgetService:
 
         widget_type_from_registry = widget_type_registry.get(widget_type)
 
+        widget_type_from_registry.before_create(dashboard)
+
         new_widget = self.handler.create_widget(
             widget_type_from_registry,
             dashboard,
@@ -120,9 +124,13 @@ class WidgetService:
             **kwargs,
         )
 
+        widget_created.send(self, user=user, widget=new_widget)
+
         return new_widget
 
-    def update_widget(self, user: AbstractUser, widget_id: int, **kwargs) -> Widget:
+    def update_widget(
+        self, user: AbstractUser, widget_id: int, **kwargs
+    ) -> UpdatedWidget:
         """
         Updates a widget given the user permissions.
 
@@ -147,9 +155,10 @@ class WidgetService:
         )
 
         updated_widget = self.handler.update_widget(widget, **kwargs)
+        widget_updated.send(self, user=user, widget=updated_widget.widget)
         return updated_widget
 
-    def delete_widget(self, user: AbstractUser, widget_id: int):
+    def delete_widget(self, user: AbstractUser, widget_id: int) -> Widget:
         """
         Deletes the widget based on the provided widget id if the
         user has correct permissions to do so.
@@ -172,3 +181,7 @@ class WidgetService:
         )
 
         TrashHandler.trash(user, widget.dashboard.workspace, widget.dashboard, widget)
+
+        widget_deleted.send(self, user=user, widget=widget)
+
+        return widget

@@ -25,8 +25,11 @@ from baserow.contrib.database.formula.ast.function_defs import (
     Baserow2dArrayAgg,
     BaserowAggJoin,
     BaserowArrayAggNoNesting,
+    BaserowManyToManyAgg,
+    BaserowManyToManyCount,
     BaserowMultipleSelectCount,
     BaserowMultipleSelectOptionsAgg,
+    BaserowStringAggManyToManyValues,
     BaserowStringAggMultipleSelectValues,
 )
 from baserow.contrib.database.formula.ast.tree import (
@@ -40,6 +43,7 @@ from baserow.contrib.database.formula.types.formula_type import (
     UnTyped,
 )
 from baserow.contrib.database.formula.types.formula_types import (
+    BaserowFormulaMultipleCollaboratorsType,
     BaserowFormulaMultipleSelectType,
 )
 from baserow.contrib.database.formula.types.type_checker import MustBeManyExprChecker
@@ -1139,12 +1143,16 @@ def test_aggregate_functions_never_allow_non_many_inputs(data_fixture, api_clien
 
     function_exceptions = {
         Baserow2dArrayAgg.type,
-        # Multiple select formulas that are aggregates but they accepts
+        # DEPRECATED: Multiple select formulas that are aggregates but they accepts
         # non-many multiple select fields. All these functions are not directly
         # exposed to the user in the UI anyway.
         BaserowMultipleSelectOptionsAgg.type,
         BaserowMultipleSelectCount.type,
         BaserowStringAggMultipleSelectValues.type,
+        # ManyToMany formulas for i.e. multiple collaborators and multiple select.
+        BaserowManyToManyAgg.type,
+        BaserowManyToManyCount.type,
+        BaserowStringAggManyToManyValues.type,
     }
     custom_cases = {
         BaserowAggJoin.type: [
@@ -1232,6 +1240,9 @@ def test_aggregate_functions_can_be_referenced_by_other_formulas(
     multiple_select_field = data_fixture.create_multiple_select_field(
         user, table=table_b, name="multiple_select_field"
     )
+    multiple_collaborators_field = data_fixture.create_multiple_collaborators_field(
+        user, table=table_b, name="multiple_collaborator_field"
+    )
 
     fill_table_rows(10, table_b)
 
@@ -1246,6 +1257,8 @@ def test_aggregate_functions_can_be_referenced_by_other_formulas(
         BaserowMultipleSelectOptionsAgg.type,
         BaserowMultipleSelectCount.type,
         BaserowStringAggMultipleSelectValues.type,
+        # Multiple collaborators formulas
+        BaserowStringAggManyToManyValues.type,
     }
 
     for formula_func in formula_function_registry.get_all():
@@ -1260,6 +1273,7 @@ def test_aggregate_functions_can_be_referenced_by_other_formulas(
                 number_field=number_field,
                 bool_field=bool_field,
                 multiple_select_field=multiple_select_field,
+                multiple_collaborators_field=multiple_collaborators_field,
             )
         ]
 
@@ -1300,6 +1314,7 @@ def get_field_name_from_arg_types(
     number_field,
     bool_field,
     multiple_select_field,
+    multiple_collaborators_field,
 ):
     args = formula_func.arg_types
     field_refs = []
@@ -1320,6 +1335,8 @@ def get_field_name_from_arg_types(
             r = through_field.link_row_related_field.name
         elif arg_checker == BaserowFormulaMultipleSelectType:
             r = multiple_select_field.name
+        elif arg_checker == BaserowFormulaMultipleCollaboratorsType:
+            r = multiple_collaborators_field.name
         else:
             assert False, (
                 f"Please add a branch for {arg_checker} to "
@@ -1994,4 +2011,133 @@ def test_lookup_arrays(data_fixture):
             ],
             join_lookup_field.db_column: "b1,b2",
         }
+    ]
+
+
+@pytest.mark.django_db
+def test_formulas_with_lookup_to_uuid_primary_field(data_fixture):
+    user = data_fixture.create_user()
+
+    table = data_fixture.create_database_table(user=user)
+    table_primary_field = data_fixture.create_text_field(
+        primary=True,
+        name="Primary",
+        table=table,
+    )
+
+    linked_table = data_fixture.create_database_table(
+        user=user, database=table.database
+    )
+    data_fixture.create_uuid_field(
+        primary=True,
+        name="Linked primary",
+        table=linked_table,
+    )
+    linked_table_text_field = data_fixture.create_text_field(
+        name="LText",
+        table=linked_table,
+    )
+
+    linked_row_1, linked_row_2 = RowHandler().create_rows(
+        user,
+        linked_table,
+        [
+            {
+                linked_table_text_field.db_column: "Linked row #1",
+            },
+            {
+                linked_table_text_field.db_column: "Linked row #2",
+            },
+        ],
+    )
+
+    link_field = FieldHandler().create_field(
+        user, table, "link_row", link_row_table=linked_table, name="Link"
+    )
+
+    formula_scenarios = [
+        f"lookup('{link_field.name}', 'LText')",
+        f"filter(field('{link_field.name}'), isblank(lookup('{link_field.name}','LText')))",
+    ]
+
+    fields = [
+        data_fixture.create_formula_field(
+            user=user,
+            table=table,
+            formula=formula,
+        )
+        for formula in formula_scenarios
+    ]
+
+    RowHandler().create_rows(
+        user,
+        table,
+        [
+            {
+                table_primary_field.db_column: "Row #1",
+                link_field.db_column: [linked_row_1.id],
+            },
+            {
+                table_primary_field.db_column: "Row #2",
+                link_field.db_column: [
+                    linked_row_1.id,
+                    linked_row_2.id,
+                ],
+            },
+            {table_primary_field.db_column: "Row #3", link_field.db_column: []},
+        ],
+    )
+
+    rows = data_fixture.get_rows(fields=[table_primary_field, *fields])
+    assert rows == [
+        ["Row #1", [{"id": 1, "value": "Linked row #1"}], []],
+        [
+            "Row #2",
+            [{"id": 1, "value": "Linked row #1"}, {"id": 2, "value": "Linked row #2"}],
+            [],
+        ],
+        ["Row #3", [], []],
+    ]
+
+
+@pytest.mark.django_db
+def test_regexp_replace(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    regexp_field = data_fixture.create_text_field(table=table)
+    formula_field = data_fixture.create_formula_field(
+        user=user,
+        table=table,
+        formula=f"regex_replace(field('{text_field.name}'), field('{regexp_field.name}'), 'X')",
+    )
+    RowHandler().create_rows(
+        user,
+        table,
+        [
+            {
+                text_field.db_column: "a123",
+                regexp_field.db_column: "\\d",
+            },
+            {
+                text_field.db_column: "a123",
+                regexp_field.db_column: "a",
+            },
+            {
+                text_field.db_column: "a123",
+                regexp_field.db_column: "[a-",
+            },
+            {
+                text_field.db_column: "a123",
+                regexp_field.db_column: "\\",
+            },
+        ],
+    )
+
+    rows = data_fixture.get_rows(fields=[text_field, regexp_field, formula_field])
+    assert rows == [
+        ["a123", "\\d", "aXXX"],
+        ["a123", "a", "X123"],
+        ["a123", "[a-", "#ERROR!"],
+        ["a123", "\\", "#ERROR!"],
     ]

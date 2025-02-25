@@ -66,3 +66,21 @@ def setup(settings):
         ] = "baserow_enterprise.secure_file_serve.storage.EnterpriseFileStorage"
 
     settings.BASEROW_SERVE_FILES_THROUGH_BACKEND = serve_files_through_backend
+
+    settings.BASEROW_ENTERPRISE_PERIODIC_DATA_SYNC_CHECK_INTERVAL_MINUTES = int(
+        os.getenv("BASEROW_ENTERPRISE_PERIODIC_DATA_SYNC_CHECK_INTERVAL_MINUTES", "")
+        or 1
+    )
+    settings.BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS = int(
+        os.getenv("BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS", "")
+        or 4
+    )
+
+    settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES = int(
+        os.getenv("BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_SERIES", "") or 3
+    )
+
+    settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = int(
+        os.getenv("BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS", "")
+        or 10
+    )

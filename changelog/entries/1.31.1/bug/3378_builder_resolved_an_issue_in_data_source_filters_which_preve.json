@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "[Builder] Resolved an issue in data source filters and sortings which prevented them from working correctly when the database field they were associated with were trashed.",
+    "issue_number": 3378,
+    "bullet_points": [],
+    "created_at": "2025-01-24"
+}

@@ -189,7 +189,15 @@ def build_calendar(
         query_field_names.add(field_name)
 
     filter_qs = {f"{date_field_name}__isnull": False}
-    qs = qs.filter(**filter_qs).only(*query_field_names)
+
+    # Calculate which fields must be deferred to optimize performance. The idea is
+    # that only the `query_field_names` and `select_related_fields` are kept because
+    # they must be included in the result.
+    model_field_names = {field.name for field in qs.model._meta.get_fields()}
+    select_related_fields = set(qs.query.select_related or [])
+    fields_to_defer = model_field_names - query_field_names - select_related_fields
+
+    qs = qs.filter(**filter_qs).defer(*fields_to_defer)
     if limit:
         qs = qs[:limit]
 

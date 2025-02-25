@@ -50,7 +50,7 @@ class SamlAppAuthProviderType(SamlAuthProviderTypeMixin, AppAuthProviderType):
 
         return [
             path(
-                "user-source/<str:user_source_uid>/sso/saml/",
+                "",
                 include(urls, namespace="sso_saml"),
             )
         ]
@@ -78,9 +78,8 @@ class SamlAppAuthProviderType(SamlAuthProviderTypeMixin, AppAuthProviderType):
             )
         return super().before_update(user, provider, **values)
 
-    @classmethod
     def get_acs_absolute_url(
-        cls, auth_provider: "SamlAuthProviderTypeMixin | None" = None
+        self, auth_provider: "SamlAuthProviderTypeMixin | None" = None
     ):
         """
         Returns the ACS url for SAML authentication purpose. The user is redirected
@@ -91,7 +90,6 @@ class SamlAppAuthProviderType(SamlAuthProviderTypeMixin, AppAuthProviderType):
             settings.PUBLIC_BACKEND_URL,
             reverse(
                 "api:user_sources:sso_saml:acs",
-                kwargs={"user_source_uid": auth_provider.user_source.uid},
             ),
         )
 

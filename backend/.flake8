@@ -7,6 +7,7 @@ per-file-ignores =
     ../enterprise/backend/tests/*: F841
     src/baserow/contrib/database/migrations/*: X1
     src/baserow/core/migrations/*: X1
+    src/baserow/core/psycopg.py: BRP001
 exclude =
     .git,
     __pycache__,
@@ -16,4 +17,5 @@ exclude =
 [flake8:local-plugins]
 extension =
     X1 = flake8_baserow:DocstringPlugin
+    BRP001 = flake8_baserow:BaserowPsycopgChecker
 paths = ./flake8_plugins

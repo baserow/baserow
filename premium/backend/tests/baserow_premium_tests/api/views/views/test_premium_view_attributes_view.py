@@ -37,7 +37,41 @@ def test_premium_view_attributes_view(view_type, api_client, premium_data_fixtur
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["show_logo"] is False
+    response_json = response.json()
+    assert response_json["show_logo"] is False
+    assert response_json["allow_public_export"] is False
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@pytest.mark.parametrize("view_type", view_type_registry.registry.keys())
+def test_premium_view_attributes_view_allow_public_export(
+    view_type, api_client, premium_data_fixture
+):
+    user, token = premium_data_fixture.create_user_and_token(
+        email="test@test.nl",
+        password="password",
+        first_name="Test1",
+        has_active_premium_license=True,
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    view = ViewHandler().create_view(
+        user=user, table=table, type_name=view_type, name=view_type
+    )
+
+    response = api_client.patch(
+        reverse(
+            "api:premium:view:premium_view_attributes", kwargs={"view_id": view.id}
+        ),
+        data={"allow_public_export": True},
+        format="json",
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["show_logo"] is True
+    assert response_json["allow_public_export"] is True
 
 
 @pytest.mark.django_db

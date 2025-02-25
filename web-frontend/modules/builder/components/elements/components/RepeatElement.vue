@@ -19,7 +19,7 @@
         >
           <!-- Iterate over each content -->
           <div v-for="(content, index) in elementContent" :key="content.id">
-            <!-- If the container has an children -->
+            <!-- If the container has any children -->
             <template v-if="children.length > 0">
               <!-- Iterate over each child -->
               <template v-for="child in children">
@@ -28,12 +28,13 @@
                   v-if="index === 0 && isEditMode"
                   :key="`${child.id}-${index}`"
                   :element="child"
-                  :application-context-additions="{
-                    recordIndexPath: [
-                      ...applicationContext.recordIndexPath,
-                      index,
-                    ],
-                  }"
+                  :application-context-additions="
+                    getPerRecordApplicationContextAddition({
+                      applicationContext,
+                      row: content,
+                      rowIndex: index,
+                    })
+                  "
                   @move="$emit('move', $event)"
                 />
                 <!-- Other iterations are not editable -->
@@ -44,12 +45,13 @@
                   :key="`${child.id}_${index}`"
                   :element="child"
                   :force-mode="isEditMode ? 'public' : mode"
-                  :application-context-additions="{
-                    recordIndexPath: [
-                      ...applicationContext.recordIndexPath,
-                      index,
-                    ],
-                  }"
+                  :application-context-additions="
+                    getPerRecordApplicationContextAddition({
+                      applicationContext,
+                      row: content,
+                      rowIndex: index,
+                    })
+                  "
                   :class="{
                     'repeat-element__preview': index > 0 && isEditMode,
                   }"
@@ -151,6 +153,10 @@ export default {
      * @property {str} orientation - The orientation to repeat in (vertical, horizontal).
      * @property {Object} items_per_row - The number of items, per device, which should
      *  be repeated in a row. Only applicable to when the orientation is 'horizontal'.
+     * @property {int} horizontal_gap - The amount of space between repeat
+     *   elements when the orientation is 'horizontal'.
+     * @property {int} vertical_gap - The amount of space between repeat
+     *   elements when the orientation is 'vertical'.
      */
     element: {
       type: Object,
@@ -188,6 +194,7 @@ export default {
         return {
           display: 'flex',
           'flex-direction': 'column',
+          gap: `${this.element.vertical_gap}px ${this.element.horizontal_gap}px`,
         }
       } else {
         return {
@@ -195,6 +202,7 @@ export default {
           'grid-template-columns': `repeat(${
             this.element.items_per_row[this.deviceTypeSelected]
           }, 1fr)`,
+          gap: `${this.element.vertical_gap}px ${this.element.horizontal_gap}px`,
         }
       }
     },

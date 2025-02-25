@@ -112,6 +112,9 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
                 "page_parameters": [
                     {"name": "id", "value": "get('current_record.field_424')"}
                 ],
+                "query_parameters": [
+                    {"name": "query_id", "value": "get('current_record.field_424')"}
+                ],
                 "roles": [],
                 "role_type": Element.ROLE_TYPES.ALLOW_ALL,
             },
@@ -169,6 +172,7 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
     assert link.value == migrated_ref
     assert link.navigate_to_url == migrated_ref
     assert link.page_parameters[0]["value"] == migrated_ref
+    assert link.query_parameters[0]["value"] == migrated_ref
 
 
 @pytest.mark.django_db
@@ -204,7 +208,7 @@ def test_extract_properties_includes_schema_property_for_nested_collection(
     )
 
     properties = RepeatElementType().extract_properties(parent_repeat)
-    assert properties == {}
+    assert properties == {data_source.service_id: ["id"]}
 
     # Create a child Repeat with a schema_property
     child_repeat = data_fixture.create_builder_repeat_element(
@@ -219,8 +223,10 @@ def test_extract_properties_includes_schema_property_for_nested_collection(
 
     properties = RepeatElementType().extract_properties(child_repeat, **formula_context)
 
-    # We expect that the schema_property field ID to be present
-    assert properties == {data_source.service_id: [f"field_{multiple_select_field.id}"]}
+    # We expect that the schema_property field to be present and the ID
+    assert properties == {
+        data_source.service_id: [f"field_{multiple_select_field.id}", "id"]
+    }
 
 
 @pytest.mark.django_db
@@ -279,4 +285,6 @@ def test_extract_properties_includes_schema_property_for_single_row(
     )
 
     properties = RepeatElementType().extract_properties(repeat)
-    assert properties == {data_source.service_id: [f"field_{multiple_select_field.id}"]}
+    assert properties == {
+        data_source.service_id: [f"field_{multiple_select_field.id}", "id"]
+    }

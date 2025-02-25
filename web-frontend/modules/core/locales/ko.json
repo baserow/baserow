@@ -137,7 +137,10 @@
         "download": "다운로드",
         "importingState": "가져오는 중",
         "noExports": "이 작업공간에는 아직 내보낸 내용이 없습니다.",
-        "created": "생성됨"
+        "created": "생성됨",
+        "exportingState": "내보내는 중",
+        "exportingTableState": "테이블 내보내기: {table}",
+        "exportingCreateArchiveState": "아카이브 생성"
     },
     "exportWorkspaceForm": {
         "exportSettingsLabel": "내보내기 설정",
@@ -166,7 +169,8 @@
         "invalidResourceTitle": "잘못된 리소스",
         "invalidResourceMessage": "제공된 파일은 유효한 Baserow 내보내기가 아닙니다.",
         "untrustedPublicKeyTitle": "신뢰할 수 없는 서명",
-        "untrustedPublicKeyMessage": "제공된 파일은 신뢰할 수 없는 공개 키로 서명되었습니다. 관리자에게 공개 키를 신뢰할 수 있는 키 목록에 추가하거나 서명 확인을 비활성화하여 이 파일을 가져올 수 있도록 요청하세요."
+        "untrustedPublicKeyMessage": "제공된 파일은 신뢰할 수 없는 공개 키로 서명되었습니다. 관리자에게 공개 키를 신뢰할 수 있는 키 목록에 추가하거나 서명 확인을 비활성화하여 이 파일을 가져올 수 있도록 요청하세요.",
+        "importingState": "불러오기"
     },
     "dashboardWorkspace": {
         "createApplication": "새로 만들기"
@@ -918,5 +922,8 @@
     },
     "userSourceType": {
         "userCountSummary": "{count} 사용자 ({lastUpdated})"
+    },
+    "colorPickerContext": {
+        "pickColorPlaceholder": "또는 미리 정의된 색상을 선택"
     }
 }

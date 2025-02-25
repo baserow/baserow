@@ -21,12 +21,14 @@ import {
   extractRowReadOnlyValues,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
+  updateRowMetadataType,
+  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata,
+    metadata: getRowMetadata(row, metadata),
     // Whether the row should be displayed based on the current activeSearchTerm term.
     matchSearch: true,
     // Contains the specific field ids which match the activeSearchTerm term.
@@ -212,18 +214,7 @@ export const mutations = {
     Object.assign(row, values)
   },
   UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
-    const currentValue = row._.metadata[rowMetadataType]
-    const newValue = updateFunction(currentValue)
-
-    if (
-      !Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)
-    ) {
-      const metaDataCopy = clone(row._.metadata)
-      metaDataCopy[rowMetadataType] = newValue
-      Vue.set(row._, 'metadata', metaDataCopy)
-    } else {
-      Vue.set(row._.metadata, rowMetadataType, newValue)
-    }
+    updateRowMetadataType(row, rowMetadataType, updateFunction)
   },
   SET_ADHOC_FILTERING(state, adhocFiltering) {
     state.adhocFiltering = adhocFiltering
@@ -313,6 +304,7 @@ export const actions = {
     { commit, getters, rootGetters },
     { dateTime, fields, includeFieldOptions = false }
   ) {
+    const calendarId = getters.getLastCalendarId
     commit('SET_SELECTED_DATE', dateTime)
 
     const df = getters.getDateField(fields)
@@ -344,6 +336,12 @@ export const actions = {
         publicUrl: rootGetters['page/view/public/getIsPublic'],
         publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       })
+      // Don't do anything if the calendarId does not match the current view calendarId
+      // because that probably means the user switched to another view or table, and
+      // the data that is returned here shouldn't do anything.
+      if (calendarId !== getters.getLastCalendarId) {
+        return
+      }
       const lastRequest = dateTime.isSame(getters.getSelectedDate(fields))
       if (lastRequest) {
         Object.keys(data.rows).forEach((key) => {
@@ -399,6 +397,12 @@ export const actions = {
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       filters,
     })
+    // Don't do anything if the calendarId does not match the current view calendarId
+    // because that probably means the user switched to another view or table, and
+    // the data that is returned here shouldn't do anything.
+    if (calendarId !== getters.getLastCalendarId) {
+      return
+    }
     const newRows = data.rows[date].results
     const newCount = data.rows[date].count
     newRows.forEach((row) => {

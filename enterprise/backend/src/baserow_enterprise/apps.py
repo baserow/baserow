@@ -3,6 +3,8 @@ from django.db.models.signals import post_migrate
 
 from tqdm import tqdm
 
+from baserow.core.feature_flags import FF_DASHBOARDS, feature_flag_is_enabled
+
 
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
@@ -27,6 +29,7 @@ class BaserowEnterpriseConfig(AppConfig):
             operation_type_registry,
             plugin_registry,
         )
+        from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
         from baserow_enterprise.api.member_data_types import (
             EnterpriseMemberTeamsDataType,
@@ -110,6 +113,49 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(UpdateRoleTableOperationType())
         operation_type_registry.register(ListWorkspaceAuditLogEntriesOperationType())
 
+        from baserow.contrib.database.fields.field_aggregations import (
+            AverageFieldAggregationType,
+            CheckedFieldAggregationType,
+            CheckedPercentageFieldAggregationType,
+            CountFieldAggregationType,
+            EmptyCountFieldAggregationType,
+            EmptyPercentageFieldAggregationType,
+            MaxFieldAggregationType,
+            MedianFieldAggregationType,
+            MinFieldAggregationType,
+            NotCheckedFieldAggregationType,
+            NotCheckedPercentageFieldAggregationType,
+            NotEmptyCountFieldAggregationType,
+            NotEmptyPercentageFieldAggregationType,
+            StdDevFieldAggregationType,
+            SumFieldAggregationType,
+            UniqueCountFieldAggregationType,
+            VarianceFieldAggregationType,
+        )
+        from baserow_enterprise.integrations.registries import (
+            grouped_aggregation_registry,
+        )
+
+        grouped_aggregation_registry.register(CountFieldAggregationType())
+        grouped_aggregation_registry.register(EmptyCountFieldAggregationType())
+        grouped_aggregation_registry.register(NotEmptyCountFieldAggregationType())
+        grouped_aggregation_registry.register(CheckedFieldAggregationType())
+        grouped_aggregation_registry.register(NotCheckedFieldAggregationType())
+        grouped_aggregation_registry.register(EmptyPercentageFieldAggregationType())
+        grouped_aggregation_registry.register(NotEmptyPercentageFieldAggregationType())
+        grouped_aggregation_registry.register(CheckedPercentageFieldAggregationType())
+        grouped_aggregation_registry.register(
+            NotCheckedPercentageFieldAggregationType()
+        )
+        grouped_aggregation_registry.register(UniqueCountFieldAggregationType())
+        grouped_aggregation_registry.register(MinFieldAggregationType())
+        grouped_aggregation_registry.register(MaxFieldAggregationType())
+        grouped_aggregation_registry.register(SumFieldAggregationType())
+        grouped_aggregation_registry.register(AverageFieldAggregationType())
+        grouped_aggregation_registry.register(StdDevFieldAggregationType())
+        grouped_aggregation_registry.register(VarianceFieldAggregationType())
+        grouped_aggregation_registry.register(MedianFieldAggregationType())
+
         from baserow.core.registries import subject_type_registry
 
         subject_type_registry.register(TeamSubjectType())
@@ -174,11 +220,27 @@ class BaserowEnterpriseConfig(AppConfig):
             LocalBaserowPasswordAppAuthProviderType()
         )
 
+        from baserow_enterprise.integrations.common.sso.oauth2.app_auth_provider_types import (
+            OpenIdConnectAppAuthProviderType,
+        )
         from baserow_enterprise.integrations.common.sso.saml.app_auth_provider_types import (
             SamlAppAuthProviderType,
         )
 
         app_auth_provider_type_registry.register(SamlAppAuthProviderType())
+        app_auth_provider_type_registry.register(OpenIdConnectAppAuthProviderType())
+
+        from baserow.contrib.dashboard.widgets.registries import widget_type_registry
+        from baserow_enterprise.dashboard.widgets.widget_types import ChartWidgetType
+        from baserow_enterprise.integrations.local_baserow.service_types import (
+            LocalBaserowGroupedAggregateRowsUserServiceType,
+        )
+
+        if feature_flag_is_enabled(FF_DASHBOARDS):
+            service_type_registry.register(
+                LocalBaserowGroupedAggregateRowsUserServiceType()
+            )
+            widget_type_registry.register(ChartWidgetType())
 
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
@@ -203,6 +265,12 @@ class BaserowEnterpriseConfig(AppConfig):
         data_sync_type_registry.register(GitHubIssuesDataSyncType())
         data_sync_type_registry.register(GitLabIssuesDataSyncType())
         data_sync_type_registry.register(HubspotContactsDataSyncType())
+
+        from baserow_enterprise.data_sync.actions import (
+            UpdatePeriodicDataSyncIntervalActionType,
+        )
+
+        action_type_registry.register(UpdatePeriodicDataSyncIntervalActionType())
 
         # Create default roles
         post_migrate.connect(sync_default_roles_after_migrate, sender=self)

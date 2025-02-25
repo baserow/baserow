@@ -192,34 +192,6 @@ class FileNameContainsExpr(BaserowFilterExpression):
     # fmt: on
 
 
-class JSONArrayContainsValueExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE UPPER(filtered_field ->> 'value') LIKE UPPER(%(value)s::text)
-        )
-        """  # nosec B608
-    )
-    # fmt: on
-
-
-class JSONArrayContainsValueSimilarToExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE UPPER(filtered_field ->> 'value') SIMILAR TO %(value)s
-        )
-        """  # nosec B608 %(value)s
-    )
-    # fmt: on
-
-
 class JSONArrayContainsValueLengthLowerThanExpr(BaserowFilterExpression):
     # fmt: off
     template = (
@@ -242,48 +214,6 @@ class JSONArrayAllAreExpr(BaserowFilterExpression):
             SELECT upper(filtered_field ->> 'value')
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
         ) AND JSONB_ARRAY_LENGTH(%(field_name)s) > 0
-                """  # nosec B608 %(value)s
-    )
-    # fmt: on
-
-
-class JSONArrayEqualSelectOptionIdExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE (filtered_field -> 'value' ->> 'id') LIKE (%(value)s)
-        )
-        """  # nosec B608
-    )
-    # fmt: on
-
-
-class JSONArrayContainsSelectOptionValueExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        f"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE UPPER(filtered_field -> 'value' ->> 'value') LIKE UPPER(%(value)s)
-        )
-        """  # nosec B608
-    )
-    # fmt: on
-
-
-class JSONArrayContainsSelectOptionValueSimilarToExpr(BaserowFilterExpression):
-    # fmt: off
-    template = (
-        r"""
-        EXISTS(
-            SELECT 1
-            FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
-            WHERE filtered_field -> 'value' ->> 'value' ~* ('\y' || %(value)s || '\y')
-        )
         """  # nosec B608 %(value)s
     )
     # fmt: on

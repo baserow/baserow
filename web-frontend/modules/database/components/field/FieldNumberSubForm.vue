@@ -2,16 +2,16 @@
   <div>
     <FormGroup
       small-label
-      :error="$v.values.number_decimal_places.$error"
+      :error="fieldHasErrors('number_decimal_places')"
       :label="$t('fieldNumberSubForm.decimalPlacesLabel')"
       class="margin-bottom-2"
       required
     >
       <Dropdown
-        v-model="values.number_decimal_places"
-        :error="$v.values.number_decimal_places.$error"
+        v-model="v$.values.number_decimal_places.$model"
+        :error="fieldHasErrors('number_decimal_places')"
         :fixed-items="true"
-        @hide="$v.values.number_decimal_places.$touch()"
+        @hide="v$.values.number_decimal_places.$touch"
       >
         <DropdownItem name="0 (1)" :value="0"></DropdownItem>
         <DropdownItem name="1 (1.0)" :value="1"></DropdownItem>
@@ -34,18 +34,17 @@
     >
       <div class="flex">
         <FormInput
-          v-model="values.number_prefix"
-          :error="$v.values.number_prefix.$error"
+          v-model="v$.values.number_prefix.$model"
+          :error="fieldHasErrors('number_prefix')"
           type="text"
           :placeholder="$t('fieldNumberSubForm.prefixPlaceholder')"
-          @blur="$v.values.number_prefix.$touch()"
         ></FormInput>
         <FormInput
-          v-model="values.number_suffix"
-          :error="$v.values.number_suffix.$error"
+          v-model="v$.values.number_suffix.$model"
+          :error="fieldHasErrors('number_suffix')"
           type="text"
           :placeholder="$t('fieldNumberSubForm.suffixPlaceholder')"
-          @blur="$v.values.number_suffix.$touch()"
+          @blur="v$.values.number_suffix.$touch"
         ></FormInput>
       </div>
     </FormGroup>
@@ -55,7 +54,7 @@
       :label="$t('fieldNumberSubForm.separatorLabel')"
       :class="{ 'margin-bottom-2': allowSetNumberNegative }"
     >
-      <Dropdown v-model="values.number_separator" :fixed-items="true">
+      <Dropdown v-model="v$.values.number_separator.$model" :fixed-items="true">
         <DropdownItem
           v-for="option in numberFormatOptions"
           :key="option.value"
@@ -68,7 +67,7 @@
     <FormGroup>
       <Checkbox
         v-if="allowSetNumberNegative"
-        v-model="values.number_negative"
+        v-model="v$.values.number_negative.$model"
         >{{ $t('fieldNumberSubForm.allowNegative') }}</Checkbox
       >
     </FormGroup>
@@ -76,7 +75,8 @@
 </template>
 
 <script>
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, maxLength } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
@@ -91,6 +91,9 @@ export default {
       required: false,
       default: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     let allowedValues = [
@@ -116,14 +119,6 @@ export default {
       values,
     }
   },
-  validations: {
-    values: {
-      number_decimal_places: { required },
-      number_prefix: { maxLength: maxLength(10), required: false },
-      number_suffix: { maxLength: maxLength(10), required: false },
-    },
-  },
-
   computed: {
     numberFormatOptions() {
       return Object.entries(NUMBER_FORMATS).map(([key, format]) => ({
@@ -131,6 +126,17 @@ export default {
         value: format.value,
       }))
     },
+  },
+  validations() {
+    return {
+      values: {
+        number_decimal_places: { required },
+        number_prefix: { maxLength: maxLength(10) },
+        number_suffix: { maxLength: maxLength(10) },
+        number_separator: {},
+        number_negative: {},
+      },
+    }
   },
 }
 </script>

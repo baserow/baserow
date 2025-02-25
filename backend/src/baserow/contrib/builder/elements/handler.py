@@ -65,11 +65,14 @@ class ElementHandler:
         "style_border_right_size",
         "style_padding_right",
         "style_margin_right",
+        "style_background_radius",
+        "style_border_radius",
         "style_background",
         "style_background_color",
         "style_background_file",
         "style_background_mode",
         "style_width",
+        "style_width_child",
     ]
 
     allowed_fields_update = [
@@ -93,11 +96,14 @@ class ElementHandler:
         "style_border_right_size",
         "style_padding_right",
         "style_margin_right",
+        "style_background_radius",
+        "style_border_radius",
         "style_background",
         "style_background_color",
         "style_background_file",
         "style_background_mode",
         "style_width",
+        "style_width_child",
         "role_type",
         "roles",
     ]
@@ -118,9 +124,7 @@ class ElementHandler:
 
         try:
             element = (
-                queryset.select_related(
-                    "page", "page__builder", "page__builder__workspace"
-                )
+                queryset.select_related("page__builder__workspace")
                 .get(id=element_id)
                 .specific
             )
@@ -233,8 +237,7 @@ class ElementHandler:
         """
 
         if specific:
-            queryset = base_queryset.select_related("content_type")
-            elements = specific_iterator(queryset)
+            elements = specific_iterator(base_queryset)
         else:
             elements = base_queryset
 

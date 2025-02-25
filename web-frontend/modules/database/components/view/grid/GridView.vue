@@ -74,7 +74,7 @@
       class="grid-view__divider-width"
       :style="{ left: leftWidth + 'px' }"
       :width="leftFieldsWidth"
-      :min="100"
+      :min="GRID_VIEW_MIN_FIELD_WIDTH"
       @move="moveFieldWidth(leftFields[0], $event)"
       @update="
         updateFieldWidth(leftFields[0], view, database, readOnly, $event)
@@ -85,7 +85,7 @@
       class="grid-view__divider-width"
       :style="{ left: leftWidth + 'px' }"
       :width="activeGroupBys[activeGroupBys.length - 1].width"
-      :min="100"
+      :min="GRID_VIEW_MIN_FIELD_WIDTH"
       @move="
         moveGroupWidth(activeGroupBys[activeGroupBys.length - 1], view, $event)
       "
@@ -799,6 +799,7 @@ export default {
             field,
             value,
             oldValue,
+            isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
       } catch (error) {
@@ -907,6 +908,7 @@ export default {
             values,
             before,
             selectPrimaryCell: true,
+            isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
       } catch (error) {
@@ -925,6 +927,7 @@ export default {
             fields: this.fields,
             rows: Array.from(Array(rowsAmount)).map(() => ({})),
             selectPrimaryCell: true,
+            isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
       } catch (error) {
@@ -1069,6 +1072,16 @@ export default {
       })
     },
     /**
+     * This function helps the store determine whether it is safe to hide a row. Since
+     * some filters or groups may depend on values computed in the backend, the store
+     * needs to know if a row that does not meet the filters can be safely hidden when
+     * the values become available or if it should remain visible until the modal is
+     * closed.
+     */
+    isRowOpenedInModal(row) {
+      return this.$store.getters['rowModalNavigation/getRow']?.id === row.id
+    },
+    /**
      * When a cell is unselected need to change the selected state of the row.
      */
     unselectedCell({ component, row, field }) {
@@ -1104,7 +1117,7 @@ export default {
             row,
             field,
             getScrollTop,
-            isRowOpenedInModal: this.rowOpenedInModal?.id === row.id,
+            isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
       })

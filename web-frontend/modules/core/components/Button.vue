@@ -36,7 +36,7 @@ export default {
       type: String,
       default: 'regular',
       validator(value) {
-        return ['small', 'regular', 'large', 'tiny'].includes(value)
+        return ['small', 'regular', 'large', 'tiny', 'xlarge'].includes(value)
       },
     },
     /**

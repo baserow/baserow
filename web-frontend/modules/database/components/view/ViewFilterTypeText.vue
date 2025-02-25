@@ -2,7 +2,7 @@
   <FormInput
     ref="input"
     v-model="copy"
-    :error="$v?.copy.$error"
+    :error="v$.copy.$error"
     :disabled="disabled"
     @input="delayedUpdate($event)"
     @keydown.enter="delayedUpdate($event.target.value, true)"

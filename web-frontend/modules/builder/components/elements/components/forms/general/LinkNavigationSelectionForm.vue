@@ -11,11 +11,14 @@
           <template v-if="destinationPage">
             {{ destinationPage.name }}
             <span
+              v-tooltip:[tooltipOptions]="destinationPagePathWithParams"
               class="link-navigation-selection-form__navigate-option-page-path"
             >
-              {{ destinationPage.path }}
-            </span></template
-          >
+              <span>
+                {{ destinationPagePathWithParams }}
+              </span>
+            </span>
+          </template>
           <span v-else>{{
             $t('linkNavigationSelection.navigateToCustom')
           }}</span>
@@ -27,12 +30,7 @@
           :value="pageItem.id"
           :name="pageItem.name"
         >
-          {{ pageItem.name }}
-          <span
-            class="link-navigation-selection-form__navigate-option-page-path"
-          >
-            {{ pageItem.path }}
-          </span>
+          {{ pageItem.name }} {{ getPagePathWithParams(pageItem) }}
         </DropdownItem>
         <DropdownItem
           :name="$t('linkNavigationSelection.navigateToCustom')"
@@ -84,6 +82,20 @@
             :placeholder="$t('linkNavigationSelection.paramPlaceholder')"
           />
         </FormGroup>
+        <FormGroup
+          v-for="param in values.query_parameters"
+          :key="param.name"
+          small-label
+          :label="param.name"
+          class="margin-bottom-2"
+          required
+          horizontal
+        >
+          <InjectedFormulaInput
+            v-model="param.value"
+            :placeholder="$t('linkNavigationSelection.paramPlaceholder')"
+          />
+        </FormGroup>
       </div>
     </FormGroup>
     <FormGroup
@@ -121,6 +133,7 @@ export default {
         'navigate_to_page_id',
         'navigate_to_url',
         'page_parameters',
+        'query_parameters',
         'target',
       ],
       values: {
@@ -128,6 +141,7 @@ export default {
         navigate_to_page_id: null,
         navigate_to_url: '',
         page_parameters: [],
+        query_parameters: [],
         target: 'self',
       },
       linkNavigationSelectionTargetOptions: [
@@ -137,6 +151,9 @@ export default {
           label: this.$t('linkNavigationSelection.targetNewTab'),
         },
       ],
+      tooltipOptions: {
+        contentClasses: ['tooltip__content--expandable'],
+      },
     }
   },
   computed: {
@@ -148,6 +165,10 @@ export default {
         return this.pages.find(({ id }) => id === this.navigateTo)
       }
       return null
+    },
+    destinationPagePathWithParams() {
+      if (!this.destinationPage) return ''
+      return this.getPagePathWithParams(this.destinationPage)
     },
   },
   watch: {
@@ -173,7 +194,6 @@ export default {
     },
     destinationPage(value) {
       this.updatePageParameters()
-
       // This means that the page select does not exist anymore
       if (value === undefined) {
         this.values.navigate_to_page_id = null
@@ -196,16 +216,39 @@ export default {
     this.refreshParametersInError()
   },
   methods: {
+    getPagePathWithParams(page) {
+      const shortTypes = {
+        text: '*',
+        numeric: '#',
+      }
+      let path = page.path
+      if (page.query_params.length) {
+        path += `?${page.query_params
+          .map((p) => `${p.name}=${shortTypes[p.type]}`)
+          .join('&')}`
+      }
+      return path
+    },
     refreshParametersInError() {
       this.parametersInError = pathParametersInError(this.values, this.pages)
     },
     updatePageParameters() {
+      // Update path parameters
       this.values.page_parameters = (
         this.destinationPage?.path_params || []
       ).map(({ name }, index) => {
         const previousValue = this.values.page_parameters[index]?.value || ''
         return { name, value: previousValue }
       })
+
+      // Update query parameters
+      this.values.query_parameters = (
+        this.destinationPage?.query_params || []
+      ).map(({ name }, index) => {
+        const previousValue = this.values.query_parameters[index]?.value || ''
+        return { name, value: previousValue }
+      })
+
       this.parametersInError = false
     },
   },

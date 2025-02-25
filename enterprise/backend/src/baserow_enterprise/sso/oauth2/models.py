@@ -60,7 +60,7 @@ class GitLabAuthProviderModel(AuthProviderModel):
     )
 
 
-class OpenIdConnectAuthProviderModel(AuthProviderModel):
+class OpenIdConnectAuthProviderModelMixin(models.Model):
     name = models.CharField(
         max_length=255,
     )
@@ -76,3 +76,12 @@ class OpenIdConnectAuthProviderModel(AuthProviderModel):
     authorization_url = models.URLField(help_text="URL to initiate auth flow")
     access_token_url = models.URLField(help_text="URL to obtain access token")
     user_info_url = models.URLField(help_text="URL to get user info")
+
+    class Meta:
+        abstract = True
+
+
+class OpenIdConnectAuthProviderModel(
+    OpenIdConnectAuthProviderModelMixin, AuthProviderModel
+):
+    pass

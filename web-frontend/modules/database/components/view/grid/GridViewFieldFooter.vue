@@ -21,6 +21,7 @@
       :loading="loading"
       :aggregation-type="viewAggregationType"
       :value="value"
+      :field="field"
     />
     <div
       v-else-if="userCanMakeAggregations"
@@ -143,7 +144,9 @@ export default {
     viewAggregationTypes() {
       return this.$registry
         .getOrderedList('viewAggregation')
-        .filter((agg) => agg.fieldIsCompatible(this.field))
+        .filter(
+          (agg) => agg.fieldIsCompatible(this.field) && agg.isAllowedInView()
+        )
     },
     fieldType() {
       return this.$registry.get('field', this.field.type)

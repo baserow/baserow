@@ -24,6 +24,7 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
+from baserow.core.db import specific_iterator
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 
@@ -1339,13 +1340,20 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             base_queryset = Application.objects
 
         try:
-            application = base_queryset.select_related("workspace", "content_type").get(
-                id=application_id
-            )
-        except Application.DoesNotExist:
+            application = specific_iterator(
+                base_queryset.select_related("workspace", "content_type").filter(
+                    id=application_id
+                ),
+                per_content_type_queryset_hook=(
+                    lambda model, queryset: application_type_registry.get_by_model(
+                        model
+                    ).enhance_queryset(queryset)
+                ),
+            )[0]
+        except IndexError as e:
             raise ApplicationDoesNotExist(
                 f"The application with id {application_id} does not exist."
-            )
+            ) from e
 
         if TrashHandler.item_has_a_trashed_parent(application):
             raise ApplicationDoesNotExist(
@@ -1353,6 +1361,19 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         return application
+
+    def get_application_for_url(self, url) -> Application | None:
+        """
+        Returns the application instance related to the given URL if any.
+
+        :param url: the url to search the application for.
+        """
+
+        for app_type in application_type_registry.get_all():
+            if found_id := app_type.get_application_id_for_url(url):
+                return self.get_application(found_id)
+
+        return None
 
     def list_applications_in_workspace(
         self, workspace_id: int, base_queryset: Optional[QuerySet] = None

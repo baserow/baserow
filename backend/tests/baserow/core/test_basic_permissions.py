@@ -9,6 +9,7 @@ import pytest
 
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import (
     PermissionDenied,
     UserInvalidWorkspacePermissionsError,
@@ -1141,7 +1142,7 @@ def test_allow_if_template_permission_manager_filter_queryset(data_fixture):
         "member",
         "token",
         "basic",
-    ]
+    ],
 )
 def test_allow_if_template_permission_manager_query_count(data_fixture):
     buser = data_fixture.create_user(username="Auth user")
@@ -1161,7 +1162,9 @@ def test_allow_if_template_permission_manager_query_count(data_fixture):
             workspace=workspace_1,
         )
 
-    with CaptureQueriesContext(connection) as query_not_for_template:
+    with CaptureQueriesContext(
+        connection
+    ) as query_not_for_template, local_cache.context():
         CoreHandler().check_permissions(
             buser,
             UpdateIntegrationOperationType.type,

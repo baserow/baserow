@@ -2,9 +2,11 @@ from typing import Any, Dict, Optional
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
+from django.db.models import QuerySet
 
 from rest_framework import serializers
 
+from baserow.contrib.builder.models import Builder
 from baserow.core.user_files.handler import UserFileHandler
 
 from .models import (
@@ -165,6 +167,11 @@ class PageThemeConfigBlockType(ThemeConfigBlockType):
             return None
 
         return value
+
+    def enhance_queryset(self, queryset: QuerySet[Builder]) -> QuerySet[Builder]:
+        return queryset.select_related(
+            f"{self.related_name_in_builder_model}__page_background_file"
+        )
 
 
 class InputThemeConfigBlockType(ThemeConfigBlockType):

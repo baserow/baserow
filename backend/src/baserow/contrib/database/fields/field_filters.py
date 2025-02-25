@@ -23,6 +23,21 @@ FILTER_TYPE_OR = "OR"
 tracer = trace.get_tracer(__name__)
 
 
+def parse_ids_from_csv_string(value: str) -> list[int]:
+    """
+    Parses the provided value and returns a list of integers that represent ids. If a
+    token is not a digit, it is ignored.
+
+    :param value: The value that has been provided by the user.
+    :return: A list of integers that represent ids.
+    """
+
+    try:
+        return [int(v) for v in value.split(",") if v.strip().isdigit()]
+    except ValueError:
+        return []
+
+
 class AnnotatedQ:
     """
     A simple wrapper class combining a params for a Queryset.annotate call with a

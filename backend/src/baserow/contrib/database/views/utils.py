@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from django.db.models.aggregates import Aggregate
+from django.db.models.aggregates import Aggregate, Count
 
 
 class AnnotatedAggregation:
@@ -18,3 +18,35 @@ class AnnotatedAggregation:
 
         self.annotations = annotations
         self.aggregation = aggregation
+
+
+class DistributionAggregation:
+    """
+    Performs the equivalent of a SELECT field, count(*) FROM table GROUP BY field
+    on the provided queryset.
+    """
+
+    def __init__(self, group_by):
+        """
+        :param group_by: The name of the queryset field that contains the values
+            that need to be grouped by
+        """
+
+        self.group_by = group_by
+
+    def calculate(self, queryset, limit=10):
+        """
+        Calculates the distribution of values in the `group_by` field in the queryset.
+        Returns the top tep results, sorted by count descending.
+        :param queryset: The queryset to calculate the distribution on
+        :param limit: The number of results to return.
+        """
+
+        # Disable prefetch behaviors for this query
+        queryset._multi_field_prefetch_related_funcs = []
+        return list(
+            queryset.values(self.group_by)
+            .annotate(count=Count("*"))
+            .order_by("-count", self.group_by)
+            .values_list(self.group_by, "count")[:limit]
+        )

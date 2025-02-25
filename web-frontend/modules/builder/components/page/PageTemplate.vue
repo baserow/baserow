@@ -55,9 +55,6 @@ export default {
     async loadData() {
       this.loading = true
 
-      this.$store.dispatch('element/select', {
-        element: null,
-      })
       try {
         const builderToDisplay = this.pageValue.builder
 
@@ -90,7 +87,7 @@ export default {
           this.$store.dispatch('dataSource/fetch', {
             page,
           }),
-          this.$store.dispatch('element/fetch', { page }),
+          this.$store.dispatch('element/fetch', { builder, page }),
           this.$store.dispatch('workflowAction/fetch', { page }),
         ])
 

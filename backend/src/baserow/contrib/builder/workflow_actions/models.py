@@ -57,6 +57,9 @@ class BuilderWorkflowAction(
         queryset = BuilderWorkflowAction.objects.filter(page=page, element=None)
         return cls.get_highest_order_of_queryset(queryset) + 1
 
+    class Meta:
+        ordering = ("order", "id")
+
 
 class NotificationWorkflowAction(BuilderWorkflowAction):
     title = FormulaField(default="")

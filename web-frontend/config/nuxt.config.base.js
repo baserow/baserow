@@ -57,7 +57,13 @@ export default function (
         })
       },
       babel: { compact: true },
-      transpile: ['axios', 'tiptap-markdown', 'markdown-it'],
+      transpile: [
+        'axios',
+        'tiptap-markdown',
+        'markdown-it',
+        'vue-chartjs',
+        'chart.js',
+      ],
     },
   }
 }

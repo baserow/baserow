@@ -13,14 +13,14 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.table_border_size"
+            v-model="v$.values.table_border_size.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`table_border_size`]
             "
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_border_size"
+              v-model="v$.values.table_border_size.$model"
               :default-value="theme?.table_border_size"
             />
           </template>
@@ -33,14 +33,14 @@
           class="margin-bottom-2"
         >
           <ColorInput
-            v-model="values.table_border_color"
+            v-model="v$.values.table_border_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.table_border_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_border_color"
+              v-model="v$.values.table_border_color.$model"
               :default-value="theme?.table_border_color"
             />
           </template>
@@ -53,14 +53,14 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.table_border_radius"
+            v-model="v$.values.table_border_radius.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`table_border_radius`]
             "
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_border_radius"
+              v-model="v$.values.table_border_radius.$model"
               :default-value="theme?.table_border_radius"
             />
           </template>
@@ -83,14 +83,14 @@
           class="margin-bottom-2"
         >
           <ColorInput
-            v-model="values.table_header_background_color"
+            v-model="v$.values.table_header_background_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.table_header_background_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_header_background_color"
+              v-model="v$.values.table_header_background_color.$model"
               :default-value="theme?.table_header_background_color"
             />
           </template>
@@ -101,11 +101,34 @@
           :label="$t('tableThemeConfigBlock.fontFamily')"
           class="margin-bottom-2"
         >
-          <FontFamilySelector v-model="values.table_header_font_family" />
+          <FontFamilySelector
+            v-model="v$.values.table_header_font_family.$model"
+          />
           <template #after-input>
             <ResetButton
-              v-model="values.table_header_font_family"
+              v-model="v$.values.table_header_font_family.$model"
               :default-value="theme?.table_header_font_family"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('tableThemeConfigBlock.fontWeight')"
+        >
+          <FontWeightSelector
+            v-model="values.table_header_font_weight"
+            :font="values.table_header_font_family"
+          />
+          <template #after-input>
+            <ResetButton
+              v-if="
+                values.table_header_font_family ===
+                theme?.table_header_font_family
+              "
+              v-model="values.table_header_font_weight"
+              :default-value="theme?.table_header_font_weight"
             />
           </template>
         </FormGroup>
@@ -117,34 +140,15 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.table_header_font_size"
+            v-model="v$.values.table_header_font_size.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`table_header_font_size`]
             "
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_header_font_size"
+              v-model="v$.values.table_header_font_size.$model"
               :default-value="theme?.table_header_font_size"
-            />
-          </template>
-        </FormGroup>
-        <FormGroup
-          horizontal-narrow
-          small-label
-          :label="$t('tableThemeConfigBlock.textColor')"
-          class="margin-bottom-2"
-        >
-          <ColorInput
-            v-model="values.table_header_text_color"
-            :color-variables="colorVariables"
-            :default-value="theme?.table_header_text_color"
-            small
-          />
-          <template #after-input>
-            <ResetButton
-              v-model="values.table_header_text_color"
-              :default-value="theme?.table_header_text_color"
             />
           </template>
         </FormGroup>
@@ -156,13 +160,32 @@
           class="margin-bottom-2"
         >
           <HorizontalAlignmentsSelector
-            v-model="values.table_header_text_alignment"
+            v-model="v$.values.table_header_text_alignment.$model"
           />
 
           <template #after-input>
             <ResetButton
-              v-model="values.table_header_text_alignment"
+              v-model="v$.values.table_header_text_alignment.$model"
               :default-value="theme?.table_header_text_alignment"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          :label="$t('tableThemeConfigBlock.textColor')"
+          class="margin-bottom-2"
+        >
+          <ColorInput
+            v-model="v$.values.table_header_text_color.$model"
+            :color-variables="colorVariables"
+            :default-value="theme?.table_header_text_color"
+            small
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="v$.values.table_header_text_color.$model"
+              :default-value="theme?.table_header_text_color"
             />
           </template>
         </FormGroup>
@@ -181,14 +204,14 @@
           class="margin-bottom-2"
         >
           <ColorInput
-            v-model="values.table_cell_background_color"
+            v-model="v$.values.table_cell_background_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.table_cell_background_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_cell_background_color"
+              v-model="v$.values.table_cell_background_color.$model"
               :default-value="theme?.table_cell_background_color"
             />
           </template>
@@ -200,14 +223,14 @@
           class="margin-bottom-2"
         >
           <ColorInput
-            v-model="values.table_cell_alternate_background_color"
+            v-model="v$.values.table_cell_alternate_background_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.table_cell_alternate_background_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_cell_alternate_background_color"
+              v-model="v$.values.table_cell_alternate_background_color.$model"
               :default-value="theme?.table_cell_alternate_background_color"
             />
           </template>
@@ -219,10 +242,12 @@
           :label="$t('tableThemeConfigBlock.alignment')"
           class="margin-bottom-2"
         >
-          <HorizontalAlignmentsSelector v-model="values.table_cell_alignment" />
+          <HorizontalAlignmentsSelector
+            v-model="v$.values.table_cell_alignment.$model"
+          />
           <template #after-input>
             <ResetButton
-              v-model="values.table_cell_alignment"
+              v-model="v$.values.table_cell_alignment.$model"
               :default-value="theme?.table_cell_alignment"
             />
           </template>
@@ -269,14 +294,14 @@
           class="margin-bottom-2"
         >
           <ColorInput
-            v-model="values.table_horizontal_separator_color"
+            v-model="v$.values.table_horizontal_separator_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.table_horizontal_separator_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_horizontal_separator_color"
+              v-model="v$.values.table_horizontal_separator_color.$model"
               :default-value="theme?.table_horizontal_separator_color"
             />
           </template>
@@ -289,14 +314,14 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.table_horizontal_separator_size"
+            v-model="v$.values.table_horizontal_separator_size.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`table_horizontal_separator_size`]
             "
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_horizontal_separator_size"
+              v-model="v$.values.table_horizontal_separator_size.$model"
               :default-value="theme?.table_horizontal_separator_size"
             />
           </template>
@@ -308,14 +333,14 @@
           class="margin-bottom-2"
         >
           <ColorInput
-            v-model="values.table_vertical_separator_color"
+            v-model="v$.values.table_vertical_separator_color.$model"
             :color-variables="colorVariables"
             :default-value="theme?.table_vertical_separator_color"
             small
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_vertical_separator_color"
+              v-model="v$.values.table_vertical_separator_color.$model"
               :default-value="theme?.table_vertical_separator_color"
             />
           </template>
@@ -328,14 +353,14 @@
           class="margin-bottom-2"
         >
           <PixelValueSelector
-            v-model="values.table_vertical_separator_size"
+            v-model="v$.values.table_vertical_separator_size.$model"
             :default-value-when-empty="
               defaultValuesWhenEmpty[`table_vertical_separator_size`]
             "
           />
           <template #after-input>
             <ResetButton
-              v-model="values.table_vertical_separator_size"
+              v-model="v$.values.table_vertical_separator_size.$model"
               :default-value="theme?.table_vertical_separator_size"
             />
           </template>
@@ -349,15 +374,23 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import themeConfigBlock from '@baserow/modules/builder/mixins/themeConfigBlock'
 import ThemeConfigBlockSection from '@baserow/modules/builder/components/theme/ThemeConfigBlockSection'
 import ResetButton from '@baserow/modules/builder/components/theme/ResetButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
+import FontWeightSelector from '@baserow/modules/builder/components/FontWeightSelector'
 import PixelValueSelector from '@baserow/modules/builder/components/PixelValueSelector'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
-import { required, integer, minValue, maxValue } from 'vuelidate/lib/validators'
 import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
+import {
+  required,
+  integer,
+  minValue,
+  maxValue,
+  helpers,
+} from '@vuelidate/validators'
 
 const minMax = {
   table_border_size: {
@@ -397,13 +430,33 @@ export default {
     ResetButton,
     HorizontalAlignmentsSelector,
     FontFamilySelector,
+    FontWeightSelector,
     PixelValueSelector,
     PaddingSelector,
   },
   mixins: [themeConfigBlock],
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
-      values: {},
+      values: {
+        ...Object.fromEntries(Object.entries(minMax).map(([key]) => [key, 1])),
+        table_border_color: this.theme?.table_border_color,
+        table_header_background_color:
+          this.theme?.table_header_background_color,
+        table_header_font_family: this.theme?.table_header_font_family,
+        table_header_text_color: this.theme?.table_header_text_color,
+        table_header_text_alignment: this.theme?.table_header_text_alignment,
+        table_cell_background_color: this.theme?.table_cell_background_color,
+        table_cell_alternate_background_color:
+          this.theme?.table_cell_alternate_background_color,
+        table_cell_alignment: this.theme?.table_cell_alignment,
+        table_horizontal_separator_color:
+          this.theme?.table_horizontal_separator_color,
+        table_vertical_separator_color:
+          this.theme?.table_vertical_separator_color,
+      },
       fields: [
         { __id__: 1, id: 1, name: 'Header 1' },
         { __id__: 2, id: 2, name: 'Header 2' },
@@ -431,8 +484,9 @@ export default {
         }
       },
       set(newValue) {
-        this.values.table_cell_vertical_padding = newValue.vertical
-        this.values.table_cell_horizontal_padding = newValue.horizontal
+        this.v$.values.table_cell_vertical_padding.$model = newValue.vertical
+        this.v$.values.table_cell_horizontal_padding.$model =
+          newValue.horizontal
       },
     },
     onlyCell() {
@@ -450,10 +504,7 @@ export default {
       return key.startsWith('table_')
     },
     getError(property) {
-      if (this.$v.values[property].$invalid) {
-        return this.$t('error.minMaxValueField', minMax[property])
-      }
-      return null
+      return this.v$.values[property].$errors[0]?.$message
     },
     getPaddingError() {
       return (
@@ -462,18 +513,48 @@ export default {
       )
     },
   },
-  validations: {
-    values: Object.fromEntries(
-      Object.entries(minMax).map(([key, limits]) => [
-        key,
-        {
-          required,
-          integer,
-          minValue: minValue(limits.min),
-          maxValue: maxValue(limits.max),
-        },
-      ])
-    ),
+  validations() {
+    return {
+      values: {
+        ...Object.fromEntries(
+          Object.entries(minMax).map(([key, limits]) => [
+            key,
+            {
+              required: helpers.withMessage(
+                this.$t('error.requiredField'),
+                required
+              ),
+              integer: helpers.withMessage(
+                this.$t('error.integerField'),
+                integer
+              ),
+              minValue: helpers.withMessage(
+                this.$t('error.minValueField', {
+                  min: limits.min,
+                }),
+                minValue(limits.min)
+              ),
+              maxValue: helpers.withMessage(
+                this.$t('error.maxValueField', {
+                  max: limits.max,
+                }),
+                maxValue(limits.max)
+              ),
+            },
+          ])
+        ),
+        table_border_color: {},
+        table_header_background_color: {},
+        table_header_font_family: {},
+        table_header_text_color: {},
+        table_header_text_alignment: {},
+        table_cell_background_color: {},
+        table_cell_alternate_background_color: {},
+        table_cell_alignment: {},
+        table_horizontal_separator_color: {},
+        table_vertical_separator_color: {},
+      },
+    }
   },
 }
 </script>

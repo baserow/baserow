@@ -19,8 +19,13 @@ export class ServiceType extends Registerable {
     return null
   }
 
-  isValid(service) {
-    return true
+  /**
+   * Whether the service is valid.
+   * @param service - The service object.
+   * @returns {boolean} - If the service is valid.
+   */
+  isInError({ service }) {
+    return false
   }
 
   /**
@@ -28,6 +33,22 @@ export class ServiceType extends Registerable {
    */
   get returnsList() {
     return false
+  }
+
+  /**
+   * In a service which returns a list, this method is used to
+   * return the name of the given record.
+   */
+  getRecordName(service, record) {
+    throw new Error('Must be set on the type.')
+  }
+
+  /**
+   * In a service which returns a list, this method is used to
+   * return the id of the given record.
+   */
+  getIdProperty(service, record) {
+    throw new Error('Must be set on the type.')
   }
 
   /**

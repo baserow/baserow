@@ -32,6 +32,18 @@ export class WidgetType extends Registerable {
   get settingsComponent() {
     return null
   }
+
+  isLoading(widget, data) {
+    return false
+  }
+
+  isAvailable() {
+    return true
+  }
+
+  getDeactivatedModal() {
+    return null
+  }
 }
 
 export class SummaryWidgetType extends WidgetType {
@@ -53,5 +65,13 @@ export class SummaryWidgetType extends WidgetType {
 
   get settingsComponent() {
     return SummaryWidgetSettings
+  }
+
+  isLoading(widget, data) {
+    const dataSourceId = widget.data_source_id
+    if (data[dataSourceId] && Object.keys(data[dataSourceId]).length !== 0) {
+      return false
+    }
+    return true
   }
 }

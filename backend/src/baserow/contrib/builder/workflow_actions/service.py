@@ -40,6 +40,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     BuilderWorkflowActionType,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.services.types import DispatchResult
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
@@ -290,6 +291,18 @@ class BuilderWorkflowActionService:
 
         return full_order
 
+    def remove_unused_field_names(
+        self,
+        row: dict[str, Any],
+        field_names: List[str],
+    ) -> dict[str, Any]:
+        """
+        Given a row dictionary, return a version of it that only contains keys
+        existing in the field_names list.
+        """
+
+        return {key: value for key, value in row.items() if key in field_names}
+
     def dispatch_action(
         self,
         user,
@@ -320,4 +333,16 @@ class BuilderWorkflowActionService:
             context=workflow_action,
         )
 
-        return self.handler.dispatch_workflow_action(workflow_action, dispatch_context)
+        result = self.handler.dispatch_workflow_action(
+            workflow_action, dispatch_context
+        )
+
+        # Remove unfiltered fields
+        field_names = dispatch_context.public_allowed_properties.get(
+            "external", {}
+        ).get(workflow_action.service.id, [])
+
+        return DispatchResult(
+            data=self.remove_unused_field_names(result.data, field_names),
+            status=result.status,
+        )

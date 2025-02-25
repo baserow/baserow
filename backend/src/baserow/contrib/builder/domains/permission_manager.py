@@ -1,3 +1,5 @@
+import functools
+
 from django.contrib.auth import get_user_model
 
 from baserow.contrib.builder.data_sources.operations import (
@@ -11,6 +13,7 @@ from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
     ListBuilderWorkflowActionsPageOperationType,
 )
+from baserow.core.cache import local_cache
 from baserow.core.operations import ReadApplicationOperationType
 from baserow.core.registries import PermissionManagerType, operation_type_registry
 from baserow.core.subjects import AnonymousUserSubjectType, UserSubjectType
@@ -56,25 +59,54 @@ class AllowPublicBuilderManagerType(PermissionManagerType):
         ListUserSourcesApplicationOperationType.type,
     ]
 
+    def get_builder_from_id(self, builder_id):
+        """
+        Returns the builder for the given id. Can be a cached version.
+        """
+
+        def get_builder_if_exists():
+            try:
+                return Builder.objects.get(id=builder_id)
+            except Builder.DoesNotExist:
+                return None
+
+        return local_cache.get(f"ab_builder_{builder_id}", get_builder_if_exists)
+
+    def get_builder_from_instance(self, instance, property_name):
+        """
+        Returns the builder from the instance at the given property. The value can be
+        cached.
+        """
+
+        prop_id_name = f"{property_name}_id"
+
+        if getattr(instance.__class__, property_name).is_cached(instance):
+            return local_cache.get(
+                f"ab_builder_{getattr(instance, prop_id_name)}",
+                lambda: getattr(instance, property_name),
+            )
+        else:
+            return self.get_builder_from_id(getattr(instance, prop_id_name))
+
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
         result = {}
 
         for check in checks:
             operation_type = operation_type_registry.get(check.operation_name)
             if operation_type.type in self.page_level_operations:
-                builder = check.context.builder
+                builder = self.get_builder_from_instance(check.context, "builder")
             elif operation_type.type in self.sub_page_level_operations:
-                builder = check.context.page.builder
+                builder = self.get_builder_from_instance(check.context.page, "builder")
             elif (
                 operation_type.type in self.sub_application_level_operations
-                and isinstance(check.context.application.specific, Builder)
+                and self.get_builder_from_id(check.context.application_id)
             ):
-                builder = check.context.application.specific
+                builder = self.get_builder_from_id(check.context.application_id)
             elif (
                 operation_type.type in self.application_level_operations
-                and isinstance(check.context.specific, Builder)
+                and self.get_builder_from_id(check.context.id)
             ):
-                builder = check.context.specific
+                builder = self.get_builder_from_id(check.context.id)
             else:
                 continue
 
@@ -100,7 +132,18 @@ class AllowPublicBuilderManagerType(PermissionManagerType):
                     # give access to specific data.
                     continue
 
-            if DomainHandler().get_domain_for_builder(builder) is not None:
+            def is_public_callback(b):
+                return (
+                    b.workspace is None
+                    and DomainHandler().get_domain_for_builder(b) is not None
+                )
+
+            is_public = local_cache.get(
+                f"ab_is_public_builder_{builder.id}",
+                functools.partial(is_public_callback, builder),
+            )
+
+            if is_public:
                 # it's a public builder, we allow it.
                 result[check] = True
 

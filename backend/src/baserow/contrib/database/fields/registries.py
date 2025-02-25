@@ -19,14 +19,18 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField as PostgresJSONField
 from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
-from django.db import models as django_models
 from django.db.models import (
+    Aggregate,
     BooleanField,
     CharField,
     Count,
     DurationField,
     Expression,
+    ExpressionWrapper,
     F,
+)
+from django.db.models import Field as DjangoField
+from django.db.models import (
     IntegerField,
     JSONField,
     Model,
@@ -226,6 +230,21 @@ class FieldType(
 
         return value
 
+    def parse_field_value_for_db(self, instance: Field, value: Any) -> Any:
+        """
+        This method parses a value for a given field type and a field instance. It
+        fallback to the `prepare_value_for_db` method if not implemented, but it can be
+        customized for read_only fields where it's not possible to prepare the value for
+        the database, but they can be used as primary field in a table and so rows might
+        be queried by value.
+
+        :param instance: The field instance.
+        :param value: The value that needs to be validated.
+        :return: The modified value that could be directly saved in the database.
+        """
+
+        return self.prepare_value_for_db(instance, value)
+
     def get_search_expression(self, field: Field, queryset: QuerySet) -> Expression:
         """
         When a field/row is created, updated or restored, this `FieldType` method
@@ -367,7 +386,7 @@ class FieldType(
     def empty_query(
         self,
         field_name: str,
-        model_field: django_models.Field,
+        model_field: DjangoField,
         field: Field,
     ) -> Q:
         """
@@ -1500,11 +1519,7 @@ class FieldType(
             back to the starting table the first field change occurred.
         """
 
-        from baserow.contrib.database.fields.dependencies.handler import (
-            FieldDependencyHandler,
-        )
-
-        FieldDependencyHandler.rebuild_dependencies(field, field_cache)
+        update_collector.add_to_rebuild_field_dependencies(field)
 
         from baserow.contrib.database.views.handler import ViewHandler
 
@@ -1771,6 +1786,11 @@ class FieldType(
 
         return False
 
+    def can_represent_collaborators(self, field):
+        """Indicates whether the field can be used to represent collaborators."""
+
+        return False
+
     def get_permission_error_when_user_changes_field_to_depend_on_forbidden_field(
         self, user: AbstractUser, changed_field: Field, forbidden_field: Field
     ) -> Exception:
@@ -1825,8 +1845,8 @@ class FieldType(
 
         return value1 == value2
 
-    def prepare_filter_value(
-        self, field: "Field", model_field: django_models.Field, value: Any
+    def parse_filter_value(
+        self, field: "Field", model_field: DjangoField, value: str
     ) -> Any:
         """
         Prepare a non-empty value string to be used in a view filter, verifying if it is
@@ -1839,15 +1859,52 @@ class FieldType(
         :param field: The field instance that the value belongs to.
         :param model_field: The model field that the value must be prepared for.
         :param value: The value that must be prepared for filtering.
-        :return: The prepared value.
+        :return: The prepared value or None if the value is an empty string.
         :raises ValueError: If the value is not compatible for the given field and
             model_field.
         """
+
+        if value == "":
+            return None
 
         try:
             return model_field.get_prep_value(value)
         except ValidationError as e:
             raise ValueError(str(e))
+
+    def get_formula_reference_to_model_field(
+        self,
+        model_field: DjangoField,
+        db_column: str,
+        already_in_subquery: bool,
+    ) -> Expression:
+        """
+        Returns a formula-compatible expression for referencing a model field.
+
+        :param model_field: The Django model field to be referenced in the formula.
+        :param db_column: The database column name or annotation name. For m2m fields
+                that are aggregated, this might differ from model_field.name.
+        :param already_in_subquery: Boolean indicating if the reference is within a
+                subquery context. Required for proper aggregation in certain field
+                types.
+        :return: A database expression that can be used to reference the model field in
+            formulas.
+        """
+
+        return ExpressionWrapper(
+            F(db_column),
+            output_field=model_field,
+        )
+
+    def get_distribution_group_by_value(self, field_name: str):
+        """
+        Determines the value to use in distribution aggregation group by operations.
+
+        :param field_name: The field targeted for the group by operation.
+        :return: String indicating the group by value to use.
+        """
+
+        return field_name
 
 
 class ReadOnlyFieldType(FieldType):
@@ -1875,6 +1932,18 @@ class ReadOnlyFieldType(FieldType):
         raise ValidationError(
             f"Field of type {self.type} is read only and should not be set manually."
         )
+
+    def parse_field_value_for_db(self, instance: Field, value: Any) -> Any:
+        """
+        Consider the value as valid if the field serializer can properly serialize it.
+        """
+
+        try:
+            return self.get_serializer_field(instance).to_internal_value(value)
+        except serializers.ValidationError:
+            raise ValidationError(
+                f"Field of type {self.type} is read only and should not be set manually."
+            )
 
     def get_export_serialized_value(
         self,
@@ -2182,9 +2251,7 @@ class FieldAggregationType(Instance):
             for t in self.compatible_field_types
         )
 
-    def _get_raw_aggregation(
-        self, model_field: django_models.Field, field: Field
-    ) -> django_models.Aggregate:
+    def _get_raw_aggregation(self, model_field: DjangoField, field: Field) -> Aggregate:
         """
         Returns the raw aggregation that should be used for the field aggregation
         type.
@@ -2197,7 +2264,11 @@ class FieldAggregationType(Instance):
         return self.raw_type().get_aggregation(field.db_column, model_field, field)
 
     def _get_aggregation_dict(
-        self, queryset: QuerySet, model_field: django_models.Field, field: Field
+        self,
+        queryset: QuerySet,
+        model_field: DjangoField,
+        field: Field,
+        include_agg_type=False,
     ) -> dict:
         """
         Returns a dictinary defining the aggregation for the queryset.aggregate
@@ -2211,14 +2282,15 @@ class FieldAggregationType(Instance):
         """
 
         aggregation = self._get_raw_aggregation(model_field, field.specific)
-        aggregation_dict = {f"{field.db_column}_raw": aggregation}
+        key = f"{field.db_column}_{self.type}" if include_agg_type else field.db_column
+        aggregation_dict = {f"{key}_raw": aggregation}
         # Check if the returned aggregations contain a `AnnotatedAggregation`,
         # and if so, apply the annotations and only keep the actual aggregation in
         # the dict. This is needed because some aggregations require annotated values
         # before they work.
         if isinstance(aggregation, AnnotatedAggregation):
             queryset = queryset.annotate(**aggregation.annotations)
-            aggregation_dict[field.db_column] = aggregation.aggregation
+            aggregation_dict[key] = aggregation.aggregation
 
         if self.with_total:
             aggregation_dict["total"] = Count("id", distinct=True)

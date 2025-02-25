@@ -17,6 +17,10 @@ from baserow.api.decorators import (
 )
 from baserow.api.errors import ERROR_PERMISSION_DENIED
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
+from baserow.api.services.errors import (
+    ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
+    ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
+)
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
     DiscriminatorCustomFieldsMappingSerializer,
@@ -64,7 +68,9 @@ from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidServiceTypeDispatchSource,
+    ServiceFilterPropertyDoesNotExist,
     ServiceImproperlyConfigured,
+    ServiceSortPropertyDoesNotExist,
 )
 from baserow.core.services.registries import service_type_registry
 
@@ -180,7 +186,11 @@ class DataSourcesView(APIView):
 
         page = PageHandler().get_page(page_id)
 
-        before = DataSourceHandler().get_data_source(before_id) if before_id else None
+        before = (
+            DataSourceHandler().get_data_source(before_id, specific=False)
+            if before_id
+            else None
+        )
 
         service_type = service_type_registry.get(type_name) if type_name else None
 
@@ -417,7 +427,7 @@ class MoveDataSourceView(APIView):
 
         before = None
         if before_id:
-            before = DataSourceHandler().get_data_source(before_id)
+            before = DataSourceHandler().get_data_source(before_id, specific=False)
 
         moved_data_source = DataSourceService().move_data_source(
             request.user, data_source, before
@@ -471,6 +481,8 @@ class DispatchDataSourceView(APIView):
             DataSourceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
             DataSourceRefinementForbidden: ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
             ServiceImproperlyConfigured: ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+            ServiceSortPropertyDoesNotExist: ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
+            ServiceFilterPropertyDoesNotExist: ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST,
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
         }
     )

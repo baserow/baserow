@@ -10,28 +10,21 @@
       small-label
     >
       <FormInput
-        v-model="values.hubspot_access_token"
+        v-model="v$.values.hubspot_access_token.$model"
         :error="fieldHasErrors('hubspot_access_token')"
         :disabled="disabled"
         size="large"
-        @blur="$v.values.hubspot_access_token.$touch()"
       />
       <template #error>
-        <span
-          v-if="
-            $v.values.hubspot_access_token.$dirty &&
-            !$v.values.hubspot_access_token.required
-          "
-        >
-          {{ $t('error.requiredField') }}
-        </span>
+        {{ v$.values.hubspot_access_token.$errors[0]?.$message }}
       </template>
     </FormGroup>
   </form>
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -49,6 +42,9 @@ export default {
       default: false,
     },
   },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: ['hubspot_access_token'],
@@ -57,10 +53,17 @@ export default {
       },
     }
   },
-  validations: {
-    values: {
-      hubspot_access_token: { required },
-    },
+  validations() {
+    return {
+      values: {
+        hubspot_access_token: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
 }
 </script>

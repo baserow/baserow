@@ -14,8 +14,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Cast, Extract, Mod
 
-import psycopg
-from psycopg.types.datetime import IntervalLoader
+from baserow.core.psycopg import is_psycopg3
 
 H_M = "h:mm"
 H_M_S = "h:mm:ss"
@@ -29,6 +28,7 @@ D_H_M_NO_COLONS = "d h mm"  # 1d 2h 3m, 1d 3m
 D_H_M_S_NO_COLONS = "d h mm ss"  # 1d2h3m4s, 1h 2m
 
 MOST_ACCURATE_DURATION_FORMAT = H_M_S_SSS
+
 
 if typing.TYPE_CHECKING:
     from baserow.contrib.database.fields.models import DurationField
@@ -707,14 +707,18 @@ def text_value_sql_to_duration(field: "DurationField") -> str:
     return f"br_text_to_interval(p_in, {','.join(args)});"
 
 
-class BaserowIntervalLoader(IntervalLoader):
-    """
-    We're not doing anything special here, but if we don't register this
-    adapter tests will fail when parsing negative intervals.
-    """
+if is_psycopg3:
+    from psycopg.types.datetime import IntervalLoader  # noqa: BRP001
 
-    def load(self, data):
-        return super().load(data)
+    from baserow.core.psycopg import psycopg
 
+    class BaserowIntervalLoader(IntervalLoader):
+        """
+        We're not doing anything special here, but if we don't register this
+        adapter tests will fail when parsing negative intervals.
+        """
 
-psycopg.adapters.register_loader("interval", BaserowIntervalLoader)
+        def load(self, data):
+            return super().load(data)
+
+    psycopg.adapters.register_loader("interval", BaserowIntervalLoader)

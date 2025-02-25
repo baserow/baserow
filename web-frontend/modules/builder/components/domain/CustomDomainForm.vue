@@ -4,46 +4,29 @@
       small-label
       required
       :label="$t('customDomainForm.domainNameLabel')"
-      :error="
-        fieldHasErrors('domain_name') || Boolean(serverErrors.domain_name)
-      "
+      :error-message="getFirstErrorMessage('domain_name') || serverErrorMessage"
     >
       <FormInput
-        v-model="values.domain_name"
+        v-model="v$.values.domain_name.$model"
         size="large"
-        @input="serverErrors.domain_name = null"
-        @blur="$v.values.domain_name.$touch()"
+        @input="handleInput"
+        @blur="v$.values.domain_name.$touch"
       />
-
-      <template #error>
-        <template v-if="$v.values.domain_name.$dirty">
-          <span v-if="!$v.values.domain_name.required">
-            {{ $t('error.requiredField') }}
-          </span>
-          <span v-if="!$v.values.domain_name.maxLength">
-            {{ $t('error.maxLength', { max: 255 }) }}
-          </span>
-        </template>
-        <div v-if="serverErrors.domain_name">
-          <span v-if="serverErrors.domain_name.code === 'invalid'">
-            {{ $t('domainForm.invalidDomain') }}
-          </span>
-          <span v-if="serverErrors.domain_name.code === 'unique'">
-            {{ $t('domainForm.notUniqueDomain') }}
-          </span>
-        </div>
-      </template>
     </FormGroup>
   </form>
 </template>
 
 <script>
-import { required, maxLength } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 import domainForm from '@baserow/modules/builder/mixins/domainForm'
 
 export default {
   name: 'CustomDomainForm',
   mixins: [domainForm],
+  setup() {
+    return { v$: useVuelidate() }
+  },
   data() {
     return {
       values: {
@@ -51,12 +34,36 @@ export default {
       },
     }
   },
+  computed: {
+    serverErrorMessage() {
+      return this.serverErrors.domain_name
+        ? this.serverErrors.domain_name.code === 'invalid'
+          ? this.$t('domainForm.invalidDomain')
+          : this.serverErrors.domain_name.code === 'unique'
+          ? this.$t('domainForm.notUniqueDomain')
+          : ''
+        : ''
+    },
+  },
+  methods: {
+    handleInput() {
+      this.serverErrors.domain_name = null
+      this.v$.values.domain_name.$touch()
+      this.$emit('error', this.v$.$error)
+    },
+  },
   validations() {
     return {
       values: {
         domain_name: {
-          required,
-          maxLength: maxLength(255),
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(255)
+          ),
         },
       },
     }

@@ -2,6 +2,7 @@
   <Modal>
     <h2 class="box__title">{{ $t('addElementModal.title') }}</h2>
     <FormInput
+      ref="search"
       v-model="search"
       size="large"
       class="margin-bottom-2"
@@ -28,7 +29,7 @@ import AddElementCard from '@baserow/modules/builder/components/elements/AddElem
 import { isSubstringOfStrings } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions } from 'vuex'
-import { PAGE_PLACES } from '../../enums'
+import { PAGE_PLACES } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'AddElementModal',
@@ -106,7 +107,7 @@ export default {
       actionCreateElement: 'element/create',
     }),
 
-    show(
+    async show(
       { placeInContainer, beforeId, parentElementId, pagePlace } = {},
       ...args
     ) {
@@ -115,6 +116,10 @@ export default {
       this.parentElementId = parentElementId
       this.pagePlace = pagePlace
       modal.methods.show.bind(this)(...args)
+
+      await this.$nextTick()
+      // Let's focus search input
+      this.$refs.search.focus()
     },
 
     async addElement(elementType) {
@@ -149,6 +154,7 @@ export default {
 
       try {
         await this.actionCreateElement({
+          builder: this.builder,
           page: destinationPage,
           elementType: elementType.getType(),
           beforeId,

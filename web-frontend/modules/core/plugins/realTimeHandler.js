@@ -411,6 +411,10 @@ export class RealTimeHandler {
       this.reconnect = false
       logoutAndRedirectToLogin(this.context.app.router, store, false, true)
     })
+
+    this.registerEvent('job_started', ({ store }, data) => {
+      store.dispatch('job/create', data.job)
+    })
   }
 }
 

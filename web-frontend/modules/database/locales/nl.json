@@ -244,7 +244,16 @@
         "integer": "Heel getal",
         "decimal": "Decimaal",
         "decimalPlacesLabel": "Decimale plaatsen",
-        "allowNegative": "Sta negatief toe"
+        "allowNegative": "Sta negatief toe",
+        "separatorLabel": "Duizendtallen en decimaalscheidingsteken",
+        "suffixPlaceholder": "Achtervoegsel",
+        "prefixAndSuffixLabel": "Voorvoegsel / achtervoegsel",
+        "spaceComma": "Spatie, komma (1 000 000,00)",
+        "spacePeriod": "Spatie, punt (1 000 000.00)",
+        "commaPeriod": "Komma, punt (1,000,000.00)",
+        "periodComma": "Punt, komma (1.000.000,00)",
+        "prefixPlaceholder": "Voorvoegsel",
+        "noFormatting": "Geen opmaak"
     },
     "fieldContext": {
         "editField": "Veld bewerken",
@@ -469,7 +478,15 @@
     },
     "viewFilter": {
         "filter": "Filter | 1 Filter | {count} Filters",
-        "hasAllValuesEqual": "heeft alle waarden gelijk"
+        "hasAllValuesEqual": "heeft alle waarden gelijk",
+        "hasNotValueHigherThan": "geen hogere waarde heeft dan",
+        "hasNotValueHigherThanOrEqual": "heeft geen waarde hoger dan of gelijk aan",
+        "hasValueLowerThan": "heeft een waarde lager dan",
+        "hasValueLowerThanOrEqual": "heeft waarde lager dan of gelijk aan",
+        "hasValueHigherThanOrEqual": "heeft een waarde hoger dan of gelijk aan",
+        "hasNotValueLowerThan": "geen lagere waarde heeft dan",
+        "hasValueHigherThan": "heeft een waarde hoger dan",
+        "hasNotValueLowerThanOrEqual": "geen waarde heeft die lager is dan of gelijk is aan"
     },
     "viewContext": {
         "exportView": "Weergave exporteren",
@@ -605,7 +622,10 @@
         "earliestDate": "Vroegste datum",
         "median": "Mediaan",
         "stdDev": "Standaardafwijking",
-        "stdDevShort": "Std dev"
+        "stdDevShort": "Std dev",
+        "count": "Tellen",
+        "distribution": "Distributie",
+        "othersCount": "Anderen"
     },
     "databaseForm": {
         "importLabel": "Wilt u bestaande gegevens importeren?",
@@ -630,7 +650,9 @@
         "stateImportingTable": "Importeren van tabel {table}",
         "errorJobAlreadyRunningTitle": "Al bezig",
         "errorJobAlreadyRunningDescription": "Er loopt al een andere import taak. U moet wachten tot die klaar is voordat u een andere start.",
-        "linkError": "De link moet er als volgt uitzien: https://airtable.com/shrxxxxxxxxxxxxxx"
+        "linkError": "De link moet er als volgt uitzien: https://airtable.com/shrxxxxxxxxxxxxxx",
+        "skipFiles": "Bestanden importeren overslaan",
+        "skipFilesHelper": "Een Airtable base met veel bestanden kan het importeren vertragen. Als je dit inschakelt, wordt het importeren van de bestanden overgeslagen."
     },
     "chooseSingleSelectField": {
         "addSelectField": "enkelvoudig keuzeveld toevoegen",

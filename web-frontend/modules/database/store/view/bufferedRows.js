@@ -16,8 +16,11 @@ import {
   extractRowReadOnlyValues,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
+  updateRowMetadataType,
+  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
+import fieldOptionsStoreFactory from '@baserow/modules/database/store/view/fieldOptions'
 
 /**
  * This view store mixin can be used to efficiently keep and maintain the rows of a
@@ -50,19 +53,24 @@ import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/sea
  * ]
  * ```
  */
-export default ({ service, customPopulateRow }) => {
+export default ({ service, customPopulateRow, fieldOptions }) => {
   let lastRequestController = null
   const updateRowQueue = new GroupTaskQueue()
+  const fieldOptionsStore =
+    fieldOptions !== undefined ? fieldOptions : fieldOptionsStoreFactory()
 
   const populateRow = (row, metadata = {}) => {
     if (customPopulateRow) {
-      customPopulateRow(row)
+      customPopulateRow(row, metadata)
     }
+
+    // Add the metadata to the row so that it can be used in the front-end.
     if (row._ == null) {
       row._ = {
-        metadata,
+        metadata: getRowMetadata(row, metadata),
       }
     }
+
     // Matching rows for front-end only search is not yet properly
     // supported and tested in this store mixin. Only server-side search
     // implementation is finished.
@@ -267,18 +275,7 @@ export default ({ service, customPopulateRow }) => {
       row._.matchSearch = matchSearch
     },
     UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
-      const currentValue = row._.metadata[rowMetadataType]
-      const newValue = updateFunction(currentValue)
-
-      if (
-        !Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)
-      ) {
-        const metaDataCopy = clone(row._.metadata)
-        metaDataCopy[rowMetadataType] = newValue
-        Vue.set(row._, 'metadata', metaDataCopy)
-      } else {
-        Vue.set(row._.metadata, rowMetadataType, newValue)
-      }
+      updateRowMetadataType(row, rowMetadataType, updateFunction)
     },
     SET_ADHOC_FILTERING(state, adhocFiltering) {
       state.adhocFiltering = adhocFiltering
@@ -324,6 +321,12 @@ export default ({ service, customPopulateRow }) => {
         filters: getFilters(view, adhocFiltering),
         ...initialRowArguments,
       })
+      // Don't do anything if the viewId does not match the current view viewId
+      // because that probably means the user switched to another view or table, and
+      // the data that is returned here shouldn't do anything.
+      if (viewId !== getters.getViewId) {
+        return
+      }
       const rows = Array(data.count).fill(null)
       data.results.forEach((row, index) => {
         const metadata = extractRowMetadata(data, row.id)
@@ -342,6 +345,7 @@ export default ({ service, customPopulateRow }) => {
       { dispatch, getters, commit, rootGetters },
       parameters
     ) {
+      const viewId = getters.getViewId
       const { startIndex, endIndex } = parameters
 
       // If the store is already fetching a set of pages, we're temporarily storing
@@ -380,7 +384,7 @@ export default ({ service, customPopulateRow }) => {
         return
       }
 
-      const view = rootGetters['view/get'](getters.getViewId)
+      const view = rootGetters['view/get'](viewId)
 
       // We can only make one request at the same time, so we're going to set the
       // fetching state to `true` to prevent multiple requests being fired
@@ -389,7 +393,7 @@ export default ({ service, customPopulateRow }) => {
       lastRequestController = new AbortController()
       try {
         const { data } = await service(this.$client).fetchRows({
-          viewId: getters.getViewId,
+          viewId,
           offset: rangeToFetch.offset,
           limit: rangeToFetch.limit,
           signal: lastRequestController.signal,
@@ -400,6 +404,12 @@ export default ({ service, customPopulateRow }) => {
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
         })
+        // Don't do anything if the viewId does not match the current view viewId
+        // because that probably means the user switched to another view or table, and
+        // the data that is returned here shouldn't do anything.
+        if (viewId !== getters.getViewId) {
+          return
+        }
         commit('UPDATE_ROWS', {
           offset: rangeToFetch.offset,
           rows: data.results,
@@ -432,6 +442,7 @@ export default ({ service, customPopulateRow }) => {
       { dispatch, commit, getters, rootGetters },
       { fields, adhocFiltering, adhocSorting, includeFieldOptions = false }
     ) {
+      const viewId = getters.getViewId
       commit('SET_ADHOC_FILTERING', adhocFiltering)
       commit('SET_ADHOC_SORTING', adhocSorting)
       // If another refresh or fetch request is currently running, we need to cancel
@@ -442,7 +453,7 @@ export default ({ service, customPopulateRow }) => {
       }
 
       lastRequestController = new AbortController()
-      const view = rootGetters['view/get'](getters.getViewId)
+      const view = rootGetters['view/get'](viewId)
       try {
         // We first need to fetch the count of all rows because we need to know how
         // many rows there are in total to estimate what are new visible range it
@@ -451,7 +462,7 @@ export default ({ service, customPopulateRow }) => {
         const {
           data: { count },
         } = await service(this.$client).fetchCount({
-          viewId: getters.getViewId,
+          viewId,
           signal: lastRequestController.signal,
           search: getters.getServerSearchTerm,
           searchMode: getDefaultSearchModeFromEnv(this.$config),
@@ -489,10 +500,8 @@ export default ({ service, customPopulateRow }) => {
           )
 
           // Only fetch visible rows if there are any.
-          const {
-            data: { results },
-          } = await service(this.$client).fetchRows({
-            viewId: getters.getViewId,
+          const { data } = await service(this.$client).fetchRows({
+            viewId,
             offset: rangeToFetch.offset,
             limit: rangeToFetch.limit,
             includeFieldOptions,
@@ -505,9 +514,21 @@ export default ({ service, customPopulateRow }) => {
             filters: getFilters(view, adhocFiltering),
           })
 
-          results.forEach((row, index) => {
-            rows[rangeToFetch.offset + index] = populateRow(row)
+          // Don't do anything if the viewId does not match the current view viewId
+          // because that probably means the user switched to another view or table, and
+          // the data that is returned here shouldn't do anything.
+          if (viewId !== getters.getViewId) {
+            return
+          }
+
+          data.results.forEach((row, index) => {
+            const metadata = extractRowMetadata(data, row.id)
+            rows[rangeToFetch.offset + index] = populateRow(row, metadata)
           })
+
+          if (includeFieldOptions) {
+            commit('UPDATE_ALL_FIELD_OPTIONS', data.field_options)
+          }
         }
 
         commit('SET_ROWS', rows)
@@ -1195,9 +1216,9 @@ export default ({ service, customPopulateRow }) => {
 
   return {
     namespaced: true,
-    state,
-    getters,
-    actions,
-    mutations,
+    state: () => ({ ...state(), ...fieldOptionsStore.state() }),
+    getters: { ...getters, ...fieldOptionsStore.getters },
+    actions: { ...actions, ...fieldOptionsStore.actions },
+    mutations: { ...mutations, ...fieldOptionsStore.mutations },
   }
 }

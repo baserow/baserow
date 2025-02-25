@@ -20,6 +20,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import (
     FormView,
     FormViewFieldOptions,
@@ -1360,12 +1361,25 @@ def test_form_view_multiple_collaborators_field_options(api_client, data_fixture
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     response_json = response.json()
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_FORM_VIEW_FIELD_TYPE_IS_NOT_SUPPORTED"
-    assert (
-        response_json["detail"]
-        == "The multiple_collaborators field type is not compatible with the form view."
-    )
+    assert response.status_code == HTTP_200_OK
+    assert response_json == {
+        "field_options": {
+            str(multiple_collaborators_field.id): {
+                "name": "",
+                "description": "",
+                "enabled": True,
+                "required": True,
+                "order": 32767,
+                "show_when_matching_conditions": False,
+                "condition_type": "AND",
+                "condition_groups": [],
+                "conditions": [],
+                "field_component": "default",
+                "include_all_select_options": True,
+                "allowed_select_options": [],
+            }
+        }
+    }
 
 
 @pytest.mark.django_db
@@ -3702,3 +3716,53 @@ def test_loading_form_views_does_not_increase_the_number_of_queries(
         )
 
     assert len(captured_1) == len(captured_2)
+
+
+@pytest.mark.django_db
+def test_can_use_link_row_field_to_table_with_formula_as_primary_key_in_form_view(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    linked_table = data_fixture.create_database_table(database=database)
+    data_fixture.create_formula_field(
+        table=linked_table, primary=True, name="formula_field", formula="row_id()"
+    )
+    linked_row = RowHandler().force_create_row(user, linked_table, {})
+
+    table = data_fixture.create_database_table(database=database)
+    text_field = data_fixture.create_text_field(table=table, primary=True)
+    linked_row_field = data_fixture.create_link_row_field(
+        table=table, link_row_table=linked_table
+    )
+
+    form_view = data_fixture.create_form_view(table=table, public=True)
+    url = reverse("api:database:views:field_options", kwargs={"view_id": form_view.id})
+    response = api_client.patch(
+        url,
+        {
+            "field_options": {
+                str(linked_row_field.id): {"enabled": True, "required": True}
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form_view.slug})
+    response = api_client.post(
+        url,
+        {
+            text_field.db_column: "Test",
+            linked_row_field.db_column: [linked_row.id],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["row_id"] == 1
+    assert response.json()["submit_action"] == "MESSAGE"
+    assert response.json()["submit_action_message"] == ""

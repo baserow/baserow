@@ -30,5 +30,5 @@ def log_action_receiver(
         action_command_type=action_command_type.name.lower(),
         workspace_id=workspace.id if workspace else "",
         action_type=action_type.type,
-        user_id=user.id,
+        user_id=getattr(user, "id", None),
     )

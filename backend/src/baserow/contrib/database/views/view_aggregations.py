@@ -53,7 +53,7 @@ from baserow.contrib.database.formula.types.formula_types import (
 )
 
 from .registries import ViewAggregationType
-from .utils import AnnotatedAggregation
+from .utils import AnnotatedAggregation, DistributionAggregation
 
 # See official django documentation for list of aggregator:
 # https://docs.djangoproject.com/en/4.0/ref/models/querysets/#aggregation-functions
@@ -69,6 +69,52 @@ def get_has_relations_annotation(field_name: str, model_field: Field) -> Dict:
     reversed_field = through_model._meta.get_fields()[1].name
     subquery = through_model.objects.filter(**{f"{reversed_field}_id": OuterRef("pk")})
     return {f"has_relations_{field_name}": Exists(subquery)}
+
+
+class CountViewAggregationType(ViewAggregationType):
+    """
+    The count aggregation counts how many rows
+    are in the table.
+    """
+
+    type = "count"
+    allowed_in_view = False
+
+    compatible_field_types = [
+        TextFieldType.type,
+        LongTextFieldType.type,
+        URLFieldType.type,
+        NumberFieldType.type,
+        RatingFieldType.type,
+        BooleanFieldType.type,
+        DateFieldType.type,
+        DurationFieldType.type,
+        LastModifiedFieldType.type,
+        LastModifiedByFieldType.type,
+        CreatedOnFieldType.type,
+        CreatedByFieldType.type,
+        LinkRowFieldType.type,
+        EmailFieldType.type,
+        FileFieldType.type,
+        PhoneNumberFieldType.type,
+        SingleSelectFieldType.type,
+        MultipleSelectFieldType.type,
+        PasswordFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaTextType.type,
+            BaserowFormulaCharType.type,
+            BaserowFormulaNumberType.type,
+            BaserowFormulaDateType.type,
+            BaserowFormulaBooleanType.type,
+            FormulaFieldType.array_of(BaserowFormulaSingleFileType.type),
+        ),
+    ]
+
+    def get_aggregation(self, field_name, model_field, field):
+        return Count(
+            "id",
+            distinct=True,
+        )
 
 
 class EmptyCountViewAggregationType(ViewAggregationType):
@@ -390,3 +436,42 @@ class RangeViewAggregationType(ViewAggregationType):
 
     def get_aggregation(self, field_name, model_field, field):
         return {"min": Min(field_name), "max": Max(field_name)}
+
+
+class DistributionViewAggregationType(ViewAggregationType):
+    """
+    Compute the distribution of values
+    """
+
+    type = "distribution"
+
+    compatible_field_types = [
+        TextFieldType.type,
+        LongTextFieldType.type,
+        URLFieldType.type,
+        NumberFieldType.type,
+        RatingFieldType.type,
+        DateFieldType.type,
+        LastModifiedFieldType.type,
+        LastModifiedByFieldType.type,
+        CreatedOnFieldType.type,
+        CreatedByFieldType.type,
+        EmailFieldType.type,
+        PhoneNumberFieldType.type,
+        SingleSelectFieldType.type,
+        DurationFieldType.type,
+        BooleanFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaBooleanType.type,
+            BaserowFormulaCharType.type,
+            BaserowFormulaDateType.type,
+            BaserowFormulaNumberType.type,
+            BaserowFormulaTextType.type,
+        ),
+    ]
+
+    def get_aggregation(self, field_name, model_field, field):
+        field_type = field_type_registry.get_by_model(field)
+        return DistributionAggregation(
+            field_type.get_distribution_group_by_value(field_name)
+        )

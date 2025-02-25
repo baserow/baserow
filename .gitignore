@@ -100,6 +100,7 @@ web-frontend/plugins/
 backend/plugins/
 web-frontend/reports/
 backend/reports/
+backend/.env.testing*
 
 .idea/
 *.iml
@@ -117,6 +118,10 @@ out/
 # vscode config files
 .vscode/
 !config/vscode/.vscode/
+
+# cursor editor config files
+.cursor-config/
+!config/cursor/.cursor-config/
 
 # VIM's swap files
 *.swp

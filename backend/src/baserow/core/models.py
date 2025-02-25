@@ -279,7 +279,7 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
 
     @lru_cache
     def has_template(self):
-        return self.template_set.all().exists()
+        return len(self.template_set.all()) > 0
 
     def get_workspace_user(
         self, user: User, include_trash: bool = False
@@ -678,7 +678,7 @@ class ImportExportResource(CreatedAndUpdatedOnMixin, models.Model):
             "This is only used in the frontend for uploaded files.",
         ),
     )
-    size = models.PositiveIntegerField(
+    size = models.PositiveBigIntegerField(
         default=0, help_text="The size of the resource in bytes."
     )
     created_by = models.ForeignKey(

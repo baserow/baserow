@@ -2,16 +2,7 @@
   <div
     v-if="elementMode === 'editing' || isVisible"
     class="element__wrapper"
-    :class="{
-      'element__wrapper--full-bleed':
-        element.style_width === WIDTH_TYPES.FULL.value,
-      'element__wrapper--full-width':
-        element.style_width === WIDTH_TYPES.FULL_WIDTH.value,
-      'element__wrapper--medium-width':
-        element.style_width === WIDTH_TYPES.MEDIUM.value,
-      'element__wrapper--small-width':
-        element.style_width === WIDTH_TYPES.SMALL.value,
-    }"
+    :class="elementClasses"
     :style="elementStyles"
   >
     <div class="element__inner-wrapper">
@@ -24,7 +15,7 @@
           page: elementPage,
         }"
         class="element"
-        v-on="$listeners"
+        @move="$emit('move', $event)"
       />
     </div>
   </div>
@@ -32,10 +23,11 @@
 
 <script>
 import { resolveColor } from '@baserow/modules/core/utils/colors'
-import { themeToColorVariables } from '@baserow/modules/builder/utils/theme'
+import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 import {
   BACKGROUND_TYPES,
+  CHILD_WIDTH_TYPES,
   WIDTH_TYPES,
   BACKGROUND_MODES,
 } from '@baserow/modules/builder/enums'
@@ -46,6 +38,7 @@ import {
   ROLE_TYPE_ALLOW_EXCEPT,
   ROLE_TYPE_DISALLOW_EXCEPT,
 } from '@baserow/modules/builder/constants'
+
 import { mapGetters } from 'vuex'
 
 export default {
@@ -68,9 +61,16 @@ export default {
   },
   computed: {
     BACKGROUND_TYPES: () => BACKGROUND_TYPES,
+    CHILD_WIDTH_TYPES: () => CHILD_WIDTH_TYPES,
     WIDTH_TYPES: () => WIDTH_TYPES,
+    themeConfigBlocks() {
+      return this.$registry.getOrderedList('themeConfigBlock')
+    },
     colorVariables() {
-      return themeToColorVariables(this.builder.theme)
+      return ThemeConfigBlockType.getAllColorVariables(
+        this.themeConfigBlocks,
+        this.builder.theme
+      )
     },
     elementMode() {
       return this.forceMode !== null ? this.forceMode : this.mode
@@ -141,6 +141,29 @@ export default {
         return true
       }
     },
+    elementClasses() {
+      if (this.element?.parent_element_id) {
+        return {
+          'element__wrapper--full-width':
+            this.element.style_width_child === CHILD_WIDTH_TYPES.NORMAL.value,
+          'element__wrapper--medium-width':
+            this.element.style_width_child === CHILD_WIDTH_TYPES.MEDIUM.value,
+          'element__wrapper--small-width':
+            this.element.style_width_child === CHILD_WIDTH_TYPES.SMALL.value,
+        }
+      } else {
+        return {
+          'element__wrapper--full-bleed':
+            this.element.style_width === WIDTH_TYPES.FULL.value,
+          'element__wrapper--full-width':
+            this.element.style_width === WIDTH_TYPES.FULL_WIDTH.value,
+          'element__wrapper--medium-width':
+            this.element.style_width === WIDTH_TYPES.MEDIUM.value,
+          'element__wrapper--small-width':
+            this.element.style_width === WIDTH_TYPES.SMALL.value,
+        }
+      }
+    },
     elementStyles() {
       const styles = {
         '--element-background-color':
@@ -183,6 +206,11 @@ export default {
         '--element-margin-right': `${this.element.style_margin_right || 0}px`,
 
         '--element-padding-right': `${this.element.style_padding_right || 0}px`,
+
+        '--element-background-radius': `${
+          this.element.style_background_radius || 0
+        }px`,
+        '--element-border-radius': `${this.element.style_border_radius || 0}px`,
       }
 
       if (this.element.style_background_file !== null) {

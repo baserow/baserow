@@ -134,7 +134,7 @@
     "export": "Export data",
     "reset": "Start new",
     "cancel": "Cancel",
-    "download":  "Download",
+    "download": "Download",
     "exportingState": "Exporting",
     "exportingTableState": "Exporting table: {table}",
     "exportingCreateArchiveState": "Creating archive",
@@ -804,6 +804,9 @@
   },
   "colorInput": {
     "default": "Default"
+  },
+  "colorPickerContext": {
+    "pickColorPlaceholder": "Or pick a pre-defined color"
   },
   "imageInput": {
     "labelDescription": "Select an image to upload...",

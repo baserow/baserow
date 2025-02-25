@@ -26,7 +26,11 @@
         "nameTitle": "Naam",
         "pathSubtitle": "Een parameter kan worden toegevoegd via :parameter",
         "namePlaceholder": "Voer een naam in...",
-        "pathPlaceholder": "Voer een pad in..."
+        "pathPlaceholder": "Voer een pad in...",
+        "addAnotherParameter": "Nog een query string parameter toevoegen",
+        "addParameter": "Query string parameter toevoegen",
+        "queryParamsSubtitleTutorial": "Query parameters kunnen worden gebruikt om dynamisch gegevens te laden, afhankelijk van de opgegeven parameter.",
+        "queryParamsTitle": "Query string parameters"
     },
     "builderForm": {
         "submit": "Applicatie toevoegen"
@@ -121,7 +125,8 @@
         "style": "Stijl",
         "visibility": "Zichtbaarheid",
         "events": "Gebeurtenissen",
-        "eventsTabDeactivatedNoEvents": "Dit element ondersteunt geen events"
+        "eventsTabDeactivatedNoEvents": "Dit element ondersteunt geen events",
+        "eventsTabInError": "Een of meer acties zijn verkeerd geconfigureerd."
     },
     "emptySidePanelState": {
         "message": "Klik op een van de elementen om meer details te zien"
@@ -156,7 +161,8 @@
         "errorValidPathCharacters": "Het pad bevat ongeldige tekens",
         "errorUniquePathParams": "Pad parameters moeten uniek zijn.",
         "errorStartingSlash": "Een pad moet beginnen met een '/'",
-        "errorNameNotUnique": "Een pagina met deze naam bestaat al"
+        "errorNameNotUnique": "Een pagina met deze naam bestaat al",
+        "errorUniqueValidQueryParams": "Query parameternamen moeten uniek en geldig zijn."
     },
     "pageActionTypes": {
         "preview": "Voorbeeld",
@@ -258,7 +264,11 @@
     },
     "publicPage": {
         "siteNotFound": "Site niet gevonden",
-        "pageNotFound": "Pagina niet gevonden"
+        "pageNotFound": "Pagina niet gevonden",
+        "loginToastTitle": "Authenticatie succesvol",
+        "loginToastMessage": "Je bent succesvol aangemeld.",
+        "authorizedToastTitle": "Authenticatie vereist",
+        "authorizedToastMessage": "Je moet ingelogd zijn om toegang te krijgen tot deze pagina. Log in om verder te gaan."
     },
     "integrationSettings": {
         "title": "Integraties",
@@ -313,7 +323,7 @@
     "dataProviderType": {
         "currentRecord": "Gegevensbron",
         "pageParameter": "Parameter",
-        "dataSource": "Data",
+        "dataSource": "Data rijen",
         "formData": "Formuliergegevens",
         "user": "Gebruiker",
         "previousAction": "Vorige actie",
@@ -676,7 +686,10 @@
         "itemsPerRowLabel": "Items per rij",
         "buttonLoadMoreLabel": "Toon meer label",
         "toggleEditorRepetitionsLabel": "Herhalingen tijdelijk uitschakelen",
-        "propertySelectorMissingArrays": "Geen velden met meerdere waarden gevonden om mee te herhalen."
+        "propertySelectorMissingArrays": "Geen velden met meerdere waarden gevonden om mee te herhalen.",
+        "gapLabel": "Ruimte tussen herhalingen",
+        "gapVerticalLabel": "Verticaal",
+        "gapHorizontalLabel": "Horizontaal"
     },
     "userDataProviderType": {
         "isAuthenticated": "Is ingelogd",
@@ -729,7 +742,8 @@
         "fontFamily": "Lettertype",
         "size": "Lettergrootte",
         "backgroundColor": "Achtergrond kleur",
-        "button": "Knop"
+        "button": "Knop",
+        "weight": "Lettertype gewicht"
     },
     "linkThemeConfigBlock": {
         "color": "Kleur",
@@ -737,7 +751,9 @@
         "defaultState": "Standaard staat",
         "hoverState": "Hover staat",
         "alignment": "Uitlijning",
-        "fontFamily": "Lettertype"
+        "fontFamily": "Lettertype",
+        "size": "Lettergrootte",
+        "weight": "Lettertype gewicht"
     },
     "imageThemeConfigBlock": {
         "alignment": "Uitlijning",
@@ -750,7 +766,9 @@
         "imageConstraintContainDisabled": "Niet beschikbaar met een maximale hoogte.",
         "maxWidthPlaceholder": "Voer een maximale breedte in",
         "maxHeightPlaceholder": "Maximale hoogte invoeren",
-        "imageConstraintFullWidth": "Uitbreiden tot max breedte"
+        "imageConstraintFullWidth": "Uitbreiden tot max breedte",
+        "imageBorderRadiusLabel": "Randradius",
+        "imageBorderRadiusPlaceholder": "Voer de afbeelding rand radius in"
     },
     "choiceElementForm": {
         "multiple": "Meerdere waarden toestaan",
@@ -791,7 +809,10 @@
         "borderColor": "Border",
         "warningColor": "Waarschuwing",
         "primaryColor": "Primair",
-        "transparent": "Transparant"
+        "transparent": "Transparant",
+        "addCustomColor": "Aangepaste kleur toevoegen",
+        "customColorPrefix": "Maatwerk",
+        "customColors": "Aangepaste kleuren"
     },
     "colorThemeConfigBlockType": {
         "secondary": "Secundair",
@@ -814,7 +835,8 @@
         "headingValue": "Kop <h{i}>",
         "color": "Kleur",
         "fontFamily": "Lettertype",
-        "bodyLabel": "Body"
+        "bodyLabel": "Body",
+        "weight": "Gewicht"
     },
     "resetButton": {
         "reset": "Terugzetten naar standaard themawaarde"
@@ -829,7 +851,8 @@
         "borderRadius": "Randradius",
         "padding": "Opvulling",
         "fontFamily": "Lettertype",
-        "size": "Lettergrootte"
+        "size": "Lettergrootte",
+        "weight": "Lettertype gewicht"
     },
     "tableThemeConfigBlock": {
         "borderColor": "Kleur rand",
@@ -850,7 +873,8 @@
         "padding": "Opvulling",
         "size": "Grootte",
         "backgroundColor": "Achtergrond kleur",
-        "fontFamily": "Lettertype"
+        "fontFamily": "Lettertype",
+        "fontWeight": "Lettertype gewicht"
     },
     "dropdown": {
         "empty": "Geen opties beschikbaar"
@@ -975,5 +999,30 @@
         "except": "Geselecteerde pagina's uitsluiten",
         "all": "Op alle pagina's",
         "only": "Alleen op geselecteerde pagina's"
+    },
+    "fontWeightType": {
+        "thin": "Dun",
+        "medium": "Middel",
+        "light": "Licht",
+        "extraLight": "Extra licht",
+        "extraBold": "Extra vet",
+        "regular": "Normaal",
+        "bold": "Vet",
+        "semiBold": "Halfvet",
+        "black": "Zwart",
+        "extraBlack": "Extra zwart"
+    },
+    "authProviderWithModal": {
+        "title": "Bewerk provider: {name}",
+        "authProviderInError": "Bewerk deze provider om de fout te herstellen."
+    },
+    "queryParamTypes": {
+        "textName": "Tekst",
+        "numericName": "Numeriek"
+    },
+    "radiusStyleForm": {
+        "cornerRadiusLabel": "Hoekradius",
+        "backgroundRadiusLabel": "Achtergrond",
+        "borderRadiusLabel": "Rand"
     }
 }

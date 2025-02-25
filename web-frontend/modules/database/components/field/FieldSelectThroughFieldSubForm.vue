@@ -9,13 +9,13 @@
       small-label
       :label="$t('fieldSelectThroughFieldSubForm.selectThroughFieldLabel')"
       required
-      :error="$v.values.through_field_id.$error"
+      :error="fieldHasErrors('through_field_id')"
     >
       <Dropdown
-        v-model="values.through_field_id"
-        :error="$v.values.through_field_id.$error"
+        v-model="v$.values.through_field_id.$model"
+        :error="fieldHasErrors('through_field_id')"
         :fixed-items="true"
-        @hide="$v.values.through_field_id.$touch()"
+        @hide="v$.values.through_field_id.$touch"
         @input="throughFieldChanged($event)"
       >
         <DropdownItem
@@ -28,13 +28,16 @@
         ></DropdownItem>
       </Dropdown>
 
-      <template #error>{{ $t('error.requiredField') }}</template>
+      <template #error>{{
+        v$.values.through_field_id.$errors[0]?.$message
+      }}</template>
     </FormGroup>
   </div>
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { LinkRowFieldType } from '@baserow/modules/database/fieldTypes'
@@ -52,6 +55,9 @@ export default {
       type: Array,
       required: true,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -105,10 +111,17 @@ export default {
   created() {
     this.throughFieldChanged(this.defaultValues.through_field_id)
   },
-  validations: {
-    values: {
-      through_field_id: { required },
-    },
+  validations() {
+    return {
+      values: {
+        through_field_id: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+      },
+    }
   },
   methods: {
     isFormValid() {

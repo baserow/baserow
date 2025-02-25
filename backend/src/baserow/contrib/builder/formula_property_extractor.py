@@ -204,18 +204,22 @@ def get_builder_used_property_names(
         BuilderWorkflowActionService,
     )
 
+    # We query the data source first to populate the data source cache
+    data_sources = DataSourceService().get_builder_data_sources(
+        user, builder, with_cache=True
+    )
+
     elements = list(ElementService().get_builder_elements(user, builder))
     element_map = {e.id: e for e in elements}
 
     element_results = get_element_property_names(elements, element_map)
 
+    ds_results = get_data_source_property_names(data_sources)
+
     workflow_actions = BuilderWorkflowActionService().get_builder_workflow_actions(
         user, builder
     )
     wa_results = get_workflow_action_property_names(workflow_actions, element_map)
-
-    data_sources = DataSourceService().get_builder_data_sources(user, builder)
-    ds_results = get_data_source_property_names(data_sources)
 
     results = {
         "internal": merge_dicts_no_duplicates(

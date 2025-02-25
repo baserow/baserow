@@ -1,9 +1,5 @@
 <template>
-  <LineChart
-    :chart-options="chartOptions"
-    :chart-data="chartData"
-    class="active-users"
-  />
+  <LineChart :options="chartOptions" :data="chartData" class="active-users" />
 </template>
 
 <script>

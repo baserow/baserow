@@ -18,7 +18,7 @@
           >
             <LocalBaserowTableServiceConditionalForm
               v-if="values.table_id"
-              v-model="dataSourceFilters"
+              v-model="values.filters"
               :fields="tableFields"
               :filter-type.sync="values.filter_type"
             >
@@ -33,7 +33,7 @@
           >
             <LocalBaserowTableServiceSortForm
               v-if="values.table_id"
-              v-model="dataSourceSortings"
+              v-model="values.sortings"
               :fields="tableFields"
             ></LocalBaserowTableServiceSortForm>
             <p v-if="!values.table_id">

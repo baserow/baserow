@@ -18,6 +18,5 @@ export default {
       }
     },
   },
-  validations: {},
 }
 </script>

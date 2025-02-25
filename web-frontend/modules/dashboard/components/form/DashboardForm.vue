@@ -1,6 +1,8 @@
 <template>
   <ApplicationForm
     :default-values="{ name: defaultName }"
+    :workspace="workspace"
+    :loading="loading"
     @submitted="$emit('submitted', $event)"
   >
     <div class="actions actions--right">
@@ -26,10 +28,15 @@ export default {
   props: {
     defaultName: {
       type: String,
-      required: true,
+      required: false,
+      default: '',
     },
     loading: {
       type: Boolean,
+      required: true,
+    },
+    workspace: {
+      type: Object,
       required: true,
     },
   },

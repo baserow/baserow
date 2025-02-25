@@ -1171,6 +1171,7 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
                 "id": PUBLIC_PLACEHOLDER_ENTITY_ID,
             },
             "show_logo": True,
+            "allow_public_export": False,
             "type": "timeline",
             "start_date_field": start_date_field.id,
             "end_date_field": end_date_field.id,

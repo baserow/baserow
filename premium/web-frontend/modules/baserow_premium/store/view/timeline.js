@@ -1,34 +1,29 @@
 import bufferedRows from '@baserow/modules/database/store/view/bufferedRows'
-import fieldOptions from '@baserow/modules/database/store/view/fieldOptions'
 import TimelineService from '@baserow_premium/services/views/timeline'
+import { getRowMetadata } from '@baserow/modules/database/utils/row'
 
 export function populateRow(row, metadata = {}) {
   row._ = {
-    metadata,
+    metadata: getRowMetadata(row, metadata),
   }
   return row
 }
 
 const timelineBufferedRows = bufferedRows({
   service: TimelineService,
-  populateRow,
+  customPopulateRow: populateRow,
 })
-
-const timelineFieldOptions = fieldOptions()
 
 export const state = () => ({
   ...timelineBufferedRows.state(),
-  ...timelineFieldOptions.state(),
 })
 
 export const mutations = {
   ...timelineBufferedRows.mutations,
-  ...timelineFieldOptions.mutations,
 }
 
 export const actions = {
   ...timelineBufferedRows.actions,
-  ...timelineFieldOptions.actions,
   async fetchInitial(
     { dispatch },
     { viewId, fields, adhocFiltering, adhocSorting }
@@ -38,7 +33,6 @@ export const actions = {
       fields,
       initialRowArguments: {
         includeFieldOptions: true,
-        includeRowMetadata: false,
       },
       adhocFiltering,
       adhocSorting,
@@ -49,7 +43,6 @@ export const actions = {
 
 export const getters = {
   ...timelineBufferedRows.getters,
-  ...timelineFieldOptions.getters,
 }
 
 export default {

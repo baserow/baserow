@@ -48,8 +48,7 @@ class BuilderSerializer(serializers.ModelSerializer):
         :return: A list of serialized pages that belong to this instance.
         """
 
-        pages = PageHandler().get_pages(instance)
-
+        pages = instance.page_set.all()
         user = self.context.get("user")
         request = self.context.get("request")
 

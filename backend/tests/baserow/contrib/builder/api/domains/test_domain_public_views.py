@@ -7,6 +7,7 @@ import pytest
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_202_ACCEPTED,
+    HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
 )
@@ -18,12 +19,10 @@ from baserow.contrib.builder.data_sources.exceptions import (
 )
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
 from baserow.core.user_sources.user_source_user import UserSourceUser
-from tests.baserow.contrib.builder.api.user_sources.helpers import (
-    create_user_table_and_role,
-)
 
 
 @pytest.fixture
@@ -147,6 +146,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
                 "name": "__shared__",
                 "path": "__shared__",
                 "path_params": [],
+                "query_params": [],
                 "shared": True,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -157,6 +157,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
                 "name": page.name,
                 "path": page.path,
                 "path_params": [],
+                "query_params": [],
                 "shared": False,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -167,6 +168,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
                 "name": page2.name,
                 "path": page2.path,
                 "path_params": [],
+                "query_params": [],
                 "shared": False,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -276,6 +278,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
                 "name": "__shared__",
                 "path": "__shared__",
                 "path_params": [],
+                "query_params": [],
                 "shared": True,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -286,6 +289,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
                 "name": page.name,
                 "path": page.path,
                 "path_params": [],
+                "query_params": [],
                 "shared": False,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -296,6 +300,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
                 "name": page2.name,
                 "path": page2.path,
                 "path_params": [],
+                "query_params": [],
                 "shared": False,
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
@@ -411,11 +416,14 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
         "style_border_right_size": 0,
         "style_padding_right": 20,
         "style_margin_right": 0,
+        "style_background_radius": 0,
+        "style_border_radius": 0,
         "style_background": "none",
         "style_background_color": "#ffffffff",
         "style_background_file": None,
         "style_background_mode": "fill",
         "style_width": "normal",
+        "style_width_child": "normal",
         "role_type": "allow_all",
         "roles": [],
         "value": "",
@@ -757,8 +765,7 @@ def user_source_user_fixture(data_fixture):
     )
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
-    user_source, _ = create_user_table_and_role(
-        data_fixture,
+    user_source, _ = data_fixture.create_user_table_and_role(
         user,
         builder,
         "foo_user_role",
@@ -846,10 +853,12 @@ def test_public_dispatch_data_source_view_returns_all_fields(
         "has_next_page": False,
         "results": [
             {
+                "id": rows[0].id,
                 f"field_{fields[0].id}": "Paneer Tikka",
                 f"field_{fields[1].id}": "5",
             },
             {
+                "id": rows[1].id,
                 f"field_{fields[0].id}": "Gobi Manchurian",
                 f"field_{fields[1].id}": "8",
             },
@@ -1073,8 +1082,7 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
 
     page = data_source_element_roles_fixture["page"]
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1123,7 +1131,7 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
 
     expected_results = []
     for row in data_source_element_roles_fixture["rows"]:
-        result = {}
+        result = {"id": row.id}
         if expect_fields:
             # Field should only be visible if the user's role allows them
             # to see the data source fields.
@@ -1257,8 +1265,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1307,15 +1314,17 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
 
     assert response.status_code == HTTP_200_OK
 
+    rows = data_source_element_roles_fixture["rows"]
+
     if expect_fields:
         field_name = f"field_{field_id}"
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
                 "results": [
-                    {field_name: "Apple"},
-                    {field_name: "Banana"},
-                    {field_name: "Cherry"},
+                    {field_name: "Apple", "id": rows[0].id},
+                    {field_name: "Banana", "id": rows[1].id},
+                    {field_name: "Cherry", "id": rows[2].id},
                 ],
             },
         }
@@ -1436,8 +1445,7 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_all(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1571,8 +1579,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_logged_in(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1621,15 +1628,17 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_logged_in(
 
     assert response.status_code == HTTP_200_OK
 
+    rows = data_source_element_roles_fixture["rows"]
+
     if expect_fields:
         field_name = f"field_{field_id}"
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
                 "results": [
-                    {field_name: "Apple"},
-                    {field_name: "Banana"},
-                    {field_name: "Cherry"},
+                    {field_name: "Apple", "id": rows[0].id},
+                    {field_name: "Banana", "id": rows[1].id},
+                    {field_name: "Cherry", "id": rows[2].id},
                 ],
             },
         }
@@ -1726,8 +1735,7 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_logged_in(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1822,8 +1830,7 @@ def test_list_elements_with_page_visibility_all(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -1896,7 +1903,10 @@ def test_list_elements_with_page_visibility_all(
                 "style_padding_left": 20,
                 "style_padding_right": 20,
                 "style_padding_top": 10,
+                "style_background_radius": 0,
+                "style_border_radius": 0,
                 "style_width": "normal",
+                "style_width_child": "normal",
                 "styles": {},
                 "type": "heading",
                 "value": f"get('data_source.{data_source.id}.field_{field_id}')",
@@ -1993,8 +2003,7 @@ def test_list_elements_with_page_visibility_logged_in(
     page.roles = page_roles
     page.save()
 
-    user_source, integration = create_user_table_and_role(
-        data_fixture,
+    user_source, integration = data_fixture.create_user_table_and_role(
         data_source_element_roles_fixture["user"],
         data_source_element_roles_fixture["builder_to"],
         user_role,
@@ -2067,7 +2076,10 @@ def test_list_elements_with_page_visibility_logged_in(
                 "style_padding_left": 20,
                 "style_padding_right": 20,
                 "style_padding_top": 10,
+                "style_background_radius": 0,
+                "style_border_radius": 0,
                 "style_width": "normal",
+                "style_width_child": "normal",
                 "styles": {},
                 "type": "heading",
                 "value": f"get('data_source.{data_source.id}.field_{field_id}')",
@@ -2258,3 +2270,59 @@ def test_get_data_source_context_fields_are_included(api_client, data_fixture):
         ]
         == expected_context_data
     )
+
+
+@pytest.mark.django_db
+def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    trashed_field = data_fixture.create_text_field(table=table, trashed=True)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+    )
+    service_filter = data_fixture.create_local_baserow_table_service_filter(
+        service=data_source.service, field=trashed_field, value="abc", order=0
+    )
+
+    url = reverse(
+        "api:builder:domains:public_dispatch",
+        kwargs={"data_source_id": data_source.id},
+    )
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_SERVICE_FILTER_PROPERTY_DOES_NOT_EXIST",
+        "detail": "A data source filter is misconfigured: "
+        "One or more filtered properties no longer exist.",
+    }
+
+    service_filter.delete()
+
+    data_fixture.create_local_baserow_table_service_sort(
+        service=data_source.service,
+        field=trashed_field,
+        order_by=SORT_ORDER_ASC,
+        order=0,
+    )
+
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST",
+        "detail": "A data source sort is misconfigured: "
+        "One or more sorted properties no longer exist.",
+    }

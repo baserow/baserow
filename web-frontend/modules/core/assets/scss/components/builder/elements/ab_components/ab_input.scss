@@ -5,6 +5,7 @@
   outline: none;
   line-height: 100%;
   font-size: var(--input-font-size, 13px);
+  font-weight: var(--input-font-weight, 400);
   color: var(--input-text-color, $color-neutral-900);
   font-family: var(--input-font-family, Inter);
   background-color: var(--input-background-color, $white);

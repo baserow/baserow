@@ -76,5 +76,6 @@ class UpdateWidgetSerializer(serializers.ModelSerializer):
             "description",
         )
         extra_kwargs = {
+            "title": {"required": False, "allow_blank": False},
             "description": {"required": False, "allow_blank": True},
         }

@@ -1,4 +1,3 @@
-import Vuelidate from '@baserow/node_modules/vuelidate/lib/index'
 import Vue from 'vue'
 import Vuex from 'vuex'
 import { setupVue } from '@baserow/modules/core/plugins/global'
@@ -7,10 +6,6 @@ import { setupVueForAB } from '@baserow/modules/builder/plugins/global'
 const addVuex = (context) => {
   context.vuex = Vuex
   context.vue.use(context.vuex)
-}
-const addVuelidate = (context) => {
-  context.vuelidate = Vuelidate
-  context.vue.use(context.vuelidate)
 }
 const addBus = (context) => {
   context.vue_bus = Vue
@@ -34,8 +29,7 @@ const compositeConfiguration = (...configs) => {
 
 export const bootstrapVueContext = (configureContext) => {
   configureContext =
-    configureContext ||
-    compositeConfiguration(addVuex, addVuelidate, addBus, addI18n)
+    configureContext || compositeConfiguration(addVuex, addBus, addI18n)
 
   const context = {}
   const teardownVueContext = () => {

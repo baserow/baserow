@@ -50,6 +50,7 @@ class DataSyncHandler:
         Returns the data sync matching the provided ID.
 
         :param data_sync_id: The data sync ID to fetch.
+        :param base_queryset: Optionally change the default queryset.
         :return: The fetched data sync object.
         """
 
@@ -513,9 +514,12 @@ class DataSyncHandler:
 
         enabled_properties = DataSyncSyncedProperty.objects.filter(
             data_sync=data_sync,
-            field__trashed=False,
         ).prefetch_related(
-            Prefetch("field", queryset=specific_queryset(Field.objects.all())),
+            # Deliberately using the trashed fields. They still synced because the
+            # user has the ability to restore them.
+            Prefetch(
+                "field", queryset=specific_queryset(Field.objects_and_trash.all())
+            ),
             "field__select_options",
         )
         enabled_properties_per_key = {p.key: p for p in enabled_properties}

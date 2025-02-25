@@ -1,4 +1,5 @@
 import { callGrouper } from '@baserow/modules/core/utils/function'
+import { prepareDispatchParams } from '@baserow/modules/builder/utils/params'
 
 const GRACE_DELAY = 50 // ms before querying the backend with a get query
 
@@ -32,20 +33,24 @@ export default (client) => {
         before_id: beforeId,
       })
     },
-    dispatch(dataSourceId, dispatchContext, { range }) {
-      // Using POST Http method here is not Restful but it the cleanest way to send
-      // data with the call without relying on GET parameter and serialization of
-      // complex object.
-      const params = {}
-      if (range) {
-        params.offset = range[0]
-        params.count = range[1]
+    dispatch(
+      dataSourceId,
+      dispatchContext,
+      dispatchRefinements,
+      signal = null
+    ) {
+      const params = prepareDispatchParams(dispatchRefinements)
+
+      const config = { params }
+
+      if (signal !== null) {
+        config.signal = signal
       }
 
       return client.post(
         `builder/data-source/${dataSourceId}/dispatch/`,
         dispatchContext,
-        { params }
+        config
       )
     },
     dispatchAll(pageId, params) {

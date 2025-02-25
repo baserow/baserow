@@ -5,14 +5,14 @@
       small-label
       :label="$t('fieldLinkRowSubForm.selectTableLabel')"
       required
-      :error="$v.values.link_row_table_id.$error"
+      :error="fieldHasErrors('link_row_table_id')"
     >
       <Dropdown
-        v-model="values.link_row_table_id"
-        :error="$v.values.link_row_table_id.$error"
+        v-model="v$.values.link_row_table_id.$model"
+        :error="fieldHasErrors('link_row_table_id')"
         :fixed-items="true"
         :disabled="!isSelectedFieldAccessible"
-        @hide="$v.values.link_row_table_id.$touch()"
+        @hide="v$.values.link_row_table_id.$touch"
         @input="tableChange"
       >
         <DropdownItem
@@ -23,11 +23,13 @@
         ></DropdownItem>
       </Dropdown>
 
-      <template #error> {{ $t('error.requiredField') }}</template>
+      <template #error>
+        {{ v$.values.link_row_table_id.$errors[0]?.$message }}
+      </template>
     </FormGroup>
     <FormGroup>
       <div
-        v-show="values.link_row_table_id !== table.id"
+        v-show="v$.values.link_row_table_id.$model !== table.id"
         class="margin-bottom-1"
       >
         <Checkbox v-model="values.has_related_field">{{
@@ -47,7 +49,7 @@
         <div v-if="viewsLoading" class="loading"></div>
         <Dropdown
           v-else
-          v-model="values.link_row_limit_selection_view_id"
+          v-model="v$.values.link_row_limit_selection_view_id.$model"
           class="margin-top-1"
           :fixed-items="true"
         >
@@ -65,8 +67,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
@@ -76,6 +78,9 @@ import { CollaborativeViewOwnershipType } from '@baserow/modules/database/viewOw
 export default {
   name: 'FieldLinkRowSubForm',
   mixins: [form, fieldSubForm],
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
   data() {
     return {
       allowedValues: [
@@ -146,13 +151,15 @@ export default {
   },
   watch: {
     'values.link_row_table_id'(newValueType, oldValue) {
-      const table = this.tablesWhereFieldsCanBeCreated.find(
-        (table) => table.id === newValueType
-      )
-      if (newValueType !== oldValue) {
-        this.loadViewsIfNeeded()
+      if (newValueType) {
+        const table = this.tablesWhereFieldsCanBeCreated.find(
+          (table) => table.id === newValueType
+        )
+        if (newValueType !== oldValue) {
+          this.loadViewsIfNeeded()
+        }
+        this.$emit('suggested-field-name', table.name)
       }
-      this.$emit('suggested-field-name', table.name)
     },
   },
   mounted() {
@@ -162,11 +169,7 @@ export default {
       this.defaultValues.link_row_related_field != null
     this.limitToViewToggle = !!this.values.link_row_limit_selection_view_id
   },
-  validations: {
-    values: {
-      link_row_table_id: { required },
-    },
-  },
+
   methods: {
     reset() {
       this.initialLinkRowTable = this.values.link_row_table_id
@@ -239,6 +242,19 @@ export default {
       this.viewsLoadedForTable = this.values.link_row_table_id
       this.viewsLoading = false
     },
+  },
+  validations() {
+    return {
+      values: {
+        link_row_table_id: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        link_row_limit_selection_view_id: {},
+      },
+    }
   },
 }
 </script>

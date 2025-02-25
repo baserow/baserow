@@ -9,7 +9,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions, validate_body_custom_fields
-from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
+from baserow.api.schemas import (
+    CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+    CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+    get_error_schema,
+)
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
     DiscriminatorCustomFieldsMappingSerializer,
@@ -17,6 +21,11 @@ from baserow.api.utils import (
 )
 from baserow.contrib.dashboard.api.errors import ERROR_DASHBOARD_DOES_NOT_EXIST
 from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
+from baserow.contrib.dashboard.widgets.actions import (
+    CreateWidgetActionType,
+    DeleteWidgetActionType,
+    UpdateWidgetActionType,
+)
 from baserow.contrib.dashboard.widgets.exceptions import (
     WidgetDoesNotExist,
     WidgetTypeDoesNotExist,
@@ -55,6 +64,7 @@ class WidgetsView(APIView):
             200: DiscriminatorCustomFieldsMappingSerializer(
                 widget_type_registry, WidgetSerializer, many=True
             ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_DASHBOARD_DOES_NOT_EXIST"]),
         },
     )
@@ -86,6 +96,7 @@ class WidgetsView(APIView):
                 "provided value.",
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Dashboard widgets"],
         operation_id="create_dashboard_widget",
@@ -99,11 +110,13 @@ class WidgetsView(APIView):
             200: DiscriminatorCustomFieldsMappingSerializer(
                 widget_type_registry, WidgetSerializer
             ),
-            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+            400: get_error_schema(
+                ["ERROR_REQUEST_BODY_VALIDATION", "ERROR_WIDGET_TYPE_DOES_NOT_EXIST"]
+            ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
             404: get_error_schema(
                 [
                     "ERROR_DASHBOARD_DOES_NOT_EXIST",
-                    "ERROR_WIDGET_TYPE_DOES_NOT_EXIST",
                 ]
             ),
         },
@@ -122,8 +135,8 @@ class WidgetsView(APIView):
         """Creates a new widget."""
 
         widget_type = data.pop("type")
-        widget = WidgetService().create_widget(
-            request.user, widget_type, dashboard_id, **data
+        widget = CreateWidgetActionType.do(
+            request.user, dashboard_id, widget_type, data
         )
         serializer = widget_type_registry.get_serializer(widget, WidgetSerializer)
         return Response(serializer.data)
@@ -139,6 +152,7 @@ class WidgetView(APIView):
                 description="The id of the widget",
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Dashboard widgets"],
         operation_id="update_dashboard_widget",
@@ -157,6 +171,7 @@ class WidgetView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
             404: get_error_schema(
                 [
                     "ERROR_WIDGET_DOES_NOT_EXIST",
@@ -185,7 +200,9 @@ class WidgetView(APIView):
             partial=True,
             return_validated=True,
         )
-        updated_widget = WidgetService().update_widget(request.user, widget_id, **data)
+        updated_widget = UpdateWidgetActionType.do(
+            request.user, widget_id, widget_type, data
+        )
         serializer = widget_type_registry.get_serializer(
             updated_widget, WidgetSerializer
         )
@@ -200,12 +217,14 @@ class WidgetView(APIView):
                 description="The id of the widget",
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Dashboard widgets"],
         operation_id="delete_dashboard_widget",
         description="Deletes the widget related to the given id.",
         responses={
             204: None,
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_WIDGET_DOES_NOT_EXIST"]),
         },
     )
@@ -220,5 +239,5 @@ class WidgetView(APIView):
         Deletes a widget.
         """
 
-        WidgetService().delete_widget(request.user, widget_id)
+        DeleteWidgetActionType.do(request.user, widget_id)
         return Response(status=204)

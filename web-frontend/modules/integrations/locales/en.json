@@ -14,7 +14,9 @@
   "serviceType": {
     "localBaserowGetRow": "Get single row",
     "localBaserowListRows": "List multiple rows",
-    "localBaserowAggregateRows": "Summarize field"
+    "localBaserowAggregateRows": "Summarize field",
+    "misconfigured": "Misconfigured",
+    "trashedField": "Trashed field"
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"
@@ -68,7 +70,8 @@
     "sortBy": "Sort by",
     "thenBy": "Then by",
     "addSort": "Add additional sort",
-    "noTableChosenForSorting": "Choose a table to begin using data source sorts."
+    "noTableChosenForSorting": "Choose a table to begin using data source sorts.",
+    "sortMisconfigured": "The field this sort is associated with has been trashed."
   },
   "dataProviderType": {
     "dataSource": "Data source",

@@ -89,6 +89,13 @@ export default {
   mixins: [elementForm],
   data() {
     return {
+      allowedValues: [
+        'image_source_type',
+        'image_file',
+        'image_url',
+        'alt_text',
+        'styles',
+      ],
       values: {
         image_source_type: IMAGE_SOURCE_TYPES.UPLOAD,
         image_file: null,

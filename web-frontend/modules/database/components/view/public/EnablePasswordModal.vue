@@ -6,8 +6,8 @@
       <p class="box__description">{{ $t(descriptionText) }}</p>
       <FormGroup :error="fieldHasErrors('password')">
         <PasswordInput
-          v-model="values.password"
-          :validation-state="$v.values.password"
+          v-model="v$.values.password.$model"
+          :validation-state="v$.values.password"
           :show-password-icon="true"
           :disabled="loading"
         />
@@ -23,7 +23,7 @@
         <Button
           type="primary"
           :loading="loading"
-          :disabled="loading || $v.$invalid"
+          :disabled="loading || v$.$invalid"
         >
           {{ $t(saveText) }}
         </Button>
@@ -33,6 +33,8 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
@@ -49,13 +51,28 @@ export default {
       required: true,
     },
   },
+  setup() {
+    const values = reactive({
+      values: {
+        password: '',
+      },
+    })
+
+    const rules = computed(() => ({
+      values: {
+        password: passwordValidation,
+      },
+    }))
+
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
+    }
+  },
   data() {
     return {
       loading: false,
       allowedValues: ['password'],
-      values: {
-        password: '',
-      },
     }
   },
   computed: {
@@ -81,7 +98,7 @@ export default {
   methods: {
     clearInput() {
       this.values.password = ''
-      this.$v.$reset()
+      this.v$.$reset()
     },
     show() {
       this.clearInput()
@@ -107,11 +124,6 @@ export default {
       }
 
       this.loading = false
-    },
-  },
-  validations: {
-    values: {
-      password: passwordValidation,
     },
   },
 }

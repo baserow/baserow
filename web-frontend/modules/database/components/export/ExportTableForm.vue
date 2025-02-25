@@ -3,6 +3,7 @@
     <div class="row">
       <div class="col col-12">
         <FormGroup
+          v-if="enableViewsDropdown"
           small-label
           :label="$t('exportTableForm.viewLabel')"
           required
@@ -23,7 +24,7 @@
           :database="database"
           class="margin-bottom-2"
         ></ExporterTypeChoices>
-        <div v-if="$v.values.exporter_type.$error" class="error">
+        <div v-if="v$.values.exporter_type.$error" class="error">
           {{ $t('exportTableForm.typeError') }}
         </div>
       </div>
@@ -38,8 +39,8 @@
 </template>
 
 <script>
-import { required } from 'vuelidate/lib/validators'
-
+import { useVuelidate } from '@vuelidate/core'
+import { reactive } from 'vue'
 import form from '@baserow/modules/core/mixins/form'
 import viewTypeHasExporterTypes from '@baserow/modules/database/utils/viewTypeHasExporterTypes'
 
@@ -75,13 +76,28 @@ export default {
       type: Boolean,
       required: true,
     },
+    enableViewsDropdown: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
-  data() {
-    return {
+  setup() {
+    const values = reactive({
       values: {
-        view_id: this.view === null ? null : this.view.id,
+        view_id: null,
         exporter_type: null,
       },
+    })
+    const rules = {
+      values: {
+        exporter_type: {},
+        view_id: {},
+      },
+    }
+    return {
+      values: values.values,
+      v$: useVuelidate(rules, values, { $lazy: true }),
     }
   },
   computed: {
@@ -130,11 +146,7 @@ export default {
   },
   created() {
     this.values.exporter_type = this.firstExporterType
-  },
-  validations: {
-    values: {
-      exporter_type: { required },
-    },
+    this.values.view_id = this.view === null ? null : this.view.id
   },
 }
 </script>

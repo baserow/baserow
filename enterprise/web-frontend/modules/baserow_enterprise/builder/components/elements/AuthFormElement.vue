@@ -9,8 +9,12 @@
         <component
           :is="appAuthType.component"
           :user-source="selectedUserSource"
+          :auth-provider-type="appAuthType"
           :auth-providers="appAuthProviderPerTypes[appAuthType.type]"
           :login-button-label="resolvedLoginButtonLabel"
+          :before-login="beforeLogin"
+          :read-only="isEditMode"
+          :authenticate="authenticateWithCredentials"
           @after-login="afterLogin"
         />
       </div>
@@ -31,7 +35,7 @@ import { mapActions } from 'vuex'
 export default {
   name: 'AuthFormElement',
   mixins: [element, form, error],
-  inject: ['elementPage', 'builder'],
+  inject: ['elementPage', 'builder', 'mode'],
   props: {
     /**
      * @type {Object}
@@ -48,6 +52,14 @@ export default {
     return {}
   },
   computed: {
+    isAuthenticated() {
+      return this.$store.getters['userSourceUser/isAuthenticated'](
+        this.application
+      )
+    },
+    isEditMode() {
+      return this.mode === 'editing'
+    },
     fullStyle() {
       return {
         ...this.getStyleOverride('input'),
@@ -110,6 +122,7 @@ export default {
           if (!found) {
             // If the user_source has been removed we need to update the element
             this.actionForceUpdateElement({
+              builder: this.builder,
               page: this.elementPage,
               element: this.element,
               values: { user_source_id: null },
@@ -127,6 +140,21 @@ export default {
       return (
         this.appAuthProviderPerTypes[authProviderType.getType()]?.length > 0
       )
+    },
+    async beforeLogin() {
+      if (this.isAuthenticated) {
+        await this.$store.dispatch('userSourceUser/logoff', {
+          application: this.builder,
+        })
+      }
+    },
+    async authenticateWithCredentials(credentials) {
+      await this.$store.dispatch('userSourceUser/authenticate', {
+        application: this.builder,
+        userSource: this.selectedUserSource,
+        credentials,
+        setCookie: this.mode === 'public',
+      })
     },
     afterLogin() {
       this.fireEvent(

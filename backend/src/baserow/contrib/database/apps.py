@@ -239,6 +239,7 @@ class DatabaseConfig(AppConfig):
             AverageFieldAggregationType,
             CheckedFieldAggregationType,
             CheckedPercentageFieldAggregationType,
+            CountFieldAggregationType,
             EarliestDateFieldAggregationType,
             EmptyCountFieldAggregationType,
             EmptyPercentageFieldAggregationType,
@@ -256,6 +257,7 @@ class DatabaseConfig(AppConfig):
             VarianceFieldAggregationType,
         )
 
+        field_aggregation_registry.register(CountFieldAggregationType())
         field_aggregation_registry.register(EmptyCountFieldAggregationType())
         field_aggregation_registry.register(NotEmptyCountFieldAggregationType())
         field_aggregation_registry.register(CheckedFieldAggregationType())
@@ -448,8 +450,20 @@ class DatabaseConfig(AppConfig):
         from .views.array_view_filters import (
             HasAllValuesEqualViewFilterType,
             HasAnySelectOptionEqualViewFilterType,
+            HasDateAfterViewFilterType,
+            HasDateBeforeViewFilterType,
+            HasDateEqualViewFilterType,
+            HasDateOnOrAfterViewFilterType,
+            HasDateOnOrBeforeViewFilterType,
+            HasDateWithinViewFilterType,
             HasEmptyValueViewFilterType,
             HasNoneSelectOptionEqualViewFilterType,
+            HasNotDateAfterViewFilterType,
+            HasNotDateBeforeViewFilterType,
+            HasNotDateEqualViewFilterType,
+            HasNotDateOnOrAfterViewFilterType,
+            HasNotDateOnOrBeforeViewFilterType,
+            HasNotDateWithinViewFilterType,
             HasNotEmptyValueViewFilterType,
             HasNotValueContainsViewFilterType,
             HasNotValueContainsWordViewFilterType,
@@ -488,10 +502,24 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(HasNotValueHigherThanFilterType())
         view_filter_type_registry.register(HasNotValueLowerOrEqualTHanFilterType())
         view_filter_type_registry.register(HasNotValueLowerThanFilterType())
+        view_filter_type_registry.register(HasDateEqualViewFilterType())
+        view_filter_type_registry.register(HasNotDateEqualViewFilterType())
+        view_filter_type_registry.register(HasDateBeforeViewFilterType())
+        view_filter_type_registry.register(HasNotDateBeforeViewFilterType())
+        view_filter_type_registry.register(HasDateOnOrBeforeViewFilterType())
+        view_filter_type_registry.register(HasNotDateOnOrBeforeViewFilterType())
+        view_filter_type_registry.register(HasDateOnOrAfterViewFilterType())
+        view_filter_type_registry.register(HasNotDateOnOrAfterViewFilterType())
+        view_filter_type_registry.register(HasDateAfterViewFilterType())
+        view_filter_type_registry.register(HasNotDateAfterViewFilterType())
+        view_filter_type_registry.register(HasDateWithinViewFilterType())
+        view_filter_type_registry.register(HasNotDateWithinViewFilterType())
 
         from .views.view_aggregations import (
             AverageViewAggregationType,
+            CountViewAggregationType,
             DecileViewAggregationType,
+            DistributionViewAggregationType,
             EmptyCountViewAggregationType,
             MaxViewAggregationType,
             MedianViewAggregationType,
@@ -503,6 +531,7 @@ class DatabaseConfig(AppConfig):
             VarianceViewAggregationType,
         )
 
+        view_aggregation_type_registry.register(CountViewAggregationType())
         view_aggregation_type_registry.register(EmptyCountViewAggregationType())
         view_aggregation_type_registry.register(NotEmptyCountViewAggregationType())
         view_aggregation_type_registry.register(UniqueCountViewAggregationType())
@@ -514,6 +543,7 @@ class DatabaseConfig(AppConfig):
         view_aggregation_type_registry.register(DecileViewAggregationType())
         view_aggregation_type_registry.register(VarianceViewAggregationType())
         view_aggregation_type_registry.register(StdDevViewAggregationType())
+        view_aggregation_type_registry.register(DistributionViewAggregationType())
 
         from .views.form_view_mode_types import FormViewModeTypeForm
 
@@ -683,6 +713,7 @@ class DatabaseConfig(AppConfig):
         object_scope_type_registry.register(TokenObjectScopeType())
 
         from baserow.contrib.database.views.operations import (
+            CanReceiveNotificationOnSubmitFormViewOperationType,
             UpdateViewFieldOptionsOperationType,
         )
 
@@ -823,6 +854,9 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(CreateAndUsePersonalViewOperationType())
         operation_type_registry.register(ReadViewOperationType())
         operation_type_registry.register(UpdateViewOperationType())
+        operation_type_registry.register(
+            CanReceiveNotificationOnSubmitFormViewOperationType()
+        )
         operation_type_registry.register(DeleteViewOperationType())
         operation_type_registry.register(DuplicateViewOperationType())
         operation_type_registry.register(CreateViewFilterOperationType())

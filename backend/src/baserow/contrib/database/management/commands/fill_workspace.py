@@ -191,7 +191,7 @@ def fill_workspace_with_data(
             with transaction.atomic():
                 database = (
                     CoreHandler()
-                    .create_application(user, workspace, "database", faker.name())
+                    .create_application(user, workspace, "database", name=faker.name())
                     .specific
                 )
                 created_databases_and_tables[database] = []

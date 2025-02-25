@@ -1,3 +1,5 @@
+import { prepareDispatchParams } from '@baserow/modules/builder/utils/params'
+
 export default (client) => {
   return {
     publish(domain) {
@@ -27,38 +29,20 @@ export default (client) => {
     dispatch(
       dataSourceId,
       dispatchContext,
-      { range, filters = {}, sortings = null, search = '', searchMode = '' }
+      dispatchRefinements,
+      signal = null
     ) {
-      // Using POST Http method here is not Restful but it the cleanest way to send
-      // data with the call without relying on GET parameter and serialization of
-      // complex object.
-      const params = new URLSearchParams()
-      if (range) {
-        params.append('offset', range[0])
-        params.append('count', range[1])
-      }
+      const params = prepareDispatchParams(dispatchRefinements)
+      const config = { params }
 
-      Object.keys(filters).forEach((key) => {
-        filters[key].forEach((value) => {
-          params.append(key, value)
-        })
-      })
-
-      if (sortings || sortings === '') {
-        params.append('order_by', sortings)
-      }
-
-      if (search) {
-        params.append('search_query', search)
-        if (searchMode) {
-          params.append('search_mode', searchMode)
-        }
+      if (signal !== null) {
+        config.signal = signal
       }
 
       return client.post(
         `builder/domains/published/data-source/${dataSourceId}/dispatch/`,
         dispatchContext,
-        { params }
+        config
       )
     },
     dispatchAll(pageId, params) {

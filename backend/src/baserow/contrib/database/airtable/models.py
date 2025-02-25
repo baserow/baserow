@@ -22,3 +22,8 @@ class AirtableImportJob(JobWithUserIpAddress, Job):
         on_delete=models.SET_NULL,
         help_text="The imported Baserow database.",
     )
+    skip_files = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="If true, then the files are not downloaded and imported.",
+    )

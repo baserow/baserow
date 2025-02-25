@@ -3,12 +3,12 @@
     <FormRow>
       <FormGroup
         :label="$t('updateUserSourceForm.nameFieldLabel')"
+        :error-message="getFirstErrorMessage('name')"
         required
         small-label
-        :error-message="getError('name')"
       >
         <FormInput
-          v-model="$v.values.name.$model"
+          v-model="v$.values.name.$model"
           size="large"
           class="update-user-source-form__name-input"
           :placeholder="$t('updateUserSourceForm.nameFieldPlaceholder')"
@@ -16,12 +16,12 @@
       </FormGroup>
       <FormGroup
         :label="$t('updateUserSourceForm.integrationFieldLabel')"
-        :error-message="getError('integration_id')"
+        :error-message="getFirstErrorMessage('integration_id')"
         required
         small-label
       >
         <IntegrationDropdown
-          v-model="$v.values.integration_id.$model"
+          v-model="v$.values.integration_id.$model"
           :application="builder"
           :integrations="integrations"
           :integration-type="userSourceType.integrationType"
@@ -38,6 +38,7 @@
       :integration="integration"
       @values-changed="emitChange"
     />
+
     <div v-if="integration">
       <FormGroup
         :label="$t('updateUserSourceForm.authTitle')"
@@ -80,6 +81,7 @@
               v-if="hasAtLeastOneOfThisType(appAuthType)"
               :ref="`authProviderForm`"
               excluded-form
+              :application="builder"
               :integration="integration"
               :user-source="fullValues"
               :auth-providers="appAuthProviderPerTypes"
@@ -99,12 +101,14 @@
 </template>
 
 <script>
+import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
-import { required, maxLength } from 'vuelidate/lib/validators'
+import AuthProviderWithModal from '@baserow/modules/builder/components/userSource/AuthProviderWithModal'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 
 export default {
-  components: { IntegrationDropdown },
+  components: { IntegrationDropdown, AuthProviderWithModal },
   mixins: [form],
   props: {
     builder: {
@@ -116,6 +120,9 @@ export default {
       required: false,
       default: null,
     },
+  },
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -220,6 +227,7 @@ export default {
     },
     emitChange() {
       this.fullValues = this.getFormValues()
+      this.$emit('values-changed', this.fullValues)
     },
     handleServerError(error) {
       if (
@@ -231,30 +239,28 @@ export default {
       }
       return false
     },
-    getError(fieldName) {
-      if (!this.$v.values[fieldName].$dirty) {
-        return ''
-      }
-      const fieldState = this.$v.values[fieldName]
-      if (!fieldState.required) {
-        return this.$t('error.requiredField')
-      }
-      if (fieldName === 'name' && !fieldState.maxLength) {
-        return this.$t('error.maxLength', { max: 255 })
-      }
-      return ''
-    },
   },
-  validations: {
-    values: {
-      integration_id: {
-        required,
+  validations() {
+    return {
+      values: {
+        integration_id: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+        },
+        name: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            required
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 255 }),
+            maxLength(255)
+          ),
+        },
       },
-      name: {
-        required,
-        maxLength: maxLength(255),
-      },
-    },
+    }
   },
 }
 </script>

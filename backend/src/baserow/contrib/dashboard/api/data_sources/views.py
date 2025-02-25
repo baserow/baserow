@@ -7,13 +7,20 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions, validate_data_custom_fields
-from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
+from baserow.api.schemas import (
+    CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+    CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+    get_error_schema,
+)
 from baserow.api.services.errors import ERROR_SERVICE_INVALID_TYPE
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
     DiscriminatorCustomFieldsMappingSerializer,
 )
 from baserow.contrib.dashboard.api.errors import ERROR_DASHBOARD_DOES_NOT_EXIST
+from baserow.contrib.dashboard.data_sources.actions import (
+    UpdateDashboardDataSourceActionType,
+)
 from baserow.contrib.dashboard.data_sources.dispatch_context import (
     DashboardDispatchContext,
 )
@@ -69,6 +76,7 @@ class DashboardDataSourcesView(APIView):
             200: DiscriminatorCustomFieldsMappingSerializer(
                 service_type_registry, DashboardDataSourceSerializer, many=True
             ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_DASHBOARD_DOES_NOT_EXIST"]),
         },
     )
@@ -110,6 +118,7 @@ class DashboardDataSourceView(APIView):
                 description="The id of the dashboard data source.",
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Dashboard data sources"],
         operation_id="update_dashboard_data_source",
@@ -130,6 +139,7 @@ class DashboardDataSourceView(APIView):
                     "ERROR_DASHBOARD_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE",
                 ]
             ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
             404: get_error_schema(
                 [
                     "ERROR_DASHBOARD_DATA_SOURCE_DOES_NOT_EXIST",
@@ -176,8 +186,8 @@ class DashboardDataSourceView(APIView):
             return_validated=True,
         )
 
-        data_source_updated = DashboardDataSourceService().update_data_source(
-            request.user, data_source_id, service_type=service_type, **data
+        data_source_updated = UpdateDashboardDataSourceActionType.do(
+            request.user, data_source_id, service_type, data
         )
         serializer = service_type_registry.get_serializer(
             data_source_updated.service,
@@ -199,7 +209,6 @@ class DispatchDashboardDataSourceView(APIView):
                 description="The id of the data source you want to call the dispatch "
                 "for",
             ),
-            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
         tags=["Dashboard data sources"],
         operation_id="dispatch_dashboard_data_source",
@@ -220,6 +229,7 @@ class DispatchDashboardDataSourceView(APIView):
                     "ERROR_DASHBOARD_DATA_SOURCE_IMPROPERLY_CONFIGURED",
                 ]
             ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
         },
     )
     @transaction.atomic

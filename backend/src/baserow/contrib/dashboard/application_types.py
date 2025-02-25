@@ -17,6 +17,7 @@ from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.storage import ExportZipFile
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -45,6 +46,17 @@ class DashboardApplicationType(ApplicationType):
             application=application,
             authorized_user=user,
         )
+
+    def pre_delete(self, dashboard):
+        """
+        When a dashboard application is being deleted, delete
+        all widgets first.
+        """
+
+        widgets = dashboard.widget_set(manager="objects_and_trash").all()
+
+        for widget in widgets:
+            TrashHandler.permanently_delete(widget)
 
     def export_serialized(
         self,

@@ -129,6 +129,16 @@ def test_link_element_formula_generator(data_fixture, formula_generator_fixture)
                 "value": formula_generator_fixture["formula_1"],
             },
         ],
+        query_parameters=[
+            {
+                "name": "query1",
+                "value": formula_generator_fixture["formula_1"],
+            },
+            {
+                "name": "query2",
+                "value": formula_generator_fixture["formula_1"],
+            },
+        ],
     )
     serialized_element = LinkElementType().export_serialized(exported_element)
 
@@ -142,6 +152,9 @@ def test_link_element_formula_generator(data_fixture, formula_generator_fixture)
 
     for page_param in imported_element.page_parameters:
         assert page_param.get("value") == formula_generator_fixture["formula_2"]
+
+    for query_param in imported_element.query_parameters:
+        assert query_param.get("value") == formula_generator_fixture["formula_2"]
 
 
 @pytest.mark.django_db

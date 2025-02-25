@@ -508,9 +508,9 @@
         "shareView": "{viewTypeSharingLinkName} 공유",
         "createPrivateLink": "비공개 링크 생성",
         "shareViewTitle": "아직 뷰를 공유하지 않았습니다",
-        "sharedViewTitle": "이 {viewTypeSharingLinkName}은 현재 비공개 링크를 통해 공유되고 있습니다",
+        "sharedViewTitle": "이 {viewTypeSharingLinkName}는 현재 비공개 링크를 통해 공유되고 있습니다",
         "sharedViewDescription": "링크를 가진 사람은 {viewTypeSharingLinkName}을 볼 수 있습니다.",
-        "disableLink": "공유 링크 비활성화",
+        "disableLink": "링크 공유 비활성화",
         "generateNewUrl": "새 URL 생성",
         "copyURL": "URL 복사",
         "EnablePassword": "비밀번호로 접근 제한",
@@ -569,8 +569,8 @@
         }
     },
     "viewFieldsContext": {
-        "coverField": "커버 필드",
-        "noCover": "커버 없음",
+        "coverField": "썸네일 필드",
+        "noCover": "썸네일 없음",
         "search": "필드 검색",
         "hideAll": "모두 숨기기",
         "showAll": "모두 표시"
@@ -580,7 +580,15 @@
     },
     "viewFilter": {
         "filter": "필터 | 1개의 필터 | {count}개의 필터",
-        "hasAllValuesEqual": "모든 값이 동일함"
+        "hasAllValuesEqual": "모든 값이 동일함",
+        "hasValueHigherThan": "값이 더 큼",
+        "hasValueLowerThan": "값이 더 작음",
+        "hasValueLowerThanOrEqual": "값이 작거나 같음",
+        "hasNotValueHigherThan": "값이 더 크지 않음",
+        "hasNotValueLowerThan": "값이 더 작지 않음",
+        "hasNotValueLowerThanOrEqual": "값이 작거나 같지 않음",
+        "hasValueHigherThanOrEqual": "값이 크거나 같음",
+        "hasNotValueHigherThanOrEqual": "값이 크거나 같지 않음"
     },
     "viewContext": {
         "exportView": "뷰 내보내기",
@@ -718,7 +726,7 @@
         "back": "대시보드로 돌아가기"
     },
     "viewAggregationType": {
-        "emptyCount": "비어 있음",
+        "emptyCount": "(비어 있음)",
         "notEmptyCount": "채워짐",
         "emptyPercentage": "비어 있는 비율",
         "notEmptyPercentage": "채워진 비율",
@@ -738,7 +746,10 @@
         "median": "중앙값",
         "stdDev": "표준 편차",
         "stdDevShort": "표준 편차",
-        "variance": "분산"
+        "variance": "분산",
+        "count": "개수",
+        "othersCount": "기타",
+        "distribution": "분포"
     },
     "databaseForm": {
         "importLabel": "기존 데이터를 가져오시겠습니까?",
@@ -763,7 +774,9 @@
         "stateImportingTable": "테이블 {table} 가져오는 중",
         "errorJobAlreadyRunningTitle": "이미 실행 중",
         "errorJobAlreadyRunningDescription": "다른 가져오기 작업이 이미 실행 중입니다. 다른 작업을 시작하려면 해당 작업이 완료될 때까지 기다려야 합니다.",
-        "linkError": "링크는 다음과 같아야 합니다: https://airtable.com/shrxxxxxxxxxxxxxx"
+        "linkError": "링크는 다음과 같아야 합니다: https://airtable.com/shrxxxxxxxxxxxxxx",
+        "skipFilesHelper": "파일이 많은 Airtable 베이스는 가져오기를 느리게 만들 수 있습니다. 이 옵션을 활성화하면 파일 가져오기를 건너뜁니다.",
+        "skipFiles": "파일 가져오기 건너뛰기"
     },
     "chooseSingleSelectField": {
         "addSelectField": "단일 선택 필드 추가",

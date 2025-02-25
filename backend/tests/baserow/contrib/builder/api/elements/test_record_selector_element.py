@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 
 import pytest
@@ -94,17 +96,26 @@ def test_record_selector_element_form_submission(api_client, data_fixture):
         "api:builder:workflow_action:dispatch",
         kwargs={"workflow_action_id": workflow_action.id},
     )
-    response = api_client.post(
-        url,
-        {
-            "form_data": {
-                # Select the first item from the record selector list
-                f"{record_selector_element.id}": rows[0].id,
-            }
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {workflow_action.service.id: ["id", f"field_{fields[0].id}"]},
+            "external": {workflow_action.service.id: ["id", f"field_{fields[0].id}"]},
+        }
+        response = api_client.post(
+            url,
+            {
+                "form_data": {
+                    # Select the first item from the record selector list
+                    f"{record_selector_element.id}": rows[0].id,
+                }
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
     assert response.status_code == HTTP_200_OK
     assert "id" in response.json()
     # The created item should have "field_1" set to the first item of the

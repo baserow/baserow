@@ -1,6 +1,7 @@
 from abc import ABC
 from decimal import Decimal
 
+from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import WidgetDict
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -32,6 +33,17 @@ class WidgetType(
     id_mapping_name = DASHBOARD_WIDGETS
     allowed_fields = ["title", "description"]
 
+    def before_create(self, dashboard: Dashboard):
+        """
+        This function allows you to perform checks and operations
+        before a widget is created.
+
+        :param dashboard: The dashboard where the widget should be
+            created.
+        """
+
+        pass
+
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
         """
         This function allows you to hook into the moment a widget is created or
@@ -42,6 +54,19 @@ class WidgetType(
         :param instance: (optional) The existing instance that is being updated
         """
 
+        return values
+
+    def export_prepared_values(self, instance: Widget):
+        """
+        Returns a serializable dict of prepared values for the widget attributes.
+        It is called by undo/redo ActionHandler to store the values in a way that
+        could be restored later.
+
+        :param instance: The widget instance to export values for.
+        :return: A dict of prepared values.
+        """
+
+        values = {key: getattr(instance, key) for key in self.allowed_fields}
         return values
 
     def after_delete(self, instance: Widget):

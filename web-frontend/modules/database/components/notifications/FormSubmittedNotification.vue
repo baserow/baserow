@@ -17,7 +17,9 @@
     <div class="notification-panel__notification-content-desc">
       <ul class="notification-panel__notification-content-summary">
         <li v-for="(elem, index) in submittedValuesSummary" :key="index">
-          {{ elem.field }}: {{ elem.value }}
+          <span class="notification-panel__notification-content-summary-item"
+            >{{ elem.field }}: {{ elem.value }}</span
+          >
         </li>
       </ul>
       <div v-if="hiddenFieldsCount > 0">

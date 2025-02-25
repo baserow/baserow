@@ -4,7 +4,7 @@ from baserow_premium.views.models import CalendarViewFieldOptions
 from rest_framework import serializers
 
 from baserow.contrib.database.api.rows.serializers import (
-    get_example_row_metadata_field_serializer,
+    get_example_multiple_rows_metadata_serializer,
     get_example_row_serializer_class,
 )
 from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
@@ -75,6 +75,6 @@ def get_calendar_view_example_response_serializer():
             "field_options": serializers.ListSerializer(
                 child=CalendarViewFieldOptionsSerializer()
             ),
-            "row_metadata": get_example_row_metadata_field_serializer(),
+            "row_metadata": get_example_multiple_rows_metadata_serializer(),
         },
     )

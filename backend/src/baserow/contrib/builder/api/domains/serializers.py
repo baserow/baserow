@@ -10,7 +10,10 @@ from baserow.api.app_auth_providers.serializers import AppAuthProviderSerializer
 from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.api.services.serializers import PublicServiceSerializer
 from baserow.api.user_files.serializers import UserFileField, UserFileSerializer
-from baserow.contrib.builder.api.pages.serializers import PathParamSerializer
+from baserow.contrib.builder.api.pages.serializers import (
+    PathParamSerializer,
+    QueryParamSerializer,
+)
 from baserow.contrib.builder.api.theme.serializers import (
     CombinedThemeConfigBlocksSerializer,
     serialize_builder_theme,
@@ -133,11 +136,14 @@ class PublicElementSerializer(serializers.ModelSerializer):
             "style_border_right_size",
             "style_padding_right",
             "style_margin_right",
+            "style_background_radius",
+            "style_border_radius",
             "style_background",
             "style_background_color",
             "style_background_file",
             "style_background_mode",
             "style_width",
+            "style_width_child",
             "role_type",
             "roles",
         )
@@ -154,6 +160,7 @@ class PublicPageSerializer(serializers.ModelSerializer):
     """
 
     path_params = PathParamSerializer(many=True, required=False)
+    query_params = QueryParamSerializer(many=True, required=False)
 
     class Meta:
         model = Page
@@ -166,6 +173,7 @@ class PublicPageSerializer(serializers.ModelSerializer):
             "visibility",
             "role_type",
             "roles",
+            "query_params",
         )
         extra_kwargs = {
             "id": {"read_only": True},

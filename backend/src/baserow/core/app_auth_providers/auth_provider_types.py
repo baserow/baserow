@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Callable, List, Tuple, Type, Union
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any, Callable, List, Tuple, Type, Union
 
 from django.contrib.auth.models import AbstractUser
 
@@ -85,3 +86,22 @@ class AppAuthProviderType(
         return user_source.get_type().get_or_create_user(
             user_source, email=user_info.email, name=user_info.name
         )
+
+    def get_pytest_params(self, pytest_data_fixture) -> dict[str, Any]:
+        """
+        Returns a sample of params for this type. This can be used to tests the provider
+        for instance.
+
+        :param pytest_data_fixture: A Pytest data fixture which can be used to
+            create related objects when the import / export functionality is tested.
+        """
+
+        return {}
+
+    @contextmanager
+    def apply_patch_pytest(self):
+        """
+        Hook to mock something during the tests.
+        """
+
+        yield

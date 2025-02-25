@@ -15,6 +15,8 @@ from baserow.core.formula.types import (
 )
 from baserow.core.registry import Instance, Registry
 from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.services.types import DispatchResult
+from baserow.core.workflow_actions.models import WorkflowAction
 
 
 class RuntimeFormulaFunction(ABC, Instance):
@@ -177,6 +179,20 @@ class DataProviderType(
         """
 
         return {}
+
+    def post_dispatch(
+        self,
+        dispatch_context: DispatchContext,
+        workflow_action: WorkflowAction,
+        dispatch_result: DispatchResult,
+    ) -> None:
+        """
+        This hook is called after a Workflow Action has been dispatched. It is
+        used to call custom logic that should be executed on the dispatch
+        results.
+        """
+
+        return None
 
 
 DataProviderTypeSubClass = TypeVar("DataProviderTypeSubClass", bound=DataProviderType)

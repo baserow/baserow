@@ -45,6 +45,7 @@
     />
     <ImportFromAirtable
       v-else-if="importType === 'airtable'"
+      :workspace="workspace"
       @hidden="$emit('hidden', $event)"
     ></ImportFromAirtable>
   </div>
@@ -65,6 +66,10 @@ export default {
     },
     loading: {
       type: Boolean,
+      required: true,
+    },
+    workspace: {
+      type: Object,
       required: true,
     },
   },

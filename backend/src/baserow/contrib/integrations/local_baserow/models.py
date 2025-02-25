@@ -133,8 +133,8 @@ class LocalBaserowTableServiceFilter(ServiceFilter):
     A service filter applicable to a `LocalBaserowTableService` integration service.
     """
 
-    objects_and_trash = models.Manager()
     objects = LocalBaserowTableServiceRefinementManager()
+    objects_and_trash = models.Manager()
 
     field = models.ForeignKey(
         "database.Field",
@@ -174,8 +174,8 @@ class LocalBaserowTableServiceSort(ServiceSort):
     A service sort applicable to a `LocalBaserowTableService` integration service.
     """
 
-    objects_and_trash = models.Manager()
     objects = LocalBaserowTableServiceRefinementManager()
+    objects_and_trash = models.Manager()
 
     field = models.ForeignKey(
         "database.Field",

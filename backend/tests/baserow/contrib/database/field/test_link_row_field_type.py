@@ -45,6 +45,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
@@ -2206,10 +2207,10 @@ def test_clear_link_row_limit_selection_view_when_view_is_deleted(
 
     view_handler = ViewHandler()
 
-    with CaptureQueriesContext(connection) as queries_request_1:
+    with CaptureQueriesContext(connection) as queries_request_1, local_cache.context():
         view_handler.delete_view(user, view_3)
 
-    with CaptureQueriesContext(connection) as queries_request_2:
+    with CaptureQueriesContext(connection) as queries_request_2, local_cache.context():
         view_handler.delete_view(user, view)
 
     assert len(queries_request_1.captured_queries) + 1 == len(

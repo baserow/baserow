@@ -1751,12 +1751,12 @@ def test_view_aggregations_cache_invalidation_with_dependant_fields(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    # Cache version should be incremented
+    # Cache version should not increment because the number field didn't change type.
     assert (
         cache.get(
             f"aggregation_version__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
         )
-        == 13
+        == 12
     )
 
     check_table_2_aggregation_values(
@@ -1767,7 +1767,7 @@ def test_view_aggregations_cache_invalidation_with_dependant_fields(
         f"aggregation_value__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
     ) == {
         "value": Decimal(22201),
-        "version": 13,
+        "version": 12,
     }
 
     # Delete number field
@@ -1784,13 +1784,13 @@ def test_view_aggregations_cache_invalidation_with_dependant_fields(
         f"aggregation_value__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
     ) == {
         "value": Decimal(22201),
-        "version": 13,
+        "version": 12,
     }
     assert (
         cache.get(
             f"aggregation_version__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
         )
-        == 14
+        == 13
     )
 
     check_table_2_aggregation_values({}, "after field deletion")
@@ -1800,13 +1800,13 @@ def test_view_aggregations_cache_invalidation_with_dependant_fields(
         f"aggregation_value__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
     ) == {
         "value": Decimal(22201),
-        "version": 13,
+        "version": 12,
     }
     assert (
         cache.get(
             f"aggregation_version__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
         )
-        == 14
+        == 13
     )
 
     # Restore deleted field
@@ -1836,13 +1836,13 @@ def test_view_aggregations_cache_invalidation_with_dependant_fields(
         f"aggregation_value__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
     ) == {
         "value": Decimal(22201),
-        "version": 13,
+        "version": 12,
     }
     assert (
         cache.get(
             f"aggregation_version__{grid2.id}_{sum_formula_on_lookup_field.db_column}"
         )
-        == 14
+        == 13
     )
 
 
@@ -3310,6 +3310,7 @@ def test_get_public_grid_view(api_client, data_fixture):
             "row_identifier_type": grid_view.row_identifier_type,
             "row_height_size": grid_view.row_height_size,
             "show_logo": True,
+            "allow_public_export": False,
         },
     }
 

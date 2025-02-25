@@ -28,6 +28,7 @@ from rest_framework.test import APIRequestFactory
 from sqlparse import format
 
 from baserow.contrib.database.application_types import DatabaseApplicationType
+from baserow.core.cache import local_cache
 from baserow.core.context import clear_current_workspace_id
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.jobs.registries import job_type_registry
@@ -91,6 +92,14 @@ def api_request_factory():
     """
 
     return APIRequestFactory()
+
+
+@pytest.fixture(autouse=True)
+def reset_cache():
+    """Automatically reset the short cache before each test."""
+
+    with local_cache.context():
+        yield
 
 
 @pytest.fixture

@@ -30,6 +30,7 @@ import { LocalBaserowUserSourceType } from '@baserow_enterprise/integrations/use
 import {
   LocalBaserowPasswordAppAuthProviderType,
   SamlAppAuthProviderType,
+  OpenIdConnectAppAuthProviderType,
 } from '@baserow_enterprise/integrations/appAuthProviderTypes'
 import { AuthFormElementType } from '@baserow_enterprise/builder/elementTypes'
 import {
@@ -49,8 +50,31 @@ import {
   GitLabIssuesDataSyncType,
   HubspotContactsDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
-
-import { FF_AB_SSO } from '@baserow/modules/core/plugins/featureFlags'
+import { ChartWidgetType } from '@baserow_enterprise/dashboard/widgetTypes'
+import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
+import {
+  CountViewAggregationType,
+  EmptyCountViewAggregationType,
+  NotEmptyCountViewAggregationType,
+  CheckedCountViewAggregationType,
+  NotCheckedCountViewAggregationType,
+  EmptyPercentageViewAggregationType,
+  NotEmptyPercentageViewAggregationType,
+  CheckedPercentageViewAggregationType,
+  NotCheckedPercentageViewAggregationType,
+  UniqueCountViewAggregationType,
+  MinViewAggregationType,
+  MaxViewAggregationType,
+  SumViewAggregationType,
+  AverageViewAggregationType,
+  StdDevViewAggregationType,
+  VarianceViewAggregationType,
+  MedianViewAggregationType,
+} from '@baserow/modules/database/viewAggregationTypes'
+import {
+  FF_AB_SSO,
+  FF_DASHBOARDS,
+} from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -126,6 +150,10 @@ export default (context) => {
       'appAuthProvider',
       new SamlAppAuthProviderType(context)
     )
+    app.$registry.register(
+      'appAuthProvider',
+      new OpenIdConnectAppAuthProviderType(context)
+    )
   }
 
   app.$registry.register('roles', new EnterpriseAdminRoleType(context))
@@ -144,4 +172,82 @@ export default (context) => {
   app.$registry.register('dataSync', new GitHubIssuesDataSyncType(context))
   app.$registry.register('dataSync', new GitLabIssuesDataSyncType(context))
   app.$registry.register('dataSync', new HubspotContactsDataSyncType(context))
+
+  app.$registry.register(
+    'groupedAggregation',
+    new MinViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new MaxViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new SumViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new AverageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new MedianViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new StdDevViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new VarianceViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new EmptyCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotEmptyCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CheckedCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotCheckedCountViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new EmptyPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotEmptyPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new CheckedPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new NotCheckedPercentageViewAggregationType(context)
+  )
+  app.$registry.register(
+    'groupedAggregation',
+    new UniqueCountViewAggregationType(context)
+  )
+
+  app.$registry.register(
+    'configureDataSync',
+    new PeriodicIntervalFieldsConfigureDataSyncType(context)
+  )
+
+  if (app.$featureFlagIsEnabled(FF_DASHBOARDS)) {
+    app.$registry.register('dashboardWidget', new ChartWidgetType(context))
+  }
 }

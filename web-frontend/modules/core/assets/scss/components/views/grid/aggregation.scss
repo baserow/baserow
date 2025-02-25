@@ -53,11 +53,15 @@
 
   flex: 1;
   color: $color-neutral-500;
-  padding-right: 5px;
+  margin-right: 5px;
+  margin-left: 6px;
 }
 
 .grid-view-aggregation__generic-value {
+  @extend %ellipsis;
+
   position: relative;
+  display: inline-block;
 }
 
 .grid-view-aggregation__generic-value--loading {
@@ -72,4 +76,10 @@
     @include loading(14px);
     @include absolute(50%, auto, auto, 50%);
   }
+}
+
+.grid-view-aggregation__distribution {
+  height: 100%;
+  align-items: center;
+  line-height: 15px;
 }

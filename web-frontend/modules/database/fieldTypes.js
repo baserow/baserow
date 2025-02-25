@@ -138,6 +138,7 @@ import RowHistoryFieldPassword from '@baserow/modules/database/components/row/Ro
 import FormViewFieldLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldLinkRow'
 import FormViewFieldMultipleLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldMultipleLinkRow'
 import FormViewFieldMultipleSelectCheckboxes from '@baserow/modules/database/components/view/form/FormViewFieldMultipleSelectCheckboxes'
+import FormViewFieldMultipleCollaboratorsCheckboxes from '@baserow/modules/database/components/view/form/FormViewFieldMultipleCollaboratorsCheckboxes'
 import FormViewFieldSingleSelectRadios from '@baserow/modules/database/components/view/form/FormViewFieldSingleSelectRadios'
 
 import {
@@ -489,6 +490,13 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Return a representation of the value in the aggregation context.
+   */
+  toAggregationString(field, value) {
+    return this.toHumanReadableString(field, value)
+  }
+
+  /**
    * When searching a cells value this should return the value to match the users
    * user term against.
    */
@@ -717,8 +725,16 @@ export class FieldType extends Registerable {
    * Return a valid filter value for the field type. This is used to parse the
    * filter value from the frontend to the backend.
    */
-  prepareFilterValue(field, filterValue) {
+  parseFilterValue(field, filterValue) {
     return filterValue
+  }
+
+  /**
+   * Given a field value, format it as a string to be used in a filter value
+   * and sent to the backend.
+   */
+  formatFilterValue(field, value) {
+    return String(value ?? '')
   }
 
   /**
@@ -869,6 +885,10 @@ export class FieldType extends Registerable {
   getAlias() {
     return null
   }
+
+  toBaserowFormulaType(field) {
+    return this.getType()
+  }
 }
 
 class SelectOptionBaseFieldType extends FieldType {
@@ -887,6 +907,19 @@ class SelectOptionBaseFieldType extends FieldType {
 
   getFormViewFieldOptionsComponent() {
     return FormViewFieldOptionsAllowedSelectOptions
+  }
+
+  formatFilterValue(field, value) {
+    // Filter out any invalid option IDs before sending to the backend.
+    // This prevents confusion where invalid IDs might be interpreted as no option selected,
+    // but the backend will reject them.
+    const validOptionIds = field.select_options.map((option) =>
+      String(option.id)
+    )
+    return value
+      .split(',')
+      .filter((id) => validOptionIds.includes(String(id)))
+      .join(',')
   }
 }
 
@@ -1652,7 +1685,7 @@ export class NumberFieldType extends FieldType {
     return new BigNumber(value)
   }
 
-  prepareFilterValue(field, value) {
+  parseFilterValue(field, value) {
     const res = parseNumberValue(field, String(value ?? ''), false)
     return res === null || res.isNaN() ? '' : res.toString()
   }
@@ -1852,6 +1885,14 @@ export class BooleanFieldType extends FieldType {
     }
   }
 
+  toHumanReadableString(field, value) {
+    if (typeof value === 'boolean') {
+      return `${value}`
+    }
+
+    return super.toHumanReadableString(field, value)
+  }
+
   /**
    * Check if the clipboard data text contains a string that might indicate if the
    * value is true.
@@ -1928,7 +1969,7 @@ export class BooleanFieldType extends FieldType {
     return this.getHasValueEqualFilterFunction(field, true)
   }
 
-  prepareFilterValue(field, value) {
+  parseFilterValue(field, value) {
     return this.parseInputValue(field, String(value ?? ''))
   }
 }
@@ -2156,6 +2197,10 @@ class BaseDateFieldType extends FieldType {
       )
     }
     return super.isEqual(field, value1, value2)
+  }
+
+  toBaserowFormulaType(field) {
+    return 'date'
   }
 }
 
@@ -2451,6 +2496,10 @@ export class LastModifiedByFieldType extends FieldType {
       name: 'John',
     }
   }
+
+  toAggregationString(field, value) {
+    return value
+  }
 }
 
 export class CreatedByFieldType extends FieldType {
@@ -2588,6 +2637,10 @@ export class CreatedByFieldType extends FieldType {
       id: 1,
       name: 'John',
     }
+  }
+
+  toAggregationString(field, value) {
+    return value
   }
 }
 
@@ -3285,6 +3338,10 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     return value.value
   }
 
+  toAggregationString(field, value) {
+    return value
+  }
+
   getDocsDataType() {
     return 'integer or string'
   }
@@ -3804,8 +3861,12 @@ export class FormulaFieldType extends mix(
     return i18n.t('fieldType.formula')
   }
 
-  prepareFilterValue(field, value) {
-    return this.getFormulaType(field)?.prepareFilterValue(field, value)
+  parseFilterValue(field, value) {
+    return this.getFormulaType(field)?.parseFilterValue(field, value)
+  }
+
+  formatFilterValue(field, value) {
+    return this.getFormulaType(field)?.formatFilterValue(field, value)
   }
 
   getFormulaType(field) {
@@ -3935,18 +3996,32 @@ export class FormulaFieldType extends mix(
     return this.getFormulaType(field)?.canGroupByInView(field)
   }
 
+  isEqual(field, value1, value2) {
+    return this.getFormulaType(field).isEqual(field, value1, value2)
+  }
+
+  getRowValueFromGroupValue(field, value) {
+    return this.getFormulaType(field).getRowValueFromGroupValue(field, value)
+  }
+
+  getGroupValueFromRowValue(field, value) {
+    return this.getFormulaType(field).getGroupValueFromRowValue(field, value)
+  }
+
   parseInputValue(field, value) {
-    const underlyingFieldType = this.getFormulaType(field)
-    return underlyingFieldType.parseInputValue(field, value)
+    return this.getFormulaType(field).parseInputValue(field, value)
   }
 
   parseFromLinkedRowItemValue(field, value) {
-    const underlyingFieldType = this.getFormulaType(field)
-    return underlyingFieldType.parseFromLinkedRowItemValue(field, value)
+    return this.getFormulaType(field).parseFromLinkedRowItemValue(field, value)
   }
 
   canRepresentFiles(field) {
     return this.getFormulaType(field)?.canRepresentFiles(field)
+  }
+
+  toBaserowFormulaType(field) {
+    return this.getFormulaType(field).toBaserowFormulaType(field)
   }
 }
 
@@ -4085,7 +4160,20 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   getFormViewFieldComponents(field) {
-    return {}
+    const { i18n } = this.app
+    const components = super.getFormViewFieldComponents(field)
+    components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].name = i18n.t(
+      'fieldType.multipleCollaboratorsDropdown'
+    )
+    components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].properties = {
+      'allow-create-options': false,
+    }
+    components.checkboxes = {
+      name: i18n.t('fieldType.multipleCollaboratorsCheckboxes'),
+      component: FormViewFieldMultipleCollaboratorsCheckboxes,
+      properties: {},
+    }
+    return components
   }
 
   getEmptyValue() {
@@ -4138,7 +4226,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     }
     const nameList = this._collaboratorCellValueToListOfNames(value)
 
-    return this.app.$papa.arrayToString(nameList)
+    return this.app.$papa.unparse([nameList], { delimiter: ', ' })
   }
 
   _collaboratorCellValueToListOfNames(value) {
@@ -4188,8 +4276,14 @@ export class MultipleCollaboratorsFieldType extends FieldType {
 
         return uniqueValuesOnly
           .map((emailOrName) => {
+            // verify if it respects the format `$name ($email)`
+            const matches = emailOrName.match(/(.*)\s*<(.*)>/)
+            let email = emailOrName
+            if (matches) {
+              email = matches[2]
+            }
             const workspaceUser =
-              this.app.store.getters['workspace/getUserByEmail'](emailOrName)
+              this.app.store.getters['workspace/getUserByEmail'](email)
             if (workspaceUser !== undefined) {
               return workspaceUser
             }
@@ -4236,6 +4330,10 @@ export class MultipleCollaboratorsFieldType extends FieldType {
       return ''
     }
     return this._collaboratorCellValueToListOfNames(value).join(delimiter)
+  }
+
+  canBeReferencedByFormulaField() {
+    return true
   }
 }
 

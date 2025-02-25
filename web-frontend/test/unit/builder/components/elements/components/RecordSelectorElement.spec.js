@@ -144,6 +144,7 @@ describe('RecordSelectorElement', () => {
       id: 1,
       theme: { primary_color: '#ccc' },
       pages: [sharedPage, page],
+      selectedElement: null,
     }
     const workspace = {}
     const mode = 'public'
@@ -194,6 +195,7 @@ describe('RecordSelectorElement', () => {
 
     // Set a formula for suffix and check it was properly resolved
     store.dispatch('element/forceUpdate', {
+      builder,
       page,
       element,
       values: { option_name_suffix: "get('current_record.field_2')" },
