@@ -2010,7 +2010,7 @@ class MenuElementType(ElementType):
             ),
         }
         return overrides
-    
+
     @property
     def request_serializer_field_overrides(self):
         return {
