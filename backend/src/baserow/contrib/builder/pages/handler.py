@@ -40,15 +40,11 @@ from baserow.contrib.builder.types import PageDict
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
+from baserow.core.cache import global_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_sources.user_source_user import UserSourceUser
-from baserow.core.utils import (
-    ChildProgressBuilder,
-    MirrorDict,
-    find_unused_name,
-    safe_get_or_set_cache,
-)
+from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
 
 BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS = 60 * 60
 
@@ -265,7 +261,7 @@ class PageHandler:
         :return: whether this public page ID is published or not.
         """
 
-        return safe_get_or_set_cache(
+        return global_cache.get(
             f"ab_public_page_{public_page_id}_published",
             default=lambda: self._is_published_application_page(public_page_id),
             timeout=BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS,

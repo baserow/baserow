@@ -13,13 +13,14 @@ from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.domains.registries import DomainType
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
+from baserow.core.cache import global_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.utils import Progress, extract_allowed, invalidate_versioned_cache
+from baserow.core.utils import Progress, extract_allowed
 
 
 class DomainHandler:
@@ -285,11 +286,5 @@ class DomainHandler:
         return f"ab_public_builder_by_domain_{domain_name}"
 
     @classmethod
-    def get_public_builder_by_domain_version_cache_key(cls, domain_name: str) -> str:
-        return f"ab_public_builder_by_domain_{domain_name}_version"
-
-    @classmethod
     def invalidate_public_builder_by_domain_cache(cls, domain_name: str):
-        invalidate_versioned_cache(
-            cls.get_public_builder_by_domain_version_cache_key(domain_name)
-        )
+        global_cache.invalidate(cls.get_public_builder_by_domain_cache_key(domain_name))
