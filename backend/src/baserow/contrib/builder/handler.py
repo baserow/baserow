@@ -14,14 +14,15 @@ from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import invalidate_versioned_cache, safe_get_or_set_cache
+from baserow.version import VERSION as BASEROW_VERSION
 
 USED_PROPERTIES_CACHE_KEY_PREFIX = "used_properties_for_page"
 
 # The duration of the cached public element, data source and workflow action API views.
-BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60
+BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
 
 # The duration of the cached public `get_public_builder_by_domain_name` view.
-BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60
+BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60 * 60
 
 # The duration of the cached public properties for the builder API views.
 BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS = 60

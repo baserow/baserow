@@ -30,9 +30,6 @@ from baserow.contrib.builder.api.data_sources.errors import (
 from baserow.contrib.builder.api.data_sources.serializers import (
     DispatchDataSourceRequestSerializer,
 )
-from baserow.contrib.builder.api.domains.decorators import (
-    requires_published_application,
-)
 from baserow.contrib.builder.api.domains.serializers import (
     PublicBuilderSerializer,
     PublicDataSourceSerializer,
@@ -215,19 +212,22 @@ class PublicElementsView(APIView):
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
         }
     )
-    @requires_published_application
     def get(self, request: Request, page_id: int):
         """
         Responds with a list of serialized elements that belongs to the given page id.
         """
 
-        data = safe_get_or_set_cache(
-            cache_key=PageHandler.get_page_public_records_cache_key(
-                page_id, request.user_source_user, "elements"
-            ),
-            default=lambda: self._get_public_page_elements(request, page_id),
-            timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
-        )
+        if PageHandler().page_id_is_published(page_id):
+            data = safe_get_or_set_cache(
+                cache_key=PageHandler.get_page_public_records_cache_key(
+                    page_id, request.user_source_user, "elements"
+                ),
+                default=lambda: self._get_public_page_elements(request, page_id),
+                timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
+            )
+        else:
+            data = self._get_public_page_elements(request, page_id)
+
         return Response(data)
 
     def _get_public_page_elements(
@@ -282,20 +282,23 @@ class PublicDataSourcesView(APIView):
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
         }
     )
-    @requires_published_application
     def get(self, request: Request, page_id: int):
         """
         Responds with a list of serialized data_sources that belong to the page if the
         user has access to it.
         """
 
-        data = safe_get_or_set_cache(
-            cache_key=PageHandler.get_page_public_records_cache_key(
-                page_id, request.user_source_user, "data_sources"
-            ),
-            default=lambda: self._get_public_page_data_sources(request, page_id),
-            timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
-        )
+        if PageHandler().page_id_is_published(page_id):
+            data = safe_get_or_set_cache(
+                cache_key=PageHandler.get_page_public_records_cache_key(
+                    page_id, request.user_source_user, "data_sources"
+                ),
+                default=lambda: self._get_public_page_data_sources(request, page_id),
+                timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
+            )
+        else:
+            data = self._get_public_page_data_sources(request, page_id)
+
         return Response(data)
 
     def _get_public_page_data_sources(self, request: Request, page_id: int):
@@ -366,20 +369,25 @@ class PublicBuilderWorkflowActionsView(APIView):
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
         }
     )
-    @requires_published_application
     def get(self, request: Request, page_id: int):
         """ "
         Responds with a list of serialized workflow actions that belongs to the given
         page id.
         """
 
-        data = safe_get_or_set_cache(
-            cache_key=PageHandler.get_page_public_records_cache_key(
-                page_id, request.user_source_user, "workflow_actions"
-            ),
-            default=lambda: self._get_public_page_workflow_actions(request, page_id),
-            timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
-        )
+        if PageHandler().page_id_is_published(page_id):
+            data = safe_get_or_set_cache(
+                cache_key=PageHandler.get_page_public_records_cache_key(
+                    page_id, request.user_source_user, "workflow_actions"
+                ),
+                default=lambda: self._get_public_page_workflow_actions(
+                    request, page_id
+                ),
+                timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
+            )
+        else:
+            data = self._get_public_page_workflow_actions(request, page_id)
+
         return Response(data)
 
     def _get_public_page_workflow_actions(self, request: Request, page_id: int):

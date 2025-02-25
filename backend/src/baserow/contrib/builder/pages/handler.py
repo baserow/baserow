@@ -95,6 +95,17 @@ class PageHandler:
             "builder__workspace"
         )
 
+    def page_id_is_published(self, page_id) -> bool:
+        """
+        Returns True if the page is part a published builder.
+        """
+
+        return (
+            Page.objects.filter(id=page_id)
+            .exclude(builder__published_from=None)
+            .exists()
+        )
+
     def create_shared_page(self, builder: Builder) -> Page:
         """
         Creates the shared page of the given builder.
