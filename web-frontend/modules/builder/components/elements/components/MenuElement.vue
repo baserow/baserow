@@ -56,13 +56,14 @@
             @shown="toggleExpanded(item.id)"
             @hidden="toggleExpanded(item.id)"
           >
-            <div class="menu-element__sub-link-children-container">
+            <div class="menu-element__sub-links">
               <ABLink
                 v-for="child in item.children"
                 :key="child.id"
                 :variant="child.variant"
                 :url="getItemUrl(child)"
                 :target="getElement(child).target"
+                class="menu-element__sub-link"
               >
                 {{
                   child.name
