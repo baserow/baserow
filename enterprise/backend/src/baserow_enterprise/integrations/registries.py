@@ -1,3 +1,4 @@
+from baserow.contrib.database.fields.registries import FieldAggregationType
 from baserow.contrib.database.views.exceptions import (
     AggregationTypeAlreadyRegistered,
     AggregationTypeDoesNotExist,
@@ -5,7 +6,7 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.core.registry import Registry
 
 
-class GroupedAggregationTypeRegistry(Registry):
+class GroupedAggregationTypeRegistry(Registry[FieldAggregationType]):
     """
     The main registry for storing aggregation types compatible
     with the grouped aggregate service.
