@@ -1057,4 +1057,5 @@ class MenuElement(Element):
         default=ORIENTATIONS.HORIZONTAL,
         db_default=ORIENTATIONS.HORIZONTAL,
     )
+
     menu_items = models.ManyToManyField(MenuItemElement)

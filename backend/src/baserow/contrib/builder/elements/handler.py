@@ -602,7 +602,6 @@ class ElementHandler:
                 element.place_in_container,
             )
 
-        # TODO: this is where it fails to duplicate!
         element_duplicated = element_type.import_serialized(
             element.page, serialized, id_mapping
         )
