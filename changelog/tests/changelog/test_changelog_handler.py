@@ -2,38 +2,45 @@ import json
 
 from src.changelog_entry import BugChangelogEntry
 from src.handler import MAXIMUM_FILE_NAME_MESSAGE_LENGTH, ChangelogHandler
+from src.domains import BuilderDomain, DatabaseDomain
 
 
 def test_add_entry(fs):
-    file_path = ChangelogHandler().add_entry(BugChangelogEntry.type, "message")
+    file_path = ChangelogHandler().add_entry(
+        DatabaseDomain.type, BugChangelogEntry.type, "Introducing a new feature."
+    )
     assert fs.isfile(file_path)
+    with open(file_path, "r") as entry_file:
+        entry = json.load(entry_file)
+        assert entry["message"] == "Introducing a new feature."
+        assert entry["domain"] == DatabaseDomain.type
 
 
 def test_get_changelog_entries(fs):
     handler = ChangelogHandler()
-    handler.add_entry(BugChangelogEntry.type, "1")
-    handler.add_entry(BugChangelogEntry.type, "2")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "1")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "2")
 
     changelog_entries = handler.get_changelog_entries()
 
     assert BugChangelogEntry.type in changelog_entries
     assert [
-        BugChangelogEntry().generate_entry_dict("1"),
-        BugChangelogEntry().generate_entry_dict("2"),
+        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "1"),
+        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "2"),
     ] in changelog_entries.values()
 
 
 def test_get_changelog_entries_order(fs):
     handler = ChangelogHandler()
-    handler.add_entry(BugChangelogEntry.type, "2")
-    handler.add_entry(BugChangelogEntry.type, "1")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "2")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "1")
 
     changelog_entries = handler.get_changelog_entries()
 
     assert BugChangelogEntry.type in changelog_entries
     assert [
-        BugChangelogEntry().generate_entry_dict("1"),
-        BugChangelogEntry().generate_entry_dict("2"),
+        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "1"),
+        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "2"),
     ] in changelog_entries.values()
 
 
@@ -63,9 +70,9 @@ def test_order_release_folders(fs):
 def test_move_entries_to_release_folder(fs):
     handler = ChangelogHandler()
 
-    handler.add_entry(BugChangelogEntry.type, "1")
-    handler.add_entry(BugChangelogEntry.type, "2")
-    handler.add_entry(BugChangelogEntry.type, "3")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "1")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "2")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "3")
 
     assert fs.isdir(f"{handler.entries_file_path}/{handler.UNRELEASED_FOLDER_NAME}")
 
@@ -78,9 +85,9 @@ def test_move_entries_to_release_folder(fs):
 def test_move_entries_to_release_folder_release_already_exists(fs):
     handler = ChangelogHandler()
 
-    handler.add_entry(BugChangelogEntry.type, "1")
-    handler.add_entry(BugChangelogEntry.type, "2")
-    handler.add_entry(BugChangelogEntry.type, "3")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "1")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "2")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "3")
 
     assert fs.isdir(f"{handler.entries_file_path}/{handler.UNRELEASED_FOLDER_NAME}")
 
