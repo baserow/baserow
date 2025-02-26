@@ -15,7 +15,7 @@
           <ABLink
             :variant="item.variant"
             :url="getItemUrl(item)"
-            :target="getElement(item).target"
+            :target="getMenuItem(item).target"
           >
             {{
               item.name
@@ -65,7 +65,7 @@
                 <ABLink
                   :variant="child.variant"
                   :url="getItemUrl(child)"
-                  :target="getElement(child).target"
+                  :target="getMenuItem(child).target"
                   class="menu-element__sub-link"
                 >
                   {{
@@ -104,12 +104,12 @@
 
 <script>
 import element from '@baserow/modules/builder/mixins/element'
-import { ensureString } from '@baserow/modules/core/utils/validator'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
 
 /**
  * @typedef MenuElement
+ * @property {Array}  menu_items Array of Menu items
  */
 
 export default {
@@ -117,9 +117,6 @@ export default {
   components: { ThemeProvider },
   mixins: [element],
   props: {
-    /**
-     * @type {MenuElement}
-     */
     element: {
       type: Object,
       required: true,
@@ -151,7 +148,7 @@ export default {
     getItemUrl(item) {
       try {
         return resolveElementUrl(
-          this.getElement(item),
+          this.getMenuItem(item),
           this.builder,
           this.pages,
           this.resolveFormula,
@@ -164,12 +161,13 @@ export default {
     toggleExpanded(itemId) {
       this.$set(this.expandedItems, itemId, !this.expandedItems[itemId])
     },
-    getElement(item) {
+    /**
+     * Transforms a Menu Item into a valid object that can be passed as a prop
+     * to the ABLink component.
+     */
+    getMenuItem(item) {
       return {
-        // TODO: this is probably not needed
         id: this.element.id,
-        // was needed for the MenuItemElementType.getEvents()
-        // element_id: this.element.id,
         menu_item_id: item?.id,
         uid: item?.uid,
         target: item.target || 'self',
@@ -182,9 +180,6 @@ export default {
         page_id: this.element.page_id,
         type: 'menu_item',
       }
-    },
-    getResolvedValue(name) {
-      return ensureString(this.resolveFormula(name))
     },
     isExpanded(itemId) {
       return !!this.expandedItems[itemId]
