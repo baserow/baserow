@@ -500,6 +500,8 @@ pygments==2.18.0
     # via rich
 pyjwt==2.8.0
     # via djangorestframework-simplejwt
+pymysql==1.1.0
+    # via -r base.in
 pyopenssl==24.1.0
     # via
     #   advocate

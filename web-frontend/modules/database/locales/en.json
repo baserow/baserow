@@ -1006,7 +1006,8 @@
   "dataSyncType": {
     "syncError": "Sync error",
     "icalCalendar": "Sync iCal feed",
-    "postgresql": "Sync PostgreSQL table"
+    "postgresql": "Sync PostgreSQL table",
+    "mysql": "Sync MySQL table"
   },
   "iCalCalendarDataSync": {
     "name": "iCal URL",
@@ -1022,6 +1023,15 @@
     "table": "Table",
     "port": "Port",
     "sslMode": "SSL Mode"
+  },
+  "mySQLDataSync": {
+    "description": "Synchronizes a MySQL table with a Baserow table matching the provided details below. Note that when the synchronization starts, it will select all the rows in the provided table. Even though Baserow only selects data, we strongly recommend limiting the user to a read-only connection.",
+    "host": "Host",
+    "username": "Username",
+    "password": "Password",
+    "database": "Database",
+    "table": "Table",
+    "port": "Port"
   },
   "createDataSync": {
     "next": "Next",

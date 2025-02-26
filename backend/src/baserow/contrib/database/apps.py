@@ -650,9 +650,11 @@ class DatabaseConfig(AppConfig):
             ICalCalendarDataSyncType,
             PostgreSQLDataSyncType,
         )
+        from .data_sync.mysql_data_sync_type import MySQLDataSyncType
 
         data_sync_type_registry.register(ICalCalendarDataSyncType())
         data_sync_type_registry.register(PostgreSQLDataSyncType())
+        data_sync_type_registry.register(MySQLDataSyncType())
 
         from baserow.contrib.database.table.usage_types import (
             TableWorkspaceStorageUsageItemType,

@@ -110,3 +110,12 @@ class PostgreSQLDataSync(DataSync):
             ("verify-full", "verify-full"),
         ),
     )
+
+
+class MySQLDataSync(DataSync):
+    mysql_host = models.CharField(max_length=255)
+    mysql_username = models.CharField(max_length=255)
+    mysql_password = models.CharField(max_length=255)
+    mysql_port = models.PositiveSmallIntegerField(default=3306)
+    mysql_database = models.CharField(max_length=255)
+    mysql_table = models.CharField(max_length=255)

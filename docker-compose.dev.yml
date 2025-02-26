@@ -263,3 +263,27 @@ services:
       local:
     ports:
       - "4318:4318"
+      
+  # MySQL server for testing MySQL data sync
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: baserow-mysql-password
+      MYSQL_DATABASE: baserow_test
+      MYSQL_USER: baserow
+      MYSQL_PASSWORD: baserow
+    ports:
+      # Make MySQL available on all network interfaces for testing
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      local:
+
+volumes:
+  media:
+  caddy_data:
+  caddy_config:
+  mysql_data:

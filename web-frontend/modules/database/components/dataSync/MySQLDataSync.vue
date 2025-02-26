@@ -1,33 +1,28 @@
 <template>
   <form @submit.prevent="submit">
     <p class="margin-bottom-2 margin-top-3">
-      {{ $t('postgreSQLDataSync.description') }}
+      {{ $t('mySQLDataSync.description') }}
     </p>
     <FormGroup
       v-for="field in [
-        { name: 'postgresql_host', translationPrefix: 'host', type: 'text' },
+        { name: 'mysql_host', translationPrefix: 'host', type: 'text' },
         {
-          name: 'postgresql_username',
+          name: 'mysql_username',
           translationPrefix: 'username',
           type: 'text',
         },
         {
-          name: 'postgresql_password',
+          name: 'mysql_password',
           translationPrefix: 'password',
           type: 'password',
           protectedEdit: true,
         },
         {
-          name: 'postgresql_database',
+          name: 'mysql_database',
           translationPrefix: 'database',
           type: 'text',
         },
-        {
-          name: 'postgresql_schema',
-          translationPrefix: 'schema',
-          type: 'text',
-        },
-        { name: 'postgresql_table', translationPrefix: 'table', type: 'text' },
+        { name: 'mysql_table', translationPrefix: 'table', type: 'text' },
       ]"
       :key="field.name"
       :error="fieldHasErrors(field.name)"
@@ -44,7 +39,7 @@
       "
     >
       <template #label>{{
-        $t(`postgreSQLDataSync.${field.translationPrefix}`)
+        $t(`mySQLDataSync.${field.translationPrefix}`)
       }}</template>
       <FormInput
         v-model="v$.values[field.name].$model"
@@ -61,39 +56,22 @@
     <div class="row">
       <div class="col col-5">
         <FormGroup
-          :error="fieldHasErrors('postgresql_port')"
+          :error="fieldHasErrors('mysql_port')"
           required
           small-label
           class="margin-bottom-2"
         >
-          <template #label>{{ $t('postgreSQLDataSync.port') }}</template>
+          <template #label>{{ $t('mySQLDataSync.port') }}</template>
           <FormInput
-            v-model="v$.values.postgresql_port.$model"
+            v-model="v$.values.mysql_port.$model"
             size="large"
-            :error="fieldHasErrors('postgresql_port')"
+            :error="fieldHasErrors('mysql_port')"
             :disabled="disabled"
           >
           </FormInput>
           <template #error>
-            {{ v$.values.postgresql_port.$errors[0]?.$message }}
+            {{ v$.values.mysql_port.$errors[0]?.$message }}
           </template>
-        </FormGroup>
-      </div>
-      <div class="col col-7">
-        <FormGroup required small-label class="margin-bottom-2">
-          <template #label>{{ $t('postgreSQLDataSync.sslMode') }}</template>
-          <Dropdown
-            v-model="v$.values.postgresql_sslmode.$model"
-            :disabled="disabled"
-            size="large"
-          >
-            <DropdownItem
-              v-for="option in sslModeOptions"
-              :key="option"
-              :name="option"
-              :value="option"
-            ></DropdownItem>
-          </Dropdown>
         </FormGroup>
       </div>
     </div>
@@ -106,7 +84,7 @@ import { required, requiredIf, numeric, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
-  name: 'PostgreSQLDataSync',
+  name: 'MySQLDataSync',
   mixins: [form],
   props: {
     update: {
@@ -125,87 +103,63 @@ export default {
   },
   data() {
     const allowedValues = [
-      'postgresql_host',
-      'postgresql_username',
-      'postgresql_port',
-      'postgresql_database',
-      'postgresql_schema',
-      'postgresql_table',
-      'postgresql_sslmode',
+      'mysql_host',
+      'mysql_username',
+      'mysql_port',
+      'mysql_database',
+      'mysql_table',
     ]
     if (!this.update) {
-      allowedValues.push('postgresql_password')
+      allowedValues.push('mysql_password')
     }
     return {
       allowedValues,
       values: {
-        postgresql_host: '',
-        postgresql_username: '',
-        postgresql_port: '5432',
-        postgresql_database: '',
-        postgresql_schema: 'public',
-        postgresql_table: '',
-        postgresql_sslmode: 'prefer',
-        postgresql_password: '',
+        mysql_host: '',
+        mysql_username: '',
+        mysql_port: '3306',
+        mysql_database: '',
+        mysql_table: '',
+        mysql_password: '',
       },
-      sslModeOptions: [
-        'disable',
-        'allow',
-        'prefer',
-        'require',
-        'verify-ca',
-        'verify-full',
-      ],
     }
   },
   validations() {
     return {
       values: {
-        postgresql_host: {
+        mysql_host: {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             required
           ),
         },
-        postgresql_username: {
+        mysql_username: {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             required
           ),
         },
-        postgresql_password: {
+        mysql_password: {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             requiredIf(() => {
-              return this.allowedValues.includes('postgresql_password')
+              return this.allowedValues.includes('mysql_password')
             })
           ),
         },
-        postgresql_database: {
+        mysql_database: {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             required
           ),
         },
-        postgresql_schema: {
+        mysql_table: {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             required
           ),
         },
-        postgresql_table: {
-          required: helpers.withMessage(
-            this.$t('error.requiredField'),
-            required
-          ),
-        },
-        postgresql_sslmode: {
-          required: helpers.withMessage(
-            this.$t('error.requiredField'),
-            required
-          ),
-        },
-        postgresql_port: {
+        mysql_port: {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             required

@@ -138,6 +138,7 @@ import {
 import {
   ICalCalendarDataSyncType,
   PostgreSQLDataSyncType,
+  MySQLDataSyncType,
 } from '@baserow/modules/database/dataSyncTypes'
 import {
   RowsCreatedWebhookEventType,
@@ -716,6 +717,7 @@ export default (context) => {
   app.$registry.register('importer', new JSONImporterType(context))
   app.$registry.register('dataSync', new ICalCalendarDataSyncType(context))
   app.$registry.register('dataSync', new PostgreSQLDataSyncType(context))
+  app.$registry.register('dataSync', new MySQLDataSyncType(context))
   app.$registry.register('settings', new APITokenSettingsType(context))
   app.$registry.register('exporter', new CSVTableExporterType(context))
   app.$registry.register(
