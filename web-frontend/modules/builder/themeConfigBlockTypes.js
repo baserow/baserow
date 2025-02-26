@@ -5,6 +5,7 @@ import ButtonThemeConfigBlock from '@baserow/modules/builder/components/theme/Bu
 import LinkThemeConfigBlock from '@baserow/modules/builder/components/theme/LinkThemeConfigBlock'
 import ImageThemeConfigBlock from '@baserow/modules/builder/components/theme/ImageThemeConfigBlock'
 import PageThemeConfigBlock from '@baserow/modules/builder/components/theme/PageThemeConfigBlock'
+import FontThemeConfigBlock from '@baserow/modules/builder/components/theme/FontThemeConfigBlock'
 import InputThemeConfigBlock from '@baserow/modules/builder/components/theme/InputThemeConfigBlock'
 import TableThemeConfigBlock from '@baserow/modules/builder/components/theme/TableThemeConfigBlock'
 import { FONT_WEIGHTS } from '@baserow/modules/builder/fontWeights'
@@ -304,7 +305,7 @@ export class TypographyThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   getOrder() {
-    return 20
+    return 25
   }
 }
 
@@ -549,6 +550,32 @@ export class PageThemeConfigBlockType extends ThemeConfigBlockType {
 
   getOrder() {
     return 15
+  }
+}
+
+export class FontThemeConfigBlockType extends ThemeConfigBlockType {
+  static getType() {
+    return 'font'
+  }
+
+  get label() {
+    return this.app.i18n.t('themeConfigBlockType.font')
+  }
+
+  getCSS(theme, colorVariables, baseTheme = null) {
+    const style = new ThemeStyle({
+      colorVariables,
+      $registry: this.app.$registry,
+    })
+    return style.toObject()
+  }
+
+  get component() {
+    return FontThemeConfigBlock
+  }
+
+  getOrder() {
+    return 20
   }
 }
 

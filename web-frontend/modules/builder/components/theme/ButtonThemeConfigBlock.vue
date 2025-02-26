@@ -109,6 +109,20 @@
         <FormGroup
           horizontal-narrow
           small-label
+          class="margin-bottom-2"
+          :label="$t('buttonThemeConfigBlock.weight')"
+        >
+          <FontWeightSelector v-model="values.button_font_weight" />
+          <template #after-input>
+            <ResetButton
+              v-model="values.button_font_weight"
+              :default-value="theme?.button_font_weight"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
           :label="$t('buttonThemeConfigBlock.borderSize')"
           :error-message="getError('button_border_size')"
           class="margin-bottom-2"

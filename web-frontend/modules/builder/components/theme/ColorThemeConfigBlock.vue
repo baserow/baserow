@@ -90,6 +90,8 @@ import {
 
 const COLOR_ID_LENGTH = 5
 
+const CUSTOM_COLOR_PREFIX = 'Custom'
+
 export default {
   name: 'ColorThemeConfigBlock',
   components: { ThemeConfigBlockSection, CustomColorInput },
@@ -146,6 +148,7 @@ export default {
         existingNames
       )
 
+      const colorName = `${CUSTOM_COLOR_PREFIX} ${newColorId}`
       const newCustomColor = {
         name: colorName,
         value: smallUID(COLOR_ID_LENGTH),

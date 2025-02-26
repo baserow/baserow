@@ -100,6 +100,7 @@ import {
   LinkThemeConfigBlockType,
   ImageThemeConfigBlockType,
   PageThemeConfigBlockType,
+  FontThemeConfigBlockType,
   InputThemeConfigBlockType,
   TableThemeConfigBlockType,
 } from '@baserow/modules/builder/themeConfigBlockTypes'
@@ -138,6 +139,19 @@ import {
   TextQueryParamType,
   NumericQueryParamType,
 } from '@baserow/modules/builder/queryParamTypes'
+
+import {
+  ThinFontWeightType,
+  UltraLightFontWeightType,
+  LightFontWeightType,
+  RegularFontWeightType,
+  MediumFontWeightType,
+  SemiBoldFontWeightType,
+  BoldFontWeightType,
+  ExtraBoldFontWeightType,
+  BlackFontWeightType,
+  ExtraBlackFontWeightType,
+} from '@baserow/modules/builder/fontWeightTypes'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -321,6 +335,10 @@ export default (context) => {
   )
   app.$registry.register(
     'themeConfigBlock',
+    new FontThemeConfigBlockType(context)
+  )
+  app.$registry.register(
+    'themeConfigBlock',
     new InputThemeConfigBlockType(context)
   )
   app.$registry.register(
@@ -392,4 +410,17 @@ export default (context) => {
   app.$registry.register('fontFamily', new GaramondFontFamilyType(context))
   app.$registry.register('fontFamily', new CourierNewFontFamilyType(context))
   app.$registry.register('fontFamily', new BrushScriptMTFontFamilyType(context))
+
+  app.$registry.register('fontWeight', new ThinFontWeightType(context))
+  app.$registry.register('fontWeight', new UltraLightFontWeightType(context))
+  app.$registry.register('fontWeight', new LightFontWeightType(context))
+  app.$registry.register('fontWeight', new RegularFontWeightType(context))
+  app.$registry.register('fontWeight', new MediumFontWeightType(context))
+  app.$registry.register('fontWeight', new SemiBoldFontWeightType(context))
+  app.$registry.register('fontWeight', new BoldFontWeightType(context))
+  app.$registry.register('fontWeight', new ExtraBoldFontWeightType(context))
+  app.$registry.register('fontWeight', new BlackFontWeightType(context))
+  app.$registry.register('fontWeight', new ExtraBlackFontWeightType(context))
+
+
 }
