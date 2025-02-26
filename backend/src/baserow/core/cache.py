@@ -2,8 +2,12 @@ from contextlib import contextmanager
 from typing import Callable, TypeVar
 
 from django.conf import settings
+from django.core.cache import cache
 
 from asgiref.local import Local
+from redis.exceptions import LockNotOwnedError
+
+from baserow.version import VERSION as BASEROW_VERSION
 
 T = TypeVar("T")
 
@@ -108,3 +112,147 @@ class LocalCacheMiddleware:
     def __call__(self, request):
         with local_cache.context():
             return self.get_response(request)
+
+
+SENTINEL = object()
+
+
+class GlobalCache:
+    """
+    A global cache wrapper around the Django cache system that provides
+    invalidation capabilities and a lock mechanism to prevent multiple
+    concurrent updates. It's also versioned with Baserow version.
+
+    Example Usage:
+
+        # Storing and retrieving a value
+        value = global_cache.get(
+            "user_123_data",
+            default=lambda: expensive_computation(),
+            timeout=300
+        )
+
+        # Invalidating a cache key
+        global_cache.invalidate("user_123_data")
+    """
+
+    VERSION_KEY_TTL = 60 * 60 * 24 * 10  # 10 days
+
+    def _get_version_cache_key(
+        self, key: str, invalidate_key: None | str = None
+    ) -> str:
+        """
+        Generates a versioned cache key for tracking different versions of a cached
+        value.
+
+        :param key: The base cache key.
+        :param invalidate_key: The key used when this cache is invalidated.
+        :return: A modified cache key used for version tracking.
+        """
+
+        key = key if invalidate_key is None else invalidate_key
+
+        return f"{BASEROW_VERSION}_{key}__current_version"
+
+    def _get_cache_key_with_version(self, key: str) -> str:
+        """
+        Generates a cache key with included version.
+
+        :param key: The base cache key.
+        :return: A modified cache key with version.
+        """
+
+        version = cache.get(self._get_version_cache_key(key), 0)
+        return f"{BASEROW_VERSION}_{key}__version_{version}"
+
+    def get(
+        self,
+        key: str,
+        default: T | Callable[[], T] = None,
+        invalidate_key: None | str = None,
+        timeout: int = 60,
+    ) -> T:
+        """
+        Retrieves a value from the cache if it exists; otherwise, sets it using the
+        provided default value.
+
+        This function also uses a lock (if available on the cache backend) to ensure
+        multi call safety when setting a new value.
+
+        :param key: The key of the cache value to get (or set). Make sure this key is
+            unique and not used elsewhere.
+        :param invalidate_key: The key used when this cache is invalidated. A default
+            one is used if none is provided and this value otherwise. Can be used to
+            invalidate multiple caches at the same time. When invalidating the cache you
+            must use the same key later.
+        :param default: The default value to store in the cache if the key is absent.
+                        Can be either a literal value or a callable. If it's a callable,
+                        the function is called to retrieve the default value.
+        :param timeout: The cache timeout in seconds for newly set values.
+           Defaults to 60.
+        :return: The cached value if it exists; otherwise, the newly set value.
+        """
+
+        version_key = self._get_version_cache_key(key, invalidate_key)
+
+        version = cache.get(version_key, 0)
+
+        cache_key_to_use = f"{BASEROW_VERSION}_{key}__version_{version}"
+
+        cached = cache.get(cache_key_to_use, SENTINEL)
+
+        if cached is SENTINEL:
+            use_lock = hasattr(cache, "lock")
+            if use_lock:
+                cache_lock = cache.lock(f"{cache_key_to_use}__lock", timeout=10)
+                cache_lock.acquire()
+            try:
+                cached = cache.get(cache_key_to_use, SENTINEL)
+                # We check again to make sure it hasn't been populated in the meantime
+                # while acquiring the lock
+                if cached is SENTINEL:
+                    if callable(default):
+                        cached = default()
+                    else:
+                        cached = default
+
+                    cache.set(
+                        cache_key_to_use,
+                        cached,
+                        timeout=timeout,
+                    )
+            finally:
+                if use_lock:
+                    try:
+                        cache_lock.release()
+                    except LockNotOwnedError:
+                        # If the lock release fails, it might be because of the timeout
+                        # and it's been stolen so we don't really care
+                        pass
+
+        return cached
+
+    def invalidate(self, key: None | str = None, invalidate_key: None | str = None):
+        """
+        Invalidates the cached value associated with the given key, ensuring that
+        subsequent cache reads will miss and require a new value to be set.
+
+        :param key: The cache key to invalidate.
+        :param invalidate_key: The key to use for invalidation. If provided, this key
+            must match the one given at cache creation.
+        """
+
+        version_key = self._get_version_cache_key(key, invalidate_key)
+
+        try:
+            cache.incr(version_key, 1)
+        except ValueError:
+            # If the cache key does not exist, initialize its versioning.
+            cache.set(
+                version_key,
+                1,
+                timeout=self.VERSION_KEY_TTL,
+            )
+
+
+global_cache = GlobalCache()

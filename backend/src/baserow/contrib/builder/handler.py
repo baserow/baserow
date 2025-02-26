@@ -8,12 +8,12 @@ from baserow.contrib.builder.formula_property_extractor import (
 )
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
+from baserow.core.cache import global_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.user_source_user import UserSourceUser
-from baserow.core.utils import invalidate_versioned_cache, safe_get_or_set_cache
 
 USED_PROPERTIES_CACHE_KEY_PREFIX = "used_properties_for_page"
 
@@ -76,8 +76,8 @@ class BuilderHandler:
 
     @classmethod
     def invalidate_builder_public_properties_cache(cls, builder: Builder):
-        invalidate_versioned_cache(
-            cls._get_builder_public_properties_version_cache(builder)
+        global_cache.invalidate(
+            invalidate_key=cls._get_builder_public_properties_version_cache(builder)
         )
 
     def get_builder_public_properties(
@@ -100,10 +100,12 @@ class BuilderHandler:
             properties = get_builder_used_property_names(user, builder)
             return SENTINEL if properties is None else properties
 
-        result = safe_get_or_set_cache(
+        result = global_cache.get(
             self.get_builder_used_properties_cache_key(user, builder),
-            self._get_builder_public_properties_version_cache(builder),
             default=compute_properties,
+            # We want to invalidate the cache for all roles at once so we create a
+            # unique key for all.
+            invalidate_key=self._get_builder_public_properties_version_cache(builder),
             timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS
             if builder.workspace_id
             else BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS,
@@ -148,13 +150,3 @@ class BuilderHandler:
             )
         )
         return UserSourceHandler().aggregate_user_counts(workspace, queryset)
-
-    @classmethod
-    def get_public_builder_by_domain_version_cache(cls, domain_name: str) -> str:
-        return f"get_public_builder_by_domain_{domain_name}"
-
-    @classmethod
-    def invalidate_public_builder_by_domain_cache(cls, domain_name: str):
-        invalidate_versioned_cache(
-            cls.get_public_builder_by_domain_version_cache(domain_name)
-        )

@@ -9,7 +9,8 @@ from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
-from baserow.core.utils import Progress, safe_get_or_set_cache
+from baserow.core.cache import global_cache
+from baserow.core.utils import Progress
 
 
 @pytest.mark.django_db
@@ -180,18 +181,12 @@ def test_domain_publishing(data_fixture):
     domain1 = DomainHandler().publish(domain1, progress)
 
     # Pretend that someone visited the public builder-by-domain endpoint.
-    builder_by_domain_cache_key = (
-        DomainHandler.get_public_builder_by_domain_version_cache_key(
-            domain1.domain_name
-        )
-    )
-
-    version_key = DomainHandler.get_public_builder_by_domain_version_cache_key(
+    builder_by_domain_cache_key = DomainHandler.get_public_builder_by_domain_cache_key(
         domain1.domain_name
     )
 
     # We populate the builder domain cache
-    safe_get_or_set_cache(builder_by_domain_cache_key, version_key, default="before")
+    global_cache.get(builder_by_domain_cache_key, default="before")
 
     domain1.refresh_from_db()
 
@@ -208,10 +203,7 @@ def test_domain_publishing(data_fixture):
     DomainHandler().publish(domain1, progress)
 
     # Following a re-publish, the builder-by-domain cache is invalidated
-    assert (
-        safe_get_or_set_cache(builder_by_domain_cache_key, version_key, default="after")
-        == "after"
-    )
+    assert global_cache.get(builder_by_domain_cache_key, default="after") == "after"
 
     assert Builder.objects.count() == 2
 

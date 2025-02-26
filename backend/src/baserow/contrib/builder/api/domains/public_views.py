@@ -69,6 +69,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
+from baserow.core.cache import global_cache
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.services.exceptions import (
     DoesNotExist,
@@ -77,7 +78,6 @@ from baserow.core.services.exceptions import (
     ServiceSortPropertyDoesNotExist,
 )
 from baserow.core.services.registries import service_type_registry
-from baserow.core.utils import safe_get_or_set_cache
 
 
 class PublicBuilderByDomainNameView(APIView):
@@ -111,11 +111,8 @@ class PublicBuilderByDomainNameView(APIView):
         the public site.
         """
 
-        data = safe_get_or_set_cache(
-            cache_key=DomainHandler.get_public_builder_by_domain_cache_key(domain_name),
-            version_cache_key=DomainHandler.get_public_builder_by_domain_version_cache_key(
-                domain_name
-            ),
+        data = global_cache.get(
+            DomainHandler.get_public_builder_by_domain_cache_key(domain_name),
             default=lambda: self._get_public_builder_by_domain(request, domain_name),
             timeout=BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS,
         )
@@ -218,8 +215,8 @@ class PublicElementsView(APIView):
         """
 
         if PageHandler().is_published_page(page_id):
-            data = safe_get_or_set_cache(
-                cache_key=PageHandler.get_page_public_records_cache_key(
+            data = global_cache.get(
+                PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "elements"
                 ),
                 default=lambda: self._get_public_page_elements(request, page_id),
@@ -236,7 +233,8 @@ class PublicElementsView(APIView):
         """
         Returns a list of serialized elements that belong to the given page id.
 
-        Only requested if the public elements cache is stale.
+        Only requested if the public elements cache is stale, or if the page is
+        being previewed.
 
         :param request: the HTTP request.
         :param page_id: the page id.
@@ -289,8 +287,8 @@ class PublicDataSourcesView(APIView):
         """
 
         if PageHandler().is_published_page(page_id):
-            data = safe_get_or_set_cache(
-                cache_key=PageHandler.get_page_public_records_cache_key(
+            data = global_cache.get(
+                PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "data_sources"
                 ),
                 default=lambda: self._get_public_page_data_sources(request, page_id),
@@ -305,7 +303,8 @@ class PublicDataSourcesView(APIView):
         """
         Returns a list of serialized data sources that belong to the given page id.
 
-        Only requested if the public data sources cache is stale.
+        Only requested if the public data sources cache is stale, or if the page is
+        being previewed.
 
         :param request: the HTTP request.
         :param page_id: the page id.
@@ -376,8 +375,8 @@ class PublicBuilderWorkflowActionsView(APIView):
         """
 
         if PageHandler().is_published_page(page_id):
-            data = safe_get_or_set_cache(
-                cache_key=PageHandler.get_page_public_records_cache_key(
+            data = global_cache.get(
+                PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "workflow_actions"
                 ),
                 default=lambda: self._get_public_page_workflow_actions(
@@ -394,7 +393,8 @@ class PublicBuilderWorkflowActionsView(APIView):
         """
         Returns a list of serialized workflow actions that belong to the given page id.
 
-        Only requested if the public workflow actions cache is stale.
+        Only requested if the public workflow actions cache is stale, or if the page is
+        being previewed.
 
         :param request: the HTTP request.
         :param page_id: the page id.
