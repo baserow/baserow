@@ -2018,6 +2018,9 @@ class MenuElementType(ElementType):
             "menu_items": MenuItemSerializer(many=True, required=False),
         }
 
+    def enhance_queryset(self, queryset):
+        return queryset.prefetch_related("menu_items")
+
     def before_delete(self, instance: MenuElement) -> None:
         """
         Delete all related objects of this MenuElement instance.
