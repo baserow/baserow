@@ -211,6 +211,56 @@ def test_airtable_import_checkbox_column_with_default_value(data_fixture, api_cl
 
 @pytest.mark.django_db
 @responses.activate
+def test_airtable_import_checkbox_column_invalid_icon(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldp1IFu0zdgRy70RoX",
+        "name": "Checkbox",
+        "type": "checkbox",
+        "typeOptions": {"color": "green", "icon": "TEST"},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Checkbox"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_checkbox_column_invalid_color(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldp1IFu0zdgRy70RoX",
+        "name": "Checkbox",
+        "type": "checkbox",
+        "typeOptions": {"color": "TEST", "icon": "check"},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Checkbox"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_airtable_import_created_on_column(data_fixture, api_client):
     airtable_field = {
         "id": "fldcTpJuoUVpsDNoszO",

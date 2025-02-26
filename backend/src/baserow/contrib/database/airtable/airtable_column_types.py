@@ -350,6 +350,29 @@ class CheckboxAirtableColumnType(AirtableColumnType):
         self.add_import_report_failed_if_default_is_provided(
             raw_airtable_table, raw_airtable_column, import_report
         )
+
+        type_options = raw_airtable_column.get("typeOptions", {})
+        airtable_icon = type_options.get("icon", "check")
+        airtable_color = type_options.get("color", "green")
+
+        if airtable_icon != "check":
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the icon {airtable_icon} is not supported.",
+            )
+
+        if airtable_color != "green":
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the color {airtable_color} is not supported.",
+            )
+
         return BooleanField()
 
     def to_baserow_export_serialized_value(

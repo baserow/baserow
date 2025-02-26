@@ -98,8 +98,8 @@ class AirtableColumnType(Instance):
         to_human_readable_default=(lambda x: x),
     ):
         default = raw_airtable_column.get("default", "")
-        default = to_human_readable_default(default)
         if default:
+            default = to_human_readable_default(default)
             import_report.add_failed(
                 raw_airtable_column["name"],
                 SCOPE_FIELD,
