@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
     <FormGroup
-      :label="$t('repeatElementForm.orientationLabel')"
+      :label="$t('menuElementForm.orientationLabel')"
       small-label
       required
       class="margin-bottom-2"
@@ -81,10 +81,6 @@
               data-sortable-handle
             />
             <div class="menu-element__form--expandable-item-name">
-              <i
-                v-if="!expanded && menuItemInError(item)"
-                class="menu-element__form--expandable-item-error iconoir-warning-circle"
-              ></i>
               <template v-if="item.type === 'separator'">
                 {{ $t('menuElement.separator') }}
               </template>
@@ -198,10 +194,6 @@
                           data-sortable-handle
                         />
                         <div class="menu-element__form--expandable-item-name">
-                          <i
-                            v-if="!expanded && menuItemInError(child)"
-                            class="menu-element__form--expandable-item-error iconoir-warning-circle"
-                          ></i>
                           {{ child.name }}
                         </div>
                         <i
@@ -325,11 +317,6 @@ export default {
           label: this.$t('menuElementForm.menuItemAddSeparator'),
           type: 'separator',
         },
-        // {
-        //   icon: 'baserow-icon-spacer',
-        //   label: this.$t('menuElementForm.menuItemAddSpacer'),
-        //   type: 'spacer',
-        // },
       ],
     }
   },
@@ -375,7 +362,7 @@ export default {
           icon: 'iconoir-table-rows',
         },
         {
-          label: this.$t('repeatElementForm.orientationHorizontal'),
+          label: this.$t('menuElementForm.orientationHorizontal'),
           value: 'horizontal',
           icon: 'iconoir-view-columns-3',
         },
@@ -413,13 +400,6 @@ export default {
     },
     changeSubLinkVariant(itemToUpdate, newVariant) {
       this.updateSubLink(itemToUpdate, { variant: newVariant })
-    },
-    orderMenuItems(newOrder) {
-      // TODO
-    },
-    menuItemInError(item) {
-      // TODO
-      return false
     },
     removeMenuItem(menuItem) {
       this.values.menu_items = this.values.menu_items.filter(

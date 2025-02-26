@@ -139,7 +139,7 @@ class CustomFieldsInstanceMixin:
 
     request_serializer_mixins = None
     """
-    The serializer mixins that must be added to the serializer for request.
+    The serializer mixins that must be added to the serializer for requests.
     This property is useful if you want to add some custom behaviour for example.
     """
 
