@@ -55,25 +55,29 @@
             @shown="toggleExpanded(item.id)"
             @hidden="toggleExpanded(item.id)"
           >
-            <div class="menu-element__sub-links">
-              <ABLink
+            <ThemeProvider>  
+              <div
                 v-for="child in item.children"
                 :key="child.id"
-                :variant="child.variant"
-                :url="getItemUrl(child)"
-                :target="getElement(child).target"
-                class="menu-element__sub-link"
-              >
-                {{
-                  child.name
-                    ? child.name ||
-                      (mode === 'editing'
-                        ? $t('menuElement.emptyLinkValue')
-                        : '&nbsp;')
-                    : $t('menuElement.missingLinkValue')
-                }}
-              </ABLink>
-            </div>
+                class="menu-element__sub-links"
+                :style="getStyleOverride(child.variant)">
+                <ABLink
+                  :variant="child.variant"
+                  :url="getItemUrl(child)"
+                  :target="getElement(child).target"
+                  class="menu-element__sub-link"
+                >
+                  {{
+                    child.name
+                      ? child.name ||
+                        (mode === 'editing'
+                          ? $t('menuElement.emptyLinkValue')
+                          : '&nbsp;')
+                      : $t('menuElement.missingLinkValue')
+                  }}
+                </ABLink>
+              </div>
+            </ThemeProvider>
           </Context>
         </div>
       </template>
@@ -101,6 +105,7 @@
 import element from '@baserow/modules/builder/mixins/element'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
+import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
 
 /**
  * @typedef MenuElement
@@ -109,6 +114,7 @@ import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 export default {
   name: 'MenuElement',
   mixins: [element],
+  components: {ThemeProvider},
   props: {
     /**
      * @type {MenuElement}
