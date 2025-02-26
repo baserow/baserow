@@ -222,7 +222,7 @@ export default {
             required
           ),
           maxLength: helpers.withMessage(
-            this.$t('error.nameTooLong'),
+            this.$t('fieldForm.nameTooLong'),
             maxLength(MAX_FIELD_NAME_LENGTH)
           ),
           mustHaveUniqueFieldName: helpers.withMessage(
@@ -230,7 +230,7 @@ export default {
             this.mustHaveUniqueFieldName
           ),
           mustNotClashWithReservedName: helpers.withMessage(
-            this.$t('error.nameNotAllowed'),
+            this.$t('fieldForm.nameNotAllowed'),
             this.mustNotClashWithReservedName
           ),
         },
