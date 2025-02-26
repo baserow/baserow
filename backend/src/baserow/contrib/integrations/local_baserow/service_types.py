@@ -491,7 +491,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return None
 
         properties = global_cache.get(
-            f"table_{service.table.version}__service_schema",
+            f"table_{service.table_id}_{service.table.version}__service_schema",
             default=lambda: self._get_table_properties(service, allowed_fields),
             timeout=SCHEMA_CACHE_TTL,
         )
@@ -625,7 +625,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return None
 
         return global_cache.get(
-            f"table_{service.table.version}__service_context_data",
+            f"table_{service.table_id}_{service.table.version}__service_context_data",
             default=lambda: self._get_context_data(service, allowed_fields),
             timeout=SCHEMA_CACHE_TTL,
         )
@@ -666,7 +666,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return None
 
         return global_cache.get(
-            f"table_{service.table.version}__service_context_data_schema",
+            f"table_{service.table_id}_{service.table.version}__service_context_data_schema",
             default=lambda: self._get_context_data_schema(service, allowed_fields),
             timeout=SCHEMA_CACHE_TTL,
         )
