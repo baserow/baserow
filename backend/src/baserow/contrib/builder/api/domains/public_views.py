@@ -233,7 +233,8 @@ class PublicElementsView(APIView):
         """
         Returns a list of serialized elements that belong to the given page id.
 
-        Only requested if the public elements cache is stale.
+        Only requested if the public elements cache is stale, or if the page is
+        being previewed.
 
         :param request: the HTTP request.
         :param page_id: the page id.
@@ -302,7 +303,8 @@ class PublicDataSourcesView(APIView):
         """
         Returns a list of serialized data sources that belong to the given page id.
 
-        Only requested if the public data sources cache is stale.
+        Only requested if the public data sources cache is stale, or if the page is
+        being previewed.
 
         :param request: the HTTP request.
         :param page_id: the page id.
@@ -391,7 +393,8 @@ class PublicBuilderWorkflowActionsView(APIView):
         """
         Returns a list of serialized workflow actions that belong to the given page id.
 
-        Only requested if the public workflow actions cache is stale.
+        Only requested if the public workflow actions cache is stale, or if the page is
+        being previewed.
 
         :param request: the HTTP request.
         :param page_id: the page id.

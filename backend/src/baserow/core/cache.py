@@ -136,7 +136,7 @@ class GlobalCache:
         global_cache.invalidate("user_123_data")
     """
 
-    VERSION_KEY_TTL = 60 * 60 * 24 * 10  # 10 days
+    VERSION_KEY_TTL = 60 * 60 * 24 * 10  # 10 days
 
     def _get_version_cache_key(
         self, key: str, invalidate_key: None | str = None
@@ -146,6 +146,7 @@ class GlobalCache:
         value.
 
         :param key: The base cache key.
+        :param invalidate_key: The key used when this cache is invalidated.
         :return: A modified cache key used for version tracking.
         """
 
