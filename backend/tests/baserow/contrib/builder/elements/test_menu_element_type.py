@@ -6,6 +6,7 @@ from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.test_utils.helpers import AnyInt
+from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
 
 
 @pytest.fixture
@@ -94,7 +95,7 @@ def test_update_menu_element(menu_element_fixture, orientation):
         ),
     ],
 )
-def test_add_root_level_menu_item(menu_element_fixture, name, item_type, variant):
+def test_add_menu_item(menu_element_fixture, name, item_type, variant):
     menu_element = menu_element_fixture["menu_element"]
     user = menu_element_fixture["user"]
 
@@ -125,7 +126,7 @@ def test_add_root_level_menu_item(menu_element_fixture, name, item_type, variant
 
 
 @pytest.mark.django_db
-def test_sub_link_to_menu_item(menu_element_fixture):
+def test_add_sub_link(menu_element_fixture):
     menu_element = menu_element_fixture["menu_element"]
     user = menu_element_fixture["user"]
 
@@ -192,7 +193,7 @@ def test_sub_link_to_menu_item(menu_element_fixture):
         ("target", "_blank"),
     ],
 )
-def test_update_parent_item(menu_element_fixture, field, value):
+def test_update_menu_item(menu_element_fixture, field, value):
     menu_element = menu_element_fixture["menu_element"]
     user = menu_element_fixture["user"]
 
@@ -228,3 +229,127 @@ def test_update_parent_item(menu_element_fixture, field, value):
 
     item = updated_menu_element.menu_items.first()
     assert getattr(item, field) == value
+
+
+@pytest.mark.django_db
+def test_workflow_action_removed_when_menu_item_deleted(menu_element_fixture, data_fixture):
+    menu_element = menu_element_fixture["menu_element"]
+    user = menu_element_fixture["user"]
+
+    uid = uuid.uuid4()
+    menu_item = {
+        "name": "Greet",
+        "type": MenuItemElement.TYPES.BUTTON,
+        "menu_item_order": 0,
+        "uid": uid,
+        "children": [],
+    }
+    data = {"menu_items": [menu_item]}
+    ElementService().update_element(user, menu_element, **data)
+
+    data_fixture.create_workflow_action(
+        NotificationWorkflowAction,
+        page=menu_element_fixture["page_a"],
+        element=menu_element,
+        event=f"{uid}_click",
+    )
+    assert NotificationWorkflowAction.objects.count() == 1
+
+    # Delete the field
+    data = {"menu_items": []}
+    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+
+    assert updated_menu_element.menu_items.exists() is False
+
+    assert NotificationWorkflowAction.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_specific_workflow_action_removed_when_menu_item_deleted(menu_element_fixture, data_fixture):
+    menu_element = menu_element_fixture["menu_element"]
+    user = menu_element_fixture["user"]
+
+    uid_1 = uuid.uuid4()
+    uid_2 = uuid.uuid4()
+    menu_item_1 = {
+        "name": "Greet 1",
+        "type": MenuItemElement.TYPES.BUTTON,
+        "menu_item_order": 0,
+        "uid": uid_1,
+        "children": [],
+    }
+    menu_item_2 = {
+        "name": "Greet 2",
+        "type": MenuItemElement.TYPES.BUTTON,
+        "menu_item_order": 0,
+        "uid": uid_2,
+        "children": [],
+    }
+    data = {"menu_items": [menu_item_1, menu_item_2]}
+    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+    assert updated_menu_element.menu_items.count() == 2
+
+    for uid in [uid_1, uid_2]:
+        data_fixture.create_workflow_action(
+            NotificationWorkflowAction,
+            page=menu_element_fixture["page_a"],
+            element=menu_element,
+            event=f"{uid}_click",
+        )
+
+    assert NotificationWorkflowAction.objects.count() == 2
+
+    # Delete the first menu item
+    data = {"menu_items": [menu_item_2]}
+    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+
+    assert updated_menu_element.menu_items.count() == 1
+
+    # ElementService().delete_element(user, table_element)
+    # Ensure only the Notification for the first menu item exists
+    assert NotificationWorkflowAction.objects.filter(element=menu_element).count() == 1
+    assert NotificationWorkflowAction.objects.filter(element=menu_element).first().event == f"{uid_2}_click"
+
+
+@pytest.mark.django_db
+def test_all_workflow_actions_removed_when_menu_element_deleted(menu_element_fixture, data_fixture):
+    menu_element = menu_element_fixture["menu_element"]
+    user = menu_element_fixture["user"]
+
+    uid_1 = uuid.uuid4()
+    uid_2 = uuid.uuid4()
+    menu_item_1 = {
+        "name": "Greet 1",
+        "type": MenuItemElement.TYPES.BUTTON,
+        "menu_item_order": 0,
+        "uid": uid_1,
+        "children": [],
+    }
+    menu_item_2 = {
+        "name": "Greet 2",
+        "type": MenuItemElement.TYPES.BUTTON,
+        "menu_item_order": 0,
+        "uid": uid_2,
+        "children": [],
+    }
+    data = {"menu_items": [menu_item_1, menu_item_2]}
+    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+
+    for uid in [uid_1, uid_2]:
+        data_fixture.create_workflow_action(
+            NotificationWorkflowAction,
+            page=menu_element_fixture["page_a"],
+            element=menu_element,
+            event=f"{uid}_click",
+        )
+
+    assert updated_menu_element.menu_items.count() == 2
+    assert NotificationWorkflowAction.objects.count() == 2
+
+    # Delete the Menu element, which will cascade delete all menu items
+    ElementService().delete_element(user, menu_element)
+
+    # There should be no Menu Element, Menu items, or Notifications remaining
+    assert MenuElement.objects.count() == 0
+    assert MenuItemElement.objects.count() == 0
+    assert NotificationWorkflowAction.objects.count() == 0
