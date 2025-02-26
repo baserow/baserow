@@ -38,8 +38,13 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
+# Set to 'off' to runs all migrations and disable the custom setup fixture that installs
+# all pgPSQL functions. Default is 'on' for faster setup by skipping migrations.
+BASEROW_TESTS_SETUP_DB_FIXTURE = str_to_bool(
+    os.getenv("BASEROW_TESTS_SETUP_DB_FIXTURE", "on")
+)
 DATABASES["default"]["TEST"] = {
-    "MIGRATE": False,
+    "MIGRATE": not BASEROW_TESTS_SETUP_DB_FIXTURE,
 }
 
 # Open a second database connection that can be used to test transactions.
@@ -102,7 +107,6 @@ STORAGES["default"] = {"BACKEND": BASE_FILE_STORAGE}
 BASEROW_LOGIN_ACTION_LOG_LIMIT = RateLimit.from_string("1000/s")
 
 BASEROW_WEBHOOKS_ALLOW_PRIVATE_ADDRESS = False
-
 
 CACHALOT_ENABLED = str_to_bool(os.getenv("CACHALOT_ENABLED", "false"))
 if CACHALOT_ENABLED:

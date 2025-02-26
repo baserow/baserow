@@ -907,13 +907,13 @@ def test_thread():
 @pytest.fixture(scope="session", autouse=True)
 def baserow_db_setup(django_db_setup, django_db_blocker):
     """
-    Setup baserow database before running tests by installing all the custom pgPSQL
-    functions and init sequences. You can disable this fixture by setting the
-    TEST_BASEROW_DB_SETUP_FIXTURE=off in your environment if you run a subset of the
-    testsuite and you don't need the pgSQL functions installed.
+    Initialize the Baserow database for tests by installing custom pgSQL functions
+    and sequences. Disable this fixture with BASEROW_TESTS_SETUP_DB_FIXTURE=off if
+    running a subset of tests with `--no-migrations --reuse-db` and the pgSQL
+    functions are not needed or if you want to run all migrations.
     """
 
-    if django_settings.TEST_BASEROW_DB_SETUP_FIXTURE is False:
+    if django_settings.BASEROW_TESTS_SETUP_DB_FIXTURE is False:
         return
 
     def init_link_row_sequence():
