@@ -29,6 +29,7 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils.duration import D_H, H_M_S_SSS
+from baserow.core.utils import get_value_at_path
 
 from .config import AirtableImportConfig
 from .constants import (
@@ -373,7 +374,10 @@ class DateAirtableColumnType(AirtableColumnType):
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
         self.add_import_report_failed_if_default_is_provided(
-            raw_airtable_table, raw_airtable_column, import_report
+            raw_airtable_table,
+            raw_airtable_column,
+            import_report,
+            to_human_readable_default=lambda x: "Current date",
         )
 
         type_options = raw_airtable_column.get("typeOptions", {})
@@ -680,16 +684,21 @@ class SelectAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        id_value = raw_airtable_column.get("id", "")
+        type_options = raw_airtable_column.get("typeOptions", {})
+
+        def get_default(x):
+            return get_value_at_path(type_options, f"choices.{x}.name", "")
+
         self.add_import_report_failed_if_default_is_provided(
-            raw_airtable_table, raw_airtable_column, import_report
+            raw_airtable_table,
+            raw_airtable_column,
+            import_report,
+            to_human_readable_default=get_default,
         )
 
         field = SingleSelectField()
-        field = set_select_options_on_field(
-            field,
-            raw_airtable_column.get("id", ""),
-            raw_airtable_column.get("typeOptions", {}),
-        )
+        field = set_select_options_on_field(field, id_value, type_options)
         return field
 
 
@@ -715,16 +724,27 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        id_value = raw_airtable_column.get("id", "")
+        type_options = raw_airtable_column.get("typeOptions", {})
+
+        def get_default(default):
+            default = default or []
+            return ", ".join(
+                [
+                    get_value_at_path(type_options, f"choices.{v}.name", "")
+                    for v in default
+                ]
+            )
+
         self.add_import_report_failed_if_default_is_provided(
-            raw_airtable_table, raw_airtable_column, import_report
+            raw_airtable_table,
+            raw_airtable_column,
+            import_report,
+            to_human_readable_default=get_default,
         )
 
         field = MultipleSelectField()
-        field = set_select_options_on_field(
-            field,
-            raw_airtable_column.get("id", ""),
-            raw_airtable_column.get("typeOptions", {}),
-        )
+        field = set_select_options_on_field(field, id_value, type_options)
         return field
 
 

@@ -95,8 +95,10 @@ class AirtableColumnType(Instance):
         raw_airtable_table: dict,
         raw_airtable_column: dict,
         import_report: AirtableImportReport,
+        to_human_readable_default=(lambda x: x),
     ):
         default = raw_airtable_column.get("default", "")
+        default = to_human_readable_default(default)
         if default:
             import_report.add_failed(
                 raw_airtable_column["name"],
