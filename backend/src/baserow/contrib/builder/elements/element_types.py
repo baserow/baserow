@@ -2021,7 +2021,7 @@ class MenuElementType(ElementType):
     def before_delete(self, instance: MenuElement) -> None:
         """
         Delete all related objects of this MenuElement instance.
-         
+
         Deletes Workflow actions and Menu Items.
         """
 

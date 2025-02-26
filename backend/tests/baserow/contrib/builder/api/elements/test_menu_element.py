@@ -5,11 +5,10 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK
 
-from baserow.test_utils.helpers import AnyInt, AnyStr
+from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
-from baserow.contrib.builder.elements.models import MenuElement
-from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
+from baserow.test_utils.helpers import AnyInt, AnyStr
 
 
 @pytest.fixture
@@ -62,7 +61,7 @@ def create_menu_item(**kwargs):
 def test_get_menu_element(api_client, menu_element_fixture):
     menu_element = menu_element_fixture["menu_element"]
     user = menu_element_fixture["user"]
-    
+
     # Add a Menu item
     menu_item = create_menu_item()
     data = {"menu_items": [menu_item]}
@@ -80,27 +79,27 @@ def test_get_menu_element(api_client, menu_element_fixture):
 
     assert response.status_code == HTTP_200_OK
     [menu] = response.json()
-    
+
     assert menu["id"] == menu_element.id
     assert menu["type"] == "menu"
     assert menu["orientation"] == "horizontal"
     assert menu["menu_items"] == [
-        {                                                                                                    
-            'children': [],
-            'id': menu_element.menu_items.all()[0].id,
-            'menu_item_order': AnyInt(),                                                                              
-            'name': 'Link',
-            'navigate_to_page_id': None,
-            'navigate_to_url': '',
-            'navigation_type': '',
-            'page_parameters': [],
-            'parent_menu_item': None,
-            'query_parameters': [],
-            'target': 'self',
-            'type': 'link',
-            'uid': AnyStr(),
-            'variant': 'link',
-            },
+        {
+            "children": [],
+            "id": menu_element.menu_items.all()[0].id,
+            "menu_item_order": AnyInt(),
+            "name": "Link",
+            "navigate_to_page_id": None,
+            "navigate_to_url": "",
+            "navigation_type": "",
+            "page_parameters": [],
+            "parent_menu_item": None,
+            "query_parameters": [],
+            "target": "self",
+            "type": "link",
+            "uid": AnyStr(),
+            "variant": "link",
+        },
     ]
 
 
@@ -125,7 +124,9 @@ def test_create_menu_element(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_can_update_a_table_element_fields(api_client, data_fixture, menu_element_fixture):
+def test_can_update_a_table_element_fields(
+    api_client, data_fixture, menu_element_fixture
+):
     menu_element = menu_element_fixture["menu_element"]
     token = menu_element_fixture["token"]
 
@@ -146,7 +147,7 @@ def test_can_update_a_table_element_fields(api_client, data_fixture, menu_elemen
                     "navigate_to_url": "",
                     "page_parameters": [],
                     "query_parameters": [],
-                    "target": "self"
+                    "target": "self",
                 }
             ]
         },
@@ -158,20 +159,20 @@ def test_can_update_a_table_element_fields(api_client, data_fixture, menu_elemen
     data = response.json()
     assert data["id"] == menu_element.id
     assert data["menu_items"] == [
-        {                                                                                                      
-            'id': menu_element.menu_items.all()[0].id,
-            'menu_item_order': AnyInt(),
-            'name': 'Foo Bar',
-            'variant': 'link',
-            'type': 'link',
-            'uid': AnyStr(),            
-            'navigate_to_page_id': None,
-            'navigate_to_url': '',
-            'navigation_type': 'page',
-            'page_parameters': [],
-            'parent_menu_item': None,
-            'query_parameters': [],
-            'target': 'self',
-            'children': [],
+        {
+            "id": menu_element.menu_items.all()[0].id,
+            "menu_item_order": AnyInt(),
+            "name": "Foo Bar",
+            "variant": "link",
+            "type": "link",
+            "uid": AnyStr(),
+            "navigate_to_page_id": None,
+            "navigate_to_url": "",
+            "navigation_type": "page",
+            "page_parameters": [],
+            "parent_menu_item": None,
+            "query_parameters": [],
+            "target": "self",
+            "children": [],
         },
     ]

@@ -1,14 +1,15 @@
-import uuid
-import pytest
 import json
+import uuid
 from collections import defaultdict
 
-from baserow.core.utils import MirrorDict
+import pytest
+
 from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
-from baserow.test_utils.helpers import AnyInt
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
+from baserow.core.utils import MirrorDict
+from baserow.test_utils.helpers import AnyInt
 
 
 @pytest.fixture
@@ -234,7 +235,9 @@ def test_update_menu_item(menu_element_fixture, field, value):
 
 
 @pytest.mark.django_db
-def test_workflow_action_removed_when_menu_item_deleted(menu_element_fixture, data_fixture):
+def test_workflow_action_removed_when_menu_item_deleted(
+    menu_element_fixture, data_fixture
+):
     menu_element = menu_element_fixture["menu_element"]
     user = menu_element_fixture["user"]
 
@@ -267,7 +270,9 @@ def test_workflow_action_removed_when_menu_item_deleted(menu_element_fixture, da
 
 
 @pytest.mark.django_db
-def test_specific_workflow_action_removed_when_menu_item_deleted(menu_element_fixture, data_fixture):
+def test_specific_workflow_action_removed_when_menu_item_deleted(
+    menu_element_fixture, data_fixture
+):
     menu_element = menu_element_fixture["menu_element"]
     user = menu_element_fixture["user"]
 
@@ -310,11 +315,16 @@ def test_specific_workflow_action_removed_when_menu_item_deleted(menu_element_fi
     # ElementService().delete_element(user, table_element)
     # Ensure only the Notification for the first menu item exists
     assert NotificationWorkflowAction.objects.filter(element=menu_element).count() == 1
-    assert NotificationWorkflowAction.objects.filter(element=menu_element).first().event == f"{uid_2}_click"
+    assert (
+        NotificationWorkflowAction.objects.filter(element=menu_element).first().event
+        == f"{uid_2}_click"
+    )
 
 
 @pytest.mark.django_db
-def test_all_workflow_actions_removed_when_menu_element_deleted(menu_element_fixture, data_fixture):
+def test_all_workflow_actions_removed_when_menu_element_deleted(
+    menu_element_fixture, data_fixture
+):
     menu_element = menu_element_fixture["menu_element"]
     user = menu_element_fixture["user"]
 
@@ -418,7 +428,7 @@ def test_import_export(menu_element_fixture, data_fixture):
     # imported as well.
     id_mapping = defaultdict(lambda: MirrorDict())
     menu_element_type.import_serialized(page, exported, id_mapping)
-    
+
     menu_element = MenuElement.objects.first()
 
     # Ensure the Menu Items have been imported correctly
@@ -427,7 +437,7 @@ def test_import_export(menu_element_fixture, data_fixture):
 
     link_item = menu_element.menu_items.get(uid=uid_2)
     assert link_item.name == "Link A"
-    
+
     sublinks_item = menu_element.menu_items.get(uid=uid_3)
     assert sublinks_item.name == "Sublinks"
 
