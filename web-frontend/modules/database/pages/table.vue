@@ -211,16 +211,11 @@ export default {
       }
     }
     if (params.rowId) {
-      try {
-        await store.dispatch('rowModalNavigation/fetchRow', {
-          tableId,
-          rowId: params.rowId,
-        })
-      } catch (e) {
-        data.error = normalizeError(e)
-      }
+      await store.dispatch('rowModalNavigation/fetchRow', {
+        tableId,
+        rowId: params.rowId,
+      })
     }
-
     return data
   },
   head() {
