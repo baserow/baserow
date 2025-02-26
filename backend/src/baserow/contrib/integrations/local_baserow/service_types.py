@@ -220,6 +220,8 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return model.objects.all().enhance_by_fields(
             only_field_ids=extract_field_ids_from_list(only_field_names)
+            if only_field_names is not None
+            else None
         )
 
     def enhance_queryset(self, queryset):

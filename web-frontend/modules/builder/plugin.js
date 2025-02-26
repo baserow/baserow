@@ -51,7 +51,10 @@ import {
   SmartphoneDeviceType,
   TabletDeviceType,
 } from '@baserow/modules/builder/deviceTypes'
-import { DuplicatePageJobType } from '@baserow/modules/builder/jobTypes'
+import {
+  DuplicatePageJobType,
+  PublishBuilderJobType,
+} from '@baserow/modules/builder/jobTypes'
 import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 import { PublicSiteErrorPageType } from '@baserow/modules/builder/errorPageTypes'
 import {
@@ -182,6 +185,7 @@ export default (context) => {
 
   app.$registry.register('application', new BuilderApplicationType(context))
   app.$registry.register('job', new DuplicatePageJobType(context))
+  app.$registry.register('job', new PublishBuilderJobType(context))
 
   app.$registry.register(
     'builderSettings',

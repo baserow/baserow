@@ -56,3 +56,13 @@ export class DuplicatePageJobType extends JobType {
     store.dispatch('job/forceDelete', job)
   }
 }
+
+export class PublishBuilderJobType extends JobType {
+  static getType() {
+    return 'publish_domain'
+  }
+
+  getName() {
+    return 'publishDomain'
+  }
+}
