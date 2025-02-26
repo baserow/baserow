@@ -245,12 +245,29 @@ class NumberAirtableColumnType(AirtableColumnType):
 
         type_options = raw_airtable_column.get("typeOptions", {})
         options_format = type_options.get("format", "")
+        row_name = get_airtable_row_primary_value(raw_airtable_table, raw_airtable_row)
 
         if options_format == "durationInDays":
             # If the formatting is in days, we must multiply the raw value in seconds
             # by the number of seconds in a day.
-            return value * 60 * 60 * 24
-        elif "duration" in options_format:
+            value = value * 60 * 60 * 24
+
+        if "duration" in options_format:
+            # If the value is higher than the maximum that the `timedelta` can handle,
+            # then we can't use it, so we have to drop it. The maximum number of days
+            # in `timedelta` is `999999999`, so the max number of seconds are
+            # 999999999 * 24 * 60 * 60 = 86399999913600.
+            if value > 86399999913600:
+                import_report.add_failed(
+                    f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                    SCOPE_CELL,
+                    raw_airtable_table["name"],
+                    ERROR_TYPE_DATA_TYPE_MISMATCH,
+                    f"Cell value was left empty because the duration seconds {value} "
+                    f'are too high. The maximum is 86399999913600."',
+                )
+                return None
+
             # If the value is a duration, then we can use the same value because both
             # store it as seconds.
             return value
@@ -260,9 +277,6 @@ class NumberAirtableColumnType(AirtableColumnType):
         except InvalidOperation:
             # If the value can't be parsed as decimal, then it might be corrupt, so we
             # need to inform the user and skip the import.
-            row_name = get_airtable_row_primary_value(
-                raw_airtable_table, raw_airtable_row
-            )
             import_report.add_failed(
                 f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
                 SCOPE_CELL,
