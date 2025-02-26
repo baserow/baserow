@@ -55,12 +55,13 @@
             @shown="toggleExpanded(item.id)"
             @hidden="toggleExpanded(item.id)"
           >
-            <ThemeProvider>  
+            <ThemeProvider>
               <div
                 v-for="child in item.children"
                 :key="child.id"
                 class="menu-element__sub-links"
-                :style="getStyleOverride(child.variant)">
+                :style="getStyleOverride(child.variant)"
+              >
                 <ABLink
                   :variant="child.variant"
                   :url="getItemUrl(child)"
@@ -113,8 +114,8 @@ import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvid
 
 export default {
   name: 'MenuElement',
+  components: { ThemeProvider },
   mixins: [element],
-  components: {ThemeProvider},
   props: {
     /**
      * @type {MenuElement}
