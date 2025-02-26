@@ -568,7 +568,7 @@ def test_to_baserow_database_export_without_primary_value():
         init_data, schema, tables, AirtableImportConfig(skip_files=True)
     )
     assert baserow_database_export["tables"][0]["fields"][0]["primary"] is True
-    assert baserow_database_export["tables"][1]["rows"][0] == {
+    assert baserow_database_export["tables"][2]["rows"][0] == {
         "id": 1,
         "order": "1.00000000000000000000",
         "created_on": None,
@@ -598,7 +598,7 @@ def test_to_baserow_database_export_without_primary_value():
             "immutable_properties": False,
         }
     ]
-    assert baserow_database_export["tables"][1]["rows"][0] == {
+    assert baserow_database_export["tables"][2]["rows"][0] == {
         "id": 1,
         "order": "1.00000000000000000000",
         "created_on": None,

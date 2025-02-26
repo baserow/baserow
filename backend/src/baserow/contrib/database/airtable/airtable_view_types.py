@@ -18,17 +18,19 @@ class GridAirtableViewType(AirtableViewType):
         config,
         import_report,
     ):
-        # Airtable doesn't have this option, and by default it is count .
+        # Airtable doesn't have this option, and by default it is count.
         view.row_identifier_type = GridView.RowIdentifierTypes.count.value
 
         # Set the row height if the value size is available. Baserow doesn't support
         # `xlarge`, so we're falling back on `large`in that case.
-        row_height_mapping = {v: v for v in GridView.RowHeightSizes.__members__.keys()}
-        row_height_mapping["xlarge"] = "large"
+        row_height_mapping = {v: v for v in GridView.RowHeightSizes.values}
+        row_height_mapping["xlarge"] = GridView.RowHeightSizes.large.value
         row_height = get_value_at_path(
             raw_airtable_view_data, "metadata.grid.rowHeight"
         )
-        view.row_height_size = row_height_mapping.get(row_height, "small")
+        view.row_height_size = row_height_mapping.get(
+            row_height, GridView.RowHeightSizes.small.value
+        )
 
         # Map the columnOrder entries to the matching `GridViewFieldOptions`,
         # and set that as `get_field_options`, so that it's correctly serialized

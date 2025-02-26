@@ -14,6 +14,8 @@ import requests
 from requests import Response
 
 from baserow.contrib.database.airtable.constants import (
+    AIRTABLE_API_BASE_URL,
+    AIRTABLE_BASE_URL,
     AIRTABLE_EXPORT_JOB_CONVERTING,
     AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE,
     AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES,
@@ -81,7 +83,7 @@ class AirtableHandler:
         :return: The request ID, initial data and the cookies of the response.
         """
 
-        url = f"https://airtable.com/{share_id}"
+        url = f"{AIRTABLE_BASE_URL}/{share_id}"
         response = requests.get(url, headers=BASE_HEADERS)  # nosec B113
 
         if not response.ok:
@@ -183,9 +185,9 @@ class AirtableHandler:
 
         if fetch_application_structure:
             stringified_object_params["includeDataForTableIds"] = [table_id]
-            url = f"https://airtable.com/v0.3/application/{application_id}/read"
+            url = f"{AIRTABLE_API_BASE_URL}/application/{application_id}/read"
         else:
-            url = f"https://airtable.com/v0.3/table/{table_id}/readData"
+            url = f"{AIRTABLE_API_BASE_URL}/table/{table_id}/readData"
 
         response = AirtableHandler.make_airtable_request(
             init_data,
@@ -222,7 +224,7 @@ class AirtableHandler:
         """
 
         stringified_object_params = {}
-        url = f"https://airtable.com/v0.3/view/{view_id}/readData"
+        url = f"{AIRTABLE_API_BASE_URL}/view/{view_id}/readData"
 
         response = AirtableHandler.make_airtable_request(
             init_data,
