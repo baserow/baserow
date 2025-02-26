@@ -834,7 +834,7 @@ class MultiPageElementTypeMixin:
         if "pages" in values:
             pages = PageHandler().get_pages(
                 instance.page.builder,
-                base_queryset=Page.objects.filter(
+                base_queryset=Page.objects_without_shared.filter(
                     id__in=[p.id for p in values["pages"]]
                 ),
             )
@@ -852,7 +852,7 @@ class MultiPageElementTypeMixin:
         if "pages" in values:
             pages = PageHandler().get_pages(
                 instance.page.builder,
-                base_queryset=Page.objects.filter(
+                base_queryset=Page.objects_without_shared.filter(
                     id__in=[p.id for p in values["pages"]]
                 ),
             )

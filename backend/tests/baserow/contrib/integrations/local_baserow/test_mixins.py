@@ -173,7 +173,7 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
     imported_select_option = imported_single_select_field.select_options.get()
 
     # Pluck out the imported builder records.
-    imported_page = imported_builder.page_set.get()
+    imported_page = imported_builder.visible_pages.get()
     imported_datasource = imported_page.datasource_set.get()
     imported_filters = [
         {"field_id": sf.field_id, "value": sf.value}

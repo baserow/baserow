@@ -1148,7 +1148,7 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
     refresh_token = user_source_user.get_refresh_token()
     access_token = refresh_token.access_token
 
-    published_page = domain1.published_to.page_set.first()
+    published_page = domain1.published_to.visible_pages.first()
     published_data_source = published_page.datasource_set.first()
 
     url = reverse(

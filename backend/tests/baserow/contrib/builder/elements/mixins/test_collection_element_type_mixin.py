@@ -109,7 +109,7 @@ def test_import_export_collection_element_type(collection_element_mixin_fixture)
     imported_field = imported_table.field_set.get()
 
     # Pluck out the imported builder records.
-    imported_page = imported_builder.page_set.exclude(path="__shared__")[0]
+    imported_page = imported_builder.visible_pages.exclude(path="__shared__")[0]
     imported_element = imported_page.element_set.get()
 
     imported_property_options = [

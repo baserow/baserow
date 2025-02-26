@@ -58,7 +58,7 @@ class PageHandler:
         """
 
         if base_queryset is None:
-            base_queryset = Page.objects_with_shared
+            base_queryset = Page.objects
 
         try:
             return base_queryset.select_related("builder__workspace").get(id=page_id)
@@ -70,7 +70,7 @@ class PageHandler:
         Returns the shared page for the given builder.
         """
 
-        return Page.objects_with_shared.select_related("builder__workspace").get(
+        return Page.objects.select_related("builder__workspace").get(
             builder=builder, shared=True
         )
 
@@ -80,7 +80,7 @@ class PageHandler:
         """
 
         if base_queryset is None:
-            base_queryset = Page.objects_with_shared.all()
+            base_queryset = Page.objects.all()
 
         return base_queryset.filter(builder=builder).select_related(
             "builder__workspace"
@@ -178,7 +178,7 @@ class PageHandler:
             self.is_page_path_unique(
                 page.builder,
                 path,
-                base_queryset=Page.objects_with_shared.exclude(
+                base_queryset=Page.objects.exclude(
                     id=page.id
                 ),  # We don't want to conflict with the current page
                 raises=True,
@@ -220,7 +220,7 @@ class PageHandler:
         """
 
         if base_qs is None:
-            base_qs = Page.objects.filter(builder=builder)
+            base_qs = Page.objects_without_shared.filter(builder=builder)
 
         try:
             full_order = Page.order_objects(base_qs, order)
@@ -418,7 +418,7 @@ class PageHandler:
         :return: If the path is unique
         """
 
-        queryset = Page.objects_with_shared if base_queryset is None else base_queryset
+        queryset = Page.objects if base_queryset is None else base_queryset
 
         existing_paths = queryset.filter(builder=builder).values_list("path", flat=True)
 

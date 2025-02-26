@@ -599,7 +599,7 @@ def test_export_import_local_baserow_upsert_row_service(
     imported_table = imported_database.table_set.get()
     imported_field = imported_table.field_set.get()
 
-    imported_page = imported_builder.page_set.get()
+    imported_page = imported_builder.visible_pages.get()
     imported_data_source = imported_page.datasource_set.get()
     imported_integration = imported_builder.integrations.get()
     imported_upsert_row_service = LocalBaserowUpsertRow.objects.get(

@@ -230,7 +230,7 @@ def test_allow_if_template_permission_manager_filter_queryset(data_fixture):
     tests_w1 = [
         (
             ListPagesBuilderOperationType.type,
-            Page.objects_with_shared.filter(builder__workspace=workspace_2),
+            Page.objects.filter(builder__workspace=workspace_2),
             [shared_page_2.id, page_2.id],
         ),
         (
