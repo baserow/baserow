@@ -549,7 +549,7 @@ def test_is_published_application_page(data_fixture):
 
     domain = DomainHandler().publish(domain)
     published_builder = domain.published_to
-    published_page = published_builder.page_set.get()
+    published_page = published_builder.visible_pages.get()
 
     assert not PageHandler()._is_published_application_page(page.id)
     assert PageHandler()._is_published_application_page(published_page.id)
