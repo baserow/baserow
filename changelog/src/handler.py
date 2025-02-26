@@ -5,6 +5,7 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from domains import domain_types
 from changelog_entry import changelog_entry_types
 from pygit2 import Repository
 
@@ -127,6 +128,11 @@ class ChangelogHandler:
 
         changelog_file.write(f"# Changelog{LINE_BREAK_CHARACTER}{LINE_BREAK_CHARACTER}")
 
+        domain_prefixes = {
+            domain_type: domain().message_prefix
+            for domain_type, domain in domain_types.items()
+        }
+
         for release_folder in release_folders:
             entries = self.get_changelog_entries(release_folder)
 
@@ -145,8 +151,16 @@ class ChangelogHandler:
                 changelog_file.write(f"{heading}{LINE_BREAK_CHARACTER}")
 
                 for entry in entries_of_type:
+                    # Prefix the entry's message with the domain prefix.
+                    # Prefix with nothing if the `domain` doesn't exist,
+                    # for compatibility with older entries.
+                    domain_prefix = (
+                        domain_prefixes[entry["domain"]] if "domain" in entry else ""
+                    )
+                    entry_message = f"{domain_prefix}{entry['message']}"
+
                     entry_markdown_string = entry_type.get_markdown_string(
-                        entry["message"], entry["issue_number"]
+                        entry_message, entry["issue_number"]
                     )
 
                     changelog_file.write(

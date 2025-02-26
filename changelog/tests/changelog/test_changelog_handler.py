@@ -12,7 +12,7 @@ def test_add_entry(fs):
     assert fs.isfile(file_path)
     with open(file_path, "r") as entry_file:
         entry = json.load(entry_file)
-        assert entry["message"] == "[Database] Introducing a new feature."
+        assert entry["message"] == "Introducing a new feature."
         assert entry["domain"] == DatabaseDomain.type
 
 

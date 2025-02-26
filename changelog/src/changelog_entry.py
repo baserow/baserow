@@ -3,8 +3,6 @@ import os
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Union
 
-from domains import domain_types
-
 GITLAB_URL = os.environ.get("GITLAB_URL", "https://gitlab.com/baserow/baserow")
 
 
@@ -25,12 +23,9 @@ class ChangelogEntry(abc.ABC):
         if bullet_points is None:
             bullet_points = []
 
-        # Pluck out the correct domain, we'll prefix the message with it.
-        domain = domain_types[domain_type_name]()
-
         return {
             "type": self.type,
-            "message": f"{domain.message_prefix}{message}",
+            "message": message,
             "domain": domain_type_name,
             "issue_number": issue_number,
             "bullet_points": bullet_points,
