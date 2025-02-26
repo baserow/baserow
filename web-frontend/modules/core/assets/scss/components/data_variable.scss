@@ -1,0 +1,63 @@
+.data-variable {
+  display: inline-flex;
+  padding: 6px 10px;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  background-color: $palette-neutral-50;
+  font-size: 11px;
+  font-weight: 500;
+  list-style: none;
+
+  @include rounded($rounded);
+
+  &:active:not(.data-variable--error),
+  &--active:not(.data-variable--error),
+  &--disabled {
+    background-color: $palette-neutral-200;
+  }
+
+  &:hover:not(.data-variable--error):not(.data-variable--disabled) {
+    background-color: $palette-neutral-200;
+  }
+
+  &--error {
+    background-color: $palette-red-50;
+  }
+}
+
+.data-variable__item {
+  color: $palette-neutral-900;
+
+  .data-variable--active:not(.data-variable--error):not(
+      .data-variable--disabled
+    )
+    &,
+  .data-variable:active:not(.data-variable--error):not(.data-variable--disabled)
+    & {
+    color: $palette-neutral-1200;
+  }
+}
+
+.data-variable__remove-icon {
+  font-size: 11px;
+  flex-shrink: 0;
+  color: $palette-neutral-700;
+  cursor: pointer;
+
+  &:hover,
+  &:active {
+    color: $palette-neutral-900;
+  }
+}
+
+.data-variable__item-separator {
+  font-size: 11px;
+  flex-shrink: 0;
+  color: $palette-neutral-600;
+  cursor: pointer;
+
+  .data-variable--disabled & {
+    color: $palette-neutral-500;
+  }
+}

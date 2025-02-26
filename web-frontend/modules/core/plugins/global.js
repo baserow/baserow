@@ -41,6 +41,7 @@ import Logo from '@baserow/modules/core/components/Logo'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import FormSection from '@baserow/modules/core/components/FormSection'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
+import DataVariable from '@baserow/modules/core/components/DataVariable'
 
 import lowercase from '@baserow/modules/core/filters/lowercase'
 import uppercase from '@baserow/modules/core/filters/uppercase'
@@ -111,7 +112,7 @@ function setupVue(Vue) {
   Vue.component('ReadOnlyForm', ReadOnlyForm)
   Vue.component('FormSection', FormSection)
   Vue.component('SegmentControl', SegmentControl)
-
+  Vue.component('DataVariable', DataVariable)
   Vue.filter('lowercase', lowercase)
   Vue.filter('uppercase', uppercase)
   Vue.filter('nameAbbreviation', nameAbbreviation)
