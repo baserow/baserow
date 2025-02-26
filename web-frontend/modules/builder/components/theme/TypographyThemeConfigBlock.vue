@@ -11,10 +11,10 @@
           class="margin-bottom-2"
           :label="$t('typographyThemeConfigBlock.fontFamily')"
         >
-          <FontFamilySelector v-model="values.body_font_family" />
+          <FontFamilySelector v-model="v$.values.body_font_family.$model" />
           <template #after-input>
             <ResetButton
-              v-model="values.body_font_family"
+              v-model="v$.values.body_font_family.$model"
               :default-value="theme?.body_font_family"
             />
           </template>
@@ -26,13 +26,13 @@
           :label="$t('typographyThemeConfigBlock.weight')"
         >
           <FontWeightSelector
-            v-model="values.body_font_weight"
-            :font="values.body_font_family"
+            v-model="v$.values.body_font_weight.$model"
+            :font="v$.values.body_font_family.$model"
           />
           <template #after-input>
             <ResetButton
               v-if="values.body_font_family === theme?.body_font_family"
-              v-model="values.body_font_weight"
+              v-model="v$.values.body_font_weight.$model"
               :default-value="theme?.body_font_weight"
             />
           </template>
@@ -59,20 +59,6 @@
         </FormGroup>
         <FormGroup
           v-if="!extraArgs?.noAlignment"
-          horizontal-narrow
-          small-label
-          class="margin-bottom-2"
-          :label="$t('typographyThemeConfigBlock.textAlignment')"
-        >
-          <HorizontalAlignmentsSelector v-model="values.body_text_alignment" />
-          <template #after-input>
-            <ResetButton
-              v-model="values.body_text_alignment"
-              :default-value="theme?.body_text_alignment"
-            />
-          </template>
-        </FormGroup>
-        <FormGroup
           horizontal-narrow
           small-label
           class="margin-bottom-2"
@@ -274,12 +260,14 @@ export default {
       values: {
         body_font_size: 0,
         body_text_color: '',
+        body_font_weight: '',
         body_font_family: '',
         body_text_alignment: '',
         ...headings.reduce((o, i) => {
           o[`heading_${i}_font_size`] = 0
           o[`heading_${i}_text_color`] = ''
           o[`heading_${i}_font_family`] = ''
+          o[`heading_${i}_font_weight`] = ''
           o[`heading_${i}_text_alignment`] = ''
           return o
         }, {}),
@@ -363,6 +351,8 @@ export default {
             maxValue(bodyFontSizeMax)
           ),
         },
+        body_font_family: {},
+        body_font_weight: {},
       },
     }
   },

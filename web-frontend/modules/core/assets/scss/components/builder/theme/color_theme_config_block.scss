@@ -2,3 +2,32 @@
   display: flex;
   justify-content: flex-end;
 }
+
+.color-theme-config-block__color-preview {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  position: relative;
+  border: 1px solid $palette-neutral-400;
+}
+
+.color-theme-config-block__color-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-size: 14px 14px;
+  background-image: conic-gradient(
+    $white 90deg,
+    $color-neutral-400 90deg 180deg,
+    $white 180deg 270deg,
+    $color-neutral-400 270deg
+  );
+}
+
+.color-theme-config-block__color-preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--preview-color, black);
+}

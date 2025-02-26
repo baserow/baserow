@@ -1,13 +1,13 @@
 .theme-config-block-section {
   display: flex;
   width: 100%;
-  gap: 28px;
+  gap: 34px;
   margin-bottom: 15px;
 }
 
 .theme-config-block-section__properties {
-  max-width: 60%;
-  flex: 60% 0 0;
+  max-width: calc(60% - 10px);
+  flex: calc(60% - 10px) 0 0;
 
   .theme-config-block--no-preview & {
     max-width: 100%;
@@ -17,11 +17,10 @@
 
 .theme-config-block-section__preview {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  max-width: calc(40% - 15px);
+  max-width: calc(40% - 14px);
   overflow: hidden;
+  padding-right: 14px;
+  padding-top: 4px;
 
   .theme-config-block--no-preview & {
     display: none;

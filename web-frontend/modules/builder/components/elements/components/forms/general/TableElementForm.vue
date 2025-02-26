@@ -200,7 +200,12 @@
       </template>
       <p v-else>{{ $t('tableElementForm.selectSourceFirst') }}</p>
     </FormSection>
-    <FormGroup :label="$t('tableElementForm.orientation')" small-label required>
+    <FormGroup
+      :label="$t('tableElementForm.orientation')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
       <DeviceSelector
         :device-type-selected="deviceTypeSelected"
         direction="row"
@@ -224,11 +229,19 @@
         </template>
       </DeviceSelector>
     </FormGroup>
+    <CustomStyle
+      v-model="values.styles"
+      style-key="header_button"
+      :config-block-types="['button']"
+      :theme="builder.theme"
+      :extra-args="{ noAlignment: true, noWidth: true }"
+    />
     <FormGroup
       v-if="propertyOptionsAvailable"
       small-label
-      class="margin-top-2 margin-bottom-2"
+      class="margin-bottom-2"
       :label="$t('collectionElementForm.propertyOptionLabel')"
+      required
     >
       <PropertyOptionForm
         :default-values="element"
