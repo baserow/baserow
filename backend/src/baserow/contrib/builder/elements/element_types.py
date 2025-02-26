@@ -1976,7 +1976,7 @@ class FooterElementType(MultiPageContainerElementType):
 
 class MenuElementType(ElementType):
     """
-    A menu element that provides navigation capabilities to the application.
+    A Menu element that provides navigation capabilities to the application.
     """
 
     type = "menu"
@@ -1992,7 +1992,7 @@ class MenuElementType(ElementType):
         menu_items: List[Dict]
 
     @property
-    def serializer_field_overrides(self):
+    def serializer_field_overrides(self) -> Dict[str, Any]:
         from baserow.contrib.builder.api.theme.serializers import (
             DynamicConfigBlockSerializer,
         )
@@ -2012,26 +2012,32 @@ class MenuElementType(ElementType):
         return overrides
 
     @property
-    def request_serializer_field_overrides(self):
+    def request_serializer_field_overrides(self) -> Dict[str, Any]:
         return {
             **self.serializer_field_overrides,
             "menu_items": MenuItemSerializer(many=True, required=False),
         }
 
-    def enhance_queryset(self, queryset):
+    def enhance_queryset(self, queryset: QuerySet[MenuItemElement]) -> QuerySet[MenuItemElement]:
         return queryset.prefetch_related("menu_items")
 
     def before_delete(self, instance: MenuElement) -> None:
         """
-        Delete all related objects of this MenuElement instance.
+        Handle any clean-up needed before the MenuElement is deleted.
 
-        Deletes Workflow actions and Menu Items.
+        Deletes all related objects of this MenuElement instance such as Menu
+        Items and Workflow actions.
         """
 
         self.delete_workflow_actions(instance)
         instance.menu_items.all().delete()
 
-    def after_create(self, instance: MenuItemElement, values):
+    def after_create(self, instance: MenuItemElement, values: Dict[str, Any]) -> None:
+        """
+        After a MenuElement is created, MenuItemElements are bulk-created
+        using the information in the "menu_items" array.
+        """
+
         menu_items = values.get("menu_items", [])
 
         created_menu_items = MenuItemElement.objects.bulk_create(
@@ -2045,6 +2051,16 @@ class MenuElementType(ElementType):
     def delete_workflow_actions(
         self, instance: MenuElement, menu_item_uids_to_keep: Optional[List[str]] = None
     ) -> None:
+        """
+        Deletes all Workflow actions related to a specific MenuElement instance.
+
+        :param instance: The MenuElement instance for which related Workflow
+            actions will be deleted.
+        :param menu_item_uids_to_keep: An optional list of UUIDs. If a related
+            Workflow action matches a UUID in this list, it will *not* be deleted.
+        :return: None
+        """
+
         # Get all workflow actions associated with this menu element.
         all_workflow_actions = BuilderWorkflowAction.objects.filter(element=instance)
 
@@ -2082,7 +2098,6 @@ class MenuElementType(ElementType):
         """
 
         if "menu_items" in values:
-            # Remove previous fields
             instance.menu_items.all().delete()
 
             menu_item_uids_to_keep = [item["uid"] for item in values["menu_items"]]
@@ -2171,7 +2186,7 @@ class MenuElementType(ElementType):
         storage=None,
         cache=None,
         **kwargs,
-    ):
+    ) -> Any:
         if prop_name == "menu_items":
             return MenuItemSerializer(
                 element.menu_items.all(),
@@ -2195,9 +2210,7 @@ class MenuElementType(ElementType):
         storage=None,
         cache=None,
         **kwargs,
-    ):
-        """Handle the menu_items."""
-
+    ) -> MenuElement:
         menu_items = serialized_values.pop("menu_items", [])
 
         instance = super().create_instance_from_serialized(

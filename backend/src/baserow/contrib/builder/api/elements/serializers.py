@@ -387,7 +387,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
     children = serializers.ListSerializer(
         child=serializers.DictField(),
         required=False,
-        help_text="Sub menu of this item. Same schema.",
+        help_text="A MenuItemElement that is a child of this instance.",
     )
 
     navigate_to_page_id = serializers.IntegerField(
@@ -421,7 +421,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
         ]
 
     def to_representation(self, instance):
-        """Ensures children are serialized recursively"""
+        """Recursively serializes child MenuItemElements."""
 
         data = super().to_representation(instance)
         all_items = self.context.get("all_items", [])
@@ -438,14 +438,14 @@ class MenuItemSerializer(serializers.ModelSerializer):
 
 class NestedMenuItemsMixin(serializers.Serializer):
     menu_items = serializers.SerializerMethodField(
-        help_text="Menu items of the menu element"
+        help_text="Menu items of the MenuElement."
     )
 
     @extend_schema_field(MenuItemSerializer)
     def get_menu_items(self, obj):
-        """Return the serialized version of the menu items"""
+        """Return the serialized version of the MenuItemElement."""
 
-        # Use prefetched items
+        # Prefetches the child MenuItemElements for performance.
         menu_items = obj.menu_items.all()
 
         root_items = [
