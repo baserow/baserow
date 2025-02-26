@@ -170,7 +170,7 @@ export default {
       },
       tableLoading: false,
       databaseSelectedId: null,
-      emitValuesOnReset: false,
+      skipFirstValuesEmit: true,
     }
   },
   computed: {
@@ -227,13 +227,16 @@ export default {
   },
   watch: {
     dataSource: {
-      handler(values) {
+      async handler(values) {
+        this.setEmitValues(false)
         // Reset the form to set default values
         // again after a different widget is selected
-        this.reset(true)
+        await this.reset(true)
         // Run form validation so that
         // problems are highlighted immediately
-        this.v$.$validate()
+        this.v$.$touch()
+        await this.$nextTick()
+        this.setEmitValues(true)
       },
       deep: true,
     },

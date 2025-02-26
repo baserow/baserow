@@ -10,9 +10,9 @@
         class="margin-bottom-2"
       >
         <Dropdown
-          v-model="values.aggregation_type"
+          :value="values.aggregation_type"
           :error="fieldHasErrors('aggregation_type')"
-          @change="v$.values.aggregation_type.$touch"
+          @change="aggregationTypeChanged"
         >
           <DropdownItem
             v-for="aggregation in groupedAggregationTypes"
@@ -90,7 +90,7 @@ export default {
         field_id: null,
         aggregation_type: null,
       },
-      emitValuesOnReset: false,
+      skipFirstValuesEmit: true,
     }
   },
   computed: {
@@ -114,32 +114,6 @@ export default {
     },
     compatibleTableFieldIds() {
       return this.compatibleFields.map((field) => field.id)
-    },
-  },
-  watch: {
-    'values.aggregation_type': {
-      handler(aggregationType) {
-        if (
-          aggregationType !== null &&
-          aggregationType !== this.defaultValues.aggregation_type &&
-          this.values.field_id !== null
-        ) {
-          // If both the field and aggregation type
-          // are selected, check if they are still
-          // compatible.
-          const aggType = this.$registry.get(
-            'groupedAggregation',
-            aggregationType
-          )
-          const field = this.tableFields.filter(
-            (field) => field.id === this.values.field_id
-          )
-          if (!aggType.fieldIsCompatible(field)) {
-            this.values.field_id = null
-          }
-        }
-      },
-      immediate: true,
     },
   },
   mounted() {
@@ -170,6 +144,17 @@ export default {
     fieldIconClass(field) {
       const fieldType = this.$registry.get('field', field.type)
       return fieldType.iconClass
+    },
+    aggregationTypeChanged(aggregationType) {
+      this.values.aggregation_type = aggregationType
+      const aggType = this.$registry.get('groupedAggregation', aggregationType)
+      const field = this.tableFields.find(
+        (field) => field.id === this.values.field_id
+      )
+      if (field && !aggType.fieldIsCompatible(field)) {
+        this.values.field_id = null
+      }
+      this.v$.values.aggregation_type.$touch()
     },
   },
 }

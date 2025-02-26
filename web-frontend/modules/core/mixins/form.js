@@ -23,11 +23,15 @@ export default {
     return {
       // A list of values that the form allows. If null all values are allowed.
       allowedValues: null,
-      // By setting emitValuesOnReset to false in the form's component
-      // the values changed event won't be sent right after resetting the
-      // form
-      emitValuesOnReset: true,
-      isAfterReset: true,
+      // Setting to false make it possible to temporarily
+      // prevent emitting values when they change.
+      // Use setEmitValues(value) method to include children
+      // forms.
+      emitValues: true,
+      // Setting to true makes it possible to not
+      // emit values the first time values are set in
+      // the form.
+      skipFirstValuesEmit: false,
     }
   },
   mounted() {
@@ -38,7 +42,13 @@ export default {
   watch: {
     values: {
       handler(newValues) {
-        this.emitChange(newValues)
+        if (this.skipFirstValuesEmit) {
+          this.skipFirstValuesEmit = false
+          return
+        }
+        if (this.emitValues) {
+          this.emitChange(newValues)
+        }
       },
       deep: true,
     },
@@ -207,8 +217,6 @@ export default {
      * first level of children.
      */
     async reset(deep = false) {
-      this.isAfterReset = true
-
       for (const [key, value] of Object.entries(this.getDefaultValues())) {
         this.values[key] = value
       }
@@ -222,6 +230,15 @@ export default {
       // Also reset the child forms after a tick to allow default values to be updated.
       this.getChildForms((child) => 'reset' in child, deep).forEach((child) =>
         child.reset()
+      )
+    },
+    /**
+     * Sets emitValues property also to child forms.
+     */
+    setEmitValues(value) {
+      this.emitValues = value
+      this.getChildForms((child) => 'setEmitValues' in child, true).forEach(
+        (child) => child.setEmitValues(value)
       )
     },
     /**
@@ -241,13 +258,7 @@ export default {
       return childHandledIt
     },
     emitChange(newValues) {
-      if (this.emitValuesOnReset === true || this.isAfterReset === false) {
-        this.$emit('values-changed', newValues)
-      }
-
-      if (this.isAfterReset) {
-        this.isAfterReset = false
-      }
+      this.$emit('values-changed', newValues)
     },
   },
 }
