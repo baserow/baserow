@@ -1,7 +1,9 @@
 import uuid
-
 import pytest
+import json
+from collections import defaultdict
 
+from baserow.core.utils import MirrorDict
 from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
@@ -353,3 +355,81 @@ def test_all_workflow_actions_removed_when_menu_element_deleted(menu_element_fix
     assert MenuElement.objects.count() == 0
     assert MenuItemElement.objects.count() == 0
     assert NotificationWorkflowAction.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_import_export(menu_element_fixture, data_fixture):
+    user = menu_element_fixture["user"]
+    page = menu_element_fixture["page_a"]
+    menu_element = menu_element_fixture["menu_element"]
+
+    # Create a Menu Element with Menu items.
+    uid_1 = uuid.uuid4()
+    uid_2 = uuid.uuid4()
+    uid_3 = uuid.uuid4()
+    uid_4 = uuid.uuid4()
+    menu_item_1 = {
+        "name": "Greet",
+        "type": MenuItemElement.TYPES.BUTTON,
+        "menu_item_order": 0,
+        "uid": uid_1,
+        "children": [],
+    }
+    menu_item_2 = {
+        "name": "Link A",
+        "type": MenuItemElement.TYPES.LINK,
+        "menu_item_order": 1,
+        "uid": uid_2,
+        "children": [],
+    }
+    menu_item_3 = {
+        "name": "Sublinks",
+        "type": MenuItemElement.TYPES.LINK,
+        "menu_item_order": 2,
+        "uid": uid_3,
+        "children": [
+            {
+                "name": "Sublink A",
+                "type": MenuItemElement.TYPES.LINK,
+                "menu_item_order": 3,
+                "uid": uid_4,
+                "navigate_to_page_id": page.id,
+            }
+        ],
+    }
+
+    data = {"menu_items": [menu_item_1, menu_item_2, menu_item_3]}
+    ElementService().update_element(user, menu_element, **data)
+
+    menu_element_type = menu_element.get_type()
+
+    # Export the Menu element and ensure there are no Menu elements
+    # after deleting it.
+    exported = menu_element_type.export_serialized(menu_element)
+    assert json.dumps(exported)
+
+    ElementService().delete_element(user, menu_element)
+
+    assert MenuElement.objects.count() == 0
+    assert MenuItemElement.objects.count() == 0
+    assert NotificationWorkflowAction.objects.count() == 0
+
+    # After importing the Menu element the menu items should be correctly
+    # imported as well.
+    id_mapping = defaultdict(lambda: MirrorDict())
+    menu_element_type.import_serialized(page, exported, id_mapping)
+    
+    menu_element = MenuElement.objects.first()
+
+    # Ensure the Menu Items have been imported correctly
+    button_item = menu_element.menu_items.get(uid=uid_1)
+    assert button_item.name == "Greet"
+
+    link_item = menu_element.menu_items.get(uid=uid_2)
+    assert link_item.name == "Link A"
+    
+    sublinks_item = menu_element.menu_items.get(uid=uid_3)
+    assert sublinks_item.name == "Sublinks"
+
+    sublink_a = menu_element.menu_items.get(uid=uid_4)
+    assert sublink_a.name == "Sublink A"
