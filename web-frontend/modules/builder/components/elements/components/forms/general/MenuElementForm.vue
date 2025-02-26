@@ -55,18 +55,7 @@
     </Context>
 
     <div v-for="item in values.menu_items" :key="item.uid">
-      <Expandable
-        v-sortable="{
-          id: item.uid,
-          update: orderMenuItems,
-          enabled: $hasPermission(
-            'builder.page.element.update',
-            element,
-            workspace.id
-          ),
-          handle: '[data-sortable-handle]',
-        }"
-      >
+      <Expandable>
         <template #header="{ toggle, expanded }">
           <div
             :class="
