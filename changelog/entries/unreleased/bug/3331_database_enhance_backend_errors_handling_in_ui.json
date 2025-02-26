@@ -1,0 +1,7 @@
+{
+    "type": "bug",
+    "message": "Database: when an error is returned by the backend, it will be shown inside of the body of the view, so user still have access to navigation interface.",
+    "issue_number": 3331,
+    "bullet_points": [],
+    "created_at": "2025-01-31"
+}

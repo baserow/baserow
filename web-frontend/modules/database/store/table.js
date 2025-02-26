@@ -211,14 +211,18 @@ export const actions = {
     if (getters.getSelectedId === table.id) {
       return { database, table }
     }
-
-    await axios.all([
-      dispatch('view/fetchAll', table, { root: true }),
-      dispatch('field/fetchAll', table, { root: true }),
-    ])
+    let error = null
+    await axios
+      .all([
+        dispatch('view/fetchAll', table, { root: true }),
+        dispatch('field/fetchAll', table, { root: true }),
+      ])
+      .catch((err) => {
+        error = err
+      })
     await dispatch('application/clearChildrenSelected', null, { root: true })
     await dispatch('forceSelect', { database, table })
-    return { database, table }
+    return { database, table, error }
   },
   forceSelect({ commit, dispatch }, { database, table }) {
     dispatch(
@@ -259,7 +263,7 @@ export const actions = {
     }
     const table = database.tables[index]
 
-    return dispatch('select', { database, table })
+    return await dispatch('select', { database, table })
   },
   /**
    * Unselect the selected table.
