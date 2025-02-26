@@ -16,7 +16,6 @@
             :variant="item.variant"
             :url="getItemUrl(item)"
             :target="getElement(item).target"
-            class="menu-element__menu-item-link"
           >
             {{
               item.name
