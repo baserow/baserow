@@ -32,12 +32,12 @@ def test_fetch_publicly_shared_base():
     )
     path = os.path.join(base_path, "airtable_base.html")
 
-    with open(path, "rb") as file:
+    with open(path, "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file,
+            body=file_handler,
             headers={"Set-Cookie": "brw=test;"},
         )
 
@@ -75,12 +75,12 @@ def test_fetch_table():
     application_response_path = os.path.join(base_path, "airtable_application.json")
     table_response_path = os.path.join(base_path, "airtable_table.json")
 
-    with open(path, "rb") as file:
+    with open(path, "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file,
+            body=file_handler,
             headers={"Set-Cookie": "brw=test;"},
         )
         request_id, init_data, cookies = AirtableHandler.fetch_publicly_shared_base(
@@ -162,73 +162,77 @@ def test_to_baserow_database_export():
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
     )
 
-    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb") as file:
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     with open(
         os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
-    ) as file:
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     with open(
         os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
-    ) as file:
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
@@ -401,73 +405,77 @@ def test_config_skip_files(tmpdir, data_fixture):
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
     )
 
-    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb") as file:
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     with open(
         os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
-    ) as file:
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     with open(
         os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
-    ) as file:
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
@@ -488,73 +496,77 @@ def test_to_baserow_database_export_without_primary_value():
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
     )
 
-    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb") as file:
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     with open(
         os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
-    ) as file:
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     with open(
         os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
-    ) as file:
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     init_data, schema, tables = AirtableHandler.fetch_and_combine_airtable_data(
@@ -622,73 +634,77 @@ def test_import_from_airtable_to_workspace(
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb") as file:
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     with open(
         os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
-    ) as file:
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     with open(
         os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
-    ) as file:
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     progress = Progress(1000)
@@ -754,73 +770,77 @@ def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdi
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file:
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb") as file:
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
-    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     with open(
         os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
-    ) as file:
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     with open(
         os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
-    ) as file:
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     progress = Progress(1000)
@@ -855,21 +875,23 @@ def test_import_from_airtable_to_workspace_duplicated_single_select(
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/shra2B9gmVj6kxvNz",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/application/appHI27Un8BKJ9iKA/read",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     progress = Progress(1000)
@@ -908,21 +930,23 @@ def test_import_from_airtable_to_workspace_duplicated_multi_select(
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/shra2B9gmVj6kxvNz",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with open(os.path.join(base_path, "airtable_application.json"), "rb") as file:
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/application/appHI27Un8BKJ9iKA/read",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
         )
 
     progress = Progress(1000)
@@ -964,12 +988,12 @@ def test_import_unsupported_publicly_shared_view(data_fixture, tmpdir):
     )
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
-    with open(os.path.join(base_path, "airtable_view.html"), "rb") as file:
+    with open(os.path.join(base_path, "airtable_view.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
             "https://airtable.com/appZkaH3aWX3ZjT3b",
             status=200,
-            body=file.read(),
+            body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 

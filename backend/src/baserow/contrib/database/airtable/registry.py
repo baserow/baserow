@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
+from baserow.contrib.database.airtable.constants import AIRTABLE_ASCENDING_MAP
 from baserow.contrib.database.airtable.exceptions import AirtableSkipCellValue
 from baserow.contrib.database.airtable.import_report import (
     ERROR_TYPE_UNSUPPORTED_FEATURE,
@@ -9,6 +10,7 @@ from baserow.contrib.database.airtable.import_report import (
     SCOPE_VIEW_SORT,
     AirtableImportReport,
 )
+from baserow.contrib.database.airtable.utils import get_airtable_column_name
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.views.models import (
     SORT_ORDER_ASC,
@@ -195,13 +197,16 @@ class AirtableViewType(Instance):
         view_sorts = []
         for sort in sort_set:
             if sort["columnId"] not in field_mapping:
+                column_name = get_airtable_column_name(
+                    raw_airtable_table, sort["columnId"]
+                )
                 import_report.add_failed(
-                    f'View "{raw_airtable_view["name"]}", Field ID "{sort["columnId"]}"',
+                    f'View "{raw_airtable_view["name"]}", Field ID "{column_name}"',
                     SCOPE_VIEW_SORT,
                     raw_airtable_table["name"],
                     ERROR_TYPE_UNSUPPORTED_FEATURE,
-                    f'The sort on field "{sort["columnId"]}" was ignored in view'
-                    f' {raw_airtable_view["name"]} field was not found.',
+                    f'The sort on field "{column_name}" was ignored in view'
+                    f' {raw_airtable_view["name"]} because the field is not imported.',
                 )
                 continue
 
@@ -253,13 +258,16 @@ class AirtableViewType(Instance):
         view_group_by = []
         for group in group_levels:
             if group["columnId"] not in field_mapping:
+                column_name = get_airtable_column_name(
+                    raw_airtable_table, group["columnId"]
+                )
                 import_report.add_failed(
-                    f'View "{raw_airtable_view["name"]}", Field ID "{group["columnId"]}"',
+                    f'View "{raw_airtable_view["name"]}", Field ID "{column_name}"',
                     SCOPE_VIEW_GROUP_BY,
                     raw_airtable_table["name"],
                     ERROR_TYPE_UNSUPPORTED_FEATURE,
-                    f'The group by on field "{group["columnId"]}" was ignored in view'
-                    f' {raw_airtable_view["name"]} field was not found.',
+                    f'The group by on field "{column_name}" was ignored in view'
+                    f' {raw_airtable_view["name"]} because the field was not imported.',
                 )
                 continue
 
@@ -278,11 +286,7 @@ class AirtableViewType(Instance):
                 )
                 continue
 
-            ascending_map = {
-                "ascending": True,
-                "descending": False,
-            }
-            ascending = ascending_map.get(group["order"], None)
+            ascending = AIRTABLE_ASCENDING_MAP.get(group["order"], None)
 
             if ascending is None:
                 import_report.add_failed(
@@ -416,10 +420,11 @@ class AirtableViewTypeRegistry(Registry):
         Tries to find a Baserow view that matches that raw Airtable view data. If
         None is returned, the view is not compatible with Baserow and must be ignored.
 
-        :param field_mapping: @TODO
+        :param field_mapping: A dict containing all the imported fields.
         :param raw_airtable_table: The raw Airtable table data related to the column.
         :param raw_airtable_view: The raw Airtable column data that must be imported.
-        :param raw_airtable_view_data: @TODO
+        :param raw_airtable_view_data: The raw Airtable view data containing filters,
+            sorts, etc.
         :param config: Additional configuration related to the import.
         :param import_report: Used to collect what wasn't imported to report to the
             user.

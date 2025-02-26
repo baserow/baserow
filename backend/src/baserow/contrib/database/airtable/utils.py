@@ -46,6 +46,22 @@ def get_airtable_row_primary_value(table, row):
     return primary_value
 
 
+def get_airtable_column_name(raw_airtable_table, column_id) -> str:
+    """
+    Tries to extract the name of the column from the provided Airtable table.
+
+    :param raw_airtable_table: The table where to get the column names from.
+    :param column_id: The column ID to get the name for.
+    :return: The found column name or column_id if not found.
+    """
+
+    for column in raw_airtable_table["columns"]:
+        if column["id"] == column_id:
+            return column["name"]
+
+    return column_id
+
+
 def parse_json_and_remove_invalid_surrogate_characters(response: Response) -> dict:
     """
     The response from Airtable can sometimes contain invalid surrogate characters. This

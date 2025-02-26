@@ -215,25 +215,6 @@ def test_import_grid_view_unknown_row_height():
     assert serialized_view["row_height_size"] == "small"
 
 
-# def test_import_grid_view_filters_and_filter_groups():
-#     view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
-#     view_data["filters"] = RAW_VIEW_DATA_FILTERS
-#
-#     airtable_view_type = airtable_view_type_registry.get("grid")
-#     serialized_view = airtable_view_type.to_serialized_baserow_view(
-#         RAW_AIRTABLE_TABLE,
-#         RAW_AIRTABLE_VIEW,
-#         view_data,
-#         AirtableImportConfig(),
-#         AirtableImportReport(),
-#     )
-#
-#     import json
-#     print(json.dumps(serialized_view, indent=4))
-#
-#     assert False
-
-
 def test_import_grid_view_sorts():
     view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
     view_data["lastSortsApplied"] = RAW_VIEW_DATA_SORTS

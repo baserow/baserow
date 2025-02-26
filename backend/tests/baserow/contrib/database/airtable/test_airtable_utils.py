@@ -2,6 +2,7 @@ import pytest
 
 from baserow.contrib.database.airtable.utils import (
     extract_share_id_from_url,
+    get_airtable_column_name,
     get_airtable_row_primary_value,
     quill_to_markdown,
 )
@@ -62,6 +63,29 @@ def test_get_airtable_row_primary_value_without_primary_column_id_in_table():
     }
     airtable_row = {"id": "id1"}
     assert get_airtable_row_primary_value(airtable_table, airtable_row) == "id1"
+
+
+def test_get_airtable_column_name():
+    table = {
+        "columns": [
+            {"id": "fldwSc9PqedIhTSqhi1", "name": "Field 1", "type": "text"},
+            {"id": "fldwSc9PqedIhTSqhi2", "name": "Field 2", "type": "text"},
+        ],
+    }
+    assert get_airtable_column_name(table, "fldwSc9PqedIhTSqhi1") == "Field 1"
+    assert get_airtable_column_name(table, "fldwSc9PqedIhTSqhi2") == "Field 2"
+
+
+def test_get_airtable_column_name_fallback():
+    table = {
+        "columns": [
+            {"id": "fldwSc9PqedIhTSqhi1", "name": "Field 1", "type": "text"},
+            {"id": "fldwSc9PqedIhTSqhi2", "name": "Field 2", "type": "text"},
+        ],
+    }
+    assert (
+        get_airtable_column_name(table, "fldwSc9PqedIhTSqhi3") == "fldwSc9PqedIhTSqhi3"
+    )
 
 
 def test_quill_to_markdown_airtable_example():

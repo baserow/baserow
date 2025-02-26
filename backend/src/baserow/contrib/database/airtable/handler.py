@@ -34,7 +34,11 @@ from baserow.core.export_serialized import CoreExportSerializedStructure
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
-from baserow.core.utils import ChildProgressBuilder, remove_invalid_surrogate_characters
+from baserow.core.utils import (
+    ChildProgressBuilder,
+    Progress,
+    remove_invalid_surrogate_characters,
+)
 
 from .config import AirtableImportConfig
 from .exceptions import (
@@ -456,85 +460,16 @@ class AirtableHandler:
         return files_buffer
 
     @classmethod
-    def to_baserow_database_export(
+    def _parse_table_fields(
         cls,
-        init_data: dict,
         schema: dict,
-        tables: list,
+        converting_progress: Progress,
         config: AirtableImportConfig,
-        progress_builder: Optional[ChildProgressBuilder] = None,
-        download_files_buffer: Union[None, IOBase] = None,
-    ) -> Tuple[dict, IOBase]:
-        """
-        Converts the provided raw Airtable database dict to a Baserow export format and
-        an in memory zip file containing all the downloaded user files.
-
-        @TODO add the views.
-        @TODO preserve the order of least one view.
-
-        :param init_data: The init_data, extracted from the initial page related to the
-            shared base.
-        :param schema: An object containing the schema of the Airtable base.
-        :param tables: a list containing the table data.
-        :param config: Additional configuration related to the import.
-        :param import_report: Used to collect what wasn't imported to report to the
-            user.
-        :param progress_builder: If provided will be used to build a child progress bar
-            and report on this methods progress to the parent of the progress_builder.
-        :param download_files_buffer: Optionally a file buffer can be provided to store
-            the downloaded files in. They will be stored in memory if not provided.
-        :return: The converted Airtable base in Baserow export format and a zip file
-            containing the user files.
-        """
-
-        # This instance allows collecting what we weren't able to import, like
-        # incompatible fields, filters, etc. This will later be used to create a table
-        # with an overview of what wasn't imported.
-        import_report = AirtableImportReport()
-
-        progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
-        converting_progress = progress.create_child(
-            represents_progress=500,
-            total=sum(
-                [
-                    # Mapping progress
-                    len(tables[table["id"]]["rows"])
-                    # Table column progress
-                    + len(table["columns"])
-                    # Table rows progress
-                    + len(tables[table["id"]]["rows"])
-                    # The table itself.
-                    + 1
-                    for table in schema["tableSchemas"]
-                ]
-            ),
-        )
-
-        # A list containing all the exported table in Baserow format.
-        exported_tables = []
-
-        # A dict containing all the user files that must be downloaded and added to a
-        # zip file.
-        files_to_download = {}
-
-        # A mapping containing the Airtable table id as key and as value another mapping
-        # containing with the key as Airtable row id and the value as new Baserow row
-        # id. This mapping is created because Airtable has string row id that look like
-        # "recAjnk3nkj5", but Baserow doesn't support string row id, so we need to
-        # replace them with a unique int. We need a mapping because there could be
-        # references to the row.
-        row_id_mapping = defaultdict(dict)
-        for index, table in enumerate(schema["tableSchemas"]):
-            for row_index, row in enumerate(tables[table["id"]]["rows"]):
-                new_id = row_index + 1
-                row_id_mapping[table["id"]][row["id"]] = new_id
-                row["id"] = new_id
-                converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
-
+        import_report: AirtableImportReport,
+    ):
         field_mapping_per_table = {}
         for table_index, table in enumerate(schema["tableSchemas"]):
             field_mapping = {}
-            files_to_download_for_table = {}
 
             # Loop over all the columns in the table and try to convert them to Baserow
             # format.
@@ -647,11 +582,32 @@ class AirtableHandler:
                     field_object["raw_airtable_column"],
                 )
 
+        return field_mapping_per_table
+
+    @classmethod
+    def _parse_rows_and_views(
+        cls,
+        schema: dict,
+        tables: list,
+        converting_progress: Progress,
+        row_id_mapping: Dict[str, int],
+        field_mapping_per_table: dict,
+        config: AirtableImportConfig,
+        import_report: AirtableImportReport,
+    ):
+        # A list containing all the exported table in Baserow format.
+        exported_tables = []
+
+        # A dict containing all the user files that must be downloaded and added to a
+        # zip file.
+        files_to_download = {}
+
         # Loop over the table one more time to export the fields, rows, and views to
         # the serialized format. This must be done last after all the data is prepared
         # correctly.
         for table_index, table in enumerate(schema["tableSchemas"]):
             field_mapping = field_mapping_per_table[table["id"]]
+            files_to_download_for_table = {}
 
             # Loop over all the fields and convert them to Baserow serialized format.
             exported_fields = [
@@ -731,6 +687,87 @@ class AirtableHandler:
                 if url in signed_user_content_urls:
                     url = signed_user_content_urls[url]
                 files_to_download[file_name] = url
+
+        return exported_tables, files_to_download
+
+    @classmethod
+    def to_baserow_database_export(
+        cls,
+        init_data: dict,
+        schema: dict,
+        tables: list,
+        config: AirtableImportConfig,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+        download_files_buffer: Union[None, IOBase] = None,
+    ) -> Tuple[dict, IOBase]:
+        """
+        Converts the provided raw Airtable database dict to a Baserow export format and
+        an in memory zip file containing all the downloaded user files.
+
+        :param init_data: The init_data, extracted from the initial page related to the
+            shared base.
+        :param schema: An object containing the schema of the Airtable base.
+        :param tables: a list containing the table data.
+        :param config: Additional configuration related to the import.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
+        :param progress_builder: If provided will be used to build a child progress bar
+            and report on this methods progress to the parent of the progress_builder.
+        :param download_files_buffer: Optionally a file buffer can be provided to store
+            the downloaded files in. They will be stored in memory if not provided.
+        :return: The converted Airtable base in Baserow export format and a zip file
+            containing the user files.
+        """
+
+        # This instance allows collecting what we weren't able to import, like
+        # incompatible fields, filters, etc. This will later be used to create a table
+        # with an overview of what wasn't imported.
+        import_report = AirtableImportReport()
+
+        progress = ChildProgressBuilder.build(progress_builder, child_total=1000)
+        converting_progress = progress.create_child(
+            represents_progress=500,
+            total=sum(
+                [
+                    # Mapping progress
+                    len(tables[table["id"]]["rows"])
+                    # Table column progress
+                    + len(table["columns"])
+                    # Table rows progress
+                    + len(tables[table["id"]]["rows"])
+                    # The table itself.
+                    + 1
+                    for table in schema["tableSchemas"]
+                ]
+            ),
+        )
+
+        # A mapping containing the Airtable table id as key and as value another mapping
+        # containing with the key as Airtable row id and the value as new Baserow row
+        # id. This mapping is created because Airtable has string row id that look like
+        # "recAjnk3nkj5", but Baserow doesn't support string row id, so we need to
+        # replace them with a unique int. We need a mapping because there could be
+        # references to the row.
+        row_id_mapping = defaultdict(dict)
+        for index, table in enumerate(schema["tableSchemas"]):
+            for row_index, row in enumerate(tables[table["id"]]["rows"]):
+                new_id = row_index + 1
+                row_id_mapping[table["id"]][row["id"]] = new_id
+                row["id"] = new_id
+                converting_progress.increment(state=AIRTABLE_EXPORT_JOB_CONVERTING)
+
+        field_mapping_per_table = AirtableHandler._parse_table_fields(
+            schema, converting_progress, config, import_report
+        )
+        exported_tables, files_to_download = AirtableHandler._parse_rows_and_views(
+            schema,
+            tables,
+            converting_progress,
+            row_id_mapping,
+            field_mapping_per_table,
+            config,
+            import_report,
+        )
 
         # Just to be really clear that the automations and interfaces are not included.
         import_report.add_failed(
@@ -877,7 +914,7 @@ class AirtableHandler:
         share_id: str,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
-        download_files_buffer: Union[None, IOBase] = None,
+        download_files_buffer: Optional[IOBase] = None,
         config: Optional[AirtableImportConfig] = None,
     ) -> Database:
         """

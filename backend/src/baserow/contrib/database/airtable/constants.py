@@ -54,3 +54,7 @@ AIRTABLE_RATING_ICON_MAPPING = {
     "thumbsUp": "thumbs-up",
     "flag": "flag",
 }
+AIRTABLE_ASCENDING_MAP = {
+    "ascending": True,
+    "descending": False,
+}
