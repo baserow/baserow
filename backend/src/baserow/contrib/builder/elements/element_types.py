@@ -2018,6 +2018,16 @@ class MenuElementType(ElementType):
             "menu_items": MenuItemSerializer(many=True, required=False),
         }
 
+    def before_delete(self, instance: MenuElement) -> None:
+        """
+        Delete all related objects of this MenuElement instance.
+         
+        Deletes Workflow actions and Menu Items.
+        """
+
+        self.delete_workflow_actions(instance)
+        instance.menu_items.all().delete()
+
     def after_create(self, instance: MenuItemElement, values):
         menu_items = values.get("menu_items", [])
 
@@ -2030,16 +2040,16 @@ class MenuElementType(ElementType):
         instance.menu_items.add(*created_menu_items)
 
     def delete_workflow_actions(
-        self, instance: MenuElement, menu_item_uids: List[str]
+        self, instance: MenuElement, menu_item_uids_to_keep: Optional[List[str]] = None
     ) -> None:
         # Get all workflow actions associated with this menu element.
         all_workflow_actions = BuilderWorkflowAction.objects.filter(element=instance)
 
         # If there are menu items, only keep workflow actions that match
         # existing menu items.
-        if menu_item_uids:
+        if menu_item_uids_to_keep:
             workflow_actions_to_keep_query = Q()
-            for uid in menu_item_uids:
+            for uid in menu_item_uids_to_keep:
                 workflow_actions_to_keep_query |= Q(event__startswith=uid)
 
             # Find Workflow actions to delete (those not matching any
@@ -2072,8 +2082,8 @@ class MenuElementType(ElementType):
             # Remove previous fields
             instance.menu_items.all().delete()
 
-            menu_item_uids = [item["uid"] for item in values["menu_items"]]
-            self.delete_workflow_actions(instance, menu_item_uids)
+            menu_item_uids_to_keep = [item["uid"] for item in values["menu_items"]]
+            self.delete_workflow_actions(instance, menu_item_uids_to_keep)
 
             items_to_create = []
             child_uids_parent_uids = {}
