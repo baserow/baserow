@@ -1,8 +1,11 @@
+from typing import Any, Dict, List
+
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -27,7 +30,11 @@ from baserow.contrib.builder.api.data_sources.errors import (
 from baserow.contrib.builder.api.data_sources.serializers import (
     DispatchDataSourceRequestSerializer,
 )
-from baserow.contrib.builder.api.domains.serializers import PublicBuilderSerializer
+from baserow.contrib.builder.api.domains.serializers import (
+    PublicBuilderSerializer,
+    PublicDataSourceSerializer,
+    PublicElementSerializer,
+)
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
 from baserow.contrib.builder.api.workflow_actions.serializers import (
     BuilderWorkflowActionSerializer,
@@ -42,12 +49,17 @@ from baserow.contrib.builder.data_sources.exceptions import (
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.service import DataSourceService
+from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.service import DomainService
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.errors import ERROR_BUILDER_DOES_NOT_EXIST
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
-from baserow.contrib.builder.handler import BuilderHandler
+from baserow.contrib.builder.handler import (
+    BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS,
+    BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
+    BuilderHandler,
+)
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.service import BuilderService
@@ -65,8 +77,7 @@ from baserow.core.services.exceptions import (
     ServiceSortPropertyDoesNotExist,
 )
 from baserow.core.services.registries import service_type_registry
-
-from .serializers import PublicDataSourceSerializer, PublicElementSerializer
+from baserow.core.utils import safe_get_or_set_cache
 
 
 class PublicBuilderByDomainNameView(APIView):
@@ -93,18 +104,39 @@ class PublicBuilderByDomainNameView(APIView):
         },
     )
     @map_exceptions({BuilderDoesNotExist: ERROR_BUILDER_DOES_NOT_EXIST})
-    def get(self, request, domain_name):
+    def get(self, request: Request, domain_name: str):
         """
         Responds with a serialized version of the builder related to the query.
         Try to match a published builder for the given domain name. Used to display
         the public site.
         """
 
+        data = safe_get_or_set_cache(
+            cache_key=DomainHandler.get_public_builder_by_domain_cache_key(domain_name),
+            version_cache_key=DomainHandler.get_public_builder_by_domain_version_cache_key(
+                domain_name
+            ),
+            default=lambda: self._get_public_builder_by_domain(request, domain_name),
+            timeout=BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS,
+        )
+        return Response(data)
+
+    def _get_public_builder_by_domain(self, request: Request, domain_name: str):
+        """
+        Returns a serialized builder which has a domain matching `domain_name`.
+
+        Only requested if the public get-by-domain cache is stale, or if the
+        application has been re-published.
+
+        :param request: the HTTP request.
+        :param domain_name: the domain name to match.
+        :return: a publicly serialized builder.
+        """
+
         builder = DomainService().get_public_builder_by_domain_name(
             request.user, domain_name
         )
-
-        return Response(PublicBuilderSerializer(builder).data)
+        return PublicBuilderSerializer(builder).data
 
 
 class PublicBuilderByIdView(APIView):
@@ -180,20 +212,43 @@ class PublicElementsView(APIView):
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
         }
     )
-    def get(self, request, page_id):
+    def get(self, request: Request, page_id: int):
         """
         Responds with a list of serialized elements that belongs to the given page id.
         """
 
+        if PageHandler().is_published_page(page_id):
+            data = safe_get_or_set_cache(
+                cache_key=PageHandler.get_page_public_records_cache_key(
+                    page_id, request.user_source_user, "elements"
+                ),
+                default=lambda: self._get_public_page_elements(request, page_id),
+                timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
+            )
+        else:
+            data = self._get_public_page_elements(request, page_id)
+
+        return Response(data)
+
+    def _get_public_page_elements(
+        self, request: Request, page_id: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns a list of serialized elements that belong to the given page id.
+
+        Only requested if the public elements cache is stale.
+
+        :param request: the HTTP request.
+        :param page_id: the page id.
+        :return: a list of serialized elements.
+        """
+
         page = PageHandler().get_page(page_id)
-
         elements = ElementService().get_elements(request.user, page)
-
-        data = [
+        return [
             element_type_registry.get_serializer(element, PublicElementSerializer).data
             for element in elements
         ]
-        return Response(data)
 
 
 class PublicDataSourcesView(APIView):
@@ -227,26 +282,47 @@ class PublicDataSourcesView(APIView):
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
         }
     )
-    def get(self, request, page_id):
+    def get(self, request: Request, page_id: int):
         """
         Responds with a list of serialized data_sources that belong to the page if the
         user has access to it.
         """
 
-        page = PageHandler().get_page(page_id)
+        if PageHandler().is_published_page(page_id):
+            data = safe_get_or_set_cache(
+                cache_key=PageHandler.get_page_public_records_cache_key(
+                    page_id, request.user_source_user, "data_sources"
+                ),
+                default=lambda: self._get_public_page_data_sources(request, page_id),
+                timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
+            )
+        else:
+            data = self._get_public_page_data_sources(request, page_id)
 
+        return Response(data)
+
+    def _get_public_page_data_sources(self, request: Request, page_id: int):
+        """
+        Returns a list of serialized data sources that belong to the given page id.
+
+        Only requested if the public data sources cache is stale.
+
+        :param request: the HTTP request.
+        :param page_id: the page id.
+        :return: a list of serialized data sources.
+        """
+
+        page = PageHandler().get_page(page_id)
         data_sources = DataSourceService().get_data_sources(request.user, page)
 
-        handler = BuilderHandler()
-        public_properties = handler.get_builder_public_properties(
+        public_properties = BuilderHandler().get_builder_public_properties(
             request.user_source_user, page.builder
         )
-
         allowed_fields = []
         for fields in public_properties["external"].values():
             allowed_fields.extend(fields)
 
-        data = [
+        return [
             service_type_registry.get_serializer(
                 data_source.service,
                 PublicDataSourceSerializer,
@@ -255,8 +331,6 @@ class PublicDataSourcesView(APIView):
             for data_source in data_sources
             if data_source.service and data_source.service.integration_id
         ]
-
-        return Response(data)
 
 
 class PublicBuilderWorkflowActionsView(APIView):
@@ -295,14 +369,44 @@ class PublicBuilderWorkflowActionsView(APIView):
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
         }
     )
-    def get(self, request, page_id: int):
-        page = PageHandler().get_page(page_id)
+    def get(self, request: Request, page_id: int):
+        """ "
+        Responds with a list of serialized workflow actions that belongs to the given
+        page id.
+        """
 
+        if PageHandler().is_published_page(page_id):
+            data = safe_get_or_set_cache(
+                cache_key=PageHandler.get_page_public_records_cache_key(
+                    page_id, request.user_source_user, "workflow_actions"
+                ),
+                default=lambda: self._get_public_page_workflow_actions(
+                    request, page_id
+                ),
+                timeout=BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS,
+            )
+        else:
+            data = self._get_public_page_workflow_actions(request, page_id)
+
+        return Response(data)
+
+    def _get_public_page_workflow_actions(self, request: Request, page_id: int):
+        """
+        Returns a list of serialized workflow actions that belong to the given page id.
+
+        Only requested if the public workflow actions cache is stale.
+
+        :param request: the HTTP request.
+        :param page_id: the page id.
+        :return: a list of serialized workflow actions.
+        """
+
+        page = PageHandler().get_page(page_id)
         workflow_actions = BuilderWorkflowActionService().get_workflow_actions(
             request.user, page
         )
 
-        data = [
+        return [
             builder_workflow_action_type_registry.get_serializer(
                 workflow_action,
                 BuilderWorkflowActionSerializer,
@@ -310,8 +414,6 @@ class PublicBuilderWorkflowActionsView(APIView):
             ).data
             for workflow_action in workflow_actions
         ]
-
-        return Response(data)
 
 
 class PublicDispatchDataSourceView(APIView):

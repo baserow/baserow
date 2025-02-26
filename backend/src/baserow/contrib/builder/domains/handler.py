@@ -19,7 +19,7 @@ from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.utils import Progress, extract_allowed
+from baserow.core.utils import Progress, extract_allowed, invalidate_versioned_cache
 
 
 class DomainHandler:
@@ -275,4 +275,21 @@ class DomainHandler:
         domain.last_published = datetime.now(tz=timezone.utc)
         domain.save()
 
+        # Invalidate the public builder-by-domain cache after a new publication.
+        DomainHandler.invalidate_public_builder_by_domain_cache(domain.domain_name)
+
         return domain
+
+    @classmethod
+    def get_public_builder_by_domain_cache_key(cls, domain_name: str) -> str:
+        return f"ab_public_builder_by_domain_{domain_name}"
+
+    @classmethod
+    def get_public_builder_by_domain_version_cache_key(cls, domain_name: str) -> str:
+        return f"ab_public_builder_by_domain_{domain_name}_version"
+
+    @classmethod
+    def invalidate_public_builder_by_domain_cache(cls, domain_name: str):
+        invalidate_versioned_cache(
+            cls.get_public_builder_by_domain_version_cache_key(domain_name)
+        )

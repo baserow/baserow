@@ -38,6 +38,7 @@ from redis.exceptions import LockNotOwnedError
 from requests.utils import guess_json_utf
 
 from baserow.contrib.database.db.schema import optional_atomic
+from baserow.version import VERSION as BASEROW_VERSION
 
 from .exceptions import CannotCalculateIntermediateOrder
 
@@ -1208,6 +1209,9 @@ def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
     return not ips1.isdisjoint(ips2)
 
 
+SENTINEL = object()
+
+
 def safe_get_or_set_cache(
     cache_key: str,
     version_cache_key: str = None,
@@ -1232,23 +1236,23 @@ def safe_get_or_set_cache(
     :return: The cached value if it exists; otherwise, the newly set value.
     """
 
-    cached = cache.get(cache_key)
-
-    cache_key_to_use = cache_key
+    cache_key_to_use = f"{BASEROW_VERSION}_{cache_key}"
     if version_cache_key is not None:
         version = cache.get(version_cache_key, 0)
         cache_key_to_use = f"{cache_key}__version_{version}"
 
-    if cached is None:
+    cached = cache.get(cache_key_to_use, SENTINEL)
+
+    if cached is SENTINEL:
         use_lock = hasattr(cache, "lock")
         if use_lock:
             cache_lock = cache.lock(f"{cache_key_to_use}__lock", timeout=10)
             cache_lock.acquire()
         try:
-            cached = cache.get(cache_key_to_use)
+            cached = cache.get(cache_key_to_use, SENTINEL)
             # We check again to make sure it hasn't been populated in the meantime
             # while acquiring the lock
-            if cached is None:
+            if cached is SENTINEL:
                 if callable(default):
                     cached = default()
                 else:

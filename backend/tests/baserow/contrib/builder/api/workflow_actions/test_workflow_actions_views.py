@@ -180,32 +180,25 @@ class PublicTestWorkflowActionType(NotificationWorkflowActionType):
 
 
 @pytest.mark.django_db
-def test_public_workflow_actions_view(
-    api_client, data_fixture, mutable_builder_workflow_action_registry
-):
+def test_public_workflow_actions_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    page = data_fixture.create_builder_page(user=user)
+    workspace = data_fixture.create_workspace(user=user)
 
-    mutable_builder_workflow_action_registry.unregister(
-        NotificationWorkflowActionType().type
-    )
-    mutable_builder_workflow_action_registry.register(PublicTestWorkflowActionType())
-
-    workflow_action = BuilderWorkflowActionHandler().create_workflow_action(
-        PublicTestWorkflowActionType(), test="hello", page=page
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    BuilderWorkflowActionHandler().create_workflow_action(
+        NotificationWorkflowActionType(), page=page
     )
 
-    url = reverse(
-        "api:builder:workflow_action:item",
-        kwargs={"workflow_action_id": workflow_action.id},
-    )
-    response = api_client.get(
-        url,
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    published_page = data_fixture.create_builder_page(builder=published_builder)
+    BuilderWorkflowActionHandler().create_workflow_action(
+        NotificationWorkflowActionType(), page=published_page
     )
 
-    assert "test" not in response.json()
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
 
     url = reverse(
         "api:builder:domains:list_workflow_actions",
@@ -217,8 +210,23 @@ def test_public_workflow_actions_view(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    [workflow_action_in_response] = response.json()
-    assert "test" in workflow_action_in_response
+    response_json = response.json()
+    assert len(response_json) == 1
+    assert response_json[0]["type"] == NotificationWorkflowActionType.type
+
+    url = reverse(
+        "api:builder:domains:list_workflow_actions",
+        kwargs={"page_id": published_page.id},
+    )
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert len(response_json) == 1
+    assert response_json[0]["type"] == NotificationWorkflowActionType.type
 
 
 @pytest.mark.django_db
