@@ -118,7 +118,7 @@ import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvid
  */
 const LINK_ACTIVE_CLASSES = {
   link: 'ab-link--force-active',
-  button: 'ab-button--force-active'
+  button: 'ab-button--force-active',
 }
 
 /**
@@ -142,6 +142,14 @@ export default {
       activeItem: {},
     }
   },
+  computed: {
+    pages() {
+      return this.$store.getters['page/getVisiblePages'](this.builder)
+    },
+    menuElementType() {
+      return this.$registry.get('element', 'menu')
+    },
+  },
   mounted() {
     /**
      * If the current page matches a menu item, that menu item is set as the
@@ -150,7 +158,7 @@ export default {
      */
     const found = resolveApplicationRoute(
       this.$store.getters['page/getVisiblePages'](this.builder),
-      this.$route.params.pathMatch,
+      this.$route.params.pathMatch
     )
 
     if (!found?.length) return
@@ -169,14 +177,6 @@ export default {
         }
       }
     }
-  },
-  computed: {
-    pages() {
-      return this.$store.getters['page/getVisiblePages'](this.builder)
-    },
-    menuElementType() {
-      return this.$registry.get('element', 'menu')
-    },
   },
   methods: {
     showSubMenu(event, itemId) {
@@ -240,10 +240,11 @@ export default {
       return LINK_ACTIVE_CLASSES[item.variant] || ''
     },
     getActiveParentClass(item) {
-      if (!item.children?.some(child => child.id === this.activeItem?.id)) return ''
+      if (!item.children?.some((child) => child.id === this.activeItem?.id))
+        return ''
 
       return LINK_ACTIVE_CLASSES[item.variant] || ''
-    }
+    },
   },
 }
 </script>
