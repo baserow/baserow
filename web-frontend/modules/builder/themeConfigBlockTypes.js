@@ -328,6 +328,10 @@ export class ButtonThemeConfigBlockType extends ThemeConfigBlockType {
     style.addColorIfExists(theme, 'button_hover_text_color')
     style.addColorIfExists(theme, 'button_border_color')
     style.addColorIfExists(theme, 'button_hover_border_color')
+    style.addColorIfExists(theme, 'button_active_background_color')
+    style.addColorIfExists(theme, 'button_active_text_color')
+    style.addColorIfExists(theme, 'button_active_border_color')
+
     style.addIfExists(theme, 'button_width', null, (v) =>
       v === WIDTHS_NEW.FULL ? '100%' : 'auto'
     )
@@ -378,6 +382,7 @@ export class LinkThemeConfigBlockType extends ThemeConfigBlockType {
     })
     style.addColorIfExists(theme, 'link_text_color')
     style.addColorIfExists(theme, 'link_hover_text_color')
+    style.addColorIfExists(theme, 'link_active_text_color')
     style.addIfExists(
       theme,
       'link_text_alignment',
