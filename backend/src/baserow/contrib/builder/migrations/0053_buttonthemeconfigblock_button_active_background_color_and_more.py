@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
             name="link_active_text_color",
             field=models.CharField(
                 blank=True,
-                default="#96baf6ff",
+                default="#275d9f",
                 help_text="The hover color of links when active",
                 max_length=255,
             ),
