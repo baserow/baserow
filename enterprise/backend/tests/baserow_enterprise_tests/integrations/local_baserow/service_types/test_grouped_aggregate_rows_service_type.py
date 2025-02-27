@@ -18,6 +18,7 @@ from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
     LocalBaserowTableServiceAggregationGroupBy,
     LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
 )
 
 
@@ -317,8 +318,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
             "service_aggregation_group_bys": [{"field_id": field.id}],
-            "service_sorts": [
-                {"field": field_2},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "SERIES",
+                    "reference": f"field_{field_2.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -326,7 +331,7 @@ def test_create_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field_2.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().create_service(service_type, **values)
 
@@ -354,8 +359,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
             "service_aggregation_group_bys": [],
-            "service_sorts": [
-                {"field": field_2},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "PRIMARY",
+                    "reference": f"field_{field_2.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -363,7 +372,7 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field_2.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().create_service(service_type, **values)
 
@@ -389,8 +398,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
             "integration_id": integration.id,
             "service_aggregation_series": [],
             "service_aggregation_group_bys": [{"field_id": field_2.id}],
-            "service_sorts": [
-                {"field": field},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "PRIMARY",
+                    "reference": f"field_{field.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -398,7 +411,7 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field.id}' cannot be used for sorting.",
     ):
         ServiceHandler().create_service(service_type, **values)
 
@@ -765,8 +778,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
             "service_aggregation_group_bys": [{"field_id": field.id}],
-            "service_sorts": [
-                {"field": field_2},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "GROUP_BY",
+                    "reference": f"field_{field_2.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -774,7 +791,7 @@ def test_update_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field_2.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().update_service(service_type, service=service, **values)
 
@@ -808,8 +825,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
                 {"field_id": field.id, "aggregation_type": "sum"},
             ],
             "service_aggregation_group_bys": [],
-            "service_sorts": [
-                {"field": field_2},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "PRIMARY",
+                    "reference": f"field_{field_2.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -817,7 +838,7 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field_2.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().update_service(service_type, service=service, **values)
 
@@ -849,8 +870,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
             "integration_id": integration.id,
             "service_aggregation_series": [],
             "service_aggregation_group_bys": [{"field_id": field_2.id}],
-            "service_sorts": [
-                {"field": field},
+            "service_aggregation_sorts": [
+                {
+                    "sort_on": "PRIMARY",
+                    "reference": f"field_{field.id}",
+                    "direction": "ASC",
+                },
             ],
         },
         user,
@@ -858,7 +883,7 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
 
     with pytest.raises(
         ValidationError,
-        match=f"The field with ID {field.id} cannot be used for sorting.",
+        match=f"The reference sort 'field_{field.id}' cannot be used for sorting.",
     ):
         ServiceHandler().update_service(service_type, service=service, **values)
 
@@ -887,8 +912,12 @@ def test_update_grouped_aggregate_rows_service_reset_after_table_change(data_fix
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=2, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field.id}_sum",
+        order=2,
+        direction="ASC",
     )
 
     values = service_type.prepare_values(
@@ -911,7 +940,7 @@ def test_update_grouped_aggregate_rows_service_reset_after_table_change(data_fix
     assert service.view is None
     assert service.service_aggregation_series.all().count() == 0
     assert service.service_aggregation_group_bys.all().count() == 0
-    assert service.service_sorts.all().count() == 0
+    assert service.service_aggregation_sorts.all().count() == 0
 
 
 @pytest.mark.django_db
@@ -1548,11 +1577,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by(
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_3, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_3.id}_sum",
+        order=1,
+        direction="ASC",
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=2, order_by="DESC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_2.id}_sum",
+        order=2,
+        direction="DESC",
     )
 
     RowHandler().create_rows(
@@ -1682,11 +1719,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ro
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=None, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_3, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_3.id}_sum",
+        order=1,
+        direction="ASC",
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=2, order_by="DESC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_2.id}_sum",
+        order=2,
+        direction="DESC",
     )
 
     RowHandler().create_rows(
@@ -1875,8 +1920,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_field(data_fix
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field.id}",
+        order=1,
+        direction="ASC",
     )
 
     RowHandler().create_rows(
@@ -1997,8 +2046,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_row_id(data_fi
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=None, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field.id}",
+        order=1,
+        direction="ASC",
     )
 
     RowHandler().create_rows(
@@ -2095,15 +2148,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_field_outside_series_or
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field, aggregation_type="sum", order=2
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field_2.id}",
+        order=1,
+        direction="ASC",
     )
 
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(
         ServiceImproperlyConfigured,
-        match=f"The field with ID {field_2.id} cannot be used for sorting.",
+        match=f"The sort reference 'field_{field_2.id}' cannot be used for sorting.",
     ):
         ServiceHandler().dispatch_service(service, dispatch_context)
 
@@ -2130,15 +2187,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_primary_field_no_group_
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field_2, aggregation_type="sum", order=2
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=2, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="PRIMARY",
+        reference=f"field_{field.id}",
+        order=2,
+        direction="ASC",
     )
 
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(
         ServiceImproperlyConfigured,
-        match=f"The field with ID {field.id} cannot be used for sorting.",
+        match=f"The sort reference 'field_{field.id}' cannot be used for sorting.",
     ):
         ServiceHandler().dispatch_service(service, dispatch_context)
 
@@ -2168,15 +2229,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_primary_field_group_by_
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field_2, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=2, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="PRIMARY",
+        reference=f"field_{field.id}",
+        order=2,
+        direction="ASC",
     )
 
     dispatch_context = FakeDispatchContext()
 
     with pytest.raises(
         ServiceImproperlyConfigured,
-        match=f"The field with ID {field.id} cannot be used for sorting.",
+        match=f"The sort reference 'field_{field.id}' cannot be used for sorting.",
     ):
         ServiceHandler().dispatch_service(service, dispatch_context)
 
@@ -2338,8 +2403,12 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_group_by_fi
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field_2, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field_2.id}",
+        order=1,
+        direction="ASC",
     )
 
     RowHandler().create_rows(
@@ -2425,8 +2494,12 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_series(
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=field_2, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field.id}_sum",
+        order=1,
+        direction="ASC",
     )
 
     RowHandler().create_rows(
@@ -2512,8 +2585,12 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_primary_fie
     LocalBaserowTableServiceAggregationGroupBy.objects.create(
         service=service, field=None, order=1
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=f"field_{field_2.id}",
+        order=1,
+        direction="ASC",
     )
 
     rows = RowHandler().create_rows(

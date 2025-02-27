@@ -4,30 +4,30 @@
     class="margin-bottom-2"
   >
     <Dropdown
-      :value="sortByField"
+      :value="sortReference"
       :show-search="true"
       fixed-items
       class="margin-bottom-1"
-      :error="v$.sortByField?.$error || false"
-      @change="sortByFieldChangedByUser($event)"
+      :error="v$.sortReference?.$error || false"
+      @change="sortReferenceChangedByUser($event)"
     >
       <DropdownItem
         :name="$t('aggregationSortByForm.none')"
         :value="null"
       ></DropdownItem>
       <DropdownItem
-        v-for="field in allowedSortFields"
-        :key="field.id"
-        :name="field.name"
-        :value="field.id"
-        :icon="fieldIconClass(field)"
+        v-for="allowedSortReference in allowedSortReferences"
+        :key="allowedSortReference.reference"
+        :name="allowedSortReference.name"
+        :value="allowedSortReference.reference"
+        :icon="fieldIconClass(allowedSortReference.field)"
       >
       </DropdownItem>
     </Dropdown>
     <SegmentControl
-      :active-index="orderByIndex"
-      :segments="orderByOptions"
-      :initial-active-index="orderByIndex"
+      :active-index="orderDirectionIndex"
+      :segments="orderDirectionOptions"
+      :initial-active-index="orderDirectionIndex"
       @update:activeIndex="orderByChangedByUser"
     ></SegmentControl>
   </FormSection>
@@ -46,7 +46,7 @@ const includesIfSet = (array) => (value) => {
 export default {
   name: 'AggregationSortByForm',
   props: {
-    allowedSortFields: {
+    allowedSortReferences: {
       type: Array,
       required: true,
     },
@@ -60,12 +60,12 @@ export default {
   },
   data() {
     return {
-      sortByField: null,
-      orderByIndex: 0,
+      sortReference: null,
+      orderDirectionIndex: 0,
     }
   },
   computed: {
-    orderByOptions() {
+    orderDirectionOptions() {
       return [
         { label: this.$t('aggregationSortByForm.ascending'), value: 'ASC' },
         { label: this.$t('aggregationSortByForm.descending'), value: 'DESC' },
@@ -76,13 +76,13 @@ export default {
     aggregationSorts: {
       handler(aggregationSorts) {
         if (aggregationSorts.length !== 0) {
-          this.sortByField = aggregationSorts[0].field
-          this.orderByIndex = this.orderByOptions.findIndex(
-            (item) => item.value === aggregationSorts[0].order_by
+          this.sortReference = aggregationSorts[0].reference
+          this.orderDirectionIndex = this.orderDirectionOptions.findIndex(
+            (item) => item.value === aggregationSorts[0].direction
           )
         } else {
-          this.sortByField = null
-          this.orderByIndex = 0
+          this.sortReference = null
+          this.orderDirectionIndex = 0
         }
       },
       immediate: true,
@@ -94,27 +94,38 @@ export default {
   validations() {
     const self = this
     return {
-      sortByField: {
-        isValidSortFieldId: (value) => {
-          const ids = self.allowedSortFields.map((item) => item.id)
-          return includesIfSet(ids)(value)
+      sortReference: {
+        isValidSortReference: (value) => {
+          const sortReferences = self.allowedSortReferences.map(
+            (item) => item.reference
+          )
+          return includesIfSet(sortReferences)(value)
         },
       },
     }
   },
   methods: {
-    sortByFieldChangedByUser(value) {
-      this.sortByField = value
-      this.$emit('value-changed', {
-        field: value,
-        order_by: this.orderByOptions[this.orderByIndex].value,
-      })
+    sortReferenceChangedByUser(value) {
+      this.sortReference = value
+      this.emitValue()
     },
     orderByChangedByUser(index) {
-      this.orderByIndex = index
+      this.orderDirectionIndex = index
+      this.emitValue()
+    },
+    emitValue() {
+      if (this.sortReference === null) {
+        this.$emit('value-changed', null)
+        return
+      }
+
+      const chosenReference = this.allowedSortReferences.find(
+        (item) => item.reference === this.sortReference
+      )
       this.$emit('value-changed', {
-        field: this.sortByField,
-        order_by: this.orderByOptions[index].value,
+        sort_on: chosenReference.sort_on,
+        reference: chosenReference.reference,
+        direction: this.orderDirectionOptions[this.orderDirectionIndex].value,
       })
     },
     fieldIconClass(field) {
