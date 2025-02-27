@@ -5,13 +5,13 @@
       :label="$t('generalForm.valueTitle')"
       class="margin-bottom-2"
       :required="true"
-      :error-message="valueErrorMessage"
+      :error-message="v$.values.value.$error ? $t('error.requiredField') : ''"
     >
       <InjectedFormulaInput
         v-model="values.value"
         :placeholder="$t('generalForm.valuePlaceholder')"
         @input="emitChange"
-        @blur="$v.values.value.$touch()"
+        @blur="v$.values.value.$touch()"
       />
     </FormGroup>
     <RatingFormFields :values="values" />
@@ -23,6 +23,8 @@ import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
 import RatingFormFields from '@baserow/modules/builder/components/elements/components/forms/RatingFormFields.vue'
+import { useVuelidate } from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 
 export default {
   name: 'RatingElementForm',
@@ -32,12 +34,8 @@ export default {
     RatingFormFields,
   },
   mixins: [elementForm],
-  validations: {
-    values: {
-      value: {
-        required: true,
-      },
-    },
+  setup() {
+    return { v$: useVuelidate() }
   },
   data() {
     return {
@@ -50,12 +48,16 @@ export default {
     }
   },
   computed: {
-    valueErrorMessage() {
-      if (!this.$v.values.value.$error) {
-        return ''
+    rules() {
+      return {
+        values: {
+          value: { required }
+        }
       }
-      return this.$t('error.requiredField')
-    },
+    }
   },
+  validations() {
+    return this.rules
+  }
 }
 </script>

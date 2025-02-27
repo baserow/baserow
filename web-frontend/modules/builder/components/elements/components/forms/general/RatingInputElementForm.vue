@@ -29,7 +29,7 @@
         v-model="values.value"
         data-test-id="rating-form-value"
         :placeholder="$t('generalForm.valuePlaceholder')"
-        @blur="$v.values.value.$touch()"
+        @blur="v$.values.value.$touch()"
       />
     </FormGroup>
 
@@ -42,6 +42,7 @@ import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
 import RatingFormFields from '@baserow/modules/builder/components/elements/components/forms/RatingFormFields.vue'
+import { useVuelidate } from '@vuelidate/core'
 
 export default {
   name: 'RatingInputElementForm',
@@ -51,12 +52,8 @@ export default {
     RatingFormFields,
   },
   mixins: [elementForm],
-  validations() {
-    return {
-      values: {
-        value: {},
-      },
-    }
+  setup() {
+    return { v$: useVuelidate() }
   },
   data() {
     return {
@@ -73,11 +70,21 @@ export default {
   },
   computed: {
     valueErrorMessage() {
-      if (!this.$v.values.value.$error) {
+      if (!this.v$.values.value.$error) {
         return ''
       }
       return this.$t('error.requiredField')
     },
+    rules() {
+      return {
+        values: {
+          value: {},
+        }
+      }
+    }
+  },
+  validations() {
+    return this.rules
   },
 }
 </script>

@@ -27,6 +27,8 @@ import {
   ensurePositiveInteger,
   ensureString,
 } from '@baserow/modules/core/utils/validator'
+import { useVuelidate } from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 
 export default {
   name: 'RatingInputElement',
@@ -47,6 +49,9 @@ export default {
       type: Boolean,
       default: false,
     },
+  },
+  setup() {
+    return { v$: useVuelidate() }
   },
   computed: {
     resolvedValue() {
@@ -70,6 +75,16 @@ export default {
       }
       return this.formElementData?.value ?? this.resolvedValue
     },
+    rules() {
+      return {
+        formElementData: {
+          value: this.element.required ? { required } : {}
+        }
+      }
+    }
+  },
+  validations() {
+    return this.rules
   },
   watch: {
     resolvedValue: {
