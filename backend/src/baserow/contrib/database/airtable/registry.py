@@ -2,24 +2,38 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.constants import AIRTABLE_ASCENDING_MAP
-from baserow.contrib.database.airtable.exceptions import AirtableSkipCellValue
+from baserow.contrib.database.airtable.exceptions import (
+    AirtableSkipCellValue,
+    AirtableSkipFilter,
+)
 from baserow.contrib.database.airtable.import_report import (
     ERROR_TYPE_UNSUPPORTED_FEATURE,
     SCOPE_FIELD,
+    SCOPE_VIEW_FILTER,
     SCOPE_VIEW_GROUP_BY,
     SCOPE_VIEW_SORT,
     AirtableImportReport,
 )
 from baserow.contrib.database.airtable.utils import get_airtable_column_name
+from baserow.contrib.database.fields.field_filters import (
+    FILTER_TYPE_AND,
+    FILTER_TYPE_OR,
+)
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.views.models import (
     SORT_ORDER_ASC,
     SORT_ORDER_DESC,
     View,
+    ViewFilter,
+    ViewFilterGroup,
     ViewGroupBy,
     ViewSort,
 )
-from baserow.contrib.database.views.registries import ViewType, view_type_registry
+from baserow.contrib.database.views.registries import (
+    ViewFilterType,
+    ViewType,
+    view_type_registry,
+)
 from baserow.core.registry import Instance, Registry
 
 
@@ -307,6 +321,125 @@ class AirtableViewType(Instance):
 
         return view_group_by
 
+    def get_filters(
+        self,
+        field_mapping,
+        raw_airtable_view,
+        raw_airtable_table,
+        import_report,
+        filter_object,
+        filter_groups=None,
+        parent_group=None,
+    ):
+        if filter_groups is None:
+            filter_groups = []
+
+        filters = []
+        conjunction = filter_object.get("conjunction", None)
+        filter_set = filter_object.get("filterSet", None)
+
+        if conjunction and filter_set:
+            # The filter_object is a nested structure, where if the `conjunction` and
+            # `filterSet` are in the object, it means that it's a filter group.
+            view_group = ViewFilterGroup(
+                # Specifically keep the id `None` for the root group because that
+                # doesn't exist in Baserow.
+                id=filter_object.get("id", None),
+                parent_group=parent_group,
+                filter_type=FILTER_TYPE_OR if conjunction == "or" else FILTER_TYPE_AND,
+                view_id=raw_airtable_view["id"],
+            )
+
+            if view_group not in filter_groups:
+                filter_groups.append(view_group)
+
+            for child_filter in filter_set:
+                child_filters, _ = self.get_filters(
+                    field_mapping,
+                    raw_airtable_view,
+                    raw_airtable_table,
+                    import_report,
+                    child_filter,
+                    filter_groups,
+                    view_group,
+                )
+                filters.extend(child_filters)
+
+            return filters, filter_groups
+
+        else:
+            # If it's not a group, then it's an individual filter, and it must be
+            # parsed accordingly.
+            if filter_object["columnId"] not in field_mapping:
+                column_name = get_airtable_column_name(
+                    raw_airtable_table, filter_object["columnId"]
+                )
+                import_report.add_failed(
+                    f'View "{raw_airtable_view["name"]}", Field ID "{column_name}"',
+                    SCOPE_VIEW_FILTER,
+                    raw_airtable_table["name"],
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f'The filter on field "{column_name}" was ignored in view '
+                    f'{raw_airtable_view["name"]} because the field was not imported.',
+                )
+                return [], []
+
+            mapping_entry = field_mapping[filter_object["columnId"]]
+            baserow_field_type = mapping_entry["baserow_field_type"]
+            baserow_field = mapping_entry["baserow_field"]
+            raw_airtable_column = mapping_entry["raw_airtable_column"]
+            can_filter_by = baserow_field_type.check_can_filter_by(baserow_field)
+
+            if not can_filter_by:
+                import_report.add_failed(
+                    f'View "{raw_airtable_view["name"]}", Field "{baserow_field.name}"',
+                    SCOPE_VIEW_FILTER,
+                    raw_airtable_table["name"],
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f'The filter on field "{baserow_field.name}" was ignored '
+                    f'in view {raw_airtable_view["name"]} because it\'s not '
+                    f"possible to filter by that field type.",
+                )
+                return [], []
+
+            try:
+                filter_operator = airtable_filter_operator_registry.get(
+                    filter_object["operator"]
+                )
+                filter_type, value = filter_operator.to_baserow_filter_and_value(
+                    raw_airtable_table,
+                    raw_airtable_column,
+                    baserow_field,
+                    import_report,
+                    filter_object["value"],
+                )
+            except (
+                airtable_filter_operator_registry.does_not_exist_exception_class,
+                # If the `AirtableSkipFilter` exception is raised, then the Airtable
+                # filter existing, but is not compatible with the Baserow filters.
+                AirtableSkipFilter,
+            ):
+                import_report.add_failed(
+                    f'View "{raw_airtable_view["name"]}", Field "{baserow_field.name}"',
+                    SCOPE_VIEW_FILTER,
+                    raw_airtable_table["name"],
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f'The filter on field "{baserow_field.name}" was ignored '
+                    f'in view {raw_airtable_view["name"]} because it\'s not no compatible filter exists.',
+                )
+                return [], []
+
+            baserow_filter = ViewFilter(
+                id=filter_object["id"],
+                type=filter_type.type,
+                value=value,
+                field_id=filter_object["columnId"],
+                view_id=raw_airtable_view["id"],
+                group_id=parent_group.id if parent_group else None,
+            )
+
+            return [baserow_filter], []
+
     def to_serialized_baserow_view(
         self,
         field_mapping,
@@ -329,6 +462,21 @@ class AirtableViewType(Instance):
             order=raw_airtable_table["viewOrder"].index(raw_airtable_view["id"]) + 1,
         )
 
+        filters_object = raw_airtable_view_data.get("filters", None)
+        filters = []
+        filter_groups = []
+        if view_type.can_filter and filters_object is not None:
+            filters, filter_groups = self.get_filters(
+                field_mapping,
+                raw_airtable_view,
+                raw_airtable_table,
+                import_report,
+                filters_object,
+            )
+            # Pop the first group because that shouldn't in Baserow, and the type is
+            # defined on the view.
+            view.filter_type = filter_groups.pop(0).filter_type
+
         sorts = self.get_sorts(
             field_mapping,
             view_type,
@@ -348,8 +496,8 @@ class AirtableViewType(Instance):
 
         view.get_field_options = lambda *args, **kwargs: []
         view._prefetched_objects_cache = {
-            "viewfilter_set": [],
-            "filter_groups": [],
+            "viewfilter_set": filters,
+            "filter_groups": filter_groups,
             "viewsort_set": sorts,
             "viewgroupby_set": group_bys,
             "viewdecoration_set": [],
@@ -451,7 +599,39 @@ class AirtableViewTypeRegistry(Registry):
             return None
 
 
+class AirtableFilterOperator(Instance):
+    def to_baserow_filter_and_value(
+        self,
+        raw_airtable_table,
+        raw_airtable_column,
+        baserow_field,
+        import_report,
+        value,
+    ) -> Union[ViewFilterType, str]:
+        """
+        @TODO docs
+
+        :param raw_airtable_table:
+        :param raw_airtable_column:
+        :param baserow_field:
+        :param config:
+        :param import_report:
+        :param value:
+        :raises AirtableSkipFilter: If no compatible Baserow filter can be found.
+        :return:
+        """
+
+        raise NotImplementedError(
+            f"The `to_baserow_filter` must be implemented for {self.type}."
+        )
+
+
+class AirtableFilterOperatorRegistry(Registry):
+    name = "airtable_filter_operator"
+
+
 # A default airtable column type registry is created here, this is the one that is used
 # throughout the whole Baserow application to add a new airtable column type.
 airtable_column_type_registry = AirtableColumnTypeRegistry()
 airtable_view_type_registry = AirtableViewTypeRegistry()
+airtable_filter_operator_registry = AirtableFilterOperatorRegistry()

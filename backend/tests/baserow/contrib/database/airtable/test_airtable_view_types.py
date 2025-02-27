@@ -90,7 +90,7 @@ RAW_VIEW_DATA_FILTERS = {
         {
             "id": "flthuYL0uubbDF2Xy",
             "type": "nested",
-            "conjunction": "or",
+            "conjunction": "and",
             "filterSet": [
                 {
                     "id": "flt70g1l245672xRi",
@@ -107,7 +107,7 @@ RAW_VIEW_DATA_FILTERS = {
             ],
         },
     ],
-    "conjunction": "and",
+    "conjunction": "or",
 }
 RAW_VIEW_DATA_SORTS = {
     "sortSet": [
@@ -435,4 +435,51 @@ def test_import_grid_view_field_order_and_visibility():
             "aggregation_type": "",
             "aggregation_raw_type": "",
         },
+    ]
+
+
+def test_import_grid_view_filters_and_groups():
+    view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
+    field_mapping = deepcopy(FIELD_MAPPING)
+
+    view_data["filters"] = RAW_VIEW_DATA_FILTERS
+
+    airtable_view_type = airtable_view_type_registry.get("grid")
+    import_report = AirtableImportReport()
+    serialized_view = airtable_view_type.to_serialized_baserow_view(
+        field_mapping,
+        RAW_AIRTABLE_TABLE,
+        RAW_AIRTABLE_VIEW,
+        view_data,
+        AirtableImportConfig(),
+        import_report,
+    )
+
+    assert serialized_view["filter_type"] == "OR"
+    assert serialized_view["filters_disabled"] is False
+    assert serialized_view["filters"] == [
+        {
+            "id": "fltp2gabc8P91234f",
+            "field_id": "fldwSc9PqedIhTSqhi1",
+            "type": "empty",
+            "value": "",
+            "group": None,
+        },
+        {
+            "id": "flt70g1l245672xRi",
+            "field_id": "fldwSc9PqedIhTSqhi1",
+            "type": "not_equal",
+            "value": "",
+            "group": "flthuYL0uubbDF2Xy",
+        },
+        {
+            "id": "fltVg238719fbIKqC",
+            "field_id": "fldwSc9PqedIhTSqhi2",
+            "type": "not_equal",
+            "value": "",
+            "group": "flthuYL0uubbDF2Xy",
+        },
+    ]
+    assert serialized_view["filter_groups"] == [
+        {"id": "flthuYL0uubbDF2Xy", "filter_type": "AND", "parent_group": None}
     ]
