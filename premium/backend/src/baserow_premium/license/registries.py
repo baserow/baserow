@@ -95,9 +95,10 @@ class LicenseType(abc.ABC, Instance):
         """
 
         # How many licenses do we have with application users?
+        all_licenses = License.objects.all()
         builder_enabled_licenses = [
             license
-            for license in License.objects.all()
+            for license in all_licenses
             if license.valid_payload  # Ensure the license can be decoded
             and license.application_users is not None  # Restrict to only builder usage
         ]
@@ -122,7 +123,7 @@ class LicenseType(abc.ABC, Instance):
 
         usage_per_license = {
             license.license_id: BuilderUsageSummary(application_users_taken=0)
-            for license in builder_enabled_licenses
+            for license in all_licenses
         }
 
         # Fill the licenses with the smallest application user quotas first.

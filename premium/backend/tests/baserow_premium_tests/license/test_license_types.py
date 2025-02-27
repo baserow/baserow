@@ -42,6 +42,19 @@ VALID_ENTERPRISE_15_SEAT_15_APP_USER_LICENSE = (
     b"voGAXz0rbrsS6lQUFqkYdBgA4LpgsrWWjLRxKdmy64CYj1k37ERtU8w-uauhYW3IUHDmDiZQYjNrL7g7q"
     b"Elk5YJBqjseMM_J4VkgULax1TDyG-q114UKCeCrCFA4pqsbxvGJ41-Le_-JOEg=="
 )
+VALID_ENTERPRISE_FIVE_SEAT_LICENSE = (
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogIjNmMDE2OGFmLWFmYWYtNDQyNi04OTZiLWIzODgzOTEwNzZlNyIsI"
+    b"CJ2YWxpZF9mcm9tIjogIjIwMjEtMDEtMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDIxLT"
+    b"EyLTMxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJlbnRlcnByaXNlIiwgInNlYXRzIjogNSwgIml"
+    b"zc3VlZF9vbiI6ICIyMDIzLTAxLTExVDE0OjUzOjQ1LjM3Mjk1MCIsICJpc3N1ZWRfdG9fZW1haWwiOiAi"
+    b"cGV0ckBleGFtcGxlLmNvbSIsICJpc3N1ZWRfdG9fbmFtZSI6ICJwZXRyQGV4YW1wbGUuY29tIiwgImluc"
+    b"3RhbmNlX2lkIjogIjZkNjM2NmI4LTZmMzItNDU0OS04MWMyLWQ0YTBjMDdhMzM0YiJ9.B6os-CyNrp5wW"
+    b"3gDTwjariLS6KhUBFYBwOlDlpVkTB8BPe1yjVIxw7nRH09TXovp9oTc2iJkGY5znBxuFMbCotmnIkBTnw"
+    b"p6uOhBMlPQFydzUXt1GmaWpEEcTSV7hKNVykPasEBCTK3Z4CA-eTjJBKo7vGCT7qTu01I4ghgI4aBEM5J"
+    b"qMe-ngEomRVnRMPAEgCNjFB44rVAB3zcJfPuBoukRB2FjOw1ddEkA3DjwcHlhkj1NcETlyUpFbFtCjhtL"
+    b"oowm_5CZm8Ba6eL-YgI2vKTWfMsVZ9GkJxcaiK3d-AB_ipjub-VVyNXPiVWab7108w3EXmoZIvmhCc67g"
+    b"bL3jA=="
+)
 
 
 @pytest.mark.django_db
@@ -94,18 +107,32 @@ def test_get_builder_usage_summary_for_multiple_stacked_premium_and_enterprise_l
 
     mock_aggregate_user_source_counts.return_value = 26  # one more than allowed
 
-    valid_license_a = premium_data_fixture.create_premium_license(
+    valid_builder_license_a = premium_data_fixture.create_premium_license(
         license=VALID_FIRST_PREMIUM_5_SEAT_10_APP_USER_LICENSE.decode()
     )
-    valid_license_b = License.objects.create(
+    valid_builder_license_b = License.objects.create(
         license=VALID_ENTERPRISE_15_SEAT_15_APP_USER_LICENSE.decode(),
         cached_untrusted_instance_wide=True,
     )
+    valid_non_builder_license_c = License.objects.create(
+        license=VALID_ENTERPRISE_FIVE_SEAT_LICENSE.decode(),
+        cached_untrusted_instance_wide=True,
+    )
 
-    summary_a = valid_license_a.license_type.get_builder_usage_summary(valid_license_a)
+    summary_a = valid_builder_license_a.license_type.get_builder_usage_summary(
+        valid_builder_license_a
+    )
     assert summary_a.application_users_taken == 10
-    assert valid_license_a.application_users == 10
+    assert valid_builder_license_a.application_users == 10
 
-    summary_b = valid_license_b.license_type.get_builder_usage_summary(valid_license_b)
+    summary_b = valid_builder_license_b.license_type.get_builder_usage_summary(
+        valid_builder_license_b
+    )
     assert summary_b.application_users_taken == 16
-    assert valid_license_b.application_users == 15
+    assert valid_builder_license_b.application_users == 15
+
+    summary_c = valid_non_builder_license_c.license_type.get_builder_usage_summary(
+        valid_non_builder_license_c
+    )
+    assert summary_c.application_users_taken == 0
+    assert valid_non_builder_license_c.application_users is None
