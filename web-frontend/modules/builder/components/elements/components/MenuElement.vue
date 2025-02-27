@@ -1,6 +1,6 @@
 <template>
   <div
-    :style="getStyleOverride(element.variant)"
+    :style="getStyleOverride('menu')"
     :class="[
       'menu-element__container',
       element.orientation === 'horizontal' ? 'horizontal' : 'vertical',
@@ -60,7 +60,7 @@
                 v-for="child in item.children"
                 :key="child.id"
                 class="menu-element__sub-links"
-                :style="getStyleOverride(child.variant)"
+                :style="getStyleOverride('menu')"
               >
                 <ABLink
                   :variant="child.variant"

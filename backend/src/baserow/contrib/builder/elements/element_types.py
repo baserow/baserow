@@ -989,7 +989,6 @@ class LinkElementType(ElementType):
         )
         from baserow.contrib.builder.theme.theme_config_block_types import (
             ButtonThemeConfigBlockType,
-            LinkThemeConfigBlockType,
         )
         from baserow.core.formula.serializers import FormulaSerializerField
 
@@ -1010,11 +1009,8 @@ class LinkElementType(ElementType):
                 ),
                 "styles": DynamicConfigBlockSerializer(
                     required=False,
-                    property_name=["button", "link"],
-                    theme_config_block_type_name=[
-                        ButtonThemeConfigBlockType.type,
-                        LinkThemeConfigBlockType.type,
-                    ],
+                    property_name="menu",
+                    theme_config_block_type_name=ButtonThemeConfigBlockType.type,
                     serializer_kwargs={"required": False},
                 ),
             }
@@ -1998,14 +1994,18 @@ class MenuElementType(ElementType):
         )
         from baserow.contrib.builder.theme.theme_config_block_types import (
             ButtonThemeConfigBlockType,
+            LinkThemeConfigBlockType,
         )
 
         overrides = {
             **super().serializer_field_overrides,
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="button",
-                theme_config_block_type_name=ButtonThemeConfigBlockType.type,
+                property_name=["link", "button"],
+                theme_config_block_type_name=[
+                    LinkThemeConfigBlockType.type,
+                    ButtonThemeConfigBlockType.type,
+                ],
                 serializer_kwargs={"required": False},
             ),
         }
