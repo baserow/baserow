@@ -307,7 +307,7 @@ class LinkThemeConfigBlock(ThemeConfigBlock):
     )
     link_active_text_color = models.CharField(
         max_length=COLOR_FIELD_MAX_LENGTH,
-        default="#96baf6ff",
+        default="#275d9f",
         blank=True,
         help_text="The hover color of links when active",
     )
