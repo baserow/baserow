@@ -133,6 +133,35 @@
         </ABLink>
       </template>
     </ThemeConfigBlockSection>
+    <ThemeConfigBlockSection :title="$t('linkThemeConfigBlock.activeState')">
+      <template #default>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          required
+          class="margin-bottom-2"
+          :label="$t('linkThemeConfigBlock.color')"
+        >
+          <ColorInput
+            v-model="v$.values.link_active_text_color.$model"
+            :color-variables="colorVariables"
+            :default-value="theme?.link_active_text_color"
+            small
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="v$.values.link_active_text_color.$model"
+              :default-value="theme?.link_active_text_color"
+            />
+          </template>
+        </FormGroup>
+      </template>
+      <template #preview>
+        <ABLink url="" class="ab-link--force-active">
+          {{ $t('linkThemeConfigBlock.link') }}
+        </ABLink>
+      </template>
+    </ThemeConfigBlockSection>
   </form>
 </template>
 
@@ -193,6 +222,7 @@ export default {
         link_text_color: this.theme?.link_text_color,
         link_text_alignment: this.theme?.link_text_alignment,
         link_hover_text_color: this.theme?.link_hover_text_color,
+        link_active_text_color: this.theme?.link_active_text_color,
         link_font_family: this.theme?.link_font_family,
         link_font_weight: this.theme?.link_font_weight,
         link_font_size: this.theme?.link_font_size,
@@ -234,6 +264,7 @@ export default {
         link_text_color: {},
         link_text_alignment: {},
         link_hover_text_color: {},
+        link_active_text_color: {},
         link_font_family: {},
         link_font_weight: {},
       },

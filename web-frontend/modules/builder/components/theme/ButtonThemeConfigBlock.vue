@@ -313,6 +313,73 @@
         </ABButton>
       </template>
     </ThemeConfigBlockSection>
+    <ThemeConfigBlockSection :title="$t('buttonThemeConfigBlock.activeState')">
+      <template #default>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          required
+          class="margin-bottom-2"
+          :label="$t('buttonThemeConfigBlock.backgroundColor')"
+        >
+          <ColorInput
+            v-model="v$.values.button_active_background_color.$model"
+            :color-variables="colorVariables"
+            :default-value="theme?.button_active_background_color"
+            small
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="v$.values.button_active_background_color.$model"
+              :default-value="theme?.button_active_background_color"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('buttonThemeConfigBlock.textColor')"
+        >
+          <ColorInput
+            v-model="v$.values.button_active_text_color.$model"
+            :color-variables="colorVariables"
+            :default-value="theme?.button_active_text_color"
+            small
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="v$.values.button_active_text_color.$model"
+              :default-value="theme?.button_active_text_color"
+            />
+          </template>
+        </FormGroup>
+        <FormGroup
+          horizontal-narrow
+          small-label
+          class="margin-bottom-2"
+          :label="$t('buttonThemeConfigBlock.borderColor')"
+        >
+          <ColorInput
+            v-model="v$.values.button_active_border_color.$model"
+            :color-variables="colorVariables"
+            :default-value="theme?.button_active_border_color"
+            small
+          />
+          <template #after-input>
+            <ResetButton
+              v-model="v$.values.button_active_border_color.$model"
+              :default-value="theme?.button_active_border_color"
+            />
+          </template>
+        </FormGroup>
+      </template>
+      <template #preview>
+        <ABButton class="ab-button--force-active">
+          {{ $t('buttonThemeConfigBlock.button') }}
+        </ABButton>
+      </template>
+    </ThemeConfigBlockSection>
   </div>
 </template>
 
@@ -403,6 +470,10 @@ export default {
           this.theme?.button_hover_background_color,
         button_hover_text_color: this.theme?.button_hover_text_color,
         button_hover_border_color: this.theme?.button_hover_border_color,
+        button_active_background_color:
+          this.theme?.button_active_background_color,
+        button_active_text_color: this.theme?.button_active_text_color,
+        button_active_border_color: this.theme?.button_active_border_color,
       },
     }
   },
@@ -558,6 +629,9 @@ export default {
         button_hover_text_color: {},
         button_border_color: {},
         button_hover_border_color: {},
+        button_active_background_color: {},
+        button_active_text_color: {},
+        button_active_border_color: {},
         button_font_family: {},
         button_font_weight: {},
         button_text_color: {},
