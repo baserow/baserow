@@ -19,6 +19,7 @@
             :variant="item.variant"
             :url="getItemUrl(item)"
             :target="getMenuItem(item).target"
+            :class="getActiveItemClass(item)"
           >
             {{
               item.name
@@ -36,7 +37,7 @@
           @click="showSubMenu($event, item.id)"
         >
           <div class="menu-element__sub-link-menu--container">
-            <a>{{ item.name }}</a>
+            <a :class="getActiveParentClass(item)">{{ item.name }}</a>
 
             <div class="menu-element__sub-link-menu-spacer"></div>
 
@@ -70,6 +71,7 @@
                   :url="getItemUrl(child)"
                   :target="getMenuItem(child).target"
                   class="menu-element__sub-link"
+                  :class="getActiveItemClass(child)"
                 >
                   {{
                     child.name
@@ -106,9 +108,18 @@
 </template>
 
 <script>
+import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
 import element from '@baserow/modules/builder/mixins/element'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
+
+/**
+ * CSS classes to force a Link variant to appear as active.
+ */
+const LINK_ACTIVE_CLASSES = {
+  link: 'ab-link--force-active',
+  button: 'ab-button--force-active'
+}
 
 /**
  * @typedef MenuElement
@@ -128,6 +139,35 @@ export default {
   data() {
     return {
       expandedItems: {},
+      activeItem: {},
+    }
+  },
+  mounted() {
+    /**
+     * If the current page matches a menu item, that menu item is set as the
+     * active item. This ensures that the active CSS style is applied to the
+     * correct menu item.
+     */
+    const found = resolveApplicationRoute(
+      this.$store.getters['page/getVisiblePages'](this.builder),
+      this.$route.params.pathMatch,
+    )
+
+    if (!found?.length) return
+
+    const currentPageId = found[0].id
+
+    for (const item of this.element.menu_items) {
+      if (!item.children.length && item.navigate_to_page_id === currentPageId) {
+        this.activeItem = item
+        break
+      }
+      for (const child of item.children) {
+        if (child.navigate_to_page_id === currentPageId) {
+          this.activeItem = child
+          break
+        }
+      }
     }
   },
   computed: {
@@ -194,6 +234,16 @@ export default {
         this.menuElementType.getEventByName(this.element, eventName)
       )
     },
+    getActiveItemClass(item) {
+      if (this.activeItem?.id !== item.id) return ''
+
+      return LINK_ACTIVE_CLASSES[item.variant] || ''
+    },
+    getActiveParentClass(item) {
+      if (!item.children?.some(child => child.id === this.activeItem?.id)) return ''
+
+      return LINK_ACTIVE_CLASSES[item.variant] || ''
+    }
   },
 }
 </script>
