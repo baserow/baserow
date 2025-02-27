@@ -1,5 +1,12 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
+    <CustomStyle
+      v-model="values.styles"
+      style-key="menu"
+      :config-block-types="['button', 'link']"
+      :theme="builder.theme"
+      :extra-args="{ noAlignment: true, noWidth: true }"
+    />
     <FormGroup
       :label="$t('orientations.label')"
       small-label
@@ -70,11 +77,14 @@ import {
 } from '@baserow/modules/core/utils/string'
 import { mapGetters } from 'vuex'
 import MenuElementItemForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementItemForm'
+import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
 
 export default {
   name: 'MenuElementForm',
   components: {
     MenuElementItemForm,
+    LinkNavigationSelectionForm,
+    CustomStyle,
   },
   mixins: [elementForm],
   data() {
