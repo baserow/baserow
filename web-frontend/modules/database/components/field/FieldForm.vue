@@ -157,9 +157,9 @@ export default {
     return {
       allowedValues: ['name', 'type', 'description'],
       values: {
-        name: '',
-        type: this.forcedType || '',
-        description: null,
+        name: this.defaultValues.name,
+        type: this.forcedType || this.defaultValues.type,
+        description: this.defaultValues.description,
       },
       isPrefilledWithSuggestedFieldName: false,
       oldValueType: null,
@@ -222,7 +222,7 @@ export default {
             required
           ),
           maxLength: helpers.withMessage(
-            this.$t('error.nameTooLong'),
+            this.$t('fieldForm.nameTooLong'),
             maxLength(MAX_FIELD_NAME_LENGTH)
           ),
           mustHaveUniqueFieldName: helpers.withMessage(
@@ -230,7 +230,7 @@ export default {
             this.mustHaveUniqueFieldName
           ),
           mustNotClashWithReservedName: helpers.withMessage(
-            this.$t('error.nameNotAllowed'),
+            this.$t('fieldForm.nameNotAllowed'),
             this.mustNotClashWithReservedName
           ),
         },
