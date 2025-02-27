@@ -3,15 +3,18 @@
     :style="getStyleOverride('menu')"
     :class="[
       'menu-element__container',
-      element.orientation === 'horizontal' ? 'horizontal' : 'vertical',
+      element.orientation === 'horizontal'
+        ? 'menu-element__container--horizontal'
+        : 'menu-element__container--vertical',
     ]"
   >
-    <div v-for="item in element.menu_items" :key="item.id">
-      <template v-if="item.type === 'separator'">
-        <div class="menu-element__menu-item-separator"></div>
-      </template>
-      <template v-else-if="item.type === 'link' && !item.parent_menu_item">
-        <div v-if="!item.children?.length">
+    <div
+      v-for="item in element.menu_items"
+      :key="item.id"
+      :class="`menu-element__menu-item-${item.type}`"
+    >
+      <template v-if="item.type === 'link' && !item.parent_menu_item">
+        <template v-if="!item.children?.length">
           <ABLink
             :variant="item.variant"
             :url="getItemUrl(item)"
@@ -26,7 +29,7 @@
                 : $t('menuElement.missingLinkValue')
             }}
           </ABLink>
-        </div>
+        </template>
         <div
           v-else
           ref="menuSubLinkContainer"
@@ -35,7 +38,7 @@
           <div class="menu-element__sub-link-menu--container">
             <a>{{ item.name }}</a>
 
-            <div class="menu-element__sub-link-menu--spacer"></div>
+            <div class="menu-element__sub-link-menu-spacer"></div>
 
             <div>
               <i
