@@ -3764,6 +3764,7 @@ class FileFieldType(FieldType):
                         name=file_name,
                         visible_name=file["visible_name"],
                         original_name=file["name"],
+                        size=file["size"],
                     )
                 )
 

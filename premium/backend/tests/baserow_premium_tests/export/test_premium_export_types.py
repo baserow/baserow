@@ -989,8 +989,8 @@ def test_can_export_every_interesting_different_field_to_excel_without_header(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_can_trigger_export_media_with_premium_license(premium_data_fixture):
-    options = {"exporter_type": "media"}
+def test_can_trigger_export_files_with_premium_license(premium_data_fixture):
+    options = {"exporter_type": "file"}
 
     user = premium_data_fixture.create_user(has_active_premium_license=True)
     database = premium_data_fixture.create_database_application(user=user)
@@ -1002,8 +1002,8 @@ def test_can_trigger_export_media_with_premium_license(premium_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_cannot_trigger_export_media_without_premium_license(premium_data_fixture):
-    options = {"exporter_type": "media"}
+def test_cannot_trigger_export_files_without_premium_license(premium_data_fixture):
+    options = {"exporter_type": "file"}
 
     user = premium_data_fixture.create_user()
     database = premium_data_fixture.create_database_application(user=user)
@@ -1016,10 +1016,10 @@ def test_cannot_trigger_export_media_without_premium_license(premium_data_fixtur
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_cannnot_trigger_export_media_without_premium_license_for_group(
+def test_cannnot_trigger_export_files_without_premium_license_for_group(
     premium_data_fixture, alternative_per_workspace_license_service
 ):
-    options = {"exporter_type": "media"}
+    options = {"exporter_type": "file"}
     user = premium_data_fixture.create_user(has_active_premium_license=True)
     database = premium_data_fixture.create_database_application(user=user)
     table = premium_data_fixture.create_database_table(database=database)
@@ -1034,10 +1034,10 @@ def test_cannnot_trigger_export_media_without_premium_license_for_group(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_export_empty_media_does_not_fail(premium_data_fixture):
+def test_export_empty_files_does_not_fail(premium_data_fixture):
     storage = get_default_storage()
 
-    options = {"exporter_type": "media"}
+    options = {"exporter_type": "file"}
     user = premium_data_fixture.create_user(has_active_premium_license=True)
     database = premium_data_fixture.create_database_application(user=user)
     table = premium_data_fixture.create_database_table(database=database)
@@ -1067,7 +1067,7 @@ def test_export_empty_media_does_not_fail(premium_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_export_non_empty_media_flat(premium_data_fixture, use_tmp_media_root):
+def test_export_non_empty_files_flat(premium_data_fixture, use_tmp_media_root):
     storage = get_default_storage()
 
     user = premium_data_fixture.create_user(has_active_premium_license=True)
@@ -1133,7 +1133,7 @@ def test_export_non_empty_media_flat(premium_data_fixture, use_tmp_media_root):
 
     grid_view = premium_data_fixture.create_grid_view(table=table)
 
-    options = {"exporter_type": "media", "organize_media_files": False}
+    options = {"exporter_type": "file", "organize_files": False}
     handler = ExportHandler()
     job = handler.create_pending_export_job(user, table, grid_view, options)
 
@@ -1161,7 +1161,7 @@ def test_export_non_empty_media_flat(premium_data_fixture, use_tmp_media_root):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_export_non_empty_media_group_by_row(premium_data_fixture, use_tmp_media_root):
+def test_export_non_empty_files_group_by_row(premium_data_fixture, use_tmp_media_root):
     storage = get_default_storage()
 
     user = premium_data_fixture.create_user(has_active_premium_license=True)
@@ -1227,7 +1227,7 @@ def test_export_non_empty_media_group_by_row(premium_data_fixture, use_tmp_media
 
     grid_view = premium_data_fixture.create_grid_view(table=table)
 
-    options = {"exporter_type": "media", "organize_media_files": True}
+    options = {"exporter_type": "file", "organize_files": True}
     handler = ExportHandler()
     job = handler.create_pending_export_job(user, table, grid_view, options)
 

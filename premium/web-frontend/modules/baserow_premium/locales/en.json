@@ -12,7 +12,7 @@
       "json": "Export to JSON",
       "xml": "Export to XML",
       "excel": "Export to Excel",
-      "media": "Export Media"
+      "file": "Export files"
     },
     "deactivated": "Available in premium version"
   },
@@ -92,8 +92,8 @@
   "tableExcelExporter": {
     "includeHeader": "Include field names as header"
   },
-  "tableMediaExporter": {
-    "organizeMediaFiles": "Group media files by row"
+  "tableFileExporter": {
+    "organizeFiles": "Group files by row id"
   },
   "kanbanViewStackContext": {
     "createCard": "Create card",

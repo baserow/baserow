@@ -56,6 +56,12 @@ class FileWriter(abc.ABC):
             turn and writes to the file.
         """
 
+    @abc.abstractmethod
+    def write_files(self, queryset, write_row):
+        """
+        Writes the queryset to the file using the provided write_row callback.
+        """
+
     def get_csv_dict_writer(self, headers, **kwargs):
         return csv.DictWriter(self._file, headers, **kwargs)
 
@@ -73,6 +79,9 @@ class PaginatedExportJobFileWriter(FileWriter):
         super().__init__(file)
         self.job = job
         self.last_check = None
+
+    def update_check(self):
+        self.last_check = time.perf_counter()
 
     def write_bytes(self, value: bytes):
         self._file.write(value)
@@ -94,7 +103,7 @@ class PaginatedExportJobFileWriter(FileWriter):
             turn and writes to the file.
         """
 
-        self.last_check = time.perf_counter()
+        self.update_check()
         paginator = Paginator(queryset.all(), 2000)
         i = 0
         for page in paginator.page_range:
@@ -103,6 +112,31 @@ class PaginatedExportJobFileWriter(FileWriter):
                 is_last_row = i == paginator.count
                 write_row(row, is_last_row)
                 self._check_and_update_job(i, paginator.count)
+
+    def write_files(self, queryset, write_row):
+        """
+        Writes files from the queryset to the file using the provided write_row
+        callback.
+        Every EXPORT_JOB_UPDATE_FREQUENCY_SECONDS will check if the job has been
+        cancelled and if so stop writing to the file and will raise a
+        ExportJobCanceledException. Finally will also update job.progress_percentage
+        every EXPORT_JOB_UPDATE_FREQUENCY_SECONDS as it progresses through writing
+        the queryset.
+
+        :param queryset: The queryset to process.
+        :param write_row: A callable function which takes each row from the queryset in
+            turn and writes to the file.
+
+        :return: A list of files added to zip stream
+        """
+
+        self.update_check()
+        file_data = []
+        paginator = Paginator(queryset.all(), 2000)
+        for page in paginator.page_range:
+            for row in paginator.page(page).object_list:
+                file_data.extend(write_row(row, False))
+        return file_data
 
     def _check_and_update_job(self, current_row, total_rows):
         """
@@ -124,7 +158,7 @@ class PaginatedExportJobFileWriter(FileWriter):
         )
         is_last_row = current_row == total_rows
         if enough_time_has_passed or is_last_row:
-            self.last_check = time.perf_counter()
+            self.update_check()
             self.job.refresh_from_db()
             if self.job.is_cancelled_or_expired():
                 raise ExportJobCanceledException()

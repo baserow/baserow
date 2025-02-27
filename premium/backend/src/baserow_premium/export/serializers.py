@@ -13,8 +13,8 @@ class ExcelExporterOptionsSerializer(BaseExporterOptionsSerializer):
     )
 
 
-class MediaExporterOptionsSerializer(BaseExporterOptionsSerializer):
-    organize_media_files = fields.BooleanField(
+class FileExporterOptionsSerializer(BaseExporterOptionsSerializer):
+    organize_files = fields.BooleanField(
         default=True,
-        help_text="Whether or not to group media files by row in the resulting export.",
+        help_text="Whether or not to group files by row id in the export.",
     )

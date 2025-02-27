@@ -3,12 +3,12 @@
     <div class="row">
       <div class="col col-12">
         <FormGroup
-          :label="$t('tableMediaExporter.organizeMediaFiles')"
+          :label="$t('tableFileExporter.organizeFiles')"
           required
           small-label
           class="margin-bottom-2"
         >
-          <Checkbox v-model="values.organize_media_files" :disabled="loading">{{
+          <Checkbox v-model="values.organize_files" :disabled="loading">{{
             $t('common.yes')
           }}</Checkbox>
         </FormGroup>
@@ -21,7 +21,7 @@
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
-  name: 'TableMediaExporter',
+  name: 'TableFileExporter',
   mixins: [form],
   props: {
     loading: {
@@ -32,7 +32,7 @@ export default {
   data() {
     return {
       values: {
-        organize_media_files: true,
+        organize_files: false,
       },
     }
   },

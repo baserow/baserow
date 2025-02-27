@@ -18,7 +18,7 @@ from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.storage import ExportZipFile, get_default_storage
 
 from ..license.features import PREMIUM
-from .serializers import ExcelExporterOptionsSerializer, MediaExporterOptionsSerializer
+from .serializers import ExcelExporterOptionsSerializer, FileExporterOptionsSerializer
 from .utils import get_unique_name, safe_xml_tag_name, to_xml
 
 
@@ -231,22 +231,25 @@ class ExcelTableExporter(PremiumTableExporter):
         return ExcelQuerysetSerializer
 
 
-class MediaQuerysetSerializer(QuerysetSerializer):
+class FileQuerysetSerializer(QuerysetSerializer):
     can_handle_rich_value = True
 
     def write_to_file(
         self,
         file_writer: FileWriter,
         export_charset: str = "utf-8",
-        organize_media_files: bool = True,
+        organize_files: bool = True,
     ):
         """
-        Writes media files from the queryset to a zip archive. Will create a directory
-        structure based on field names and include all media files found in the rows.
+        Writes files from the queryset to a zip archive. Will create a directory
+        structure based on field names and include all files found in the rows.
 
         :param file_writer: The FileWriter instance to write to.
         :param export_charset: The charset to use for writing metadata.
+        :param organize_files: Whether or not to group files by row id in the export
         """
+
+        file_writer.update_check()
 
         storage = get_default_storage()
         field_serializers = []
@@ -257,18 +260,20 @@ class MediaQuerysetSerializer(QuerysetSerializer):
         )
 
         file_fields = []
-
         # Get list of file-type fields
         for field_object in self.ordered_field_objects:
             if isinstance(field_object["type"], FileFieldType):
                 file_fields.append(field_object)
                 field_serializers.append(self._get_field_serializer(field_object))
 
+        progress = 0
+
         def write_row(row, is_last):
-            row_folder = f"row_{row.id}/" if organize_media_files else ""
+            file_data = []
+            row_folder = f"row_{row.id}/" if organize_files else ""
             for file_field_data in file_fields:
                 file_field = file_field_data["type"]
-                file_field.get_export_serialized_value(
+                file_serialized_data = file_field.get_export_serialized_value(
                     row,
                     file_field_data["name"],
                     {},
@@ -276,19 +281,33 @@ class MediaQuerysetSerializer(QuerysetSerializer):
                     storage,
                     row_folder,
                 )
+                file_data.extend(file_serialized_data)
+            return file_data
 
-        file_writer.write_rows(self.queryset, write_row)
+        # 13% for preparing data
+        file_writer._check_and_update_job(13, 100)
 
+        processed_files = file_writer.write_files(self.queryset, write_row)
+        items = {item["name"]: item["size"] for item in processed_files}
+        total_size = sum(items.values()) or 1
+
+        # 2% for calculating total size
+        file_writer._check_and_update_job(15, 100)
+
+        # 85% for writing chunks
         for chunk in zip_file:
+            size = len(chunk)
+            progress += (size / total_size) * 85
             file_writer._file.write(chunk)
+            file_writer._check_and_update_job(progress, 100)
 
 
-class MediaTableExporter(PremiumTableExporter):
-    type = "media"
+class FileTableExporter(PremiumTableExporter):
+    type = "file"
 
     @property
     def option_serializer_class(self) -> Type[BaseExporterOptionsSerializer]:
-        return MediaExporterOptionsSerializer
+        return FileExporterOptionsSerializer
 
     @property
     def can_export_table(self) -> bool:
@@ -304,4 +323,4 @@ class MediaTableExporter(PremiumTableExporter):
 
     @property
     def queryset_serializer_class(self):
-        return MediaQuerysetSerializer
+        return FileQuerysetSerializer
