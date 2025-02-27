@@ -357,6 +357,8 @@ export default {
                 newQuery[name]
               )
             } catch {
+              // Skip setting the parameter if the user-provided value
+              // doesn't pass our parameter `type` validation.
               return null
             }
             return this.$store.dispatch('pageParameter/setParameter', {
