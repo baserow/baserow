@@ -13,7 +13,6 @@ from django.utils.encoding import force_str
 
 from loguru import logger
 from opentelemetry import trace
-from psycopg2 import sql
 from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
@@ -30,6 +29,7 @@ from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.constants import (
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
 )
+from baserow.core.psycopg import sql
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.utils import ChildProgressBuilder, exception_capturer
 

@@ -11,7 +11,6 @@ from django.utils import translation
 from django.utils.translation import gettext as _
 
 from opentelemetry import trace
-from psycopg2 import sql
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.constants import RESERVED_BASEROW_FIELD_NAMES
@@ -40,6 +39,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.handler import CoreHandler
+from baserow.core.psycopg import sql
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler

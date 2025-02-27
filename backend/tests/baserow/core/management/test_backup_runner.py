@@ -11,6 +11,7 @@ from freezegun import freeze_time
 from baserow.contrib.database.table.models import Table
 from baserow.core.management.backup.backup_runner import BaserowBackupRunner
 from baserow.core.management.backup.exceptions import InvalidBaserowBackupArchive
+from baserow.core.psycopg import is_psycopg3
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -71,7 +72,7 @@ def test_can_backup_and_restore_baserow_reverting_changes(data_fixture, environ)
 
 
 @patch("tempfile.TemporaryDirectory")
-@patch("psycopg2.connect")
+@patch("psycopg.connect" if is_psycopg3 else "psycopg2.connect")
 @patch("subprocess.check_output")
 def test_backup_baserow_dumps_database_in_batches(
     mock_check_output, mock_connect, mock_tempfile, fs, environ
@@ -141,7 +142,7 @@ def test_backup_baserow_dumps_database_in_batches(
 
 
 @patch("tempfile.TemporaryDirectory")
-@patch("psycopg2.connect")
+@patch("psycopg.connect" if is_psycopg3 else "psycopg2.connect")
 @patch("subprocess.check_output")
 def test_can_change_num_jobs_and_insert_extra_args_for_baserow_backup(
     mock_check_output, mock_connect, mock_tempfile, fs, environ
@@ -226,7 +227,7 @@ def test_can_change_num_jobs_and_insert_extra_args_for_baserow_backup(
 
 
 @patch("tempfile.TemporaryDirectory")
-@patch("psycopg2.connect")
+@patch("psycopg.connect" if is_psycopg3 else "psycopg2.connect")
 @patch("subprocess.check_output")
 def test_backup_baserow_table_batches_includes_all_tables_when_final_batch_small(
     mock_check_output, mock_connect, mock_tempfile, fs, environ
@@ -285,7 +286,7 @@ def test_backup_baserow_table_batches_includes_all_tables_when_final_batch_small
 
 
 @patch("tempfile.TemporaryDirectory")
-@patch("psycopg2.connect")
+@patch("psycopg.connect" if is_psycopg3 else "psycopg2.connect")
 @patch("subprocess.check_output")
 def test_backup_baserow_includes_all_tables_when_batch_size_matches_num_tables(
     mock_check_output, mock_connect, mock_tempfile, fs, environ
@@ -336,7 +337,7 @@ def test_backup_baserow_includes_all_tables_when_batch_size_matches_num_tables(
 
 
 @patch("tempfile.TemporaryDirectory")
-@patch("psycopg2.connect")
+@patch("psycopg.connect" if is_psycopg3 else "psycopg2.connect")
 @patch("subprocess.check_output")
 def test_backup_baserow_does_no_table_batches_when_no_user_tables_found(
     mock_check_output, mock_connect, mock_tempfile, fs, environ

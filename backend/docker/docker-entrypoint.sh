@@ -55,7 +55,10 @@ DATABASE_PASSWORD=$DATABASE_PASSWORD \
 DATABASE_OPTIONS=$DATABASE_OPTIONS \
 python3 << END
 import sys
-import psycopg2
+try:
+    import psycopg
+except ImportError:
+    import psycopg2 as psycopg
 import json
 import os
 DATABASE_NAME=os.getenv('DATABASE_NAME')
@@ -66,7 +69,7 @@ DATABASE_PASSWORD=os.getenv('DATABASE_PASSWORD')
 DATABASE_OPTIONS=os.getenv('DATABASE_OPTIONS')
 try:
     options = json.loads(DATABASE_OPTIONS or "{}")
-    psycopg2.connect(
+    psycopg.connect(
         dbname=DATABASE_NAME,
         user=DATABASE_USER,
         password=DATABASE_PASSWORD,
@@ -80,7 +83,7 @@ except Exception as e:
     print(e)
     print("Trying again without any DATABASE_OPTIONS:")
     try:
-      psycopg2.connect(
+      psycopg.connect(
           dbname=DATABASE_NAME,
           user=DATABASE_USER,
           password=DATABASE_PASSWORD,
@@ -99,14 +102,17 @@ else
 DATABASE_URL=$DATABASE_URL \
 python3 << END
 import sys
-import psycopg2
+try:
+    import psycopg
+except ImportError:
+    import psycopg2 as psycopg
 import os
 DATABASE_URL=os.getenv('DATABASE_URL')
 try:
-    psycopg2.connect(
+    psycopg.connect(
         DATABASE_URL
     )
-except psycopg2.OperationalError as e:
+except psycopg.OperationalError as e:
     print(f"Error: Failed to connect to the postgresql database at {DATABASE_URL}")
     print("Please see the error below for more details:")
     print(e)

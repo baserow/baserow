@@ -21,7 +21,6 @@ from django.db.models.query import QuerySet
 import jwt
 from loguru import logger
 from opentelemetry import trace
-from psycopg2 import sql
 from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.api.utils import get_include_exclude_field_ids
@@ -84,7 +83,7 @@ from baserow.contrib.database.views.registries import (
     view_ownership_type_registry,
 )
 from baserow.contrib.database.views.view_filter_groups import ViewGroupedFiltersAdapter
-from baserow.core.db import specific_iterator, transaction_atomic
+from baserow.core.db import specific_iterator, sql, transaction_atomic
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace

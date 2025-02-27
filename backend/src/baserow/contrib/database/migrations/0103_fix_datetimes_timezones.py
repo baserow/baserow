@@ -2,14 +2,13 @@
 
 from django.db import connection, migrations
 
-from psycopg2 import sql
-
 from baserow.contrib.database.fields.models import (
     CreatedOnField,
     DateField,
     FormulaField,
     LastModifiedField,
 )
+from baserow.core.psycopg import sql
 
 
 def forward(apps, schema_editor):

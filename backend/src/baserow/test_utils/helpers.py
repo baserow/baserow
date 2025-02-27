@@ -13,7 +13,6 @@ from django.contrib.auth.models import AbstractUser
 from django.db import connection
 from django.utils.dateparse import parse_date, parse_datetime
 
-import psycopg2
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
@@ -27,6 +26,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionType
 from baserow.core.models import Workspace
+from baserow.core.psycopg import psycopg
 
 User = get_user_model()
 
@@ -508,9 +508,9 @@ def assert_undo_redo_actions_fails_with_error(
 @contextmanager
 def independent_test_db_connection():
     d = connection.settings_dict
-    conn = psycopg2.connect(
+    conn = psycopg.connect(
         host=d["HOST"],
-        database=d["NAME"],
+        dbname=d["NAME"],
         user=d["USER"],
         password=d["PASSWORD"],
         port=d["PORT"],

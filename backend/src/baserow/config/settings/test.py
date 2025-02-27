@@ -36,6 +36,11 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
+# Disable default optimizations for the tests because they make tests slower.
+DATABASES["default"]["OPTIONS"] = {
+    "server_side_binding": False,
+    "prepare_threshold": None,
+}
 # Open a second database connection that can be used to test transactions.
 DATABASES["default-copy"] = deepcopy(DATABASES["default"])
 
@@ -59,11 +64,6 @@ CACHES = {
         "KEY_PREFIX": f"baserow-{GENERATED_MODEL_CACHE_NAME}-cache",
         "VERSION": None,
     },
-    CACHALOT_CACHE: {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "KEY_PREFIX": f"baserow-{CACHALOT_CACHE}-cache",
-        "VERSION": None,
-    },
 }
 
 # Disable the default throttle classes because ConcurrentUserRequestsThrottle is
@@ -71,10 +71,6 @@ CACHES = {
 # Look into tests.baserow.api.test_api_utils.py if you need to test the throttle
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
 
-if "cachalot" not in INSTALLED_APPS:
-    install_cachalot()
-
-CACHALOT_ENABLED = False
 
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = 10
 BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = 300
@@ -105,3 +101,14 @@ STORAGES["default"] = {"BACKEND": BASE_FILE_STORAGE}
 BASEROW_LOGIN_ACTION_LOG_LIMIT = RateLimit.from_string("1000/s")
 
 BASEROW_WEBHOOKS_ALLOW_PRIVATE_ADDRESS = False
+
+
+CACHALOT_ENABLED = str_to_bool(os.getenv("CACHALOT_ENABLED", "false"))
+if CACHALOT_ENABLED:
+    CACHES[CACHALOT_CACHE] = {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "KEY_PREFIX": f"baserow-{CACHALOT_CACHE}-cache",
+        "VERSION": None,
+    }
+
+    install_cachalot()

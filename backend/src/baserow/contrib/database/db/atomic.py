@@ -1,9 +1,7 @@
 from django.db.transaction import Atomic
 
-from cachalot.api import cachalot_disabled
-from psycopg2 import sql
-
-from baserow.core.db import IsolationLevel, transaction_atomic
+from baserow.cachalot_patch import cachalot_disabled
+from baserow.core.db import IsolationLevel, sql, transaction_atomic
 
 
 def read_repeatable_single_database_atomic_transaction(

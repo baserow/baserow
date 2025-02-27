@@ -26,7 +26,8 @@ from django.db.models.sql.query import LOOKUP_SEP
 from django.db.transaction import Atomic, get_connection
 
 from loguru import logger
-from psycopg2 import sql
+
+from baserow.core.psycopg import sql
 
 from .utils import find_intermediate_order
 

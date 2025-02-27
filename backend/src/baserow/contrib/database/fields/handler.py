@@ -22,7 +22,6 @@ from django.db.utils import DatabaseError, DataError, ProgrammingError
 
 from loguru import logger
 from opentelemetry import trace
-from psycopg2 import sql
 
 from baserow.contrib.database.db.schema import (
     lenient_schema_editor,
@@ -51,7 +50,7 @@ from baserow.contrib.database.fields.operations import (
 )
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.core.db import specific_iterator
+from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry, User
 from baserow.core.telemetry.utils import baserow_trace_methods

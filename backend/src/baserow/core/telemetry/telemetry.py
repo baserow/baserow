@@ -11,7 +11,6 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.django import DjangoInstrumentor
-from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
@@ -20,8 +19,16 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import PeriodicExportingMetricReader
 from opentelemetry.trace import ProxyTracerProvider
 
+from baserow.core.psycopg import is_psycopg3
 from baserow.core.telemetry.provider import DifferentSamplerPerLibraryTracerProvider
 from baserow.core.telemetry.utils import BatchBaggageSpanProcessor, otel_is_enabled
+
+if is_psycopg3:
+    from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
+else:
+    from opentelemetry.instrumentation.psycopg2 import (
+        Psycopg2Instrumentor as PsycopgInstrumentor,
+    )
 
 
 class LogGuruCompatibleLoggerHandler(LoggingHandler):
@@ -148,7 +155,7 @@ def _setup_celery_metrics():
 
 def _setup_standard_backend_instrumentation():
     BotocoreInstrumentor().instrument()
-    Psycopg2Instrumentor().instrument()
+    PsycopgInstrumentor().instrument()
     RedisInstrumentor().instrument()
     RequestsInstrumentor().instrument()
     CeleryInstrumentor().instrument()

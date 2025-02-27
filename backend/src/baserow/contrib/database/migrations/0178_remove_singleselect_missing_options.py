@@ -1,7 +1,7 @@
 from django.db import ProgrammingError, connection, migrations, transaction
 from django.db.models.expressions import F
 
-from psycopg2 import sql
+from baserow.core.psycopg import sql
 
 
 def forward(apps, schema_editor):
