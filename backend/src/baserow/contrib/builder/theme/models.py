@@ -256,6 +256,24 @@ class ButtonThemeConfigBlock(ThemeConfigBlock):
         blank=True,
         help_text="The border color of buttons when hovered",
     )
+    button_active_background_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH,
+        default="#4783db",
+        blank=True,
+        help_text="The background color of buttons when active",
+    )
+    button_active_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH,
+        default="#ffffffff",
+        blank=True,
+        help_text="The text color of buttons when active",
+    )
+    button_active_border_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH,
+        default="#275d9f",
+        blank=True,
+        help_text="The border color of buttons when active",
+    )
 
 
 class LinkThemeConfigBlock(ThemeConfigBlock):
@@ -286,6 +304,12 @@ class LinkThemeConfigBlock(ThemeConfigBlock):
         default="#96baf6ff",
         blank=True,
         help_text="The hover color of links when hovered",
+    )
+    link_active_text_color = models.CharField(
+        max_length=COLOR_FIELD_MAX_LENGTH,
+        default="#96baf6ff",
+        blank=True,
+        help_text="The hover color of links when active",
     )
 
 
