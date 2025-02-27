@@ -22,7 +22,7 @@
     </FormGroup>
     <div
       ref="menuItemAddContainer"
-      class="menu-element__form--add-item-container"
+      class="menu-element-form__add-item-container"
     >
       <div>
         {{ $t('menuElementForm.menuItemsLabel') }}
@@ -45,7 +45,7 @@
       </div>
     </div>
     <Context ref="menuItemAddContext" :hide-on-click-outside="true">
-      <div class="menu-element__form--add-item-context">
+      <div class="menu-element-form__add-item-context">
         <ButtonText
           v-for="(menuItemType, index) in addMenuItemTypes"
           :key="index"
@@ -111,6 +111,11 @@ export default {
           icon: 'baserow-icon-separator',
           label: this.$t('menuElementForm.menuItemAddSeparator'),
           type: 'separator',
+        },
+        {
+          icon: 'baserow-icon-spacer',
+          label: this.$t('menuElementForm.menuItemAddSpacer'),
+          type: 'spacer',
         },
       ],
     }
