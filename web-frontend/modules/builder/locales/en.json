@@ -207,6 +207,7 @@
   "menuElementForm": {
     "menuItemsLabel": "Menu items",
     "addMenuItemLink": "Add...",
+    "alignment": "Alignment",
     "menuItemDefaultName": "Page",
     "menuItemLabelLabel": "Label",
     "menuItemTypeLabel": "Type",
