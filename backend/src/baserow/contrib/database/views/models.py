@@ -501,6 +501,14 @@ class ViewSort(HierarchicalModelMixin, models.Model):
         "and DESC (Descending) is from Z to A.",
         default=SORT_ORDER_ASC,
     )
+    type = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Indicates the type of sort that must be applied. If empty, the default "
+        "sort is used which is alphabetical in case of text. If the field type has "
+        "additional sort types, you can specify them here.",
+    )
 
     def get_parent(self):
         return self.view

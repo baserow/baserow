@@ -346,8 +346,14 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, models.QuerySet):
                     f"It is not possible to order by field type {field_type.type}.",
                 )
 
+            # Check if sort_type is specified in the order string
+            sort_type = ""
+            field_order_parts = order.split("[")
+            if len(field_order_parts) > 1 and field_order_parts[1].endswith("]"):
+                sort_type = field_order_parts[1][:-1]
+                
             field_annotated_order_by = field_type.get_order(
-                field, field_name, order_direction, table_model=self.model
+                field, field_name, order_direction, table_model=self.model, sort_type=sort_type
             )
 
             if field_annotated_order_by.annotation is not None:

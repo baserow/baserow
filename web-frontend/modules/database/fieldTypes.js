@@ -3258,11 +3258,26 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     return RowCardFieldSingleSelect
   }
 
-  getSort(name, order) {
+  getSort(name, order, sortType = '') {
+    if (sortType === 'option_order') {
+      return (a, b) => {
+        const orderA = a[name] === null ? -1 : a[name].order
+        const orderB = b[name] === null ? -1 : b[name].order
+        return order === 'ASC' ? orderA - orderB : orderB - orderA
+      }
+    }
+    
     return (a, b) => {
       const stringA = a[name] === null ? '' : '' + a[name].value
       const stringB = b[name] === null ? '' : '' + b[name].value
       return collatedStringCompare(stringA, stringB, order)
+    }
+  }
+  
+  getAvailableSortTypes(field) {
+    return {
+      '': 'Alphabetically',
+      'option_order': 'Option order',
     }
   }
 
