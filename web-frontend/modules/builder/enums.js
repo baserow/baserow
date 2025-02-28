@@ -162,7 +162,7 @@ export const ELEMENT_EVENTS = {
   DATA_SOURCE_AFTER_UPDATE: 'DATA_SOURCE_AFTER_UPDATE',
 }
 
-export const TABLE_ORIENTATION = {
+export const ORIENTATIONS = {
   HORIZONTAL: 'horizontal',
   VERTICAL: 'vertical',
 }
@@ -207,9 +207,4 @@ export const TIME_FORMATS = {
     name: 'common.timeFormat12Hour',
     example: '11:00 PM',
   },
-}
-
-export const MENU_ORIENTATION = {
-  HORIZONTAL: 'horizontal',
-  VERTICAL: 'vertical',
 }

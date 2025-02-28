@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
     <FormGroup
-      :label="$t('menuElementForm.orientationLabel')"
+      :label="$t('orientations.label')"
       small-label
       required
       class="margin-bottom-2"
@@ -267,7 +267,7 @@
 
 <script>
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import { MENU_ORIENTATION } from '@baserow/modules/builder/enums'
+import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 import {
   getNextAvailableNameInSequence,
   uuid,
@@ -286,7 +286,7 @@ export default {
       values: {
         value: '',
         styles: {},
-        orientation: 'vertical',
+        orientation: ORIENTATIONS.VERTICAL,
         menu_items: [],
       },
       allowedValues: ['value', 'styles', 'menu_items', 'orientation'],
@@ -313,8 +313,8 @@ export default {
     ...mapGetters({
       getElementSelected: 'element/getSelected',
     }),
-    MENU_ORIENTATION() {
-      return MENU_ORIENTATION
+    ORIENTATIONS() {
+      return ORIENTATIONS
     },
     menuItemTypes() {
       return [
@@ -346,13 +346,13 @@ export default {
     orientationOptions() {
       return [
         {
-          label: this.$t('menuElementForm.orientationVertical'),
-          value: 'vertical',
+          label: this.$t('orientations.vertical'),
+          value: ORIENTATIONS.VERTICAL,
           icon: 'iconoir-table-rows',
         },
         {
-          label: this.$t('menuElementForm.orientationHorizontal'),
-          value: 'horizontal',
+          label: this.$t('orientations.horizontal'),
+          value: ORIENTATIONS.HORIZONTAL,
           icon: 'iconoir-view-columns-3',
         },
       ]

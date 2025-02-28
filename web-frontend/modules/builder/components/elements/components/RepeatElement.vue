@@ -135,6 +135,7 @@ import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { RepeatElementType } from '@baserow/modules/builder/elementTypes'
 import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
+import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'RepeatElement',
@@ -191,7 +192,7 @@ export default {
       // `grid-template-columns` rule's `repeat`, it will cause a repaint
       // following page load when the orientation is horizontal. Initially the
       // page visitor will see repetitions vertically, then suddenly horizontally.
-      if (this.element.orientation === 'vertical') {
+      if (this.element.orientation === ORIENTATIONS.VERTICAL) {
         return {
           display: 'flex',
           'flex-direction': 'column',

@@ -75,7 +75,7 @@
       />
     </FormGroup>
     <FormGroup
-      :label="$t('repeatElementForm.orientationLabel')"
+      :label="$t('orientations.label')"
       small-label
       required
       class="margin-bottom-2"
@@ -178,6 +178,7 @@ import ServiceSchemaPropertySelector from '@baserow/modules/core/components/serv
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
+import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 
 const MAX_GAP_PX = 2000
 
@@ -262,13 +263,13 @@ export default {
     orientationOptions() {
       return [
         {
-          label: this.$t('repeatElementForm.orientationVertical'),
-          value: 'vertical',
+          label: this.$t('orientations.vertical'),
+          value: ORIENTATIONS.VERTICAL,
           icon: 'iconoir-table-rows',
         },
         {
-          label: this.$t('repeatElementForm.orientationHorizontal'),
-          value: 'horizontal',
+          label: this.$t('orientations.horizontal'),
+          value: ORIENTATIONS.HORIZONTAL,
           icon: 'iconoir-view-columns-3',
         },
       ]

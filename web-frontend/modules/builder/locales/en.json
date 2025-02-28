@@ -190,6 +190,11 @@
     "textFormatTypePlain": "Plain text",
     "textFormatTypeMarkdown": "Markdown"
   },
+  "orientations": {
+    "label": "Orientation",
+    "horizontal": "Horizontal",
+    "vertical": "Vertical"
+  },
   "menuElement": {
     "missingValue": "Missing menu item",
     "separator": "Separator",
@@ -200,9 +205,6 @@
     "emptyButtonValue": "Empty button name..."
   },
   "menuElementForm": {
-    "orientationLabel": "Orientation",
-    "orientationHorizontal": "Horizontal",
-    "orientationVertical": "Vertical",
     "menuItemsLabel": "Menu items",
     "addMenuItemLink": "Add...",
     "menuItemDefaultName": "Page",
@@ -679,9 +681,6 @@
     "selectSourceFirst": "Choose a data source and/or property to begin configuring your fields.",
     "buttonColor": "Button color",
     "refreshFieldsFromDataSource": "refresh fields from data source",
-    "orientation": "Orientation",
-    "orientationHorizontal": "Horizontal",
-    "orientationVertical": "Vertical",
     "buttonLoadMoreLabel": "Show more label",
     "propertySelectorMissingArrays": "No multiple valued fields found to use as rows."
   },
@@ -719,9 +718,6 @@
     "itemsPerPagePlaceholder": "Enter value...",
     "itemsPerRowLabel": "Items per row",
     "itemsPerRowDescription": "Number of columns per row and device type.",
-    "orientationLabel": "Orientation",
-    "orientationVertical": "Vertical",
-    "orientationHorizontal": "Horizontal",
     "buttonLoadMoreLabel": "Show more label",
     "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
     "propertySelectorMissingArrays": "No multiple valued fields found to repeat with.",
