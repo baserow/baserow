@@ -10,6 +10,7 @@ from baserow.contrib.builder.elements.models import (
     ImageElement,
     InputTextElement,
     LinkElement,
+    MenuElement,
     RecordSelectorElement,
     RepeatElement,
     TableElement,
@@ -115,6 +116,9 @@ class ElementFixtures:
             RecordSelectorElement, user, page, **kwargs
         )
         return element
+
+    def create_builder_menu_element(self, user=None, page=None, **kwargs):
+        return self.create_builder_element(MenuElement, user, page, **kwargs)
 
     def create_builder_element(self, model_class, user=None, page=None, **kwargs):
         if user is None:

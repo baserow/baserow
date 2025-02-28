@@ -5,8 +5,7 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK
 
-from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
-from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.contrib.builder.elements.models import MenuItemElement
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.test_utils.helpers import AnyInt, AnyStr
 
@@ -20,13 +19,7 @@ def menu_element_fixture(data_fixture):
     page_a = data_fixture.create_builder_page(builder=builder, path="/page_a/:foo/")
     page_b = data_fixture.create_builder_page(builder=builder, path="/page_b/")
 
-    ElementService().create_element(
-        user,
-        element_type_registry.get("menu"),
-        page=page_a,
-    )
-
-    menu_element = MenuElement.objects.last()
+    menu_element = data_fixture.create_builder_menu_element(user=user, page=page_a)
 
     return {
         "user": user,
