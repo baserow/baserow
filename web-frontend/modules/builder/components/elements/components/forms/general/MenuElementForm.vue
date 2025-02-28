@@ -20,6 +20,18 @@
       >
       </RadioGroup>
     </FormGroup>
+
+    <FormGroup
+      :label="$t('menuElementForm.alignment')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
+      <HorizontalAlignmentsSelector
+        v-model="values.alignment"
+      />
+    </FormGroup>
+
     <div
       ref="menuItemAddContainer"
       class="menu-element-form__add-item-container"
@@ -70,7 +82,7 @@
 
 <script>
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import { ORIENTATIONS } from '@baserow/modules/builder/enums'
+import { HORIZONTAL_ALIGNMENTS, ORIENTATIONS } from '@baserow/modules/builder/enums'
 import {
   getNextAvailableNameInSequence,
   uuid,
@@ -78,6 +90,7 @@ import {
 import { mapGetters } from 'vuex'
 import MenuElementItemForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementItemForm'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 
 export default {
   name: 'MenuElementForm',
@@ -85,6 +98,8 @@ export default {
     MenuElementItemForm,
     LinkNavigationSelectionForm,
     CustomStyle,
+    LinkNavigationSelectionForm,    
+    HorizontalAlignmentsSelector,
   },
   mixins: [elementForm],
   data() {
@@ -93,9 +108,10 @@ export default {
         value: '',
         styles: {},
         orientation: ORIENTATIONS.VERTICAL,
+        alignment: HORIZONTAL_ALIGNMENTS.LEFT,
         menu_items: [],
       },
-      allowedValues: ['value', 'styles', 'menu_items', 'orientation'],
+      allowedValues: ['value', 'styles', 'menu_items', 'orientation', 'alignment'],
       addMenuItemTypes: [
         {
           icon: 'iconoir-link',
