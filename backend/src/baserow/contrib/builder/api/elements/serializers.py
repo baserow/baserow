@@ -15,17 +15,12 @@ from baserow.contrib.builder.api.workflow_actions.serializers import (
 )
 from baserow.contrib.builder.elements.models import (
     ChoiceElementOption,
+    CollectionElementPropertyOptions,
+    CollectionField,
     Element,
     LinkElement,
     MenuItemElement,
     NavigationElementMixin,
-)
-from baserow.contrib.builder.elements.models import (
-    ChoiceElementOption,
-    CollectionElementPropertyOptions,
-    CollectionField,
-    Element,
-    MenuItemElement,
 )
 from baserow.contrib.builder.elements.registries import (
     collection_field_type_registry,

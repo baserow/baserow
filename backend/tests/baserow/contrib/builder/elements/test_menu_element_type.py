@@ -5,12 +5,12 @@ from copy import deepcopy
 
 import pytest
 
-from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
+from baserow.contrib.builder.api.elements.serializers import MenuItemSerializer
 from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyInt
-from baserow.contrib.builder.api.elements.serializers import MenuItemSerializer
 
 
 @pytest.fixture
@@ -228,7 +228,7 @@ def test_update_menu_item(menu_element_fixture, field, value):
 
     item = updated_menu_element.menu_items.first()
     updated_menu_item = MenuItemSerializer(item).data
-    
+
     # Ensure that only that specific field was updated
     assert updated_menu_item == expected
 

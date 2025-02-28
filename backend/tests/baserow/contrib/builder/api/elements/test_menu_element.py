@@ -5,8 +5,8 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK
 
-from baserow.contrib.builder.elements.models import MenuItemElement
 from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.models import MenuItemElement
 from baserow.test_utils.helpers import AnyInt, AnyStr
 
 
@@ -115,9 +115,7 @@ def test_create_menu_element(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_can_update_a_table_element_fields(
-    api_client, menu_element_fixture
-):
+def test_can_update_a_table_element_fields(api_client, menu_element_fixture):
     menu_element = menu_element_fixture["menu_element"]
     token = menu_element_fixture["token"]
 
