@@ -1,6 +1,9 @@
 <template>
   <div
-    :style="getStyleOverride('menu')"
+    :style="{
+      ...getStyleOverride('menu'),
+      '--alignment': menuAlignment,
+    }"
     :class="[
       'menu-element__container',
       element.orientation === 'horizontal'
@@ -112,6 +115,7 @@ import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
 import element from '@baserow/modules/builder/mixins/element'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider'
+import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 
 /**
  * CSS classes to force a Link variant to appear as active.
@@ -148,6 +152,14 @@ export default {
     },
     menuElementType() {
       return this.$registry.get('element', 'menu')
+    },
+    menuAlignment() {
+      const alignmentsCSS = {
+        [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
+        [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
+        [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
+      }
+      return alignmentsCSS[this.element.alignment]
     },
   },
   mounted() {
