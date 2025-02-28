@@ -9,8 +9,8 @@ from django.db.models import SET_NULL, QuerySet
 from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
     COLOR_FIELD_MAX_LENGTH,
-    VerticalAlignments,
     HorizontalAlignments,
+    VerticalAlignments,
 )
 from baserow.core.constants import DATE_FORMAT_CHOICES, DATE_TIME_FORMAT_CHOICES
 from baserow.core.formula.field import FormulaField

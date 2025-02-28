@@ -51,6 +51,7 @@ from baserow.contrib.builder.elements.models import (
     FormContainerElement,
     HeaderElement,
     HeadingElement,
+    HorizontalAlignments,
     IFrameElement,
     ImageElement,
     InputTextElement,
@@ -62,7 +63,6 @@ from baserow.contrib.builder.elements.models import (
     RepeatElement,
     TableElement,
     TextElement,
-    HorizontalAlignments,
     VerticalAlignments,
     get_default_table_orientation,
 )
