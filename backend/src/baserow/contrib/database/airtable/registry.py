@@ -446,6 +446,8 @@ class AirtableViewTypeRegistry(Registry):
 
             return serialized_view
         except self.does_not_exist_exception_class:
+            # Returning `None` because it's okay to not important the incompatible
+            # views. It will be added to the `import_later` from the handler.
             return None
 
 
