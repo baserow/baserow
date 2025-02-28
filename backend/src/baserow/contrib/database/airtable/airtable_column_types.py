@@ -37,7 +37,7 @@ from .constants import (
     AIRTABLE_MAX_DURATION_VALUE,
     AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING,
     AIRTABLE_RATING_COLOR_MAPPING,
-    AIRTABLE_RATING_ICON_MAPPING,
+    AIRTABLE_RATING_ICON_MAPPING, AIRTABLE_MAX_DURATION_VALUE,
 )
 from .exceptions import AirtableSkipCellValue
 from .helpers import import_airtable_date_type_options, set_select_options_on_field
