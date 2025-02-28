@@ -57,12 +57,13 @@
           @getData="onGetData($event)"
         >
           <template #upsertMapping>
-            <div
-              v-tooltip="$t('importFileModal.upsertTooltip')"
-              class="control margin-top-1"
-            >
+            <div class="control margin-top-1">
               <label class="control__label control__label--small">
                 {{ $t('importFileModal.useUpsertField') }}
+                <HelpIcon
+                  :icon="'info-empty'"
+                  :tooltip="$t('importFileModal.upsertTooltip')"
+                />
               </label>
               <div class="control__elements">
                 <Checkbox
