@@ -258,14 +258,14 @@ class NumberAirtableColumnType(AirtableColumnType):
             # then we can't use it, so we have to drop it. The maximum number of days
             # in `timedelta` is `999999999`, so the max number of seconds are
             # 999999999 * 24 * 60 * 60 = 86399999913600.
-            if value > 86399999913600:
+            if abs(value) > 86399999913600:
                 import_report.add_failed(
                     f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
                     SCOPE_CELL,
                     raw_airtable_table["name"],
                     ERROR_TYPE_DATA_TYPE_MISMATCH,
                     f"Cell value was left empty because the duration seconds {value} "
-                    f'are too high. The maximum is 86399999913600."',
+                    f'is outside the -86399999913600 and 86399999913600 range."',
                 )
                 return None
 

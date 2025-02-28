@@ -2136,6 +2136,43 @@ def test_airtable_import_duration_column_max_value(data_fixture, api_client):
 
 @pytest.mark.django_db
 @responses.activate
+def test_airtable_import_duration_column_max_negative_value(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Duration",
+        "type": "number",
+        "typeOptions": {"format": "duration", "durationFormat": "h:mm"},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {}, airtable_field, AirtableImportConfig(), import_report
+    )
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            -86399999913601,
+            {},
+            AirtableImportConfig(),
+            import_report,
+        )
+        is None
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == 'Row: "row1", field: "Duration"'
+    assert import_report.items[0].scope == SCOPE_CELL
+    assert import_report.items[0].table == "Test"
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_airtable_import_phone_column(data_fixture, api_client):
     airtable_field = {"id": "fldkrPuYJTqq7vSJ7Oh", "name": "Phone", "type": "phone"}
     (
