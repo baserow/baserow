@@ -6,7 +6,7 @@ from copy import deepcopy
 import pytest
 
 from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
-from baserow.contrib.builder.elements.service import ElementService
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyInt
@@ -25,7 +25,6 @@ def menu_element_fixture(data_fixture):
     menu_element = data_fixture.create_builder_menu_element(user=user, page=page_a)
 
     return {
-        "user": user,
         "page_a": page_a,
         "page_b": page_b,
         "menu_element": menu_element,
@@ -50,13 +49,12 @@ def test_create_menu_element(menu_element_fixture):
 )
 def test_update_menu_element(menu_element_fixture, orientation):
     menu_element = menu_element_fixture["menu_element"]
-    user = menu_element_fixture["user"]
 
     data = {
         "orientation": orientation,
         "menu_items": [],
     }
-    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+    updated_menu_element = ElementHandler().update_element(menu_element, **data)
 
     assert updated_menu_element.menu_items.count() == 0
     assert updated_menu_element.orientation == orientation
@@ -95,7 +93,6 @@ def test_update_menu_element(menu_element_fixture, orientation):
 )
 def test_add_menu_item(menu_element_fixture, name, item_type, variant):
     menu_element = menu_element_fixture["menu_element"]
-    user = menu_element_fixture["user"]
 
     assert menu_element.menu_items.count() == 0
 
@@ -111,7 +108,7 @@ def test_add_menu_item(menu_element_fixture, name, item_type, variant):
             }
         ]
     }
-    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+    updated_menu_element = ElementHandler().update_element(menu_element, **data)
 
     assert updated_menu_element.menu_items.count() == 1
     menu_item = updated_menu_element.menu_items.first()
@@ -126,7 +123,6 @@ def test_add_menu_item(menu_element_fixture, name, item_type, variant):
 @pytest.mark.django_db
 def test_add_sub_link(menu_element_fixture):
     menu_element = menu_element_fixture["menu_element"]
-    user = menu_element_fixture["user"]
 
     assert menu_element.menu_items.count() == 0
 
@@ -159,7 +155,7 @@ def test_add_sub_link(menu_element_fixture):
             }
         ]
     }
-    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+    updated_menu_element = ElementHandler().update_element(menu_element, **data)
 
     # Both parent and child are MenuItemElement instances
     assert updated_menu_element.menu_items.count() == 2
@@ -193,7 +189,6 @@ def test_add_sub_link(menu_element_fixture):
 )
 def test_update_menu_item(menu_element_fixture, field, value):
     menu_element = menu_element_fixture["menu_element"]
-    user = menu_element_fixture["user"]
 
     assert menu_element.menu_items.count() == 0
 
@@ -225,11 +220,11 @@ def test_update_menu_item(menu_element_fixture, field, value):
 
     # Create the initial Menu item
     data = {"menu_items": [menu_item]}
-    ElementService().update_element(user, menu_element, **data)
+    ElementHandler().update_element(menu_element, **data)
 
     # Update a specific field
     menu_item[field] = value
-    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+    updated_menu_element = ElementHandler().update_element(menu_element, **data)
 
     item = updated_menu_element.menu_items.first()
     updated_menu_item = MenuItemSerializer(item).data
@@ -243,7 +238,6 @@ def test_workflow_action_removed_when_menu_item_deleted(
     menu_element_fixture, data_fixture
 ):
     menu_element = menu_element_fixture["menu_element"]
-    user = menu_element_fixture["user"]
 
     uid = uuid.uuid4()
     menu_item = {
@@ -254,7 +248,7 @@ def test_workflow_action_removed_when_menu_item_deleted(
         "children": [],
     }
     data = {"menu_items": [menu_item]}
-    ElementService().update_element(user, menu_element, **data)
+    ElementHandler().update_element(menu_element, **data)
 
     data_fixture.create_workflow_action(
         NotificationWorkflowAction,
@@ -266,7 +260,7 @@ def test_workflow_action_removed_when_menu_item_deleted(
 
     # Delete the field
     data = {"menu_items": []}
-    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+    updated_menu_element = ElementHandler().update_element(menu_element, **data)
 
     assert updated_menu_element.menu_items.exists() is False
 
@@ -278,7 +272,6 @@ def test_specific_workflow_action_removed_when_menu_item_deleted(
     menu_element_fixture, data_fixture
 ):
     menu_element = menu_element_fixture["menu_element"]
-    user = menu_element_fixture["user"]
 
     uid_1 = uuid.uuid4()
     uid_2 = uuid.uuid4()
@@ -297,7 +290,7 @@ def test_specific_workflow_action_removed_when_menu_item_deleted(
         "children": [],
     }
     data = {"menu_items": [menu_item_1, menu_item_2]}
-    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+    updated_menu_element = ElementHandler().update_element(menu_element, **data)
     assert updated_menu_element.menu_items.count() == 2
 
     for uid in [uid_1, uid_2]:
@@ -312,11 +305,10 @@ def test_specific_workflow_action_removed_when_menu_item_deleted(
 
     # Delete the first menu item
     data = {"menu_items": [menu_item_2]}
-    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+    updated_menu_element = ElementHandler().update_element(menu_element, **data)
 
     assert updated_menu_element.menu_items.count() == 1
 
-    # ElementService().delete_element(user, table_element)
     # Ensure only the Notification for the first menu item exists
     assert NotificationWorkflowAction.objects.filter(element=menu_element).count() == 1
     assert (
@@ -330,7 +322,6 @@ def test_all_workflow_actions_removed_when_menu_element_deleted(
     menu_element_fixture, data_fixture
 ):
     menu_element = menu_element_fixture["menu_element"]
-    user = menu_element_fixture["user"]
 
     uid_1 = uuid.uuid4()
     uid_2 = uuid.uuid4()
@@ -349,7 +340,7 @@ def test_all_workflow_actions_removed_when_menu_element_deleted(
         "children": [],
     }
     data = {"menu_items": [menu_item_1, menu_item_2]}
-    updated_menu_element = ElementService().update_element(user, menu_element, **data)
+    updated_menu_element = ElementHandler().update_element(menu_element, **data)
 
     for uid in [uid_1, uid_2]:
         data_fixture.create_workflow_action(
@@ -363,7 +354,7 @@ def test_all_workflow_actions_removed_when_menu_element_deleted(
     assert NotificationWorkflowAction.objects.count() == 2
 
     # Delete the Menu element, which will cascade delete all menu items
-    ElementService().delete_element(user, menu_element)
+    ElementHandler().delete_element(menu_element)
 
     # There should be no Menu Element, Menu items, or Notifications remaining
     assert MenuElement.objects.count() == 0
@@ -373,7 +364,6 @@ def test_all_workflow_actions_removed_when_menu_element_deleted(
 
 @pytest.mark.django_db
 def test_import_export(menu_element_fixture, data_fixture):
-    user = menu_element_fixture["user"]
     page = menu_element_fixture["page_a"]
     menu_element = menu_element_fixture["menu_element"]
 
@@ -413,7 +403,7 @@ def test_import_export(menu_element_fixture, data_fixture):
     }
 
     data = {"menu_items": [menu_item_1, menu_item_2, menu_item_3]}
-    ElementService().update_element(user, menu_element, **data)
+    ElementHandler().update_element(menu_element, **data)
 
     menu_element_type = menu_element.get_type()
 
@@ -422,7 +412,7 @@ def test_import_export(menu_element_fixture, data_fixture):
     exported = menu_element_type.export_serialized(menu_element)
     assert json.dumps(exported)
 
-    ElementService().delete_element(user, menu_element)
+    ElementHandler().delete_element(menu_element)
 
     assert MenuElement.objects.count() == 0
     assert MenuItemElement.objects.count() == 0

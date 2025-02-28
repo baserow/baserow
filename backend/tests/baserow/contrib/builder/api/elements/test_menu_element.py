@@ -6,7 +6,7 @@ import pytest
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.builder.elements.models import MenuItemElement
-from baserow.contrib.builder.elements.service import ElementService
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.test_utils.helpers import AnyInt, AnyStr
 
 
@@ -22,7 +22,6 @@ def menu_element_fixture(data_fixture):
     menu_element = data_fixture.create_builder_menu_element(user=user, page=page_a)
 
     return {
-        "user": user,
         "token": token,
         "page_a": page_a,
         "page_b": page_b,
@@ -53,12 +52,11 @@ def create_menu_item(**kwargs):
 @pytest.mark.django_db
 def test_get_menu_element(api_client, menu_element_fixture):
     menu_element = menu_element_fixture["menu_element"]
-    user = menu_element_fixture["user"]
 
     # Add a Menu item
     menu_item = create_menu_item()
     data = {"menu_items": [menu_item]}
-    ElementService().update_element(user, menu_element, **data)
+    ElementHandler().update_element(menu_element, **data)
 
     page = menu_element_fixture["page_a"]
     token = menu_element_fixture["token"]
@@ -118,7 +116,7 @@ def test_create_menu_element(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_can_update_a_table_element_fields(
-    api_client, data_fixture, menu_element_fixture
+    api_client, menu_element_fixture
 ):
     menu_element = menu_element_fixture["menu_element"]
     token = menu_element_fixture["token"]
