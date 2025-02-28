@@ -176,6 +176,7 @@ export default {
         navigation_type: item.navigation_type,
         navigate_to_page_id: item.navigate_to_page_id || null,
         page_parameters: item.page_parameters || {},
+        query_parameters: item.query_parameters || {},
         navigate_to_url: item.navigate_to_url || '#',
         page_id: this.element.page_id,
         type: 'menu_item',
