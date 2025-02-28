@@ -13,6 +13,7 @@ from baserow.contrib.database.api.export.serializers import (
 from baserow.contrib.database.export.file_writer import FileWriter, QuerysetSerializer
 from baserow.contrib.database.export.registries import TableExporter
 from baserow.contrib.database.export.utils import view_is_publicly_exportable
+from baserow.contrib.database.fields.field_helpers import prepare_files_for_export
 from baserow.contrib.database.fields.field_types import FileFieldType
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.storage import ExportZipFile, get_default_storage
@@ -273,9 +274,12 @@ class FileQuerysetSerializer(QuerysetSerializer):
             row_folder = f"row_{row.id}/" if organize_files else ""
             for file_field_data in file_fields:
                 file_field = file_field_data["type"]
-                file_serialized_data = file_field.get_export_serialized_value(
-                    row,
-                    file_field_data["name"],
+
+                records = file_field.get_internal_value_from_db(
+                    row, file_field_data["name"]
+                )
+                file_serialized_data = prepare_files_for_export(
+                    records,
                     {},
                     zip_file,
                     storage,
