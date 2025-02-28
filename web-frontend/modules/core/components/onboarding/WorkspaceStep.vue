@@ -10,6 +10,7 @@
         size="large"
         :error="v$.name.$error"
         @input="updateValue"
+        @blur="v$.name.$touch"
       />
       <template #error> {{ v$.name.$errors[0]?.$message }} </template>
     </FormGroup>

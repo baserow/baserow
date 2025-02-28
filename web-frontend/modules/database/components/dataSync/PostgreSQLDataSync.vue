@@ -47,6 +47,7 @@
         :type="field.type"
         :error="fieldHasErrors(field.name)"
         :disabled="disabled"
+        @blur="v$.values[field.name].$touch()"
       >
       </FormInput>
       <template #error>
@@ -67,6 +68,7 @@
             size="large"
             :error="fieldHasErrors('postgresql_port')"
             :disabled="disabled"
+            @blur="v$.values.postgresql_port.$touch"
           >
           </FormInput>
           <template #error>

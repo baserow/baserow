@@ -15,6 +15,7 @@
         :error="fieldHasErrors('gitlab_url')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
+        @blur="v$.values.gitlab_url.$touch"
       />
       <template #error>
         {{ v$.values.gitlab_url.$errors[0]?.$message }}
@@ -34,6 +35,7 @@
         :error="fieldHasErrors('gitlab_project_id')"
         :disabled="disabled"
         size="large"
+        @blur="v$.values.gitlab_project_id.$touch"
       />
       <template #error>
         {{ v$.values.gitlab_project_id.$errors[0]?.$message }}
@@ -56,6 +58,7 @@
         :error="fieldHasErrors('gitlab_access_token')"
         :disabled="disabled"
         size="large"
+        @blur="v$.values.gitlab_access_token.$touch"
       />
       <template #error>
         {{ v$.values.gitlab_access_token.$errors[0]?.$message }}

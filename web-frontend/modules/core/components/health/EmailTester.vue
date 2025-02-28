@@ -36,6 +36,7 @@
           v-model="v$.values.targetEmail.$model"
           :error="fieldHasErrors('targetEmail')"
           :disabled="loading"
+          @blur="v$.values.targetEmail.$touch"
         ></FormInput>
 
         <template #error>
