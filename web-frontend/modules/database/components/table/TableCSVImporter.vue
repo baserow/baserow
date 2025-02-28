@@ -228,7 +228,10 @@ export default {
      * when the CSV doesn't have any entries the appropriate error will be shown.
      */
     async reload() {
+      const fileName = this.values.filename
       this.resetImporterState()
+      this.values.filename = fileName
+
       this.state = 'parsing'
       await this.$ensureRender()
 
