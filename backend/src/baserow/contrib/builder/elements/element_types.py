@@ -2250,3 +2250,35 @@ class MenuElementType(ElementType):
                 item.save()
 
         return instance
+
+    def formula_generator(
+        self, element: Element
+    ) -> Generator[str | Instance, str, None]:
+        """
+        Generator that returns formula fields for the MenuElementType.
+
+        The MenuElement has a menu_items field, which is a many-to-many
+        relationship with MenuItemElement. The MenuItemElement has navigation
+        related fields like page_parameters, yet does not have a type of its
+        own.
+
+        This method ensures that any formulas found inside MenuItemElements
+        are extracted correctly. It ensures that when a formula is declared
+        in page_parameters, etc, the resolved formula value is available
+        in the frontend.
+        """
+
+        yield from super().formula_generator(element)
+
+        for item in element.menu_items.all():
+            for index, data in enumerate(item.page_parameters or []):
+                new_formula = yield data["value"]
+                if new_formula is not None:
+                    item.page_parameters[index]["value"] = new_formula
+                    yield item
+
+            for index, data in enumerate(item.query_parameters or []):
+                new_formula = yield data["value"]
+                if new_formula is not None:
+                    item.query_parameters[index]["value"] = new_formula
+                    yield item
