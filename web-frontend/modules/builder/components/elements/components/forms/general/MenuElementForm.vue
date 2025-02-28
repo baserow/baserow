@@ -27,9 +27,7 @@
       required
       class="margin-bottom-2"
     >
-      <HorizontalAlignmentsSelector
-        v-model="values.alignment"
-      />
+      <HorizontalAlignmentsSelector v-model="values.alignment" />
     </FormGroup>
 
     <div
@@ -82,7 +80,10 @@
 
 <script>
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import { HORIZONTAL_ALIGNMENTS, ORIENTATIONS } from '@baserow/modules/builder/enums'
+import {
+  HORIZONTAL_ALIGNMENTS,
+  ORIENTATIONS,
+} from '@baserow/modules/builder/enums'
 import {
   getNextAvailableNameInSequence,
   uuid,
@@ -98,7 +99,7 @@ export default {
     MenuElementItemForm,
     LinkNavigationSelectionForm,
     CustomStyle,
-    LinkNavigationSelectionForm,    
+    LinkNavigationSelectionForm,
     HorizontalAlignmentsSelector,
   },
   mixins: [elementForm],
@@ -111,7 +112,13 @@ export default {
         alignment: HORIZONTAL_ALIGNMENTS.LEFT,
         menu_items: [],
       },
-      allowedValues: ['value', 'styles', 'menu_items', 'orientation', 'alignment'],
+      allowedValues: [
+        'value',
+        'styles',
+        'menu_items',
+        'orientation',
+        'alignment',
+      ],
       addMenuItemTypes: [
         {
           icon: 'iconoir-link',
