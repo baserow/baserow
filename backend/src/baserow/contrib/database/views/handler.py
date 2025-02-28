@@ -1873,11 +1873,17 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             field_name = model._field_objects[view_sort_or_group_by.field_id]["name"]
             field_type = model._field_objects[view_sort_or_group_by.field_id]["type"]
 
+            # Get the sort type from the view_sort_or_group_by if it has that attribute
+            sort_type = ""
+            if hasattr(view_sort_or_group_by, "type"):
+                sort_type = view_sort_or_group_by.type
+                
             field_annotated_order_by = field_type.get_order(
                 field,
                 field_name,
                 view_sort_or_group_by.order,
                 table_model=queryset.model,
+                sort_type=sort_type,
             )
             field_annotation = field_annotated_order_by.annotation
             field_order_bys = field_annotated_order_by.order_bys

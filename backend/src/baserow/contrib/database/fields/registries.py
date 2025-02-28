@@ -856,6 +856,7 @@ class FieldType(
         field_name: str,
         order_direction: str,
         table_model: Optional["GeneratedTableModel"] = None,
+        sort_type: str = "",
     ) -> OptionallyAnnotatedOrderBy:
         """
         This hook can be called to generate a different order by expression.
@@ -873,11 +874,13 @@ class FieldType(
         :param order_direction: The sort order direction (either "ASC" or "DESC").
         :param table_model: The table model instance that the field is part of,
             if available.
+        :param sort_type: The type of sort that should be applied. If empty, the default
+            sort is used.
         :return: Either the expression that is added directly to the
             model.objects.order(), an AnnotatedOrderBy class or None.
         """
 
-        field_expr = self.get_sortable_column_expression(field, field_name)
+        field_expr = self.get_sortable_column_expression(field, field_name, sort_type)
 
         if order_direction == "ASC":
             field_order_by = field_expr.asc(nulls_first=True)
@@ -885,6 +888,36 @@ class FieldType(
             field_order_by = field_expr.desc(nulls_last=True)
 
         return OptionallyAnnotatedOrderBy(order=field_order_by, can_be_indexed=True)
+        
+    def get_sortable_column_expression(
+        self, field: Field, field_name: str, sort_type: str = ""
+    ) -> Expression | F:
+        """
+        Returns the expression that can be used to sort the field in the database.
+        By default, it will just return the field name, but for example for a
+        SingleSelectField, the select option value should be returned.
+
+        :param field: The field where to get the sortable column expression for.
+        :param field_name: The name of the field in the table.
+        :param sort_type: The type of sort that should be applied. If empty, the default
+            sort is used.
+        :return: The expression that can be used to sort the field in the database.
+        """
+
+        return F(field_name)
+        
+    def get_available_sort_types(self, field: Field) -> Dict[str, str]:
+        """
+        Returns a dictionary with the available sort types for the given field.
+        By default, only an empty (default) sort type is available.
+
+        :param field: The field to check available sort types for
+        :return: A dictionary mapping sort type names to display names
+        """
+
+        return {
+            "": "Default",
+        }
 
     def force_same_type_alter_column(self, from_field, to_field):
         """

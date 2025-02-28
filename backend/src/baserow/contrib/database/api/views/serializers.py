@@ -220,26 +220,28 @@ class UpdateViewFilterGroupSerializer(serializers.ModelSerializer):
 class ViewSortSerializer(serializers.ModelSerializer):
     class Meta:
         model = ViewSort
-        fields = ("id", "view", "field", "order")
+        fields = ("id", "view", "field", "order", "type")
         extra_kwargs = {"id": {"read_only": True}}
 
 
 class CreateViewSortSerializer(serializers.ModelSerializer):
     class Meta:
         model = ViewSort
-        fields = ("field", "order")
+        fields = ("field", "order", "type")
         extra_kwargs = {
             "order": {"default": ViewSort._meta.get_field("order").default},
+            "type": {"default": ""},
         }
 
 
 class UpdateViewSortSerializer(serializers.ModelSerializer):
     class Meta(CreateViewFilterSerializer.Meta):
         model = ViewSort
-        fields = ("field", "order")
+        fields = ("field", "order", "type")
         extra_kwargs = {
             "field": {"required": False},
             "order": {"required": False},
+            "type": {"required": False},
             "width": {"required": False},
         }
 

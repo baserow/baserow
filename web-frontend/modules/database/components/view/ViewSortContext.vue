@@ -1,5 +1,12 @@
 <template>
   <Context ref="context" class="sortings" max-height-if-outside-viewport>
+    <style scoped>
+      .sortings__sort-type {
+        margin-left: 12px;
+        margin-right: 12px;
+        flex-basis: 25%;
+      }
+    </style>
     <div class="sortings__content">
       <div
         v-if="view.sortings.length === 0"
@@ -60,6 +67,22 @@
               ></DropdownItem>
             </Dropdown>
           </div>
+          <div v-if="hasMultipleSortTypes(field)" class="sortings__sort-type">
+            <Dropdown
+              :value="sort.type || ''"
+              :disabled="disableSort"
+              :fixed-items="true"
+              class="dropdown--floating"
+              @input="updateSort(sort, { type: $event })"
+            >
+              <DropdownItem
+                v-for="(displayName, sortType) in getAvailableSortTypes(field)"
+                :key="'sort-type-' + sort.id + '-' + sortType"
+                :name="displayName"
+                :value="sortType"
+              ></DropdownItem>
+            </Dropdown>
+          </div>
           <div
             class="sortings__order"
             :class="{ 'sortings__order--disabled': disableSort }"
@@ -70,7 +93,7 @@
               @click="updateSort(sort, { order: 'ASC' })"
             >
               <template v-if="getSortIndicator(field, 0) === 'text'"
-                >{{ getSortIndicator(field, 1) }}
+                >{{ getAscSortText(field, sort) }}
               </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
@@ -80,7 +103,7 @@
               <i class="iconoir-arrow-right"></i>
 
               <template v-if="getSortIndicator(field, 0) === 'text'"
-                >{{ getSortIndicator(field, 2) }}
+                >{{ getDescSortText(field, sort) }}
               </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
@@ -93,7 +116,7 @@
               @click="updateSort(sort, { order: 'DESC' })"
             >
               <template v-if="getSortIndicator(field, 0) === 'text'"
-                >{{ getSortIndicator(field, 2) }}
+                >{{ getDescSortText(field, sort) }}
               </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
@@ -103,7 +126,7 @@
               <i class="iconoir-arrow-right"></i>
 
               <template v-if="getSortIndicator(field, 0) === 'text'"
-                >{{ getSortIndicator(field, 1) }}
+                >{{ getAscSortText(field, sort) }}
               </template>
               <i
                 v-if="getSortIndicator(field, 0) === 'icon'"
@@ -246,6 +269,30 @@ export default {
       return this.getFieldType(field).getSortIndicator(field, this.$registry)[
         index
       ]
+    },
+    
+    hasMultipleSortTypes(field) {
+      const fieldType = this.getFieldType(field)
+      return fieldType.getAvailableSortTypes && 
+             Object.keys(fieldType.getAvailableSortTypes(field)).length > 1
+    },
+    
+    getAvailableSortTypes(field) {
+      return this.getFieldType(field).getAvailableSortTypes(field)
+    },
+    
+    getAscSortText(field, sort) {
+      if (sort.type === 'option_order') {
+        return 'First'
+      }
+      return this.getSortIndicator(field, 1)
+    },
+    
+    getDescSortText(field, sort) {
+      if (sort.type === 'option_order') {
+        return 'Last'
+      }
+      return this.getSortIndicator(field, 2)
     },
   },
 }

@@ -3875,8 +3875,10 @@ class SelectOptionBaseFieldType(FieldType):
         return queryset
 
     def get_sortable_column_expression(
-        self, field: Field, field_name: str
+        self, field: Field, field_name: str, sort_type: str = ""
     ) -> Expression | F:
+        if sort_type == "option_order":
+            return F(f"{field_name}__order")
         return F(f"{field_name}__value")
 
     def parse_filter_value(self, field, model_field, value) -> List[int]:
@@ -3897,6 +3899,18 @@ class SelectOptionBaseFieldType(FieldType):
 class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     type = "single_select"
     model_class = SingleSelectField
+    
+    def get_sortable_column_expression(
+        self, field: Field, field_name: str, sort_type: str = ""
+    ) -> Expression | F:
+        """
+        Returns the expression to use for sorting. If sort_type is 'option_order',
+        sorts by the order field of the SelectOption, otherwise uses the inherited
+        behavior to sort by the value.
+        """
+        if sort_type == "option_order":
+            return F(f"{field_name}__order")
+        return super().get_sortable_column_expression(field, field_name, sort_type)
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
@@ -4151,7 +4165,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         )
 
     def get_order(
-        self, field, field_name, order_direction, table_model=None
+        self, field, field_name, order_direction, table_model=None, sort_type: str = ""
     ) -> OptionallyAnnotatedOrderBy:
         """
         If the user wants to sort the results they expect them to be ordered
@@ -4161,7 +4175,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         """
 
         order = collate_expression(
-            self.get_sortable_column_expression(field, field_name)
+            self.get_sortable_column_expression(field, field_name, sort_type)
         )
 
         if order_direction == "ASC":
@@ -4169,6 +4183,20 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         else:
             order = order.desc(nulls_last=True)
         return OptionallyAnnotatedOrderBy(order=order)
+        
+    def get_available_sort_types(self, field: Field) -> Dict[str, str]:
+        """
+        Returns the available sort types for the single select field.
+        These include the default alphabetical sort and the option order sort.
+        
+        :param field: The field to check available sort types for
+        :return: A dictionary mapping sort type names to display names
+        """
+        
+        return {
+            "": "Alphabetically",
+            "option_order": "Option order",
+        }
 
     def random_value(self, instance, fake, cache):
         """
