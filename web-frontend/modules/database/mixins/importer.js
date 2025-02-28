@@ -9,6 +9,16 @@ import {
 const IMPORT_PREVIEW_MAX_ROW_COUNT = 6
 
 export default {
+  props: {
+    mapping: {
+      type: Object,
+      required: false,
+      default: () => {
+        return {}
+      },
+    },
+  },
+
   data() {
     return {
       fileLoadingProgress: 0,

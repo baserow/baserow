@@ -55,7 +55,38 @@
           @header="onHeader($event)"
           @data="onData($event)"
           @getData="onGetData($event)"
-        />
+        >
+          <template #upsertMapping>
+            <div
+              v-tooltip="$t('importFileModal.upsertTooltip')"
+              class="control margin-top-1"
+            >
+              <label class="control__label control__label--small">
+                {{ $t('importFileModal.useUpsertField') }}
+              </label>
+              <div class="control__elements">
+                <Checkbox
+                  v-model="useUpsertField"
+                  :disabled="!mappingNotEmpty"
+                  >{{ $t('common.yes') }}</Checkbox
+                >
+              </div>
+
+              <Dropdown
+                v-model="upsertField"
+                :disabled="!useUpsertField"
+                class="margin-top-1"
+              >
+                <DropdownItem
+                  v-for="item in selectedFieldObjects"
+                  :key="item.id"
+                  :name="item.name"
+                  :value="item.id"
+                />
+              </Dropdown>
+            </div>
+          </template>
+        </component>
       </div>
 
       <ImportErrorReport :job="job" :error="error"></ImportErrorReport>
@@ -204,6 +235,8 @@ export default {
       getData: null,
       previewData: [],
       dataLoaded: false,
+      useUpsertField: false,
+      upsertField: undefined,
     }
   },
   computed: {
@@ -213,12 +246,19 @@ export default {
       }
       return this.database.tables.some(({ id }) => id === this.job.table_id)
     },
+    mappingNotEmpty() {
+      return Object.values(this.mapping).some(
+        (value) => this.fieldIndexMap[value] !== undefined
+      )
+    },
     canBeSubmitted() {
       return (
         this.importer &&
         Object.values(this.mapping).some(
           (value) => this.fieldIndexMap[value] !== undefined
-        )
+        ) &&
+        (!this.useUpsertField ||
+          Object.values(this.mapping).includes(this.upsertField))
       )
     },
     fieldTypes() {
@@ -306,6 +346,12 @@ export default {
      */
     selectedFields() {
       return Object.values(this.mapping)
+    },
+    selectedFieldObjects() {
+      const selected = Object.values(this.mapping)
+      return this.fields.filter((field) => {
+        return selected.includes(field.id)
+      })
     },
     progressPercentage() {
       switch (this.state) {
@@ -417,6 +463,9 @@ export default {
       this.showProgressBar = false
       this.reset(false)
       let data = null
+      // at the moment we use only one field, but the key may be composed of several
+      // fields.
+      const upsert = this.upsertField ? { fields: [this.upsertField] } : null
 
       if (typeof this.getData === 'function') {
         try {
@@ -425,6 +474,7 @@ export default {
           await this.$ensureRender()
 
           data = await this.getData()
+
           const fieldMapping = Object.entries(this.mapping)
             .filter(
               ([, targetFieldId]) =>
@@ -493,7 +543,8 @@ export default {
           data,
           {
             onUploadProgress,
-          }
+          },
+          upsert
         )
         this.startJobPoller(job)
       } catch (error) {

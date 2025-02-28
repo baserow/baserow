@@ -29,10 +29,10 @@ export default (client) => {
 
       return client.post(`/database/tables/database/${databaseId}/`, values)
     },
-    importData(tableId, data, config = null) {
+    importData(tableId, data, config = null, upsert = null) {
       return client.post(
         `/database/tables/${tableId}/import/async/`,
-        { data },
+        { data, upsert },
         config
       )
     },

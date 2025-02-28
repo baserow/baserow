@@ -106,6 +106,9 @@
         </div>
       </div>
     </div>
+    <div v-if="values.filename !== ''" class="row">
+      <div class="col col-8"><slot name="upsertMapping" /></div>
+    </div>
     <Alert v-if="error !== ''" type="error">
       <template #title> {{ $t('common.wrong') }} </template>
       {{ error }}

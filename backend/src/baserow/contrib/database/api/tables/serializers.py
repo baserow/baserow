@@ -4,6 +4,10 @@ from baserow.contrib.database.api.data_sync.serializers import DataSyncSerialize
 from baserow.contrib.database.table.models import Table
 
 
+class UpsertConfiguration(serializers.Serializer):
+    fields = serializers.ListField(child=serializers.IntegerField(min_value=1), allow_null=False, allow_empty=False)
+
+
 class TableSerializer(serializers.ModelSerializer):
     data_sync = DataSyncSerializer()
 
@@ -74,6 +78,7 @@ class TableImportSerializer(serializers.Serializer):
             "for adding two rows to a table with two writable fields."
         ),
     )
+    upsert = UpsertConfiguration(required=False, write_only=True, default=None)
 
     class Meta:
         fields = ("data",)
