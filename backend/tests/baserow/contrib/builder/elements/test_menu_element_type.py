@@ -1,6 +1,7 @@
 import json
 import uuid
 from collections import defaultdict
+from copy import deepcopy
 
 import pytest
 
@@ -9,6 +10,7 @@ from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyInt
+from baserow.contrib.builder.api.elements.serializers import MenuItemSerializer
 
 
 @pytest.fixture
@@ -202,29 +204,38 @@ def test_update_menu_item(menu_element_fixture, field, value):
 
     menu_item = {
         "name": "Page",
-        "type": MenuItemElement.TYPES.LINK,
-        "variant": MenuItemElement.VARIANTS.LINK,
+        "type": MenuItemElement.TYPES.LINK.value,
+        "variant": MenuItemElement.VARIANTS.LINK.value,
         "menu_item_order": 0,
-        "uid": uid,
+        "uid": str(uid),
         "navigation_type": "page",
         "navigate_to_page_id": None,
         "navigate_to_url": "",
+        "parent_menu_item": None,
         "page_parameters": [],
         "query_parameters": [],
-        "parent_menu_item": None,
         "target": "self",
         "children": [],
     }
 
+    expected = deepcopy(menu_item)
+    expected[field] = value
+    expected["id"] = AnyInt()
+    expected["menu_item_order"] = AnyInt()
+
+    # Create the initial Menu item
     data = {"menu_items": [menu_item]}
     ElementService().update_element(user, menu_element, **data)
 
-    # Update specific fields
+    # Update a specific field
     menu_item[field] = value
     updated_menu_element = ElementService().update_element(user, menu_element, **data)
 
     item = updated_menu_element.menu_items.first()
-    assert getattr(item, field) == value
+    updated_menu_item = MenuItemSerializer(item).data
+    
+    # Ensure that only that specific field was updated
+    assert updated_menu_item == expected
 
 
 @pytest.mark.django_db
