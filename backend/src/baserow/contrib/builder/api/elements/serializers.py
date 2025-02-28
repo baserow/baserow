@@ -395,11 +395,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
         default=None,
         required=False,
     )
-    navigate_to_url = serializers.CharField(
-        default="",
-        allow_blank=True,
-        required=False,
-    )
+    navigate_to_url = FormulaSerializerField(allow_blank=True)
 
     class Meta:
         model = MenuItemElement
