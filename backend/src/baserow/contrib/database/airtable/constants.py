@@ -6,6 +6,7 @@ from baserow.contrib.database.fields.utils.duration import (
     H_M_S_SSS,
 )
 
+AIRTABLE_MAX_DURATION_VALUE = 86399999913600
 AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE = "downloading-base"
 AIRTABLE_EXPORT_JOB_CONVERTING = "converting"
 AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES = "downloading-files"

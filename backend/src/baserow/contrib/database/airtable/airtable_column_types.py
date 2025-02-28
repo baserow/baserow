@@ -36,7 +36,7 @@ from .constants import (
     AIRTABLE_DURATION_FIELD_DURATION_FORMAT_MAPPING,
     AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING,
     AIRTABLE_RATING_COLOR_MAPPING,
-    AIRTABLE_RATING_ICON_MAPPING,
+    AIRTABLE_RATING_ICON_MAPPING, AIRTABLE_MAX_DURATION_VALUE,
 )
 from .exceptions import AirtableSkipCellValue
 from .helpers import import_airtable_date_type_options, set_select_options_on_field
@@ -258,7 +258,7 @@ class NumberAirtableColumnType(AirtableColumnType):
             # then we can't use it, so we have to drop it. The maximum number of days
             # in `timedelta` is `999999999`, so the max number of seconds are
             # 999999999 * 24 * 60 * 60 = 86399999913600.
-            if abs(value) > 86399999913600:
+            if abs(value) > AIRTABLE_MAX_DURATION_VALUE:
                 import_report.add_failed(
                     f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
                     SCOPE_CELL,
