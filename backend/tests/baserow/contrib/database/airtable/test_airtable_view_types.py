@@ -263,7 +263,7 @@ def test_import_grid_view_sort_field_not_found():
     assert len(import_report.items) == 1
     assert (
         import_report.items[0].object_name
-        == 'View "Grid view", Field ID "fldwSc9PqedIhTSqhi1"'
+        == 'View "Grid view", Field ID "Single line text"'
     )
     assert import_report.items[0].scope == SCOPE_VIEW_SORT
     assert import_report.items[0].table == "Data"
@@ -343,7 +343,7 @@ def test_import_grid_view_group_by_field_not_found():
     assert len(import_report.items) == 1
     assert (
         import_report.items[0].object_name
-        == 'View "Grid view", Field ID "fldwSc9PqedIhTSqhi1"'
+        == 'View "Grid view", Field ID "Single line text"'
     )
     assert import_report.items[0].scope == SCOPE_VIEW_GROUP_BY
     assert import_report.items[0].table == "Data"

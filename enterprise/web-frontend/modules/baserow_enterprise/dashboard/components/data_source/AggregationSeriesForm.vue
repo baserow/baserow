@@ -52,7 +52,7 @@
         icon="iconoir-bin"
         type="secondary"
         @click="$emit('delete-series', seriesIndex)"
-      >{{ $t('aggregationSeriesForm.deleteSeries') }}</ButtonText
+        >{{ $t('aggregationSeriesForm.deleteSeries') }}</ButtonText
       >
     </FormSection>
   </div>
