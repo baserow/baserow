@@ -157,7 +157,10 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(UpdateDataSyncTableActionType())
         action_type_registry.register(SyncDataSyncTableActionType())
 
-        from .airtable.registry import airtable_column_type_registry
+        from .airtable.registry import (
+            airtable_column_type_registry,
+            airtable_view_type_registry,
+        )
         from .data_sync.registries import data_sync_type_registry
         from .export.registries import table_exporter_registry
         from .fields.registries import (
@@ -647,6 +650,10 @@ class DatabaseConfig(AppConfig):
         airtable_column_type_registry.register(RichTextTextAirtableColumnType())
         airtable_column_type_registry.register(CountAirtableColumnType())
         airtable_column_type_registry.register(AutoNumberAirtableColumnType())
+
+        from .airtable.airtable_view_types import GridAirtableViewType
+
+        airtable_view_type_registry.register(GridAirtableViewType())
 
         from .data_sync.data_sync_types import (
             ICalCalendarDataSyncType,

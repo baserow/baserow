@@ -7,6 +7,8 @@ from baserow.contrib.database.fields.utils.duration import (
 )
 
 AIRTABLE_MAX_DURATION_VALUE = 86399999913600
+AIRTABLE_BASE_URL = "https://airtable.com"
+AIRTABLE_API_BASE_URL = f"{AIRTABLE_BASE_URL}/v0.3"
 AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE = "downloading-base"
 AIRTABLE_EXPORT_JOB_CONVERTING = "converting"
 AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES = "downloading-files"
@@ -51,4 +53,8 @@ AIRTABLE_RATING_ICON_MAPPING = {
     "heart": "heart",
     "thumbsUp": "thumbs-up",
     "flag": "flag",
+}
+AIRTABLE_ASCENDING_MAP = {
+    "ascending": True,
+    "descending": False,
 }

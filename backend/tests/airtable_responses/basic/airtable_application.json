@@ -684,13 +684,6 @@
             "createdByUserId":"usrdGm7k7NIVWhK7W7L"
           },
           {
-            "id":"viwsFAwnvkr98dfv8nm",
-            "name":"With hidden fields",
-            "type":"grid",
-            "personalForUserId":null,
-            "createdByUserId":"usrdGm7k7NIVWhK7W7L"
-          },
-          {
             "id":"viwBAGnUgZ6X5Eyg5Wf",
             "name":"Gallery view",
             "type":"gallery",
@@ -701,7 +694,6 @@
         "viewOrder":[
           "viwcpYeEpAs6kZspktV",
           "viwDgBCKTEdCQoHTQKH",
-          "viwsFAwnvkr98dfv8nm",
           "viwBAGnUgZ6X5Eyg5Wf"
         ],
         "viewsById":{
@@ -716,13 +708,6 @@
           "viwDgBCKTEdCQoHTQKH":{
             "id":"viwDgBCKTEdCQoHTQKH",
             "name":"With filters and sorts",
-            "type":"grid",
-            "personalForUserId":null,
-            "createdByUserId":"usrdGm7k7NIVWhK7W7L"
-          },
-          "viwsFAwnvkr98dfv8nm":{
-            "id":"viwsFAwnvkr98dfv8nm",
-            "name":"With hidden fields",
             "type":"grid",
             "personalForUserId":null,
             "createdByUserId":"usrdGm7k7NIVWhK7W7L"

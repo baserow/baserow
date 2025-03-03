@@ -1,4 +1,9 @@
+import json
 import re
+
+from requests import Response
+
+from baserow.core.utils import remove_invalid_surrogate_characters
 
 
 def extract_share_id_from_url(public_base_url: str) -> str:
@@ -39,6 +44,46 @@ def get_airtable_row_primary_value(table, row):
         primary_value = row["id"]
 
     return primary_value
+
+
+def get_airtable_column_name(raw_airtable_table, column_id) -> str:
+    """
+    Tries to extract the name of the column from the provided Airtable table.
+
+    :param raw_airtable_table: The table where to get the column names from.
+    :param column_id: The column ID to get the name for.
+    :return: The found column name or column_id if not found.
+    """
+
+    for column in raw_airtable_table["columns"]:
+        if column["id"] == column_id:
+            return column["name"]
+
+    return column_id
+
+
+def parse_json_and_remove_invalid_surrogate_characters(response: Response) -> dict:
+    """
+    The response from Airtable can sometimes contain invalid surrogate characters. This
+    helper method removed them, and parses it to JSON.
+
+    :param response: The response from the request to Airtable.
+    :return: Parsed JSON from the response.
+    """
+
+    try:
+        decoded_content = remove_invalid_surrogate_characters(
+            response.content, response.encoding
+        )
+        json_decoded_content = json.loads(decoded_content)
+    except json.decoder.JSONDecodeError:
+        # In some cases, the `remove_invalid_surrogate_characters` results in
+        # invalid JSON. It's not completely clear why that is, but this
+        # fallback can still produce valid JSON to import in most cases if
+        # the original json didn't contain invalid surrogate characters.
+        json_decoded_content = response.json()
+
+    return json_decoded_content
 
 
 def quill_parse_inline(insert, attributes):

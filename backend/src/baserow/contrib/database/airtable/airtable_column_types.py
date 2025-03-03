@@ -604,6 +604,18 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
             link_row_related_field_id=type_options.get("symmetricColumnId"),
         )
 
+    def after_field_objects_prepared(
+        self, field_mapping_per_table, baserow_field, raw_airtable_column
+    ):
+        foreign_table_id = raw_airtable_column["typeOptions"]["foreignTableId"]
+        foreign_field_mapping = field_mapping_per_table[foreign_table_id]
+        foreign_primary_field = next(
+            field["baserow_field"]
+            for field in foreign_field_mapping.values()
+            if field["baserow_field"].primary
+        )
+        baserow_field.link_row_table_primary_field = foreign_primary_field
+
     def to_baserow_export_serialized_value(
         self,
         row_id_mapping,
