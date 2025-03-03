@@ -1,17 +1,5 @@
 <template>
-  <Expandable
-    :key="values.uid"
-    v-sortable="{
-      id: values.uid,
-      update: orderItems(),
-      enabled: $hasPermission(
-        'builder.page.element.update',
-        element,
-        workspace.id
-      ),
-      handle: '[data-sortable-handle-root]',
-    }"
-  >
+  <Expandable>
     <template #header="{ toggle, expanded }">
       <div
         class="menu-element-form__item-header"
