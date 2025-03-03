@@ -27,7 +27,13 @@
         "pathParamsTitle": "Pfad-Parameter",
         "nameTitle": "Name",
         "pathParamsSubtitle": "Werden durch :parameter im Pfad definiert",
-        "pathParamsSubtitleTutorial": "Pfad-Parameter können verwendet werden, um Daten dynamisch zu laden, abhängig von dem angegebenen Parameter. Fügen Sie :parameter zum Pfad hinzu, um einen hinzuzufügen."
+        "pathParamsSubtitleTutorial": "Pfad-Parameter können verwendet werden, um Daten dynamisch zu laden, abhängig von dem angegebenen Parameter. Fügen Sie :parameter zum Pfad hinzu, um einen hinzuzufügen.",
+        "namePlaceholder": "Geben Sie einen Namen ein...",
+        "addAnotherParameter": "Einen weiteren Abfrageparameter hinzufügen",
+        "addParameter": "Einen Abfrageparameter hinzufügen",
+        "queryParamsSubtitleTutorial": "Abfrageparameter können verwendet werden, um Daten abhängig von dem angegebenen Parameter dynamisch zu laden.",
+        "pathPlaceholder": "Geben Sie einen Pfad ein...",
+        "queryParamsTitle": "Abfrageparameter"
     },
     "builderSettingTypes": {
         "integrationsName": "Integrationen",
@@ -265,12 +271,19 @@
         "namePlaceholder": "Quellenname",
         "servicePlaceholder": "Wählen Sie einen Dienst aus",
         "integrationPlaceholder": "Wählen Sie eine Integration aus",
-        "errorUniqueName": "Der Name der Datenquelle muss eindeutig sein."
+        "errorUniqueName": "Der Name der Datenquelle muss eindeutig sein.",
+        "nameLabel": "Name",
+        "actionLabel": "Aktion",
+        "integrationLabel": "Integration"
     },
     "dataSourceContext": {
         "addDataSource": "Neue Datenquelle hinzufügen",
-        "noDataSourceTitle": "Diese Seite hat keine Datenquellen.",
-        "noDataSourceMessage": "Datenquellen können verwendet werden, um Daten aus internen oder externen Quellen abzurufen und auf der Seite anzuzeigen."
+        "noDataSourceTitle": "Sie haben noch keine Datenquellen hinzugefügt.",
+        "noDataSourceMessage": "Datenquellen können verwendet werden, um Daten aus internen oder externen Quellen abzurufen und auf der Seite anzuzeigen.",
+        "pageDataSourceTitle": "Für diese Seite",
+        "pageDataSourceDescription": "Wird abgerufen, wenn der Benutzer auf diese Seite navigiert.",
+        "sharedDataSourceTitle": "Zwischen Seiten geteilt",
+        "sharedDataSourceDescription": "Ist auf jeder Seite verfügbar und wird einmalig beim ersten Laden der Seite abgerufen."
     },
     "imageElement": {
         "emptyState": "Kein alternativer Text festgelegt...",
@@ -358,7 +371,11 @@
     },
     "publicPage": {
         "siteNotFound": "Seite nicht gefunden",
-        "pageNotFound": "Seite nicht gefunden"
+        "pageNotFound": "Seite nicht gefunden",
+        "loginToastTitle": "Authentifizierung erfolgreich",
+        "loginToastMessage": "Sie wurden erfolgreich eingeloggt.",
+        "authorizedToastTitle": "Authentifizierung erforderlich",
+        "authorizedToastMessage": "Sie müssen angemeldet sein, um auf diese Seite zugreifen zu können. Bitte loggen Sie sich ein, um fortzufahren."
     },
     "defaultStyleForm": {
         "backgroundLabel": "Hintergrund",
@@ -395,9 +412,15 @@
         "addField": "Feld hinzufügen",
         "fieldType": "Typ",
         "itemsPerPagePlaceholder": "Wert eingeben...",
-        "selectSourceFirst": "Wählen Sie eine Listen-Datenquelle, um mit der Konfiguration Ihrer Felder zu beginnen.",
+        "selectSourceFirst": "Wählen Sie eine Datenquelle und/oder Eigenschaft, um mit der Konfiguration Ihrer Felder zu beginnen.",
         "buttonColor": "Buttonfarbe",
-        "refreshFieldsFromDataSource": "Felder aus der Datenquelle aktualisieren"
+        "refreshFieldsFromDataSource": "Felder aus der Datenquelle aktualisieren",
+        "orientation": "Ausrichtung",
+        "name": "Name",
+        "propertySelectorMissingArrays": "Keine Felder mit mehreren Werten gefunden, die als Zeilen verwendet werden können.",
+        "orientationHorizontal": "Horizontal",
+        "orientationVertical": "Vertikal",
+        "buttonLoadMoreLabel": "Mehr anzeigen-Beschriftung"
     },
     "tableElement": {
         "empty": "Es wurden keine Elemente gefunden.",
@@ -522,10 +545,12 @@
     "buttonElementForm": {
         "valuePlaceholder": "Text eingeben...",
         "buttonColor": "Buttonfarbe",
-        "valueLabel": "Text"
+        "valueLabel": "Button-Text"
     },
     "buttonElement": {
-        "noValue": "Unbenannt..."
+        "noValue": "Unbenannt...",
+        "missingValue": "Fehlender Button-Text...",
+        "emptyValue": "Leerer Button-Text..."
     },
     "eventTypes": {
         "clickLabel": "Bei Klick",
@@ -570,7 +595,9 @@
     "repeatElement": {
         "showMore": "Mehr anzeigen",
         "missingDataSourceTooltip": "Wählen Sie eine Datenquelle, um mit dem Hinzufügen von Elementen zu beginnen.",
-        "empty": "Es wurden keine Elemente gefunden."
+        "empty": "Es wurden keine Elemente gefunden.",
+        "emptyState": "Keine Einträge gefunden.",
+        "missingSchemaPropertyTooltip": "Wählen Sie eine Eigenschaft, um mit dem Hinzufügen von Elementen zu beginnen."
     },
     "repeatElementForm": {
         "dataSource": "Datenquelle",
@@ -660,14 +687,20 @@
         "warningColor": "Warnung",
         "borderColor": "Rahmen",
         "successColor": "Erfolgreich",
-        "errorColor": "Fehler"
+        "errorColor": "Fehler",
+        "customColors": "Benutzerdefinierte Farben",
+        "addCustomColor": "Benutzerdefinierte Farbe hinzufügen",
+        "customColorPrefix": "Benutzerdefiniert"
     },
     "typographyThemeConfigBlock": {
         "headingValue": "Überschrift <h{i}>",
         "size": "Größe",
         "headingLabel": "Überschrift {i} (h{i})",
         "color": "Farbe",
-        "textAlignment": "Ausrichtung"
+        "textAlignment": "Ausrichtung",
+        "weight": "Gewicht",
+        "bodyLabel": "Body",
+        "fontFamily": "Schriftart"
     },
     "common": {
         "timeFormatTitle": "Zeitformat",
@@ -681,5 +714,141 @@
     "dateTimePickerElementForm": {
         "includeTime": "Zeit einbeziehen",
         "invalidDateError": "Ungültiges Datum. Bitte stellen Sie sicher, dass das eingegebene Datum dem angegebenen Format entspricht."
+    },
+    "choiceElementForm": {
+        "multiple": "Mehrere Werte zulassen",
+        "checkbox": "Kontrollfeld",
+        "radio": "Option",
+        "display": "Anzeige",
+        "dropdown": "Drop-Down"
+    },
+    "dataSourceItem": {
+        "notConfigured": "Nicht konfiguriert"
+    },
+    "dataSourceCreateEditModal": {
+        "createTitle": "Datenquelle erstellen",
+        "sharedWarning": "Diese Datenquelle wird gemeinsam genutzt, so dass sich Ihre Änderungen auf mehrere Seiten auswirken können.",
+        "editTitle": "Datenquelle bearbeiten"
+    },
+    "buttonThemeConfigBlock": {
+        "borderRadius": "Rahmen-Radius",
+        "size": "Schriftgröße",
+        "padding": "Innenabstand",
+        "weight": "Schriftgewicht",
+        "textColor": "Textfarbe",
+        "borderColor": "Rahmenfarbe",
+        "borderSize": "Rahmengröße",
+        "fontFamily": "Schriftart",
+        "backgroundColor": "Hintergrundfarbe",
+        "alignment": "Ausrichtung",
+        "width": "Breite",
+        "button": "Button",
+        "defaultState": "Standard-Zustand",
+        "hoverState": "Hover-Zustand",
+        "textAlignment": "Textausrichtung"
+    },
+    "linkThemeConfigBlock": {
+        "color": "Farbe",
+        "link": "Link",
+        "hoverState": "Hover-Zustand",
+        "alignment": "Ausrichtung",
+        "fontFamily": "Schriftart",
+        "defaultState": "Standard-Zustand",
+        "size": "Schriftgröße",
+        "weight": "Schriftgewicht"
+    },
+    "inputThemeConfigBlock": {
+        "input": "Eingabe",
+        "backgroundColor": "Hintergrundfarbe",
+        "label": "Beschriftung",
+        "borderSize": "Rahmengröße",
+        "borderRadius": "Rahmen-Radius",
+        "borderColor": "Rahmenfarbe",
+        "textColor": "Textfarbe",
+        "padding": "Innenabstand",
+        "weight": "Schriftgewicht",
+        "fontFamily": "Schriftart",
+        "size": "Schriftgröße"
+    },
+    "tableThemeConfigBlock": {
+        "fontSize": "Schriftgröße",
+        "table": "Tabelle",
+        "horizontalSeparatorSize": "Horizontale Größe",
+        "separators": "Trennelemente",
+        "verticalSeparatorColor": "Vertikale Farbe",
+        "backgroundAlternateColor": "Gerade Zeilenfarbe",
+        "padding": "Innenabstand",
+        "backgroundColor": "Hintergrundfarbe",
+        "header": "Kopfbereich",
+        "alignment": "Ausrichtung",
+        "cells": "Zellen",
+        "fontFamily": "Schriftart",
+        "size": "Größe",
+        "verticalSeparatorSize": "Vertikale Größe",
+        "horizontalSeparatorColor": "Horizontale Farbe",
+        "borderSize": "Rahmengröße",
+        "borderRadius": "Rahmen-Radius",
+        "fontWeight": "Schriftgewicht",
+        "borderColor": "Rahmenfarbe",
+        "textColor": "Textfarbe"
+    },
+    "abTable": {
+        "loading": "Wird geladen...",
+        "empty": "Es wurden keine Elemente gefunden."
+    },
+    "collectionElementForm": {
+        "noSchemaPropertyMessage": "Wählen Sie eine Eigenschaft in der Datenquelle, die Sie als Listendaten für Ihr Element verwenden möchten.",
+        "noDataSourceMessage": "Wählen Sie eine Datenquelle mit mehreren Zeilen, um alle Ergebnisse aufzulisten, oder eine einzeilige Datenquelle, um eine Eigenschaft innerhalb dieser Zeile auszuwählen."
+    },
+    "dropdown": {
+        "empty": "Keine Optionen verfügbar"
+    },
+    "pageVisibilitySettings": {
+        "allVisitors": "Alle Besucher",
+        "loggedInVisitors": "Eingeloggte Besucher",
+        "description": "Wer darf diese Seite sehen"
+    },
+    "queryParamTypes": {
+        "textName": "Text",
+        "numericName": "Numerisch"
+    },
+    "pageEditor": {
+        "pageNotFound": "Seite nicht gefunden"
+    },
+    "dataSourceItemContext": {
+        "shareBetweenPages": "Teilen zwischen Seiten",
+        "unshareBetweenPages": "Freigabe auf anderen Seiten aufheben"
+    },
+    "radiusStyleForm": {
+        "cornerRadiusLabel": "Eckradius",
+        "backgroundRadiusLabel": "Hintergrund",
+        "borderRadiusLabel": "Rahmen"
+    },
+    "fontWeightType": {
+        "light": "Leicht",
+        "thin": "Dünn",
+        "extraLight": "Extra-leicht",
+        "regular": "Regulär",
+        "medium": "Mittel",
+        "semiBold": "Semi-Bold",
+        "bold": "Fett",
+        "extraBold": "Extra-Bold",
+        "black": "Black",
+        "extraBlack": "Extra-Black"
+    },
+    "imageThemeConfigBlock": {
+        "imageBorderRadiusLabel": "Randradius",
+        "imageBorderRadiusPlaceholder": "Geben Sie den Bildrand-Radius ein.",
+        "maxWidthLabel": "Maximale Breite",
+        "maxHeightLabel": "Maximale Höhe",
+        "maxHeightPlaceholder": "Geben Sie die maximale Höhe ein",
+        "maxWidthPlaceholder": "Geben Sie die maximale Breite ein",
+        "alignment": "Ausrichtung",
+        "imageConstraintCoverDisabled": "Nicht verfügbar bei leerer maximaler Höhe.",
+        "imageConstraintContain": "Contain",
+        "imageConstraintsLabel": "Beschränkungen",
+        "imageConstraintFullWidth": "Auf maximale Breite ausweiten",
+        "imageConstraintCover": "Cover",
+        "imageConstraintContainDisabled": "Nicht verfügbar mit maximaler Höhe."
     }
 }
