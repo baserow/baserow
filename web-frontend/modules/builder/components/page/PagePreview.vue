@@ -28,6 +28,7 @@
                 :is-first-element="index === 0"
                 :is-copying="copyingElementIndex === index"
                 :application-context-additions="contextAdditions"
+                :show-element-id="showElementId"
                 @move="moveElement($event)"
               />
             </header>
@@ -64,6 +65,7 @@
                 :is-first-element="index === 0 && headerElements.length === 0"
                 :is-copying="copyingElementIndex === index"
                 :application-context-additions="contextAdditions"
+                :show-element-id="showElementId"
                 @move="moveElement($event)"
               />
             </div>
@@ -92,6 +94,7 @@
                 "
                 :is-copying="copyingElementIndex === index"
                 :application-context-additions="contextAdditions"
+                :show-element-id="showElementId"
                 @move="moveElement($event)"
               />
             </footer>
@@ -129,6 +132,8 @@ export default {
 
       // The resize observer to resize the preview when the wrapper size change
       resizeObserver: null,
+
+      showElementId: false,
     }
   },
   computed: {
@@ -504,6 +509,11 @@ export default {
           break
         case 'p':
           this.selectParentElement()
+          break
+        case 'E':
+          if (alternateAction && e.shiftKey) {
+            this.showElementId = !this.showElementId
+          }
           break
         default:
           shouldPrevent = false

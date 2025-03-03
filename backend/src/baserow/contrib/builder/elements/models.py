@@ -990,3 +990,72 @@ class FooterElement(MultiPageElement, ContainerElement):
     """
     A multi-page container element positioned at the bottom of the page.
     """
+
+
+class MenuItemElement(NavigationElementMixin):
+    """
+    An item in a MenuElement.
+    """
+
+    class VARIANTS(models.TextChoices):
+        LINK = "link"
+        BUTTON = "button"
+
+    variant = models.CharField(
+        choices=VARIANTS.choices,
+        help_text="The variant of the link.",
+        max_length=10,
+        default=VARIANTS.LINK,
+    )
+
+    class TYPES(models.TextChoices):
+        BUTTON = "button"
+        LINK = "link"
+        SEPARATOR = "separator"
+        SPACER = "spacer"
+
+    type = models.CharField(
+        choices=TYPES.choices,
+        help_text="The type of the Menu Item.",
+        max_length=9,
+        default=TYPES.LINK,
+    )
+
+    name = models.CharField(
+        max_length=225,
+        help_text="The name of the Menu Item.",
+    )
+
+    menu_item_order = models.PositiveIntegerField()
+    uid = models.UUIDField(default=uuid.uuid4)
+
+    parent_menu_item = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        default=None,
+        help_text="The parent MenuItemElement element, if it is a nested item.",
+        related_name="menu_item_children",
+    )
+
+    class Meta:
+        ordering = ("menu_item_order",)
+
+
+class MenuElement(Element):
+    """
+    A menu element that helps with navigating the application.
+    """
+
+    class ORIENTATIONS(models.TextChoices):
+        HORIZONTAL = "horizontal"
+        VERTICAL = "vertical"
+
+    orientation = models.CharField(
+        choices=ORIENTATIONS.choices,
+        max_length=10,
+        default=ORIENTATIONS.HORIZONTAL,
+        db_default=ORIENTATIONS.HORIZONTAL,
+    )
+
+    menu_items = models.ManyToManyField(MenuItemElement)

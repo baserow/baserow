@@ -898,6 +898,89 @@ describe('elementTypes tests', () => {
     })
   })
 
+  describe('MenuElementType isInError tests', () => {
+    test('Returns true if Menu Element has errors, false otherwise', () => {
+      const elementType = testApp.getRegistry().get('element', 'menu')
+
+      const page = {
+        id: 1,
+        shared: false,
+        name: 'Foo Page',
+        workflowActions: [],
+      }
+      const element = {
+        id: 50,
+        page_id: page.id,
+        menu_items: [],
+      }
+      const builder = {
+        id: 1,
+        pages: [page],
+      }
+
+      // Menu element with zero Menu items is invalid.
+      expect(elementType.isInError({ page: {}, element, builder })).toBe(true)
+
+      const menuItem = {
+        type: 'button',
+        name: 'foo button',
+      }
+      element.menu_items = [menuItem]
+
+      // Button Menu item without workflow actions is invalid.
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
+
+      page.workflowActions = [{ element_id: 50, type: 'open_page' }]
+      element.menu_items[0].name = ''
+
+      // Button Menu item with empty name is invalid.
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
+
+      element.menu_items[0].type = 'link'
+      element.menu_items[0].name = ''
+
+      // Link Menu item with empty name is invalid.
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
+
+      element.menu_items[0].name = 'sub link'
+      element.menu_items[0].navigation_type = 'page'
+      element.menu_items[0].navigate_to_page_id = ''
+
+      // Link Menu item - sublink with Page navigation but no page ID is invalid.
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
+
+      element.menu_items[0].name = 'sub link'
+      element.menu_items[0].navigation_type = 'custom'
+      element.menu_items[0].navigate_to_url = ''
+
+      // Link Menu item - sublink with custom navigation but no URL is invalid.
+      expect(elementType.isInError({ page, element, builder })).toBe(true)
+
+      // Valid Button Menu item
+      element.menu_items[0].type = 'button'
+      element.menu_items[0].name = 'foo button'
+      page.workflowActions = [{ element_id: 50, type: 'open_page' }]
+
+      expect(elementType.isInError({ page, element, builder })).toBe(false)
+
+      // Valid Link Menu item - page
+      element.menu_items[0].type = 'link'
+      element.menu_items[0].name = 'foo link'
+      element.menu_items[0].navigation_type = 'page'
+      element.menu_items[0].navigate_to_page_id = 10
+
+      expect(elementType.isInError({ page, element, builder })).toBe(false)
+
+      // Valid Link Menu item - custom
+      element.menu_items[0].type = 'link'
+      element.menu_items[0].name = 'foo link'
+      element.menu_items[0].navigation_type = 'custom'
+      element.menu_items[0].navigate_to_url = 'https://www.baserow.io'
+
+      expect(elementType.isInError({ page, element, builder })).toBe(false)
+    })
+  })
+
   describe('elementType elementAround tests', () => {
     let page, sharedPage, builder
     beforeEach(async () => {

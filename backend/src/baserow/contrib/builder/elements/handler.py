@@ -237,7 +237,14 @@ class ElementHandler:
         """
 
         if specific:
-            elements = specific_iterator(base_queryset)
+            elements = specific_iterator(
+                base_queryset,
+                per_content_type_queryset_hook=(
+                    lambda element, queryset: element_type_registry.get_by_model(
+                        element
+                    ).enhance_queryset(queryset)
+                ),
+            )
         else:
             elements = base_queryset
 

@@ -51,6 +51,8 @@ import MultiPageContainerElementForm from '@baserow/modules/builder/components/e
 import MultiPageContainerElement from '@baserow/modules/builder/components/elements/components/MultiPageContainerElement'
 import DateTimePickerElement from '@baserow/modules/builder/components/elements/components/DateTimePickerElement'
 import DateTimePickerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm'
+import MenuElement from '@baserow/modules/builder/components/elements/components/MenuElement'
+import MenuElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementForm'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import {
   ContainerElementTypeMixin,
@@ -1955,5 +1957,110 @@ export class FooterElementType extends HeaderElementType {
       }
     }
     return null
+  }
+}
+
+export class MenuElementType extends ElementType {
+  static getType() {
+    return 'menu'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.menu')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.menuDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-menu'
+  }
+
+  get component() {
+    return MenuElement
+  }
+
+  get generalFormComponent() {
+    return MenuElementForm
+  }
+
+  getEventByName(element, name) {
+    return this.getEvents(element).find((event) => event.name === name)
+  }
+
+  getEvents(element) {
+    return (element.menu_items || [])
+      .map((item) => {
+        const { type: menuItemType, name, uid } = item
+        if (menuItemType === 'button') {
+          return [
+            new ClickEvent({
+              ...this.app,
+              namePrefix: uid,
+              labelSuffix: `- ${name}`,
+              applicationContextAdditions: { allowSameElement: true },
+            }),
+          ]
+        }
+        return []
+      })
+      .flat()
+  }
+
+  isInError({ page, element, builder }) {
+    // There must be at least one menu item
+    if (!element.menu_items?.length) {
+      return true
+    }
+
+    const workflowActions = this.app.store.getters[
+      'workflowAction/getElementWorkflowActions'
+    ](page, element.id)
+
+    const hasInvalidMenuItem = element.menu_items.some((menuItem) => {
+      if (menuItem.children?.length) {
+        return menuItem.children.some((child) => {
+          return this.menuItemIsInError(child, builder, workflowActions)
+        })
+      } else {
+        return this.menuItemIsInError(menuItem, builder, workflowActions)
+      }
+    })
+
+    return hasInvalidMenuItem || super.isInError({ page, element, builder })
+  }
+
+  menuItemIsInError(element, builder, workflowActions) {
+    if (['separator', 'spacer'].includes(element.type)) {
+      return false
+    } else if (element.type === 'button') {
+      // For button variants, there must be at least one workflow action
+      return !element.name || !workflowActions.length
+    } else if (element.type === 'link') {
+      if (!element.name) {
+        return true
+      }
+
+      if (!element.children?.length) {
+        if (element.navigation_type === 'page') {
+          if (!element.navigate_to_page_id) {
+            return true
+          }
+          return pathParametersInError(
+            element,
+            this.app.store.getters['page/getVisiblePages'](builder)
+          )
+        } else if (element.navigation_type === 'custom') {
+          return !element.navigate_to_url
+        }
+      }
+    }
+
+    return false
+  }
+
+  getDisplayName(element, applicationContext) {
+    return this.name
   }
 }

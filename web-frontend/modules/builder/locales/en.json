@@ -123,7 +123,9 @@
     "notAllowedUnlessFooter": "This element is allowed only inside the page footer",
     "notAllowedInsideContainer": "This element is not allowed inside a container",
     "notAllowedInsideSameType": "This element is not allowed in a container of the same type",
-    "notAllowedLocation": "This element is not allowed at this location"
+    "notAllowedLocation": "This element is not allowed at this location",
+    "menu": "Menu",
+    "menuDescription": "Menu element"
   },
   "addElementButton": {
     "label": "Element"
@@ -187,6 +189,40 @@
     "textFormatTypeLabel": "Format",
     "textFormatTypePlain": "Plain text",
     "textFormatTypeMarkdown": "Markdown"
+  },
+  "orientations": {
+    "label": "Orientation",
+    "horizontal": "Horizontal",
+    "vertical": "Vertical"
+  },
+  "menuElement": {
+    "missingValue": "Missing menu item",
+    "separator": "Separator",
+    "spacer": "Spacer",
+    "missingLinkValue": "Missing link name...",
+    "emptyLinkValue": "Empty link name...",
+    "missingButtonValue": "Missing button name...",
+    "emptyButtonValue": "Empty button name..."
+  },
+  "menuElementForm": {
+    "menuItemsLabel": "Menu items",
+    "addMenuItemLink": "Add...",
+    "menuItemDefaultName": "Page",
+    "menuItemLabelLabel": "Label",
+    "menuItemTypeLabel": "Type",
+    "menuItemTypeItem": "Item",
+    "menuItemTypeSeparator": "Separator",
+    "menuItemVariantLabel": "Variant",
+    "menuItemVariantLink": "Link",
+    "menuItemVariantButton": "Button",
+    "namePlaceholder": "Page",
+    "addSubLink": "Add sublink",
+    "menuItemSubLinkDefaultName": "Sublink",
+    "menuItemAddLink": "Link",
+    "menuItemAddButton": "Button",
+    "menuItemAddSeparator": "Separator",
+    "menuItemAddSpacer": "Spacer",
+    "eventDescription": "To configure actions for this button, open the Events tab of this element."
   },
   "imageElement": {
     "missingValue": "Missing alt text...",
@@ -645,9 +681,6 @@
     "selectSourceFirst": "Choose a data source and/or property to begin configuring your fields.",
     "buttonColor": "Button color",
     "refreshFieldsFromDataSource": "refresh fields from data source",
-    "orientation": "Orientation",
-    "orientationHorizontal": "Horizontal",
-    "orientationVertical": "Vertical",
     "buttonLoadMoreLabel": "Show more label",
     "propertySelectorMissingArrays": "No multiple valued fields found to use as rows."
   },
@@ -685,9 +718,6 @@
     "itemsPerPagePlaceholder": "Enter value...",
     "itemsPerRowLabel": "Items per row",
     "itemsPerRowDescription": "Number of columns per row and device type.",
-    "orientationLabel": "Orientation",
-    "orientationVertical": "Vertical",
-    "orientationHorizontal": "Horizontal",
     "buttonLoadMoreLabel": "Show more label",
     "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
     "propertySelectorMissingArrays": "No multiple valued fields found to repeat with.",

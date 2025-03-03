@@ -25,7 +25,7 @@ import elementContentStore from '@baserow/modules/builder/store/elementContent'
 import themeStore from '@baserow/modules/builder/store/theme'
 import workflowActionStore from '@baserow/modules/builder/store/workflowAction'
 import formDataStore from '@baserow/modules/builder/store/formData'
-
+import { FF_MENU_ELEMENT } from '@baserow/modules/core/plugins/featureFlags'
 import { registerRealtimeEvents } from '@baserow/modules/builder/realtime'
 import {
   HeadingElementType,
@@ -45,6 +45,7 @@ import {
   RecordSelectorElementType,
   HeaderElementType,
   FooterElementType,
+  MenuElementType,
 } from '@baserow/modules/builder/elementTypes'
 import {
   DesktopDeviceType,
@@ -228,6 +229,10 @@ export default (context) => {
   app.$registry.register('element', new DateTimePickerElementType(context))
   app.$registry.register('element', new RecordSelectorElementType(context))
   app.$registry.register('element', new RepeatElementType(context))
+
+  if (app.$featureFlagIsEnabled(FF_MENU_ELEMENT)) {
+    app.$registry.register('element', new MenuElementType(context))
+  }
 
   app.$registry.register('device', new DesktopDeviceType(context))
   app.$registry.register('device', new TabletDeviceType(context))

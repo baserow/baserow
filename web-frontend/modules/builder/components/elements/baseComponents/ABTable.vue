@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import { TABLE_ORIENTATION } from '@baserow/modules/builder/enums'
+import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 import BaserowTable from '@baserow/modules/builder/components/elements/components/BaserowTable'
 
 export default {
@@ -57,7 +57,7 @@ export default {
     orientation: {
       type: String,
       required: false,
-      default: TABLE_ORIENTATION.HORIZONTAL,
+      default: ORIENTATIONS.HORIZONTAL,
     },
     contentLoading: {
       type: Boolean,
