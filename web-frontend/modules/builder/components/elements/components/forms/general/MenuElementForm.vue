@@ -97,9 +97,7 @@ export default {
   name: 'MenuElementForm',
   components: {
     MenuElementItemForm,
-    LinkNavigationSelectionForm,
     CustomStyle,
-    LinkNavigationSelectionForm,
     HorizontalAlignmentsSelector,
   },
   mixins: [elementForm],
