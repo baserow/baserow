@@ -2,7 +2,12 @@ from datetime import tzinfo
 from typing import Any, Dict, Tuple, Union
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
-from baserow.contrib.database.airtable.import_report import AirtableImportReport
+from baserow.contrib.database.airtable.exceptions import AirtableSkipCellValue
+from baserow.contrib.database.airtable.import_report import (
+    ERROR_TYPE_UNSUPPORTED_FEATURE,
+    SCOPE_FIELD,
+    AirtableImportReport,
+)
 from baserow.contrib.database.fields.models import Field
 from baserow.core.registry import Instance, Registry
 
@@ -69,6 +74,40 @@ class AirtableColumnType(Instance):
         """
 
         return value
+
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping: Dict[str, Dict[str, int]],
+        raw_airtable_table: dict,
+        raw_airtable_row: dict,
+        raw_airtable_column: dict,
+        baserow_field: Field,
+        files_to_download: Dict[str, str],
+        config: AirtableImportConfig,
+        import_report: AirtableImportReport,
+    ):
+        # By default, raise the `AirtableSkipCellValue` so that the value is not
+        # included in the export.
+        raise AirtableSkipCellValue
+
+    def add_import_report_failed_if_default_is_provided(
+        self,
+        raw_airtable_table: dict,
+        raw_airtable_column: dict,
+        import_report: AirtableImportReport,
+        to_human_readable_default=(lambda x: x),
+    ):
+        default = raw_airtable_column.get("default", "")
+        if default:
+            default = to_human_readable_default(default)
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the default value "
+                f"{default} was dropped because that's not supported in Baserow.",
+            )
 
 
 class AirtableColumnTypeRegistry(Registry):

@@ -232,7 +232,7 @@ def test_to_baserow_database_export():
     assert baserow_database_export["tables"][1]["id"] == "tbl7glLIGtH8C8zGCzb"
     assert baserow_database_export["tables"][1]["name"] == "Data"
     assert baserow_database_export["tables"][1]["order"] == 1
-    assert len(baserow_database_export["tables"][1]["fields"]) == 25
+    assert len(baserow_database_export["tables"][1]["fields"]) == 26
 
     # We don't have to check all the fields and rows, just a single one, because we have
     # separate tests for mapping the Airtable fields and values to Baserow.
@@ -255,7 +255,7 @@ def test_to_baserow_database_export():
         "type": "email",
         "id": "fldB7wkyR0buF1sRF9O",
         "name": "Email",
-        "description": None,
+        "description": "This is an email",
         "order": 1,
         "primary": False,
         "read_only": False,
@@ -435,6 +435,17 @@ def test_to_baserow_database_export_without_primary_value():
         AirtableImportConfig(),
     )
     assert baserow_database_export["tables"][0]["fields"][0]["primary"] is True
+    assert baserow_database_export["tables"][1]["rows"][0] == {
+        "id": 1,
+        "order": "1.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object_name": "Name",
+        "field_scope": "scope_field",
+        "field_table": "table_Users",
+        "field_error_type": "error_type_unsupported_feature",
+        "field_message": 'Changed primary field to "Name" because the original primary field is incompatible.',
+    }
 
     user_table_json["data"]["tableSchemas"][0]["columns"] = []
     schema, tables = AirtableHandler.extract_schema(deepcopy([user_table_json]))
@@ -455,6 +466,17 @@ def test_to_baserow_database_export_without_primary_value():
             "immutable_properties": False,
         }
     ]
+    assert baserow_database_export["tables"][1]["rows"][0] == {
+        "id": 1,
+        "order": "1.00000000000000000000",
+        "created_on": None,
+        "updated_on": None,
+        "field_object_name": "Primary field (auto created)",
+        "field_scope": "scope_field",
+        "field_table": "table_Users",
+        "field_error_type": "error_type_unsupported_feature",
+        "field_message": 'Created new primary field "Primary field (auto created)" because none of the provided fields are compatible.',
+    }
 
 
 @pytest.mark.django_db

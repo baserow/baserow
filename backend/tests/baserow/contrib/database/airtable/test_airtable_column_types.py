@@ -18,6 +18,7 @@ from baserow.contrib.database.airtable.airtable_column_types import (
     TextAirtableColumnType,
 )
 from baserow.contrib.database.airtable.config import AirtableImportConfig
+from baserow.contrib.database.airtable.exceptions import AirtableSkipCellValue
 from baserow.contrib.database.airtable.import_report import (
     SCOPE_CELL,
     SCOPE_FIELD,
@@ -25,10 +26,12 @@ from baserow.contrib.database.airtable.import_report import (
 )
 from baserow.contrib.database.airtable.registry import airtable_column_type_registry
 from baserow.contrib.database.fields.models import (
+    AutonumberField,
     BooleanField,
     CountField,
     CreatedOnField,
     DateField,
+    DurationField,
     EmailField,
     FileField,
     LastModifiedField,
@@ -42,6 +45,7 @@ from baserow.contrib.database.fields.models import (
     TextField,
     URLField,
 )
+from baserow.contrib.database.fields.utils.duration import D_H, H_M, H_M_S
 
 
 @pytest.mark.django_db
@@ -87,6 +91,47 @@ def test_airtable_import_text_column(data_fixture, api_client):
         "name": "Single line text",
         "type": "text",
     }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert baserow_field.text_default == ""
+    assert len(import_report.items) == 0
+    assert isinstance(baserow_field, TextField)
+    assert isinstance(airtable_column_type, TextAirtableColumnType)
+
+    with pytest.raises(AirtableSkipCellValue):
+        assert (
+            airtable_column_type.to_baserow_export_empty_value(
+                {},
+                {"name": "Test"},
+                {"id": "row1"},
+                airtable_field,
+                baserow_field,
+                {},
+                AirtableImportConfig(),
+                AirtableImportReport(),
+            )
+            == ""
+        )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_text_column_preserve_default(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldwSc9PqedIhTSqhi5",
+        "name": "Single line text",
+        "type": "text",
+        "default": "test",
+    }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
@@ -96,8 +141,22 @@ def test_airtable_import_text_column(data_fixture, api_client):
         AirtableImportConfig(),
         AirtableImportReport(),
     )
-    assert isinstance(baserow_field, TextField)
-    assert isinstance(airtable_column_type, TextAirtableColumnType)
+    assert baserow_field.text_default == "test"
+    assert len(import_report.items) == 0
+
+    assert (
+        airtable_column_type.to_baserow_export_empty_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == ""
+    )
 
 
 @pytest.mark.django_db
@@ -109,6 +168,7 @@ def test_airtable_import_checkbox_column(data_fixture, api_client):
         "type": "checkbox",
         "typeOptions": {"color": "green", "icon": "check"},
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
@@ -116,10 +176,87 @@ def test_airtable_import_checkbox_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportReport(),
+        import_report,
     )
+    assert len(import_report.items) == 0
     assert isinstance(baserow_field, BooleanField)
     assert isinstance(airtable_column_type, CheckboxAirtableColumnType)
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_checkbox_column_with_default_value(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldTn59fpliSFcwpFA9",
+        "name": "Checkbox",
+        "type": "checkbox",
+        "typeOptions": {"color": "green", "icon": "check"},
+        "default": True,
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Checkbox"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_checkbox_column_invalid_icon(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldp1IFu0zdgRy70RoX",
+        "name": "Checkbox",
+        "type": "checkbox",
+        "typeOptions": {"color": "green", "icon": "TEST"},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Checkbox"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_checkbox_column_invalid_color(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldp1IFu0zdgRy70RoX",
+        "name": "Checkbox",
+        "type": "checkbox",
+        "typeOptions": {"color": "TEST", "icon": "check"},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Checkbox"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
 
 
 @pytest.mark.django_db
@@ -156,9 +293,7 @@ def test_airtable_import_created_on_column(data_fixture, api_client):
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
     assert baserow_field.date_force_timezone is None
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Created"
-    assert import_report.items[0].scope == SCOPE_FIELD
+    assert len(import_report.items) == 0
 
     airtable_field = {
         "id": "fldcTpJuoUVpsDNoszO",
@@ -232,9 +367,7 @@ def test_airtable_import_date_column(data_fixture, api_client):
     assert baserow_field.date_format == "US"
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "ISO DATE"
-    assert import_report.items[0].scope == SCOPE_FIELD
+    assert len(import_report.items) == 0
 
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
@@ -587,6 +720,37 @@ def test_airtable_import_datetime_edge_case_1(data_fixture, api_client):
 
 @pytest.mark.django_db
 @responses.activate
+def test_airtable_import_datetime_with_default_value(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldEB5dp0mNjVZu0VJI",
+        "name": "Date",
+        "type": "date",
+        "default": "test",
+        "typeOptions": {
+            "isDateTime": True,
+            "dateFormat": "Local",
+            "timeFormat": "24hour",
+            "timeZone": "client",
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Date"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_airtable_import_email_column(data_fixture, api_client):
     airtable_field = {
         "id": "fldNdoAZRim39AxR9Eg",
@@ -810,9 +974,7 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
     assert baserow_field.date_include_time is False
     assert baserow_field.date_time_format == "24"
     assert baserow_field.date_force_timezone is None
-    assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == "Last"
-    assert import_report.items[0].scope == SCOPE_FIELD
+    assert len(import_report.items) == 0
 
     airtable_field = {
         "id": "fldws6n8xdrEJrMxJFJ",
@@ -867,6 +1029,52 @@ def test_airtable_import_last_modified_column(data_fixture, api_client):
 
 @pytest.mark.django_db
 @responses.activate
+def test_airtable_import_last_modified_column_depending_fields(
+    data_fixture, api_client
+):
+    airtable_field = {
+        "id": "fldws6n8xdrEJrMxJFJ",
+        "name": "Last",
+        "type": "formula",
+        "typeOptions": {
+            "isDateTime": False,
+            "dateFormat": "Local",
+            "displayType": "lastModifiedTime",
+            "timeZone": "client",
+            "formulaTextParsed": "LAST_MODIFIED_TIME()",
+            "dependencies": {
+                "referencedColumnIdsForValue": [],
+                "referencedColumnIdsForModification": ["fld123445678"],
+                "dependsOnAllColumnModifications": False,
+            },
+            "resultType": "date",
+            "resultIsArray": False,
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert isinstance(baserow_field, LastModifiedField)
+    assert isinstance(airtable_column_type, FormulaAirtableColumnType)
+    assert baserow_field.date_format == "ISO"
+    assert baserow_field.date_include_time is False
+    assert baserow_field.date_time_format == "24"
+    assert baserow_field.date_force_timezone is None
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Last"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_airtable_import_foreign_key_column(data_fixture, api_client):
     airtable_field = {
         "id": "fldQcEaGEe7xuhUEuPL",
@@ -879,15 +1087,14 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
             "symmetricColumnId": "fldFh5wIL430N62LN6t",
         },
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
     ) = airtable_column_type_registry.from_airtable_column_to_serialized(
-        {"id": "tblxxx"},
-        airtable_field,
-        AirtableImportConfig(),
-        AirtableImportReport(),
+        {"id": "tblxxx"}, airtable_field, AirtableImportConfig(), import_report
     )
+    assert len(import_report.items) == 0
     assert isinstance(baserow_field, LinkRowField)
     assert isinstance(airtable_column_type, ForeignKeyAirtableColumnType)
     assert baserow_field.link_row_table_id == "tblRpq315qnnIcg5IjI"
@@ -979,6 +1186,49 @@ def test_airtable_import_foreign_key_column(data_fixture, api_client):
 
 @pytest.mark.django_db
 @responses.activate
+def test_airtable_import_foreign_key_column_failed_import(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldQcEaGEe7xuhUEuPL",
+        "name": "Link to Users",
+        "type": "foreignKey",
+        "typeOptions": {
+            "foreignTableId": "tblRpq315qnnIcg5IjI",
+            "relationship": "one",
+            "unreversed": True,
+            "symmetricColumnId": "fldFh5wIL430N62LN6t",
+            "viewIdForRecordSelection": "vw1234",
+            "filtersForRecordSelection": [None],
+            "aiMatchingOptions": {"isAutoFillEnabled": False},
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {"id": "tblxxx"}, airtable_field, AirtableImportConfig(), import_report
+    )
+    assert len(import_report.items) == 4
+    assert import_report.items[0].object_name == "Link to Users"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+    assert import_report.items[1].object_name == "Link to Users"
+    assert import_report.items[1].scope == SCOPE_FIELD
+    assert import_report.items[1].table == ""
+    assert import_report.items[2].object_name == "Link to Users"
+    assert import_report.items[2].scope == SCOPE_FIELD
+    assert import_report.items[2].table == ""
+    assert import_report.items[3].object_name == "Link to Users"
+    assert import_report.items[3].scope == SCOPE_FIELD
+    assert import_report.items[3].table == ""
+    assert isinstance(baserow_field, LinkRowField)
+    assert isinstance(airtable_column_type, ForeignKeyAirtableColumnType)
+    assert baserow_field.link_row_table_id == "tblRpq315qnnIcg5IjI"
+    assert baserow_field.link_row_related_field_id == "fldFh5wIL430N62LN6t"
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_airtable_import_multiline_text_column(data_fixture, api_client):
     airtable_field = {
         "id": "fldG9y88Zw7q7u4Z7i4",
@@ -1032,6 +1282,7 @@ def test_airtable_import_rich_text_column(data_fixture, api_client):
     )
     assert isinstance(baserow_field, LongTextField)
     assert isinstance(airtable_column_type, RichTextTextAirtableColumnType)
+    assert baserow_field.long_text_enable_rich_text is True
 
     content = {
         "otDocumentId": "otdHtbNg2tJKWj62WMn",
@@ -1043,20 +1294,19 @@ def test_airtable_import_rich_text_column(data_fixture, api_client):
             {"insert": " cubilia curae; Class aptent taciti sociosqu ad litora."},
         ],
     }
-    assert (
-        airtable_column_type.to_baserow_export_serialized_value(
-            {},
-            {"name": "Test"},
-            {"id": "row1"},
-            airtable_field,
-            baserow_field,
-            content,
-            {},
-            AirtableImportConfig(),
-            AirtableImportReport(),
-        )
-        == "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere "
-        "cubilia curae; Class aptent taciti sociosqu ad litora."
+    assert airtable_column_type.to_baserow_export_serialized_value(
+        {},
+        {"name": "Test"},
+        {"id": "row1"},
+        airtable_field,
+        baserow_field,
+        content,
+        {},
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    ) == (
+        "**Vestibulum** ante ipsum primis in faucibus orci luctus et ultrices "
+        "_posuere_ cubilia curae; Class aptent taciti sociosqu ad litora."
     )
 
 
@@ -1079,6 +1329,7 @@ def test_airtable_import_rich_text_column_with_mention(data_fixture, api_client)
     )
     assert isinstance(baserow_field, LongTextField)
     assert isinstance(airtable_column_type, RichTextTextAirtableColumnType)
+    assert baserow_field.long_text_enable_rich_text is True
 
     content = {
         "otDocumentId": "otdHtbNg2tJKWj62WMn",
@@ -1108,7 +1359,7 @@ def test_airtable_import_rich_text_column_with_mention(data_fixture, api_client)
         AirtableImportConfig(),
         AirtableImportReport(),
     ) == (
-        "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices "
+        "**Vestibulum** ante ipsum primis in faucibus orci luctus et ultrices "
         "@usrr5CVJ5Lz8ErVZS cubilia curae; Class aptent taciti sociosqu ad litora."
     )
 
@@ -1168,6 +1419,50 @@ def test_airtable_import_multi_select_column(
     assert select_options[1].value == "Option 2"
     assert select_options[1].color == "light-blue"
     assert select_options[1].order == 0
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_multi_select_column_with_default_value(
+    data_fixture, api_client, django_assert_num_queries
+):
+    table = data_fixture.create_database_table()
+    airtable_field = {
+        "id": "fldURNo0cvi6YWYcYj1",
+        "name": "Multiple select",
+        "type": "multiSelect",
+        "default": ["selEOJmenvqEd6pndFQ", "sel5ekvuoNVvl03olMO"],
+        "typeOptions": {
+            "choiceOrder": ["sel5ekvuoNVvl03olMO", "selEOJmenvqEd6pndFQ"],
+            "choices": {
+                "selEOJmenvqEd6pndFQ": {
+                    "id": "selEOJmenvqEd6pndFQ",
+                    "color": "blue",
+                    "name": "Option 1",
+                },
+                "sel5ekvuoNVvl03olMO": {
+                    "id": "sel5ekvuoNVvl03olMO",
+                    "color": "cyan",
+                    "name": "Option 2",
+                },
+            },
+            "disableColors": False,
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Multiple select"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
 
 
 @pytest.mark.django_db
@@ -1556,7 +1851,7 @@ def test_airtable_import_currency_column_non_existing_separator_format(
         import_report,
     )
     assert len(import_report.items) == 1
-    assert import_report.items[0].object_name == 'Number field: "Currency"'
+    assert import_report.items[0].object_name == "Currency"
     assert import_report.items[0].scope == SCOPE_FIELD
     assert import_report.items[0].table == ""
 
@@ -1665,6 +1960,219 @@ def test_airtable_import_percentage_column(data_fixture, api_client):
 
 @pytest.mark.django_db
 @responses.activate
+def test_airtable_import_number_column_default_value(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Number",
+        "type": "number",
+        "default": 1,
+        "typeOptions": {},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Number"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_days_duration_column(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Duration",
+        "type": "number",
+        "typeOptions": {
+            "format": "durationInDays",
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {}, airtable_field, AirtableImportConfig(), import_report
+    )
+    assert len(import_report.items) == 0
+    assert isinstance(baserow_field, DurationField)
+    assert isinstance(airtable_column_type, NumberAirtableColumnType)
+    assert baserow_field.duration_format == D_H
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            None,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        is None
+    )
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            1,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == 86400  # 1 * 60 * 60 * 24
+    )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_duration_column(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Duration",
+        "type": "number",
+        "typeOptions": {"format": "duration", "durationFormat": "h:mm"},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {}, airtable_field, AirtableImportConfig(), import_report
+    )
+    assert len(import_report.items) == 0
+    assert isinstance(baserow_field, DurationField)
+    assert isinstance(airtable_column_type, NumberAirtableColumnType)
+    assert baserow_field.duration_format == H_M
+
+    airtable_field["typeOptions"]["durationFormat"] = "h:mm:ss"
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {}, airtable_field, AirtableImportConfig(), import_report
+    )
+    assert baserow_field.duration_format == H_M_S
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            None,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        is None
+    )
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            1,
+            {},
+            AirtableImportConfig(),
+            AirtableImportReport(),
+        )
+        == 1
+    )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_duration_column_max_value(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Duration",
+        "type": "number",
+        "typeOptions": {"format": "duration", "durationFormat": "h:mm"},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {}, airtable_field, AirtableImportConfig(), import_report
+    )
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            86399999913601,
+            {},
+            AirtableImportConfig(),
+            import_report,
+        )
+        is None
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == 'Row: "row1", field: "Duration"'
+    assert import_report.items[0].scope == SCOPE_CELL
+    assert import_report.items[0].table == "Test"
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_duration_column_max_negative_value(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldZBmr4L45mhjILhlA",
+        "name": "Duration",
+        "type": "number",
+        "typeOptions": {"format": "duration", "durationFormat": "h:mm"},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {}, airtable_field, AirtableImportConfig(), import_report
+    )
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            -86399999913601,
+            {},
+            AirtableImportConfig(),
+            import_report,
+        )
+        is None
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == 'Row: "row1", field: "Duration"'
+    assert import_report.items[0].scope == SCOPE_CELL
+    assert import_report.items[0].table == "Test"
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_airtable_import_phone_column(data_fixture, api_client):
     airtable_field = {"id": "fldkrPuYJTqq7vSJ7Oh", "name": "Phone", "type": "phone"}
     (
@@ -1721,8 +2229,9 @@ def test_airtable_import_rating_column(data_fixture, api_client):
         "id": "fldp1IFu0zdgRy70RoX",
         "name": "Rating",
         "type": "rating",
-        "typeOptions": {"color": "yellow", "icon": "star", "max": 5},
+        "typeOptions": {"color": "blue", "icon": "heart", "max": 5},
     }
+    import_report = AirtableImportReport()
     (
         baserow_field,
         airtable_column_type,
@@ -1730,11 +2239,14 @@ def test_airtable_import_rating_column(data_fixture, api_client):
         {},
         airtable_field,
         AirtableImportConfig(),
-        AirtableImportReport(),
+        import_report,
     )
+    assert len(import_report.items) == 0
     assert isinstance(baserow_field, RatingField)
     assert isinstance(airtable_column_type, RatingAirtableColumnType)
     assert baserow_field.max_value == 5
+    assert baserow_field.color == "dark-blue"
+    assert baserow_field.style == "heart"
     assert (
         airtable_column_type.to_baserow_export_serialized_value(
             {},
@@ -1745,10 +2257,66 @@ def test_airtable_import_rating_column(data_fixture, api_client):
             5,
             {},
             AirtableImportConfig(),
-            AirtableImportReport(),
+            import_report,
         )
         == 5
     )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_rating_column_invalid_icon(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldp1IFu0zdgRy70RoX",
+        "name": "Rating",
+        "type": "rating",
+        "typeOptions": {"color": "blue", "icon": "TEST", "max": 5},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Rating"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+    assert baserow_field.max_value == 5
+    assert baserow_field.color == "dark-blue"
+    assert baserow_field.style == "star"
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_rating_column_invalid_color(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldp1IFu0zdgRy70RoX",
+        "name": "Rating",
+        "type": "rating",
+        "typeOptions": {"color": "TEST", "icon": "heart", "max": 5},
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        import_report,
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Rating"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
+    assert baserow_field.max_value == 5
+    assert baserow_field.color == "dark-blue"
+    assert baserow_field.style == "heart"
 
 
 @pytest.mark.django_db
@@ -1806,6 +2374,47 @@ def test_airtable_import_select_column(
     assert select_options[1].value == "Option B"
     assert select_options[1].color == "light-blue"
     assert select_options[1].order == 1
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_select_column_with_default_value(
+    data_fixture, api_client, django_assert_num_queries
+):
+    table = data_fixture.create_database_table()
+    airtable_field = {
+        "id": "fldRd2Vkzgsf6X4z6B4",
+        "name": "Single select",
+        "type": "select",
+        "default": "selbh6rEWaaiyQvWyfg",
+        "typeOptions": {
+            "choiceOrder": ["selbh6rEWaaiyQvWyfg", "selvZgpWhbkeRVphROT"],
+            "choices": {
+                "selbh6rEWaaiyQvWyfg": {
+                    "id": "selbh6rEWaaiyQvWyfg",
+                    "color": "blue",
+                    "name": "Option A",
+                },
+                "selvZgpWhbkeRVphROT": {
+                    "id": "selvZgpWhbkeRVphROT",
+                    "color": "cyan",
+                    "name": "Option B",
+                },
+            },
+            "disableColors": False,
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {}, airtable_field, AirtableImportConfig(), import_report
+    )
+    assert len(import_report.items) == 1
+    assert import_report.items[0].object_name == "Single select"
+    assert import_report.items[0].scope == SCOPE_FIELD
+    assert import_report.items[0].table == ""
 
 
 @pytest.mark.django_db
@@ -1906,3 +2515,44 @@ def test_airtable_import_count_column(data_fixture, api_client):
         )
         is None
     )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_airtable_import_autonumber_column(data_fixture, api_client):
+    airtable_field = {
+        "id": "fldG9y88Zw7q7u4Z7i4",
+        "name": "ID",
+        "type": "autoNumber",
+        "typeOptions": {
+            "maxUsedAutoNumber": 8,
+        },
+    }
+    import_report = AirtableImportReport()
+    (
+        baserow_field,
+        airtable_column_type,
+    ) = airtable_column_type_registry.from_airtable_column_to_serialized(
+        {},
+        airtable_field,
+        AirtableImportConfig(),
+        AirtableImportReport(),
+    )
+    assert len(import_report.items) == 0
+    assert isinstance(baserow_field, AutonumberField)
+
+    assert (
+        airtable_column_type.to_baserow_export_serialized_value(
+            {},
+            {"name": "Test"},
+            {"id": "row1"},
+            airtable_field,
+            baserow_field,
+            1,
+            {},
+            AirtableImportConfig(),
+            import_report,
+        )
+        == 1
+    )
+    assert len(import_report.items) == 0

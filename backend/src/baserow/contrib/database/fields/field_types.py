@@ -1923,7 +1923,7 @@ class DurationFieldType(FieldType):
     _db_column_fields = []
 
     def get_model_field(self, instance: DurationField, **kwargs):
-        return DurationModelField(instance.duration_format, null=True)
+        return DurationModelField(instance.duration_format, null=True, **kwargs)
 
     def get_serializer_field(self, instance: DurationField, **kwargs):
         return DurationFieldSerializer(

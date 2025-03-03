@@ -1,16 +1,18 @@
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from django.core.exceptions import ValidationError
 
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
 from baserow.contrib.database.fields.models import (
     NUMBER_MAX_DECIMAL_PLACES,
+    AutonumberField,
     BooleanField,
     CountField,
     CreatedOnField,
     DateField,
+    DurationField,
     EmailField,
     Field,
     FileField,
@@ -26,9 +28,18 @@ from baserow.contrib.database.fields.models import (
     URLField,
 )
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.utils.duration import D_H, H_M_S_SSS
+from baserow.core.utils import get_value_at_path
 
 from .config import AirtableImportConfig
-from .constants import AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING
+from .constants import (
+    AIRTABLE_DURATION_FIELD_DURATION_FORMAT_MAPPING,
+    AIRTABLE_MAX_DURATION_VALUE,
+    AIRTABLE_NUMBER_FIELD_SEPARATOR_FORMAT_MAPPING,
+    AIRTABLE_RATING_COLOR_MAPPING,
+    AIRTABLE_RATING_ICON_MAPPING,
+)
+from .exceptions import AirtableSkipCellValue
 from .helpers import import_airtable_date_type_options, set_select_options_on_field
 from .import_report import (
     ERROR_TYPE_DATA_TYPE_MISMATCH,
@@ -38,7 +49,7 @@ from .import_report import (
     AirtableImportReport,
 )
 from .registry import AirtableColumnType
-from .utils import get_airtable_row_primary_value
+from .utils import get_airtable_row_primary_value, quill_to_markdown
 
 
 class TextAirtableColumnType(AirtableColumnType):
@@ -53,7 +64,7 @@ class TextAirtableColumnType(AirtableColumnType):
         elif validator_name == "email":
             return EmailField()
         else:
-            return TextField()
+            return TextField(text_default=raw_airtable_column.get("default", ""))
 
     def to_baserow_export_serialized_value(
         self,
@@ -86,6 +97,25 @@ class TextAirtableColumnType(AirtableColumnType):
 
         return value
 
+    def to_baserow_export_empty_value(
+        self,
+        row_id_mapping,
+        raw_airtable_table,
+        raw_airtable_row,
+        raw_airtable_column,
+        baserow_field,
+        files_to_download,
+        config,
+        import_report,
+    ):
+        # If the `text_default` is set, then we must return an empty string. If we
+        # don't, the value is omitted in the export, resulting in the default value
+        # automatically being set, while it's actually empty in Airtable.
+        if isinstance(baserow_field, TextField) and baserow_field.text_default != "":
+            return ""
+        else:
+            raise AirtableSkipCellValue
+
 
 class MultilineTextAirtableColumnType(AirtableColumnType):
     type = "multilineText"
@@ -102,7 +132,7 @@ class RichTextTextAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
-        return LongTextField()
+        return LongTextField(long_text_enable_rich_text=True)
 
     def to_baserow_export_serialized_value(
         self,
@@ -116,37 +146,7 @@ class RichTextTextAirtableColumnType(AirtableColumnType):
         config,
         import_report,
     ):
-        # We don't support rich text formatting yet, so this converts the value to
-        # plain text.
-        rich_values = []
-        for v in value["documentValue"]:
-            insert_value = v["insert"]
-            if isinstance(insert_value, str):
-                rich_values.append(insert_value)
-            elif isinstance(insert_value, dict):
-                rich_value = self._extract_value_from_airtable_rich_value_dict(
-                    insert_value
-                )
-                if rich_value is not None:
-                    rich_values.append(rich_value)
-
-        return "".join(rich_values)
-
-    def _extract_value_from_airtable_rich_value_dict(
-        self, insert_value_dict: Dict[Any, Any]
-    ) -> Optional[str]:
-        """
-        Airtable rich text fields can contain references to users. For now this method
-        attempts to return a @userId reference string. In the future if Baserow has
-        a rich text field and the ability to reference users in them we should map
-        this airtable userId to the corresponding Baserow user id.
-        """
-
-        mention = insert_value_dict.get("mention")
-        if isinstance(mention, dict):
-            user_id = mention.get("userId")
-            if user_id is not None:
-                return f"@{user_id}"
+        return quill_to_markdown(value["documentValue"])
 
 
 class NumberAirtableColumnType(AirtableColumnType):
@@ -155,9 +155,50 @@ class NumberAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        self.add_import_report_failed_if_default_is_provided(
+            raw_airtable_table, raw_airtable_column, import_report
+        )
+
         type_options = raw_airtable_column.get("typeOptions", {})
         options_format = type_options.get("format", "")
+
+        if options_format in ["duration", "durationInDays"]:
+            return self.to_duration_field(
+                raw_airtable_table, raw_airtable_column, config, import_report
+            )
+        else:
+            return self.to_number_field(
+                raw_airtable_table, raw_airtable_column, config, import_report
+            )
+
+    def to_duration_field(
+        self, raw_airtable_table, raw_airtable_column, config, import_report
+    ):
+        type_options = raw_airtable_column.get("typeOptions", {})
+        options_format = type_options.get("format", "")
+        duration_format = type_options.get("durationFormat", "")
+
+        if options_format == "durationInDays":
+            # It looks like this option is broken in Airtable. When this is selected,
+            # the exact value seems to be in seconds, but it should be in days. We
+            # will therefore convert it to days when calculating the value.
+            duration_format = D_H
+        else:
+            # Fallback to the most specific format because that leaves most of the
+            # value intact.
+            duration_format = AIRTABLE_DURATION_FIELD_DURATION_FORMAT_MAPPING.get(
+                duration_format, H_M_S_SSS
+            )
+
+        return DurationField(duration_format=duration_format)
+
+    def to_number_field(
+        self, raw_airtable_table, raw_airtable_column, config, import_report
+    ):
         suffix = ""
+
+        type_options = raw_airtable_column.get("typeOptions", {})
+        options_format = type_options.get("format", "")
 
         if "percent" in options_format:
             suffix = "%"
@@ -173,7 +214,7 @@ class NumberAirtableColumnType(AirtableColumnType):
 
         if separator_format != "" and number_separator == "":
             import_report.add_failed(
-                f"Number field: \"{raw_airtable_column['name']}\"",
+                raw_airtable_column["name"],
                 SCOPE_FIELD,
                 raw_airtable_table.get("name", ""),
                 ERROR_TYPE_UNSUPPORTED_FEATURE,
@@ -204,14 +245,40 @@ class NumberAirtableColumnType(AirtableColumnType):
         if value is None:
             return None
 
+        type_options = raw_airtable_column.get("typeOptions", {})
+        options_format = type_options.get("format", "")
+        row_name = get_airtable_row_primary_value(raw_airtable_table, raw_airtable_row)
+
+        if options_format == "durationInDays":
+            # If the formatting is in days, we must multiply the raw value in seconds
+            # by the number of seconds in a day.
+            value = value * 60 * 60 * 24
+
+        if "duration" in options_format:
+            # If the value is higher than the maximum that the `timedelta` can handle,
+            # then we can't use it, so we have to drop it. The maximum number of days
+            # in `timedelta` is `999999999`, so the max number of seconds are
+            # 999999999 * 24 * 60 * 60 = 86399999913600.
+            if abs(value) > AIRTABLE_MAX_DURATION_VALUE:
+                import_report.add_failed(
+                    f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                    SCOPE_CELL,
+                    raw_airtable_table["name"],
+                    ERROR_TYPE_DATA_TYPE_MISMATCH,
+                    f"Cell value was left empty because the duration seconds {value} "
+                    f'is outside the -86399999913600 and 86399999913600 range."',
+                )
+                return None
+
+            # If the value is a duration, then we can use the same value because both
+            # store it as seconds.
+            return value
+
         try:
             value = Decimal(value)
         except InvalidOperation:
             # If the value can't be parsed as decimal, then it might be corrupt, so we
             # need to inform the user and skip the import.
-            row_name = get_airtable_row_primary_value(
-                raw_airtable_table, raw_airtable_row
-            )
             import_report.add_failed(
                 f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
                 SCOPE_CELL,
@@ -224,8 +291,6 @@ class NumberAirtableColumnType(AirtableColumnType):
 
         # Airtable stores 10% as 0.1, so we would need to multiply it by 100 so get the
         # correct value in Baserow.
-        type_options = raw_airtable_column.get("typeOptions", {})
-        options_format = type_options.get("format", "")
         if "percent" in options_format:
             value = value * 100
 
@@ -241,8 +306,39 @@ class RatingAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        type_options = raw_airtable_column.get("typeOptions", {})
+        airtable_icon = type_options.get("icon", "")
+        airtable_max = type_options.get("max", 5)
+        airtable_color = type_options.get("color", "")
+
+        style = AIRTABLE_RATING_ICON_MAPPING.get(airtable_icon, "")
+        if style == "":
+            style = list(AIRTABLE_RATING_ICON_MAPPING.values())[0]
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the icon {airtable_icon} does not "
+                f"exist, so it defaulted to {style}.",
+            )
+
+        color = AIRTABLE_RATING_COLOR_MAPPING.get(airtable_color, "")
+        if color == "":
+            color = list(AIRTABLE_RATING_COLOR_MAPPING.values())[0]
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the color {airtable_color} does not "
+                f"exist, so it defaulted to {color}.",
+            )
+
         return RatingField(
-            max_value=raw_airtable_column.get("typeOptions", {}).get("max", 5)
+            max_value=airtable_max,
+            style=style,
+            color=color,
         )
 
 
@@ -252,6 +348,32 @@ class CheckboxAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        self.add_import_report_failed_if_default_is_provided(
+            raw_airtable_table, raw_airtable_column, import_report
+        )
+
+        type_options = raw_airtable_column.get("typeOptions", {})
+        airtable_icon = type_options.get("icon", "check")
+        airtable_color = type_options.get("color", "green")
+
+        if airtable_icon != "check":
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the icon {airtable_icon} is not supported.",
+            )
+
+        if airtable_color != "green":
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but the color {airtable_color} is not supported.",
+            )
+
         return BooleanField()
 
     def to_baserow_export_serialized_value(
@@ -275,6 +397,13 @@ class DateAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
+        self.add_import_report_failed_if_default_is_provided(
+            raw_airtable_table,
+            raw_airtable_column,
+            import_report,
+            to_human_readable_default=lambda x: "Current date",
+        )
+
         type_options = raw_airtable_column.get("typeOptions", {})
         # Check if a timezone is provided in the type options, if so, we might want
         # to use that timezone for the conversion later on.
@@ -283,13 +412,6 @@ class DateAirtableColumnType(AirtableColumnType):
 
         # date_force_timezone=None it the equivalent of airtable_timezone="client".
         if airtable_timezone == "client":
-            import_report.add_failed(
-                raw_airtable_column["name"],
-                SCOPE_FIELD,
-                raw_airtable_table.get("name", ""),
-                ERROR_TYPE_UNSUPPORTED_FEATURE,
-                "The date field was imported, but the client timezone setting was dropped.",
-            )
             airtable_timezone = None
 
         return DateField(
@@ -358,15 +480,6 @@ class FormulaAirtableColumnType(AirtableColumnType):
         is_last_modified = display_type == "lastModifiedTime"
         is_created = display_type == "createdTime"
 
-        if is_last_modified or is_created and airtable_timezone == "client":
-            import_report.add_failed(
-                raw_airtable_column["name"],
-                SCOPE_FIELD,
-                raw_airtable_table.get("name", ""),
-                ERROR_TYPE_UNSUPPORTED_FEATURE,
-                "The field was imported, but the client timezone setting was dropped.",
-            )
-
         # date_force_timezone=None it the equivalent of airtable_timezone="client".
         if airtable_timezone == "client":
             airtable_timezone = None
@@ -374,6 +487,22 @@ class FormulaAirtableColumnType(AirtableColumnType):
         # The formula conversion isn't support yet, but because the Created on and
         # Last modified fields work as a formula, we can convert those.
         if is_last_modified:
+            dependencies = type_options.get("dependencies", {})
+            all_column_modifications = dependencies.get(
+                "dependsOnAllColumnModifications", False
+            )
+
+            if not all_column_modifications:
+                import_report.add_failed(
+                    raw_airtable_column["name"],
+                    SCOPE_FIELD,
+                    raw_airtable_table.get("name", ""),
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f"The field was imported, but the support to depend on "
+                    f"specific fields was dropped because that's not supported by "
+                    f"Baserow.",
+                )
+
             return LastModifiedField(
                 date_show_tzinfo=date_show_tzinfo,
                 date_force_timezone=airtable_timezone,
@@ -421,6 +550,54 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
     ):
         type_options = raw_airtable_column.get("typeOptions", {})
         foreign_table_id = type_options.get("foreignTableId")
+        relationship = type_options.get("relationship", "many")  # can be: one
+        view_id_for_record_selection = type_options.get(
+            "viewIdForRecordSelection", None
+        )
+        filters_for_record_selection = type_options.get(
+            "filtersForRecordSelection", None
+        )
+        ai_matching_options = type_options.get("aiMatchingOptions", None)
+
+        if relationship != "many":
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but support for a one to many "
+                f"relationship was dropped because it's not supported by Baserow.",
+            )
+
+        if view_id_for_record_selection is not None:
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but limiting record selection to a view "
+                f"was dropped because the views have not been imported.",
+            )
+
+        if filters_for_record_selection is not None:
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but filtering record by a condition "
+                f"was dropped because it's not supported by Baserow.",
+            )
+
+        if ai_matching_options is not None:
+            import_report.add_failed(
+                raw_airtable_column["name"],
+                SCOPE_FIELD,
+                raw_airtable_table.get("name", ""),
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f"The field was imported, but using AI to show top matches was "
+                f"dropped because it's not supported by Baserow.",
+            )
 
         return LinkRowField(
             link_row_table_id=foreign_table_id,
@@ -531,12 +708,21 @@ class SelectAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
-        field = SingleSelectField()
-        field = set_select_options_on_field(
-            field,
-            raw_airtable_column.get("id", ""),
-            raw_airtable_column.get("typeOptions", {}),
+        id_value = raw_airtable_column.get("id", "")
+        type_options = raw_airtable_column.get("typeOptions", {})
+
+        def get_default(x):
+            return get_value_at_path(type_options, f"choices.{x}.name", "")
+
+        self.add_import_report_failed_if_default_is_provided(
+            raw_airtable_table,
+            raw_airtable_column,
+            import_report,
+            to_human_readable_default=get_default,
         )
+
+        field = SingleSelectField()
+        field = set_select_options_on_field(field, id_value, type_options)
         return field
 
 
@@ -562,12 +748,27 @@ class MultiSelectAirtableColumnType(AirtableColumnType):
     def to_baserow_field(
         self, raw_airtable_table, raw_airtable_column, config, import_report
     ):
-        field = MultipleSelectField()
-        field = set_select_options_on_field(
-            field,
-            raw_airtable_column.get("id", ""),
-            raw_airtable_column.get("typeOptions", {}),
+        id_value = raw_airtable_column.get("id", "")
+        type_options = raw_airtable_column.get("typeOptions", {})
+
+        def get_default(default):
+            default = default or []
+            return ", ".join(
+                [
+                    get_value_at_path(type_options, f"choices.{v}.name", "")
+                    for v in default
+                ]
+            )
+
+        self.add_import_report_failed_if_default_is_provided(
+            raw_airtable_table,
+            raw_airtable_column,
+            import_report,
+            to_human_readable_default=get_default,
         )
+
+        field = MultipleSelectField()
+        field = set_select_options_on_field(field, id_value, type_options)
         return field
 
 
@@ -631,3 +832,12 @@ class CountAirtableColumnType(AirtableColumnType):
         import_report,
     ):
         return None
+
+
+class AutoNumberAirtableColumnType(AirtableColumnType):
+    type = "autoNumber"
+
+    def to_baserow_field(
+        self, raw_airtable_table, raw_airtable_column, config, import_report
+    ):
+        return AutonumberField()

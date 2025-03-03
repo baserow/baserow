@@ -39,6 +39,7 @@ from .exceptions import (
     AirtableBaseNotPublic,
     AirtableImportNotRespectingConfig,
     AirtableShareIsNotABase,
+    AirtableSkipCellValue,
 )
 from .import_report import (
     ERROR_TYPE_UNSUPPORTED_FEATURE,
@@ -247,6 +248,7 @@ class AirtableHandler:
         baserow_field.pk = 0
         baserow_field.name = column["name"]
         baserow_field.order = order
+        baserow_field.description = column.get("description", None) or None
         baserow_field.primary = (
             baserow_field_type.can_be_primary_field(baserow_field)
             and table["primaryColumnId"] == column["id"]
@@ -305,25 +307,42 @@ class AirtableHandler:
         # Some empty rows don't have the `cellValuesByColumnId` property because it
         # doesn't contain values, hence the fallback to prevent failing hard.
         cell_values = row.get("cellValuesByColumnId", {})
-        for column_id, column_value in cell_values.items():
-            if column_id not in column_mapping:
-                continue
 
-            mapping_values = column_mapping[column_id]
-            baserow_serialized_value = mapping_values[
-                "airtable_column_type"
-            ].to_baserow_export_serialized_value(
+        for column_id, mapping_values in column_mapping.items():
+            airtable_column_type = mapping_values["airtable_column_type"]
+            args = [
                 row_id_mapping,
                 table,
                 row,
                 mapping_values["raw_airtable_column"],
                 mapping_values["baserow_field"],
-                column_value,
+                cell_values.get(column_id, None),
                 files_to_download,
                 config,
                 import_report,
-            )
-            exported_row[f"field_{column_id}"] = baserow_serialized_value
+            ]
+
+            try:
+                # The column_id typically doesn't exist in the `cell_values` if the
+                # value is empty in Airtable.
+                if column_id in cell_values:
+                    baserow_serialized_value = (
+                        airtable_column_type.to_baserow_export_serialized_value(*args)
+                    )
+                else:
+                    # remove the cell_value because that one is not accepted in the args
+                    # of this method.
+                    args.pop(5)
+                    baserow_serialized_value = (
+                        airtable_column_type.to_baserow_export_empty_value(*args)
+                    )
+                exported_row[f"field_{column_id}"] = baserow_serialized_value
+            except AirtableSkipCellValue:
+                # If the `AirtableSkipCellValue` is raised, then the cell value must
+                # not be included in the export. This is the default behavior for
+                # `to_baserow_export_empty_value`, but in some cases, a specific empty
+                # value must be returned.
+                pass
 
         return exported_row
 
@@ -500,6 +519,13 @@ class AirtableHandler:
                     ).can_be_primary_field(value["baserow_field"]):
                         value["baserow_field"].primary = True
                         found_existing_field = True
+                        import_report.add_failed(
+                            value["baserow_field"].name,
+                            SCOPE_FIELD,
+                            table["name"],
+                            ERROR_TYPE_UNSUPPORTED_FEATURE,
+                            f"""Changed primary field to "{value["baserow_field"].name}" because the original primary field is incompatible.""",
+                        )
                         break
 
                 # If none of the existing fields can be primary, we will add a new
@@ -524,6 +550,13 @@ class AirtableHandler:
                         "raw_airtable_column": airtable_column,
                         "airtable_column_type": airtable_column_type,
                     }
+                    import_report.add_failed(
+                        baserow_field.name,
+                        SCOPE_FIELD,
+                        table["name"],
+                        ERROR_TYPE_UNSUPPORTED_FEATURE,
+                        f"""Created new primary field "{baserow_field.name}" because none of the provided fields are compatible.""",
+                    )
 
             # Loop over all the fields and convert them to Baserow serialized format.
             exported_fields = [
