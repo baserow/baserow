@@ -587,3 +587,29 @@ def test_local_baserow_aggregate_rows_dispatch_data_field_type_not_compatible_an
         exc.value.args[0] == f"The field with ID {field.id} is not compatible "
         f"with the aggregation type {service.aggregation_type}"
     )
+
+
+@pytest.mark.django_db
+def test_create_local_baserow_aggregate_rows_service_with_unsupported_aggregation_type(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    dashboard = page.builder
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        table=table, field=field, integration=integration
+    )
+    service_type = service.get_type()
+    unsupported_agg_type = service_type.unsupported_aggregation_types[0]
+
+    with pytest.raises(
+        ValidationError,
+        match=f"The {unsupported_agg_type} aggregation type is not currently supported.",
+    ):
+        service_type.prepare_values({"aggregation_type": unsupported_agg_type}, user)
