@@ -230,6 +230,7 @@
       </DeviceSelector>
     </FormGroup>
     <CustomStyle
+      v-if="propertyOptionsAvailable"
       v-model="values.styles"
       style-key="header_button"
       :config-block-types="['button']"
