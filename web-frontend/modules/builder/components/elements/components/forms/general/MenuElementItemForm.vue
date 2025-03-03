@@ -1,19 +1,32 @@
 <template>
-  <Expandable>
+  <Expandable
+    :key="values.uid"
+    v-sortable="{
+      id: values.uid,
+      update: orderItems(),
+      enabled: $hasPermission(
+        'builder.page.element.update',
+        element,
+        workspace.id
+      ),
+      handle: '[data-sortable-handle-root]',
+    }"
+  >
     <template #header="{ toggle, expanded }">
       <div
-        :class="
-          isStyle
-            ? 'menu-element__form--expandable-item-header-outline'
-            : 'menu-element__form--expandable-item-header'
-        "
-        @click.stop="!isStyle ? toggle() : null"
+        class="menu-element-form__item-header"
+        :class="{
+          'menu-element-form__item-header--outline': menuItemTypeIsStyle(
+            values.type
+          ),
+        }"
+        @click.stop="!menuItemTypeIsStyle(values.type) ? toggle() : null"
       >
         <div
-          class="menu-element__form--expandable-item-handle"
-          data-sortable-handle
+          class="menu-element-form__item-handle"
+          data-sortable-handle-root
         />
-        <div class="menu-element__form--expandable-item-name">
+        <div class="menu-element-form__item-name">
           <template v-if="values.type === 'separator'">
             {{ $t('menuElement.separator') }}
           </template>
@@ -24,50 +37,78 @@
             {{ values.name }}
           </template>
         </div>
-        <template v-if="isStyle">
+
+        <template v-if="menuItemTypeIsStyle(values.type)">
           <ButtonIcon
             size="small"
             icon="iconoir-bin"
-            @click="removeMenuItem()"
+            @click="removeMenuItem(values)"
           />
         </template>
         <template v-else>
           <i
             :class="
-              expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
+              expanded
+                ? 'iconoir-nav-arrow-down'
+                : 'iconoir-nav-arrow-right'
             "
           />
         </template>
       </div>
     </template>
-    <template v-if="!isStyle" #default>
-      <div class="menu-element__form--expanded-item">
-        <FormGroup
-          small-label
-          horizontal
-          required
-          class="margin-bottom-2"
-          :label="$t('menuElementForm.menuItemLabelLabel')"
-          :error="fieldHasErrors('name')"
-        >
-          <FormInput
-            v-model="v$.values.name.$model"
-            :placeholder="$t('menuElementForm.namePlaceholder')"
+    <template v-if="!menuItemTypeIsStyle(values.type)" #default>
+      <div class="menu-element-form__item">
+        <div v-if="values.type === 'button'">
+          <FormGroup
+            small-label
+            horizontal
+            required
+            class="margin-bottom-2"
+            :label="$t('menuElementForm.menuItemLabelLabel')"
             :error="fieldHasErrors('name')"
-          />
-          <template #error>
-            {{ v$.values.name.$errors[0]?.$message }}
-          </template>
-          <template #after-input>
-            <ButtonIcon icon="iconoir-bin" @click="removeMenuItem()" />
-          </template>
-        </FormGroup>
-        <template v-if="values.type === 'button'">
+          >
+            <FormInput
+              v-model="v$.values.name.$model"
+              :placeholder="$t('menuElementForm.namePlaceholder')"
+              :error="fieldHasErrors('name')"
+            />
+            <template #error>
+              {{ v$.values.name.$errors[0]?.$message }}
+            </template>
+            <template #after-input>
+              <ButtonIcon icon="iconoir-bin" @click="removeMenuItem()" />
+            </template>
+          </FormGroup>
           <Alert type="info-neutral">
             <p>{{ $t('menuElementForm.eventDescription') }}</p>
           </Alert>
-        </template>
-        <template v-else>
+        </div>
+        
+        <div v-else>
+          <FormGroup
+            small-label
+            horizontal
+            required
+            class="margin-bottom-2"
+            :label="$t('menuElementForm.menuItemLabelLabel')"
+            :error="fieldHasErrors('name')"
+          >
+            <FormInput
+              v-model="v$.values.name.$model"
+              :placeholder="$t('menuElementForm.namePlaceholder')"
+              :error="fieldHasErrors('name')"
+            />
+            <template #error>
+              {{ v$.values.name.$errors[0]?.$message }}
+            </template>
+            <template #after-input>
+              <ButtonIcon
+                icon="iconoir-bin"
+                @click="removeMenuItem()"
+              />
+            </template>
+          </FormGroup>
+
           <FormGroup
             small-label
             horizontal
@@ -88,6 +129,7 @@
               />
             </Dropdown>
           </FormGroup>
+
           <LinkNavigationSelectionForm
             v-if="!values.children.length"
             :default-values="defaultValues"
@@ -101,9 +143,10 @@
               @values-changed="updateChildItem"
             ></MenuElementItemForm>
           </div>
+
           <div
             v-if="!preventItemNesting"
-            class="menu-element__add-sub-link-container"
+            class="menu-element-form__add-sub-link-container"
           >
             <ButtonText
               type="primary"
@@ -114,13 +157,14 @@
               {{ $t('menuElementForm.addSubLink') }}
             </ButtonText>
           </div>
-        </template>
+        </div>
       </div>
     </template>
   </Expandable>
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import LinkNavigationSelectionForm from '@baserow/modules/builder/components/elements/components/forms/general/LinkNavigationSelectionForm'
 import { useVuelidate } from '@vuelidate/core'
@@ -164,8 +208,11 @@ export default {
     }
   },
   computed: {
-    isStyle() {
-      return ['separator', 'spacer'].includes(this.values.type)
+    ...mapGetters({
+      getElementSelected: 'element/getSelected',
+    }),
+    element() {
+      return this.getElementSelected(this.builder)
     },
     menuItemVariants() {
       return [
@@ -222,6 +269,19 @@ export default {
         type: 'link',
         uid: uuid(),
       })
+    },
+    /**
+     * Order the root items.
+     */
+     orderItems(newOrder) {
+      console.log('calling order items...: ', newOrder)
+      // const itemsByUid = Object.fromEntries(
+      //   this.values.menu_items.map((item) => [item.uid, item])
+      // )
+      // this.values.menu_items = newOrder.map((uid) => itemsByUid[uid])
+    },
+    menuItemTypeIsStyle(itemType) {
+      return ['separator', 'spacer'].includes(itemType)
     },
   },
   validations() {
