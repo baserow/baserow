@@ -107,10 +107,10 @@ export default {
   mounted() {
     /**
      * Using the `v-sortable` directive doesn't work when the v-for loop and
-     * child elements are in different components.
+     * elements being iterated over are in different components.
      * 
-     * This ensures that the sortable directive is applied to the child
-     * elements once the child components have been mounted.
+     * This ensures that the sortable directive is applied to the elements
+     * once the MenuElementItemForm components have been mounted.
      */
     this.$nextTick(() => {
       this.initializeSortable()
