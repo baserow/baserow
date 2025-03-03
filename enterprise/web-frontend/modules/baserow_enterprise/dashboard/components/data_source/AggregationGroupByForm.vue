@@ -40,8 +40,13 @@ export default {
     }
   },
   computed: {
+    compatibleFields() {
+      return this.tableFields.filter((field) =>
+        this.$registry.exists('groupedAggregationGroupedBy', field.type)
+      )
+    },
     groupByOptions() {
-      const tableFieldOptions = this.tableFields.map((field) => {
+      const tableFieldOptions = this.compatibleFields.map((field) => {
         return {
           name: field.name,
           value: field.id,

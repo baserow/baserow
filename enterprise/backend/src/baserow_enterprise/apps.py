@@ -156,6 +156,33 @@ class BaserowEnterpriseConfig(AppConfig):
         grouped_aggregation_registry.register(VarianceFieldAggregationType())
         grouped_aggregation_registry.register(MedianFieldAggregationType())
 
+        from baserow.contrib.database.fields.field_types import (
+            AutonumberFieldType,
+            BooleanFieldType,
+            EmailFieldType,
+            LongTextFieldType,
+            NumberFieldType,
+            PhoneNumberFieldType,
+            RatingFieldType,
+            SingleSelectFieldType,
+            TextFieldType,
+            URLFieldType,
+        )
+        from baserow_enterprise.integrations.registries import (
+            grouped_aggregation_group_by_registry,
+        )
+
+        grouped_aggregation_group_by_registry.register(TextFieldType())
+        grouped_aggregation_group_by_registry.register(LongTextFieldType())
+        grouped_aggregation_group_by_registry.register(URLFieldType())
+        grouped_aggregation_group_by_registry.register(EmailFieldType())
+        grouped_aggregation_group_by_registry.register(NumberFieldType())
+        grouped_aggregation_group_by_registry.register(RatingFieldType())
+        grouped_aggregation_group_by_registry.register(BooleanFieldType())
+        grouped_aggregation_group_by_registry.register(PhoneNumberFieldType())
+        grouped_aggregation_group_by_registry.register(AutonumberFieldType())
+        grouped_aggregation_group_by_registry.register(SingleSelectFieldType())
+
         from baserow.core.registries import subject_type_registry
 
         subject_type_registry.register(TeamSubjectType())
