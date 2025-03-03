@@ -7,9 +7,6 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.integrations.local_baserow.models import (
-    LocalBaserowTableServiceSort,
-)
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
@@ -19,6 +16,9 @@ from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowTableServiceAggregationGroupBy,
     LocalBaserowTableServiceAggregationSeries,
     LocalBaserowTableServiceAggregationSortBy,
+)
+from baserow_enterprise.integrations.local_baserow.service_types import (
+    LocalBaserowGroupedAggregateRowsUserServiceType,
 )
 
 
@@ -1947,11 +1947,19 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_without_group_by
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field_3, aggregation_type="sum", order=3
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_3, order=1, order_by="ASC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field.id}_sum",
+        order=1,
+        direction="ASC",
     )
-    LocalBaserowTableServiceSort.objects.create(
-        service=service, field=field_2, order=2, order_by="DESC"
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_2.id}_sum",
+        order=2,
+        direction="DESC",
     )
 
     RowHandler().create_rows(
@@ -2759,3 +2767,169 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_primary_fie
             },
         ],
     }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_service_export_serialized(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    field_3 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field_2, aggregation_type="min", order=2
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field_3, aggregation_type="max", order=3
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field_3, order=1
+    )
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field.id}_sum",
+        order=1,
+        direction="ASC",
+    )
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"field_{field_2.id}_min",
+        order=1,
+        direction="ASC",
+    )
+
+    result = LocalBaserowGroupedAggregateRowsUserServiceType().export_serialized(
+        service, import_export_config=None, files_zip=None, storage=None, cache=None
+    )
+
+    assert result == {
+        "filter_type": "AND",
+        "filters": [],
+        "id": service.id,
+        "integration_id": service.integration.id,
+        "service_aggregation_group_bys": [
+            {"field_id": field_3.id},
+        ],
+        "service_aggregation_series": [
+            {"aggregation_type": "sum", "field_id": field.id},
+            {"aggregation_type": "min", "field_id": field_2.id},
+            {"aggregation_type": "max", "field_id": field_3.id},
+        ],
+        "service_aggregation_sorts": [
+            {
+                "direction": "ASC",
+                "reference": f"field_{field.id}_sum",
+                "sort_on": "SERIES",
+            },
+            {
+                "direction": "ASC",
+                "reference": f"field_{field_2.id}_min",
+                "sort_on": "SERIES",
+            },
+        ],
+        "table_id": table.id,
+        "type": "local_baserow_grouped_aggregate_rows",
+        "view_id": view.id,
+    }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_service_import_serialized(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    field_2 = data_fixture.create_number_field(table=table)
+    field_3 = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+
+    serialized_service = {
+        "filter_type": "AND",
+        "filters": [],
+        "id": 999,
+        "integration_id": integration.id,
+        "service_aggregation_group_bys": [
+            {"field_id": field_3.id},
+        ],
+        "service_aggregation_series": [
+            {"aggregation_type": "sum", "field_id": field.id},
+            {"aggregation_type": "min", "field_id": field_2.id},
+            {"aggregation_type": "max", "field_id": field_3.id},
+        ],
+        "service_aggregation_sorts": [
+            {
+                "direction": "ASC",
+                "reference": f"field_{field.id}_sum",
+                "sort_on": "SERIES",
+            },
+            {
+                "direction": "DESC",
+                "reference": f"field_{field_2.id}_min",
+                "sort_on": "SERIES",
+            },
+        ],
+        "table_id": table.id,
+        "type": "local_baserow_grouped_aggregate_rows",
+        "view_id": view.id,
+    }
+    id_mapping = {}
+
+    instance = LocalBaserowGroupedAggregateRowsUserServiceType().import_serialized(
+        parent=integration,
+        serialized_values=serialized_service,
+        id_mapping=id_mapping,
+        import_formula=Mock(),
+    )
+
+    assert instance.content_type == ContentType.objects.get_for_model(
+        LocalBaserowGroupedAggregateRows
+    )
+    assert instance.filter_type == "AND"
+    assert instance.service_filters.count() == 0
+    assert instance.id != 999
+    assert instance.integration_id == integration.id
+    assert instance.table_id == table.id
+    assert instance.view_id == view.id
+
+    series = instance.service_aggregation_series.all()
+    assert series.count() == 3
+    assert series[0].aggregation_type == "sum"
+    assert series[0].field_id == field.id
+    assert series[1].aggregation_type == "min"
+    assert series[1].field_id == field_2.id
+    assert series[2].aggregation_type == "max"
+    assert series[2].field_id == field_3.id
+
+    group_bys = instance.service_aggregation_group_bys.all()
+    assert group_bys.count() == 1
+    assert group_bys[0].field_id == field_3.id
+
+    sorts = instance.service_aggregation_sorts.all()
+    assert sorts.count() == 2
+    assert sorts[0].direction == "ASC"
+    assert sorts[0].sort_on == "SERIES"
+    assert sorts[0].reference == f"field_{field.id}_sum"
+    assert sorts[1].direction == "DESC"
+    assert sorts[1].sort_on == "SERIES"
+    assert sorts[1].reference == f"field_{field_2.id}_min"
