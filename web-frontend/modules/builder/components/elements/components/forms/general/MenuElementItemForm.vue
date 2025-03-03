@@ -10,10 +10,7 @@
         }"
         @click.stop="!menuItemTypeIsStyle(values.type) ? toggle() : null"
       >
-        <div
-          class="menu-element-form__item-handle"
-          data-sortable-handle-root
-        />
+        <div class="menu-element-form__item-handle" data-sortable-handle-root />
         <div class="menu-element-form__item-name">
           <template v-if="values.type === 'separator'">
             {{ $t('menuElement.separator') }}
@@ -36,9 +33,7 @@
         <template v-else>
           <i
             :class="
-              expanded
-                ? 'iconoir-nav-arrow-down'
-                : 'iconoir-nav-arrow-right'
+              expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
             "
           />
         </template>
@@ -71,7 +66,7 @@
             <p>{{ $t('menuElementForm.eventDescription') }}</p>
           </Alert>
         </div>
-        
+
         <div v-else>
           <FormGroup
             small-label
@@ -90,10 +85,7 @@
               {{ v$.values.name.$errors[0]?.$message }}
             </template>
             <template #after-input>
-              <ButtonIcon
-                icon="iconoir-bin"
-                @click="removeMenuItem()"
-              />
+              <ButtonIcon icon="iconoir-bin" @click="removeMenuItem()" />
             </template>
           </FormGroup>
 
@@ -261,7 +253,7 @@ export default {
     /**
      * Order the root items.
      */
-     orderItems(newOrder) {
+    orderItems(newOrder) {
       console.log('calling order items...: ', newOrder)
       // const itemsByUid = Object.fromEntries(
       //   this.values.menu_items.map((item) => [item.uid, item])

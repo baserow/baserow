@@ -104,21 +104,6 @@ export default {
     HorizontalAlignmentsSelector,
   },
   mixins: [elementForm],
-  mounted() {
-    /**
-     * Using the `v-sortable` directive doesn't work when the v-for loop and
-     * elements being iterated over are in different components.
-     * 
-     * This ensures that the sortable directive is applied to the elements
-     * once the MenuElementItemForm components have been mounted.
-     */
-    this.$nextTick(() => {
-      this.initializeSortable()
-    })
-  },
-  beforeDestroy() {
-    this.cleanUpSortable()
-  },
   data() {
     return {
       values: {
@@ -184,9 +169,24 @@ export default {
       ]
     },
   },
+  mounted() {
+    /**
+     * Using the `v-sortable` directive doesn't work when the v-for loop and
+     * elements being iterated over are in different components.
+     *
+     * This ensures that the sortable directive is applied to the elements
+     * once the MenuElementItemForm components have been mounted.
+     */
+    this.$nextTick(() => {
+      this.initializeSortable()
+    })
+  },
+  beforeDestroy() {
+    this.cleanUpSortable()
+  },
   methods: {
     /**
-     * Programatically apply sortable to each child menu item. This mimics
+     * Programmatically apply sortable to each child menu item. This mimics
      * how the v-sortable directive behaves.
      */
     initializeSortable() {
@@ -209,22 +209,22 @@ export default {
             this.element,
             this.workspace.id
           ),
-          handle: '[data-sortable-handle-root]'
+          handle: '[data-sortable-handle-root]',
         },
-        def: sortableDirective
+        def: sortableDirective,
       }
-      
+
       sortableDirective.bind(element, binding)
-      
+
       // Store the bindings so they can be cleaned up in beforeDestroy()
-      element._sortableBinding = binding;
+      element._sortableBinding = binding
     },
     /**
      * Clean up all sortable bindings when the component is destroyed.
      */
     cleanUpSortable() {
       if (this.$refs.menuItems) {
-        this.$refs.menuItems.forEach(element => {
+        this.$refs.menuItems.forEach((element) => {
           if (element._sortableBinding) {
             sortableDirective.unbind(element, element._sortableBinding)
           }
@@ -248,6 +248,7 @@ export default {
           type,
           uid: uuid(),
           children: [],
+          parent_menu_item: null, // This is the root menu item.
         },
       ]
       this.$refs.menuItemAddContext.hide()
