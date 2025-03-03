@@ -171,7 +171,7 @@ export default {
   mixins: [elementForm],
   props: {
     /**
-     * Controls whether ror not this menu item can nest other menu items.
+     * Controls whether or not this menu item can nest other menu items.
      * By default, this is allowed, but if we are already in a nested menu,
      * item we should prevent further nesting.
      */
