@@ -366,7 +366,6 @@ class AirtableViewType(Instance):
                 filters.extend(child_filters)
 
             return filters, filter_groups
-
         else:
             # If it's not a group, then it's an individual filter, and it must be
             # parsed accordingly.
@@ -413,10 +412,15 @@ class AirtableViewType(Instance):
                     import_report,
                     filter_object["value"],
                 )
+
+                if not filter_type.field_is_compatible(baserow_field):
+                    raise AirtableSkipFilter
             except (
                 airtable_filter_operator_registry.does_not_exist_exception_class,
                 # If the `AirtableSkipFilter` exception is raised, then the Airtable
-                # filter existing, but is not compatible with the Baserow filters.
+                # filter existing, but is not compatible with the Baserow filters. This
+                # can be raised in the `to_baserow_filter_and_value`, but also if it
+                # appears to not be compatible afterward.
                 AirtableSkipFilter,
             ):
                 import_report.add_failed(
@@ -425,7 +429,7 @@ class AirtableViewType(Instance):
                     raw_airtable_table["name"],
                     ERROR_TYPE_UNSUPPORTED_FEATURE,
                     f'The filter on field "{baserow_field.name}" was ignored '
-                    f'in view {raw_airtable_view["name"]} because it\'s not no compatible filter exists.',
+                    f'in view {raw_airtable_view["name"]} because not no compatible filter exists.',
                 )
                 return [], []
 

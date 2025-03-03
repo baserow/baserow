@@ -1,5 +1,8 @@
 from copy import deepcopy
 
+import pytest
+from django.contrib.contenttypes.models import ContentType
+
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.import_report import (
     SCOPE_VIEW_GROUP_BY,
@@ -438,9 +441,14 @@ def test_import_grid_view_field_order_and_visibility():
     ]
 
 
+@pytest.mark.django_db
 def test_import_grid_view_filters_and_groups():
     view_data = deepcopy(RAW_AIRTABLE_VIEW_DATA)
     field_mapping = deepcopy(FIELD_MAPPING)
+    for field_object in field_mapping.values():
+        field_object["baserow_field"].content_type = ContentType.objects.get_for_model(
+            field_object["baserow_field"]
+        )
 
     view_data["filters"] = RAW_VIEW_DATA_FILTERS
 
@@ -457,11 +465,12 @@ def test_import_grid_view_filters_and_groups():
 
     assert serialized_view["filter_type"] == "OR"
     assert serialized_view["filters_disabled"] is False
+
     assert serialized_view["filters"] == [
         {
             "id": "fltp2gabc8P91234f",
             "field_id": "fldwSc9PqedIhTSqhi1",
-            "type": "empty",
+            "type": "not_empty",
             "value": "",
             "group": None,
         },
@@ -469,14 +478,14 @@ def test_import_grid_view_filters_and_groups():
             "id": "flt70g1l245672xRi",
             "field_id": "fldwSc9PqedIhTSqhi1",
             "type": "not_equal",
-            "value": "",
+            "value": "test",
             "group": "flthuYL0uubbDF2Xy",
         },
         {
             "id": "fltVg238719fbIKqC",
             "field_id": "fldwSc9PqedIhTSqhi2",
             "type": "not_equal",
-            "value": "",
+            "value": "test2",
             "group": "flthuYL0uubbDF2Xy",
         },
     ]

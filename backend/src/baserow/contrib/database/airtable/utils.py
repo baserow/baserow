@@ -1,8 +1,10 @@
 import json
 import re
+from typing import Optional
 
 from requests import Response
 
+from baserow.contrib.database.airtable.constants import AIRTABLE_DATE_FILTER_VALUE_MAP
 from baserow.core.utils import remove_invalid_surrogate_characters
 
 
@@ -218,3 +220,23 @@ def quill_to_markdown(ops: list) -> str:
     flush_line()
 
     return "".join(md_output).strip()
+
+
+def airtable_date_filter_value_to_baserow(value: Optional[dict]) -> str:
+    """
+    Converts the provided Airtable filter date value to the Baserow compatible date
+    value string.
+
+    :param value: A dict containing the Airtable date value.
+    :return: e.g. Europe/Amsterdam?2025-01-01?exact_date
+    """
+
+    if value is None:
+        return ""
+
+    mode = value["mode"]
+    if "exactDate" in value:
+        # By default, Airtable adds the time, but that is not needed in Baserow.
+        value["exactDate"] = value["exactDate"][:10]
+    date_string = AIRTABLE_DATE_FILTER_VALUE_MAP[mode]
+    return date_string.format(**value)
