@@ -27,6 +27,7 @@ import {
   userSourceCookieTokenName,
   setToken,
 } from '@baserow/modules/core/utils/auth'
+import { QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS } from '@baserow/modules/builder/enums'
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
   await store.dispatch('userSourceUser/logoff', {
@@ -341,6 +342,34 @@ export default {
     },
   },
   watch: {
+    '$route.query': {
+      immediate: true,
+      deep: true,
+      handler(newQuery) {
+        // when query string changed due to user action,
+        // update the page's query parameters in the store
+        Promise.all(
+          this.currentPage.query_params.map(({ name, type }) => {
+            if (!newQuery[name]) return null
+            let value
+            try {
+              value = QUERY_PARAM_TYPE_VALIDATION_FUNCTIONS[type](
+                newQuery[name]
+              )
+            } catch {
+              // Skip setting the parameter if the user-provided value
+              // doesn't pass our parameter `type` validation.
+              return null
+            }
+            return this.$store.dispatch('pageParameter/setParameter', {
+              page: this.currentPage,
+              name,
+              value,
+            })
+          })
+        )
+      },
+    },
     dispatchContext: {
       deep: true,
       /**
