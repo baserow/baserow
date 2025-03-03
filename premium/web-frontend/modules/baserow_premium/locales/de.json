@@ -213,7 +213,8 @@
         "baserowLogo": {
             "premiumModalName": "Entfernung des öffentlichen Logos",
             "label": "Baserow-Logo in öffentlicher Ansicht ausblenden"
-        }
+        },
+        "allowPublicExportLabel": "Export der geteilten Ansicht zulassen"
     },
     "viewsContext": {
         "personal": "Persönlich"
