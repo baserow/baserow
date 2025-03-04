@@ -69,8 +69,20 @@
       </div>
     </Context>
     <div>
-      <div v-for="item in values.menu_items" :key="item.uid" ref="menuItems">
+      <div class="menu-element-form__items">
         <MenuElementItemForm
+          v-for="item in values.menu_items"
+          :key="item.id"
+          v-sortable="{
+            id: item.id,
+            update: orderRootItems,
+            enabled: $hasPermission(
+              'builder.page.element.update',
+              element,
+              workspace.id
+            ),
+            handle: '[data-sortable-handle]',
+          }"
           :default-values="item"
           @remove-item="removeMenuItem($event)"
           @values-changed="updateMenuItem"
@@ -94,7 +106,6 @@ import { mapGetters } from 'vuex'
 import MenuElementItemForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementItemForm'
 import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
-import sortableDirective from '@baserow/modules/core/directives/sortable'
 
 export default {
   name: 'MenuElementForm',
@@ -169,68 +180,7 @@ export default {
       ]
     },
   },
-  mounted() {
-    /**
-     * Using the `v-sortable` directive doesn't work when the v-for loop and
-     * elements being iterated over are in different components.
-     *
-     * This ensures that the sortable directive is applied to the elements
-     * once the MenuElementItemForm components have been mounted.
-     */
-    this.$nextTick(() => {
-      this.initializeSortable()
-    })
-  },
-  beforeDestroy() {
-    this.cleanUpSortable()
-  },
   methods: {
-    /**
-     * Programmatically apply sortable to each child menu item. This mimics
-     * how the v-sortable directive behaves.
-     */
-    initializeSortable() {
-      if (this.$refs.menuItems && this.$refs.menuItems.length > 0) {
-        this.$refs.menuItems.forEach((menuItem, index) => {
-          this.makeSortable(menuItem, this.values.menu_items[index].uid)
-        })
-      }
-    },
-    /**
-     * Create a sortable directive and bind it to the element.
-     */
-    makeSortable(element, uid) {
-      const binding = {
-        value: {
-          id: uid,
-          update: this.reorderMenuItems,
-          enabled: this.$hasPermission(
-            'builder.page.element.update',
-            this.element,
-            this.workspace.id
-          ),
-          handle: '[data-sortable-handle-root]',
-        },
-        def: sortableDirective,
-      }
-
-      sortableDirective.bind(element, binding)
-
-      // Store the bindings so they can be cleaned up in beforeDestroy()
-      element._sortableBinding = binding
-    },
-    /**
-     * Clean up all sortable bindings when the component is destroyed.
-     */
-    cleanUpSortable() {
-      if (this.$refs.menuItems) {
-        this.$refs.menuItems.forEach((element) => {
-          if (element._sortableBinding) {
-            sortableDirective.unbind(element, element._sortableBinding)
-          }
-        })
-      }
-    },
     addMenuItem(type) {
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemDefaultName'),
@@ -252,13 +202,6 @@ export default {
         },
       ]
       this.$refs.menuItemAddContext.hide()
-
-      // Since the menu_items array has changed, the elements need to be
-      // bound to the sortable directive.
-      this.$nextTick(() => {
-        this.cleanUpSortable()
-        this.initializeSortable()
-      })
     },
     /**
      * When a menu item is removed, this method is responsible for removing it
@@ -281,11 +224,14 @@ export default {
         return item
       })
     },
-    reorderMenuItems(newOrder) {
-      const itemsByUid = Object.fromEntries(
-        this.values.menu_items.map((item) => [item.uid, item])
+    /**
+     * Responsible for sorting the root items of this menu item.
+     */
+    orderRootItems(newOrder) {
+      const itemsById = Object.fromEntries(
+        this.values.menu_items.map((item) => [item.id, item])
       )
-      this.values.menu_items = newOrder.map((uid) => itemsByUid[uid])
+      this.values.menu_items = newOrder.map((id) => itemsById[id])
     },
   },
 }

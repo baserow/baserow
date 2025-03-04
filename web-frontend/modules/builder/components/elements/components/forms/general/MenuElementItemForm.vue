@@ -4,13 +4,11 @@
       <div
         class="menu-element-form__item-header"
         :class="{
-          'menu-element-form__item-header--outline': menuItemTypeIsStyle(
-            values.type
-          ),
+          'menu-element-form__item-header--outline': isStyle,
         }"
-        @click.stop="!menuItemTypeIsStyle(values.type) ? toggle() : null"
+        @click.stop="!isStyle ? toggle() : null"
       >
-        <div class="menu-element-form__item-handle" data-sortable-handle-root />
+        <div class="menu-element-form__item-handle" data-sortable-handle />
         <div class="menu-element-form__item-name">
           <template v-if="values.type === 'separator'">
             {{ $t('menuElement.separator') }}
@@ -23,7 +21,7 @@
           </template>
         </div>
 
-        <template v-if="menuItemTypeIsStyle(values.type)">
+        <template v-if="isStyle">
           <ButtonIcon
             size="small"
             icon="iconoir-bin"
@@ -39,7 +37,7 @@
         </template>
       </div>
     </template>
-    <template v-if="!menuItemTypeIsStyle(values.type)" #default>
+    <template v-if="!isStyle" #default>
       <div class="menu-element-form__item">
         <div v-if="values.type === 'button'">
           <FormGroup
@@ -115,8 +113,20 @@
             :default-values="defaultValues"
             @values-changed="values = { ...values, ...$event }"
           />
-          <div v-for="child in values.children" :key="child.uid">
+          <div class="menu-element-item-form__children">
             <MenuElementItemForm
+              v-for="child in values.children"
+              :key="child.id"
+              v-sortable="{
+                id: child.id,
+                update: orderChildItems,
+                enabled: $hasPermission(
+                  'builder.page.element.update',
+                  element,
+                  workspace.id
+                ),
+                handle: '[data-sortable-handle]',
+              }"
               prevent-item-nesting
               :default-values="child"
               @remove-item="removeChildItem($event)"
@@ -163,7 +173,7 @@ export default {
   mixins: [elementForm],
   props: {
     /**
-     * Controls whether or not this menu item can nest other menu items.
+     * Controls whether this menu item can nest other menu items.
      * By default, this is allowed, but if we are already in a nested menu,
      * item we should prevent further nesting.
      */
@@ -191,6 +201,9 @@ export default {
     ...mapGetters({
       getElementSelected: 'element/getSelected',
     }),
+    isStyle() {
+      return ['separator', 'spacer'].includes(this.values.type)
+    },
     element() {
       return this.getElementSelected(this.builder)
     },
@@ -251,17 +264,13 @@ export default {
       })
     },
     /**
-     * Order the root items.
+     * Responsible for sorting the child items of this menu item.
      */
-    orderItems(newOrder) {
-      console.log('calling order items...: ', newOrder)
-      // const itemsByUid = Object.fromEntries(
-      //   this.values.menu_items.map((item) => [item.uid, item])
-      // )
-      // this.values.menu_items = newOrder.map((uid) => itemsByUid[uid])
-    },
-    menuItemTypeIsStyle(itemType) {
-      return ['separator', 'spacer'].includes(itemType)
+    orderChildItems(newOrder) {
+      const itemsById = Object.fromEntries(
+        this.values.children.map((item) => [item.id, item])
+      )
+      this.values.children = newOrder.map((id) => itemsById[id])
     },
   },
   validations() {
