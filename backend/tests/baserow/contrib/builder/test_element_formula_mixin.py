@@ -25,7 +25,6 @@ from baserow.contrib.builder.elements.models import (
     ImageElement,
     InputTextElement,
     LinkElement,
-    MenuElement,
     TextElement,
 )
 
