@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.core.validators import MaxLengthValidator
 from django.db import models
 
@@ -58,6 +59,18 @@ class TableWebhook(CreatedAndUpdatedOnMixin, models.Model):
     def header_dict(self):
         return {header.name: header.value for header in self.headers.all()}
 
+    @property
+    def batch_limit(self) -> int:
+        """
+        This value will be used to limit the amount batches a single webhook can make to
+        paginate the payload. If the payload is too large to be sent in one go, the
+        event_type can split it into multiple batches. If the number of batches exceeds
+        this limit, a notification will be sent to workspace admins informing them that
+        the webhook couldn't send all the data.
+        """
+
+        return settings.BASEROW_WEBHOOKS_BATCH_LIMIT
+
     class Meta:
         ordering = ("id",)
 
@@ -90,6 +103,13 @@ class TableWebhookCall(models.Model):
         editable=False,
         help_text="Event ID where the call originated from.",
     )
+    batch_id = models.PositiveIntegerField(
+        null=True,
+        help_text=(
+            "The batch ID for this call. Null if not part of a batch. "
+            "Used for batching multiple calls of the same event_id due to large data."
+        ),
+    )
     webhook = models.ForeignKey(
         TableWebhook, related_name="calls", on_delete=models.CASCADE
     )
@@ -111,3 +131,4 @@ class TableWebhookCall(models.Model):
 
     class Meta:
         ordering = ("-called_time",)
+        unique_together = ("event_id", "batch_id", "webhook", "event_type")

@@ -1058,5 +1058,8 @@
   },
   "webhookDeactivatedNotification": {
     "body": "{name} webhook has been deactivated because it failed too many times consecutively."
+  },
+  "webhookPayloadTooLargeNotification": {
+    "body": "{name} webhook payload was too large and exceeded the limit of {batch_limit} batches. All data above the limit have been skipped."
   }
 }
