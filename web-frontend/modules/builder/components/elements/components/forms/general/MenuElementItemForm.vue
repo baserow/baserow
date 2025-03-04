@@ -40,7 +40,7 @@
       </div>
     </template>
     <template v-if="!menuItemTypeIsStyle(values.type)" #default>
-      <div class="menu-element-form__item">
+      <div class="menu-element-form__item" :class="{'menu-element-form__item-child': preventItemNesting}">
         <div v-if="values.type === 'button'">
           <FormGroup
             small-label

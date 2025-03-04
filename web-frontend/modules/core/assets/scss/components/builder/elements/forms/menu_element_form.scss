@@ -72,6 +72,11 @@
   width: 100%;
 }
 
+.menu-element-form__item-child {
+  margin-right: -10px;
+  width: calc(100% - 10px);
+}
+
 .menu-element-form__add-sub-link-container {
   display: flex;
   justify-content: flex-end;
