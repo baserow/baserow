@@ -22,6 +22,7 @@
     </FormGroup>
 
     <FormGroup
+      v-if="values.orientation === ORIENTATIONS.HORIZONTAL"
       :label="$t('menuElementForm.alignment')"
       small-label
       required
