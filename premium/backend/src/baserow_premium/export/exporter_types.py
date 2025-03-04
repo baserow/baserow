@@ -271,6 +271,7 @@ class FileQuerysetSerializer(QuerysetSerializer):
 
         def write_row(row, is_last):
             file_data = []
+
             row_folder = f"row_{row.id}/" if organize_files else ""
             for file_field_data in file_fields:
                 file_field = file_field_data["type"]
@@ -288,22 +289,20 @@ class FileQuerysetSerializer(QuerysetSerializer):
                 file_data.extend(file_serialized_data)
             return file_data
 
-        # 13% for preparing data
-        file_writer._check_and_update_job(13, 100)
+        # processing rows is 15% of total progress
+        processed_files = file_writer.write_rows(
+            self.queryset, write_row, progress_weight=15
+        )
 
-        processed_files = file_writer.write_files(self.queryset, write_row)
         items = {item["name"]: item["size"] for item in processed_files}
         total_size = sum(items.values()) or 1
-
-        # 2% for calculating total size
-        file_writer._check_and_update_job(15, 100)
 
         # 85% for writing chunks
         for chunk in zip_file:
             size = len(chunk)
-            progress += (size / total_size) * 85
+            progress += size / total_size * 85
             file_writer._file.write(chunk)
-            file_writer._check_and_update_job(progress, 100)
+            file_writer._check_and_update_job(15 + progress, 100)
 
 
 class FileTableExporter(PremiumTableExporter):
