@@ -28,6 +28,7 @@ from rest_framework.test import APIRequestFactory
 from sqlparse import format
 
 from baserow.contrib.database.application_types import DatabaseApplicationType
+from baserow.contrib.database.webhooks.registries import webhook_event_type_registry
 from baserow.core.cache import local_cache
 from baserow.core.context import clear_current_workspace_id
 from baserow.core.exceptions import PermissionDenied
@@ -228,6 +229,14 @@ def mutable_job_type_registry():
         job_type_registry.get_for_class.cache_clear()
         yield job_type_registry
         job_type_registry.get_for_class.cache_clear()
+
+
+@pytest.fixture()
+def mutable_webhook_event_type_registry():
+    with patch.object(webhook_event_type_registry, "registry", {}):
+        webhook_event_type_registry.get_for_class.cache_clear()
+        yield webhook_event_type_registry
+        webhook_event_type_registry.get_for_class.cache_clear()
 
 
 @pytest.fixture()

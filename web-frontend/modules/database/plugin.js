@@ -320,6 +320,7 @@ import {
   FormSubmittedNotificationType,
   UserMentionInRichTextFieldNotificationType,
   WebhookDeactivatedNotificationType,
+  WebhookPayloadTooLargedNotificationType,
 } from '@baserow/modules/database/notificationTypes'
 import { HistoryRowModalSidebarType } from '@baserow/modules/database/rowModalSidebarTypes'
 import { FieldsDataProviderType } from '@baserow/modules/database/dataProviderTypes'
@@ -1023,6 +1024,10 @@ export default (context) => {
   app.$registry.register(
     'notification',
     new WebhookDeactivatedNotificationType(context)
+  )
+  app.$registry.register(
+    'notification',
+    new WebhookPayloadTooLargedNotificationType(context)
   )
 
   app.$registry.register(

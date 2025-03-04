@@ -980,6 +980,11 @@ BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS = int(
 BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK = (
     int(os.getenv("BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK", "0")) or None
 )
+# Webhooks can split large payload in chunks and send them in separate requests, all
+# with the same event_id and incremental batch_id number. This setting defines the
+# maximum number of batches that can be created, and so the maximum number of requests
+# that can be sent for a single event. By default is 0, meaning there's no limit.
+BASEROW_WEBHOOKS_BATCH_LIMIT = int(os.getenv("BASEROW_WEBHOOKS_BATCH_LIMIT", 0))
 
 # ======== WARNING ========
 # Please read and understand everything at:
@@ -1265,7 +1270,9 @@ BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
 
 BASEROW_USE_LOCAL_CACHE = str_to_bool(os.getenv("BASEROW_USE_LOCAL_CACHE", "true"))
 
+
 # -- CACHALOT SETTINGS --
+
 CACHALOT_TIMEOUT = int(os.getenv("BASEROW_CACHALOT_TIMEOUT", 60 * 60 * 24 * 7))
 BASEROW_CACHALOT_ONLY_CACHABLE_TABLES = os.getenv(
     "BASEROW_CACHALOT_ONLY_CACHABLE_TABLES", None

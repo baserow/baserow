@@ -957,6 +957,7 @@ class DatabaseConfig(AppConfig):
         )
         from baserow.contrib.database.webhooks.notification_types import (
             WebhookDeactivatedNotificationType,
+            WebhookPayloadTooLargeNotificationType,
         )
         from baserow.core.notifications.registries import notification_type_registry
 
@@ -966,6 +967,7 @@ class DatabaseConfig(AppConfig):
         )
         notification_type_registry.register(FormSubmittedNotificationType())
         notification_type_registry.register(WebhookDeactivatedNotificationType())
+        notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
