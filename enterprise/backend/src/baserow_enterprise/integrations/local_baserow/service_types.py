@@ -462,19 +462,38 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             )
 
         sorts = []
+        sort_annotations = {}
         for sort_by in service.service_aggregation_sorts.all():
             if sort_by.reference not in allowed_sort_references:
                 raise ServiceImproperlyConfigured(
                     f"The sort reference '{sort_by.reference}' cannot be used for sorting."
                 )
 
-            sort_aggregation = "_raw" if sort_by.sort_on == "SERIES" else ""
-            expression = F(f"{sort_by.reference}{sort_aggregation}")
-            if sort_by.direction == "ASC":
-                expression = expression.asc(nulls_first=True)
+            if sort_by.sort_on == "SERIES":
+                expression = F(f"{sort_by.reference}_raw")
+                if sort_by.direction == "ASC":
+                    expression = expression.asc(nulls_first=True)
+                else:
+                    expression = expression.desc(nulls_last=True)
+                sorts.append(expression)
             else:
-                expression = expression.desc(nulls_last=True)
-            sorts.append(expression)
+                field_obj = model.get_field_object(sort_by.reference)
+                field_type = field_obj["type"]
+                field_annotated_order_by = field_type.get_order(
+                    field=field_obj["field"],
+                    field_name=sort_by.reference,
+                    order_direction=sort_by.direction,
+                )
+                if field_annotated_order_by.annotation is not None:
+                    sort_annotations = {
+                        **sort_annotations,
+                        **field_annotated_order_by.annotation,
+                    }
+                field_order_bys = field_annotated_order_by.order_bys
+                for field_order_by in field_order_bys:
+                    sorts.append(field_order_by)
+
+        queryset = queryset.annotate(**sort_annotations)
 
         def process_individual_result(result: dict):
             for agg_series in defined_agg_series:
