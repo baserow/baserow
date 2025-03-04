@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-11 17:20+0000\n"
+"POT-Creation-Date: 2025-03-05 11:01+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -242,7 +242,7 @@ msgstr ""
 msgid "Decimal number"
 msgstr ""
 
-#: src/baserow/core/handler.py:2122 src/baserow/core/user/handler.py:267
+#: src/baserow/core/handler.py:2130 src/baserow/core/user/handler.py:267
 #, python-format
 msgid "%(name)s's workspace"
 msgstr ""
@@ -305,11 +305,7 @@ msgid_plural "Plus %(counter)s more notifications."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/baserow/core/templates/baserow/core/notifications_summary.html:239
-msgid "View in Baserow"
-msgstr ""
-
-#: src/baserow/core/templates/baserow/core/notifications_summary.html:253
+#: src/baserow/core/templates/baserow/core/notifications_summary.html:235
 #: src/baserow/core/templates/baserow/core/user/account_deleted.html:186
 #: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:186
 #: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:191

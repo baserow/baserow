@@ -7,7 +7,7 @@ from django.dispatch.dispatcher import Signal
 from baserow.contrib.database.table.models import Table
 from baserow.core.registry import Instance, ModelRegistryMixin, Registry
 
-from .exceptions import SkipWebhookCall
+from .exceptions import SkipWebhookCall, WebhookPayloadTooLarge
 from .tasks import call_webhook
 
 
@@ -15,8 +15,8 @@ class WebhookEventType(Instance):
     """
     This class represents a custom webhook event type that can be added to the webhook
     event type registry. Each registered event type needs to set a django signal on
-    which it will listen on. Upon initialization the webhook event type will connect
-    to the django signal.
+    which it will listen on. Upon initialization the webhook event type will connect to
+    the django signal.
 
     The 'listener' function will be called for every received signal. The listener will
     generate a unique ID for every received signal, find all webhooks that need to be
@@ -107,6 +107,51 @@ class WebhookEventType(Instance):
 
         transaction.on_commit(lambda: self.listener_after_commit(**kwargs))
 
+    def _paginate_payload(self, payload) -> tuple[dict, dict | None]:
+        """
+        This method is called in the celery task and can be overwritten to paginate the
+        payload, if it's too large to send all the data at once. The default
+        implementation returns the payload and None as the next cursor, but if the
+        payload is too large to be sent in one go, this method can be used to return a
+        part of the payload and the remaining part as the next cursor. Proper `batch_id`
+        values will be added to the payload by the caller to keep track of the current
+        batch.
+
+        :param payload: The payload that must be paginated.
+        :return: A tuple containing the payload to be sent and the remaining payload for
+            the next batch if any or None.
+        """
+
+        return payload, None
+
+    def paginate_payload(self, webhook, event_id, payload) -> tuple[dict, dict | None]:
+        """
+        This method calls the `_paginate_payload` method and adds a `batch_id` to the
+        payload if the remaining payload is not None. The `batch_id` is used to keep
+        track of the current batch of the payload.
+
+        :param webhook: The webhook object related to the call.
+        :param event_id: The unique uuid event id of the event that triggered the call.
+        :param payload: The payload that must be paginated.
+        :return: A tuple containing the payload to be sent and the remaining payload for
+            the next batch if any or None.
+        """
+
+        batch_id = int(payload.get("batch_id", None) or 1)
+        if webhook.batch_limit > 0 and batch_id > webhook.batch_limit:
+            raise WebhookPayloadTooLarge(
+                f"Payload for event '{self.type}' (event_id: '{event_id}') exceeds "
+                f"the batch limit of ({webhook.batch_limit} batches)."
+            )
+
+        prepared_payload, remaining_payload = self._paginate_payload(payload)
+
+        if remaining_payload is not None:
+            prepared_payload["batch_id"] = batch_id
+            remaining_payload["batch_id"] = batch_id + 1
+
+        return prepared_payload, remaining_payload
+
     def listener_after_commit(self, **kwargs):
         """
         Called after the signal is triggered and the transaction commits. By default it
@@ -145,7 +190,7 @@ class WebhookEventType(Instance):
                 pass
 
 
-class WebhookEventTypeRegistry(ModelRegistryMixin, Registry):
+class WebhookEventTypeRegistry(ModelRegistryMixin, Registry[WebhookEventType]):
     name = "webhook_event"
 
 

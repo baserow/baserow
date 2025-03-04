@@ -20,3 +20,7 @@ class TableWebhookEventConfigFieldNotInTable(Exception):
 
 class SkipWebhookCall(Exception):
     """Raised when the webhook call must be skipped"""
+
+
+class WebhookPayloadTooLarge(Exception):
+    """Raised when the webhook payload is too large and exceeds the batches limit."""
