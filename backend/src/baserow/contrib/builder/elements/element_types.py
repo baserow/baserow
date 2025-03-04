@@ -2287,7 +2287,7 @@ class MenuElementType(ElementType):
                 if new_formula is not None:
                     item.query_parameters[index]["value"] = new_formula
                     yield item
-            
+
             for formula_field in NavigationElementManager.simple_formula_fields:
                 formula = getattr(item, formula_field, "")
                 new_formula = yield formula

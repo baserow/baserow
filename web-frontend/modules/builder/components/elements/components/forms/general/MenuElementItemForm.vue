@@ -40,7 +40,10 @@
       </div>
     </template>
     <template v-if="!menuItemTypeIsStyle(values.type)" #default>
-      <div class="menu-element-form__item" :class="{'menu-element-form__item-child': preventItemNesting}">
+      <div
+        class="menu-element-form__item"
+        :class="{ 'menu-element-form__item-child': preventItemNesting }"
+      >
         <div v-if="values.type === 'button'">
           <FormGroup
             small-label
@@ -163,9 +166,9 @@ export default {
   mixins: [elementForm],
   props: {
     /**
-     * Controls whether or not this menu item can nest other menu items.
-     * By default, this is allowed, but if we are already in a nested menu,
-     * item we should prevent further nesting.
+     * Controls whether this menu item can nest other menu items. This is
+     * allowed by default. Since we only allow one level of nesting for
+     * sublinks, this should be false when rendering sublinks.
      */
     preventItemNesting: {
       type: Boolean,
@@ -249,16 +252,6 @@ export default {
         type: 'link',
         uid: uuid(),
       })
-    },
-    /**
-     * Order the root items.
-     */
-    orderItems(newOrder) {
-      console.log('calling order items...: ', newOrder)
-      // const itemsByUid = Object.fromEntries(
-      //   this.values.menu_items.map((item) => [item.uid, item])
-      // )
-      // this.values.menu_items = newOrder.map((uid) => itemsByUid[uid])
     },
     menuItemTypeIsStyle(itemType) {
       return ['separator', 'spacer'].includes(itemType)
