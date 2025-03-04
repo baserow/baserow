@@ -11,7 +11,7 @@ from django.shortcuts import redirect
 
 from requests.models import PreparedRequest
 
-from baserow.core.user.utils import generate_session_tokens_for_user
+from baserow.core.user.utils import generate_session_tokens_for_user, sign_user_session
 
 
 # please keep this in sync with baserow_enterprise/locales/en.json
@@ -179,10 +179,10 @@ def get_valid_frontend_url(
     return requested_url_parsed.geturl()
 
 
-def urlencode_user_token(frontend_url: str, user: AbstractUser) -> str:
+def urlencode_user_tokens(frontend_url: str, user: AbstractUser) -> str:
     """
-    Adds the token as a query parameter to the provided frontend url. Please
-    ensure to call the get_url_for_frontend_page_if_valid_or_default() method
+    Adds the token and user_session as a query parameters to the provided frontend url.
+    Please ensure to call the get_url_for_frontend_page_if_valid_or_default() method
     before calling this method, so to be sure to encode the refresh token in a
     valid Baserow frontend url.
 
@@ -190,11 +190,19 @@ def urlencode_user_token(frontend_url: str, user: AbstractUser) -> str:
         redirected after a successful login.
     :param user: The user that sign in with an external provider and is going to
         start a new session in Baserow.
-    :return: The url with the token as a query parameter.
+    :return: The url with the token and user_session as query parameters.
     """
 
     user_tokens = generate_session_tokens_for_user(user, include_refresh_token=True)
-    return urlencode_query_params(frontend_url, {"token": user_tokens["refresh_token"]})
+    refresh_token = user_tokens["refresh_token"]
+    user_session = sign_user_session(user.id, refresh_token)
+    return urlencode_query_params(
+        frontend_url,
+        {
+            "token": refresh_token,
+            "user_session": user_session,
+        },
+    )
 
 
 def redirect_user_on_success(
@@ -214,7 +222,7 @@ def redirect_user_on_success(
     """
 
     valid_frontend_url = get_valid_frontend_url(requested_original_url)
-    redirect_url = urlencode_user_token(valid_frontend_url, user)
+    redirect_url = urlencode_user_tokens(valid_frontend_url, user)
     return redirect(redirect_url)
 
 
