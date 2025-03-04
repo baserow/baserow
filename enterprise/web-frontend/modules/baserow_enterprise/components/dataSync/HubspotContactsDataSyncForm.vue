@@ -16,6 +16,7 @@
         :error="fieldHasErrors('hubspot_access_token')"
         :disabled="disabled"
         size="large"
+        @blur="v$.values.hubspot_access_token.$touch"
       />
       <template #error>
         {{ v$.values.hubspot_access_token.$errors[0]?.$message }}

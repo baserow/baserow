@@ -24,6 +24,7 @@
         :error="fieldHasErrors('domain') || serverErrors.domain"
         :placeholder="$t('samlSettingsForm.domainPlaceholder')"
         @input="onDomainInput()"
+        @blur="v$.values.domain.$touch"
       ></FormInput>
       <template #error>
         {{ v$.values.domain.$errors[0]?.$message }}
@@ -44,6 +45,7 @@
         :error="fieldHasErrors('metadata') || serverErrors.metadata"
         :placeholder="$t('samlSettingsForm.metadataPlaceholder')"
         @input="onMetadataInput()"
+        @blur="v$.values.metadata.$touch"
       ></FormTextarea>
 
       <template #error>
@@ -110,6 +112,7 @@
             v-model="v$.values.email_attr_key.$model"
             :error="fieldHasErrors('email_attr_key')"
             :placeholder="defaultAttrs.email_attr_key"
+            @blur="v$.values.email_attr_key.$touch"
           ></FormInput>
           <template #helper>
             {{ $t('samlSettingsForm.emailAttrKeyHelper') }}
@@ -131,6 +134,7 @@
             v-model="v$.values.first_name_attr_key.$model"
             :error="fieldHasErrors('first_name_attr_key')"
             :placeholder="defaultAttrs.first_name_attr_key"
+            @blur="v$.values.first_name_attr_key.$touch"
           ></FormInput>
           <template #helper>
             {{ $t('samlSettingsForm.firstNameAttrKeyHelper') }}

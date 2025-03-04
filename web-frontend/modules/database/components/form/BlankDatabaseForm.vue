@@ -14,6 +14,7 @@
         size="large"
         :placeholder="$t('applicationForm.namePlaceholder')"
         @focus.once="$event.target.select()"
+        @blur="v$.values.name.$touch"
       ></FormInput>
 
       <template #error>

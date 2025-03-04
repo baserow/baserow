@@ -15,6 +15,7 @@
         :error="fieldHasErrors('jira_url')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
+        @blur="v$.values.jira_url.$touch"
       />
       <template #error>
         {{ v$.values.jira_url.$errors[0]?.$message }}
@@ -36,6 +37,7 @@
         :error="fieldHasErrors('jira_username')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
+        @blur="v$.values.jira_username.$touch"
       />
       <template #error>
         {{ v$.values.jira_username.$errors[0]?.$message }}
@@ -60,6 +62,7 @@
         :error="fieldHasErrors('jira_api_token')"
         :disabled="disabled"
         @focus.once="$event.target.select()"
+        @blur="v$.values.jira_api_token.$touch"
       />
       <template #error>
         {{ v$.values.jira_api_token.$errors[0]?.$message }}

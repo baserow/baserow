@@ -12,6 +12,7 @@
         v-model="v$.values.name.$model"
         size="large"
         :error="fieldHasErrors('name')"
+        @blur="v$.values.name.$touch"
       >
       </FormInput>
 
@@ -40,6 +41,7 @@
         v-model="v$.values.username.$model"
         size="large"
         :error="fieldHasErrors('username')"
+        @blur="v$.values.username.$touch"
       >
       </FormInput>
 

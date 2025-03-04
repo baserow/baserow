@@ -13,6 +13,7 @@
         :error="fieldHasErrors('github_issues_owner')"
         :disabled="disabled"
         size="large"
+        @blur="v$.values.github_issues_owner.$touch"
       />
       <template #error>
         <span>
@@ -34,6 +35,7 @@
         :error="fieldHasErrors('github_issues_repo')"
         :disabled="disabled"
         size="large"
+        @blur="v$.values.github_issues_repo.$touch"
       />
       <template #error>
         {{ v$.values.github_issues_repo.$errors[0]?.$message }}
