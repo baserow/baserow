@@ -3,6 +3,7 @@ from django.db.models import F
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.database.fields.exceptions import FieldTypeDoesNotExist
 from baserow.contrib.database.views.exceptions import AggregationTypeDoesNotExist
 from baserow.contrib.database.views.utils import AnnotatedAggregation
 from baserow.contrib.integrations.local_baserow.integration_types import (
@@ -28,7 +29,10 @@ from baserow_enterprise.api.integrations.local_baserow.serializers import (
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
 )
-from baserow_enterprise.integrations.registries import grouped_aggregation_registry
+from baserow_enterprise.integrations.registries import (
+    grouped_aggregation_group_by_registry,
+    grouped_aggregation_registry,
+)
 from baserow_enterprise.services.types import (
     ServiceAggregationGroupByDict,
     ServiceAggregationSeriesDict,
@@ -186,7 +190,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         group_bys: list[ServiceAggregationGroupByDict] | None = None,
     ):
         with atomic_if_not_already():
-            table_field_ids = service.table.field_set.values_list("id", flat=True)
+            table_fields = service.table.field_set.all()
+            table_field_ids = [field.id for field in table_fields]
 
             def validate_agg_group_by(group_by):
                 if (
@@ -196,6 +201,23 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     raise DRFValidationError(
                         detail=f"The field with ID {group_by['field_id']} is not "
                         "related to the given table.",
+                        code="invalid_field",
+                    )
+
+                field = next(
+                    (
+                        field
+                        for field in table_fields
+                        if field.id == group_by["field_id"]
+                    )
+                )
+
+                try:
+                    grouped_aggregation_group_by_registry.get_by_type(field.get_type())
+                except FieldTypeDoesNotExist:
+                    raise DRFValidationError(
+                        detail=f"The field with ID {group_by['field_id']} cannot "
+                        "be used as a group by field.",
                         code="invalid_field",
                     )
 
@@ -404,6 +426,14 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             if group_by.field.trashed:
                 raise ServiceImproperlyConfigured(
                     f"The field with ID {group_by.field.id} is trashed."
+                )
+            try:
+                grouped_aggregation_group_by_registry.get_by_type(
+                    group_by.field.get_type()
+                )
+            except FieldTypeDoesNotExist:
+                raise ServiceImproperlyConfigured(
+                    f"The field with ID {group_by.field.id} cannot be used for group by."
                 )
             group_by_values.append(group_by.field.db_column)
 

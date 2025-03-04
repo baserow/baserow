@@ -72,7 +72,18 @@ import {
   MedianViewAggregationType,
 } from '@baserow/modules/database/viewAggregationTypes'
 import { PeriodicDataSyncDeactivatedNotificationType } from '@baserow_enterprise/notificationTypes'
-
+import {
+  TextFieldType,
+  LongTextFieldType,
+  URLFieldType,
+  EmailFieldType,
+  NumberFieldType,
+  RatingFieldType,
+  BooleanFieldType,
+  SingleSelectFieldType,
+  PhoneNumberFieldType,
+  AutonumberFieldType,
+} from '@baserow/modules/database/fieldTypes'
 import {
   FF_AB_SSO,
   FF_DASHBOARDS,
@@ -242,6 +253,47 @@ export default (context) => {
   app.$registry.register(
     'groupedAggregation',
     new UniqueCountViewAggregationType(context)
+  )
+
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new TextFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new LongTextFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new NumberFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new URLFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new RatingFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new BooleanFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new EmailFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new SingleSelectFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new PhoneNumberFieldType(context)
+  )
+  app.$registry.register(
+    'groupedAggregationGroupedBy',
+    new AutonumberFieldType(context)
   )
 
   app.$registry.register(
