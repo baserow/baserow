@@ -1,7 +1,5 @@
-from typing import TYPE_CHECKING, Type
-
 from django.conf import settings
-from django.db.models import OrderBy, QuerySet
+from django.db.models import F
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -12,23 +10,20 @@ from baserow.contrib.integrations.local_baserow.integration_types import (
 )
 from baserow.contrib.integrations.local_baserow.mixins import (
     LocalBaserowTableServiceFilterableMixin,
-    LocalBaserowTableServiceSortableMixin,
 )
-from baserow.contrib.integrations.local_baserow.models import (
-    LocalBaserowTableServiceSort,
-    Service,
-)
+from baserow.contrib.integrations.local_baserow.models import Service
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowViewServiceType,
 )
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import ServiceImproperlyConfigured
 from baserow.core.services.registries import DispatchTypes
-from baserow.core.services.types import DispatchResult, ServiceSortDictSubClass
+from baserow.core.services.types import DispatchResult
 from baserow.core.utils import atomic_if_not_already
 from baserow_enterprise.api.integrations.local_baserow.serializers import (
     LocalBaserowTableServiceAggregationGroupBySerializer,
     LocalBaserowTableServiceAggregationSeriesSerializer,
+    LocalBaserowTableServiceAggregationSortBySerializer,
 )
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
@@ -37,20 +32,18 @@ from baserow_enterprise.integrations.registries import grouped_aggregation_regis
 from baserow_enterprise.services.types import (
     ServiceAggregationGroupByDict,
     ServiceAggregationSeriesDict,
+    ServiceAggregationSortByDict,
 )
 
 from .models import (
     LocalBaserowTableServiceAggregationGroupBy,
     LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
 )
-
-if TYPE_CHECKING:
-    from baserow.contrib.database.table.models import GeneratedTableModel
 
 
 class LocalBaserowGroupedAggregateRowsUserServiceType(
     LocalBaserowTableServiceFilterableMixin,
-    LocalBaserowTableServiceSortableMixin,
     LocalBaserowViewServiceType,
 ):
     """
@@ -62,10 +55,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     type = "local_baserow_grouped_aggregate_rows"
     model_class = LocalBaserowGroupedAggregateRows
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
-    serializer_mixins = (
-        LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
-        + LocalBaserowTableServiceSortableMixin.mixin_serializer_mixins
-    )
+    serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
     def get_schema_name(self, service: LocalBaserowGroupedAggregateRows) -> str:
         return f"GroupedAggregation{service.id}Schema"
@@ -80,7 +70,9 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             super()
             .enhance_queryset(queryset)
             .prefetch_related(
-                "service_aggregation_series", "service_aggregation_group_bys"
+                "service_aggregation_series",
+                "service_aggregation_group_bys",
+                "service_aggregation_sorts",
             )
         )
 
@@ -96,20 +88,21 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         return (
             super().serializer_field_names
             + LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_names
-            + LocalBaserowTableServiceSortableMixin.mixin_serializer_field_names
-        ) + ["aggregation_series", "aggregation_group_bys"]
+        ) + ["aggregation_series", "aggregation_group_bys", "aggregation_sorts"]
 
     @property
     def serializer_field_overrides(self):
         return {
             **super().serializer_field_overrides,
             **LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_overrides,
-            **LocalBaserowTableServiceSortableMixin.mixin_serializer_field_overrides,
             "aggregation_series": LocalBaserowTableServiceAggregationSeriesSerializer(
                 many=True, source="service_aggregation_series", required=False
             ),
             "aggregation_group_bys": LocalBaserowTableServiceAggregationGroupBySerializer(
                 many=True, source="service_aggregation_group_bys", required=False
+            ),
+            "aggregation_sorts": LocalBaserowTableServiceAggregationSortBySerializer(
+                many=True, source="service_aggregation_sorts", required=False
             ),
         }
 
@@ -119,6 +112,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     ):
         service_aggregation_series: list[ServiceAggregationSeriesDict]
         service_aggregation_group_bys: list[ServiceAggregationGroupByDict]
+        service_aggregation_sorts: list[ServiceAggregationSortByDict]
 
     def _update_service_aggregation_series(
         self,
@@ -224,48 +218,43 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     ]
                 )
 
-    def _update_service_sortings(
+    def _update_service_sorts(
         self,
         service: LocalBaserowGroupedAggregateRows,
-        service_sorts: list[ServiceSortDictSubClass] | None = None,
+        service_sorts: list[ServiceAggregationSortByDict] | None = None,
     ):
         with atomic_if_not_already():
-            service.service_sorts.all().delete()
+            service.service_aggregation_sorts.all().delete()
             if service_sorts is not None:
-                table_field_ids = service.table.field_set.values_list("id", flat=True)
                 model = service.table.get_model()
 
-                allowed_sort_field_ids = [
-                    series.field_id
+                allowed_sort_references = [
+                    f"field_{series.field_id}_{series.aggregation_type}"
                     for series in service.service_aggregation_series.all()
+                    if series.aggregation_type is not None
+                    and series.field_id is not None
                 ]
 
                 if service.service_aggregation_group_bys.count() > 0:
                     group_by = service.service_aggregation_group_bys.all()[0]
-                    allowed_sort_field_ids += (
-                        [group_by.field_id]
+                    allowed_sort_references += (
+                        [f"field_{group_by.field_id}"]
                         if group_by.field_id is not None
-                        else [model.get_primary_field().id]
+                        else [f"field_{model.get_primary_field().id}"]
                     )
 
                 def validate_sort(service_sort):
-                    if service_sort["field"].id not in table_field_ids:
+                    if service_sort["reference"] not in allowed_sort_references:
                         raise DRFValidationError(
-                            detail=f"The field with ID {service_sort['field'].id} is not "
-                            "related to the given table.",
-                            code="invalid_field",
-                        )
-                    if service_sort["field"].id not in allowed_sort_field_ids:
-                        raise DRFValidationError(
-                            detail=f"The field with ID {service_sort['field'].id} cannot be used for sorting.",
-                            code="invalid_field",
+                            detail=f"The reference sort '{service_sort['reference']}' cannot be used for sorting.",
+                            code="invalid",
                         )
 
                     return True
 
-                LocalBaserowTableServiceSort.objects.bulk_create(
+                LocalBaserowTableServiceAggregationSortBy.objects.bulk_create(
                     [
-                        LocalBaserowTableServiceSort(
+                        LocalBaserowTableServiceAggregationSortBy(
                             **service_sort, service=service, order=index
                         )
                         for index, service_sort in enumerate(service_sorts)
@@ -290,8 +279,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             self._update_service_aggregation_group_bys(
                 instance, values.pop("service_aggregation_group_bys")
             )
-        if "service_sorts" in values:
-            self._update_service_sortings(instance, values.pop("service_sorts"))
+        if "service_aggregation_sorts" in values:
+            self._update_service_sorts(
+                instance, values.pop("service_aggregation_sorts")
+            )
 
     def after_update(
         self,
@@ -328,10 +319,12 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         elif from_table and to_table:
             instance.service_aggregation_group_bys.all().delete()
 
-        if "service_sorts" in values:
-            self._update_service_sortings(instance, values.pop("service_sorts"))
+        if "service_aggregation_sorts" in values:
+            self._update_service_sorts(
+                instance, values.pop("service_aggregation_sorts")
+            )
         elif from_table and to_table:
-            instance.service_sorts.all().delete()
+            instance.service_aggregation_sorts.all().delete()
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
@@ -382,16 +375,6 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             **kwargs,
         )
 
-    def get_dispatch_sorts(
-        self,
-        service: LocalBaserowGroupedAggregateRows,
-        queryset: QuerySet,
-        model: Type["GeneratedTableModel"],
-    ) -> tuple[list[OrderBy], QuerySet]:
-        service_sorts = service.service_sorts.all()
-        sort_ordering = [service_sort.get_order_by() for service_sort in service_sorts]
-        return sort_ordering, queryset
-
     def dispatch_data(
         self,
         service: LocalBaserowGroupedAggregateRows,
@@ -411,24 +394,6 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         table = resolved_values["table"]
         model = self.get_table_model(service)
         queryset = self.build_queryset(service, table, dispatch_context, model=model)
-
-        allowed_sort_field_ids = [
-            series.field_id for series in service.service_aggregation_series.all()
-        ]
-
-        if service.service_aggregation_group_bys.count() > 0:
-            group_by = service.service_aggregation_group_bys.all()[0]
-            allowed_sort_field_ids += (
-                [group_by.field_id]
-                if group_by.field_id is not None
-                else [model.get_primary_field().id]
-            )
-
-        for sort_by in service.service_sorts.all():
-            if sort_by.field_id not in allowed_sort_field_ids:
-                raise ServiceImproperlyConfigured(
-                    f"The field with ID {sort_by.field.id} cannot be used for sorting."
-                )
 
         group_by_values = []
         for group_by in service.service_aggregation_group_bys.all():
@@ -482,6 +447,54 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 queryset = queryset.annotate(**value.annotations)
                 combined_agg_dict[key] = value.aggregation
 
+        allowed_sort_references = [
+            f"field_{series.field_id}_{series.aggregation_type}"
+            for series in service.service_aggregation_series.all()
+            if series.aggregation_type is not None and series.field_id is not None
+        ]
+
+        if service.service_aggregation_group_bys.count() > 0:
+            group_by = service.service_aggregation_group_bys.all()[0]
+            allowed_sort_references += (
+                [f"field_{group_by.field_id}"]
+                if group_by.field_id is not None
+                else [f"field_{model.get_primary_field().id}"]
+            )
+
+        sorts = []
+        sort_annotations = {}
+        for sort_by in service.service_aggregation_sorts.all():
+            if sort_by.reference not in allowed_sort_references:
+                raise ServiceImproperlyConfigured(
+                    f"The sort reference '{sort_by.reference}' cannot be used for sorting."
+                )
+
+            if sort_by.sort_on == "SERIES":
+                expression = F(f"{sort_by.reference}_raw")
+                if sort_by.direction == "ASC":
+                    expression = expression.asc(nulls_first=True)
+                else:
+                    expression = expression.desc(nulls_last=True)
+                sorts.append(expression)
+            else:
+                field_obj = model.get_field_object(sort_by.reference)
+                field_type = field_obj["type"]
+                field_annotated_order_by = field_type.get_order(
+                    field=field_obj["field"],
+                    field_name=sort_by.reference,
+                    order_direction=sort_by.direction,
+                )
+                if field_annotated_order_by.annotation is not None:
+                    sort_annotations = {
+                        **sort_annotations,
+                        **field_annotated_order_by.annotation,
+                    }
+                field_order_bys = field_annotated_order_by.order_bys
+                for field_order_by in field_order_bys:
+                    sorts.append(field_order_by)
+
+        queryset = queryset.annotate(**sort_annotations)
+
         def process_individual_result(result: dict):
             for agg_series in defined_agg_series:
                 key = f"{agg_series.field.db_column}_{agg_series.aggregation_type}"
@@ -495,9 +508,12 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             return result
 
         if len(group_by_values) > 0:
-            queryset = queryset.annotate(**combined_agg_dict)[
+            queryset = queryset.annotate(**combined_agg_dict)
+            queryset = queryset.order_by(*sorts)
+            queryset = queryset[
                 : settings.BASEROW_ENTERPRISE_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
             ]
+
             results = [process_individual_result(result) for result in queryset]
         else:
             results = queryset.aggregate(**combined_agg_dict)

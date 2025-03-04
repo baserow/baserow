@@ -101,8 +101,8 @@
     </AggregationGroupByForm>
     <AggregationSortByForm
       v-if="values.table_id && !fieldHasErrors('table_id')"
-      :aggregation-sorts="values.sortings"
-      :allowed-sort-fields="allowedSortFields"
+      :aggregation-sorts="values.aggregation_sorts"
+      :allowed-sort-references="allowedSortReferences"
       @value-changed="onSortByUpdated($event)"
     >
     </AggregationSortByForm>
@@ -161,14 +161,14 @@ export default {
         'view_id',
         'aggregation_series',
         'aggregation_group_bys',
-        'sortings',
+        'aggregation_sorts',
       ],
       values: {
         table_id: null,
         view_id: null,
         aggregation_series: [],
         aggregation_group_bys: [],
-        sortings: [],
+        aggregation_sorts: [],
       },
       tableLoading: false,
       databaseSelectedId: null,
@@ -201,6 +201,9 @@ export default {
     tableFields() {
       return this.tableSelected?.fields || []
     },
+    primaryTableField() {
+      return this.tableFields.find((item) => item.primary === true)
+    },
     tableFieldIds() {
       return this.tableFields.map((field) => field.id)
     },
@@ -214,17 +217,35 @@ export default {
     tableViewIds() {
       return this.tableViews.map((view) => view.id)
     },
-    allowedSortFields() {
-      const seriesFieldIds = this.values.aggregation_series.map(
-        (item) => item.field_id
+    allowedSortReferences() {
+      const seriesSortReferences = this.values.aggregation_series
+        .filter((item) => item.field_id && item.aggregation_type)
+        .map((item) => {
+          const field = this.getTableFieldById(item.field_id)
+          return {
+            sort_on: 'SERIES',
+            reference: `field_${item.field_id}_${item.aggregation_type}`,
+            field,
+            name: `${field.name} (${this.getAggregationName(
+              item.aggregation_type
+            )})`,
+          }
+        })
+      const groupBySortReferences = this.values.aggregation_group_bys.map(
+        (item) => {
+          const field =
+            item.field_id === null
+              ? this.primaryTableField
+              : this.getTableFieldById(item.field_id)
+          return {
+            sort_on: 'GROUP_BY',
+            reference: `field_${field.id}`,
+            field,
+            name: field.name,
+          }
+        }
       )
-      const groupByFieldIds = this.values.aggregation_group_bys.map(
-        (item) => item.field_id
-      )
-      const allowedFieldIds = seriesFieldIds.concat(groupByFieldIds)
-      return this.tableFields.filter((item) => {
-        return allowedFieldIds.includes(item.id)
-      })
+      return seriesSortReferences.concat(groupBySortReferences)
     },
   },
   watch: {
@@ -280,22 +301,44 @@ export default {
     }
   },
   methods: {
+    getTableFieldById(fieldId) {
+      return this.tableFields.find((tableField) => {
+        return tableField.id === fieldId
+      })
+    },
+    getAggregationName(aggregationType) {
+      const aggType = this.$registry.get('groupedAggregation', aggregationType)
+      return aggType.getName()
+    },
     changeTableId(tableId) {
       this.values.table_id = tableId
       this.values.view_id = null
       this.values.aggregation_series = []
       this.values.aggregation_group_bys = []
-      this.values.sortings = []
+      this.values.aggregation_sorts = []
       this.v$.values.table_id.$touch()
     },
-    addSeries() {
+    async addSeries() {
+      this.setEmitValues(false)
       this.values.aggregation_series.push({
         field_id: null,
         aggregation_type: '',
       })
+      this.$emit('values-changed', {
+        aggregation_series: this.values.aggregation_series,
+      })
+      await this.$nextTick()
+      this.setEmitValues(true)
     },
-    deleteSeries(index) {
-      this.values.aggregation_series.splice(index, 1)
+    async deleteSeries(index) {
+      this.setEmitValues(false)
+      const updatedAggregationSeries = this.values.aggregation_series
+      updatedAggregationSeries.splice(index, 1)
+      this.$emit('values-changed', {
+        aggregation_series: updatedAggregationSeries,
+      })
+      await this.$nextTick()
+      this.setEmitValues(true)
     },
     onAggregationSeriesUpdated(index, aggregationSeriesValues) {
       const updatedAggregationSeries = this.values.aggregation_series
@@ -315,10 +358,10 @@ export default {
         aggregation_group_bys: aggregationGroupBys,
       })
     },
-    onSortByUpdated(sortBy) {
-      const aggregationSorts = sortBy.field !== null ? [sortBy] : []
+    onSortByUpdated(sort) {
+      const aggregationSorts = sort !== null ? [sort] : []
       this.$emit('values-changed', {
-        sortings: aggregationSorts,
+        aggregation_sorts: aggregationSorts,
       })
     },
   },
