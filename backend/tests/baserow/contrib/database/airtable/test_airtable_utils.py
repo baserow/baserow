@@ -1,6 +1,7 @@
 import pytest
 
 from baserow.contrib.database.airtable.utils import (
+    airtable_date_filter_value_to_baserow,
     extract_share_id_from_url,
     get_airtable_column_name,
     get_airtable_row_primary_value,
@@ -271,3 +272,29 @@ def test_quill_to_markdown_airtable_example_two_lists():
 - ~Item~
 - [link](https://airtable.com)"""
     )
+
+
+def test_airtable_date_filter_value_to_baserow():
+    assert (
+        airtable_date_filter_value_to_baserow(
+            {
+                "mode": "exactDate",
+                "exactDate": "2025-02-05T00:00:00.000Z",
+                "timeZone": "Europe/Amsterdam",
+                "shouldUseCorrectTimeZoneForFormulaicColumn": True,
+            }
+        )
+        == "Europe/Amsterdam?2025-02-05?exact_date"
+    )
+
+
+def test_airtable_invalid_date_filter_value_to_baserow():
+    with pytest.raises(KeyError):
+        assert airtable_date_filter_value_to_baserow(
+            {
+                "mode": "not_found",
+                "exactDate": "2025-02-05T00:00:00.000Z",
+                "timeZone": "Europe/Amsterdam",
+                "shouldUseCorrectTimeZoneForFormulaicColumn": True,
+            }
+        )

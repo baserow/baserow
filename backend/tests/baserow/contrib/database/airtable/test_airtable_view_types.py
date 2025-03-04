@@ -1,7 +1,8 @@
 from copy import deepcopy
 
-import pytest
 from django.contrib.contenttypes.models import ContentType
+
+import pytest
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.import_report import (
