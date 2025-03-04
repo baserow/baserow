@@ -223,7 +223,8 @@
     "menuItemAddButton": "Button",
     "menuItemAddSeparator": "Separator",
     "menuItemAddSpacer": "Spacer",
-    "eventDescription": "To configure actions for this button, open the Events tab of this element."
+    "eventDescription": "To configure actions for this button, open the Events tab of this element.",
+    "noMenuItemsMessage": "Click 'Add' to add your first menu item."
   },
   "imageElement": {
     "missingValue": "Missing alt text...",

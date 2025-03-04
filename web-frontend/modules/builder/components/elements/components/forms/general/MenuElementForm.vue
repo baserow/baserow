@@ -54,6 +54,9 @@
         </ButtonText>
       </div>
     </div>
+    <p v-if="!values.menu_items.length">
+      {{ $t('menuElementForm.noMenuItemsMessage') }}
+    </p>
     <Context ref="menuItemAddContext" :hide-on-click-outside="true">
       <div class="menu-element-form__add-item-context">
         <ButtonText
