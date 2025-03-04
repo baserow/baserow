@@ -32,7 +32,7 @@
       ></WidgetContextMenu>
     </div>
     <div
-      class="dashboard-summary-widget__summary"
+      class="widget-content dashboard-summary-widget__summary"
       :class="{
         'dashboard-summary-widget__summary--misconfigured':
           dataSourceMisconfigured,

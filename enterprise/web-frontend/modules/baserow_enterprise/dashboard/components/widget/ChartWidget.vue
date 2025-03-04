@@ -31,8 +31,11 @@
         @delete-widget="$emit('delete-widget', $event)"
       ></WidgetContextMenu>
     </div>
-    <Chart :data-source="dataSource" :data-source-data="dataForDataSource">
-    </Chart>
+
+    <div class="widget-content">
+      <Chart :data-source="dataSource" :data-source-data="dataForDataSource">
+      </Chart>
+    </div>
   </div>
 </template>
 

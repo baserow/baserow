@@ -3,18 +3,17 @@
   flex-direction: row;
   align-items: start;
   gap: 7px;
-}
-
-.widget-header__main {
-  padding-top: 24px;
-  overflow: hidden;
+  padding: 20px 24px;
+  border-bottom: 1px solid $palette-neutral-200;
+  position: relative;
 }
 
 .widget-header__context-menu {
-  flex-grow: 1;
-  text-align: right;
-  margin: 6px -14px 0 7px;
+  margin-left: auto;
   width: 46px;
+  position: absolute;
+  right: 0;
+  top: 8px;
 }
 
 .widget-header__title-wrapper {
@@ -54,4 +53,8 @@
   border-radius: 80px;
   background: #fff2f0;
   white-space: nowrap;
+}
+
+.widget-content {
+  padding: 20px;
 }
