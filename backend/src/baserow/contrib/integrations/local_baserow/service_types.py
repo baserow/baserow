@@ -62,6 +62,9 @@ from baserow.contrib.database.views.exceptions import (
     ViewDoesNotExist,
 )
 from baserow.contrib.database.views.service import ViewService
+from baserow.contrib.database.views.view_aggregations import (
+    DistributionViewAggregationType,
+)
 from baserow.contrib.integrations.local_baserow.api.serializers import (
     LocalBaserowTableServiceFieldMappingSerializer,
 )
@@ -1240,6 +1243,10 @@ class LocalBaserowAggregateRowsUserServiceType(
     dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
+    # Local Baserow aggregate rows does not currently support the distribution
+    # aggregation type, this will be resolved in a future release.
+    unsupported_aggregation_types = [DistributionViewAggregationType.type]
+
     def get_schema_name(self, service: LocalBaserowAggregateRows) -> str:
         """
         The Local Baserow aggregation schema name added to the `title` in
@@ -1378,6 +1385,19 @@ class LocalBaserowAggregateRowsUserServiceType(
         # The table and view will be prepared in the parent
         values = super().prepare_values(values, user, instance)
 
+        # Aggregation types are always checked for compatibility
+        # no matter if they have been already set previously
+        aggregation_type = values.get(
+            "aggregation_type", getattr(instance, "aggregation_type", "")
+        )
+
+        if aggregation_type in self.unsupported_aggregation_types:
+            raise DRFValidationError(
+                detail=f"The {aggregation_type} aggregation type "
+                "is not currently supported.",
+                code="unsupported_aggregation_type",
+            )
+
         if "table" in values:
             # Reset the field if the table has changed
             if (
@@ -1406,12 +1426,6 @@ class LocalBaserowAggregateRowsUserServiceType(
                         "related to the given table.",
                         code="invalid_field",
                     )
-
-            # Aggregation types are always checked for compatibility
-            # no matter if they have been already set previously
-            aggregation_type = values.get(
-                "aggregation_type", getattr(instance, "aggregation_type", "")
-            )
 
             if aggregation_type and field:
                 agg_type = field_aggregation_registry.get(aggregation_type)
