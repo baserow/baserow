@@ -72,7 +72,7 @@ AIRTABLE_DATE_FILTER_VALUE_MAP = {
     "pastMonth": "{timeZone}?1?nr_months_ago",
     "pastNumberOfDays": "{timeZone}?{numberOfDays}?nr_days_ago",
     "pastWeek": "{timeZone}?1?nr_weeks_ago",
-    "pastYear": "{timeZone}??nr_years_ago",
+    "pastYear": "{timeZone}?1?nr_years_ago",
     "thisCalendarYear": "{timeZone}?0?nr_years_ago",
     "tomorrow": "{timeZone}??tomorrow",
     "yesterday": "{timeZone}??yesterday",
